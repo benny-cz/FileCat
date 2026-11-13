@@ -40,6 +40,21 @@ internal static class ArchiveEditDualRootCases
             Assert.Equal(savedNew,Assert.Single(store.LoadAll(),entry=>entry.Id==fresh.Id));
             Assert.True(File.Exists(Path.Combine(oldRoot,old.Id,"session.json")));
             Assert.True(File.Exists(Path.Combine(newRoot,fresh.Id,"session-state-0000000000000000001.json")));
+            // The route the application calls for an edit made before the listing: reviewed, then discarded while the
+            // native root is composed. It must be done before the misplaced copies below, which make an id ambiguous and
+            // so refuse this route on purpose.
+            using var secondSource=new MemoryContentSource("old2.txt","second old working bytes"u8.ToArray());
+            var second=oldStore.CreateRemote("old2","old2","/old2.txt",secondSource,secondSource.GetRevision()!.Value,null,ct);
+            Assert.Equal(3,store.LoadAll().Count);
+            var reviewedSecond=store.ReviewWorking(second,new LocalFileSystemProvider());
+            Assert.Equal(EditState.Unchanged,reviewedSecond.State);
+            var discardedSecond=store.DiscardReviewed(second,reviewedSecond,ct);
+            Assert.True(discardedSecond.Complete);
+            Assert.False(Directory.Exists(Path.Combine(oldRoot,second.Id)));
+            Assert.False(File.Exists(second.WorkingPath));
+            Assert.Equal(2,store.LoadAll().Count);
+            Assert.True(File.Exists(old.WorkingPath));Assert.True(File.Exists(fresh.WorkingPath));
+
             string wrongOld=Directory.CreateDirectory(Path.Combine(newRoot,old.Id)).FullName;
             File.Copy(Path.Combine(oldRoot,old.Id,"session.json"),Path.Combine(wrongOld,"session.json"));
             string wrongNew=Directory.CreateDirectory(Path.Combine(oldRoot,fresh.Id)).FullName;

@@ -1090,10 +1090,11 @@ public sealed partial class MainViewModel
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            // A refusal already says what FileCat will not do and what it keeps; only a failed deletion suggests the editor.
+            // A refusal already says what FileCat will not do and what it keeps; only a failed deletion suggests the
+            // editor. Both carry a path from FileCat's own folder, which holds the member's name, so both are sanitized.
             if (EditSessionsActive)
                 Notify(ex is NotSupportedException ? Formatters.SafeName(ex.Message)
-                    : $"The working copy could not be deleted (is it still open in the editor?): {ex.Message}", true);
+                    : "The working copy could not be deleted (is it still open in the editor?): " + Formatters.SafeName(ex.Message), true);
         }
         finally { _sessionActions.Remove(session.Id); }
     }

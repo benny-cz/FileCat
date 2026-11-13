@@ -182,8 +182,9 @@ beside an older legacy one and both load. macOS (App 2,812, Core 580), Ubuntu (A
 win-x64 (NTFS), linux-x64 (ext4) and osx-arm64 (APFS) ordinary startup composes this store, so a new edit is kept in
 FileCat's own identity-bound folder; everywhere else the legacy store stays, including where FileCat's own data folder
 is on another file system, is reached through a link, or cannot be held privately. An edit made before the listing stays
-in the legacy folder, commits through its own route, and is still discarded through the legacy store's bound removal
-(`a4606689`). The routes, their evidence and the three-platform runs behind them are in the
+in the legacy folder, commits through its own route, and is still discarded through the legacy store's own removal
+(`a4606689`), which corrects "Legacy discard still refuses when native storage is present" above: that was this
+store's behaviour until the listing, and the refusal is now only for a native record, whose removal is exact. The routes, their evidence and the three-platform runs behind them are in the
 [route decision](RELEASE_ROUTE_DECISION.md) and the [status](IMPLEMENTATION_STATUS.md). `NativeEditStorageTests` now pin those three routes and their
 evidence IDs instead of an empty list, and `EditStoreCompositionTests` require native composition in a qualification
 run. Adoption itself is unchanged and still unreachable from ordinary startup: an older edit is never migrated, only

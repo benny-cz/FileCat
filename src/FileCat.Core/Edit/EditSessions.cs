@@ -1109,9 +1109,12 @@ public sealed partial class EditSessionStore
         if (!record.IsSupported) throw new NotSupportedException("Unsupported edit-session directories are kept for manual recovery.");
         if(record.StorageRootIdentity.Length!=0)
             throw new NotSupportedException("This edit needs native cleanup ownership before it can be discarded. Its working files are kept.");
-        // A legacy session's folder is removed object by object, bound to what FileCat made (R21: EditPrivateCleanup),
-        // whether or not this store also has a native root: an edit made before the native store was listed stays
-        // discardable, and its folder is never reached by pathname.
+        // The target is this store's legacy root and a validated id, so a native root's existence changes nothing about
+        // it: an edit made before the native store was listed stays discardable, exactly as it was before the listing.
+        // The removal is the legacy store's own (R21: EditPrivateCleanup): on Windows through verified directory
+        // handles bound to what FileCat made; on Unix, which has no conditional unlink of a held inode, by pathname
+        // inside a folder only this user can change (UNIX_PRIVATE_CLEANUP_DECISION.md). A native record is refused
+        // above, because its removal is exact and belongs to the native store.
         if (EditPrivateCleanup.DeleteOwnedFolder(fs, SessionDirectory(record)) is { } kept) throw new IOException(kept);
     }
 

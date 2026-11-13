@@ -27,7 +27,8 @@ gained what a stopped F4 does, the “Remove unfinished copy” consent text no 
 boundary's accepted residual denies, and five component records that still said ordinary startup composes no native
 edit store were corrected.
 
-`a4606689` then passed on all three platforms, each package built from a clean checkout of it:
+`a4606689` then ran on all three platforms, each package built from a clean checkout of it, and every lane passed but
+one Windows case, described below:
 
 | Platform | Full regression (passed) | Package route tests |
 |---|---|---|
@@ -43,8 +44,9 @@ leave the overflow and then reads its bounds, so it reads them before the layout
 class passed 3 of 3 alone at the same commit. Left for its own change: wait for the bounds, not for the overflow.
 
 Each of the three full regressions ran with `FILECAT_EDIT_NATIVE_REQUIRED=1`; the package route lanes carry their own
-variables. The Windows installed layout was staged into Program Files before the chain, from the host with the
-account's full token, as the installer does, so the lane itself could run unelevated (its staging log is evidence).
+variables. The Windows installed layout was staged into Program Files before the chain, from the host and
+elevated, as an installer is: that folder cannot be made by an unelevated process, while the lane that then reads it
+must not be elevated. Its staging log, which records both, is evidence.
 The release manifest is [release-manifest-a4606689.json](release-manifest-a4606689.json): the same shape as the
 listing commit's, with the three edit-storage routes under their own evidence IDs, a Windows package log of its own
 (so those hashes rest on sealed evidence too), 14 packages and 21 evidence files.
@@ -100,12 +102,12 @@ Two tests failed once each, both away from edit storage, and both passed again a
 
 The Windows installed-layout lane was rerun for a reason of its own: the chain's staging step could not make
 `C:\Program Files\FileCatRouteTest` without elevation, so the assets folder it named did not exist and its twelve cases
-failed before testing anything. The payload was then staged there from the host with the account's full token, as the
-installer does, which gives it that folder's own access list — including read and execute for *restricted* application
+failed before testing anything. The payload was then staged there from the host, elevated as an installer
+is, which gives it that folder's own access list — including read and execute for *restricted* application
 packages, which is what this lane's workers depend on, since a package route lane grants them nothing itself (no case
 asserts the list) — and the lane passed 12 of 12, unelevated. The chain log keeps both attempts; the lane's own evidence
-is the rerun's, which replaced the first attempt's, so the twelve failures are in that log rather than in a kept run
-folder.
+is the rerun's, which replaced the first attempt's, so what that log holds is the cause of those twelve failures
+rather than their results.
 
 The release manifest of the listing commit is [release-manifest-fda3f03c.json](release-manifest-fda3f03c.json):
 commit, profiles, record schemas, worker protocol, the 30 archive routes and the three edit-storage routes with their
