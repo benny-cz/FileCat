@@ -10,47 +10,60 @@ public sealed partial class EditSessionStore
     {
         void Check(){ct.ThrowIfCancellationRequested();check?.Invoke();}
         Check();using var admission=EditSnapshotAdmission.Acquire(ct);using var root=OpenNativeRoot(ct,false);
-        using var allocation=EditStorageAdmission.Acquire(root,ct);
-        using var session=root.OpenDirectory(record.Id,record.SessionDirectoryIdentity,ct);RequireStorage(record,root,session);
-        using var source=OpenNativeWorking(record,ct);
-        var revision=source.GetRevision()??throw new IOException("The working copy has no native version.");
-        admission.ReserveBytes(revision.Length);
-        var origin=source.ReadOrigin();Check();
-        var usage=MeasureNativeStorageUsage(root,storageLimits,ct);
-        allocation.Require(usage,storageLimits,0,1,6,checked(revision.Length+2L*MaxRecordBytes),5*EditStorageAdmission.MetadataPerEntry,
-            checked(revision.Length+EditStorageAdmission.CaptureContingency),checked(revision.Length+2L*MaxRecordBytes),ct);
-        if(source.GetRevision()!=revision)throw new IOException("The working file changed during storage admission.");
-        var capture=session.CreateDirectory("commit-"+Guid.NewGuid().ToString("N"),ct,removable:true);
-        EditDirectoryLease? files=null;FileStream? output=null;var records=new List<EditPublishedRecord>(2);
+        // The gate admits this copy and covers the objects it makes; the bytes are copied without it, so a large member
+        // or a slow read never holds up another edit (a creation has worked this way since `ef5c36d1`). While it is down
+        // every process charges this capture as its record says it was admitted, not as the folder measures while it
+        // grows. Publishing takes the gate again, and waits longer for it: the bytes are already made.
+        var allocation=EditStorageAdmission.Acquire(root,ct);
         try
         {
-            files=capture.CreateDirectory("files",ct,removable:true);
-            string leaf=Path.GetFileName(record.WorkingPath),path=Path.Combine(files.Path,leaf);
-            records.Add(CreateRecordBytes(capture,"capture.json",JsonSerializer.SerializeToUtf8Bytes(new{Version=1,Session=record.Id,
-                SessionRecord=record.StoredRecordSha256,Directory=capture.Identity,Files=files.Identity,Leaf=leaf},Json),ct));
-            output=files.CreateFile(leaf,ct);
-            FileStream Borrow(long length)
-            {if(length!=revision.Length)throw new IOException("The snapshot exceeds its storage reservation.");return new(new SafeFileHandle(output.SafeFileHandle.DangerousGetHandle(),ownsHandle:false),FileAccess.ReadWrite);}
-            var bytes=WriteWorkingCopy(source,path,ct,revision,check:Check,outputFactory:Borrow);
-            output.Flush(true);files.CopyOrigin(output,leaf,origin,ct);
-            File.SetLastWriteTimeUtc(output.SafeFileHandle,new DateTime(revision.ModifiedTicks,DateTimeKind.Utc));output.Flush(true);
-            var observed=files.ObserveSnapshot(output,leaf,ct);
-            if(observed.Version.Sha256!=bytes.Sha256||observed.Version.Length!=bytes.Length||source.GetRevision()!=revision||source.ReadOrigin().Digest!=origin.Digest)
-                throw new IOException("The working file or private snapshot changed during complete capture.");
-            Check();source.Dispose();
-            records.Add(CreateRecordBytes(capture,"captured.json",JsonSerializer.SerializeToUtf8Bytes(new{Version=1,Session=record.Id,
-                SessionRecord=record.StoredRecordSha256,Directory=capture.Identity,Files=files.Identity,Leaf=leaf,
-                Identity=observed.Version.Identity,Length=bytes.Length,Sha256=bytes.Sha256,Metadata=observed.MetadataDigest,Origin=origin.Digest},Json),ct));
-            Check();allocation.Review(ct);string rootIdentity=root.Identity;
-            var snapshot=new NativeEditSnapshot(capture,files,output,observed,records.ToArray(),record,admission,
-                token=>OpenCaptureMutation(rootIdentity,token));
-            var result=new EditCommitCopy(snapshot,bytes.Crc,TrackLiveCapture(record.Id));admission.Transfer();return result;
+            using var session=root.OpenDirectory(record.Id,record.SessionDirectoryIdentity,ct);RequireStorage(record,root,session);
+            using var source=OpenNativeWorking(record,ct);
+            var revision=source.GetRevision()??throw new IOException("The working copy has no native version.");
+            admission.ReserveBytes(revision.Length);
+            var origin=source.ReadOrigin();Check();
+            var usage=MeasureNativeStorageUsage(root,storageLimits,ct);
+            allocation.Require(usage,storageLimits,0,1,6,checked(revision.Length+2L*MaxRecordBytes),5*EditStorageAdmission.MetadataPerEntry,
+                checked(revision.Length+EditStorageAdmission.CaptureContingency),checked(revision.Length+2L*MaxRecordBytes),ct);
+            if(source.GetRevision()!=revision)throw new IOException("The working file changed during storage admission.");
+            var capture=session.CreateDirectory("commit-"+Guid.NewGuid().ToString("N"),ct,removable:true);
+            EditDirectoryLease? files=null;FileStream? output=null;var records=new List<EditPublishedRecord>(2);
+            try
+            {
+                files=capture.CreateDirectory("files",ct,removable:true);
+                string leaf=Path.GetFileName(record.WorkingPath),path=Path.Combine(files.Path,leaf);
+                records.Add(CreateRecordBytes(capture,"capture.json",JsonSerializer.SerializeToUtf8Bytes(new{Version=2,Session=record.Id,
+                    SessionRecord=record.StoredRecordSha256,Directory=capture.Identity,Files=files.Identity,Leaf=leaf,
+                    Admitted=revision.Length},Json),ct));
+                output=files.CreateFile(leaf,ct);
+                // Everything this copy needs exists and is admitted: the gate goes, and comes back to publish the receipt.
+                allocation.Dispose();allocation=null;
+                FileStream Borrow(long length)
+                {if(length!=revision.Length)throw new IOException("The snapshot exceeds its storage reservation.");return new(new SafeFileHandle(output.SafeFileHandle.DangerousGetHandle(),ownsHandle:false),FileAccess.ReadWrite);}
+                var bytes=WriteWorkingCopy(source,path,ct,revision,check:Check,outputFactory:Borrow);
+                output.Flush(true);files.CopyOrigin(output,leaf,origin,ct);
+                File.SetLastWriteTimeUtc(output.SafeFileHandle,new DateTime(revision.ModifiedTicks,DateTimeKind.Utc));output.Flush(true);
+                var observed=files.ObserveSnapshot(output,leaf,ct);
+                if(observed.Version.Sha256!=bytes.Sha256||observed.Version.Length!=bytes.Length||source.GetRevision()!=revision||source.ReadOrigin().Digest!=origin.Digest)
+                    throw new IOException("The working file or private snapshot changed during complete capture.");
+                Check();source.Dispose();
+                // A copy whose bytes are made waits longer for the gate than one asking to start, rather than lose its work.
+                allocation=EditStorageAdmission.Acquire(root,ct,TimeSpan.FromMinutes(5));
+                records.Add(CreateRecordBytes(capture,"captured.json",JsonSerializer.SerializeToUtf8Bytes(new{Version=1,Session=record.Id,
+                    SessionRecord=record.StoredRecordSha256,Directory=capture.Identity,Files=files.Identity,Leaf=leaf,
+                    Identity=observed.Version.Identity,Length=bytes.Length,Sha256=bytes.Sha256,Metadata=observed.MetadataDigest,Origin=origin.Digest},Json),ct));
+                Check();allocation.Review(ct);string rootIdentity=root.Identity;
+                var snapshot=new NativeEditSnapshot(capture,files,output,observed,records.ToArray(),record,admission,
+                    token=>OpenCaptureMutation(rootIdentity,token));
+                var result=new EditCommitCopy(snapshot,bytes.Crc,TrackLiveCapture(record.Id));admission.Transfer();return result;
+            }
+            catch
+            {
+                try{output?.Dispose();}finally{try{foreach(var item in records)item.Dispose();}finally{try{files?.Dispose();}finally{capture.Dispose();}}}
+                throw; // All uncertain artifacts remain in the recorded session namespace.
+            }
         }
-        catch
-        {
-            try{output?.Dispose();}finally{try{foreach(var item in records)item.Dispose();}finally{try{files?.Dispose();}finally{capture.Dispose();}}}
-            throw; // All uncertain artifacts remain in the recorded session namespace.
-        }
+        finally{allocation?.Dispose();}
     }
 
     // Sessions whose native commit capture is live in this process, counted until each copy is disposed.

@@ -18,7 +18,8 @@ internal static class ArchiveEditStorageAdmissionCases
         "cancel-before","cancel-wait","same-process","other-root","process-contention","process-death","process-quota-race",
         "gate-content","gate-replaced","wrong-root","invalid-policy","intent-wait","intent-cancel-wait",
         "intent-gate-failure","cleanup-admission","cleanup-gate-failure","intent-cleanup-race",
-        "native-discard","native-discard-no-factory","native-discard-replaced","wrong-new-root-parent","gate-inspection-budget"}.Select(value=>new object[]{value});
+        "native-discard","native-discard-no-factory","native-discard-replaced","wrong-new-root-parent","gate-inspection-budget",
+        "capture-gate","capture-gate-admits"}.Select(value=>new object[]{value});
 
     internal static async Task Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations fs,string nativeAssembly)
     {
@@ -83,6 +84,50 @@ internal static class ArchiveEditStorageAdmissionCases
                     Assert.IsAssignableFrom<IOException>(Record.Exception(copies[0].Dispose));copies.Clear();
                     store=new EditSessionStore(path,fs,open);
                 }
+            }
+            if(scenario is "capture-gate" or "capture-gate-admits")
+            {
+                // A commit's capture holds the storage gate to admit its copy and to make its objects, not while the
+                // bytes are copied: another edit can be admitted then, and the capture is charged as its own record says
+                // it was admitted - never measured while it grows - with the free space its copy has yet to write.
+                bool down=false;EditStorageUsage? seen=null;EditSessionRecord? second=null;
+                using(var copy=store.PrepareCommit(record,fixture,ct,()=>
+                {
+                    if(down)return;
+                    try
+                    {
+                        using var gate=open(path,true,ct);
+                        using(EditStorageAdmission.Acquire(gate,ct,TimeSpan.Zero)) { }
+                    }
+                    catch(EditStorageBusyException){return;}
+                    down=true;seen=store.ReviewNativeStorageUsage(ct);
+                    if(scenario=="capture-gate-admits")second=Create(store,"second.txt");
+                }))
+                {
+                    Assert.True(down,"the capture held the storage gate while it copied");
+                    Assert.NotNull(seen);
+                    // Charged as admitted, apart from the bytes the store holds: the growing copy is not measured.
+                    Assert.True(seen.RunningPayloadBytes>=length,$"running payload {seen.RunningPayloadBytes} < {length}");
+                    Assert.True(seen.RunningEntries>=4,$"running entries {seen.RunningEntries}");
+                    Assert.True(seen.RunningMetadataBytes>0);Assert.Equal(1,seen.Captures);
+                    if(scenario=="capture-gate-admits")
+                    {
+                        Assert.NotNull(second);Assert.NotEqual(record.Id,second.Id);
+                        Assert.Equal(2,store.LoadAll().Count);
+                    }
+                    // Once the receipt is written the capture is an ordinary retained copy: measured, with its
+                    // reservation, and charged as running no longer. Its bytes appear only now, which is what "not
+                    // measured while it grows" means.
+                    var after=store.ReviewNativeStorageUsage(ct);
+                    Assert.Equal(0,after.RunningEntries);Assert.Equal(0,after.RunningPayloadBytes);
+                    Assert.Equal(0,after.RunningMetadataBytes);Assert.Equal(0,after.PendingBytes);
+                    Assert.True(after.PayloadBytes>seen.PayloadBytes,$"payload {after.PayloadBytes} after, {seen.PayloadBytes} during");
+                    Assert.True(after.ReservedBytes>=length+EditStorageAdmission.CaptureContingency);
+                }
+                // The copy is disposed with the capture: its folder goes, and nothing of it is charged.
+                var ended=store.ReviewNativeStorageUsage(ct);
+                Assert.Equal(0,ended.Captures);Assert.Equal(0,ended.RunningEntries);Assert.Equal(0,ended.PendingBytes);
+                return;
             }
             var before=Snapshot();
             if(scenario.StartsWith("native-discard",StringComparison.Ordinal))

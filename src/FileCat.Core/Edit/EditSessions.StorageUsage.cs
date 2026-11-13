@@ -85,7 +85,24 @@ public sealed partial class EditSessionStore
                 else if(level==1&&name.StartsWith("commit-",StringComparison.Ordinal))
                 {
                     if(name.Length!=39||!Guid.TryParseExact(name.AsSpan(7),"N",out _))throw Unknown();
-                    if(++captures>limits.Captures)throw Limit();Reserve(EditStorageAdmission.CaptureContingency);childDirectory=true;childLevel=2;
+                    if(++captures>limits.Captures)throw Limit();
+                    if(AdmittedCapture(directory,name) is { } room)
+                    {
+                        // A copy still being made (its record says how long it was admitted to be and its receipt is not
+                        // there): charged as it was admitted - its two folders, its record and its copy - and not measured
+                        // while it grows, so the review budget still judges what the store holds. Free space must hold
+                        // what it has yet to write. A capture an earlier build made, or one a crash left without this
+                        // field, is measured as before; one this build left is charged until its retained copy is
+                        // reviewed, which is what the user is asked to do.
+                        if(4>limits.Entries-entries)throw Limit();
+                        entries+=4;directories+=2;files+=2;
+                        runningEntries+=4;
+                        runningPayload=checked(runningPayload+room.Admitted);
+                        runningMetadata=checked(runningMetadata+3*EditStorageAdmission.MetadataPerEntry);
+                        pending=checked(pending+Math.Max(0,room.Admitted-(room.Written??0)));
+                        continue;
+                    }
+                    Reserve(EditStorageAdmission.CaptureContingency);childDirectory=true;childLevel=2;
                 }
                 else if(level is 1 or 2&&name=="files"){childDirectory=true;childLevel=3;}
                 if(childDirectory)
@@ -154,6 +171,28 @@ public sealed partial class EditSessionStore
             {if(attempt<2)Thread.Sleep(20);}
         }
         return (null,false);
+    }
+    // A capture folder that holds a copy still being made: its own record's admitted length (this build always records
+    // one) with no receipt beside it, and what its copy already holds. Null when the folder is not that - no record, an
+    // earlier build's record, a receipt already written, or anything this review cannot read, all of which are measured
+    // as the store's own bytes instead.
+    private static (long Admitted,long? Written)? AdmittedCapture(EditDirectoryLease session,string name)
+    {
+        try
+        {
+            using var capture=session.OpenStorageDirectory(name,default);
+            var names=capture.Names(default,8192);
+            if(names.Contains("captured.json",StringComparer.Ordinal)||!names.Contains("capture.json",StringComparer.Ordinal))return null;
+            using var record=capture.OpenSharedRecord("capture.json",default);
+            if(record.Length>MaximumCaptureRecordBytes)return null;
+            byte[] bytes=new byte[checked((int)record.Length)];record.ReadExactly(bytes);
+            var facts=ParseCaptureRecord(bytes,false);
+            if(facts.Admitted is not { } admitted)return null;
+            return (admitted,Written(capture,facts.Leaf).Length);
+        }
+        catch(Exception error)when(IsStorageFailure(error)||error is System.Text.Json.JsonException or ArgumentException or
+            InvalidOperationException or NotSupportedException)
+        {return null;}
     }
     private static IOException Limit()=>new("Retained edit storage exceeds this review budget. Review retained files before creating another copy.");
     private static IOException Unknown()=>new("The edit store contains an unrecognized namespace. Its files are kept for review.");

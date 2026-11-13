@@ -121,18 +121,23 @@ public sealed partial class EditSessionStore
     }
 
     private sealed record CaptureFacts(string Session,string SessionRecord,string Directory,string Files,string Leaf,
-        string? Identity=null,long? Length=null,string? Sha256=null,string? Metadata=null,string? Origin=null);
+        string? Identity=null,long? Length=null,string? Sha256=null,string? Metadata=null,string? Origin=null,long? Admitted=null);
 
     private static CaptureFacts ParseCaptureRecord(byte[] bytes,bool complete)
     {
         _=ArchiveWritePolicy.Utf8.GetCharCount(bytes);
         using var document=JsonDocument.Parse(bytes,new JsonDocumentOptions{MaxDepth=4});var value=document.RootElement;
+        // A capture's own record as this build writes it (with the length its copy was admitted to be, which the
+        // storage accounting charges while the copy is made without the gate), or as an earlier build wrote it.
         string[] expected=complete?["Version","Session","SessionRecord","Directory","Files","Leaf","Identity","Length","Sha256","Metadata","Origin"]:
-            ["Version","Session","SessionRecord","Directory","Files","Leaf"];
+            ["Version","Session","SessionRecord","Directory","Files","Leaf","Admitted"];
+        string[] earlier=["Version","Session","SessionRecord","Directory","Files","Leaf"];
         if(value.ValueKind!=JsonValueKind.Object)throw new IOException("Unknown capture record.");
-        var names=value.EnumerateObject().Select(property=>property.Name).ToArray();
-        if(!names.Order(StringComparer.Ordinal).SequenceEqual(expected.Order(StringComparer.Ordinal))||
-            value.GetProperty("Version").ValueKind!=JsonValueKind.Number||!value.GetProperty("Version").TryGetInt32(out int version)||version!=1)throw new IOException("Unknown capture record.");
+        var names=value.EnumerateObject().Select(property=>property.Name).Order(StringComparer.Ordinal).ToArray();
+        bool admittedRecorded=!complete&&names.SequenceEqual(expected.Order(StringComparer.Ordinal));
+        if(!(admittedRecorded||names.SequenceEqual((complete?expected:earlier).Order(StringComparer.Ordinal)))||
+            value.GetProperty("Version").ValueKind!=JsonValueKind.Number||!value.GetProperty("Version").TryGetInt32(out int version)||
+            version!=(admittedRecorded?2:1))throw new IOException("Unknown capture record.");
         string Text(string key,int maximum=1024)
         {
             var item=value.GetProperty(key);
@@ -147,7 +152,13 @@ public sealed partial class EditSessionStore
         }
         string leaf=Text("Leaf",255);EditDirectoryLease.ValidateLeaf(leaf);
         var facts=new CaptureFacts(Text("Session",32),DigestText("SessionRecord"),Text("Directory"),Text("Files"),leaf);
-        if(!complete)return facts;
+        if(!complete)
+        {
+            if(!admittedRecorded)return facts;
+            if(value.GetProperty("Admitted").ValueKind!=JsonValueKind.Number||!value.GetProperty("Admitted").TryGetInt64(out long room)||
+                room<0||room>MaxMemberBytes)throw new IOException("Invalid captured length.");
+            return facts with{Admitted=room};
+        }
         if(value.GetProperty("Length").ValueKind!=JsonValueKind.Number||!value.GetProperty("Length").TryGetInt64(out long length)||length<0||length>MaxMemberBytes)throw new IOException("Invalid captured length.");
         return facts with{Identity=Text("Identity"),Length=length,Sha256=DigestText("Sha256"),Metadata=DigestText("Metadata"),Origin=DigestText("Origin")};
     }

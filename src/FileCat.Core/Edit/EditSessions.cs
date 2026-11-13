@@ -868,12 +868,16 @@ public sealed partial class EditSessionStore
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException) { return new(CommitCheck.ArchiveMissing, null); }
     }
 
-    /// <summary>Capture one complete bounded working file before queueing, with hash/CRC from those same bytes.</summary>
-    public EditCommitCopy PrepareCommit(EditSessionRecord record, string tempRoot, CancellationToken ct = default)
+    /// <summary>
+    /// Capture one complete bounded working file before queueing, with hash/CRC from those same bytes.
+    /// <paramref name="check"/> is called as the copy proceeds, for a caller that wants to stop or stay responsive while
+    /// a large member is copied (the native copy runs without the storage gate).
+    /// </summary>
+    public EditCommitCopy PrepareCommit(EditSessionRecord record, string tempRoot, CancellationToken ct = default, Action? check = null)
     {
         RefuseElevatedSession();
         ct.ThrowIfCancellationRequested();
-        if(record.StorageRootIdentity.Length!=0)return PrepareNativeSnapshot(record,ct,null);
+        if(record.StorageRootIdentity.Length!=0)return PrepareNativeSnapshot(record,ct,check);
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
         CreatePrivateDirectory(directory);
         string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
@@ -882,7 +886,7 @@ public sealed partial class EditSessionStore
             // Editors that already hold a write handle cause a conservative sharing refusal on Windows.
             // Unix sharing is advisory: length/time checks still apply; this is not a hostile-writer snapshot guarantee.
             using var source = new CommitContent(record.WorkingPath);
-            var copy = WriteWorkingCopy(source, path, ct);
+            var copy = WriteWorkingCopy(source, path, ct, check: check);
             File.SetLastWriteTimeUtc(path, source.ModifiedUtc);
             if (fs.ReadOriginMark(record.WorkingPath) is { } mark) PreserveOriginMark(path, mark);
             ct.ThrowIfCancellationRequested();
