@@ -83,8 +83,9 @@ quarantined application created itself in Downloads (the eighth review's open ch
 
 12 November 2026: every archive-writing route in the tables above is listed, after the sixth independent review (no
 High or Medium finding; its Low findings fixed in `f4aa66a7`) and the seventh, of the listing itself, whose findings are
-fixed. The evidence IDs are `AWQ-win-x64-NTFS`, `AWQ-linux-x64-ext4` and `AWQ-osx-arm64-apfs`
-([status](IMPLEMENTATION_STATUS.md)). Native edit storage was not listed then: as the default store it changes what a
+fixed. The archive routes' evidence IDs are `AWQ-win-x64-NTFS`, `AWQ-linux-x64-ext4` and `AWQ-osx-arm64-apfs`
+([status](IMPLEMENTATION_STATUS.md)); the edit-storage routes shared them until `a4606689` gave them their own, below
+each route's (see below). Native edit storage was not listed then: as the default store it changes what a
 stopped F4 leaves behind, and the application's edit flows had not been qualified against it (ledger rows 4 and 8).
 The release candidate is `3781e7ae`: it passed on all three platforms with its package route tests, and its
 [release manifest](release-manifest-3781e7ae.json) records the routes, packages and evidence.

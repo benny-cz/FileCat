@@ -17,7 +17,7 @@ the original. An interrupted change can be finished or discarded from Interrupte
 **An edit of a member cleans up after itself.** F4 copies the member into FileCat's own private folder and opens your
 editor. If that copy is stopped, cancelled or fails, FileCat removes exactly what it had made and tells you anything it
 had to keep; if FileCat ends while it is copying, what is left is listed in File → Edit sessions as an incomplete edit,
-where you can look at the folder and remove the unfinished copy. A copy that may hold your own work is always kept. This
+where you can look at the folder and remove the unfinished copy. A copy FileCat cannot tell from your own work is kept. This
 applies where FileCat keeps its own data on one of the file systems above; elsewhere an interrupted edit keeps its copy
 as it did before.
 
@@ -58,9 +58,9 @@ archives on drives no route covers keep the old ZIP route, on every copy.
 
 Archive edit sessions created by this version use a newer record format, and on the listed routes they are kept in
 FileCat's own private folder (`edit-sessions-native`) beside the old one. An older FileCat keeps their working files on
-disk but does not know that folder, so it lists none of those sessions. An edit this version keeps in the legacy folder
-(a server file, a ZIP through the old route, or any edit where the native store is not composed) also uses the newer
-record format, which an older FileCat may not list. Sessions made before the upgrade stay where they were, and this
+disk but does not know that folder, so it lists none of those sessions. An edit this version keeps in the legacy folder - one made where the
+native store is not composed (an unlisted runtime or file system, a data folder reached through a link, or a folder
+FileCat cannot hold privately) - also uses the newer record format, which an older FileCat may not list. Sessions made before the upgrade stay where they were, and this
 version lists both folders. Archives are never rewritten back to an older form automatically; interrupted changes
 keep their retained files until they are resolved in a version that understands them. ZIP edit sessions made before the
 upgrade keep committing through the old ZIP route.

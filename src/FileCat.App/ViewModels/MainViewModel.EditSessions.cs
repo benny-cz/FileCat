@@ -631,8 +631,8 @@ public sealed partial class MainViewModel
             string named = session.DisplayName == session.Id ? "this unfinished copy" : $"the unfinished copy of \"{session.DisplayName}\"";
             if (!await Dialogs.ConfirmAsync("Remove unfinished copy",
                 $"Remove {named}? FileCat did not finish making it, so it should hold nothing you wrote, " +
-                "and the file it was copied from is not changed. FileCat checks its folder again, and keeps everything if the copy turns out " +
-                "to be complete or anything else is there.", "Remove", danger: true))
+                "and the file it was copied from is not changed. FileCat reviews its folder again first and keeps everything it cannot " +
+                "account for as its own unfinished work.", "Remove", danger: true))
                 return;
             CheckSessionAction();
             var result = await MutationIoAsync(Services.EditSessions.Root,

@@ -51,12 +51,18 @@ public sealed partial class EditSessionStore
             if(CreationHeldElsewhere(session))throw new IOException("Another FileCat window is still copying this edit.");
             var names=session.Names(ct,8192).ToArray();
             bool marked=names.Contains(CreationMarker,StringComparer.Ordinal);
-            // Anything else (a Finder .DS_Store, an editor's backup) is named for the user to remove first: FileCat removes
-            // only objects it can review as its own.
+            // Anything else (an editor's backup, say) is named for the user to remove first: FileCat removes only
+            // objects it can review as its own, and the desktop's own file is not one - it is written for anyone to
+            // read, which the removal's review refuses. FileCat's advice to open the working folder is what puts it
+            // there, so it is named for what it is, with the way out, instead of as something unknown.
             var other=names.Where(name=>name!=CreationMarker&&name!="files"&&!IsRecordStage(name)&&!IsSetAside(name)).ToArray();
             if(other.Length!=0)
-                throw new IOException("This folder also holds "+Listing(other)+", which "+(other.Length==1?"is":"are")+" not part of the unfinished copy: remove "+
-                    (other.Length==1?"it":"them")+" yourself if not needed, then try again. Its files are kept.");
+                throw new IOException(other.All(IsDesktopArtifact)
+                    ?"This folder also holds "+Listing(other)+", which the desktop wrote when the folder was opened, and FileCat removes only what it "+
+                        "made. Delete "+(other.Length==1?"that file":"those files")+" in the Finder (Command-Shift-Period shows hidden files), then try "+
+                        "again. Its files are kept."
+                    :"This folder also holds "+Listing(other)+", which "+(other.Length==1?"is":"are")+" not part of the unfinished copy: remove "+
+                        (other.Length==1?"it":"them")+" yourself if not needed, then try again. Its files are kept.");
             (string Name,ArchiveFileObservation Observed)? marker=null;string? leaf=null,filesIdentity=null;long? admitted=null;
             if(marked)
             {
@@ -76,8 +82,12 @@ public sealed partial class EditSessionStore
                 // The partly copied working file (none without a marker) and what an interrupted removal set aside.
                 var extra=entries.Where(name=>name!=leaf&&!IsSetAside(name)).ToArray();
                 if(extra.Length!=0)
-                    throw new IOException("The unfinished copy's working folder also holds "+Listing(extra)+": remove "+(extra.Length==1?"it":"them")+
-                        " yourself if not needed, then try again. Its files are kept.");
+                    throw new IOException(extra.All(IsDesktopArtifact)
+                        ?"The unfinished copy's working folder also holds "+Listing(extra)+", which the desktop wrote when the folder was opened, and "+
+                            "FileCat removes only what it made. Delete "+(extra.Length==1?"that file":"those files")+" in the Finder "+
+                            "(Command-Shift-Period shows hidden files), then try again. Its files are kept."
+                        :"The unfinished copy's working folder also holds "+Listing(extra)+": remove "+(extra.Length==1?"it":"them")+
+                            " yourself if not needed, then try again. Its files are kept.");
                 foreach(string name in entries)inside.Add((name,ReviewFile(files,name,MaxMemberBytes,out _)));
                 // A copy a creation did not finish is shorter than it was admitted to be. One that is already that long (or
                 // longer, so changed since; or whose marker does not say) is only an unfinished copy while its record was

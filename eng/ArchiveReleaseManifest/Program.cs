@@ -126,10 +126,16 @@ static class Program
             if (!evidence.Any(item => item.Id == (string?)package["evidence"]))
                 throw new ArgumentException("A remote package names evidence this manifest does not carry: " + package["evidence"]);
         // A listed route stands on its evidence: the manifest carries it under the route's ID, or under IDs below it
-        // ("AWQ-win-x64-NTFS/full" for "AWQ-win-x64-NTFS").
-        foreach (string id in ArchiveWriteRoutes.Qualified.Select(route => route.EvidenceId)
-            .Concat(NativeEditStorage.Qualified.Select(route => route.EvidenceId)).Distinct(StringComparer.Ordinal))
-            if (!evidence.Any(item => item.Id == id || item.Id.StartsWith(id + "/", StringComparison.Ordinal)))
+        // ("AWQ-win-x64-NTFS/full" for "AWQ-win-x64-NTFS"). An entry counts for the longest listed ID it is under, so a
+        // capability listed below a route ("AWQ-win-x64-NTFS/edit") never satisfies the route itself, nor the route's
+        // evidence that capability: each listed thing stands on evidence of its own.
+        string[] listedIds = ArchiveWriteRoutes.Qualified.Select(route => route.EvidenceId)
+            .Concat(NativeEditStorage.Qualified.Select(route => route.EvidenceId)).Distinct(StringComparer.Ordinal).ToArray();
+        string? Credited(string entry) => listedIds
+            .Where(id => entry == id || entry.StartsWith(id + "/", StringComparison.Ordinal))
+            .OrderByDescending(id => id.Length, Comparer<int>.Default).FirstOrDefault();
+        foreach (string id in listedIds)
+            if (!evidence.Any(item => Credited(item.Id) == id))
                 throw new ArgumentException("A listed route names evidence this manifest does not carry: " + id);
         File.WriteAllText(output, manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         Console.WriteLine($"Wrote {output}: commit {commit}, {payloads.Count} payloads, {packages.Count} packages, {evidence.Count} evidence files, " +

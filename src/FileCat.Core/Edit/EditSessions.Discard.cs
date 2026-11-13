@@ -21,7 +21,9 @@ public sealed partial class EditSessionStore
             // newer editor save or a replaced session from an earlier confirmation snapshot.
             void CheckLegacy(){ct.ThrowIfCancellationRequested();check?.Invoke();}
             CheckLegacy();
-            var current=LoadAll().Where(row=>row.Id==record.Id&&row.StorageRootIdentity.Length==0).Take(2).ToArray();
+            // Only this store's own legacy records count: a record copied into the native root loads as unsupported
+            // (it belongs to another storage root), and such a stray must not make this id ambiguous.
+            var current=LoadAll().Where(row=>row.IsSupported&&row.Id==record.Id&&row.StorageRootIdentity.Length==0).Take(2).ToArray();
             if(current.Length!=1||current[0]!=record)
                 throw new IOException("The old edit record changed. Reload it before discarding; its files are kept.");
             if(reviewed.State==EditState.Unavailable||ReviewWorking(record,new FileCat.Core.FileSystem.LocalFileSystemProvider(),CheckLegacy)!=reviewed)
@@ -120,7 +122,12 @@ public sealed partial class EditSessionStore
                 if(files.Identity!=record.WorkingDirectoryIdentity)throw new IOException("The working directory was replaced.");
                 var working=Node(files,"files");string leaf=Path.GetFileName(record.WorkingPath);
                 if(reviewed!.State==EditState.Missing)
-                {if(working.Names.Length!=0)throw new IOException("The missing working copy was replaced while discard was reviewed.");}
+                {
+                    // The copy's name is gone. Anything left in its folder is either FileCat's own interrupted work (a
+                    // set-aside name from a removal that stopped) or a file FileCat did not make; the shared message
+                    // tells them apart and says what to do, where "replaced" said something untrue of both.
+                    if(working.Names.Length!=0)throw Unexpected("The folder \u201cfiles\u201d",working.Names,[]);
+                }
                 else
                 {
                     RequireLayout(working,[leaf]);var file=Read(files,leaf,false);

@@ -7,7 +7,8 @@ public sealed partial class EditSessionStore
     {
         RefuseElevatedSession();ct.ThrowIfCancellationRequested();limits??=storageLimits;limits.Validate();
         if(nativeOpen is null)throw new NotSupportedException("Native edit storage accounting is unavailable.");
-        string path=Path.TrimEndingDirectorySeparator(Path.GetFullPath(Root));
+        // The native store's own root, not the legacy folder beside it: in a dual-root store they are different.
+        string path=Path.TrimEndingDirectorySeparator(Path.GetFullPath(nativeRoot));
         using var root=nativeOpen(path,true,ct);
         if(root.Path!=path)throw new IOException("The storage reader returned another native edit store.");
         return MeasureNativeStorageUsage(root,limits,ct);

@@ -3,7 +3,9 @@
 Dated 13 November 2026, branch `claude/gallant-goodall-9c815d`, updated after native edit storage was listed on the three routes (rows 4, 8 and 13) and `a4606689` — the listing with the eighteenth review's fixes — passed on all three platforms, following the owner's route decision ([record](RELEASE_ROUTE_DECISION.md)) and the listing of every archive-writing route with the candidate `3781e7ae` (rows 11 to 14). Each run had at most one failure, every one of them away from edit storage and green again alone at the same commit: a 7z PPMd read on macOS, the system secret store on a cold-booted Ubuntu VM, and a place-bar layout assertion on Windows ([status](IMPLEMENTATION_STATUS.md)). This is a working queue derived
 from the plan, [the implementation status](IMPLEMENTATION_STATUS.md) and the checkpoint records. It does not
 qualify anything; each item closes only with its own evidence entry in the status document. Update the
-"State" column when an item moves. Nothing new is registered in ordinary application startup.
+"State" column when an item moves. What ordinary application startup registers is itself a release
+decision: the archive write routes since 12 November (`3781e7ae`) and native edit storage since 13 November
+(`fda3f03c`), each on the three routes of the [route decision](RELEASE_ROUTE_DECISION.md) and nowhere else.
 
 ## Platform position
 

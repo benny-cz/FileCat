@@ -101,9 +101,11 @@ internal sealed partial class UnixEditDirectoryLease : EditDirectoryLease
         {
             RequireOpen();Leaf(name);ReviewCore(ct);
             if(!isPrivate||UnixFiles.Stat(file.SafeFileHandle) is not {IsRegular:true,Owner:var owner,Mode:var mode}||owner!=user||
-                (mode&~0x1b6u)!=0)throw new IOException("The working file is not an ordinary creator-owned file in its private directory.");
+                (mode&~0x1ffu)!=0)throw new IOException("The working file is not an ordinary creator-owned file in its private directory.");
             // Unix traversal requires access to the retained 0700 parent. Normal editor umasks may leave group/other
-            // read/write bits on a replacement; those bits confer no access through this private namespace.
+            // read/write bits on a replacement, and an editor or the user may make a script being edited executable;
+            // those bits confer no access through this private namespace, and FileCat never runs the copy. Set-user-ID,
+            // set-group-ID and sticky bits are still refused, as is anything but an ordinary file this user owns.
             var metadata=ArchiveUnixOuterMetadata.Capture(file.SafeFileHandle,ct);var facts=metadata.Native;
             if(facts.LinkCount!=1||facts.Length>EditSessionStore.MaxMemberBytes)throw new IOException("The working file is linked or exceeds its byte budget.");
             // The name binding is read without opening the name: under a Linux removal lease another open of the file (even

@@ -200,6 +200,9 @@ public sealed partial class EditSessionStore
                         :WorkingKept()&&copied
                         ?"FileCat could not complete the edit of “"+leaf+"” and could not remove the copy it had made, so that copy is kept at "+
                             folder+": "+Sentence(kept)+" Review it in File → Edit sessions."
+                        :workingIdentity is null
+                        ?"FileCat kept the folder it had started for the copy of “"+leaf+"” at "+folder+": "+Sentence(kept)+
+                            " It is listed in File → Edit sessions for review."
                         :"FileCat kept the unfinished copy of “"+leaf+"” at "+folder+": "+Sentence(kept)+
                             " It is listed in File → Edit sessions for review.";
                 }
