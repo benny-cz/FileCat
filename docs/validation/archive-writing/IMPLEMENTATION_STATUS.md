@@ -1,5 +1,64 @@
 # Archive writing implementation status
 
+**13 November, native edit storage listed as the default edit store (rows 4, 8 and 13).** With the listing active
+locally, the application's own edit suites showed what it changes: a stopped or failed F4 kept its half-made copy, the
+creation marker was visible while the bytes were copied, concurrent copies waited behind one slow source, Save copy did
+not work for a native edit at all, and the tests drove hooks only the legacy store calls. Seventeen rounds of
+independent review followed; every High and Medium finding is fixed in `ef5c36d1` (whose message names the sixteen
+rounds that had closed when it was written), and `fda3f03c` lists the three routes with their evidence IDs and pins the
+list in Core and in the application. A creation now tracks every object it
+makes and removes exactly those when it is stopped, cancelled or fails, keeping, logging and naming whatever it cannot;
+nothing inside private storage is reached by its path; a copy is not an edit until its record is published; the storage
+gate is held to admit a copy and to publish its record, never while the bytes are copied; and every process accounts
+for the copies still running, so the review budget still judges what is stored.
+
+The complete suites found what the focused rounds could not: on Windows the archive route pinned the private working
+folder *by path* to carry a member's download mark, which the creation's own deletion-shared hold refuses, so ten cases
+of the standard-user native F4 commit lane failed with “The private edit directory cannot be pinned safely”. The mark
+now goes through the creation's own folder lease. The listing commit then passed everywhere, each package built from a
+clean checkout of that commit:
+
+| Platform | Full regression (passed) | Package route tests |
+|---|---|---|
+| macOS (M1) | App 3,111, Core 9,188, Remote 2,638, Rendering 23; one failure, below | App 12 of 12; packaged launcher 14 of 14 |
+| Windows 11 VM | App 3,203, Core 8,399, Windows platform 1,631, Remote 2,405, Rendering 24; no failure | Installed layout 12 of 12; portable 12 of 12, its grant exactly the 247 runtime files |
+| Ubuntu 24.04 | App 3,113, Core 9,247, Remote 2,543, Rendering 23; one failure, below | .deb 12 of 12 and its bundle check; the AppImage refused with its reason |
+
+Every lane ran with `FILECAT_EDIT_NATIVE_REQUIRED=1`, so a native edit test fails there rather than skipping, and the
+application's composition pin asserts that ordinary startup really composes the native store on each route's file
+system.
+
+Two tests failed once each, both away from edit storage, and both passed again at the same commit:
+
+- **macOS, one 7z case.** `SevenZipWritingTests.Codecs_create_independent_folders_…(codecId: 6, compressedHeader:
+  True)` threw `ArgumentOutOfRangeException` from `FileStream.Read` under `SourceStream.Read` →
+  `BufferedSubStream.RefillCache` → the PPMd range decoder, reading back the archive it had just written. That reader
+  computes its inner count as `Math.Min(count, Current.Length - Current.Position)`, which goes negative once the file
+  position is past the end — reachable because 7z PPMd has no end marker, so the decoder reads past the declared
+  packed extent. The 7z writing class alone then passed 35 of 35 and the whole Core lane 9,101 of 9,101, so it is
+  intermittent, and nothing in this commit touches 7z or SharpCompress. Left for its own change with its own
+  regression: clamp that term (a read at or past the end is end of file, not an exception) and check where a folder's
+  declared packed extent can exceed the file it is in.
+- **Ubuntu, the system secret store.** `SecretStoreTests.The_system_store_keeps_replaces_and_removes_a_secret`
+  reported “Cannot create an item in a locked collection”. The cause was the VM: its VMware process died 17 minutes
+  into the chain (no exit line, nothing in the host's event log), and after the cold boot autologin left the login
+  keyring locked. `gnome-keyring-daemon --unlock` could not reach the session daemon, which had never made its control
+  directory; with one daemon serving an unlocked keyring again the class passed 4 of 4 at the same commit.
+
+The Windows installed-layout lane was rerun for a reason of its own: the chain's staging step could not make
+`C:\Program Files\FileCatRouteTest` without elevation, so the assets folder it named did not exist and all twelve
+cases failed before testing anything. With the payload staged there — its access list inherited from Program Files,
+including read and execute for all application packages, which is exactly what that lane checks — the lane passed 12
+of 12, unelevated. The chain log keeps both attempts.
+
+The release manifest of the listing commit is [release-manifest-fda3f03c.json](release-manifest-fda3f03c.json):
+commit, profiles, record schemas, worker protocol, the 30 archive routes and the three edit-storage routes with their
+evidence IDs, the Windows payload, 14 packages (the Linux and macOS ones hashed on their machines) and 18 evidence
+files, the two reruns included. Still the owner's: release signing, the macOS denial evidence on the signed build, and
+the Save-copy download-mark question of review 13 — FileCat's own temporary area must be able to keep the mark, while
+a destination that cannot keep it only reports the loss; carrying the mark to the destination instead was tried and
+reverted, because it changes a pinned decision.
+
 **12 November, the release candidate `3781e7ae` re-validated; routes listed (rows 11 to 14 closed).** After the verification
 review of `04dbc8fa` (one High, a macOS access-list regression the Mac run found too, fixed in `e41e6b2b`; its Low points
 in `3781e7ae`), the candidate passed on all three platforms, each package built from a clean checkout of that commit:

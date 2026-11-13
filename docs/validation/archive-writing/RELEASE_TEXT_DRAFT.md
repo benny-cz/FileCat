@@ -2,7 +2,7 @@
 
 Plan §16.2 asks for README, help, capability, release-note and downgrade text in the implementing change. The routes of
 the [route decision](RELEASE_ROUTE_DECISION.md) are listed (Windows x64 on NTFS, Linux x64 on ext4 and macOS on APFS,
-every format; native edit storage is not listed yet), and the listing change published this text in the README and
+every format; native edit storage listed on 13 November), and the listing change published this text in the README and
 [CAPABILITIES.md](../../CAPABILITIES.md) (which the help page shows). The release notes and the downgrade note below are
 for the release's own notes, which the owner publishes with the signed packages.
 
@@ -49,8 +49,10 @@ archives on drives no route covers keep the old ZIP route, on every copy.
 
 ## Downgrade
 
-Archive edit sessions created by this version use a newer record format. An older FileCat keeps their working files on
-disk but may not list the sessions. Archives are never rewritten back to an older form automatically; interrupted changes
+Archive edit sessions created by this version use a newer record format, and on the listed routes they are kept in
+FileCat's own private folder (`edit-sessions-native`) beside the old one. An older FileCat keeps their working files on
+disk but does not know that folder, so it lists none of those sessions; sessions made before the upgrade stay where they
+were, and this version lists both. Archives are never rewritten back to an older form automatically; interrupted changes
 keep their retained files until they are resolved in a version that understands them. ZIP edit sessions made before the
 upgrade keep committing through the old ZIP route.
 

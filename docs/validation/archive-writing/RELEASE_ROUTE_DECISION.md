@@ -84,7 +84,18 @@ quarantined application created itself in Downloads (the eighth review's open ch
 12 November 2026: every archive-writing route in the tables above is listed, after the sixth independent review (no
 High or Medium finding; its Low findings fixed in `f4aa66a7`) and the seventh, of the listing itself, whose findings are
 fixed. The evidence IDs are `AWQ-win-x64-NTFS`, `AWQ-linux-x64-ext4` and `AWQ-osx-arm64-apfs`
-([status](IMPLEMENTATION_STATUS.md)). Native edit storage is not listed yet: as the default store it changes what a
-stopped F4 leaves behind, and the application's edit flows have not been qualified against it (ledger rows 4 and 8).
+([status](IMPLEMENTATION_STATUS.md)). Native edit storage was not listed then: as the default store it changes what a
+stopped F4 leaves behind, and the application's edit flows had not been qualified against it (ledger rows 4 and 8).
 The release candidate is `3781e7ae`: it passed on all three platforms with its package route tests, and its
 [release manifest](release-manifest-3781e7ae.json) records the routes, packages and evidence.
+
+13 November 2026: native edit storage is listed on the same three routes, after seventeen rounds of independent review,
+every High and Medium finding of which is fixed, and the connected qualification on all three platforms. The evidence
+IDs are the routes' own (`AWQ-win-x64-NTFS`, `AWQ-linux-x64-ext4`, `AWQ-osx-arm64-apfs`): every edit suite, the
+application's and the platforms' own, ran with native storage as the default store, and the listing commit `fda3f03c`
+passed the full regression and the package route lanes on all three machines. From this commit a new edit on a listed
+route is kept in FileCat's own identity-bound folder beside the legacy one: a stopped, cancelled or failed F4 removes
+exactly what it made and keeps, logs and names whatever it cannot; a copy stays out of the session list until its record
+is published, and after a crash what is left is listed for review and offered for removal only when it can hold nothing
+of the user's; copies no longer wait for one another; and Save copy works for a native edit as for a legacy one. Its
+[release manifest](release-manifest-fda3f03c.json) records the routes, packages and evidence.
