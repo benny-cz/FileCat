@@ -110,6 +110,10 @@ public sealed class PlaceBarHierarchyTests
             var pinnedButton = Buttons().Single(b => PlaceBarPolicy.Key((Place)b.Tag!) == PlaceBarPolicy.Key(omitted));
             for (int i = 0; i < 100 && row.Hidden.Contains(pinnedButton); i++)
                 await Task.Delay(20, TestContext.Current.CancellationToken);
+            // The row decides its overflow when it measures and places its buttons when it arranges, a later pass: finish
+            // that layout before reading either, or a button just out of the overflow still has its off-row bounds.
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
             // A large set of host drives can still exhaust the wider panel.
             // A pinned place must remain reachable even when it stays in overflow.
             if (row.Hidden.Contains(pinnedButton))

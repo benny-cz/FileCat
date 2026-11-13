@@ -141,3 +141,10 @@ reads the member (`SevenZipMemberStream` in `src/FileCat.Archives/ArchiveFormats
   Swap or branch filter otherwise read decoder overrun bytes and transformed an incomplete final unit; FileCat's
   member CRC check then reported such valid archives damaged, including PPMd + Swap 7z archives FileCat wrote.
   Found by the `sevenzip-writer` fuzz target on 11 November 2026; `SevenZipFilterEncodingTests` covers every filter.
+
+- `IO/SourceStream.cs` and `IO/SourceStream.Async.cs`: a read never asks the current part for a negative count. A part
+  that shrank below the read position (another program truncated the archive while FileCat reads it) is at its end, so
+  the formats report damage; the raw difference made `FileStream.Read` throw `ArgumentOutOfRangeException` ("Offset and
+  length were out of bounds") instead. Seen on 13 November 2026 when another test in the same process replaced a 7z
+  archive's descriptor with a 17-byte file in mid-read (that test no longer does); `SevenZipWritingTests` truncates an
+  archive under a member read.

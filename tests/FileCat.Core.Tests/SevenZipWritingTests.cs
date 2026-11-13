@@ -98,6 +98,30 @@ public sealed class SevenZipWritingTests
         }
     }
 
+    [Fact]
+    public void A_member_read_across_a_truncation_of_its_archive_reports_damage()
+    {
+        // Another program may truncate an archive while FileCat reads it, leaving the read position past the file's end:
+        // that is the end of the member's data, reported as damage. It was FileStream.Read's ArgumentOutOfRangeException
+        // ("Offset and length were out of bounds"), which no caller expects from a stream read.
+        byte[] data = new byte[1 << 20]; new Random(13112026).NextBytes(data);
+        var inputs = new Dictionary<int, SevenZipInputDescriptor> { [0] = new(0, data.Length, Digest(data)) };
+        using var stage = new MemoryStream();
+        SevenZipArchiveWriter.Create(stage, [new("data.bin", ArchiveMemberType.File, Modified, 0x1a4, 0)], inputs,
+            _ => new ShortSource(data, () => { }), new(SevenZipCodec.Copy), Ct);
+        using var dir = new TempDir(); string path = Path.Combine(dir.Path, "truncated.7z"); File.WriteAllBytes(path, stage.ToArray());
+        using var reader = SharpArchiveReader.Open(path);
+        var member = Assert.Single(reader.List(message => Assert.Fail(message), Ct));
+        using var content = reader.Open(member.Index, Ct);
+        byte[] head = new byte[256 << 10];
+        for (int read = 0, n; read < head.Length; read += n) Assert.True((n = content.Read(head, read, head.Length - read)) > 0);
+        Assert.Equal(data.AsSpan(0, head.Length).ToArray(), head);
+
+        using (var truncate = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete)) truncate.SetLength(32);
+        var error = Assert.Throws<InvalidDataException>(() => content.CopyTo(Stream.Null));
+        Assert.Contains("the archive is damaged", error.Message);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

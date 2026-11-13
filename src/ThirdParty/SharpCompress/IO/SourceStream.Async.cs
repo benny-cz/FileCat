@@ -27,12 +27,7 @@ public partial class SourceStream
         while (count != 0 && r != 0)
         {
             r = await Current
-                .ReadAsync(
-                    buffer,
-                    offset,
-                    (int)Math.Min(count, Current.Length - Current.Position),
-                    cancellationToken
-                )
+                .ReadAsync(buffer, offset, RemainingInCurrent(count), cancellationToken)
                 .ConfigureAwait(false);
             count -= r;
             offset += r;
@@ -78,10 +73,7 @@ public partial class SourceStream
         while (count != 0 && r != 0)
         {
             r = await Current
-                .ReadAsync(
-                    buffer.Slice(offset, (int)Math.Min(count, Current.Length - Current.Position)),
-                    cancellationToken
-                )
+                .ReadAsync(buffer.Slice(offset, RemainingInCurrent(count)), cancellationToken)
                 .ConfigureAwait(false);
             count -= r;
             offset += r;

@@ -150,11 +150,7 @@ public partial class SourceStream : Stream, IStreamStack
 
         while (count != 0 && r != 0)
         {
-            r = Current.Read(
-                buffer,
-                offset,
-                (int)Math.Min(count, Current.Length - Current.Position)
-            );
+            r = Current.Read(buffer, offset, RemainingInCurrent(count));
             count -= r;
             offset += r;
 
@@ -178,6 +174,13 @@ public partial class SourceStream : Stream, IStreamStack
 
         return total - count;
     }
+
+    // FileCat: what the current part still holds for a read of `count` bytes, never negative. A part that shrank below the
+    // read position (another program truncated it while FileCat reads it) is at its end, which the formats then report as
+    // damage; the raw difference made FileStream.Read throw ArgumentOutOfRangeException ("Offset and length were out of
+    // bounds") instead.
+    private int RemainingInCurrent(int count) =>
+        (int)Math.Max(0, Math.Min(count, Current.Length - Current.Position));
 
     public override long Seek(long offset, SeekOrigin origin)
     {
