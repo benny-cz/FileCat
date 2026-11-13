@@ -34,6 +34,11 @@ public sealed class EditStoreCompositionTests
             // beside the legacy folder. Otherwise the legacy store.
             bool native = NativeEditStorage.IsQualified(NativeEditStorage.Qualified, AppServices.RouteRuntime(),
                 AppServices.FileSystemOf(paths.LocalDirectory)) && Holdable(paths.LocalDirectory);
+            // A qualification run is on a listed route, as an ordinary user, in a folder FileCat can hold: native storage
+            // must be what ordinary startup composes there (the listing's own pin, beside the Core route list).
+            if (Environment.GetEnvironmentVariable(EditTestStores.NativeRequiredVariable) == "1")
+                Assert.True(native, $"Native edit storage is not composed for {AppServices.RouteRuntime()} on " +
+                    $"{AppServices.FileSystemOf(paths.LocalDirectory) ?? "an unknown file system"} at {paths.LocalDirectory}.");
             Assert.Equal(native ? paths.NativeEditSessionsDirectory : store.Root, store.NativeRoot);
             Assert.Equal(native, store.SupportsRetainedCaptureRemoval);
             Assert.False(Directory.Exists(paths.NativeEditSessionsDirectory)); // Created on first use only.

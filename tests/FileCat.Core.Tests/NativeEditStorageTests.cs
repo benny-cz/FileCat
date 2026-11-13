@@ -18,17 +18,22 @@ public sealed partial class NativeEditStorageTests
         throw new InvalidOperationException("An unqualified composition must not open native storage.");
 
     [Fact]
-    public void This_build_qualifies_native_edit_storage_nowhere()
+    public void This_build_lists_native_edit_storage_on_the_owner_s_routes_only()
     {
-        // The owner's route decision includes native edit storage, but as the default store it changes what F4 does in ways
-        // the application's edit tests had never run against (listing review of 12 November 2026). Adding a runtime is a
-        // reviewed release decision taken after that qualification: this assertion changes with it, never as a side effect.
-        Assert.Empty(NativeEditStorage.Qualified);
+        // The owner's route decision of 12 November 2026, listed on 13 November after the connected qualification on all
+        // three platforms (ledger rows 4 and 8). Adding or removing a runtime is a reviewed release decision taken after
+        // such a qualification: this list changes with it, never as a side effect.
+        Assert.Equal(new NativeEditStorage.Route[]
+        {
+            new("win-x64", "NTFS", "AWQ-win-x64-NTFS"),
+            new("linux-x64", "ext4", "AWQ-linux-x64-ext4"),
+            new("osx-arm64", "apfs", "AWQ-osx-arm64-apfs"),
+        }, NativeEditStorage.Qualified);
         using var temp = new TempDir();
-        // Ordinary startup probes nothing: no filesystem query and no lease.
-        var store = NativeEditStorage.Compose(NativeEditStorage.Qualified, RuntimeInformation.RuntimeIdentifier,
+        // An unlisted runtime probes nothing: no filesystem query and no lease.
+        var store = NativeEditStorage.Compose(NativeEditStorage.Qualified, "win-arm64",
             Path.Combine(temp.Path, "edit-sessions"), Path.Combine(temp.Path, "edit-sessions-native"), new PortableFileOperations(),
-            _ => throw new InvalidOperationException("An unqualified startup must not query the filesystem."), Refuse, null);
+            _ => throw new InvalidOperationException("An unlisted startup must not query the filesystem."), Refuse, null);
         Assert.Equal(store.Root, store.NativeRoot);
         Assert.False(store.SupportsRetainedCaptureRemoval);
         Assert.False(Directory.Exists(Path.Combine(temp.Path, "edit-sessions-native")));

@@ -16,12 +16,22 @@ internal static class NativeEditStorage
     internal sealed record Route(string RuntimeIdentifier, string FileSystem, string EvidenceId);
 
     /// <summary>
-    /// None yet. The owner's route decision of 12 November 2026 includes native edit storage on the three routed runtimes. As
-    /// the default store a stopped or failed F4 removes exactly what it made and a copy stays out of the session list until
-    /// its record is published; it is listed once the edit, Core and platform suites have passed with it as the default on
-    /// all three platforms and the full regression has run on the listing commit (ledger rows 4 and 8).
+    /// The owner's route decision of 12 November 2026, listed on 13 November after native edit storage qualified as the
+    /// default store on these three routes (ledger rows 4 and 8): a stopped, cancelled or failed F4 removes exactly what it
+    /// made and keeps, logs and names whatever it cannot; a copy stays out of the session list until its record is
+    /// published, and after a crash what is left is listed and removable only when it can hold nothing of the user's;
+    /// copies no longer wait for one another; and Save copy works for a native edit as for a legacy one. Every edit suite,
+    /// the application's and the platforms' own, passed with it as the default store on Windows 11, Ubuntu 24.04 and macOS,
+    /// and the candidate's full regression and package route lanes carry both lists. Each route's evidence is its own
+    /// (<see cref="FileCat.Core.Archives.ArchiveRouteEvidence"/>). Adding a runtime is a reviewed release decision taken
+    /// after that qualification, as for <c>ArchiveWriteRoutes</c>: this list changes with it, never as a side effect.
     /// </summary>
-    internal static IReadOnlyList<Route> Qualified { get; } = [];
+    internal static IReadOnlyList<Route> Qualified { get; } =
+    [
+        new("win-x64", "NTFS", FileCat.Core.Archives.ArchiveRouteEvidence.Windows),
+        new("linux-x64", "ext4", FileCat.Core.Archives.ArchiveRouteEvidence.Linux),
+        new("osx-arm64", "apfs", FileCat.Core.Archives.ArchiveRouteEvidence.MacOS),
+    ];
 
     /// <summary>Whether native edit storage is qualified for this runtime on this filesystem (null: not established).</summary>
     internal static bool IsQualified(IReadOnlyList<Route> routes, string runtimeIdentifier, string? fileSystem)
