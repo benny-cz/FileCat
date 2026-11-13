@@ -90,21 +90,28 @@ internal static class ArchiveEditStorageAdmissionCases
                 // A commit's capture holds the storage gate to admit its copy and to make its objects, not while the
                 // bytes are copied: another edit can be admitted then, and the capture is charged as its own record says
                 // it was admitted - never measured while it grows - with the free space its copy has yet to write.
-                bool down=false;EditStorageUsage? seen=null;EditSessionRecord? second=null;
+                bool measured=false,gateHeld=true;EditStorageUsage? seen=null;EditSessionRecord? second=null;
                 using(var copy=store.PrepareCommit(record,fixture,ct,()=>
                 {
-                    if(down)return;
+                    // Only once this capture's copy is under way: its folder and its record are there and its receipt is
+                    // not. The first checks of a capture come before it has taken the gate at all, which says nothing.
+                    if(measured)return;
+                    string? folder=Directory.EnumerateDirectories(store.SessionDirectory(record),"commit-*").FirstOrDefault();
+                    if(folder is null||!File.Exists(Path.Combine(folder,"capture.json"))||File.Exists(Path.Combine(folder,"captured.json")))return;
                     try
                     {
                         using var gate=open(path,true,ct);
                         using(EditStorageAdmission.Acquire(gate,ct,TimeSpan.Zero)) { }
+                        gateHeld=false;
                     }
-                    catch(EditStorageBusyException){return;}
-                    down=true;seen=store.ReviewNativeStorageUsage(ct);
-                    if(scenario=="capture-gate-admits")second=Create(store,"second.txt");
+                    catch(EditStorageBusyException){gateHeld=true;}
+                    seen=store.ReviewNativeStorageUsage(ct);
+                    if(scenario=="capture-gate-admits"&&!gateHeld)second=Create(store,"second.txt");
+                    measured=true;
                 }))
                 {
-                    Assert.True(down,"the capture held the storage gate while it copied");
+                    Assert.True(measured,"the capture's copy was never seen under way");
+                    Assert.False(gateHeld,"the capture held the storage gate while it copied");
                     Assert.NotNull(seen);
                     // Charged as admitted, apart from the bytes the store holds: the growing copy is not measured.
                     Assert.True(seen.RunningPayloadBytes>=length,$"running payload {seen.RunningPayloadBytes} < {length}");
