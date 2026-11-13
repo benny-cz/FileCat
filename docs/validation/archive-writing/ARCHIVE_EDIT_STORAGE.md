@@ -7,6 +7,13 @@ The platform tests still drive the native factory explicitly for the cases a lis
 is the owner's: release signing and the signed build's own evidence ([route decision](RELEASE_ROUTE_DECISION.md),
 [status](IMPLEMENTATION_STATUS.md)).
 
+One asymmetry inside this store is recorded rather than removed: an archive member's download mark goes onto the private
+copy through the folder FileCat holds, while a server file's edit, a legacy-ZIP member's edit, a legacy commit copy and a
+Save copy write it by the copy's pathname. The [status](IMPLEMENTATION_STATUS.md) entry of 13 November states why that is
+accepted (the folder is FileCat's own and private, the write carries no user bytes and is checked, and the mark is read
+back through the held folder by what depends on it), what the residual is, and what making the four symmetric would
+take.
+
 `03ec2201` adds retained native directory authority and bounded visible recovery records. `df4ec125`
 fixes the Darwin ARM64 variadic creation-mode ABI and adds exclusive new-record publication.
 `6b7a80a3` connects private native session creation, an interrupted-creation marker, persisted directory

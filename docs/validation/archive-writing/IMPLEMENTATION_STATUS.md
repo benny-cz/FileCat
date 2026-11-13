@@ -44,6 +44,27 @@ leave the overflow, which the measure pass decides, and then read bounds the lat
 passed 3 of 3 alone at the same commit. Fixed on `codex/archive-writing` in `7e810c13`: the test finishes the layout
 (its jobs, then `UpdateLayout`) before it reads the bounds.
 
+**The download mark on a private copy: through the folder for an archive member, by its pathname for the rest.** The
+archive route writes a member's mark through the folder FileCat holds (`EditDirectoryLease.CopyOrigin`) because it had
+to: its old path pin needed deletion rights that a creation's own hold does not share, so it failed outright (the ten
+cases above). A server file's edit, a legacy-ZIP member's edit, a legacy commit copy and a Save copy still write the
+mark to the copy by its pathname (`WriteOriginMark`), and that is accepted here, not an oversight:
+
+- The path names an object FileCat created moments earlier, in a folder FileCat created under a root it holds and will
+  not compose unless that root is private and not reached through a link - 0700 on Unix, FileCat's own access list on
+  Windows - so no other user can put an entry there or rename one.
+- What a wrong object would receive is the mark's text (the source's zone or URL), not the user's bytes. Nothing is
+  removed, truncated or overwritten by this write, and it is checked: the creation fails if the mark could not be kept.
+- The copy's mark is read back through the held folder by what depends on it - a commit's capture compares the origin
+  digest of the copy it read before and after writing it, and Save copy refuses a destination that cannot keep the mark
+  - so a mark that did not land on FileCat's own copy is reported there rather than passing silently.
+
+The residual: only this user's own process could replace that name in the window between the copy and the mark, and
+FileCat would then hold a copy without a mark and say so at the next operation that needs one, rather than carry a mark
+it never wrote. Making the four symmetric needs a handle-based write of a raw mark in both platform leases (a
+handle-relative stream on Windows, `fsetxattr` on Unix) and the write moved into the copy itself, where the output file
+is still open; that is queued as its own change, not folded into this listing.
+
 Each of the three full regressions ran with `FILECAT_EDIT_NATIVE_REQUIRED=1`; the package route lanes carry their own
 variables. The Windows installed layout was staged into Program Files before the chain, from the host and
 elevated, as an installer is: that folder cannot be made by an unelevated process, while the lane that then reads it
