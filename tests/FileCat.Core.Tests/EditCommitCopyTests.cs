@@ -16,7 +16,9 @@ public sealed class EditCommitCopyTests(ITestOutputHelper output) : IDisposable
     private object Prepare(EditSessionStore store, EditSessionRecord record, string temp, CancellationToken ct = default)
     {
         var method = typeof(EditSessionStore).GetMethod("PrepareCommit"); Assert.NotNull(method);
-        try { return method.Invoke(store, [record, temp, ct])!; }
+        // Every parameter is passed, the optional check included: this call is by reflection, so a signature with one
+        // more parameter would otherwise fail as a parameter-count mismatch rather than as whatever the test asserts.
+        try { return method.Invoke(store, [record, temp, ct, null])!; }
         catch (TargetInvocationException ex) when (ex.InnerException is not null) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
     }
     private static T Value<T>(object copy, string name) => (T)copy.GetType().GetProperty(name)!.GetValue(copy)!;
