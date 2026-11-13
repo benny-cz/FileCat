@@ -5,6 +5,15 @@ using System.Security.Cryptography;
 
 namespace FileCat.Core.Edit;
 
+/// <summary>
+/// A file FileCat would remove that another program holds open for now (on Linux the removal's lease is refused or
+/// broken): nothing of it was removed, and a later attempt may succeed.
+/// </summary>
+internal sealed class EditFileInUseException(string message) : IOException(message);
+
+/// <summary>The storage gate stayed busy for the whole wait (another edit holds it): nothing was changed.</summary>
+internal sealed class EditStorageBusyException(string message) : IOException(message);
+
 /// <summary>Trusted parent-only namespace authority. Paths/identities are evidence; they never grant mutation authority.</summary>
 internal abstract class EditDirectoryLease : IDisposable
 {
@@ -20,7 +29,15 @@ internal abstract class EditDirectoryLease : IDisposable
     internal virtual EditDirectoryLease OpenStorageDirectory(string leaf,CancellationToken ct)=>OpenDirectory(leaf,null,ct);
     internal abstract FileStream CreateFile(string leaf, CancellationToken ct);
     internal abstract FileStream OpenFile(string leaf, string? expectedIdentity, CancellationToken ct);
+    // A small record another process may hold open for writing (a creation's marker), read without refusing that holder.
+    internal virtual FileStream OpenSharedRecord(string leaf,CancellationToken ct)=>OpenFile(leaf,null,ct);
     internal abstract FileStream OpenWorkingFile(string leaf,CancellationToken ct);
+    // The working file opened for a state review only. On Windows it shares writing and deletion, so an editor that saves in
+    // place or by replacing the file is not refused while FileCat looks (one that opens the file sharing nothing would be
+    // refused by any reader). Its result is advisory: the revision reviewed after the read catches most changes, but NTFS
+    // may not show another writer's times until it closes, so a same-length write in place can go unseen. Whatever relies
+    // on the bytes (a discard, a commit capture, Save copy) reads them again under its own exclusion.
+    internal virtual FileStream OpenWorkingFileForReview(string leaf,CancellationToken ct)=>OpenWorkingFile(leaf,ct);
     internal abstract FileCat.Core.Resources.ContentRevision ReviewWorkingFile(FileStream file,string leaf,CancellationToken ct);
     internal abstract ArchiveOriginSnapshot ReadOrigin(FileStream file,string leaf,CancellationToken ct);
     internal abstract void CopyOrigin(FileStream file,string leaf,ArchiveOriginSnapshot origin,CancellationToken ct);
@@ -33,6 +50,10 @@ internal abstract class EditDirectoryLease : IDisposable
     internal virtual void ReviewRemoval(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct)
         =>throw new NotSupportedException("FileCat cannot safely remove this file. Its files are kept.");
     internal virtual bool CanRemoveOwnedDirectories=>false;
+    // Whether a reviewed file could be removed now: on Linux its removal's lease is granted (no other program holds it),
+    // otherwise EditFileInUseException, before anything is removed. On Windows the removal's own open refuses a file another
+    // program holds; macOS has no such test for an ordinary process, so there this says nothing (UnixExactRemoval).
+    internal virtual void RequireRemovable(FileStream file,string leaf){}
     internal abstract void RemoveEmpty(CancellationToken ct);
     internal abstract IReadOnlyList<string> Names(CancellationToken ct);
     internal virtual IReadOnlyList<string> Names(CancellationToken ct,int maximum)

@@ -335,6 +335,9 @@ internal static class ArchiveEditStorageAdmissionCases
         internal override FileStream CreateFile(string leaf,CancellationToken ct)=>owner.CreateFile(leaf,ct);
         internal override FileStream OpenFile(string leaf,string? identity,CancellationToken ct)=>owner.OpenFile(leaf,identity,ct);
         internal override FileStream OpenWorkingFile(string leaf,CancellationToken ct)=>owner.OpenWorkingFile(leaf,ct);
+        internal override FileStream OpenWorkingFileForReview(string leaf,CancellationToken ct)=>owner.OpenWorkingFileForReview(leaf,ct);
+        internal override FileStream OpenSharedRecord(string leaf,CancellationToken ct)=>owner.OpenSharedRecord(leaf,ct);
+        internal override void RequireRemovable(FileStream file,string leaf)=>owner.RequireRemovable(file,leaf);
         internal override ContentRevision ReviewWorkingFile(FileStream file,string leaf,CancellationToken ct)=>owner.ReviewWorkingFile(file,leaf,ct);
         internal override ArchiveOriginSnapshot ReadOrigin(FileStream file,string leaf,CancellationToken ct)=>owner.ReadOrigin(file,leaf,ct);
         internal override void CopyOrigin(FileStream file,string leaf,ArchiveOriginSnapshot origin,CancellationToken ct)=>owner.CopyOrigin(file,leaf,origin,ct);

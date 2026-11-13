@@ -24,6 +24,7 @@ public sealed class EditAdoptionRetainedUiTests
         var ct=TestContext.Current.CancellationToken;bool changedNative=mode=="changed";
         string parent=Path.GetFullPath(Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath());
         if(OperatingSystem.IsMacOS()&&parent.StartsWith("/var/",StringComparison.Ordinal))parent="/private"+parent;
+        EditTestStores.RequireListedRoute(parent);
         string fixture=Directory.CreateDirectory(Path.Combine(parent,"filecat-adoption-ui-"+Guid.NewGuid().ToString("N"))).FullName;
         if(!OperatingSystem.IsWindows())File.SetUnixFileMode(fixture,
             UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);

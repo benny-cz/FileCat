@@ -1,9 +1,21 @@
 namespace FileCat.Core.Edit;
 
-/// <summary>Read-only observed logical bytes and conservatively charged native metadata; never cleanup authority.</summary>
-internal sealed record EditStorageUsage(string RootIdentity,int Sessions,int Captures,int Directories,int Files,long PayloadBytes,long MetadataBytes,long ReservedBytes=0)
+/// <summary>
+/// Read-only observed logical bytes and conservatively charged native metadata; never cleanup authority. The payload,
+/// metadata and reserved bytes are what the store holds; a copy still running is not measured while it grows, so its
+/// admitted charge is kept apart in the running bytes, and the review budget judges what is stored. Pending bytes are what
+/// copies still running will write to the volume (this process's at their admitted length less what they hold, another
+/// FileCat process's at the length its creation marker records less what its working file holds, or all of it when that
+/// cannot be measured), which free space must still hold.
+/// </summary>
+internal sealed record EditStorageUsage(string RootIdentity,int Sessions,int Captures,int Directories,int Files,long PayloadBytes,long MetadataBytes,long ReservedBytes=0,
+    long PendingBytes=0,int RunningSessions=0,int RunningEntries=0,long RunningPayloadBytes=0,long RunningMetadataBytes=0)
 {
     internal long ChargedBytes=>checked(PayloadBytes+MetadataBytes+ReservedBytes);
+    // What copies still running are charged at (as they were admitted, not as they are measured). A new copy is admitted
+    // beside them; a record of work already done is judged without them, so a copy in flight never stops FileCat from
+    // writing down what it has already finished.
+    internal long RunningChargedBytes=>checked(RunningPayloadBytes+RunningMetadataBytes);
 }
 
 internal sealed record EditStorageReviewLimits(int Entries=8192,int Sessions=128,int Captures=128,

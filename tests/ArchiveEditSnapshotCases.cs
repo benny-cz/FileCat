@@ -231,7 +231,7 @@ internal static class ArchiveEditSnapshotCases
         public void ReviewSource(CancellationToken ct)=>ct.ThrowIfCancellationRequested();
         public string WorkingIdentity(Microsoft.Win32.SafeHandles.SafeFileHandle handle)
         {using var owner=open(root,false,default);return owner.Identify(handle);}
-        public void PreserveOrigin(FileStream working,string path,CancellationToken ct)=>ct.ThrowIfCancellationRequested();
+        public void PreserveOrigin(FileStream working,EditDirectoryLease? files,string path,CancellationToken ct)=>ct.ThrowIfCancellationRequested();
     }
 
     private static ArchiveWriteManifest Original(ArchiveWriteProfile profile)

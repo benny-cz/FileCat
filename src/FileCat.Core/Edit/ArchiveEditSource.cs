@@ -13,7 +13,10 @@ internal interface IArchiveEditSource
     IContentSource OpenContent(CancellationToken ct);
     void ReviewSource(CancellationToken ct);
     string WorkingIdentity(SafeFileHandle handle);
-    void PreserveOrigin(FileStream workingFile,string workingPath,CancellationToken ct);
+    /// <param name="files">The folder FileCat holds the working copy in, where it holds one (native storage): an archive
+    /// member's download mark goes through it, because a creation holds its folders with deletion access, which the path pin
+    /// this route used does not share. Null for the legacy folder, which no lease holds.</param>
+    void PreserveOrigin(FileStream workingFile,EditDirectoryLease? files,string workingPath,CancellationToken ct);
 }
 
 internal static class ArchiveEditEvidence

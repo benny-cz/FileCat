@@ -20,15 +20,20 @@ using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Tests;
 
-/// <summary>Owned ZIPs and an in-memory SFTP server; no native editor, network or physical source.</summary>
-public sealed class EditCommitTests(ITestOutputHelper output)
+public sealed class EditCommitTests(ITestOutputHelper output) : EditCommitCases(output, EditStoreKind.Legacy);
+public sealed class EditCommitNativeTests(ITestOutputHelper output) : EditCommitCases(output, EditStoreKind.Native);
+
+/// <summary>
+/// Owned ZIPs and an in-memory SFTP server; no native editor, network or physical source. Both edit stores.
+/// </summary>
+public abstract class EditCommitCases(ITestOutputHelper output, EditStoreKind store)
 {
     [AvaloniaTheory]
     [InlineData("zip")]
     [InlineData("sftp")]
     public async Task Commit_owner_is_registered_before_JobAdded_can_finish_the_job(string scheme)
     {
-        using var f = new Fixture(scheme);
+        using var f = new Fixture(store, scheme);
         IDictionary owners = (IDictionary)typeof(MainViewModel)
             .GetField("_sessionCommits", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(f.Vm)!;
         bool ownerWasPresent = false;
@@ -59,7 +64,7 @@ public sealed class EditCommitTests(ITestOutputHelper output)
     [InlineData(true)]
     public async Task Active_upload_keeps_the_snapshot_until_the_executor_returns_even_after_stop(bool shutdown)
     {
-        using var f = new Fixture("sftp"); using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
+        using var f = new Fixture(store, "sftp"); using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
         f.Server.DuringUpload = () => { entered.Set(); if (!release.Wait(TimeSpan.FromSeconds(10))) throw new IOException("Owned upload hold expired."); };
         Job? job = null;
         try
@@ -79,7 +84,7 @@ public sealed class EditCommitTests(ITestOutputHelper output)
     [InlineData("sftp")]
     public async Task Commit_preparation_waits_for_shared_device_admission_and_keeps_ownership_after_shutdown(string scheme)
     {
-        using var f = new Fixture(scheme); using var release = new ManualResetEventSlim(); int active = 0;
+        using var f = new Fixture(store, scheme); using var release = new ManualResetEventSlim(); int active = 0;
         string device = f.Services.Providers.For(Location.FileSystem(f.Session.WorkingPath)).GetDeviceKey(Location.FileSystem(f.Session.WorkingPath));
         var owners = Enumerable.Range(0, f.Services.Io.ThreadsPerDevice).Select(_ => f.Services.Io.Run(device, IoPriority.Normal, _ => { Interlocked.Increment(ref active); release.Wait(TimeSpan.FromSeconds(10)); return true; })).ToArray();
         Task? commit = null;
@@ -112,7 +117,7 @@ public sealed class EditCommitTests(ITestOutputHelper output)
     [InlineData("sftp", "cancel")]
     public async Task Approval_keeps_the_version_reviewed_and_shutdown_cannot_submit(string scheme, string action)
     {
-        using var f = new Fixture(scheme); f.ChangeTarget(scheme == "zip-rebase" ? "base" : "theirs");
+        using var f = new Fixture(store, scheme); f.ChangeTarget(scheme == "zip-rebase" ? "base" : "theirs");
         var task = f.Commit(); string button = scheme == "zip-rebase" ? "Commit into current archive" : "Overwrite their change";
         await Wait(() => f.Button(button) is not null);
         if (action == "changed") f.ChangeTarget("new change while the old prompt was open");
@@ -128,7 +133,7 @@ public sealed class EditCommitTests(ITestOutputHelper output)
     [AvaloniaFact]
     public async Task Remote_edit_detects_same_metadata_changes_and_binds_approved_content_to_the_job()
     {
-        using var f = new Fixture("sftp");
+        using var f = new Fixture(store, "sftp");
         var target = f.Server.Lookup("/owned/notes.txt", false)!;
         var originalTime = target.Modified;
         target.Data = "evil"u8.ToArray(); // Same length and time as the edited baseline.
@@ -166,9 +171,9 @@ public sealed class EditCommitTests(ITestOutputHelper output)
     [InlineData("sftp", "discard")]
     public async Task A_queued_commit_owns_frozen_bytes_and_preserves_later_editor_changes(string scheme, string action)
     {
-        using var f = new Fixture(scheme); f.Services.Jobs.MaxConcurrent = 0;
+        using var f = new Fixture(store, scheme); f.Services.Jobs.MaxConcurrent = 0;
         await f.Commit().WaitAsync(TimeSpan.FromSeconds(10)); var job = Assert.Single(f.Services.Jobs.Jobs);
-        string source = f.Source(job); string queuedBytes = File.ReadAllText(source);
+        string source = f.Source(job); string queuedBytes = ReadShared(source);
         File.WriteAllText(f.Session.WorkingPath, "later editor changes");
         if (action == "changed") f.ChangeTarget("another target version");
         if (action == "navigate") { var tab = f.Vm.ActiveTab!; tab.Navigate(Location.FileSystem(f.Root)); var replacement = tab.Panel.OpenTab(Location.FileSystem(f.Root)); tab.Panel.CloseTab(tab); }
@@ -194,7 +199,7 @@ public sealed class EditCommitTests(ITestOutputHelper output)
     [InlineData("sftp", "discard")]
     public async Task A_pending_commit_owns_the_session_before_the_conflict_answer(string scheme, string action)
     {
-        using var f = new Fixture(scheme); f.ChangeTarget("theirs"); var first = f.Commit(); await Wait(() => f.Button("Overwrite their change") is not null);
+        using var f = new Fixture(store, scheme); f.ChangeTarget("theirs"); var first = f.Commit(); await Wait(() => f.Button("Overwrite their change") is not null);
         var second = action == "duplicate" ? f.Commit() : f.Discard();
         bool ended = await Task.WhenAny(second, Task.Delay(100, TestContext.Current.CancellationToken)) == second;
         Emit(f, "pending-session", new { action, ended });
@@ -209,7 +214,7 @@ public sealed class EditCommitTests(ITestOutputHelper output)
     [InlineData("sftp")]
     public async Task Stopped_services_cannot_start_an_edit_commit(string scheme)
     {
-        using var f = new Fixture(scheme); f.Services.Io.Dispose(); await f.Commit(); await f.Finish();
+        using var f = new Fixture(store, scheme); f.Services.Io.Dispose(); await f.Commit(); await f.Finish();
         Emit(f, "stopped", new { jobs = f.Services.Jobs.Jobs.Count }); Assert.Empty(f.Services.Jobs.Jobs); Assert.Equal("base", f.TargetText);
     }
 
@@ -220,11 +225,19 @@ public sealed class EditCommitTests(ITestOutputHelper output)
     [InlineData("sftp", "oversize")]
     public async Task An_unavailable_or_over_limit_working_copy_cannot_be_queued(string scheme, string action)
     {
-        using var f = new Fixture(scheme); f.Services.Jobs.MaxConcurrent = 0;
+        using var f = new Fixture(store, scheme); f.Services.Jobs.MaxConcurrent = 0;
         if (action == "missing") File.Delete(f.Session.WorkingPath);
         else { using var stream = File.OpenWrite(f.Session.WorkingPath); stream.SetLength(EditSessionStore.MaxMemberBytes + 1); }
         await f.Commit().WaitAsync(TimeSpan.FromSeconds(10));
         Emit(f, "source-refused", new { action, jobs = f.Services.Jobs.Jobs.Count }); Assert.Empty(f.Services.Jobs.Jobs); Assert.Equal("base", f.TargetText);
+    }
+
+    // The queued commit's own copy, read beside the native snapshot that holds it open (on Windows its handle shares no
+    // writing or deletion with a plain read).
+    private static string ReadShared(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream); return reader.ReadToEnd();
     }
 
     private void Emit(Fixture f, string control, object detail) => output.WriteLine("EDIT_COMMIT " + JsonSerializer.Serialize(new { f.Scheme, control, detail, NativeDesktopInteraction = false, PhysicalOrNetworkSource = false, SyntheticSftp = f.Session.IsRemote }));
@@ -243,9 +256,9 @@ public sealed class EditCommitTests(ITestOutputHelper output)
     {
         public readonly string Root, Archive, Scheme; public readonly AppServices Services; public readonly MainViewModel Vm; public readonly MainWindow Window; public readonly EditSessionRecord Session;
         public readonly FakeSftpServer Server = new();
-        public Fixture(string scheme)
+        public Fixture(EditStoreKind store, string scheme)
         {
-            Scheme = scheme; (Services, Vm, Window, Root) = AccessibilityTests.OpenMainWindow(new FakeConnector(Server)); _ = Vm.Operations;
+            Scheme = scheme; (Services, Vm, Window, Root) = EditTestStores.OpenMainWindow(store, new FakeConnector(Server)); _ = Vm.Operations;
             Archive = Path.Join(Root, "owned.zip"); WriteArchive("base");
             if (scheme == "sftp")
             {
@@ -253,7 +266,8 @@ public sealed class EditCommitTests(ITestOutputHelper output)
                 Server.File("/owned/notes.txt", "base"); var interaction = new ScriptedInteraction { HostKeyAnswer = HostKeyDecision.AcceptOnce }; for (int i = 0; i < 20; i++) interaction.Secrets.Enqueue("secret"); Services.Sftp.Interaction = interaction;
                 using var source = new MemoryContentSource("notes.txt", "base"u8.ToArray()); var node = Server.Lookup("/owned/notes.txt", false)!;
                 Session = Services.EditSessions.CreateRemote(p.Id, p.Display, "/owned/notes.txt", source, source.GetRevision()!.Value, null);
-                Session = Session with { RemoteBaseline = new(4, node.Modified.Ticks) }; Services.EditSessions.Save(Session);
+                // Save returns the record as stored (a native edit's next revision); later actions are bound to that one.
+                Session = Services.EditSessions.Save(Session with { RemoteBaseline = new(4, node.Modified.Ticks) });
             }
             else { var folder = Services.Zip.GetContainerLocation(Archive)!; Session = Services.EditSessions.Create(Services.Zip, new ItemRef(folder, "notes.txt", EntryKind.File)); Services.Zip.Release(Archive); }
             File.WriteAllText(Session.WorkingPath, "mine");

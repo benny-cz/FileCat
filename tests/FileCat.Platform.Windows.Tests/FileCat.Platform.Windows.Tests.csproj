@@ -28,6 +28,8 @@
     <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
     <Compile Include="..\ArchiveEditDirectoryCases.cs" Link="ArchiveEditDirectoryCases.cs" />
     <Compile Include="..\ArchiveEditStorageCases.cs" Link="ArchiveEditStorageCases.cs" />
+    <Compile Include="..\ArchiveEditCreationCases.cs" Link="ArchiveEditCreationCases.cs" />
+    <Compile Include="..\ArchiveEditCreationCrashCases.cs" Link="ArchiveEditCreationCrashCases.cs" />
     <Compile Include="..\ArchiveEditDualRootCases.cs" Link="ArchiveEditDualRootCases.cs" />
     <Compile Include="..\ArchiveEditLegacyAdoptionCases.cs" Link="ArchiveEditLegacyAdoptionCases.cs" />
     <Compile Include="..\ArchiveEditLegacyAdoptionCrashCases.cs" Link="ArchiveEditLegacyAdoptionCrashCases.cs" />

@@ -67,11 +67,16 @@ public sealed partial class MainViewModel
     {
         try
         {
-            var sessions = await LoadEditSessionsAsync(); int modified = 0, unavailable = 0, retained = 0, retainedUnknown = 0, adopted = 0;
+            var sessions = await LoadEditSessionsAsync();
+            int modified = 0, unavailable = 0, retained = 0, retainedUnknown = 0, adopted = 0, interrupted = 0, notChecked = 0, incomplete = 0;
             foreach (var session in sessions)
             {
                 // Adoption currently retains the native copy while the old session remains the commit route.
                 if (session.LegacyAdoption is not null) { adopted++; continue; }
+                if (Interrupted(session)) { interrupted++; continue; }
+                if (InUse(session)) continue; // In use for now (another FileCat window may still be copying it).
+                if (NotChecked(session)) { notChecked++; continue; }
+                if (IncompleteStorage(session)) { incomplete++; continue; }
                 var state = await ReadEditStateAsync(session); CheckSessionAction();
                 if (state == EditState.Modified) modified++;
                 if (state == EditState.Unavailable) unavailable++;
@@ -83,9 +88,13 @@ public sealed partial class MainViewModel
                 }
                 if (session.IsSupported) Watch(session);
             }
-            if (modified == 0 && unavailable == 0 && retained == 0 && retainedUnknown == 0 && adopted == 0) return null;
+            if (modified == 0 && unavailable == 0 && retained == 0 && retainedUnknown == 0 && adopted == 0 && interrupted == 0 && notChecked == 0 &&
+                incomplete == 0) return null;
             return ((modified == 0 ? "" : $"{Formatters.Plural(modified, "edit has", "edits have")} changes that are not committed yet.") +
                 (unavailable == 0 ? "" : $" {(Formatters.Plural(unavailable, "working copy cannot", "working copies cannot"))} be read.") +
+                (interrupted == 0 ? "" : $" {Formatters.Plural(interrupted, "edit was", "edits were")} left incomplete (interrupted while being made or removed).") +
+                (notChecked == 0 ? "" : $" {Formatters.Plural(notChecked, "edit", "edits")} could not be checked just now.") +
+                (incomplete == 0 ? "" : $" {Formatters.Plural(incomplete, "edit folder holds files", "edit folders hold files")} without the record that speaks for them.") +
                 (retained == 0 ? "" : $" {Formatters.Plural(retained, "edit has", "edits have")} retained copy folders to review.") +
                 (retainedUnknown == 0 ? "" : $" {Formatters.Plural(retainedUnknown, "edit has", "edits have")} retained-copy state that could not be checked.") +
                 (adopted == 0 ? "" : $" {Formatters.Plural(adopted, "adopted copy needs", "adopted copies need")} review before use.")).TrimStart() +
@@ -150,6 +159,9 @@ public sealed partial class MainViewModel
     {
         if (ActiveTab is not { } tab || !EditSessionsActive || !_preparingEdits.Add(key)) return;
         using var scope = new PreparationScope(tab, Services.Io);
+        // What a stopped or failed creation had to keep. The scheduler completes a stopped call as cancelled with an
+        // exception of its own, so the creation's text is taken from its exception inside the call.
+        string? kept = null; bool said = false;
         try
         {
             Notify(progress);
@@ -163,8 +175,12 @@ public sealed partial class MainViewModel
                 {
                     return (Session: existing, State: EditState.Unchanged, Created: false);
                 }
-                var session = create(new EditPreparationProvider(provider, scope.Check), scope.Stop.Token);
-                return (Session: session, State: EditState.Unchanged, Created: true);
+                try
+                {
+                    var session = create(new EditPreparationProvider(provider, scope.Check), scope.Stop.Token);
+                    return (Session: session, State: EditState.Unchanged, Created: true);
+                }
+                catch (Exception error) when (error.Data[EditSessionStore.RetainedCreationKey] is string retained) { kept = retained; throw; }
             }, scope.Stop.Token);
             if (!scope.Current) return;
             var session = prepared.Session;
@@ -178,12 +194,19 @@ public sealed partial class MainViewModel
             Watch(session); OpenSessionEditor(session);
             if (prepared.Created) Notify($"Editing a copy of \"{item.Name}\" from {session.DisplayTarget}. Save in the editor, then commit with F4 on the file again (or File → Edit sessions). Nothing is written to the source until you commit.");
         }
+        // A stopped or failed F4 removes the copy it was making; what it could not remove exactly is kept, logged, shown in
+        // File → Edit sessions as an incomplete edit, and said here (unless FileCat is closing), whatever the failure was.
         catch (OperationCanceledException) { }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or
+            System.ComponentModel.Win32Exception)
         {
-            if (scope.Current) Notify($"Cannot edit \"{item.Name}\": {ex.Message}", true);
+            if (scope.Current) { Notify($"Cannot edit \"{item.Name}\": {ex.Message}" + (kept is null ? "" : " " + Formatters.SafeName(kept)), true); said = true; }
         }
-        finally { _preparingEdits.Remove(key); }
+        finally
+        {
+            _preparingEdits.Remove(key);
+            if (!said && kept is not null && EditSessionsActive) Notify(Formatters.SafeName(kept), true);
+        }
     }
 
     private sealed class EditPreparationProvider(ResourceProvider inner, Action check) : ResourceProvider
@@ -320,7 +343,11 @@ public sealed partial class MainViewModel
             var items = new List<ChoiceItem>();
             foreach (var session in sessions)
             {
-                string detail = session.LegacyAdoption is not null
+                string detail = Interrupted(session) ? "incomplete (interrupted while being made or removed) · kept for review"
+                    : InUse(session) ? "in use (another FileCat window may still be copying it)"
+                    : NotChecked(session) ? "could not be checked just now"
+                    : IncompleteStorage(session) ? "files without their record · kept for review"
+                    : session.LegacyAdoption is not null
                     ? "retained adopted copy · review before use · " + session.DisplayContainer
                     : $"{Describe(await ReadEditStateAsync(session))} · {session.DisplayContainer}";
                 if (session.IsSupported && session.StorageRootIdentity.Length != 0)
@@ -343,6 +370,23 @@ public sealed partial class MainViewModel
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { if (EditSessionsActive) Notify($"Cannot review the edit sessions: {ex.Message}", true); }
     }
 
+    // A native edit left incomplete (FileCat ended while it made or removed it, or kept what it could not remove exactly).
+    private static bool Interrupted(EditSessionRecord session) =>
+        !session.IsSupported && session.UnsupportedReason == EditSessionStore.InterruptedCreationReason;
+
+    // A native edit whose folder is in use for now: another FileCat process (sharing this data folder) may still be copying it.
+    private static bool InUse(EditSessionRecord session) =>
+        !session.IsSupported && session.UnsupportedReason == EditSessionStore.CopyingElsewhereReason;
+
+    // A native edit without its record that could not be judged just now (the edit storage was busy, or its folder could not
+    // be read).
+    private static bool NotChecked(EditSessionRecord session) =>
+        !session.IsSupported && session.UnsupportedReason == EditSessionStore.UncheckedReason;
+
+    // A folder that holds an edit's files without the record that speaks for them: kept whole, for the user to review.
+    private static bool IncompleteStorage(EditSessionRecord session) =>
+        !session.IsSupported && session.UnsupportedReason == EditSessionStore.IncompleteEditReason;
+
     private static string Describe(EditState state) => state switch
     {
         EditState.Modified => "changed, not committed",
@@ -358,14 +402,21 @@ public sealed partial class MainViewModel
             if (!session.IsSupported)
             {
                 string directory = Services.EditSessions.SessionDirectory(session);
-                var unsupportedAnswer = await Dialogs.ShowCustomAsync("Unsupported edit session", new TextBlock
+                bool interrupted = Interrupted(session);
+                var unsupportedActions = new List<DialogButton> { new("Close", "close", IsCancel: true, IsDefault: true), new("Open working folder", "folder") };
+                if (interrupted && Services.EditSessions.SupportsInterruptedCopyRemoval)
+                    unsupportedActions.Add(new("Remove unfinished copy…", "remove", IsDanger: true));
+                var unsupportedAnswer = await Dialogs.ShowCustomAsync(interrupted ? "Incomplete edit"
+                    : InUse(session) ? "Edit in use" : NotChecked(session) ? "Edit not checked"
+                    : IncompleteStorage(session) ? "Edit without its record" : "Unsupported edit session", new TextBlock
                 {
                     Text = (session.UnsupportedReason ?? "This edit session requires a different FileCat version.") +
                         "\nWorking copy: " + Formatters.SafeName(session.WorkingPath) + "\nWorking folder: " + Formatters.SafeName(directory),
                     TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
-                }, [new("Close", "close", IsCancel: true, IsDefault: true), new("Open working folder", "folder")]);
+                }, unsupportedActions);
                 CheckSessionAction();
                 if (unsupportedAnswer as string == "folder") Services.Shell.Open(directory);
+                else if (unsupportedAnswer as string == "remove") await RemoveInterruptedCopyAsync(session);
                 return;
             }
             if (session.LegacyAdoption is not null)
@@ -564,6 +615,36 @@ public sealed partial class MainViewModel
         catch (OperationCanceledException) { }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
         { if (EditSessionsActive) Notify("The retirement continues: " + Formatters.SafeName(error.Message), true); }
+        finally { _sessionActions.Remove(session.Id); }
+    }
+
+    /// <summary>
+    /// The review action for an interrupted copy (FileCat ended while it made the edit): FileCat reviews its folder again and
+    /// removes exactly what the unfinished copy consists of. Anything else in the folder keeps it all.
+    /// </summary>
+    private async Task RemoveInterruptedCopyAsync(EditSessionRecord session)
+    {
+        if (!EditSessionsActive || !_sessionActions.Add(session.Id)) return;
+        try
+        {
+            // A copy that never got as far as its name is named by its folder's id: it is then "this unfinished copy".
+            string named = session.DisplayName == session.Id ? "this unfinished copy" : $"the unfinished copy of \"{session.DisplayName}\"";
+            if (!await Dialogs.ConfirmAsync("Remove unfinished copy",
+                $"Remove {named}? FileCat made it and never finished it, so it holds no edits of yours, " +
+                "and the file it was copied from is not changed. FileCat checks its folder again, and keeps everything if the copy turns out " +
+                "to be complete or anything else is there.", "Remove", danger: true))
+                return;
+            CheckSessionAction();
+            var result = await MutationIoAsync(Services.EditSessions.Root,
+                () => Services.EditSessions.RemoveInterruptedCopy(session, check: CheckSessionAction), CheckSessionAction);
+            if (!EditSessionsActive) return;
+            if (result.Complete) Notify(result.MayHaveRemovedFiles ? "The unfinished copy was removed." : "The unfinished copy was already gone.");
+            else Notify(Formatters.SafeName(result.Issue ?? "The unfinished copy was kept for review."), true);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or
+            System.ComponentModel.Win32Exception)
+        { if (EditSessionsActive) Notify("The unfinished copy was kept: " + Formatters.SafeName(error.Message), true); }
         finally { _sessionActions.Remove(session.Id); }
     }
 
@@ -947,16 +1028,13 @@ public sealed partial class MainViewModel
 
             var local = Location.FileSystem(session.WorkingPath); var provider = Services.Providers.For(local);
             copy = await Services.Io.Run(provider.GetDeviceKey(local), IoPriority.Normal,
-                _ => Services.EditSessions.PrepareSaveCopy(session, Services.Paths.TempDirectory, provider, CheckSessionAction));
+                _ => Services.EditSessions.CaptureSaveCopy(session, Services.Paths.TempDirectory, provider, CheckSessionAction));
             // Do not pass scheduler cancellation: an active source/copy keeps its owner until the call returns.
             CheckSessionAction();
-            await MutationIoAsync(path, () =>
-            {
-                EditSessionStore.PublishSaveCopy(copy, path, Services.Platform.FileOperations, CheckSessionAction);
-                return true;
-            }, CheckSessionAction);
+            string? lost = await MutationIoAsync(path,
+                () => EditSessionStore.PublishSaveCopy(copy, path, Services.Platform.FileOperations, CheckSessionAction), CheckSessionAction);
             CheckSessionAction();
-            Notify($"Saved a copy to {path}. The edit session stays open.");
+            Notify($"Saved a copy to {path}. The edit session stays open." + (lost is null ? "" : " " + lost), lost is not null);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or ArgumentException)

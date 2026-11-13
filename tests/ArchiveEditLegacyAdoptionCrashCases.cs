@@ -60,6 +60,8 @@ internal static class ArchiveEditLegacyAdoptionCrashCases
             Assert.True(Assert.Single(rows,row=>row.Id==old.Id).IsSupported);
             var copy=Assert.Single(rows,row=>row.Id!=old.Id);
             Assert.Equal(point=="ready",copy.IsSupported);
+            // Killed while it copied: the copy is listed as interrupted, kept for review.
+            if(point=="marker")Assert.Equal(EditSessionStore.InterruptedCreationReason,copy.UnsupportedReason);
             Assert.Equal(oldRecord,File.ReadAllBytes(Path.Combine(oldRoot,old.Id,"session.json")));
             Assert.Equal("original remote bytes"u8.ToArray(),File.ReadAllBytes(old.WorkingPath));
             if(point=="ready")

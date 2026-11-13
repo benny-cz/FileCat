@@ -50,7 +50,10 @@ public sealed class ArchiveEditNativeUiTests
             tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("a.txt"));
         var available = f.Vm.GetAvailability(CommandIds.Edit); Assert.True(available.Enabled, available.Reason);
         var edit = f.Vm.ExecuteAsync(CommandIds.Edit); await Unlock(edit); await f.Complete(edit);
-        var session = Assert.Single(f.Services.EditSessions.LoadAll()); Assert.True(session.IsNativeArchive);
+        var rows = f.Services.EditSessions.LoadAll();
+        Assert.True(rows.Count == 1, $"F4 left {rows.Count} edit(s): \"{f.Vm.Notification}\" " +
+            string.Join("; ", rows.Select(row => row.UnsupportedReason ?? row.Kind)));
+        var session = rows[0]; Assert.True(session.IsNativeArchive);
         Assert.Equal("alpha", File.ReadAllText(session.WorkingPath)); Assert.Equal(origin, File.ReadAllBytes(session.WorkingPath + ":Zone.Identifier"));
         Assert.Equal(creation.Request.Archive.Profile!.Format, session.ArchiveProfile!.Format);
         Assert.Equal((ArchiveEncryptionMode)mode, session.ArchiveProfile.Encryption.Mode);

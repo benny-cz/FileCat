@@ -25,6 +25,8 @@ namespace FileCat.Core.Edit;
 internal static partial class UnixExactRemoval
 {
     private const int SetLease=1024,GetLease=1025,WriteLease=1,Unlock=2,SigIo=29;
+    // Every reason that another program holds the file for now starts so (IsInUse): a later attempt may succeed.
+    private const string InUse="another program ";
     private static int signalIgnored;
 
     /// <summary>Test seam: runs right before a reviewed name is set aside (an editor's save can be staged there).</summary>
@@ -45,9 +47,11 @@ internal static partial class UnixExactRemoval
         IgnoreLeaseBreakSignal();
         if(Fcntl(UnixArchiveNative.Fd(file),SetLease,WriteLease)==0)return null;
         int errno=Marshal.GetLastPInvokeError();
-        return errno==11 /* EAGAIN */?"another program has "+what+" open; close it, then try again"
+        return errno==11 /* EAGAIN */?InUse+"has "+what+" open; close it, then try again"
             :"FileCat could not check whether another program has "+what+" open (errno "+errno.ToString(CultureInfo.InvariantCulture)+")";
     }
+    /// <summary>Whether a reason from this class says that another program holds the file for now.</summary>
+    internal static bool IsInUse(string reason)=>reason.StartsWith(InUse,StringComparison.Ordinal);
     internal static void ReleaseLease(SafeFileHandle file){if(OperatingSystem.IsLinux())_=Fcntl(UnixArchiveNative.Fd(file),SetLease,Unlock);}
     // During a break F_GETLEASE answers the type the lease is being broken to, so only an unbroken lease answers F_WRLCK.
     private static bool Unbroken(SafeFileHandle file)=>!OperatingSystem.IsLinux()||Fcntl(UnixArchiveNative.Fd(file),GetLease,0)==WriteLease;
@@ -59,7 +63,7 @@ internal static partial class UnixExactRemoval
     /// </summary>
     internal static string? Unlink(SafeFileHandle directory,string name,SafeFileHandle held,string identity,string what,CancellationToken ct)
     {
-        if(!Unbroken(held))return "another program opened "+what+" while it was checked";
+        if(!Unbroken(held))return InUse+"opened "+what+" while it was checked";
         if(UnixFiles.StatChild(directory,name)?.Identity.ToString()!=identity)return what+" was replaced";
         ct.ThrowIfCancellationRequested();
         BeforeSetAside.Value?.Invoke(name);

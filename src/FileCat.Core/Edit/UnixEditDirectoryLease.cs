@@ -87,7 +87,11 @@ internal sealed partial class UnixEditDirectoryLease : EditDirectoryLease
         {
             RequireOpen();Leaf(name);ReviewCore(ct);
             if(!isPrivate)throw new UnauthorizedAccessException("Working bytes need a private edit directory.");
-            var file=new FileStream(UnixArchiveNative.Child(directory,name),FileAccess.Read);
+            Microsoft.Win32.SafeHandles.SafeFileHandle handle;
+            // A working copy that is not there is missing (its edit can then be discarded), as on Windows, not unreadable.
+            try{handle=UnixArchiveNative.Child(directory,name);}
+            catch(IOException error)when(error.HResult==2 /* ENOENT */){throw new FileNotFoundException("The working copy is missing.",name,error);}
+            var file=new FileStream(handle,FileAccess.Read);
             try{ReviewWorkingFile(file,name,ct);return file;}catch{file.Dispose();throw;}
         }
     }

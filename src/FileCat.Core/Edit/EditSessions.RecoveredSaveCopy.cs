@@ -79,7 +79,7 @@ public sealed partial class EditSessionStore
             modified.Seconds,modified.Nanoseconds,destination.Path,destination.Identity,leaf,stage.LeafName,prepared.LeafName,outcome.LeafName);
         intent.RequireSource(originating,capture.Identity,observed);
         byte[] intentBytes=intent.Encode();var usage=MeasureNativeStorageUsage(root,storageLimits,ct);
-        allocation.Require(usage,storageLimits,0,0,2,intentBytes.Length,2*EditStorageAdmission.MetadataPerEntry,0,intentBytes.Length,ct);
+        allocation.Require(usage,storageLimits,0,0,2,intentBytes.Length,2*EditStorageAdmission.MetadataPerEntry,0,intentBytes.Length,ct,recordOnly:true);
         source.Review(observed,ct);check?.Invoke();ct.ThrowIfCancellationRequested();
         using var link=CreateRecordBytes(capture,EditSaveCopyIntent.FileName,intentBytes,ct);
         source.Link(link);

@@ -21,7 +21,14 @@ using ResourceProvider = FileCat.Core.Resources.ResourceProvider;
 
 namespace FileCat.App.Tests;
 
-public sealed class EditSessionPublicationTests(ITestOutputHelper output)
+public sealed class EditSessionPublicationTests(ITestOutputHelper output) : EditSessionPublicationCases(output, EditStoreKind.Legacy);
+public sealed class EditSessionPublicationNativeTests(ITestOutputHelper output) : EditSessionPublicationCases(output, EditStoreKind.Native);
+
+/// <summary>
+/// F4 publication for both edit stores: owned content closes before the session is published, and a failed preparation leaves
+/// no session (a native one removes its partly made copy exactly).
+/// </summary>
+public abstract class EditSessionPublicationCases(ITestOutputHelper output, EditStoreKind store)
 {
     public static TheoryData<string, string, string, bool> Cases
     {
@@ -37,10 +44,10 @@ public sealed class EditSessionPublicationTests(ITestOutputHelper output)
     }
 
     [AvaloniaTheory]
-    [MemberData(nameof(Cases))]
+    [MemberData(nameof(Cases), MemberType = typeof(EditSessionPublicationCases))]
     public async Task F4_closes_owned_content_before_publication_and_preserves_preparation_errors(string scheme, string primary, string cleanup, bool seek)
     {
-        using var f = new Fixture(scheme, primary, cleanup, seek); await f.Load();
+        using var f = new Fixture(store, scheme, primary, cleanup, seek); await f.Load();
         Exception? escaped = null;
         try { await f.Vm.ExecuteAsync(CommandIds.Edit).WaitAsync(TimeSpan.FromSeconds(10)); }
         catch (Exception ex) { escaped = ex; }
@@ -94,9 +101,9 @@ public sealed class EditSessionPublicationTests(ITestOutputHelper output)
         public readonly AppServices Services; public readonly MainViewModel Vm; public readonly MainWindow Window;
         public readonly string Root, SourcePath, Archive, Before, ArchiveBefore; public readonly TabViewModel Tab; public readonly Provider Provider;
         private readonly Location location;
-        public Fixture(string scheme, string primary, string cleanup, bool seek)
+        public Fixture(EditStoreKind store, string scheme, string primary, string cleanup, bool seek)
         {
-            (Services, Vm, Window, Root) = AccessibilityTests.OpenMainWindow(
+            (Services, Vm, Window, Root) = EditTestStores.OpenMainWindow(store,
                 new NoNetworkConnector(), nativeWindowsOriginMarks: scheme == "sftp");
             Services.Settings.Editor = new ToolDefinition { Executable = Path.Join(Root, "owned-editor-does-not-exist.exe") };
             SourcePath = Path.Join(Root, "owned-source.dat"); File.WriteAllBytes(SourcePath, "owned editable bytes"u8.ToArray()); Before = Hash(SourcePath);

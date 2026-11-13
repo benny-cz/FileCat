@@ -231,50 +231,111 @@ public sealed partial class EditSessionStore
     {
         if (WindowsTokenAuthority.IsHighIntegrity) return [];
         var sessions = new List<EditSessionRecord>();
+        // One private root lease for the whole native pass, and the storage gate tried at most once: once it is busy, no
+        // other folder waits for it.
+        using var pass = new NativePass(this);
         foreach (var (storeRoot,isNative) in nativeRoot==Root
                      ? new[]{(Root,true)} : new[]{(Root,false),(nativeRoot,true)})
         {
             if(!Directory.Exists(storeRoot))continue;
             foreach (var dir in Directory.EnumerateDirectories(storeRoot))
-            try
             {
-                using var stream = new FileStream(Path.Combine(dir, RecordFile), FileMode.Open, FileAccess.Read,
-                    FileShare.ReadWrite | FileShare.Delete);
-                long recordLength=stream.Length;
-                if (recordLength > MaxRecordBytes)
+                // A creation this process is still making is not an edit until it returns: it publishes its record or
+                // removes what it made (its folder handles may also refuse another review meanwhile).
+                if(isNative&&IsCreating(Path.GetFileName(dir)))continue;
+                // On Windows a folder another writer holds for a moment (an edit just made, discarded or retired in another
+                // FileCat process) refuses a review with a sharing violation: such a refusal is retried briefly.
+                for(int attempt=0;;attempt++)
                 {
-                    sessions.Add(UnsupportedSession(dir, "This edit record is larger than the supported metadata budget. Its working folder is kept."));
-                    continue;
-                }
-                byte[] bytes = new byte[checked((int)recordLength)];
-                stream.ReadExactly(bytes);
-                var loaded=stream.ReadByte() != -1
-                    ? UnsupportedSession(dir, "This edit record changed while it was read. Its working folder is kept.")
-                    : ReadStoredRecord(bytes, dir);
-                if(nativeRoot!=Root&&loaded.IsSupported&&
-                   (isNative != (loaded.StorageRootIdentity.Length!=0)))
-                    loaded=UnsupportedSession(dir,"This edit record belongs to a different storage root. Its files are kept.");
-                sessions.Add(loaded);
-            }
-            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
-            {
-                // Native creation leaves a private recovery marker before any working bytes are copied.
-                if(isNative&&nativeOpen is not null)
-                {
-                    try
-                    {
-                        using var nativeRoot=OpenNativeRoot(default,false);using var session=nativeRoot.OpenDirectory(Path.GetFileName(dir),null,default);
-                        sessions.Add(ParseRecord(ReadRecordBytes(session,CreationMarker,default),dir));
-                    }
-                    catch(Exception markerError)when(markerError is FileNotFoundException or DirectoryNotFoundException){ }
-                    catch(Exception markerError)when(markerError is IOException or UnauthorizedAccessException)
-                    {sessions.Add(UnsupportedSession(dir,"This interrupted edit's recovery record cannot be read. Its working folder is kept."));}
+                    try{if(LoadOne(dir,isNative,pass) is { } loaded)sessions.Add(loaded);break;}
+                    catch(IOException error)when(OperatingSystem.IsWindows()&&(error.HResult&0xFFFF)==32&&attempt<10)
+                    {Thread.Sleep(20);}
+                    catch (Exception ex) when (IsStorageFailure(ex) || ex is ArgumentException)
+                    { sessions.Add(UnsupportedSession(dir, "This edit record cannot be read completely. Its working folder is kept.")); break; }
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            { sessions.Add(UnsupportedSession(dir, "This edit record cannot be read completely. Its working folder is kept.")); }
         }
         return sessions.OrderBy(s => s.CreatedUtc).ToList();
+    }
+
+    // What the native pass of one session list shares: its private root lease (opened once, only where a folder without a
+    // record needs it) and whether the storage gate was already found busy.
+    private sealed class NativePass(EditSessionStore store):IDisposable
+    {
+        private EditDirectoryLease? root;
+        internal bool Busy;
+        internal EditDirectoryLease Root()=>root??=store.OpenNativeRoot(default,false);
+        public void Dispose()=>root?.Dispose();
+    }
+
+    // One session folder as the session list shows it, or null when there is nothing to show. A record published while the
+    // folder was judged is read once more (again).
+    private EditSessionRecord? LoadOne(string dir,bool isNative,NativePass pass,bool again=false)
+    {
+        FileStream opened;
+        try { opened = new FileStream(Path.Combine(dir, RecordFile), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete); }
+        // Only the record's own absence leads to the creation marker: a record whose folders are incomplete is unreadable.
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { return LoadWithoutRecord(dir,isNative,pass,again); }
+        using (var stream = opened)
+        {
+            long recordLength=stream.Length;
+            if (recordLength > MaxRecordBytes)
+                return UnsupportedSession(dir, "This edit record is larger than the supported metadata budget. Its working folder is kept.");
+            byte[] bytes = new byte[checked((int)recordLength)];
+            stream.ReadExactly(bytes);
+            var loaded=stream.ReadByte() != -1
+                ? UnsupportedSession(dir, "This edit record changed while it was read. Its working folder is kept.")
+                : ReadStoredRecord(bytes, dir);
+            if(nativeRoot!=Root&&loaded.IsSupported&&
+               (isNative != (loaded.StorageRootIdentity.Length!=0)))
+                loaded=UnsupportedSession(dir,"This edit record belongs to a different storage root. Its files are kept.");
+            return loaded;
+        }
+    }
+
+    // A folder without an edit record. Native creation leaves a private recovery marker before any working bytes are
+    // copied. A creation another FileCat process still runs holds its folder; one nobody holds is an interrupted copy, kept
+    // for review.
+    private EditSessionRecord? LoadWithoutRecord(string dir,bool isNative,NativePass pass,bool again)
+    {
+        if(!isNative||nativeOpen is null)return null;
+        // FileCat's own edit folders are named by a GUID: anything else in the store is nobody's edit, and its name may not
+        // even be one a private lease can hold, so it is not opened at all.
+        if(!Guid.TryParseExact(Path.GetFileName(dir),"N",out _))return null;
+        EditSessionRecord? judged;bool published;
+        try
+        {
+            // A read-only review: on Windows it shares deletion, so a creation's or a removal's folder handle does not
+            // refuse it.
+            var nativeRoot=pass.Root();using var session=nativeRoot.OpenStorageDirectory(Path.GetFileName(dir),default);
+            byte[]? markerBytes=null;
+            try{markerBytes=ReadRecordBytes(session,CreationMarker,default);}
+            // A creation still before its marker, one that ended there, or one whose removal already took it: an unfinished
+            // copy, kept for review, never a silent folder.
+            catch(Exception missing)when(IsMissing(missing)){}
+            var marker=markerBytes is null?null:ParseRecord(markerBytes,dir);
+            if(marker is not null&&marker.UnsupportedReason!=UnsupportedVersionReason)return marker;
+            // A folder that holds anything but what a creation makes needs no gate: it lost its record otherwise. (A record
+            // published while this folder was read is judged under the gate, which reads it again.)
+            var listed=session.Names(default,8192);
+            if(!listed.Contains(RecordFile,StringComparer.Ordinal)&&!CreationShaped(listed))
+                return marker is null?UnsupportedSession(dir,IncompleteEditReason):marker with{UnsupportedReason=IncompleteEditReason};
+            (string? reason,published)=CreationState(nativeRoot,session,pass);
+            judged=reason is null?null:marker is null?UnsupportedSession(dir,reason):marker with{UnsupportedReason=reason};
+        }
+        catch(Exception markerError)when(IsMissing(markerError)){return null;} // The folder itself went away.
+        // On Windows a creation holds its marker open for writing until it ends, which refuses another reader; so does a
+        // folder another program holds.
+        catch(IOException markerError)when(OperatingSystem.IsWindows()&&(markerError.HResult&0xFFFF)==32)
+        {return UnsupportedSession(dir,CopyingElsewhereReason);}
+        // On Linux another FileCat process removing the marker holds its lease, which refuses this read (EWOULDBLOCK).
+        catch(IOException markerError)when(OperatingSystem.IsLinux()&&markerError.HResult==11)
+        {return UnsupportedSession(dir,CopyingElsewhereReason);}
+        catch(Exception markerError)when(IsStorageFailure(markerError))
+        {return UnsupportedSession(dir,"This interrupted edit's recovery record cannot be read. Its working folder is kept.");}
+        // A record published meanwhile is read again, once, after this review: what that read finds is the record's own.
+        if(published)return again?UnsupportedSession(dir,CopyingElsewhereReason):LoadOne(dir,isNative,pass,again:true);
+        return judged;
     }
 
     private static EditSessionRecord UnsupportedSession(string directory, string reason, int version = int.MaxValue, string? working = null) =>
@@ -296,10 +357,96 @@ public sealed partial class EditSessionStore
         return directory;
     }
 
+    private const string UnsupportedVersionReason = "This edit-session version or archive profile is not supported. Its working files are kept.";
+    internal const string InterruptedCreationReason =
+        "This edit is incomplete: it was interrupted while FileCat was making or removing it. What is left of it is kept for review.";
+    internal const string CopyingElsewhereReason =
+        "This edit's folder is in use right now (another FileCat window may still be copying it, or another program may have it open). Look again in a moment.";
+    internal const string UncheckedReason =
+        "This edit could not be checked just now (the edit storage or its folder was busy or could not be read). Its files are kept; look again in a moment.";
+    internal const string IncompleteEditReason =
+        "This edit's folder holds files of an edit but not the record that speaks for it, so FileCat cannot tell what they are. They are kept: open the working folder to review them.";
+
+    // Whether a FileCat process still makes the edit in this folder: on Unix the creation's exclusive lock on the folder,
+    // which a process that ends releases (this test takes a shared one and gives it back at once); on Windows the creation's
+    // own open marker, which shares no writing.
+    private static bool CreationHeldElsewhere(EditDirectoryLease session)
+    {
+        if(!OperatingSystem.IsWindows())
+        {
+            if(!FileCat.Core.Archives.Unix.UnixArchiveNative.TryLockEditCreation(session.Handle,exclusive:false))return true;
+            FileCat.Core.Archives.Unix.UnixArchiveNative.UnlockEditCreation(session.Handle);return false;
+        }
+        try{using var marker=session.OpenFile(CreationMarker,null,default);return false;}
+        catch(IOException error)when((error.HResult&0xFFFF)==32){return true;}
+        catch(Exception missing)when(IsMissing(missing)){return false;}
+    }
+
+    // What a folder without an edit record holds: a creation another FileCat process still runs (in use), or one that
+    // ended (interrupted); Reason null once the folder is gone, Published when its record was published meanwhile (read it
+    // again). A creation makes its folder, takes its hold and writes its marker under the storage gate, publishes its record
+    // under it, and is removed under it, so a folder nobody holds is judged under the gate: a creation still before its
+    // hold has taken it by then. A busy gate leaves the folder in use for now.
+    private static (string? Reason,bool Published) CreationState(EditDirectoryLease root,EditDirectoryLease session,NativePass pass)
+    {
+        if(CreationHeldElsewhere(session))return (CopyingElsewhereReason,false);
+        // A busy gate (once per list) or one that cannot be reviewed leaves the folder undecided for now, not in use.
+        if(pass.Busy)return (UncheckedReason,false);
+        EditStorageAdmission gate;
+        try{gate=EditStorageAdmission.Acquire(root,default,TimeSpan.FromMilliseconds(250));}
+        catch(EditStorageBusyException){pass.Busy=true;return (UncheckedReason,false);}
+        catch(Exception error)when(IsStorageFailure(error)){return (UncheckedReason,false);}
+        using(gate)
+        {
+            string[] names;
+            try{session.Review(default);names=session.Names(default,8192).ToArray();}
+            catch(Exception error)when(IsMissing(error)){return (null,false);}
+            catch(Exception error)when(IsStorageFailure(error)){return (UncheckedReason,false);}
+            if(names.Contains(RecordFile,StringComparer.Ordinal))return (null,true);
+            if(CreationHeldElsewhere(session))return (CopyingElsewhereReason,false);
+            if(!CreationShaped(names))return (IncompleteEditReason,false);
+            if(!names.Contains(CreationMarker,StringComparer.Ordinal))return (InterruptedCreationReason,false);
+            // A copy a creation did not finish is shorter than its marker says it was admitted to be; one that is already
+            // that long either was being published (a record stage is there) or is a whole copy whose record went some other
+            // way, which FileCat keeps whole: it cannot tell such a copy from an edit of the user's.
+            try
+            {
+                var (admitted,leaf,recorded,read)=Admitted(session);
+                if(!read)return (UncheckedReason,false); // Its marker could not be read just now.
+                // Read, but naming no working file: FileCat never writes such a marker, so the folder is kept whole.
+                if(leaf is null)return (IncompleteEditReason,false);
+                var (written,measured)=Written(session,leaf);
+                if(!measured)return (UncheckedReason,false); // Its copy could not be measured just now.
+                if(written is null)return (InterruptedCreationReason,false); // No copy: nothing of the user's.
+                if(!recorded)return (IncompleteEditReason,false); // An earlier build's marker does not say how long.
+                // Only a creation's own record stage says a copy was being published; any other record's (a revision's) does
+                // not. An empty copy holds nothing of anyone's, whatever its marker records.
+                return (written==0||written<admitted||names.Any(IsCreationStage)?InterruptedCreationReason:IncompleteEditReason,false);
+            }
+            catch(Exception error)when(IsStorageFailure(error)){return (UncheckedReason,false);}
+        }
+    }
+
+    // Whether this folder holds only what a creation makes, and nothing but that: its marker, its working folder, records it
+    // was publishing, names an interrupted removal set aside. An empty folder is a creation's first step, so it counts; one
+    // that holds only the Finder's own .DS_Store is nobody's work, so it does not.
+    private static bool CreationShaped(IReadOnlyList<string> names)=>
+        (names.Count==0||names.Any(name=>name==CreationMarker||name=="files"||IsRecordStage(name)||IsSetAside(name)))&&
+        names.All(name=>name==CreationMarker||name=="files"||IsRecordStage(name)||IsSetAside(name)||IsDesktopArtifact(name));
+
+    // What reading or holding private edit storage can fail with: the platform's own calls (Windows' NT and security calls
+    // raise Win32Exception) as well as .NET's I/O and access errors.
+    private static bool IsStorageFailure(Exception error)=>error is IOException or UnauthorizedAccessException or
+        System.ComponentModel.Win32Exception;
+
+    // Not there: .NET's own exceptions, or a Unix native open's ENOENT.
+    private static bool IsMissing(Exception error)=>error is FileNotFoundException or DirectoryNotFoundException||
+        !OperatingSystem.IsWindows()&&error is IOException{HResult:2};
+
     // Only bounded bytes and the store-owned directory name enter the parser. Unknown shapes never choose .NET types.
     internal static EditSessionRecord ParseRecord(byte[] bytes, string directory,bool allowPendingAdoption=false)
     {
-        const string unsupported = "This edit-session version or archive profile is not supported. Its working files are kept.";
+        const string unsupported = UnsupportedVersionReason;
         if (bytes.Length > MaxRecordBytes) return UnsupportedSession(directory, "This edit record exceeds the metadata budget. Its working folder is kept.");
         try
         {
@@ -436,11 +583,20 @@ public sealed partial class EditSessionStore
             throw new IOException("The download mark could not be kept on the private edit copy.");
     }
 
-    private EditSessionRecord CreateSession(string fileName, Func<string,Func<long,FileStream>?,WorkingCopy> write, Func<string, WorkingCopy, EditSessionRecord> describe, CancellationToken ct)
+    private EditSessionRecord CreateSession(string fileName, Func<string,Func<long,FileStream>?,WorkingCopy> write,
+        Func<string, WorkingCopy, EditSessionRecord> describe, CancellationToken ct) =>
+        CreateSession(fileName,(path,open,_)=>write(path,open),describe,ct);
+
+    /// <summary>
+    /// A new edit in either store. The copy is given its working folder's own lease where there is one (native storage), so
+    /// that whatever it writes beside the working file goes through the folder FileCat holds, never through its path.
+    /// </summary>
+    private EditSessionRecord CreateSession(string fileName, Func<string,Func<long,FileStream>?,Func<EditDirectoryLease>?,WorkingCopy> write,
+        Func<string, WorkingCopy, EditSessionRecord> describe, CancellationToken ct)
     {
         RefuseElevatedSession();
         ct.ThrowIfCancellationRequested();
-        if(nativeOpen is not null)return CreateNativeSession(fileName,(path,open,_)=>write(path,open),describe,ct);
+        if(nativeOpen is not null)return CreateNativeSession(fileName,(path,open,files)=>write(path,open,files),describe,ct);
         string id = Guid.NewGuid().ToString("N");
         string dir = Path.Combine(Root, id);
         CreatePrivateDirectory(dir);
@@ -452,7 +608,7 @@ public sealed partial class EditSessionStore
         try
         {
             Directory.CreateDirectory(files);
-            var copy = write(working,null);
+            var copy = write(working,null,null);
             ct.ThrowIfCancellationRequested();
             var record = describe(working, copy) with { Id = id, CreatedUtc = DateTime.UtcNow };
             ct.ThrowIfCancellationRequested();
@@ -647,13 +803,17 @@ public sealed partial class EditSessionStore
     public EditWorkingReview ReviewWorking(EditSessionRecord record, Resources.ResourceProvider provider, Action? check = null)
     {
         void Check() => check?.Invoke();
+        bool opened = false;
         try
         {
             Check();
-            using var source = record.StorageRootIdentity.Length!=0?OpenNativeWorking(record,default):
+            // A native working copy is read sharing writing: an editor may save meanwhile, and the revision check below
+            // then reports the copy as unavailable for now (a later review reads it again).
+            using var source = record.StorageRootIdentity.Length!=0?ObservedNativeWorking(()=>OpenNativeWorking(record,default,review:true)):
                 Content.ProgressiveContent.Sequential(provider.OpenContent(ItemRef.ForFileSystemPath(record.WorkingPath, EntryKind.File)));
             Check();
             if (source is null) return new(EditState.Unavailable, null);
+            opened = true;
             long length = source.Length; Check(); ValidateLength(length); CheckComplete(source);
             var before = source.GetRevision(); Check();
             if (before is { } revision && revision.Length != length) return new(EditState.Unavailable, null);
@@ -674,7 +834,9 @@ public sealed partial class EditSessionStore
             string sha256 = Convert.ToHexString(hash.GetHashAndReset());
             return new(sha256 == record.BaseSha256 ? EditState.Unchanged : EditState.Modified, sha256);
         }
-        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { Check(); return new(EditState.Missing, null); }
+        // A name that goes once the copy is open is an editor's save in progress (delete, then create): unavailable for now.
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        { Check(); return new(opened ? EditState.Unavailable : EditState.Missing, null); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         { Check(); return new(EditState.Unavailable, null); }
     }
@@ -739,17 +901,55 @@ public sealed partial class EditSessionStore
         RefuseElevatedSession();
         check();
         if(record.StorageRootIdentity.Length!=0)return PrepareNativeSnapshot(record,default,check);
+        return CaptureSaveCopy(record, tempRoot, provider, check);
+    }
+
+    /// <summary>
+    /// The Save copy source the application publishes with <see cref="PublishSaveCopy"/> (a verified stage beside the
+    /// destination, which then replaces it), for every edit alike: a complete copy in FileCat's own temporary folder, made on
+    /// its caller's admitted worker before any destination is touched. A native edit's working file is read through its held
+    /// private namespace, and the download mark kept is the one that exact object carries; a legacy edit's through the
+    /// provider. Nothing of it stays in the native store (the native destination workflow, <see cref="PrepareSaveCopy"/> with
+    /// <c>SaveNewNativeCopy</c>, remains an explicit composition).
+    /// </summary>
+    public EditCommitCopy CaptureSaveCopy(EditSessionRecord record, string tempRoot, ResourceProvider provider, Action check)
+    {
+        RefuseElevatedSession();
+        check();
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
         CreatePrivateDirectory(directory);
         string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
         try
         {
-            using var source = Content.ProgressiveContent.Sequential(provider.OpenContent(ItemRef.ForFileSystemPath(record.WorkingPath, EntryKind.File)))
-                ?? throw new IOException("The working copy cannot be read completely.");
-            check();
-            var bytes = WriteWorkingCopy(source, path, default, check: check);
-            check();
-            if (fs.ReadOriginMark(record.WorkingPath) is { } mark) PreserveOriginMark(path, mark);
+            WorkingCopy bytes; string? mark;
+            if (record.StorageRootIdentity.Length != 0)
+            {
+                NativeWorkingContent? held = null;
+                try
+                {
+                    using (var source = ObservedNativeWorking(() => held = OpenNativeWorking(record, default), borrowed: true))
+                    {
+                        check();
+                        bytes = WriteWorkingCopy(source, path, default, check: check);
+                    }
+                    check();
+                    mark = OriginMark((held ?? throw new IOException("The working copy was not read.")).ReadOrigin());
+                }
+                finally { held?.Dispose(); }
+            }
+            else
+            {
+                using var source = Content.ProgressiveContent.Sequential(provider.OpenContent(ItemRef.ForFileSystemPath(record.WorkingPath, EntryKind.File)))
+                    ?? throw new IOException("The working copy cannot be read completely.");
+                check();
+                bytes = WriteWorkingCopy(source, path, default, check: check);
+                check();
+                mark = fs.ReadOriginMark(record.WorkingPath);
+            }
+            // A copy of a marked edit is not made without its mark: a temporary area that cannot keep one refuses the Save
+            // copy up front, as it refuses a commit's copy (EditCommitCopyTests). Only a destination that cannot keep the
+            // mark, where the copy is already made, is reported instead.
+            if (mark is not null) PreserveOriginMark(path, mark);
             check(); return new EditCommitCopy(path, bytes.Sha256, bytes.Crc, bytes.Length, fs);
         }
         catch
@@ -760,7 +960,8 @@ public sealed partial class EditSessionStore
     }
 
     /// <summary>Copy owned bytes into a unique sibling first. Publish only after the native copy returns and demand remains active.</summary>
-    public static void PublishSaveCopy(EditCommitCopy copy, string destination, IFileSystemOperations files, Action check)
+    /// <returns>Null, or what the saved copy could not keep: its download mark, where the destination cannot store it.</returns>
+    public static string? PublishSaveCopy(EditCommitCopy copy, string destination, IFileSystemOperations files, Action check)
     {
         RefuseElevatedSession();
         check();
@@ -775,10 +976,18 @@ public sealed partial class EditSessionStore
             catch { stagedIdentity = StageIdentity(files, staged); throw; }
             stagedIdentity = files.GetFileIdentity(staged);
             check();
+            // The download mark goes with the copy, as an F5 copy carries it (a Linux copy carries no user attributes of
+            // its own); where the destination cannot store it (FAT or exFAT have no streams or extended attributes, some
+            // network shares refuse them), the copy is saved and the user is told, as F5 tells.
+            string? lost = null;
+            if (files.ReadOriginMark(copy.Path) is { } mark && !KeepMark(files, staged, mark))
+                lost = "Its download mark was not kept: the destination cannot store it, so the system may not warn when the copy is opened.";
+            check();
             VerifySaveCopy(copy, staged, check);
             check();
             files.Move(staged, destination, replaceExisting: true, writeThrough: true);
             check();
+            return lost;
         }
         finally
         {
@@ -790,6 +999,14 @@ public sealed partial class EditSessionStore
                 if (kept is not null) Diagnostics.AppLog.Warn(kept);
             }
         }
+    }
+
+    // Whether the stage carries the mark: copied with it, or written now. A destination that cannot hold one is not an error.
+    private static bool KeepMark(IFileSystemOperations files, string staged, string mark)
+    {
+        try { return files.ReadOriginMark(staged) is not null || files.WriteOriginMark(staged, mark); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException)
+        { return false; }
     }
 
     private static string? StageIdentity(IFileSystemOperations files, string staged)

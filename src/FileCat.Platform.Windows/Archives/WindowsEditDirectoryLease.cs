@@ -104,16 +104,37 @@ internal sealed partial class WindowsEditDirectoryLease : EditDirectoryLease
         }
     }
     internal override FileStream CreateFile(string name,CancellationToken ct)=>OpenFileCore(name,null,true,ct);
+    internal override FileStream OpenSharedRecord(string name,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(name);ReviewCore(ct);
+            if(!isPrivate)throw new UnauthorizedAccessException("Edit records need a private edit directory.");
+            var file=OpenOrThrow(directory,name,GenericRead|Synchronize,ShareAll,Open,NonDirectoryFile|OpenReparsePoint,"Read a held edit record");
+            try
+            {
+                WindowsArchiveNative.Regular(file,FileCat.Core.Edit.EditSessionStore.MaxMemberBytes,artifact:true,mayRename:false);
+                WindowsArchiveNative.RequirePrivateSecurity(file,owner);ReviewCore(ct);return new(file,FileAccess.Read);
+            }
+            catch{file.Dispose();throw;}
+        }
+    }
     internal override FileStream OpenFile(string name,string? expected,CancellationToken ct)=>OpenFileCore(name,expected,false,ct);
-    internal override FileStream OpenWorkingFile(string name,CancellationToken ct)
+    internal override FileStream OpenWorkingFile(string name,CancellationToken ct)=>OpenWorkingFileCore(name,ShareRead,ct);
+    internal override FileStream OpenWorkingFileForReview(string name,CancellationToken ct)=>OpenWorkingFileCore(name,ShareAll,ct);
+    private FileStream OpenWorkingFileCore(string name,uint share,CancellationToken ct)
     {
         lock(Gate)
         {
             RequireOpen();Leaf(name);ReviewCore(ct);
             if(!isPrivate)throw new UnauthorizedAccessException("Working bytes need a private edit directory.");
-            var handle=OpenOrThrow(directory,name,GenericRead|0x20000|Synchronize,ShareRead,Open,NonDirectoryFile|OpenReparsePoint,"Open private editor working file");
+            var handle=OpenOrThrow(directory,name,GenericRead|0x20000|Synchronize,share,Open,NonDirectoryFile|OpenReparsePoint,"Open private editor working file");
             var file=new FileStream(handle,FileAccess.Read);
-            try{ReviewWorkingFile(file,name,ct);return file;}catch{file.Dispose();throw;}
+            try{ReviewWorkingFile(file,name,ct);return file;}
+            // Opened, then its name went (an editor's save that deletes, then creates): changed, not missing.
+            catch(Exception error)when(error is FileNotFoundException or DirectoryNotFoundException)
+            {file.Dispose();throw new IOException("The working copy changed while it was opened.",error);}
+            catch{file.Dispose();throw;}
         }
     }
     internal override ContentRevision ReviewWorkingFile(FileStream file,string name,CancellationToken ct)
@@ -168,7 +189,7 @@ internal sealed partial class WindowsEditDirectoryLease : EditDirectoryLease
         {
             ReviewRemoval(file,name,expected,ct);
             try{WindowsArchiveNative.DeleteExact(file.SafeFileHandle);file.Dispose();}
-            catch(System.ComponentModel.Win32Exception error){throw new IOException("The private commit snapshot could not be removed: "+Path,error);}
+            catch(System.ComponentModel.Win32Exception error){throw new IOException("The private edit file could not be removed: "+Path,error);}
         }
     }
     internal override bool CanRemoveOwnedDirectories=>true;

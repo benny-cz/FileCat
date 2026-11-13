@@ -18,6 +18,19 @@ internal static unsafe partial class UnixArchiveNative
         if(error==4||error==(Mac?35:11))return false;
         throw new IOException("The native edit storage gate could not be locked.",error);
     }
+    /// <summary>
+    /// The lock a native edit creation holds on its session folder while it runs (exclusive), and that a reviewer takes to
+    /// see whether one still runs (shared); false when another open description holds a conflicting lock. A process that
+    /// ends releases its lock, so a folder nobody holds belongs to a creation that was interrupted.
+    /// </summary>
+    internal static bool TryLockEditCreation(SafeFileHandle file,bool exclusive)
+    {
+        if(EditFlock(Fd(file),(exclusive?2:1)|4)==0)return true; // LOCK_EX or LOCK_SH, | LOCK_NB.
+        int error=Marshal.GetLastPInvokeError();
+        if(error==4||error==(Mac?35:11))return false;
+        throw new IOException("The native edit creation folder could not be locked.",error);
+    }
+    internal static void UnlockEditCreation(SafeFileHandle file)=>_=EditFlock(Fd(file),8); // LOCK_UN
     [LibraryImport("libc",EntryPoint="flock",SetLastError=true)]
     private static partial int EditFlock(int fd,int operation);
 }

@@ -21,11 +21,12 @@ public sealed class EditDiscardNativeUiTests
     [InlineData("success"),InlineData("cancel"),InlineData("later-save"),InlineData("extra-child"),InlineData("partial"),InlineData("unsupported")]
     public async Task Explicit_native_discard_rechecks_bytes_and_keeps_partial_or_unsupported_edits_visible(string scenario)
     {
-        if(!OperatingSystem.IsWindows()&&scenario is "success" or "extra-child" or "partial")
-            Assert.Skip("Exact native discard still requires the qualified Windows recipe.");
+        // Every platform's native store discards exactly (Windows by handle, Linux and macOS by bound names): the reviewed
+        // discard, a folder that gained an entry and a partial removal run everywhere native storage is the default.
         var ct=TestContext.Current.CancellationToken;
         string parent=Path.GetFullPath(Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath());
         if(OperatingSystem.IsMacOS()&&parent.StartsWith("/var/",StringComparison.Ordinal))parent="/private"+parent;
+        EditTestStores.RequireListedRoute(parent);
         string nativeRoot=Directory.CreateDirectory(Path.Combine(parent,"filecat-discard-ui-"+Guid.NewGuid().ToString("N"))).FullName;
         using var stop=CancellationTokenSource.CreateLinkedTokenSource(ct);
         var faults=new ArchiveEditDiscardCases.Faults("extra-after-review",stop);

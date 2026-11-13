@@ -14,6 +14,9 @@ if(args is ["--edit-storage-gate",var editRoot,var editNativeAssembly,var editMo
 if(args is ["--edit-adoption-crash",var adoptionLegacyRoot,var adoptionNativeRoot,var adoptionNativeAssembly,var adoptionPoint,var adoptionMarker])
     return EditLegacyAdoptionCrashHarness.Run(adoptionLegacyRoot,adoptionNativeRoot,adoptionNativeAssembly,adoptionPoint,adoptionMarker);
 
+if(args is ["--edit-creation-crash",var editCreationRoot,var editCreationAssembly,var editCreationMarker,var editCreationPoint])
+    return EditCreationCrashHarness.Run(editCreationRoot,editCreationAssembly,editCreationMarker,editCreationPoint);
+
 if (args.Length > 0 && args[0] == "--archive-test-medium")
     return await ArchiveTestMedium.Run(args[1..]);
 

@@ -30,6 +30,7 @@ public sealed class EditRetainedCopyUiTests
         var ct=TestContext.Current.CancellationToken;
         string parent=Path.GetFullPath(Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath());
         if(OperatingSystem.IsMacOS()&&parent.StartsWith("/var/",StringComparison.Ordinal))parent="/private"+parent;
+        EditTestStores.RequireListedRoute(parent);
         string fixture=Directory.CreateDirectory(Path.Combine(parent,"filecat-retained-ui-"+Guid.NewGuid().ToString("N"))).FullName;
         var paths=AppPaths.Resolve(overrideRoot:fixture);
         EditDirectoryLease Open(string path,bool priv,CancellationToken token)=>OperatingSystem.IsWindows()

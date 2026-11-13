@@ -22,7 +22,14 @@ using ResourceProvider = FileCat.Core.Resources.ResourceProvider;
 
 namespace FileCat.App.Tests;
 
-public sealed class EditSaveCopyTests(ITestOutputHelper output)
+public sealed class EditSaveCopyTests(ITestOutputHelper output) : EditSaveCopyCases(output, EditStoreKind.Legacy);
+public sealed class EditSaveCopyNativeTests(ITestOutputHelper output) : EditSaveCopyCases(output, EditStoreKind.Native);
+
+/// <summary>
+/// Save copy for both edit stores: the working copy is captured completely (a legacy edit's through the provider, a native
+/// edit's through its held private folder, observed through the store's read seam) and saved through a verified stage.
+/// </summary>
+public abstract class EditSaveCopyCases(ITestOutputHelper output, EditStoreKind store)
 {
     [AvaloniaTheory]
     [InlineData("shutdown", false)]
@@ -31,7 +38,7 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
     [InlineData("close", true)]
     public async Task Ended_demand_cannot_open_or_accept_a_save_picker(string end, bool before)
     {
-        using var f = await Fixture.Create(); if (before) f.End(end);
+        using var f = await Fixture.Create(store); if (before) f.End(end);
         var task = f.Start(); if (!before) await Wait(() => f.PickerCalls > 0 || task.IsCompleted);
         f.End(end); string? notification = f.Vm.Notification; f.Answer(); await task.WaitAsync(TimeSpan.FromSeconds(10));
         Emit(f, "picker-ended", new { end, before, notification, after = f.Vm.Notification });
@@ -44,7 +51,7 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
     [InlineData("copy")]
     public async Task Repeated_save_copy_has_one_owner_until_the_picker_or_native_call_returns(string phase)
     {
-        using var f = await Fixture.Create(phase == "picker" ? null : phase); Task? first = null, second = null;
+        using var f = await Fixture.Create(store, phase == "picker" ? null : phase); Task? first = null, second = null;
         try
         {
             first = f.Start(); await Wait(() => f.PickerCalls > 0 || first.IsCompleted);
@@ -67,7 +74,7 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
     [InlineData("move", "close")]
     public async Task Active_source_and_destination_calls_keep_their_owner_through_shutdown(string held, string end)
     {
-        using var f = await Fixture.Create(held); Task? task = null;
+        using var f = await Fixture.Create(store, held); Task? task = null;
         try
         {
             task = f.Start(); f.Answer(); await Wait(() => f.Gate.Active > 0 || task.IsCompleted);
@@ -91,7 +98,7 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
     [InlineData("target", "close")]
     public async Task Queued_device_admission_cannot_start_after_demand_ends(string phase, string end)
     {
-        using var f = await Fixture.Create(); using var release = new ManualResetEventSlim(false); using var entered = new CountdownEvent(2);
+        using var f = await Fixture.Create(store); using var release = new ManualResetEventSlim(false); using var entered = new CountdownEvent(2);
         string key = phase == "source" ? "owned-save-source" : "owned-save-target";
         var blockers = Enumerable.Range(0, 2).Select(_ => f.Services.Io.Run(key, IoPriority.Normal, _ => { entered.Signal(); Assert.True(release.Wait(TimeSpan.FromSeconds(12))); return true; })).ToArray(); Task? task = null;
         try
@@ -125,7 +132,7 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
     [InlineData("revision")]
     public async Task Uncertain_or_incomplete_source_preserves_existing_destination_and_session(string outcome)
     {
-        using var f = await Fixture.Create(outcome: outcome); var task = f.Start(); await Wait(() => f.PickerCalls > 0);
+        using var f = await Fixture.Create(store, outcome: outcome); var task = f.Start(); await Wait(() => f.PickerCalls > 0);
         if (outcome == "missing") File.Delete(f.Session.WorkingPath); f.Answer(); await task.WaitAsync(TimeSpan.FromSeconds(10));
         Emit(f, "source-refused", new { outcome }); AssertWorkers(f); Assert.Equal("previous destination", File.ReadAllText(f.Target)); Assert.Contains("Cannot save", f.Vm.Notification); Assert.Single(f.Services.EditSessions.LoadAll());
         if (outcome != "missing") Assert.Equal("base", File.ReadAllText(f.Session.WorkingPath));
@@ -142,7 +149,7 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
     [InlineData("move-io")]
     public async Task Destination_failure_preserves_existing_bytes_and_removes_owned_staging(string outcome)
     {
-        using var f = await Fixture.Create(outcome: outcome); var task = f.Start(); f.Answer(); await task.WaitAsync(TimeSpan.FromSeconds(10));
+        using var f = await Fixture.Create(store, outcome: outcome); var task = f.Start(); f.Answer(); await task.WaitAsync(TimeSpan.FromSeconds(10));
         Emit(f, "target-refused", new { outcome }); AssertWorkers(f); Assert.Equal("previous destination", File.ReadAllText(f.Target)); Assert.Contains("Cannot save", f.Vm.Notification); f.AssertPersistent(); f.AssertNoTemporaryCopies();
     }
 
@@ -152,7 +159,7 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
     [InlineData(1048577)]
     public async Task Successful_copy_has_exact_bytes_and_keeps_the_edit_open(int size)
     {
-        using var f = await Fixture.Create(); byte[] bytes = Enumerable.Range(0, size).Select(i => (byte)(i * 31)).ToArray(); File.WriteAllBytes(f.Session.WorkingPath, bytes);
+        using var f = await Fixture.Create(store); byte[] bytes = Enumerable.Range(0, size).Select(i => (byte)(i * 31)).ToArray(); File.WriteAllBytes(f.Session.WorkingPath, bytes);
         var task = f.Start(); f.Answer(); await task.WaitAsync(TimeSpan.FromSeconds(10));
         Emit(f, "success", new { size, SHA256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(f.Target))) }); AssertWorkers(f); Assert.Equal(bytes, File.ReadAllBytes(f.Target)); Assert.Equal(bytes, File.ReadAllBytes(f.Session.WorkingPath)); Assert.Single(f.Services.EditSessions.LoadAll()); Assert.Contains("Saved a copy", f.Vm.Notification); Assert.Equal(1, f.FileProxy.Disposals); f.AssertNoTemporaryCopies();
     }
@@ -160,7 +167,7 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
     [AvaloniaFact]
     public async Task Picker_cancellation_and_nonlocal_result_do_not_write_and_allow_a_later_copy()
     {
-        using var f = await Fixture.Create(); var task = f.Start(); f.Picker.TrySetResult(null); await task;
+        using var f = await Fixture.Create(store); var task = f.Start(); f.Picker.TrySetResult(null); await task;
         Assert.Equal("previous destination", File.ReadAllText(f.Target)); f.ResetPicker(new Uri("content://owned/result")); task = f.Start(); f.Answer(); await task;
         Assert.Equal("previous destination", File.ReadAllText(f.Target)); Assert.Equal(1, f.FileProxy.Disposals);
         f.ResetPicker(new Uri(f.Target)); task = f.Start(); f.Answer(); await task; Emit(f, "picker-retry", new { f.PickerCalls }); Assert.Equal("base", File.ReadAllText(f.Target)); AssertWorkers(f); f.AssertPersistent(); f.AssertNoTemporaryCopies();
@@ -169,7 +176,7 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
     [AvaloniaFact]
     public async Task Save_copy_uses_the_edit_after_the_picker_and_freezes_it_before_destination_admission()
     {
-        using var f = await Fixture.Create("copy"); Task? task = null;
+        using var f = await Fixture.Create(store, "copy"); Task? task = null;
         try
         {
             task = f.Start(); await Wait(() => f.PickerCalls > 0); File.WriteAllText(f.Session.WorkingPath, "chosen edit"); f.Answer(); await Wait(() => f.Gate.Active > 0 || task.IsCompleted);
@@ -184,7 +191,7 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
     [InlineData(true)]
     public async Task Selecting_the_working_path_is_refused_without_overwriting_the_editor_file(bool normalized)
     {
-        using var f = await Fixture.Create(); string path = normalized ? Path.Join(Path.GetDirectoryName(f.Session.WorkingPath)!, ".", Path.GetFileName(f.Session.WorkingPath)) : f.Session.WorkingPath;
+        using var f = await Fixture.Create(store); string path = normalized ? Path.Join(Path.GetDirectoryName(f.Session.WorkingPath)!, ".", Path.GetFileName(f.Session.WorkingPath)) : f.Session.WorkingPath;
         f.ResetPicker(new Uri(path)); var task = f.Start(); f.Answer(); await task;
         Emit(f, "same-path", new { normalized }); Assert.Contains("different", f.Vm.Notification); Assert.Equal("base", File.ReadAllText(f.Session.WorkingPath)); Assert.Equal("previous destination", File.ReadAllText(f.Target)); Assert.Null(f.Files.Snapshot); f.AssertPersistent(); f.AssertNoTemporaryCopies();
     }
@@ -192,7 +199,7 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
     [AvaloniaFact]
     public async Task A_conflict_owner_can_save_a_copy_without_releasing_its_commit_owner()
     {
-        using var f = await Fixture.Create(); var owners = (HashSet<string>)typeof(MainViewModel).GetField("_sessionActions", Fixture.Fields)!.GetValue(f.Vm)!; Assert.True(owners.Add(f.Session.Id));
+        using var f = await Fixture.Create(store); var owners = (HashSet<string>)typeof(MainViewModel).GetField("_sessionActions", Fixture.Fields)!.GetValue(f.Vm)!; Assert.True(owners.Add(f.Session.Id));
         var task = f.Start(); f.Answer(); await task; Emit(f, "nested-owner", new { retainedOwner = owners.Contains(f.Session.Id) }); Assert.Contains(f.Session.Id, owners); Assert.Equal("base", File.ReadAllText(f.Target)); AssertWorkers(f); f.AssertPersistent(); f.AssertNoTemporaryCopies(); owners.Remove(f.Session.Id);
     }
 
@@ -223,12 +230,13 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
         public required AppServices Services; public required MainViewModel Vm; public required MainWindow Window; public required string Root; public required EditSessionRecord Session; public required Provider Provider; public required Gate Gate; public required Files Files; public required IPlatform Original;
         public required string Target; public required StorageProxy PickerProxy; public StorageProxy FileProxy = null!; private IStorageFile _file = null!;
         public TaskCompletionSource<IStorageFile?> Picker = new(TaskCreationOptions.RunContinuationsAsynchronously); public int PickerCalls;
-        public static async Task<Fixture> Create(string? held = null, string outcome = "ordinary")
+        public static async Task<Fixture> Create(EditStoreKind store, string? held = null, string outcome = "ordinary")
         {
-            var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(); await (Task)typeof(MainWindow).GetField("_interruptedStartup", Fields)!.GetValue(window)!;
+            var (services, vm, window, root) = EditTestStores.OpenMainWindow(store); await (Task)typeof(MainWindow).GetField("_interruptedStartup", Fields)!.GetValue(window)!;
             using var source = new MemoryContentSource("notes.txt", "base"u8.ToArray()); var session = services.EditSessions.CreateRemote("owned-unused", "owned", "/notes.txt", source, source.GetRevision()!.Value, null);
             string target = Path.Join(root, "destination.txt"); File.WriteAllText(target, "previous destination"); var gate = new Gate(held); var files = new Files(gate, outcome, OperatingSystem.IsWindows() ? new FileCat.Platform.Windows.WindowsFileOperations() : services.Platform.FileOperations);
             var provider = new Provider(services.Providers.Get(Schemes.FileSystem), session.WorkingPath, gate, outcome); services.Providers.Register(provider);
+            if (store == EditStoreKind.Native) services.EditSessions.NativeWorkingReads = open => provider.Observe(open);
             var picker = DispatchProxy.Create<IStorageProvider, StorageProxy>(); var proxy = (StorageProxy)(object)picker;
             var f = new Fixture { Services = services, Vm = vm, Window = window, Root = root, Session = session, Gate = gate, Provider = provider, Target = target, PickerProxy = proxy, Files = files, Original = services.Platform };
             proxy.Save = () => { f.PickerCalls++; return f.Picker.Task; }; f.ResetPicker(new Uri(target));
@@ -271,11 +279,13 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
         public override Location? GetChildLocation(Location l, in EntryData e) => inner.GetChildLocation(l, e);
         public override LocationCapabilities GetCapabilities(Location l) => inner.GetCapabilities(l);
         public override Task EnumerateAsync(Location l, IEnumerationSink sink, CancellationToken ct) => inner.EnumerateAsync(l, sink, ct);
-        public override IContentSource? OpenContent(ItemRef item)
+        public override IContentSource? OpenContent(ItemRef item) => item.FileSystemPath != path ? inner.OpenContent(item) : Observe(() => inner.OpenContent(item)!);
+        // A working-file read: the provider's own for a legacy edit, the store's held one for a native edit.
+        public IContentSource? Observe(Func<IContentSource> open)
         {
-            if (item.FileSystemPath != path) return inner.OpenContent(item); gate.Invoke("open");
+            gate.Invoke("open");
             if (outcome == "io") throw new IOException("Owned source failed."); if (outcome == "access") throw new UnauthorizedAccessException("Owned source denied."); if (outcome == "null") return null;
-            var source = new Source(inner.OpenContent(item)!, gate, outcome); Sources.Enqueue(source); return source;
+            var source = new Source(open(), gate, outcome); Sources.Enqueue(source); return source;
         }
     }
     private sealed class Source(IContentSource inner, Gate gate, string outcome) : IContentSource, IPartialContent

@@ -113,7 +113,7 @@ public sealed partial class EditSessionStore
                 node.Children.Add(ReviewCaptureForDiscard(capture,name,history));
             }
             if(!names.Order(StringComparer.Ordinal).SequenceEqual(expectedNames.Order(StringComparer.Ordinal)))
-                throw new IOException("The edit folder contains unexpected entries.");
+                throw Unexpected("This edit's folder",names,expectedNames);
             // Captures go first; the user's reviewed working bytes remain until their preflight and removal finish.
             using(var files=session.OpenStorageDirectory("files",ct))
             {
@@ -213,11 +213,19 @@ public sealed partial class EditSessionStore
         }
         void RequireMarker(byte[] bytes)
         {
+            // The marker as this build writes it (the folders it was made in and its admitted length), or as an earlier
+            // native build wrote it (its id, version and working path only).
             _=ArchiveWritePolicy.Utf8.GetCharCount(bytes);using var json=JsonDocument.Parse(bytes,new(){MaxDepth=4});var value=json.RootElement;
-            if(value.ValueKind!=JsonValueKind.Object||!value.EnumerateObject().Select(p=>p.Name).Order(StringComparer.Ordinal)
-                .SequenceEqual(new[]{"Id","Version","WorkingPath"}.Order(StringComparer.Ordinal))||
+            if(value.ValueKind!=JsonValueKind.Object)throw new IOException("The initial native creation marker cannot be reviewed.");
+            var fields=value.EnumerateObject().Select(p=>p.Name).Order(StringComparer.Ordinal).ToArray();
+            bool current=fields.SequenceEqual(CreationMarkerFields.Order(StringComparer.Ordinal));
+            if(!current&&!fields.SequenceEqual(EarlierCreationMarkerFields.Order(StringComparer.Ordinal))||
                 value.GetProperty("Id").GetString()!=record.Id||value.GetProperty("WorkingPath").GetString()!=record.WorkingPath||
-                !value.GetProperty("Version").TryGetInt32(out int version)||version!=int.MaxValue)
+                !value.GetProperty("Version").TryGetInt32(out int version)||version!=int.MaxValue||
+                current&&(value.GetProperty("SessionDirectoryIdentity").GetString()!=record.SessionDirectoryIdentity||
+                    value.GetProperty("WorkingDirectoryIdentity").GetString()!=record.WorkingDirectoryIdentity||
+                    value.GetProperty("Length") is not { ValueKind:JsonValueKind.Number } admitted||!admitted.TryGetInt64(out long length)||
+                    length is <0 or >MaxMemberBytes))
                 throw new IOException("The initial native creation marker cannot be reviewed.");
         }
         DiscardNode Node(EditDirectoryLease directory,string name)
@@ -263,7 +271,28 @@ public sealed partial class EditSessionStore
             Check();attempted=true;directory.RemoveEmpty(ct);
         }
         static void RequireLayout(DiscardNode node,string[] names)
-        {if(!node.Names.Order(StringComparer.Ordinal).SequenceEqual(names.Order(StringComparer.Ordinal)))throw new IOException("An edit folder contains unexpected entries.");}
+        {
+            if(node.Names.Order(StringComparer.Ordinal).SequenceEqual(names.Order(StringComparer.Ordinal)))return;
+            throw Unexpected("The folder \u201c"+node.Name+"\u201d",node.Names,names);
+        }
+
+        // What a folder holds that its discard did not expect, said as it is: a file FileCat left behind unfinished (a
+        // record it was publishing, a name an interrupted removal set aside), a file FileCat never made, or one of its own
+        // that is gone. Nothing is removed in any of those cases.
+        static IOException Unexpected(string folder,IReadOnlyList<string> present,IReadOnlyCollection<string> expected)
+        {
+            var extra=present.Except(expected,StringComparer.Ordinal).ToArray();
+            if(extra.Length==0)
+                return new IOException(folder+" no longer holds "+Listing(expected.Except(present,StringComparer.Ordinal).ToArray())+
+                    ", so FileCat cannot review what is left of it. Its files are kept.");
+            var left=extra.Where(name=>IsRecordStage(name)||IsSetAside(name)).ToArray();
+            var foreign=extra.Except(left,StringComparer.Ordinal).ToArray();
+            string what=left.Length==0?Listing(foreign)+", which FileCat did not make"
+                :foreign.Length==0?Listing(left)+", which FileCat left there when work on this edit was interrupted"
+                :Listing(foreign)+", which FileCat did not make, and "+Listing(left)+", which it left there when work on this edit was interrupted";
+            return new IOException(folder+" also holds "+what+". Its files are kept: remove "+(extra.Length==1?"it":"them")+
+                " yourself if not needed, then try again.");
+        }
         void RequireNames(EditDirectoryLease directory,string[] names)
         {if(!directory.Names(ct,8192).Order(StringComparer.Ordinal).SequenceEqual(names.Order(StringComparer.Ordinal)))throw new IOException("The reviewed edit folder changed. Unreviewed entries are kept.");}
     }

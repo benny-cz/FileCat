@@ -20,7 +20,8 @@ namespace FileCat.Core.Edit;
 /// <item>A folder is removed only once empty and while its name still binds the reviewed folder.</item>
 /// </list>
 /// The same rules remove a commit capture (the private snapshot FileCat created for one commit, CreateDirectory with
-/// removable) once its commit is done. Anything that does not match is kept and reported.
+/// removable) once its commit is done, and what a stopped or failed creation made. Anything that does not match is kept
+/// and reported.
 /// </summary>
 internal sealed partial class UnixEditDirectoryLease
 {
@@ -78,10 +79,23 @@ internal sealed partial class UnixEditDirectoryLease
         }
     }
 
-    // What the user is told about: the working copy of their edit, or FileCat's own temporary commit copy.
-    private string What(string name) => capture ? "FileCat's temporary commit copy" : "“" + name + "”";
-    private IOException Kept(string why) => new(char.ToUpperInvariant(why[0]) + why[1..] + "." +
-        (capture ? " It is kept for cleanup review at " + Path : " Its files are kept."));
+    internal override void RequireRemovable(FileStream file, string name)
+    {
+        lock (Gate)
+        {
+            if (UnixExactRemoval.TakeLease(file.SafeFileHandle, What(name)) is { } refused) throw Kept(refused);
+            UnixExactRemoval.ReleaseLease(file.SafeFileHandle);
+        }
+    }
+
+    // What the user is told about: the file by its name, as a temporary copy of FileCat's where it is one (a commit copy,
+    // or the copy of an edit that was stopped while it was made).
+    private string What(string name) => capture ? "FileCat's temporary copy “" + name + "”" : "“" + name + "”";
+    private IOException Kept(string why)
+    {
+        string text = char.ToUpperInvariant(why[0]) + why[1..] + "." + (capture ? " It is kept for cleanup review at " + Path : " Its files are kept.");
+        return UnixExactRemoval.IsInUse(why) ? new EditFileInUseException(text) : new IOException(text);
+    }
 
     // The removal of one reviewed file (DeleteSnapshot in a lease opened for discard or created removable). The Linux lease
     // is taken first and the complete content is reviewed under it, so no save can land unseen before the name goes.

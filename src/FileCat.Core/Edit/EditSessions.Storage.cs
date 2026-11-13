@@ -22,45 +22,86 @@ public sealed partial class EditSessionStore
         string parentPath=Path.GetDirectoryName(path)!;
         using var parent=nativeOpen(parentPath,false,ct);
         if(parent.Path!=parentPath)throw new IOException("The native edit parent differs from the configured store.");
-        var created=parent.CreateDirectory(Path.GetFileName(path),ct);
+        EditDirectoryLease created;
+        try{created=parent.CreateDirectory(Path.GetFileName(path),ct);}
+        catch(IOException)when(Directory.Exists(path))
+        {
+            // Another first edit of this store created the root meanwhile: hold it as any existing root, privately.
+            var existing=nativeOpen(path,true,ct);
+            if(existing.Path==path)return existing;existing.Dispose();throw new IOException("The native edit root differs from the configured store.");
+        }
         if(created.Path==path)return created;
         created.Dispose();throw new IOException("The created native edit root differs from the configured store.");
     }
+    /// <summary>
+    /// A new private edit in its own folder. The storage gate is held while the copy is admitted and its folders, creation
+    /// marker and empty working file are made, and again while its record is published; the bytes are copied, and the
+    /// record described (which may review the whole source again), between the two without it, so a slow source does not
+    /// hold up other edits (this process's reviews charge the creation at its admitted size meanwhile). Until the record is
+    /// published the creation is not an edit and the session list leaves it out. A creation that is stopped, cancelled or
+    /// fails removes exactly what it made (<see cref="NativeCreation"/>): under the gate it was holding when it failed under
+    /// it, otherwise under the gate its cleanup takes. After a crash its marker shows the unfinished copy for review.
+    /// </summary>
     private EditSessionRecord CreateNativeSession(string fileName,
         Func<string,Func<long,FileStream>?,Func<EditDirectoryLease>,WorkingCopy> write,
         Func<string,WorkingCopy,EditSessionRecord> describe,CancellationToken ct,Action? reviewOldSource=null)
     {
-        using var root=OpenNativeRoot(ct,true);using var allocation=EditStorageAdmission.Acquire(root,ct);
-        string id=Guid.NewGuid().ToString("N");EditDirectoryLease? session=null,files=null;
+        using var root=OpenNativeRoot(ct,true);
+        string id=Guid.NewGuid().ToString("N");
         string fallback="file"+Path.GetExtension(fileName);
         string name=FileCat.Core.Jobs.SafeNames.Validate(fileName) is null?fileName:FileCat.Core.Jobs.SafeNames.Validate(fallback) is null?fallback:"file";
-        string working=Path.Combine(root.Path,id,"files",name);string workingIdentity="";
+        string working=Path.Combine(root.Path,id,"files",name);
+        using var made=new NativeCreation(root,id,name);
+        // The storage gate while this creation holds it (its admission and first objects, then its publication): a failure
+        // then begins its cleanup under it, removing the records the creation made (a record it may have published) before
+        // the gate is given up. (A list reads records without the gate, so it may see a just-published record briefly.)
+        EditStorageAdmission? gate=null;
         FileStream Open(long length)
         {
-            ValidateLength(length);if(session is not null)throw new IOException("The working file was requested more than once.");
+            ValidateLength(length);if(made.Session is not null)throw new IOException("The working file was requested more than once.");
+            var allocation=gate=EditStorageAdmission.Acquire(root,ct);
             var usage=MeasureNativeStorageUsage(root,storageLimits,ct);
-            allocation.Require(usage,storageLimits,1,0,5,checked(length+2L*MaxRecordBytes),5*EditStorageAdmission.MetadataPerEntry,0,
-                checked(length+2L*MaxRecordBytes),ct);
-            session=root.CreateDirectory(id,ct);files=session.CreateDirectory("files",ct);
-            byte[] marker=JsonSerializer.SerializeToUtf8Bytes(new{Id=id,Version=int.MaxValue,WorkingPath=working},Json);
-            PublishRecordBytes(session,CreationMarker,marker,ct);allocation.Review(ct);
-            var stream=files.CreateFile(name,ct);
-            try{workingIdentity=files.Identify(stream.SafeFileHandle);return stream;}catch{stream.Dispose();throw;}
+            long payload=checked(length+2L*MaxRecordBytes);
+            allocation.Require(usage,storageLimits,1,0,5,payload,5*EditStorageAdmission.MetadataPerEntry,0,payload,ct);
+            made.Reserve(payload,length);made.CreateFolders(ct);
+            // The marker names the folders it was made in, so a later review removes only those (and an interrupted copy
+            // shows where its partial working copy is).
+            made.PublishRecord(CreationMarker,JsonSerializer.SerializeToUtf8Bytes(new{Id=id,Version=int.MaxValue,WorkingPath=working,
+                SessionDirectoryIdentity=made.Session!.Identity,WorkingDirectoryIdentity=made.Files!.Identity,Length=length},Json),ct,hold:true);
+            allocation.Review(ct);
+            var stream=made.CreateWorking(length,ct);
+            try{allocation.Review(ct);}catch{stream.Dispose();throw;}
+            gate=null;allocation.Dispose();
+            return stream;
         }
         try
         {
-            var copy=write(working,Open,()=>files??throw new IOException("The native working directory is unavailable."));
-            ct.ThrowIfCancellationRequested();
-            if(files is null||session is null)throw new IOException("The native working file was not created.");
+            var copy=write(working,Open,()=>made.Files??throw new IOException("The native working directory is unavailable."));
+            made.Copied();ct.ThrowIfCancellationRequested();
+            if(made.Files is not { } files||made.Session is not { } session)throw new IOException("The native working file was not created.");
+            // The record is described before the gate is taken: a description may review the whole source again (an
+            // archive's complete digest), which must not hold up other edits.
             reviewOldSource?.Invoke();
+            var described=describe(working,copy);
+            // The bytes are copied: wait for another writer longer than a new copy would, rather than lose them.
+            var allocation=gate=EditStorageAdmission.Acquire(root,ct,TimeSpan.FromMinutes(10));
             allocation.Review(ct);files.Review(ct);session.Review(ct);root.Review(ct);
-            var record=describe(working,copy)with{Id=id,Version=EditSessionRecord.NativeStorageVersion,CreatedUtc=DateTime.UtcNow,StorageRootIdentity=root.Identity,
-                SessionDirectoryIdentity=session.Identity,WorkingDirectoryIdentity=files.Identity,WorkingIdentity=workingIdentity};
+            var record=described with{Id=id,Version=EditSessionRecord.NativeStorageVersion,CreatedUtc=DateTime.UtcNow,StorageRootIdentity=root.Identity,
+                SessionDirectoryIdentity=session.Identity,WorkingDirectoryIdentity=files.Identity,WorkingIdentity=made.WorkingIdentity};
             if(!record.IsSupported&&!record.IsPendingAdoption)throw new IOException("The created edit record is incomplete; its private working folder is retained.");
             ct.ThrowIfCancellationRequested();byte[] bytes=JsonSerializer.SerializeToUtf8Bytes(record,Json);
-            PublishRecordBytes(session,RecordFile,bytes,ct);allocation.Review(ct);return record with{StoredRecordSha256=Digest(bytes)};
+            allocation.Review(ct);
+            made.PublishRecord(RecordFile,bytes,ct,completes:true);
+            allocation.Review(ct);
+            return record with{StoredRecordSha256=Digest(bytes)};
         }
-        finally{try{files?.Dispose();}finally{session?.Dispose();}}
+        catch(Exception error)
+        {
+            var holding=gate;gate=null;
+            made.Abandon(error,holding); // Gives the held gate up.
+            throw;
+        }
+        finally{gate?.Dispose();}
     }
     private static string Digest(byte[] bytes)=>Convert.ToHexString(SHA256.HashData(bytes));
     private static void PublishRecordBytes(EditDirectoryLease session,string name,byte[] bytes,CancellationToken ct)
@@ -159,7 +200,9 @@ public sealed partial class EditSessionStore
         current.LegacyRetiring&&next.LegacyAdoption is null&&!next.LegacyAdoptionReady&&!next.LegacyRetiring;
     private EditSessionRecord SaveNativeRevision(EditSessionRecord record)
     {
-        using var root=OpenNativeRoot(default,false);using var allocation=EditStorageAdmission.Acquire(root,default);
+        // A revision may record a commit that already happened (its new baseline): it waits for the gate longer than a new
+        // copy would, rather than lose that.
+        using var root=OpenNativeRoot(default,false);using var allocation=EditStorageAdmission.Acquire(root,default,TimeSpan.FromMinutes(5));
         using var session=root.OpenDirectory(record.Id,record.SessionDirectoryIdentity,default);
         RequireStorage(record,root,session);byte[] anchorBytes=ReadRecordBytes(session,RecordFile,default);
         var anchor=ParseRecord(anchorBytes,session.Path,allowPendingAdoption:true);
@@ -172,7 +215,7 @@ public sealed partial class EditSessionStore
         var next=record with{StorageRevision=checked(current.StorageRevision+1),PreviousRecordSha256=current.StoredRecordSha256};
         byte[] bytes=JsonSerializer.SerializeToUtf8Bytes(next,Json);
         var usage=MeasureNativeStorageUsage(root,storageLimits,default);
-        allocation.Require(usage,storageLimits,0,0,1,bytes.Length,EditStorageAdmission.MetadataPerEntry,0,bytes.Length,default);
+        allocation.Require(usage,storageLimits,0,0,1,bytes.Length,EditStorageAdmission.MetadataPerEntry,0,bytes.Length,default,recordOnly:true);
         PublishRecordBytes(session,RevisionName(next.StorageRevision),bytes,default);
         allocation.Review(default);
         return next with{StoredRecordSha256=Digest(bytes)};
