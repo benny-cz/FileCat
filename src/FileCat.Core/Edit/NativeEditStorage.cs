@@ -1,4 +1,5 @@
 using FileCat.Core.FileSystem;
+using Evidence = FileCat.Core.Archives.ArchiveRouteEvidence;
 
 namespace FileCat.Core.Edit;
 
@@ -22,15 +23,17 @@ internal static class NativeEditStorage
     /// published, and after a crash what is left is listed and removable only when it can hold nothing of the user's;
     /// copies no longer wait for one another; and Save copy works for a native edit as for a legacy one. Every edit suite,
     /// the application's and the platforms' own, passed with it as the default store on Windows 11, Ubuntu 24.04 and macOS,
-    /// and the candidate's full regression and package route lanes carry both lists. Each route's evidence is its own
-    /// (<see cref="FileCat.Core.Archives.ArchiveRouteEvidence"/>). Adding a runtime is a reviewed release decision taken
-    /// after that qualification, as for <c>ArchiveWriteRoutes</c>: this list changes with it, never as a side effect.
+    /// and the candidate's full regression and package route lanes carry both lists. Each route's evidence is this
+    /// qualification's own, below that route's archive-writing ID (<c>AWQ-win-x64-NTFS/edit</c> and so on), so the release
+    /// manifest refuses a listed edit-storage route whose evidence it does not carry instead of accepting the route's
+    /// (<see cref="Evidence"/>). Adding a runtime is a reviewed release decision taken after that qualification, as for
+    /// <c>ArchiveWriteRoutes</c>: this list changes with it, never as a side effect.
     /// </summary>
     internal static IReadOnlyList<Route> Qualified { get; } =
     [
-        new("win-x64", "NTFS", FileCat.Core.Archives.ArchiveRouteEvidence.Windows),
-        new("linux-x64", "ext4", FileCat.Core.Archives.ArchiveRouteEvidence.Linux),
-        new("osx-arm64", "apfs", FileCat.Core.Archives.ArchiveRouteEvidence.MacOS),
+        new("win-x64", "NTFS", Evidence.Edit(Evidence.Windows)),
+        new("linux-x64", "ext4", Evidence.Edit(Evidence.Linux)),
+        new("osx-arm64", "apfs", Evidence.Edit(Evidence.MacOS)),
     ];
 
     /// <summary>Whether native edit storage is qualified for this runtime on this filesystem (null: not established).</summary>

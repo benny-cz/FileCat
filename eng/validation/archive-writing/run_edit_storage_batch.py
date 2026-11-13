@@ -77,6 +77,8 @@ def tests(task):
         expected_new_core_cases=335,production_backend_qualified=False),indent=2))
     fixture=Path.home()/'AppData/Local/Temp'/(FOLDER+'-native-fixtures') if sys.platform=='win32' else task/FOLDER/'native-fixtures'
     fixture.mkdir();batch.env['FILECAT_EDIT_NATIVE_ROOT']=str(fixture)
+    # A qualification lane fails a native edit test rather than skipping it: a composition regression cannot pass as skips.
+    batch.env['FILECAT_EDIT_NATIVE_REQUIRED']='1'
     require_space(batch,'focused')
     (batch.out/'native-fixture-root.json').write_text(json.dumps({'path':str(fixture),'account_home':str(Path.home())},indent=2))
     rows={}

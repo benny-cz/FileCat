@@ -50,8 +50,15 @@ internal static class ArchiveEditDualRootCases
             Assert.Equal(2,misplaced.Count(entry=>!entry.IsSupported));
             Assert.Equal(wrongOld,store.SessionDirectory(Assert.Single(misplaced,entry=>!entry.IsSupported&&entry.Id==old.Id)));
             Assert.Equal(wrongNew,store.SessionDirectory(Assert.Single(misplaced,entry=>!entry.IsSupported&&entry.Id==fresh.Id)));
-            Assert.Throws<NotSupportedException>(()=>store.Discard(old));
-            Assert.True(File.Exists(old.WorkingPath));Assert.True(File.Exists(fresh.WorkingPath));
+            // An edit made before native storage was listed stays discardable beside a native root: its folder goes
+            // through the legacy store's bound removal (R21), and nothing else does, not even a copy of its record that
+            // was misplaced in the native root. A native record still needs the native route.
+            store.Discard(old);
+            Assert.False(Directory.Exists(Path.Combine(oldRoot,old.Id)));Assert.False(File.Exists(old.WorkingPath));
+            Assert.True(File.Exists(Path.Combine(wrongOld,"session.json")));
+            Assert.True(Directory.Exists(wrongNew));Assert.True(File.Exists(fresh.WorkingPath));
+            Assert.Throws<NotSupportedException>(()=>store.Discard(fresh));
+            Assert.True(File.Exists(fresh.WorkingPath));
         }
         finally{TestCleanup.DeleteTree(fixture);}
     }

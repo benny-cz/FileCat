@@ -25,9 +25,9 @@ public sealed partial class NativeEditStorageTests
         // such a qualification: this list changes with it, never as a side effect.
         Assert.Equal(new NativeEditStorage.Route[]
         {
-            new("win-x64", "NTFS", "AWQ-win-x64-NTFS"),
-            new("linux-x64", "ext4", "AWQ-linux-x64-ext4"),
-            new("osx-arm64", "apfs", "AWQ-osx-arm64-apfs"),
+            new("win-x64", "NTFS", "AWQ-win-x64-NTFS/edit"),
+            new("linux-x64", "ext4", "AWQ-linux-x64-ext4/edit"),
+            new("osx-arm64", "apfs", "AWQ-osx-arm64-apfs/edit"),
         }, NativeEditStorage.Qualified);
         using var temp = new TempDir();
         // An unlisted runtime probes nothing: no filesystem query and no lease.

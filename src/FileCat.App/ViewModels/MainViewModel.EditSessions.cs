@@ -630,7 +630,7 @@ public sealed partial class MainViewModel
             // A copy that never got as far as its name is named by its folder's id: it is then "this unfinished copy".
             string named = session.DisplayName == session.Id ? "this unfinished copy" : $"the unfinished copy of \"{session.DisplayName}\"";
             if (!await Dialogs.ConfirmAsync("Remove unfinished copy",
-                $"Remove {named}? FileCat made it and never finished it, so it holds no edits of yours, " +
+                $"Remove {named}? FileCat did not finish making it, so it should hold nothing you wrote, " +
                 "and the file it was copied from is not changed. FileCat checks its folder again, and keeps everything if the copy turns out " +
                 "to be complete or anything else is there.", "Remove", danger: true))
                 return;
@@ -1090,7 +1090,10 @@ public sealed partial class MainViewModel
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            if (EditSessionsActive) Notify($"The working copy could not be deleted (is it still open in the editor?): {ex.Message}", true);
+            // A refusal already says what FileCat will not do and what it keeps; only a failed deletion suggests the editor.
+            if (EditSessionsActive)
+                Notify(ex is NotSupportedException ? Formatters.SafeName(ex.Message)
+                    : $"The working copy could not be deleted (is it still open in the editor?): {ex.Message}", true);
         }
         finally { _sessionActions.Remove(session.Id); }
     }
