@@ -109,5 +109,12 @@ the same identity/private-parent reviews. Mutation/ordinary namespace opens keep
 The failed Windows bundle is sealed/verified with zero owned instances; the `v32` Windows retry is queued.
 Mac/Ubuntu frozen `v31` sources remain untouched while their current complete runs finish.
 
-Runtime qualification remains pending. Exact cleanup, recovery/UI composition, crash/durability/resource qualification
-and the wider plan remain open. No store or archive write profile is enabled by this component.
+When this record was written runtime qualification was pending and this component enabled no store. Both have since
+closed: 13 November 2026: native edit storage is listed (`fda3f03c`, with the eighteenth review's fixes in `a4606689`). On
+win-x64 (NTFS), linux-x64 (ext4) and osx-arm64 (APFS) ordinary startup composes this store, so a new edit is kept in
+FileCat's own identity-bound folder; everywhere else the legacy store stays, including where FileCat's own data folder
+is on another file system, is reached through a link, or cannot be held privately. An edit made before the listing stays
+in the legacy folder, commits through its own route, and is still discarded through the legacy store's bound removal
+(`a4606689`). The routes, their evidence and the three-platform runs behind them are in the
+[route decision](RELEASE_ROUTE_DECISION.md) and the [status](IMPLEMENTATION_STATUS.md). The accounting below is what that store applies in
+production, so its budgets and its running-copy charges are now ordinary behaviour on a listed route, not test-only.

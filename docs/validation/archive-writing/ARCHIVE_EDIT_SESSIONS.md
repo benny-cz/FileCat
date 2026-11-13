@@ -87,4 +87,12 @@ application composition and the complete qualification gates remain open.
 
 The [snapshot follow-up](ARCHIVE_EDIT_SNAPSHOTS.md) now captures through native ownership and grants
 queued archive jobs readonly views of the retained object. Its three-platform focused gates pass;
-fresh cleanup, remaining integrations and release qualification remain open.
+fresh cleanup and remaining integrations were open when that was written.
+
+13 November 2026: native edit storage is listed (`fda3f03c`, with the eighteenth review's fixes in `a4606689`). On
+win-x64 (NTFS), linux-x64 (ext4) and osx-arm64 (APFS) ordinary startup composes this store, so a new edit is kept in
+FileCat's own identity-bound folder; everywhere else the legacy store stays, including where FileCat's own data folder
+is on another file system, is reached through a link, or cannot be held privately. An edit made before the listing stays
+in the legacy folder, commits through its own route, and is still discarded through the legacy store's bound removal
+(`a4606689`). The routes, their evidence and the three-platform runs behind them are in the
+[route decision](RELEASE_ROUTE_DECISION.md) and the [status](IMPLEMENTATION_STATUS.md).

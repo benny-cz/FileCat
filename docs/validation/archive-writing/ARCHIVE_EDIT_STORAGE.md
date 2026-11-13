@@ -1,8 +1,11 @@
 # Retained edit-session storage checkpoint
 
-This component is in progress and unregistered. The application still constructs the legacy store;
-the native factory is used explicitly by the platform tests. The complete plan, all-platform acceptance,
-and release qualification remain open.
+This component is listed as of 13 November 2026 (`fda3f03c`, with the eighteenth review's fixes in `a4606689`):
+ordinary startup composes this store on win-x64 (NTFS), linux-x64 (ext4) and osx-arm64 (APFS), and keeps the legacy
+store everywhere else, including where FileCat's own data folder is on another file system or cannot be held privately.
+The platform tests still drive the native factory explicitly for the cases a listed route cannot reach. What stays open
+is the owner's: release signing and the signed build's own evidence ([route decision](RELEASE_ROUTE_DECISION.md),
+[status](IMPLEMENTATION_STATUS.md)).
 
 `03ec2201` adds retained native directory authority and bounded visible recovery records. `df4ec125`
 fixes the Darwin ARM64 variadic creation-mode ABI and adds exclusive new-record publication.

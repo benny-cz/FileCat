@@ -99,3 +99,10 @@ exactly what it made and keeps, logs and names whatever it cannot; a copy stays 
 is published, and after a crash what is left is listed for review and offered for removal only when it can hold nothing
 of the user's; copies no longer wait for one another; and Save copy works for a native edit as for a legacy one. Its
 [release manifest](release-manifest-fda3f03c.json) records the routes, packages and evidence.
+
+The listing stands on `a4606689`, which fixes what the eighteenth review found in it: an edit made before the listing
+could no longer be discarded, and the three edit-storage routes shared the archive routes' evidence IDs, so the manifest
+could not refuse a candidate that never ran an edit suite. They carry their own IDs below the archive routes'
+(`AWQ-win-x64-NTFS/edit`, `AWQ-linux-x64-ext4/edit`, `AWQ-osx-arm64-apfs/edit`), and that commit passed the full
+regression and the package route lanes on all three machines in turn
+([manifest](release-manifest-a4606689.json), [status](IMPLEMENTATION_STATUS.md)).

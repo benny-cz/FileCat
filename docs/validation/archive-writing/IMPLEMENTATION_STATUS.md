@@ -1,5 +1,54 @@
 # Archive writing implementation status
 
+**13 November, the listing re-validated after the eighteenth and nineteenth reviews (`a4606689`).** Two independent
+reviewers read the listing and its records. Both found the qualification and the removal boundary sound; between them
+they found three defects in the listing, all fixed in `a4606689`:
+
+- **An edit made before the listing could no longer be discarded.** `EditSessions.Discard` refused whenever a native
+  root was composed — a guard written when that method deleted the session folder by pathname, which `38e56944` had
+  since made an object-bound removal. From the listing commit every older edit on the three routes was undiscardable,
+  behind a confirmation the application offered and then answered with “The working copy could not be deleted (is it
+  still open in the editor?)”. Only a native record needs the native route now; a legacy folder goes through the
+  legacy store's bound removal, the dual-root case pins it (the old edit discarded beside a native root, nothing else
+  in either root touched, a native record still refused), and a refusal is reported as itself.
+- **The edit-storage routes shared the archive routes' evidence IDs,** which the release manifest's “a listed route
+  stands on its evidence” refusal collapses into the archive routes' own requirement: a candidate that never ran an
+  edit suite would have passed it. They carry their own IDs below the route's now (`AWQ-win-x64-NTFS/edit` and so on).
+- **The committed edit-storage batch never set `FILECAT_EDIT_NATIVE_REQUIRED`,** the variable that makes a native edit
+  test fail rather than skip and arms the application's composition pin. It sets it itself now, beside the fixture
+  root it already set.
+
+The nineteenth review checked the records against the evidence and found two statements it contradicts — “every lane”
+ran with the required-native variable (the seven package route lanes did not) and a Core rerun's total quoted as its
+passes — both corrected above, with the installed-layout staging, the Program Files access list, the provenance of
+the F4 fix and the Ubuntu VM's death as an operator observation. The help text now says where its promise holds
+(FileCat's own data folder on a listed file system, not the archive's place), the release note the owner publishes
+gained what a stopped F4 does, the “Remove unfinished copy” consent text no longer promises what the removal
+boundary's accepted residual denies, and five component records that still said ordinary startup composes no native
+edit store were corrected.
+
+`a4606689` then passed on all three platforms, each package built from a clean checkout of it:
+
+| Platform | Full regression (passed) | Package route tests |
+|---|---|---|
+| macOS (M1) | App 3,111, Core 9,189, Remote 2,638, Rendering 23; no failure | App 12 of 12; packaged launcher 14 of 14 |
+| Windows 11 VM | App 3,202, Core 8,399, Windows platform 1,631, Remote 2,405, Rendering 24; one failure, below | Installed layout 12 of 12; portable 12 of 12, its grant exactly the 247 runtime files |
+| Ubuntu 24.04 | App 3,113, Core 9,248, Remote 2,543, Rendering 23; no failure | .deb 12 of 12 and its bundle check; the AppImage refused with its reason |
+
+The two failures of the previous run did not recur: the macOS 7z PPMd case and the Ubuntu secret store both passed in
+their full runs (the VM's login keyring was unlocked again first). One new failure appeared, again away from edit
+storage: `PlaceBarHierarchyTests.Compact_panel_header_uses_available_width_and_keeps_overflow_places_reachable`
+asserted `pinnedButton.Bounds.Right <= row.Bounds.Width` on the Windows VM. The test waits for the pinned place to
+leave the overflow and then reads its bounds, so it reads them before the layout pass that follows has set them; the
+class passed 3 of 3 alone at the same commit. Left for its own change: wait for the bounds, not for the overflow.
+
+Each of the three full regressions ran with `FILECAT_EDIT_NATIVE_REQUIRED=1`; the package route lanes carry their own
+variables. The Windows installed layout was staged into Program Files before the chain, from the host with the
+account's full token, as the installer does, so the lane itself could run unelevated (its staging log is evidence).
+The release manifest is [release-manifest-a4606689.json](release-manifest-a4606689.json): the same shape as the
+listing commit's, with the three edit-storage routes under their own evidence IDs, a Windows package log of its own
+(so those hashes rest on sealed evidence too), 14 packages and 21 evidence files.
+
 **13 November, native edit storage listed as the default edit store (rows 4, 8 and 13).** With the listing active
 locally, the application's own edit suites showed what it changes: a stopped or failed F4 kept its half-made copy, the
 creation marker was visible while the bytes were copied, concurrent copies waited behind one slow source, Save copy did
@@ -15,7 +64,8 @@ for the copies still running, so the review budget still judges what is stored.
 The complete suites found what the focused rounds could not: on Windows the archive route pinned the private working
 folder *by path* to carry a member's download mark, which the creation's own deletion-shared hold refuses, so ten cases
 of the standard-user native F4 commit lane failed with “The private edit directory cannot be pinned safely”. The mark
-now goes through the creation's own folder lease. The listing commit then passed everywhere, each package built from a
+now goes through the creation's own folder lease (`ef5c36d1`, an ancestor of the listing commit; that failing run was on
+an earlier commit of this branch and is not in the evidence set below, where all ten cases pass). The listing commit then passed everywhere, each package built from a
 clean checkout of that commit:
 
 | Platform | Full regression (passed) | Package route tests |
@@ -24,9 +74,11 @@ clean checkout of that commit:
 | Windows 11 VM | App 3,203, Core 8,399, Windows platform 1,631, Remote 2,405, Rendering 24; no failure | Installed layout 12 of 12; portable 12 of 12, its grant exactly the 247 runtime files |
 | Ubuntu 24.04 | App 3,113, Core 9,247, Remote 2,543, Rendering 23; one failure, below | .deb 12 of 12 and its bundle check; the AppImage refused with its reason |
 
-Every lane ran with `FILECAT_EDIT_NATIVE_REQUIRED=1`, so a native edit test fails there rather than skipping, and the
-application's composition pin asserts that ordinary startup really composes the native store on each route's file
-system.
+Each of the three full regressions, and the two macOS reruns, ran with `FILECAT_EDIT_NATIVE_REQUIRED=1`, so a native
+edit test fails there rather than skipping, and the application's composition pin asserts that ordinary startup really
+composes the native store on each route's file system. The package route lanes carry their own variables (the package
+route, that payload's assets and the platform's native flag) and not that one, so a native edit test they reach could
+still skip.
 
 Two tests failed once each, both away from edit storage, and both passed again at the same commit:
 
@@ -35,21 +87,25 @@ Two tests failed once each, both away from edit storage, and both passed again a
   `BufferedSubStream.RefillCache` → the PPMd range decoder, reading back the archive it had just written. That reader
   computes its inner count as `Math.Min(count, Current.Length - Current.Position)`, which goes negative once the file
   position is past the end — reachable because 7z PPMd has no end marker, so the decoder reads past the declared
-  packed extent. The 7z writing class alone then passed 35 of 35 and the whole Core lane 9,101 of 9,101, so it is
-  intermittent, and nothing in this commit touches 7z or SharpCompress. Left for its own change with its own
-  regression: clamp that term (a read at or past the end is end of file, not an exception) and check where a folder's
-  declared packed extent can exceed the file it is in.
+  packed extent. The 7z writing class alone then passed 35 of 35, and the whole Core lane 8,833 of 8,833 run, with 268
+  skipped and no failure, so it is intermittent, and nothing in this commit touches 7z or SharpCompress. Left for its
+  own change with its own regression: clamp that term (a read at or past the end is end of file, not an exception) and
+  check where a folder's declared packed extent can exceed the file it is in.
 - **Ubuntu, the system secret store.** `SecretStoreTests.The_system_store_keeps_replaces_and_removes_a_secret`
-  reported “Cannot create an item in a locked collection”. The cause was the VM: its VMware process died 17 minutes
-  into the chain (no exit line, nothing in the host's event log), and after the cold boot autologin left the login
+  reported “Cannot create an item in a locked collection”. The cause was the VM, as the operator saw it rather than as
+  sealed evidence (this route carries no chain log): its VMware process died 17 minutes into the chain, its own log
+  ending mid-run with no exit line and nothing in the host's event log, and after the cold boot autologin left the login
   keyring locked. `gnome-keyring-daemon --unlock` could not reach the session daemon, which had never made its control
   directory; with one daemon serving an unlocked keyring again the class passed 4 of 4 at the same commit.
 
 The Windows installed-layout lane was rerun for a reason of its own: the chain's staging step could not make
-`C:\Program Files\FileCatRouteTest` without elevation, so the assets folder it named did not exist and all twelve
-cases failed before testing anything. With the payload staged there — its access list inherited from Program Files,
-including read and execute for all application packages, which is exactly what that lane checks — the lane passed 12
-of 12, unelevated. The chain log keeps both attempts.
+`C:\Program Files\FileCatRouteTest` without elevation, so the assets folder it named did not exist and its twelve cases
+failed before testing anything. The payload was then staged there from the host with the account's full token, as the
+installer does, which gives it that folder's own access list — including read and execute for *restricted* application
+packages, which is what this lane's workers depend on, since a package route lane grants them nothing itself (no case
+asserts the list) — and the lane passed 12 of 12, unelevated. The chain log keeps both attempts; the lane's own evidence
+is the rerun's, which replaced the first attempt's, so the twelve failures are in that log rather than in a kept run
+folder.
 
 The release manifest of the listing commit is [release-manifest-fda3f03c.json](release-manifest-fda3f03c.json):
 commit, profiles, record schemas, worker protocol, the 30 archive routes and the three edit-storage routes with their

@@ -177,3 +177,14 @@ the legacy store exactly as before and probes nothing. `NativeEditStorageTests` 
 beside an older legacy one and both load. macOS (App 2,812, Core 580), Ubuntu (App 2,824, Core 582) and the Windows VM
 (App 2,916, Core 253, Windows edit platform 332) passed with no failure (`edit-v24a-mac` `32e6e135…`, `edit-v24a-ubuntu`
 `2e70ecd7…`, `edit-v24a-win` `3a146b0d…`). Registering a runtime belongs to the per-route qualification decisions.
+
+13 November 2026: native edit storage is listed (`fda3f03c`, with the eighteenth review's fixes in `a4606689`). On
+win-x64 (NTFS), linux-x64 (ext4) and osx-arm64 (APFS) ordinary startup composes this store, so a new edit is kept in
+FileCat's own identity-bound folder; everywhere else the legacy store stays, including where FileCat's own data folder
+is on another file system, is reached through a link, or cannot be held privately. An edit made before the listing stays
+in the legacy folder, commits through its own route, and is still discarded through the legacy store's bound removal
+(`a4606689`). The routes, their evidence and the three-platform runs behind them are in the
+[route decision](RELEASE_ROUTE_DECISION.md) and the [status](IMPLEMENTATION_STATUS.md). `NativeEditStorageTests` now pin those three routes and their
+evidence IDs instead of an empty list, and `EditStoreCompositionTests` require native composition in a qualification
+run. Adoption itself is unchanged and still unreachable from ordinary startup: an older edit is never migrated, only
+loaded, committed or discarded where it is.
