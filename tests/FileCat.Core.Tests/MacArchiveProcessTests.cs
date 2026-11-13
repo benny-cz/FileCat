@@ -68,9 +68,16 @@ public sealed partial class MacArchiveProcessTests(ITestOutputHelper diagnostics
         {
             string secret = Path.Combine(fixture, "descriptor.txt"); File.WriteAllText(secret, "descriptor canary");
             using var original = File.OpenHandle(secret, FileMode.Open, FileAccess.Read, FileShare.Read);
-            // dup2 leaves the copy inheritable. (fcntl is variadic: on Apple arm64 a fixed-signature call cannot pass F_DUPFD's argument.)
-            int duplicate = Dup2(checked((int)original.DangerousGetHandle()), 200);
-            Assert.Equal(200, duplicate);
+            // F_DUPFD takes the lowest free descriptor at or above 200 and leaves the copy inheritable, numbered above any the
+            // worker's runtime opens, as the probe requires. Never dup2 onto a fixed number: in this parallel test process it
+            // silently replaces whatever another test holds there. On 13 November it replaced a 7z read-back test's archive,
+            // whose stream then read this 17-byte canary in its place and failed. fcntl is variadic: Darwin ARM64 passes that
+            // argument on the stack, after eight register slots.
+            int source = checked((int)original.DangerousGetHandle());
+            int duplicate = RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                ? FcntlArm64(source, 0 /* F_DUPFD */, 0, 0, 0, 0, 0, 0, 200)
+                : Fcntl(source, 0 /* F_DUPFD */, 200);
+            Assert.True(duplicate >= 200, $"fcntl(F_DUPFD) failed: errno {Marshal.GetLastPInvokeError()}");
             using var inheritable = new SafeFileHandle((nint)duplicate, ownsHandle: true);
             Assert.Equal(0, Fcntl(duplicate, 1 /* F_GETFD */, 0));
             var worker = MacArchiveProcess.Start(probe, Guid.NewGuid(), TimeSpan.FromSeconds(30), ["archive-mac-fd", duplicate.ToString(CultureInfo.InvariantCulture)]);
@@ -282,11 +289,12 @@ public sealed partial class MacArchiveProcessTests(ITestOutputHelper diagnostics
 
     private static bool Alive(int pid) => Kill(pid, 0) == 0 || Marshal.GetLastPInvokeError() != 3 /* ESRCH */;
 
-    // Only for commands that ignore the variadic third argument (see An_unrelated_inheritable_descriptor_…).
+    // On Darwin ARM64 only for commands that ignore the variadic third argument; FcntlArm64 passes one (see
+    // An_unrelated_inheritable_descriptor_…).
     [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]
     private static partial int Fcntl(int fd, int command, int argument);
-    [LibraryImport("libc", EntryPoint = "dup2", SetLastError = true)]
-    private static partial int Dup2(int fd, int target);
+    [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]
+    private static partial int FcntlArm64(int fd, int command, nint x2, nint x3, nint x4, nint x5, nint x6, nint x7, nint argument);
     [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
     private static partial int Kill(int pid, int signal);
 }
