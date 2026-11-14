@@ -1,5 +1,24 @@
 # Archive writing implementation status
 
+**14 November, the sixth round (twenty-six).** A reviewer read the last round's own fixes. No High. What it found,
+fixed here:
+
+- **The reason a retained copy's review gives is the first one that carries a name out of the store, and the dialog
+  that shows it sanitized every path beside it and not the reason.** Until the last round every such reason was a
+  constant. A file name is the archive's or the desktop's text - on Unix it may hold a newline or a right-to-left
+  override, which could reorder that dialog or add lines that read like its own - so it is shown the way every other
+  name from the store is shown here.
+- **It did not say which folder holds the name.** Two of its four cases report a name in the copy's own payload
+  folder, where "this retained copy also holds" would send the user to look in the wrong place; each now names the
+  folder it read.
+- **It dropped the hint the other two messages about the desktop's own file carry** - the keystroke that shows a hidden
+  file - which is the one case where the file cannot be seen without it. The whole edit's discard now names the
+  desktop's file as the desktop's too, which is what the last round's records claimed of it and what the removal of an
+  unfinished copy has always done.
+- The storage check now runs through the same owned route as every other file access in that view model, rather than on
+  the thread the window draws on, and the list's hint is composed where it can be read: driving the list's own dialog
+  for one line of text left a local run waiting on it, so the hint has its own composer and its own case.
+
 **14 November, the fifth round (twenty-five).** A reviewer with fresh eyes read the paths the earlier rounds named but
 did not follow. It found that the last round's own fix only fired when nothing else was listed: the sentence naming
 storage FileCat could not open was computed and then dropped on the path that lists an edit - which is the likely path,

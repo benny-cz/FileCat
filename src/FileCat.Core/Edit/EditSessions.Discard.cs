@@ -376,6 +376,12 @@ public sealed partial class EditSessionStore
             // A name of that shape is described by its shape, not credited to FileCat: FileCat does not write such a
             // name in every folder, so one that appears where it does not may be anyone's.
             string made="which carries the name FileCat gives what it leaves behind when work on an edit is interrupted";
+            // The desktop's own file, where that is all there is: named as the desktop's, with the keystroke that
+            // shows it, as an unfinished copy's removal and a retained copy's review both say it.
+            if(left.Length==0&&foreign.All(IsDesktopArtifact))
+                return new IOException(folder+" also holds "+Listing(foreign)+", which the desktop wrote when the folder was opened, and "+
+                    "FileCat removes only what it made. Delete "+(foreign.Length==1?"that file":"those files")+
+                    " in the Finder (Command-Shift-Period shows hidden files), then try again. Its files are kept.");
             string what=left.Length==0?Listing(foreign)+", which FileCat did not make"
                 :foreign.Length==0?Listing(left)+", "+made
                 :Listing(foreign)+", which FileCat did not make, and "+Listing(left)+", "+made;

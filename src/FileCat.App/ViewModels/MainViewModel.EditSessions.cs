@@ -64,6 +64,14 @@ public sealed partial class MainViewModel
     /// copied from elsewhere, a data folder reached through a junction, one written by another account - and edits kept
     /// there are then not listed at all. Saying there are none would be untrue; nothing of them is touched either way.
     /// </summary>
+    // What the list says above its rows, with the storage FileCat could not open named when there is one: the rows
+    // themselves do not show those edits, so the hint is where the list says they exist.
+    private static string EditSessionsListHint(string? unopened) =>
+        "Enter shows edit actions or recovery details for a retained copy." + (unopened is null ? "" : " " + unopened);
+
+    private Task<string?> UnopenedNativeStorageAsync() =>
+        MutationIoAsync(Services.EditSessions.Root, UnopenedNativeStorage, CheckSessionAction);
+
     private string? UnopenedNativeStorage()
     {
         if (Services.EditSessions.SupportsRetainedCaptureRemoval) return null; // That storage is open: its edits are listed.
@@ -111,7 +119,7 @@ public sealed partial class MainViewModel
                 }
                 if (session.IsSupported) Watch(session);
             }
-            string? unopened = UnopenedNativeStorage();
+            string? unopened = await UnopenedNativeStorageAsync();
             if (modified == 0 && unavailable == 0 && retained == 0 && retainedUnknown == 0 && adopted == 0 && interrupted == 0 && notChecked == 0 &&
                 incomplete == 0) return unopened;
             return ((modified == 0 ? "" : $"{Formatters.Plural(modified, "edit has", "edits have")} changes that are not committed yet.") +
@@ -361,7 +369,7 @@ public sealed partial class MainViewModel
         try
         {
             var sessions = await LoadEditSessionsAsync();
-            string? unopened = UnopenedNativeStorage();
+            string? unopened = await UnopenedNativeStorageAsync();
             if (sessions.Count == 0)
             {
                 Notify("No edits are open. F4 on a file inside an archive or on a server starts one." +
@@ -389,7 +397,7 @@ public sealed partial class MainViewModel
             CheckSessionAction();
             var pick = await Dialogs.ChooseAsync(new ChoiceOptions("Edit sessions", items)
             {
-                Hint = "Enter shows edit actions or recovery details for a retained copy." + (unopened is null ? "" : " " + unopened),
+                Hint = EditSessionsListHint(unopened),
             });
             CheckSessionAction();
             if (pick.Index >= 0) await ShowSessionAsync(sessions[pick.Index]);
@@ -552,7 +560,9 @@ public sealed partial class MainViewModel
             CheckSessionAction();
             if (choice.Index < 0 || choice.Index >= reviews.Count) return;
             var selected = reviews[choice.Index];
-            string detail = selected.Reason + "\nRetained folder: " + Formatters.SafeName(selected.Directory) +
+            // A reason may now name what that folder holds, so it is shown as a name from the store is shown
+            // everywhere else here: a file name is the archive's or the desktop's text, not FileCat's.
+            string detail = Formatters.SafeName(selected.Reason) + "\nRetained folder: " + Formatters.SafeName(selected.Directory) +
                 (selected.Length is { } length ? "\nVerified bytes: " + length : "") +
                 (selected.Sha256 is { } digest ? "\nSHA-256: " + digest : "");
             if (selected.SavedCopy is { } saved)

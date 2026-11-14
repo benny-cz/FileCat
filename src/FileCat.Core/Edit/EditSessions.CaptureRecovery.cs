@@ -38,14 +38,17 @@ public sealed partial class EditSessionStore
     // opening the folder from this very review is what puts there, and which FileCat never removes - or something
     // nobody can account for. The removal of that folder reports the same of the same names; reporting it as a copy
     // that is in use or cannot be read would be none of those things.
-    private static EditCaptureRecovery Unknown(EditDirectoryLease capture,IEnumerable<string> extra)
+    private static EditCaptureRecovery Unknown(EditDirectoryLease capture,string folder,IEnumerable<string> extra)
     {
         string[] names=extra.Order(StringComparer.Ordinal).ToArray();
-        string what=names.Length!=0&&names.All(IsDesktopArtifact)
-            ?Listing(names)+", which the desktop wrote when its folder was opened and FileCat does not remove"
-            :Listing(names)+", which FileCat did not make";
-        return new(capture.Path,EditCaptureRecoveryState.NeedsReview,"This retained copy also holds "+what+
-            ". Its files are kept: remove "+(names.Length==1?"it":"them")+" yourself if not needed, then try again.");
+        // Said as the removal of the same folder says it, and as the removal of an unfinished copy says it: the
+        // desktop's own file is named as the desktop's, with the keystroke that shows it, because it is hidden.
+        return new(capture.Path,EditCaptureRecoveryState.NeedsReview,names.Length!=0&&names.All(IsDesktopArtifact)
+            ?folder+" also holds "+Listing(names)+", which the desktop wrote when the folder was opened, and FileCat removes only what it "+
+                "made. Delete "+(names.Length==1?"that file":"those files")+" in the Finder (Command-Shift-Period shows hidden files), then try "+
+                "again. Its files are kept."
+            :folder+" also holds "+Listing(names)+", which FileCat did not make. Its files are kept: remove "+
+                (names.Length==1?"it":"them")+" yourself if not needed, then try again.");
     }
     private const string SavedCopyReason=
         "A saved copy refers to this retained copy and needs its own review first. Its files are kept.";
@@ -125,7 +128,7 @@ public sealed partial class EditSessionStore
             if(linked)allowed.Add(EditSaveCopyIntent.FileName);
             if(stored)allowed.Add("files");
             if(!core.SequenceEqual(allowed.Order(StringComparer.Ordinal).ToArray()))
-                return Unknown(capture,core.Except(allowed,StringComparer.Ordinal));
+                return Unknown(capture,"This retained copy",core.Except(allowed,StringComparer.Ordinal));
             // Read by the same rule the removal reads it by, so this never calls removable a folder whose removal
             // refuses: only one of this copy's own records names its payload, and a removal takes that payload before
             // either record, so with no record of its own the folder holds the receipt's name or nothing but what an
@@ -142,7 +145,8 @@ public sealed partial class EditSessionStore
                 var held=stage.Names(ct);
                 string[] rest=held.Where(item=>!IsSetAside(item)).ToArray();
                 if(rest.Length>1||rest.Length==1&&rest[0]!=named)
-                    return Unknown(capture,named is null?rest:rest.Except([named],StringComparer.Ordinal));
+                    return Unknown(capture,"The \u201cfiles\u201d folder of this retained copy",
+                        named is null?rest:rest.Except([named],StringComparer.Ordinal));
                 stage.Review(ct);
             }
             capture.Review(ct);
@@ -160,7 +164,7 @@ public sealed partial class EditSessionStore
             if(linked)allowed.Add(EditSaveCopyIntent.FileName);
             if(stored)allowed.Add("files");
             if(!core.SequenceEqual(allowed.Order(StringComparer.Ordinal).ToArray()))
-                return Unknown(capture,core.Except(allowed,StringComparer.Ordinal));
+                return Unknown(capture,"This retained copy",core.Except(allowed,StringComparer.Ordinal));
         }
         using var header=new CaptureRecord(capture,"capture.json",ct);
         var start=ParseCaptureRecord(header.Bytes,false);
@@ -186,7 +190,8 @@ public sealed partial class EditSessionStore
         string[] asideFiles=fileNames.Where(IsSetAside).ToArray();
         string[] payloadNames=fileNames.Except(asideFiles,StringComparer.Ordinal).ToArray();
         if(payloadNames.Length>1||payloadNames.Length==1&&payloadNames[0]!=start.Leaf)
-            return Unknown(capture,payloadNames.Except([start.Leaf],StringComparer.Ordinal));
+            return Unknown(capture,"The \u201cfiles\u201d folder of this retained copy",
+                payloadNames.Except([start.Leaf],StringComparer.Ordinal));
         if(!complete||payloadNames.Length!=1)
         {
             header.Review(ct);files.Review(ct);capture.Review(ct);

@@ -18,7 +18,7 @@ internal static class ArchiveEditDiscardCases
         "replaced-session","replaced-files","replaced-after-review","changed-after-review","extra-after-review","no-factory",
         "stage-session","aside-working","aside-missing","replaced-working","stage-capture","aside-capture-payload",
         "capture-payload-gone","capture-payload-emptied","capture-record-gone","capture-empty","saved-intent-payload-gone",
-        "capture-record-gone-foreign"}
+        "capture-record-gone-foreign","desktop-capture"}
         .Select(value=>new object[]{value});
 
     internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations fs)
@@ -91,6 +91,9 @@ internal static class ArchiveEditDiscardCases
                 // the whole edit. A saved copy beside a payload that is gone was refused for a review that could not
                 // bring the payload back; the record goes with the copy it refers to, and the saved file stays.
                 if(scenario=="capture-record-gone")File.Delete(Path.Combine(capture,"capture.json"));
+                // The desktop's own file, which opening the retained folder from its review is what puts there: named
+                // as the desktop's, with the keystroke that shows it, by the review and by the removal alike.
+                if(scenario=="desktop-capture")File.WriteAllText(Path.Combine(capture,".DS_Store"),"the desktop's own folder settings");
                 // The same folder with something unknown beside the payload: nothing names that file, so both reviews
                 // keep the folder and say what is in it - the list must not offer a removal that would refuse.
                 if(scenario=="capture-record-gone-foreign")
@@ -175,6 +178,15 @@ internal static class ArchiveEditDiscardCases
                 Assert.Equal(EditCaptureRecoveryState.NeedsReview,unknown.State);
                 Assert.Contains("unexpected.txt",unknown.Reason,StringComparison.Ordinal);
                 Assert.Contains("which FileCat did not make",unknown.Reason,StringComparison.Ordinal);
+                // Which folder holds it: the payload's own folder is not the copy's folder, and the user is sent to open one of them.
+                Assert.Contains(scenario=="extra-payload"?"“files” folder":"This retained copy",unknown.Reason,StringComparison.Ordinal);
+            }
+            if(scenario=="desktop-capture")
+            {
+                var desktop=Assert.Single(store.ReviewRetainedCaptures(record,ct));
+                Assert.Equal(EditCaptureRecoveryState.NeedsReview,desktop.State);
+                Assert.Contains("which the desktop wrote",desktop.Reason,StringComparison.Ordinal);
+                Assert.Contains("Command-Shift-Period",desktop.Reason,StringComparison.Ordinal);
             }
             if(scenario is "stage-capture" or "aside-capture-payload" or "capture-payload-gone" or "capture-payload-emptied" or
                 "capture-record-gone" or "capture-empty" or "saved-intent-payload-gone" or "capture-record-gone-foreign")
@@ -233,6 +245,13 @@ internal static class ArchiveEditDiscardCases
                 {Assert.Equal("keep replacement",File.ReadAllText(record.WorkingPath));Assert.Equal("complete reviewed working contents",File.ReadAllText(record.WorkingPath+".retained"));}
                 else if(scenario=="changed-after-review")Assert.Equal("keep concurrent changes",File.ReadAllText(record.WorkingPath));
                 else Assert.Equal(beforeAll,Snapshot());
+                // The removal of the same folder says what the review said of the desktop's own file, with the way out.
+                if(scenario=="desktop-capture")
+                {
+                    string said=error?.Message??result?.Issue??"";
+                    Assert.Contains("which the desktop wrote",said,StringComparison.Ordinal);
+                    Assert.Contains("Command-Shift-Period",said,StringComparison.Ordinal);
+                }
                 if(scenario=="marker-origin")Assert.NotNull(fs.ReadOriginMark(Path.Combine(session,"creation.json")));
             }
             view?.Dispose();view=null;mapping?.Dispose();mapping=null;

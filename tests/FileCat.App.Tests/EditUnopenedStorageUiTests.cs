@@ -58,9 +58,21 @@ public sealed class EditUnopenedStorageUiTests
             Assert.NotNull(again);
             Assert.Contains("changes that are not committed yet", again, StringComparison.Ordinal);
             Assert.Contains("could not open its own edit storage", again, StringComparison.Ordinal);
+
+            // And in the list itself, which now has an edit in it: its hint carries the same sentence, where before
+            // only the notification of an empty list did. The hint is read where it is composed - driving the list's
+            // own dialog for one line of text left the run waiting on it.
+            string hint = Hint(null), named = Hint(startup);
+            Assert.DoesNotContain("could not open", hint, StringComparison.Ordinal);
+            Assert.StartsWith(hint, named, StringComparison.Ordinal);
+            Assert.Contains("could not open its own edit storage", named, StringComparison.Ordinal);
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }
+
+    // What the list says above its rows, composed where the list composes it.
+    private static string Hint(string? unopened) => (string)typeof(MainViewModel)
+        .GetMethod("EditSessionsListHint", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [unopened])!;
 
     // The list the user opens from File → Edit sessions, which says what is open or that nothing is.
     private static Task ShowList(MainViewModel vm) => (Task)typeof(MainViewModel)
