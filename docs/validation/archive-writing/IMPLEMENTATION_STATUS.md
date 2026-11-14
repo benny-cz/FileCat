@@ -34,6 +34,15 @@ of mine that were false, and two archives an ordinary writer makes that the gate
 
 Sixty-two cases for the check, fourteen for the manifest, each of these six rules failing the one case that claims it.
 
+**And the coverage claim stops being a sentence.** Twice now a review has found not a defect in the check but a false
+argument written beside a rule - "this guard cannot be reached", "two rules are left with no case" - so the arguments
+are gone and `eng/validation/archive-writing/measure_rules.py` takes their place: it weakens each rule of the check in
+turn, on a copy, runs the check's own suite against it, and names the cases that notice. Its answer today is forty-two
+rules measured and four with no case - the first member at the start of the file, the last member not past its own
+directory, the reach half of the covering sums, and the floor under the tar's own last member - which are the four
+marked as such where they stand. Anyone reading these records can run it rather than believe them, and a rule added
+without a case shows up the next time it runs.
+
 **14 November, the two claims and the reading behind them (round thirty-seven).** The gate holds for every archive as
 its runner sealed it - no way found to make it accept or misbind one without adding to or changing its bytes - and the
 review's own High was against this record, not the code:
