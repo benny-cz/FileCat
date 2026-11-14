@@ -65,14 +65,25 @@ public sealed class EditStoreCompositionTests
     [Fact]
     public void A_qualified_runtime_creates_new_edits_in_native_storage_beside_the_legacy_folder()
     {
-        if (Environment.IsPrivilegedProcess) Assert.Skip("Edit sessions refuse an elevated token; run unelevated.");
+        // A qualification run cannot step aside here: it is unelevated on a listed route by definition, so either of
+        // these would be a composition regression passing as a skip.
+        bool required = Environment.GetEnvironmentVariable(EditTestStores.NativeRequiredVariable) == "1";
+        if (Environment.IsPrivilegedProcess)
+        {
+            const string elevated = "Edit sessions refuse an elevated token; run unelevated.";
+            if (required) Assert.Fail(elevated); else Assert.Skip(elevated);
+        }
         var ct = TestContext.Current.CancellationToken;
         string fixture = Fixture();
         try
         {
             var paths = AppPaths.Resolve(overrideRoot: fixture);
             string? fileSystem = AppServices.FileSystemOf(paths.LocalDirectory);
-            Assert.SkipWhen(fileSystem is null, "The fixture's filesystem cannot be established here.");
+            if (fileSystem is null)
+            {
+                const string unknown = "The fixture's filesystem cannot be established here.";
+                if (required) Assert.Fail(unknown); else Assert.Skip(unknown);
+            }
             var fs = new PortableFileOperations();
             using var oldContent = new MemoryContentSource("old.txt", "edit made before"u8.ToArray());
             var old = new EditSessionStore(paths.EditSessionsDirectory, fs)

@@ -94,7 +94,11 @@ internal static unsafe partial class UnixArchiveNative
         if (facts is not { IsRegular: true, Owner: var owner, Mode: var mode } || owner != user ||
             (working ? (mode & ~0x1ffu) != 0 : mode != 0x180)) throw Unavailable();
         if (ArchiveUnixOuterMetadata.Capture(held).Native.LinkCount != 1) throw Unavailable();
-        if (Mac)
+        // A list of its own on the user's own file is not refused: the 0700 directory that holds it is what keeps it
+        // private, no other user can traverse that directory to reach the file at all, and the review that decides
+        // whether this working copy can be edited at all does not look either. FileCat's own records are refused with
+        // any list, because FileCat writes none.
+        if (Mac && !working)
         {
             nint acl = GetAcl(Fd(held), 0x100);
             if (acl == 0) { if (Marshal.GetLastPInvokeError() == 2) return; throw Unavailable(); }

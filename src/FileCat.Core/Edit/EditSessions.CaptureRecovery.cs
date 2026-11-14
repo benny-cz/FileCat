@@ -12,6 +12,18 @@ public sealed record EditCaptureRecovery(string Directory,EditCaptureRecoverySta
 public sealed partial class EditSessionStore
 {
     internal const int MaximumRecoveryCaptures=1024;
+    // A retained copy whose captured payload a stopped removal already took: nothing of the user's is in it (the
+    // payload was FileCat's own copy), and what is left are this copy's own records, which its removal takes.
+    private const string InterruptedReason="This copy was interrupted before verification. Its files are kept.";
+    // A copy a saved copy still refers to is that saved copy's own recovery evidence. Both of this store's removals
+    // refuse it for that reason, and the list offers a removal only for a verified or an interrupted copy, so saying
+    // "interrupted" of one would offer a removal that can only refuse. It needs that saved copy's review first.
+    // A copy FileCat left without its own record: made and not recorded, or recorded and then half removed.
+    private const string RecordGoneReason=
+        "This copy's own record is gone, so nothing can be recovered from it, and what is left is FileCat's. Its files are kept.";
+    private const string SavedCopyReason=
+        "A saved copy refers to this retained copy and needs its own review first. Its files are kept.";
+    private const string PayloadGoneReason="This copy's captured payload has already been removed, and what is left is FileCat's own. Its files are kept.";
     private const int MaximumCaptureRecordBytes=16384;
 
     /// <summary>
@@ -69,25 +81,74 @@ public sealed partial class EditSessionStore
         using var capture=session.OpenDirectory(name,null,ct);
         var names=capture.Names(ct).Order(StringComparer.Ordinal).ToArray();
         bool linked=names.Contains(EditSaveCopyIntent.FileName,StringComparer.Ordinal);
+        // What FileCat may have left inside one retained copy, which its discard reviews and removes with it: the stage
+        // of a record this commit was publishing, and a name an interrupted exact removal set aside. The payload's own
+        // folder may be gone as well, because a removal takes it before this copy's records.
+        string[] left=names.Where(item=>IsRecordStage(item)||IsSetAside(item)).ToArray();
+        // More of them than one removal reviews: the removal says so itself, and this says the same rather than
+        // offering a removal that would refuse.
+        if(left.Length>MaximumInterruptedLeftovers)
+            throw new IOException("This retained copy holds more files FileCat left behind unfinished than one review reads.");
+        string[] core=names.Except(left,StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        bool stored=core.Contains("files",StringComparer.Ordinal);
+        // A copy whose own record is gone holds nothing that can be bound to a state of this edit, so there is nothing
+        // to recover from it; the discard reviews it as FileCat's own and removes it with the edit.
+        if(!core.Contains("capture.json",StringComparer.Ordinal))
+        {
+            var allowed=new List<string>();
+            if(core.Contains("captured.json",StringComparer.Ordinal))allowed.Add("captured.json");
+            if(linked)allowed.Add(EditSaveCopyIntent.FileName);
+            if(stored)allowed.Add("files");
+            if(!core.SequenceEqual(allowed.Order(StringComparer.Ordinal).ToArray()))throw new IOException("Unknown capture entries.");
+            capture.Review(ct);
+            if(!capture.Names(ct).Order(StringComparer.Ordinal).SequenceEqual(names))
+                throw new IOException("The interrupted copy changed during review.");
+            return linked?new(capture.Path,EditCaptureRecoveryState.NeedsReview,SavedCopyReason)
+                :new(capture.Path,EditCaptureRecoveryState.Interrupted,RecordGoneReason);
+        }
         string[] completeNames=linked?["capture.json","captured.json","files",EditSaveCopyIntent.FileName]:["capture.json","captured.json","files"];
-        bool complete=names.SequenceEqual(completeNames.Order(StringComparer.Ordinal));
-        if(!complete&&!names.SequenceEqual(new[]{"capture.json","files"}))throw new IOException("Unknown capture entries.");
+        bool complete=core.SequenceEqual(completeNames.Order(StringComparer.Ordinal));
+        if(!complete)
+        {
+            var allowed=new List<string>{"capture.json"};
+            if(core.Contains("captured.json",StringComparer.Ordinal))allowed.Add("captured.json");
+            if(linked)allowed.Add(EditSaveCopyIntent.FileName);
+            if(stored)allowed.Add("files");
+            if(!core.SequenceEqual(allowed.Order(StringComparer.Ordinal).ToArray()))throw new IOException("Unknown capture entries.");
+        }
         using var header=new CaptureRecord(capture,"capture.json",ct);
         var start=ParseCaptureRecord(header.Bytes,false);
         if(!history.TryGetValue(start.SessionRecord,out var record))
             throw new IOException("The capture does not match a reviewed edit state.");
         RequireCaptureBinding(start,capture,record);
+        // What an unfinished copy is reported as, decided in one place: a copy a saved copy refers to needs that
+        // copy's own review, and the list offers no removal for one that needs review.
+        EditCaptureRecovery Left(string reason)=>linked
+            ?new(capture.Path,EditCaptureRecoveryState.NeedsReview,SavedCopyReason)
+            :new(capture.Path,EditCaptureRecoveryState.Interrupted,reason);
+        if(!stored)
+        {
+            // A removal stopped once the payload and its folder were gone: what is left is this copy's own records. A
+            // complete layout always names that folder, so what tells the two apart here is the receipt alone.
+            header.Review(ct);capture.Review(ct);
+            if(!capture.Names(ct).Order(StringComparer.Ordinal).SequenceEqual(names))
+                throw new IOException("The interrupted copy changed during review.");
+            return Left(core.Contains("captured.json",StringComparer.Ordinal)?PayloadGoneReason:InterruptedReason);
+        }
         using var files=capture.OpenDirectory("files",start.Files,ct);
         var fileNames=files.Names(ct);
-        if(fileNames.Count>1||fileNames.Count==1&&fileNames[0]!=start.Leaf)throw new IOException("Unknown captured files.");
-        if(!complete)
+        string[] asideFiles=fileNames.Where(IsSetAside).ToArray();
+        string[] payloadNames=fileNames.Except(asideFiles,StringComparer.Ordinal).ToArray();
+        if(payloadNames.Length>1||payloadNames.Length==1&&payloadNames[0]!=start.Leaf)throw new IOException("Unknown captured files.");
+        if(!complete||payloadNames.Length!=1)
         {
             header.Review(ct);files.Review(ct);capture.Review(ct);
             if(!capture.Names(ct).Order(StringComparer.Ordinal).SequenceEqual(names)||!files.Names(ct).SequenceEqual(fileNames))
                 throw new IOException("The interrupted copy changed during review.");
-            return new(capture.Path,EditCaptureRecoveryState.Interrupted,"This copy was interrupted before verification. Its files are kept.");
+            // A copy with no receipt never finished, however much of it is there; one whose receipt is there but whose
+            // payload is not had that payload removed.
+            return Left(complete?PayloadGoneReason:InterruptedReason);
         }
-        if(fileNames.Count!=1)throw new IOException("Missing captured payload.");
         using var receipt=new CaptureRecord(capture,"captured.json",ct);
         var end=ParseCaptureRecord(receipt.Bytes,true);RequireCaptureBinding(end,capture,record);
         if(start.Session!=end.Session||start.SessionRecord!=end.SessionRecord||start.Directory!=end.Directory||start.Files!=end.Files||start.Leaf!=end.Leaf)

@@ -109,8 +109,8 @@ could not refuse a candidate that never ran an edit suite. They carry their own 
 regression and the package route lanes on all three machines in turn
 ([manifest](release-manifest-a4606689.json), [status](IMPLEMENTATION_STATUS.md)).
 
-14 November 2026: the listing re-validated after the twentieth to twenty-second reviews (`dcf19885`, with a Windows
-test's own hold fixed in `3a57fcf5`). Each route's `/edit` entry is the sealed archive of a lane that ran with the
+14 November 2026: the listing re-validated after the twentieth to twenty-third reviews (`dcf19885` and the round that
+read those fixes, with a Windows test's own hold fixed in `3a57fcf5`). Each route's `/edit` entry is the sealed archive of a lane that ran with the
 native store required, and beside it `/edit-check` is the committed checker's own report on that archive: it requires
 the gate's recorded value to be exactly 1, the runner's own verdict on the run, every file the other requirements are
 read from, the three pins by name with a passing row and no failing one, and no test that stepped aside because native

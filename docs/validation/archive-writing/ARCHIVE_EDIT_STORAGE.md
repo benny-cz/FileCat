@@ -117,3 +117,12 @@ Both are reviewed and removed with what they belong to, each through a handle bo
 them per folder; a folder holding more is kept whole and says how many it holds. A retained copy whose payload - or
 whose whole payload folder - a stopped removal already took is still removable: what is left is that copy's own records,
 which are FileCat's. A saved copy that still refers to a payload that is gone is kept for its own review (`dcf19885`).
+
+A retained copy that has lost its own record is FileCat's own leftover as well (`round twenty-three`). Its folder is
+made before that record is published and its removal takes the record first, so a crash or a failure in either window
+leaves the folder empty, holding only its payload folder, or holding only its receipt. Nothing in it can be bound to a
+state of the edit without that record, so nothing can be recovered from it; it is reviewed as FileCat's own, with the
+one file its payload folder may hold reviewed as the copy FileCat put there, and removed with the edit. A saved copy's
+own record goes the same way as the copy it refers to, as it already did when that copy's payload was there - with the
+payload gone nothing can resume from it, and the file it was writing is in the user's own folder, untouched either way.
+Anything else in such a folder is still kept and named as it is everywhere else.

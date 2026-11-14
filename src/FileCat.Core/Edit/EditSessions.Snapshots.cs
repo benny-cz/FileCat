@@ -10,7 +10,7 @@ public sealed partial class EditSessionStore
     {
         void Check(){ct.ThrowIfCancellationRequested();check?.Invoke();}
         Check();using var admission=EditSnapshotAdmission.Acquire(ct);using var root=OpenNativeRoot(ct,false);
-        Action? copying=null;string copyKey="";
+        Action? copying=null;
         // The gate admits this copy and covers the objects it makes; the bytes are copied without it, so a large member
         // or a slow read never holds up another edit (a creation has worked this way since `ef5c36d1`). While it is down
         // every process charges this capture as its record says it was admitted, not as the folder measures while it
@@ -31,8 +31,7 @@ public sealed partial class EditSessionStore
             EditDirectoryLease? files=null;FileStream? output=null;var records=new List<EditPublishedRecord>(2);
             try
             {
-                copyKey=capture.Identity;
-            files=capture.CreateDirectory("files",ct,removable:true);
+                files=capture.CreateDirectory("files",ct,removable:true);
                 string leaf=Path.GetFileName(record.WorkingPath),path=Path.Combine(files.Path,leaf);
                 records.Add(CreateRecordBytes(capture,"capture.json",JsonSerializer.SerializeToUtf8Bytes(new{Version=2,Session=record.Id,
                     SessionRecord=record.StoredRecordSha256,Directory=capture.Identity,Files=files.Identity,Leaf=leaf,
@@ -41,7 +40,7 @@ public sealed partial class EditSessionStore
                 // Everything this copy needs exists and is admitted: the gate goes, and comes back to publish the receipt.
                 // While it is down, this is the only process that can say what this copy still has to write; after a crash
                 // nothing says it, and what is left is charged and offered for review instead.
-                copying=TrackCopyingCapture(root.Identity,copyKey,revision.Length,output.SafeFileHandle);
+                copying=TrackCopyingCapture(root.Identity,capture.Identity,revision.Length,output.SafeFileHandle);
                 allocation.Dispose();allocation=null;
                 FileStream Borrow(long length)
                 {if(length!=revision.Length)throw new IOException("The snapshot exceeds its storage reservation.");return new(new SafeFileHandle(output.SafeFileHandle.DangerousGetHandle(),ownsHandle:false),FileAccess.ReadWrite);}

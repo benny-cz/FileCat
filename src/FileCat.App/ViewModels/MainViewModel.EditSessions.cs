@@ -579,7 +579,7 @@ public sealed partial class MainViewModel
         try
         {
             if (!session.LegacyRetiring && !await Dialogs.ConfirmAsync("Retire original folder",
-                $"Make this copy the edit of \"{session.DisplayName}\" and remove its original folder? FileCat checks the original " +
+                $"Make this copy the edit of \"{Formatters.SafeName(session.DisplayName)}\" and remove its original folder? FileCat checks the original " +
                 "again and removes only what it copied. Close any editor that still shows the original working copy first.",
                 "Retire", danger: true))
                 return;
@@ -607,7 +607,7 @@ public sealed partial class MainViewModel
         try
         {
             if (!await Dialogs.ConfirmAsync("Cancel retirement",
-                $"Make the original edit of \"{session.DisplayName}\" the edit again? This copy is kept for review; nothing is removed.",
+                $"Make the original edit of \"{Formatters.SafeName(session.DisplayName)}\" the edit again? This copy is kept for review; nothing is removed.",
                 "Use original"))
                 return;
             CheckSessionAction();
@@ -662,7 +662,7 @@ public sealed partial class MainViewModel
         {
             string kind = selected.State == EditCaptureRecoveryState.Complete ? "verified retained copy" : "interrupted copy";
             if (!await Dialogs.ConfirmAsync("Remove retained copy",
-                $"Remove this {kind} of \"{session.DisplayName}\"? FileCat checks it again and removes only this copy. " +
+                $"Remove this {kind} of \"{Formatters.SafeName(session.DisplayName)}\"? FileCat checks it again and removes only this copy. " +
                 "The edit and its working copy stay.", "Remove", danger: true))
                 return;
             CheckSessionAction();

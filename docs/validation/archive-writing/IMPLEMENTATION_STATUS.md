@@ -1,5 +1,31 @@
 # Archive writing implementation status
 
+**14 November, the fixes themselves reviewed (round twenty-three).** Two reviewers read only the previous round's
+fixes. Both confirmed the five claims they rest on, and found that one of them had opened a worse instance of the state
+it was closing, and that another kept a copy for a review that could not change anything:
+
+- **A retained commit copy that has lost its own record refused the whole edit's discard for good.** That folder is
+  made before its record is published, and its own removal takes that record first, so a crash or a failure in either
+  window leaves it empty, or holding only its payload folder, or holding only its receipt. Every later discard of the
+  edit then refused with "no longer holds capture.json", the list offered nothing for it, and the edit stayed live and
+  undiscardable. Nothing in such a folder is the user's - the payload is FileCat's own copy of the member, the user's
+  working copy lives in the edit's own folder - and without that record nothing in it can be bound to a state of this
+  edit, so there is nothing to recover from it. It is now reviewed as FileCat's own and removed with the edit.
+- **The refusal for a saved copy beside a payload that is gone could never be satisfied.** Nothing can bring that
+  payload back, so "kept for review" meant kept for ever, and the whole edit's discard went with it. A whole-edit
+  discard already removes a saved copy's own record when the payload is there, so it removes it here too; the file that
+  saved copy was writing is in the user's own folder and is untouched either way. Removing one retained copy on its own
+  still refuses while such a record is beside it, and that copy's review now says so instead of offering a removal that
+  could only refuse - which the previous round's fix had made the list offer.
+
+Also from that round: the startup review now reads every shape the removal removes (and caps the leftovers it caps, so
+it never calls removable what a removal will refuse); the composition pin's two remaining step-aside paths fail in a
+qualification run instead of skipping, as every other native edit test does, and the evidence check knows their
+messages too; that check now matches a pin by its whole method name, reads every summary in an archive rather than the
+first by name, and refuses an archive whose test output says nothing; three more confirmations sanitize the archive's
+own name; and on macOS the user's own working copy is no longer refused for carrying an access list, which the review
+that decides whether that copy can be edited at all has never looked at.
+
 **14 November, the listing re-validated after the twentieth to twenty-second reviews (`dcf19885`).** Four independent
 reviewers read this session's whole contribution - the storage gate and its accounting, the exact removal and the
 discard, the creation in progress and what the user sees, and the listing with its manifest and evidence tooling. They

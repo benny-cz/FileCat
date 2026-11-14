@@ -122,3 +122,10 @@ records, with nothing of yours left" and an action that removes them. Both are i
 [remaining work ledger](REMAINING_WORK_LEDGER.md) rather than built here, because each adds a user-visible state to a
 surface that is already qualified, and the way out - the folder, named in the message and openable from the row - is the
 user's own.
+
+One wording limit is left here on purpose. When a removal is refused because another program holds a file, the refusal
+says whose file it is - "FileCat's temporary copy" for a commit copy - only while the folder is the one FileCat created
+in this process. After a restart the same folder is opened for the removal instead, which does not carry that fact, so
+such a refusal names a retained copy as plainly as it names the user's own working copy. Nothing acts on that
+difference; it is a sentence the user reads. Carrying it through the removal's own open would change that call on both
+platforms, which is not worth doing without its own case.

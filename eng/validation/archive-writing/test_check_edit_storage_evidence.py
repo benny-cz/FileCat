@@ -170,6 +170,23 @@ class EvidenceChecks(unittest.TestCase):
         problems, _ = self.check(contents)
         self.assertEqual(['it carries no status.txt'], problems)
 
+    def test_refuses_a_run_whose_test_output_says_nothing(self):
+        problems, _ = self.check(files(log='   \n'))
+        self.assertEqual(['its test output is empty'], problems)
+
+    def test_refuses_a_second_summary_that_failed(self):
+        """Every summary in the archive is read, not the first one by name."""
+        contents = files()
+        contents['other/summary.json'] = json.dumps(dict(SUMMARY, failed=['FileCat.Tests.Other'], ok=False))
+        problems, _ = self.check(contents)
+        self.assertIn('it failed: FileCat.Tests.Other', problems)
+
+    def test_does_not_take_a_test_merely_ending_in_a_pin_s_text_for_that_pin(self):
+        pin = checker.PINS[0]
+        trx = PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Tests.Not_' + pin, 1)
+        problems, _ = self.check(files(trx=trx))
+        self.assertIn('it does not hold the pin ' + pin, problems)
+
     def test_refuses_a_run_whose_test_output_is_absent(self):
         """The step-aside scan reads those logs: without them it is not a check that passed."""
         contents = files()

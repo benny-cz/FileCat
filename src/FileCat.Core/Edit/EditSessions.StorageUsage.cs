@@ -158,7 +158,9 @@ public sealed partial class EditSessionStore
 
     // What a running copy has written so far: its working file's current length, or null with Measured when there is no such
     // file. A copy another process is writing is refused by its own size review, so three attempts a moment apart are made;
-    // Measured is false when none of them answered, and all of the copy then counts as still to be written.
+    // Measured is false when none of them answered. A creation's own branch then counts all of its copy as still to be
+    // written; a capture's charge takes the longer of what its record admitted and what was measured, and the free space
+    // its copy still needs is counted from this process's own live output handle instead.
     private static (long? Length,bool Measured) Written(EditDirectoryLease session,string? leaf,CancellationToken ct)
     {
         // A marker whose working name is unusable names no copy FileCat made, as its own review would refuse it.

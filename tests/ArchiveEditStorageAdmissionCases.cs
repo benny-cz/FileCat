@@ -134,9 +134,10 @@ internal static class ArchiveEditStorageAdmissionCases
                     Assert.Equal(0,after.RunningMetadataBytes);Assert.Equal(0,after.PendingBytes);
                     Assert.True(after.PayloadBytes>seen.PayloadBytes,$"payload {after.PayloadBytes} after, {seen.PayloadBytes} during");
                     Assert.True(after.ReservedBytes>=length+EditStorageAdmission.CaptureContingency);
-                    // The invariant admission rests on: a copy in flight is charged at least what it becomes. Charged for
-                    // less, two copies were both admitted into room for one, and the next review of the store threw -
-                    // which left the commit that had just finished unable to write its own new state down.
+                    // The invariant admission rests on: a copy in flight is charged at least what it becomes. At this
+                    // fixture's size the conservative metadata charge alone satisfies it, so this states the invariant
+                    // rather than guarding it; the reserve assertion above is what fails without the fix, and what
+                    // keeps two copies out of room for one once a payload dominates the charge.
                     if(scenario=="capture-gate")
                         Assert.True(checked(seen.ChargedBytes+seen.RunningChargedBytes)>=after.ChargedBytes,
                             $"charged {seen.ChargedBytes}+{seen.RunningChargedBytes} while copying, {after.ChargedBytes} once complete");

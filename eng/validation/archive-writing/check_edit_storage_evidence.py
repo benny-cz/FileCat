@@ -49,6 +49,8 @@ STEP_ASIDE = (
     'Native edit storage refuses an elevated or root process',
     'Native edit storage requires an unelevated process.',
     'Native edit storage refuses root; run as an ordinary user.',
+    'Edit sessions refuse an elevated token; run unelevated.',
+    "The fixture's filesystem cannot be established here.",
     'is not a listed native edit storage route for',
 )
 
@@ -160,27 +162,32 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
         summaries = archive.find('summary.json')
         if not summaries:
             return problems + ['it carries no summary.json'], facts
-        summary = json.loads(archive.read(summaries[0]))
-        suites = summary.get('suites', {})
+        # Every summary in the archive, not the first one by name: a run that sealed more than one has to pass on all
+        # of them, exactly as each status.txt below has to say PASS.
+        suites: dict[str, object] = {}
+        for name in sorted(summaries):
+            summary = json.loads(archive.read(name))
+            for suite, counters in (summary.get('suites') or {}).items():
+                suites[suite] = counters
+            if not summary.get('suites'):
+                problems.append('%s names no suite' % name)
+            if summary.get('failed'):
+                problems.append('it failed: ' + ', '.join(map(str, summary['failed'])))
+            for suite, counters in (summary.get('suites') or {}).items():
+                if int(counters.get('failed', 0)) != 0:
+                    problems.append('suite %s has %s failures' % (suite, counters['failed']))
+            if summary.get('ok') is not True:
+                problems.append('the runner did not call this run ok')
+            codes = summary.get('exit_codes')
+            if not isinstance(codes, dict) or not codes:
+                problems.append('its summary carries no exit code')
+            else:
+                for suite, code in sorted(codes.items()):
+                    if code != 0:
+                        problems.append('suite %s exited %s' % (suite, code))
         facts['suites'] = suites
         if not suites:
             problems.append('its summary names no suite')
-        if summary.get('failed'):
-            problems.append('it failed: ' + ', '.join(map(str, summary['failed'])))
-        for name, counters in suites.items():
-            if int(counters.get('failed', 0)) != 0:
-                problems.append('suite %s has %s failures' % (name, counters['failed']))
-        # The runner's own verdict on the run, which catches what the counters cannot: a test host that died, a lane
-        # whose rows and counters disagree, a suite that never reported at all.
-        if summary.get('ok') is not True:
-            problems.append('the runner did not call this run ok')
-        codes = summary.get('exit_codes')
-        if not isinstance(codes, dict) or not codes:
-            problems.append('its summary carries no exit code')
-        else:
-            for name, code in sorted(codes.items()):
-                if code != 0:
-                    problems.append('suite %s exited %s' % (name, code))
         # A file that is not there is not a check that passed: each of these carries one of the requirements above.
         statuses = archive.find('status.txt')
         if not statuses:
@@ -188,14 +195,19 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
         for name in statuses:
             if archive.read(name).strip() != 'PASS':
                 problems.append('its status is not PASS')
-        if not archive.leaves(prefix='test-'):
+        # The step-aside scan reads these: an archive with none, or with nothing in them, has not been scanned.
+        logs = archive.leaves(prefix='test-')
+        if not logs:
             problems.append('it carries no test output to read')
+        elif not any(archive.read(log).strip() for log in logs):
+            problems.append('its test output is empty')
         results = outcomes(archive)
         if not results:
             problems.append('it carries no test results to read')
         pins = {}
         for pin in PINS:
-            matching = {test: outcome for test, outcome in results.items() if test.split('(')[0].endswith(pin)}
+            # The whole method name, so a test merely ending in the pin's text is not one of its cases.
+            matching = {test: outcome for test, outcome in results.items() if test.split('(')[0].endswith('.' + pin)}
             if not matching:
                 problems.append('it does not hold the pin ' + pin)
             else:

@@ -142,6 +142,13 @@ left behind is therefore charged - the review budget still judges what the store
 the retained copy - but reserves no free space. Reserving it held space for bytes nobody would ever write, which refused
 later edits on a volume that had room for them and said the volume was full (`dcf19885`).
 
+The other side of that choice, accepted: two FileCat processes copying at once are each admitted without seeing the
+other's outstanding bytes, so on a volume with room for only one of them the second copy fails for want of space. That
+copy keeps the user's files, says so, and is offered for review, and a retry once the first copy is done succeeds -
+against a refusal that was permanent, misleading and needed no second process at all. Proving a copy is still coming
+across processes would need a capture to hold a marker the way a creation does, and to be read through it; that is what
+closing this would take.
+
 A capture record that does not name the folder it is in - a stale one, or one made by hand - speaks for no copy being
 made here, and its folder is measured as the bytes it holds instead. An earlier build's record (version 1) carries no
 admitted length, so a capture of that build is measured as before.

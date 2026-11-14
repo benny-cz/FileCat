@@ -15,7 +15,8 @@ internal static class ArchiveEditCaptureRecoveryCases
             "receipt-version-string","receipt-duplicate","receipt-unknown","receipt-malformed","receipt-depth","receipt-large","receipt-length",
             "receipt-length-string","receipt-digest","receipt-session","header-files","header-leaf","extra-child","extra-file","payload-changed",
             "payload-missing","payload-replaced","stale-record","later-revision","later-second-revision","cancel","capture-budget","unknown-name",
-            "header-utf8-name","receipt-utf8-value","header-unpaired-name","receipt-unpaired-value"})yield return [scenario];
+            "header-utf8-name","receipt-utf8-value","header-unpaired-name","receipt-unpaired-value",
+            "payload-folder-missing"})yield return [scenario];
     }
     internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open)
     {
@@ -84,6 +85,10 @@ internal static class ArchiveEditCaptureRecoveryCases
             else if(scenario=="extra-file")File.WriteAllText(Path.Combine(Path.GetDirectoryName(copy.Path)!,"foreign.txt"),"unrelated payload sibling");
             else if(scenario=="payload-changed")File.WriteAllText(copy.Path,"modified captured bytes");
             else if(scenario=="payload-missing")File.Delete(copy.Path);
+            // A removal of this copy that was stopped: after its payload's whole folder, or after its own record, which
+            // such a removal takes first. The discard removes what is left of either with the edit, so this review says
+            // the same rather than offering nothing.
+            else if(scenario=="payload-folder-missing"){File.Delete(copy.Path);Directory.Delete(Path.GetDirectoryName(copy.Path)!);}
             else if(scenario=="payload-replaced"){File.Move(copy.Path,Path.Combine(fixture,"preserved-payload"));File.WriteAllText(copy.Path,"complete recovery source");}
             else if(scenario=="stale-record")store.Save(record with{LastCommitUtc=DateTime.UtcNow});
             var reviewRecord=record;
@@ -101,7 +106,12 @@ internal static class ArchiveEditCaptureRecoveryCases
             else
             {
                 var review=Assert.Single(restarted.ReviewRetainedCaptures(reviewRecord,ct));
-                Assert.Equal(scenario is "complete" or "later-revision" or "later-second-revision"?EditCaptureRecoveryState.Complete:scenario.StartsWith("interrupted-",StringComparison.Ordinal)?
+                // A copy whose payload is gone while its receipt is there is interrupted, not in need of review: there
+                // is nothing left to recover from it, what remains is this copy's own records, and only a verified or an
+                // interrupted copy can be removed from the list at all.
+                Assert.Equal(scenario is "complete" or "later-revision" or "later-second-revision"?EditCaptureRecoveryState.Complete:
+                    scenario.StartsWith("interrupted-",StringComparison.Ordinal)||scenario is "payload-missing" or
+                    "payload-folder-missing" or "header-missing"?
                     EditCaptureRecoveryState.Interrupted:EditCaptureRecoveryState.NeedsReview,review.State);
                 Assert.Equal(capture,review.Directory);Assert.NotEmpty(review.Reason);
                 if(scenario is "complete" or "later-revision" or "later-second-revision"){Assert.Equal(copy.Length,review.Length);Assert.Equal(copy.Sha256,review.Sha256);}
@@ -123,7 +133,8 @@ internal static class ArchiveEditCaptureRecoveryCases
     internal static IEnumerable<object[]> RemovalScenarios()
     {
         foreach(string scenario in new[]{"complete","interrupted-empty","interrupted-partial","two-copies","extra-child","extra-file",
-            "payload-changed","payload-replaced","stale-record","wrong-folder","live-capture","cancel"})yield return [scenario];
+            "payload-changed","payload-replaced","payload-missing","payload-folder-missing","stale-record","wrong-folder","live-capture",
+            "cancel"})yield return [scenario];
     }
 
     /// <summary>
@@ -159,6 +170,10 @@ internal static class ArchiveEditCaptureRecoveryCases
             else if(scenario=="extra-file")File.WriteAllText(Path.Combine(capture,"files","foreign.txt"),"unrelated payload sibling");
             else if(scenario=="payload-changed")File.WriteAllText(payload,"modified captured bytes");
             else if(scenario=="payload-replaced"){File.Move(payload,Path.Combine(fixture,"preserved-payload"));File.WriteAllText(payload,"complete recovery source");}
+            // A removal of this copy that was stopped once the payload, or the payload's whole folder, was gone: this
+            // removal takes them before the copy's own records, which are what is left to remove.
+            else if(scenario=="payload-missing")File.Delete(payload);
+            else if(scenario=="payload-folder-missing"){File.Delete(payload);Directory.Delete(Path.Combine(capture,"files"));}
             if(scenario=="stale-record")_=store.Save(record with{LastCommitUtc=DateTime.UnixEpoch.AddSeconds(1700000001)});
             var before=Files();
             var restarted=new EditSessionStore(store.Root,new PortableFileOperations(),open);
@@ -181,7 +196,8 @@ internal static class ArchiveEditCaptureRecoveryCases
                 Assert.Equal(before,Files());return;
             }
             var result=restarted.RemoveRetainedCapture(record,capture,ct);
-            if(scenario is "complete" or "interrupted-empty" or "interrupted-partial" or "two-copies")
+            if(scenario is "complete" or "interrupted-empty" or "interrupted-partial" or "two-copies" or "payload-missing" or
+                "payload-folder-missing")
             {
                 Assert.True(result.Complete,result.Issue);Assert.False(Directory.Exists(capture));
                 Assert.Equal(other is null?0:1,Directory.GetDirectories(session,"commit-*").Length);

@@ -216,51 +216,69 @@ public sealed partial class EditSessionStore
                 throw new IOException("This retained copy's folder holds "+left.Length+" files FileCat left behind unfinished, and one discard reviews at most "+
                     MaximumInterruptedLeftovers+". Nothing is removed and all of its files are kept.");
             bool stored=node.Names.Contains("files",StringComparer.Ordinal);
-            var expected=new List<string>{"capture.json"};
+            // A copy whose own record is gone: its folder was made and the record not yet published (a crash or a
+            // failure in that window), or its removal was stopped after taking that record, which it takes first.
+            // Nothing in a "commit-" folder is the user's - the payload is FileCat's own copy of the member, their
+            // working copy is in the edit's own "files" - and without that record nothing here can be bound to a state
+            // of this edit, so there is nothing to recover from it. It is reviewed as FileCat's own and removed with
+            // the edit; leaving it refused every later discard of the whole edit for good.
+            bool recorded=node.Names.Contains("capture.json",StringComparer.Ordinal);
+            var expected=new List<string>();
+            if(recorded)expected.Add("capture.json");
             if(complete)expected.Add("captured.json");
             if(linked)expected.Add(EditSaveCopyIntent.FileName);
             if(stored)expected.Add("files");
             expected.AddRange(left);
             RequireLayout(node,expected.ToArray());
-            var header=Read(capture,"capture.json",true,MaximumCaptureRecordBytes);var start=ParseCaptureRecord(header.Bytes!,false);node.Files.Add(header);
-            if(!history.TryGetValue(start.SessionRecord,out var originating))throw new IOException("A captured copy belongs to an unknown edit state.");
-            RequireCaptureBinding(start,capture,originating);
+            CaptureFacts? start=null;EditSessionRecord? originating=null;
+            if(recorded)
+            {
+                var header=Read(capture,"capture.json",true,MaximumCaptureRecordBytes);start=ParseCaptureRecord(header.Bytes!,false);node.Files.Add(header);
+                if(!history.TryGetValue(start.SessionRecord,out originating))throw new IOException("A captured copy belongs to an unknown edit state.");
+                RequireCaptureBinding(start,capture,originating);
+            }
             DiscardFile? payload=null;DiscardNode? data=null;
             if(stored)
             {
                 using var files=capture.OpenStorageDirectory("files",ct);
-                if(files.Identity!=start.Files)throw new IOException("The captured file directory was replaced.");
+                if(start is not null&&files.Identity!=start.Files)throw new IOException("The captured file directory was replaced.");
                 data=Node(files,"files");
                 string[] aside=data.Names.Where(IsSetAside).Order(StringComparer.Ordinal).ToArray();
                 if(aside.Length>MaximumInterruptedLeftovers)
                     throw new IOException("This retained copy holds "+aside.Length+" files an interrupted removal set aside, and one discard reviews at most "+
                         MaximumInterruptedLeftovers+". Nothing is removed and all of its files are kept.");
-                bool kept=data.Names.Contains(start.Leaf,StringComparer.Ordinal);
-                RequireLayout(data,kept?[start.Leaf,..aside]:aside);
-                if(kept){payload=Read(files,start.Leaf,false);data.Files.Add(payload);}
+                // Without this copy's own record its payload has no name to be reviewed against: the one file FileCat
+                // puts in this folder is its own copy, so a single file of any name is reviewed and removed as that,
+                // and anything more is kept and named as it is anywhere else.
+                string[] rest=data.Names.Except(aside,StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+                string? leaf=start?.Leaf??(rest.Length==1?rest[0]:null);
+                bool kept=leaf is not null&&data.Names.Contains(leaf,StringComparer.Ordinal);
+                RequireLayout(data,kept?[leaf!,..aside]:aside);
+                if(kept){payload=Read(files,leaf!,false);data.Files.Add(payload);}
                 foreach(string item in aside)data.Files.Add(Read(files,item,false));
             }
             if(complete)
             {
                 var receipt=Read(capture,"captured.json",true,MaximumCaptureRecordBytes);node.Files.Add(receipt);var end=ParseCaptureRecord(receipt.Bytes!,true);
-                RequireCaptureBinding(end,capture,originating);
-                if(payload is { } held)
+                if(originating is not null)RequireCaptureBinding(end,capture,originating);
+                if(start is not null&&payload is { } held)
                 {
                     var observed=held.Expected;
                     if(start.Files!=end.Files||observed.Version.Identity!=end.Identity||observed.Version.Length!=end.Length||
                         observed.Version.Sha256!=end.Sha256||observed.MetadataDigest!=end.Metadata||observed.Origin.Digest!=end.Origin)
                         throw new IOException("The retained copy differs from its complete capture record.");
-                    if(linked)
-                    {
-                        var saved=Read(capture,EditSaveCopyIntent.FileName,true,EditSaveCopyIntent.MaximumBytes);node.Files.Add(saved);
-                        EditSaveCopyIntent.Decode(saved.Bytes!).RequireSource(originating,capture.Identity,observed);
-                    }
                 }
-                // The payload a stopped removal already took. What is left is this copy's own records, which are
-                // FileCat's to remove; a saved copy that still refers to the payload needs its own review first, so a
-                // copy with that intent beside it is kept whole instead.
-                else if(linked)
-                    throw new IOException("A saved copy refers to this retained copy, whose captured payload is already gone. Its files are kept for review.");
+            }
+            // A saved copy's own record goes with the copy it refers to, as it already did when that copy's payload was
+            // there: it is read as FileCat's own file, and bound to the payload whenever there is one to bind it to.
+            // With the payload gone nothing can resume from it, so keeping it kept the whole edit undiscardable; the
+            // destination it names is in the user's own folder and is not touched either way. Removing one retained
+            // copy on its own still refuses while such a record is beside it, and its review says so.
+            if(linked)
+            {
+                var saved=Read(capture,EditSaveCopyIntent.FileName,true,EditSaveCopyIntent.MaximumBytes);node.Files.Add(saved);
+                if(originating is not null&&payload is { } source)
+                    EditSaveCopyIntent.Decode(saved.Bytes!).RequireSource(originating,capture.Identity,source.Expected);
             }
             foreach(string item in left)node.Files.Add(Read(capture,item,IsRecordStage(item)));
             if(data is not null)node.Children.Add(data);

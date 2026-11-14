@@ -17,7 +17,7 @@ internal static class ArchiveEditDiscardCases
         "extra-capture","extra-payload","capture-header","capture-receipt","capture-payload","intent-corrupt",
         "replaced-session","replaced-files","replaced-after-review","changed-after-review","extra-after-review","no-factory",
         "stage-session","aside-working","aside-missing","replaced-working","stage-capture","aside-capture-payload",
-        "capture-payload-gone","capture-payload-emptied"}
+        "capture-payload-gone","capture-payload-emptied","capture-record-gone","capture-empty","saved-intent-payload-gone"}
         .Select(value=>new object[]{value});
 
     internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations fs)
@@ -41,11 +41,11 @@ internal static class ArchiveEditDiscardCases
             hook.Working=record.WorkingPath;
             string session=store.SessionDirectory(record),capture="";
             bool hasCapture=scenario.Contains("capture",StringComparison.Ordinal)||scenario is "saved-intent" or "intent-corrupt" or
-                "interrupted-empty" or "interrupted-partial" or "extra-payload";
+                "interrupted-empty" or "interrupted-partial" or "extra-payload" or "saved-intent-payload-gone";
             if(hasCapture)
             {
                 copy=store.PrepareCommit(record,fixture,ct);capture=Path.GetDirectoryName(Path.GetDirectoryName(copy.Path))!;
-                if(scenario is "saved-intent" or "intent-corrupt")
+                if(scenario is "saved-intent" or "intent-corrupt" or "saved-intent-payload-gone")
                 {
                     var native=copy.Native!;var observed=native.Expected;var modified=observed.MemberModified!.Value;Guid nonce=Guid.NewGuid();
                     string prefix=".filecat-archive-"+nonce.ToString("N")+"-";
@@ -84,6 +84,18 @@ internal static class ArchiveEditDiscardCases
                     File.Delete(Path.Combine(capture,"files","owned.txt"));
                     if(scenario=="capture-payload-gone")Directory.Delete(Path.Combine(capture,"files"));
                 }
+                // A copy whose own record is gone - its folder made and the record not yet published, or its removal
+                // stopped after taking that record, which it takes first - and one FileCat emptied altogether. Nothing
+                // in such a folder can be bound to a state of this edit, and leaving it refused every later discard of
+                // the whole edit. A saved copy beside a payload that is gone was refused for a review that could not
+                // bring the payload back; the record goes with the copy it refers to, and the saved file stays.
+                if(scenario=="capture-record-gone")File.Delete(Path.Combine(capture,"capture.json"));
+                if(scenario=="capture-empty")
+                {
+                    File.Delete(Path.Combine(capture,"capture.json"));File.Delete(Path.Combine(capture,"captured.json"));
+                    File.Delete(Path.Combine(capture,"files","owned.txt"));Directory.Delete(Path.Combine(capture,"files"));
+                }
+                if(scenario=="saved-intent-payload-gone")File.Delete(Path.Combine(capture,"files","owned.txt"));
             }
             if(scenario=="revision")record=store.Save(record with{LastCommitUtc=DateTime.UtcNow});
             if(scenario=="stale-record")store.Save(record with{LastCommitUtc=DateTime.UtcNow});
@@ -144,6 +156,19 @@ internal static class ArchiveEditDiscardCases
             {Directory.Move(session,session+".retained");File.WriteAllText(Path.Combine(Private(session),"replacement.txt"),"keep unrelated replacement");}
             if(scenario=="replaced-files")
             {string path=Path.GetDirectoryName(record.WorkingPath)!;Directory.Move(path,path+".retained");File.WriteAllText(Path.Combine(Private(path),"owned.txt"),"keep unrelated replacement");}
+            // The startup review must read what FileCat left in a retained copy as its removal does: the list offers a
+            // removal only for a verified or an interrupted copy, so a review that called either of these "needs
+            // review" would leave the user unable to reach the removal at all.
+            if(scenario is "stage-capture" or "aside-capture-payload" or "capture-payload-gone" or "capture-payload-emptied" or
+                "capture-record-gone" or "capture-empty" or "saved-intent-payload-gone")
+            {
+                var retained=Assert.Single(store.ReviewRetainedCaptures(record,ct));
+                // A copy a saved copy refers to needs that copy's own review, which is what the list offers no removal
+                // for; everything else here is this copy's own work, interrupted or already half removed.
+                Assert.Equal(scenario is "stage-capture" or "aside-capture-payload"?EditCaptureRecoveryState.Complete:
+                    scenario=="saved-intent-payload-gone"?EditCaptureRecoveryState.NeedsReview:
+                    EditCaptureRecoveryState.Interrupted,retained.State);
+            }
             if(scenario=="cancel-before")stop.Cancel();
             int checks=0;
             void Check(){if(scenario=="cancel-preflight"&&++checks==2)stop.Cancel();}
@@ -157,11 +182,13 @@ internal static class ArchiveEditDiscardCases
             bool success=scenario is "working" or "empty" or "missing" or "revision" or "record-time" or "origin" or "complete-capture" or
                 "old-capture" or "interrupted-empty" or "interrupted-partial" or "saved-intent" or "stage-session" or "aside-working" or
                 "aside-missing" or "replaced-working" or "stage-capture" or "aside-capture-payload" or "capture-payload-gone" or
-                "capture-payload-emptied"||!seesEditors&&scenario is "open-editor" or "mapped-editor";
+                "capture-payload-emptied" or "capture-record-gone" or "capture-empty" or "saved-intent-payload-gone"
+                ||!seesEditors&&scenario is "open-editor" or "mapped-editor";
             if(success)
             {
                 Assert.Null(error);Assert.NotNull(result);Assert.True(result.Complete,result.Issue);Assert.False(Directory.Exists(session));
-                if(scenario=="saved-intent")Assert.Equal("keep this separate saved file",File.ReadAllText(Path.Combine(fixture,"saved.txt")));
+                if(scenario is "saved-intent" or "saved-intent-payload-gone")
+                    Assert.Equal("keep this separate saved file",File.ReadAllText(Path.Combine(fixture,"saved.txt")));
                 // An editor's mapping of the discarded copy keeps working (no truncation under it).
                 if(scenario=="mapped-editor"){view!.Write(0,(byte)'x');view.Flush();Assert.Equal((byte)'x',view.ReadByte(0));}
                 Assert.Empty(store.LoadAll());
