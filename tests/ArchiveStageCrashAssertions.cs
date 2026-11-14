@@ -37,7 +37,7 @@ internal static class ArchiveStageCrashAssertions
             await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
         }
         Assert.True(process.HasExited);
-        var interrupted = Assert.Single(JournalRecovery.Scan(Path.Combine(root, "journals"), keepFinished: 0, maxAge: TimeSpan.Zero));
+        var interrupted = Assert.Single(await SettledJournals.ScanAsync(Path.Combine(root, "journals"), keepFinished: 0, maxAge: TimeSpan.Zero));
         var recovered = Assert.Single(interrupted.ArchiveTransactions.Transactions);
         Assert.Null(interrupted.ArchiveTransactions.Problem); Assert.True(interrupted.ArchiveTransactions.RequiresReview);
         Assert.Equal(ArchiveTransactionPhase.Reserved, recovered.Phase); Assert.Equal(1024, recovered.StageMaximumLength);

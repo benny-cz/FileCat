@@ -51,6 +51,7 @@
     <Compile Include="..\ArchiveCreationPublicationCases.cs" Link="ArchiveCreationPublicationCases.cs" />
     <Compile Include="..\ArchiveSidecarCrashAssertions.cs" Link="ArchiveSidecarCrashAssertions.cs" />
     <Compile Include="..\ArchiveCreationCrashAssertions.cs" Link="ArchiveCreationCrashAssertions.cs" />
+    <Compile Include="..\SettledJournals.cs" Link="SettledJournals.cs" />
     <Compile Include="..\ArchiveWorkerCancellationAssertions.cs" Link="ArchiveWorkerCancellationAssertions.cs" />
     <Compile Include="..\ArchiveMoveAcceptance.cs" Link="ArchiveMoveAcceptance.cs" />
     <!-- A disk image with deleted files, for reading drives through the helper's protocol (Core tests' TestData/Recovery). -->

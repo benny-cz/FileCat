@@ -34,7 +34,7 @@ public sealed class ArchiveRetainedCleanupNativeUiTests
             await CreateInterruptedNativeArchive(root, creation);
             string originalJournal = Directory.GetFiles(Path.Combine(root, "journals"), "*.fcj").Single();
             string journal = Path.Combine(services.Paths.JournalDirectory, Path.GetFileName(originalJournal)); File.Copy(originalJournal, journal);
-            var job = Assert.Single(JournalRecovery.Scan(services.Paths.JournalDirectory));
+            var job = Assert.Single(await FileCat.Tests.SettledJournals.ScanAsync(services.Paths.JournalDirectory));
             var catalog = creation ? Assert.Single(job.ArchiveTransactions.CreationCleanups).Artifacts : Assert.Single(job.ArchiveTransactions.ContentCleanups).Artifacts;
             string archive = Path.Combine(root, creation ? "result.tar" : "original.tar"), before = Hash(archive), journalBefore = Hash(journal);
             byte[]? origin = Origin();

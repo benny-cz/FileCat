@@ -38,7 +38,7 @@ internal static class ArchiveCreationCrashAssertions
             await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
         }
         var before = Snapshot(); string journals = Path.Combine(root, "journals");
-        var interrupted = Assert.Single(JournalRecovery.Scan(journals, keepFinished: 0, maxAge: TimeSpan.Zero));
+        var interrupted = Assert.Single(await SettledJournals.ScanAsync(journals, keepFinished: 0, maxAge: TimeSpan.Zero));
         Assert.Null(interrupted.ArchiveTransactions.Problem); Assert.True(interrupted.ArchiveTransactions.RequiresReview);
         Assert.False(JournalRecovery.TryClose(interrupted, "creation crash requires native object review"));
         var facts = Assert.Single(interrupted.ArchiveTransactions.Transactions);

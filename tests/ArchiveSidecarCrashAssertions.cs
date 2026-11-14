@@ -33,7 +33,7 @@ internal static class ArchiveSidecarCrashAssertions
             if (!process.HasExited) process.Kill(entireProcessTree: true);
             await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
         }
-        var interrupted = Assert.Single(JournalRecovery.Scan(Path.Combine(root, "journals"), keepFinished: 0, maxAge: TimeSpan.Zero));
+        var interrupted = Assert.Single(await SettledJournals.ScanAsync(Path.Combine(root, "journals"), keepFinished: 0, maxAge: TimeSpan.Zero));
         Assert.Null(interrupted.ArchiveTransactions.Problem); Assert.True(interrupted.ArchiveTransactions.RequiresReview);
         Assert.False(JournalRecovery.TryClose(interrupted, "sidecar crash evidence requires native review"));
         var facts = Assert.Single(interrupted.ArchiveTransactions.Transactions); var sidecar = Assert.Single(facts.Sidecars);
