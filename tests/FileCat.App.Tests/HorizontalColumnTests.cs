@@ -207,6 +207,191 @@ public sealed class HorizontalColumnTests
         Assert.Null(await rename);
     }
 
+    /// <summary>
+    /// A border held while the list's columns are replaced (another profile with the button still down, Alt+1) stops
+    /// where it is: its width is not stored for the column now in that place.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_border_drag_stops_when_the_columns_it_holds_are_replaced()
+    {
+        using var f = new Fixture(480, 13);
+        await f.Load();
+        var (full, brief) = (f.Services.Columns.Profiles[2].Columns, f.Services.Columns.Profiles[1].Columns);
+        // Full's Ext, whose place Brief's Size takes.
+        double border = HoldNarrower(f, Array.FindIndex(full, c => c.Field == ColumnField.Extension));
+        f.Tab.ColumnProfile = 1;
+        f.Window.MouseMove(new Point(border - 60, 8));
+        f.Window.MouseUp(new Point(border - 60, 8), MouseButton.Left);
+        f.Frame();
+        Assert.Same(full, f.Services.Columns.Profiles[2].Columns);
+        Assert.Same(brief, f.Services.Columns.Profiles[1].Columns);
+    }
+
+    /// <summary>The same when the list is given another tab mid-drag (Ctrl+Tab with the button still down).</summary>
+    [AvaloniaFact]
+    public async Task A_border_drag_stops_when_the_list_shows_another_tab()
+    {
+        using var f = new Fixture(480, 13);
+        await f.Load();
+        var second = f.Panel.OpenTab(Location.FileSystem(f.Folder));
+        second.ColumnProfile = 1;
+        var (full, brief) = (f.Services.Columns.Profiles[2].Columns, f.Services.Columns.Profiles[1].Columns);
+        double border = HoldNarrower(f, Array.FindIndex(full, c => c.Field == ColumnField.Extension));
+        f.List.Tab = second;
+        f.Window.MouseMove(new Point(border - 60, 8));
+        f.Window.MouseUp(new Point(border - 60, 8), MouseButton.Left);
+        f.Frame();
+        Assert.Same(full, f.Services.Columns.Profiles[2].Columns);
+        Assert.Same(brief, f.Services.Columns.Profiles[1].Columns);
+        second.Dispose();
+    }
+
+    /// <summary>
+    /// Pictures turned on while a border is held (they have no columns): the drag stops with nothing stored, and the
+    /// column is drawn as the profile keeps it once the pictures are off again.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_border_drag_stops_when_pictures_replace_the_columns()
+    {
+        using var f = new Fixture(480, 13);
+        await f.Load();
+        var stored = f.Services.Columns.Profiles[2].Columns;
+        int ext = Array.FindIndex(f.Tab.Columns, c => c.Field == ColumnField.Extension);
+        double before = f.List.ColumnRightEdge(ext) - f.List.ColumnLeftEdge(ext);
+        double border = HoldNarrower(f, ext);
+        f.List.PictureMode = true;
+        f.Window.MouseMove(new Point(border - 60, 8));
+        f.Window.MouseUp(new Point(border - 60, 8), MouseButton.Left);
+        Assert.Same(stored, f.Services.Columns.Profiles[2].Columns);
+        f.List.PictureMode = false;
+        f.Frame();
+        Assert.Equal(before, f.List.ColumnRightEdge(ext) - f.List.ColumnLeftEdge(ext), 1);
+    }
+
+    /// <summary>
+    /// The pointer taken away mid-drag (another window took it): the drag ends as a release ends it, the width as drawn
+    /// stored, and the button coming up later stores nothing more.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_border_drag_ends_as_a_release_when_the_pointer_is_taken_away()
+    {
+        using var f = new Fixture(480, 13);
+        await f.Load();
+        int ext = Array.FindIndex(f.Tab.Columns, c => c.Field == ColumnField.Extension);
+        double stored = f.Services.Columns.Profiles[2].Columns[ext].Width;
+        double border = HoldNarrower(f, ext);
+        var pointer = Assert.IsAssignableFrom<IPointer>(typeof(FileListControl)
+            .GetField("_resizePointer", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(f.List));
+        pointer.Capture(null);
+        double taken = f.Services.Columns.Profiles[2].Columns[ext].Width;
+        Assert.True(taken < stored, $"the width as drawn should be stored when the pointer is taken ({taken}, was {stored})");
+        var after = f.Services.Columns.Profiles[2].Columns;
+        f.Window.MouseMove(new Point(border - 60, 8));
+        f.Window.MouseUp(new Point(border - 60, 8), MouseButton.Left);
+        Assert.Same(after, f.Services.Columns.Profiles[2].Columns);
+    }
+
+    /// <summary>
+    /// A border dragged in a list scrolled sideways, or a width stored from another list on the profile, leaves the list
+    /// where it is scrolled (it once jumped back to the first column, the dragged border out of sight); another folder
+    /// starts from the first column.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_dragged_width_keeps_the_list_where_it_is_scrolled()
+    {
+        using var f = new Fixture(480, 13);
+        await f.Load();
+        int created = Array.FindIndex(f.Tab.Columns, c => c.Field == ColumnField.Created);
+        f.List.ScrollToHorizontalOffset(f.List.HorizontalOffset + f.List.ColumnRightEdge(created) - f.List.HorizontalViewport / 2);
+        f.Frame();
+        double offset = f.List.HorizontalOffset;
+        Assert.True(offset > 0);
+        double stored = f.Services.Columns.Profiles[2].Columns[created].Width;
+        double border = f.List.ColumnRightEdge(created);
+        Assert.InRange(border, 8, f.List.HorizontalViewport - 8);
+
+        f.Window.MouseMove(new Point(border, 8));
+        f.Window.MouseDown(new Point(border, 8), MouseButton.Left);
+        f.Window.MouseMove(new Point(border + 20, 8));
+        f.Window.MouseUp(new Point(border + 20, 8), MouseButton.Left);
+        f.Frame();
+        Assert.True(f.Services.Columns.Profiles[2].Columns[created].Width > stored);
+        Assert.Equal(offset, f.List.HorizontalOffset, 1);
+
+        int size = Array.FindIndex(f.Tab.Columns, c => c.Field == ColumnField.Size);
+        f.Services.Columns.SetWidth(2, size, f.Services.Columns.Profiles[2].Columns[size].Width + 10);
+        f.Frame();
+        Assert.Equal(offset, f.List.HorizontalOffset, 1);
+
+        f.Tab.Navigate(Location.FileSystem(Path.GetDirectoryName(f.Folder)!));
+        f.Frame();
+        Assert.Equal(0, f.List.HorizontalOffset);
+    }
+
+    /// <summary>
+    /// A width stored from another list on the profile while a border is held here (two pointers at once) leaves the
+    /// drag going: the same columns at other widths still hold the column it is on, and its width is stored on release.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_border_drag_goes_on_when_another_list_stores_a_width()
+    {
+        using var f = new Fixture(480, 13);
+        await f.Load();
+        int ext = Array.FindIndex(f.Tab.Columns, c => c.Field == ColumnField.Extension);
+        int size = Array.FindIndex(f.Tab.Columns, c => c.Field == ColumnField.Size);
+        double stored = f.Services.Columns.Profiles[2].Columns[ext].Width;
+        double border = HoldNarrower(f, ext);
+        f.Services.Columns.SetWidth(2, size, f.Services.Columns.Profiles[2].Columns[size].Width + 10);
+        f.Window.MouseMove(new Point(border - 40, 8));
+        f.Window.MouseUp(new Point(border - 40, 8), MouseButton.Left);
+        f.Frame();
+        Assert.True(f.Services.Columns.Profiles[2].Columns[ext].Width < stored, "the held border's width should be stored on release");
+    }
+
+    /// <summary>Presses a column's border on the header row and drags it 30 pixels narrower, holding the button.</summary>
+    private static double HoldNarrower(Fixture f, int column)
+    {
+        double border = f.List.ColumnRightEdge(column);
+        Assert.InRange(border, 40, f.List.HorizontalViewport - 8);
+        double width = f.List.ColumnRightEdge(column) - f.List.ColumnLeftEdge(column);
+        f.Window.MouseMove(new Point(border, 8));
+        f.Window.MouseDown(new Point(border, 8), MouseButton.Left);
+        f.Window.MouseMove(new Point(border - 30, 8));
+        f.Frame();
+        // The drag is under way: the column is drawn narrower while the button is held.
+        Assert.True(f.List.ColumnRightEdge(column) - f.List.ColumnLeftEdge(column) < width - 20, "the border drag did not start");
+        return border;
+    }
+
+    /// <summary>
+    /// A border dragged narrower than a profile keeps any column (24 pixels at the default font) ends drawn at the width
+    /// the profile keeps, as every other list on the profile draws it, not at the drag's own narrowest.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_drag_the_profile_cannot_take_ends_at_the_width_the_profile_keeps()
+    {
+        using var f = new Fixture(480, 20);
+        await f.Load();
+        int ext = Array.FindIndex(f.Tab.Columns, c => c.Field == ColumnField.Extension);
+        f.Services.Columns.SetWidth(2, ext, 24);
+        f.Frame();
+        f.List.ScrollToHorizontalOffset(f.List.HorizontalOffset + f.List.ColumnRightEdge(ext) - f.List.HorizontalViewport / 2);
+        f.Frame();
+        double kept = f.List.ColumnRightEdge(ext) - f.List.ColumnLeftEdge(ext);
+        Assert.True(kept > 30, $"the narrowest kept width should draw wider than a drag's narrowest at this font ({kept})");
+        double border = f.List.ColumnRightEdge(ext);
+        Assert.InRange(border, 8, f.List.HorizontalViewport - 8);
+
+        f.Window.MouseMove(new Point(border, 8));
+        f.Window.MouseDown(new Point(border, 8), MouseButton.Left);
+        f.Window.MouseMove(new Point(border - 200, 8));
+        f.Window.MouseUp(new Point(border - 200, 8), MouseButton.Left);
+        f.Frame();
+
+        Assert.Equal(24, f.Services.Columns.Profiles[2].Columns[ext].Width);
+        Assert.Equal(kept, f.List.ColumnRightEdge(ext) - f.List.ColumnLeftEdge(ext), 1);
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly string _root;

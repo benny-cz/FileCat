@@ -117,6 +117,12 @@ public sealed class IconProvider
         return _vector.GetOrAdd((kind, ThemeManager.Current.Name), k => VectorIcons.Create(k.Item1));
     }
 
+    /// <summary>
+    /// Raised after <see cref="ClearCache"/>: icons may look different now (settings applied, another theme), so whatever
+    /// shows them draws them again.
+    /// </summary>
+    public event Action? Cleared;
+
     public void ClearCache()
     {
         _vector.Clear();
@@ -126,6 +132,7 @@ public sealed class IconProvider
         _cloudOverlays.Clear();
         _vectorOverlay = null;
         _tinted = new();
+        Cleared?.Invoke();
     }
 
     private System.Runtime.CompilerServices.ConditionalWeakTable<IImage, IImage> _tinted = new();

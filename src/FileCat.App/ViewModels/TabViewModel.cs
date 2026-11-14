@@ -124,7 +124,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public bool IsQuickSearchActive => QuickSearch is not null;
 
-    public event EventHandler? ColumnsChanged;
+    /// <summary>
+    /// Raised when the columns this tab shows may have changed: another location, another profile, an edited one.
+    /// <see cref="ColumnsChangedEventArgs.WidthsOnly"/> when they are the same columns at other widths.
+    /// </summary>
+    public event EventHandler<ColumnsChangedEventArgs>? ColumnsChanged;
 
     private string _sortDescription = string.Empty;
 
@@ -151,7 +155,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         set
         {
             _columnProfile = Math.Clamp(value, 0, Services.Columns.Count - 1);
-            ColumnsChanged?.Invoke(this, EventArgs.Empty);
+            AnnounceColumns();
             RefreshSortDescription();
         }
     }
@@ -162,10 +166,16 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             ? ColumnProfiles.Duplicates
             : Services.Columns.Get(_columnProfile, Location?.Scheme ?? Schemes.FileSystem);
 
+    /// <summary>
+    /// Whether the column profiles (Alt+0–9, Settings → Columns) set this view's columns: not in a view with a dedicated
+    /// layout of its own (results, the Recycle Bin, the registry, recovery, hidden data, the change journal).
+    /// </summary>
+    public bool UsesColumnProfiles => !ColumnProfileSet.HasFixedLayout(Location?.Scheme ?? Schemes.FileSystem);
+
     /// <summary>Stores a dragged column width in the active profile (dedicated layouts keep it for this view only).</summary>
     public bool SetColumnWidth(int column, double width)
     {
-        if (ColumnProfileSet.HasFixedLayout(Location?.Scheme ?? Schemes.FileSystem)) return false;
+        if (!UsesColumnProfiles) return false;
         Services.Columns.SetWidth(_columnProfile, column, width);
         return true;
     }
@@ -173,8 +183,24 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private void OnProfilesChanged()
     {
         _columnProfile = Math.Clamp(_columnProfile, 0, Services.Columns.Count - 1);
-        ColumnsChanged?.Invoke(this, EventArgs.Empty);
+        // Only a view whose own columns changed is told: one with columns of its own is not drawn from the profiles, and
+        // an edit to another profile (or a border dragged in a panel on one) leaves this one where it is scrolled, with
+        // the widths dragged in it.
+        var columns = Columns;
+        if (!UsesColumnProfiles || _shownColumns is { } shown && ColumnProfileSet.SameColumns(shown, columns)) return;
+        // The same columns at other widths (a border dragged in this list or another one on the profile, a width set in
+        // Settings) leave the list where it is scrolled; other columns start it from the first.
+        AnnounceColumns(widthsOnly: _shownColumns is { } before && ColumnProfileSet.SameFields(before, columns));
         RefreshSortDescription();
+    }
+
+    /// <summary>The columns last announced (<see cref="ColumnsChanged"/>): what the list of this tab shows.</summary>
+    private ColumnSpec[]? _shownColumns;
+
+    private void AnnounceColumns(bool widthsOnly = false)
+    {
+        _shownColumns = Columns;
+        ColumnsChanged?.Invoke(this, widthsOnly ? ColumnsChangedEventArgs.Widths : ColumnsChangedEventArgs.Other);
     }
 
     private string _tabQualifier = string.Empty;
@@ -529,7 +555,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (IsActiveTab) StartWatching();
         Services.RecordFolder(location);
         UpdateTitle();
-        ColumnsChanged?.Invoke(this, EventArgs.Empty);
+        AnnounceColumns();
     }
 
     /// <summary>The name the last navigation was to put the cursor on, and where: a link shown by its target keeps it.</summary>
@@ -556,7 +582,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             if (IsActiveTab) StartWatching();
             Services.RecordFolder(refused.Target);
             UpdateTitle();
-            ColumnsChanged?.Invoke(this, EventArgs.Empty);
+            AnnounceColumns();
             string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(refused.Link));
             Banner = $"“{name}” is a link that refuses to be listed itself, as Windows' compatibility junctions do. This is the folder it leads to.";
         });
@@ -649,7 +675,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Listing.Load(target);
         if (IsActiveTab) StartWatching();
         UpdateTitle();
-        ColumnsChanged?.Invoke(this, EventArgs.Empty);
+        AnnounceColumns();
     }
 
     /// <summary>What a location is and how its keys differ, for places whose rules are not a folder's.</summary>
@@ -1185,7 +1211,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         IsLocked = s.Locked;
         ReturnToRoot = s.ReturnToRoot;
         LockedRoot = s.LockedRoot;
-        _columnProfile = s.ColumnProfile;
+        // Through the setter: a profile removed since the state was saved (or a damaged number) becomes the last one there
+        // is, and a list already showing this tab (a reopened or duplicated tab) takes its columns.
+        ColumnProfile = s.ColumnProfile;
         PictureView = s.PictureView;
         Listing.Sort = Listing.Sort with { Field = s.SortField, Descending = s.SortDescending };
         if (!string.IsNullOrEmpty(s.Filter)) SetFilter(s.Filter);
@@ -1218,4 +1246,19 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public override string ToString() => Title;
 
     internal static string Invariant(FormattableString s) => s.ToString(CultureInfo.InvariantCulture);
+}
+
+/// <summary>How the columns a tab shows changed (<see cref="TabViewModel.ColumnsChanged"/>).</summary>
+public sealed class ColumnsChangedEventArgs : EventArgs
+{
+    private ColumnsChangedEventArgs(bool widthsOnly) => WidthsOnly = widthsOnly;
+
+    /// <summary>Other columns: another location or profile, or columns added, removed or moved.</summary>
+    public static ColumnsChangedEventArgs Other { get; } = new(false);
+
+    /// <summary>The same columns at other widths: a border dragged, a width set in Settings.</summary>
+    public static ColumnsChangedEventArgs Widths { get; } = new(true);
+
+    /// <summary>Only widths changed: a list stays where it is scrolled.</summary>
+    public bool WidthsOnly { get; }
 }

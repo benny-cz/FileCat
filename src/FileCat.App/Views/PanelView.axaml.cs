@@ -40,6 +40,7 @@ public partial class PanelView : UserControl
         List.InspectRequested += (_, report) => _ = ShowInspectionAsync(report);
         AutomationProperties.SetHelpText(List, "Ctrl+Shift+I inspects every full value in the focused row. Shift+F10 opens item actions.");
         List.BackgroundContextRequested += (_, point) => ShowBackgroundContextMenu(point, List.ContextWithShift);
+        List.HeaderContextRequested += (_, _) => ShowHeaderContextMenu();
         List.GotFocus += (_, _) => Activated?.Invoke();
         // The number, or the tab strip beside the tabs, moves the whole panel.
         NumberBadge.PointerPressed += (_, e) =>
@@ -1125,6 +1126,44 @@ public partial class PanelView : UserControl
             return;
         }
         ShowFileCatBackgroundMenu(vm, panel, tab, location, request);
+    }
+
+    /// <summary>
+    /// The column header's menu, at the pointer: setting up the columns, on Settings' Columns page with this panel's
+    /// profile selected. A view with columns of its own (results, the Recycle Bin, the registry) says so instead.
+    /// </summary>
+    private void ShowHeaderContextMenu()
+    {
+        ++_menuRequest; // an item or folder menu still being prepared gives way to this one
+        _openItemMenu?.Close();
+        _openItemMenu = null;
+        if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm || List.Tab is not { } tab) return;
+        bool profiled = tab.UsesColumnProfiles;
+        var columns = new MenuItem
+        {
+            Header = "Set up columns…",
+            Icon = MenuIconFactory.Create(Core.Commands.CommandIds.ColumnProfilePrefix),
+            IsEnabled = profiled,
+        };
+        string tip = profiled
+            ? $"Settings → Columns, on this panel's profile {Formatters.SafeName(vm.Services.Columns.NameOf(tab.ColumnProfile))} " +
+              $"(Alt+{tab.ColumnProfile}): its columns, their order and widths."
+            : "This view keeps its own columns; Settings → Columns sets those of folders, archives and connections.";
+        ToolTip.SetTip(columns, tip);
+        if (!profiled)
+        {
+            ToolTip.SetShowOnDisabled(columns, true);
+            AutomationProperties.SetHelpText(columns, tip);
+        }
+        columns.Click += (_, _) => _ = vm.ShowSettingsAsync(SettingsDialog.ColumnsPage, tab.ColumnProfile);
+        var menu = new ContextMenu { ItemsSource = new Control[] { columns }, Placement = PlacementMode.Pointer };
+        _openItemMenu = menu;
+        menu.Closed += (_, _) =>
+        {
+            vm.ReconcileKeyBar(KeyMods.None);
+            if (ReferenceEquals(_openItemMenu, menu)) _openItemMenu = null;
+        };
+        menu.Open(List);
     }
 
     /// <summary>

@@ -259,8 +259,10 @@ public sealed class ColumnProfileSet
         if ((uint)profile >= (uint)_profiles.Count) return;
         var (name, columns) = _profiles[profile];
         if ((uint)column >= (uint)columns.Length || columns[column].Star) return;
+        double stored = Math.Round(Math.Clamp(width, 24, 2000));
+        if (columns[column].Width == stored) return; // the width it has: nothing changed
         var copy = (ColumnSpec[])columns.Clone();
-        copy[column] = copy[column] with { Width = Math.Round(Math.Clamp(width, 24, 2000)) };
+        copy[column] = copy[column] with { Width = stored };
         _profiles[profile] = (name, copy);
         Changed?.Invoke();
     }
@@ -268,9 +270,46 @@ public sealed class ColumnProfileSet
     /// <summary>Replaces all profiles (the Settings editor); keeps at least one and at most ten.</summary>
     public void Replace(IEnumerable<(string Name, ColumnSpec[] Columns)> profiles)
     {
-        var list = profiles.Where(p => p.Columns.Length > 0).Take(MaxProfiles).Select(p => (p.Name, EnsureName(p.Columns))).ToList();
-        _profiles = list.Count > 0 ? list : [.. ColumnProfiles.Defaults];
+        List<(string Name, ColumnSpec[] Columns)> list =
+            [.. profiles.Where(p => p.Columns.Length > 0).Take(MaxProfiles).Select(p => (p.Name, EnsureName(p.Columns)))];
+        if (list.Count == 0) list = [.. ColumnProfiles.Defaults];
+        // A profile the edit left as it was keeps its own columns (with what the editor does not show, such as how
+        // columns that fill the space share it), so what a list draws and what is stored stay the same.
+        for (int i = 0; i < list.Count; i++)
+        {
+            var next = list[i];
+            var kept = i < _profiles.Count && SameColumns(_profiles[i].Columns, next.Columns) ? _profiles[i].Columns
+                : _profiles.FirstOrDefault(p => p.Name == next.Name && SameColumns(p.Columns, next.Columns)).Columns;
+            if (kept is not null) list[i] = (next.Name, kept);
+        }
+        // The same profiles again (Settings' OK with nothing edited, or an edit that came back to what was there):
+        // nothing changed, so no list is told its columns did.
+        if (list.Count == _profiles.Count &&
+            list.Zip(_profiles).All(p => p.First.Name == p.Second.Name && ReferenceEquals(p.First.Columns, p.Second.Columns))) return;
+        _profiles = list;
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// Whether two column lists are the same as profiles keep them: the same columns in the same order, at the same widths
+    /// (a column that fills the remaining space has none of its own).
+    /// </summary>
+    public static bool SameColumns(IReadOnlyList<ColumnSpec> a, IReadOnlyList<ColumnSpec> b)
+    {
+        if (!SameFields(a, b)) return false;
+        for (int i = 0; i < a.Count; i++)
+            if (!a[i].Star && a[i].Width != b[i].Width) return false;
+        return true;
+    }
+
+    /// <summary>Whether two column lists have the same columns in the same order, filling the space alike (widths aside).</summary>
+    public static bool SameFields(IReadOnlyList<ColumnSpec> a, IReadOnlyList<ColumnSpec> b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        if (a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+            if (a[i].Star != b[i].Star || KeyOf(a[i]) != KeyOf(b[i])) return false;
+        return true;
     }
 
     public List<ColumnProfile> ToSettings() =>
