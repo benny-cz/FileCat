@@ -188,6 +188,10 @@ public sealed partial class EditSessionStore
         using var files=capture.OpenDirectory("files",start.Files,ct);
         var fileNames=files.Names(ct);
         string[] asideFiles=fileNames.Where(IsSetAside).ToArray();
+        // Capped here as the copy's own folder is above and as its removal caps both: more of them than one removal
+        // reviews and this would report a copy the list offers to remove and the removal then refuses.
+        if(asideFiles.Length>MaximumInterruptedLeftovers)
+            throw new IOException("This retained copy's payload folder holds more files FileCat left behind unfinished than one review reads.");
         string[] payloadNames=fileNames.Except(asideFiles,StringComparer.Ordinal).ToArray();
         if(payloadNames.Length>1||payloadNames.Length==1&&payloadNames[0]!=start.Leaf)
             return Unknown(capture,"The \u201cfiles\u201d folder of this retained copy",

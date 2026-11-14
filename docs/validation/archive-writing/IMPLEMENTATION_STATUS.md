@@ -1,5 +1,21 @@
 # Archive writing implementation status
 
+**14 November, the eighth round (twenty-eight).** It read the tip and then the whole contribution with one question:
+whether anything left would lose a user's work, hang, strand them, or let a record claim more than its evidence. It
+found nothing at or above Medium in the code, and two things to close here, both of the kind the earlier rounds closed
+elsewhere: the budget refusal for a retained copy's payload folder still called itself "this retained copy", where its
+three siblings name the folder they read; and the startup review capped the leftovers in a copy's own folder but not
+the set-aside names in that copy's payload folder, which its removal does cap - so a copy with more than sixty-four of
+them would have been offered a removal that then refuses, against the invariant these records state. Both are fixed,
+and this is the last change to the code of this listing: anything a later round finds below High is recorded for the
+next piece of work rather than fixed ahead of the evidence.
+
+What that round found in the records themselves is what the validation below answers: a claim that each route's edit
+evidence carries the committed checker's own report, which no manifest carried, and the word "re-validated" over a
+commit with no three-platform run and no manifest of its own. The reports are now carried as `…/edit/check` under each
+route's edit ID - the manifest credits an entry to the longest listed ID it is under, and `…/edit-check` would have
+been credited to the archive route rather than to the edit one.
+
 **14 November, the seventh round (twenty-seven).** One Medium, in the half of the last round's pair that the records
 said was already done: the whole edit's discard calls two different folders "files" - the edit's own working folder and
 every retained copy's payload folder - and the message that asks the user to delete something names only "the folder

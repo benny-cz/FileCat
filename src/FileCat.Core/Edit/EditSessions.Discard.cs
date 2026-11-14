@@ -253,8 +253,9 @@ public sealed partial class EditSessionStore
                 data=Node(files,"files");
                 string[] aside=data.Names.Where(IsSetAside).Order(StringComparer.Ordinal).ToArray();
                 if(aside.Length>MaximumInterruptedLeftovers)
-                    throw new IOException("This retained copy holds "+aside.Length+" files an interrupted removal set aside, and one discard reviews at most "+
-                        MaximumInterruptedLeftovers+". Nothing is removed and all of its files are kept.");
+                    throw new IOException("The “files” folder of the retained copy “"+name+"” holds "+aside.Length+
+                        " files an interrupted removal set aside, and one discard reviews at most "+MaximumInterruptedLeftovers+
+                        ". Nothing is removed and all of its files are kept.");
                 // Only one of this copy's own records names its payload. With neither of them there this folder can
                 // hold nothing but what an interrupted removal set aside, because that removal takes the payload before
                 // either record: anything else in it is kept and named as it is anywhere else, never taken for the copy.
