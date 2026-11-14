@@ -283,6 +283,38 @@ class EvidenceChecks(unittest.TestCase):
         self.assertIn("its own dual-root pin passed in the Windows platform suite's class and in the Core suite's Unix "
                       'class, which no one run does, so its results do not say what ran it', problems)
 
+    def test_refuses_a_zip_appended_to_another_zip(self):
+        """zipfile reads a zip from its end, so a sealed zip with another appended is read as the appended one alone:
+        a lane whose status said FAIL, whose summary held a failure and whose log held a step-aside reason was
+        accepted, with every sealed byte of it still in the file."""
+        failed = files(summary={"ok": False, "failed": ["a real case"], "exit_codes": {"S": 1},
+                                "suites": {"S": {"total": 1, "passed": 0, "skipped": 0, "failed": 1}}},
+                       status='FAIL', log='[xUnit.net] %s\n' % checker.STEP_ASIDE[0])
+        with tempfile.TemporaryDirectory() as directory:
+            sealed = archive(directory, 'edit-sealed-evidence.zip', failed)
+            clean = archive(directory, 'edit-clean-evidence.zip', files())
+            both = Path(directory) / 'edit-appended-zip-evidence.zip'
+            both.write_bytes(sealed.read_bytes() + clean.read_bytes())
+            self.assertIn(sealed.read_bytes(), both.read_bytes())  # nothing of the sealed run was rewritten
+            problems, _ = checker.check(both)
+            self.assertTrue(any('is a zip appended to another one' in problem for problem in problems), problems)
+
+    def test_reads_a_name_as_the_whole_leaf_and_not_a_part_of_one(self):
+        """The runners drop `full-r35-win-status.txt` and its kin beside an archive, so a rule matching part of a
+        leaf would take one of those for the run's own `status.txt` and never miss it."""
+        contents = files()
+        contents['full-r35-win-status.txt'] = contents.pop('status.txt')
+        problems, _ = self.check(contents)
+        self.assertIn('it carries no status.txt', problems)
+
+    def test_reads_the_step_aside_reasons_out_of_the_results_too(self):
+        """A test's own reason is in the results file; the console log prints its name and `[SKIP]` without one."""
+        reason = checker.STEP_ASIDE[1]
+        trx = PASSING_TRX + ('<UnitTestResult testName="FileCat.Tests.Something" outcome="NotExecuted">'
+                             '<Output><StdOut>%s</StdOut></Output></UnitTestResult>' % reason)
+        problems, _ = self.check(files(trx=trx))
+        self.assertTrue(any(('stepped aside' in problem and reason in problem) for problem in problems), problems)
+
     def test_reads_the_member_it_listed_and_not_whichever_answers_to_the_name(self):
         """One appended 512-byte folder header with a file's own name made that file read as empty: a tar resolves a
         name to its last member and gives nothing for a folder, and the folder was kept out of the name list, so

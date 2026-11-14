@@ -199,3 +199,11 @@ the lane was accepted. Members are read through now rather than by name. And a r
 its dual-root pin left the machine record unchallenged, so the Windows lane with one renamed class was accepted as
 Linux evidence; such a run is refused, since nothing in it says what produced it. Thirty-seven cases hold the check and
 ten the manifest, each rule failing the one case that claims it.
+
+The thirty-fourth review read the gate against that boundary and found no way past it for an untampered archive, and
+three rules that gave way to an append or had no case: a zip appended to a sealed zip was read as the appended one
+alone, so nothing of the sealed run was looked at; a name was matched as the whole leaf by no case, and loosened it
+would find a `status.txt` in `full-r35-win-status.txt`; and the refusal every route in this document rests on - a
+listed route whose evidence the manifest does not carry - was held by no case in either suite. All three are closed,
+with their cases, and the step-aside scan now reads the results file where a test's own reason is, not only the console
+log that never carries one.

@@ -1,5 +1,38 @@
 # Archive writing implementation status
 
+**14 November, the gate read against its own boundary (round thirty-four).** One reviewer took the boundary written
+down in `0c972144` as the measure: a way past a rule that needs the evidence folder rewritten is that boundary, while an
+append is not, because a half-finished fetch or a careless re-seal can append. No High. Three rules gave way, all
+closed here:
+
+- **A zip appended to a sealed zip replaced the whole archive.** `zipfile` reads a zip from its end - the last
+  end-of-directory record, with every offset shifted by whatever sits before it as a self-extractor stub - so
+  `sealed.zip + clean.zip` is read as the clean one alone and no member of the sealed run is listed at all. On the real
+  Windows lane, 1,493 appended bytes left the check reading 5 members instead of 20; with a failed lane as the first
+  half, a FAIL status, a summary holding a failure and a log holding a step-aside reason all went unread and the
+  archive was accepted, every sealed byte still present. An archive begins at its own start now. The tar side has no
+  such reading: a second compressed member appended to a `.tar.gz` is not read, so an append there adds nothing.
+- **A name was matched as the whole leaf by no case.** Loosened to a part of one, the check accepts an archive
+  carrying `full-r35-win-status.txt` and no `status.txt` - and those are the names the runners drop beside an archive,
+  so the loose rule would have found a status for every run that has none. Its case exists now.
+- **The refusal every route rests on had no case in either suite.** A manifest listing the thirty archive-write routes
+  while carrying nothing under their IDs was refused only by a rule nothing held; for the edit routes the newer rules
+  fire first, which is why removing it broke nothing. Its case exists now.
+- **The step-aside scan read the one place a reason never appears.** A test's own reason is in the results file, while
+  the console log prints its name and `[SKIP]` without one. The scan reads both now. No sealed archive holds a
+  step-aside reason in either place - checked for all seven reasons across the three lanes - so the three still pass.
+
+Two sentences of the round before it were read against the code and corrected: "every shadow archive is refused" is
+true only of a shadow that hid a problem (a folder entry over a sound member is simply ignored, which its own case
+asserts), and "the one rule left unmeasured is the zip folder filter" was not true. What is left unmeasured now is that
+filter and the first-wins in the member map, and neither can change a verdict: a zip folder's name ends in a separator
+so it is never a file's name, and a collision in the map means a repeated name, which is refused.
+
+Recorded rather than closed, all inside the boundary: two fragments of the manifest's required tail (the words
+`, no failure, ` and taking the digest from the recorded entry rather than hashing the file again) are measured by no
+case, neither able to change a verdict for a report the check itself wrote; and a `machine.json` that is not valid JSON
+is read as free text without saying so, which needs the record rewritten to reach.
+
 **14 November, the gate attacked a third time (round thirty-three).** One reviewer built its attacks against the two
 rules the round before had added, and both gave way - the first because of the very filter that round added:
 
@@ -8,7 +41,8 @@ rules the round before had added, and both gave way - the first because of the v
   carrying an existing file's name left the file listed and read as empty, with `repeated()` seeing nothing. The
   reviewer emptied a log that said a test had stepped aside, and the real Linux lane was accepted and listed. Members
   are read through now, never by name, so what the loops list and what a read returns are the same member. The sealed
-  lanes still pass; every shadow archive is refused.
+  lanes still pass, and a shadow that hid a problem is refused (one over a sound member is ignored, which is what its
+  own case asserts).
 - **A run that named neither platform class was still believed.** `pinned_family` answered None for a class nested,
   renamed, or merely longer than the two it knows, and None left the machine record unchallenged - so the real Windows
   lane, with its `Os` rewritten and its pin's class renamed once, was accepted as Linux evidence and listed on the
@@ -25,9 +59,8 @@ rules the round before had added, and both gave way - the first because of the v
 Every rule of the check that can change a verdict now fails exactly the case that claims it, measured one at a time:
 the member read through, the folder filter, the family a run must name, a repeated member in the record, a summary
 naming no suite, a repeated archive name, a second machine record, the family read as a set, the record-and-run
-comparison, and only-the-first-summary. Thirty-seven cases for the check, ten for the manifest. The one rule left
-unmeasured is the zip folder filter, which cannot shadow a file: a zip folder's own name ends in a separator, so it is
-never a file's name.
+comparison, and only-the-first-summary. Thirty-seven cases for the check, ten for the manifest - forty and eleven after
+the round above, which found three rules this sentence had counted.
 
 **14 November, the gate attacked again (round thirty-two).** One reviewer drove both halves of the gate through
 twenty-seven crafted archives and nine mutants. It got through twice, and the first way through was a defect in the

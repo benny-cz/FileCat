@@ -10,6 +10,8 @@ It reads a run's evidence archive (`<run>-evidence.zip` from the Windows runner,
 one) and requires all of:
 
   * the machine record names `FILECAT_EDIT_NATIVE_REQUIRED=1`, so a native edit test could not skip;
+  * it begins at its own start, so it is not a zip appended to another zip - which is read as the appended one
+    alone, the sealed half never looked at;
   * it carries one machine record, whose members do not repeat, and the system that record names agrees with the
     class that passed this run's own dual-root pin - which has to be one of the two real ones, so a record rewritten
     to another system, a second record put before the real one, and a pin whose class was renamed or nested are each
@@ -121,6 +123,19 @@ class Archive:
             if leaf.startswith(prefix) and leaf.endswith(suffix):
                 result.append(name)
         return result
+
+    def prefix(self) -> int:
+        """The bytes before this archive's own first member.
+
+        zipfile reads a zip from its end: it takes the last end-of-directory record and, where that directory says it
+        sits elsewhere, treats everything before it as a self-extractor stub and shifts every offset by that much. So
+        a sealed zip with another zip appended is read as the appended one alone - no member of the sealed run is
+        listed, so no repeated name, no summary and no status of it is ever read, with every sealed byte still there.
+        A gzipped tar has no such reading: a second compressed member appended to a `.tar.gz` is not read at all.
+        """
+        if self._zip is None:
+            return 0
+        return min((item.header_offset for item in self._zip.infolist()), default=0)
 
     def repeated(self) -> list[str]:
         """Names this archive holds more than once.
@@ -257,6 +272,9 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
     problems: list[str] = []
     facts: dict[str, object] = {}
     with Archive(path) as archive:
+        if (prefix := archive.prefix()):
+            problems.append('its first member begins %d bytes into the file, so this is a zip appended to another '
+                            'one and only the appended zip is read at all' % prefix)
         if (repeated := archive.repeated()):
             problems.append('it holds %s more than once, and the last member of a name is what a reader gets: which '
                             'of them speaks for this run is not a thing to guess' % ', '.join(repeated))
@@ -361,7 +379,9 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
             problems.append('its machine record says %s while its own dual-root pin passed in the %s class, so the '
                             'record and the run disagree about which system ran it'
                             % (system, 'Windows platform suite\'s' if family == 'windows' else 'Core suite\'s Unix'))
-        for log in archive.leaves(prefix='test-'):
+        # Both the console logs and the results: a test's own reason is in the results file, and the log carries
+        # its name and `[SKIP]` without one, so reading only the logs read the one place a reason never appears.
+        for log in sorted(set(archive.leaves(prefix='test-')) | set(archive.leaves(suffix='.trx'))):
             text = archive.read(log)
             for reason in STEP_ASIDE:
                 if reason in text:

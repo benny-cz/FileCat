@@ -129,6 +129,18 @@ class ManifestEditBinding(unittest.TestCase):
 
     # ---------------------------------------------------------------- and what it does not
 
+    def test_refuses_a_listed_route_that_carries_no_evidence_at_all(self):
+        """The refusal every route rests on, edit-storage or not, and the one ledger rows 4, 8 and 13 cite: nothing
+        in either suite held it, so removing it would have written a manifest for routes with no evidence at all."""
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = []
+            for route, (archive, report) in self.every_route(directory).items():
+                evidence += [(route + '/edit', archive), (route + '/edit/check', report)]
+            code, said, written = self.manifest(evidence)  # the three archive-write routes carry nothing
+            self.assertEqual(2, code, said)
+            self.assertIn('A listed route names evidence this manifest does not carry: AWQ-win-x64-NTFS', said)
+            self.assertIsNone(written)
+
     def test_refuses_a_route_that_carries_an_archive_and_no_check_of_it(self):
         with tempfile.TemporaryDirectory() as directory:
             evidence = self.archive_routes(directory)
