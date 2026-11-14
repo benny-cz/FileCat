@@ -3,7 +3,8 @@
 
 A route is listed in `NativeEditStorage.Qualified` only with its own evidence (`AWQ-<rid>-<fs>/edit`), and that evidence
 means one thing: the pins of the listing ran on that machine, with the native store as the default, where a native edit
-test fails instead of skipping. The release manifest can only check that such an entry exists; this checks what is in it.
+test fails instead of skipping. The release manifest checks that such an entry exists and that this report accepts it;
+this is what reads what is inside it.
 
 It reads a run's evidence archive (`<run>-evidence.zip` from the Windows runner, `<run>-evidence.tar.gz` from the Unix
 one) and requires all of:
@@ -15,7 +16,10 @@ one) and requires all of:
   * no test stepped aside because this process or folder could not hold native storage.
 
 A lane's name is not evidence of anything, so nothing here reads one: an archive counts because it carries the pins,
-whether it is a focused edit lane or a full regression.
+whether it is a focused edit lane or a full regression. The report names an archive it accepts by its SHA-256, which is
+what binds this reading to that archive: the release manifest refuses a listed edit-storage route unless the report it
+carries under the route's own `.../check` accepts the archive it carries under the route's ID, and a name alone would
+let a report be moved to an archive it never read.
 
 Usage: check_edit_storage_evidence.py ARCHIVE... [--out REPORT]
 Exits non-zero, naming what failed, if any archive does not meet all of it.
@@ -23,6 +27,7 @@ Exits non-zero, naming what failed, if any archive does not meet all of it.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -231,6 +236,15 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
     return problems, facts
 
 
+def accepted_digest(path: Path) -> str:
+    """The archive this report accepts, named as the release manifest names every file it carries: by its bytes."""
+    hashed = hashlib.sha256()
+    with path.open('rb') as handle:
+        for block in iter(lambda: handle.read(1 << 20), b''):
+            hashed.update(block)
+    return hashed.hexdigest()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('archives', nargs='+', type=Path)
@@ -260,8 +274,8 @@ def main() -> int:
         assert isinstance(suites, dict)
         passed = sum(int(counters.get('passed', 0)) for counters in suites.values())
         skipped = sum(int(counters.get('skipped', 0)) for counters in suites.values())
-        lines.append('%s: edit-storage evidence, %d passed, %d skipped, no failure, %s in force'
-                     % (path.name, passed, skipped, GATE))
+        lines.append('%s: edit-storage evidence, %d passed, %d skipped, no failure, %s in force, sha256 %s'
+                     % (path.name, passed, skipped, GATE, accepted_digest(path)))
         for name, counters in sorted(suites.items()):
             lines.append('    %s: %s of %s passed, %s skipped' % (name, counters.get('passed'),
                                                                   counters.get('total'), counters.get('skipped')))

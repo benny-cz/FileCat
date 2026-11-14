@@ -10,7 +10,9 @@
 // A remote package was built and hashed on its own machine; its entry names the evidence (a package log) that records it.
 //
 // A dirty checkout is refused unless --allow-dirty is given, and then the manifest says so. The tool lists and enables
-// nothing: it records the build's own route lists, and refuses a listed route whose evidence it does not carry.
+// nothing: it records the build's own route lists, and refuses a listed route whose evidence it does not carry. For an
+// edit-storage route it also reads that evidence: the route's own "<id>/check" must carry the committed check's report
+// accepting, by digest, the archive carried under "<id>".
 using System.Diagnostics;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -137,6 +139,29 @@ static class Program
         foreach (string id in listedIds)
             if (!evidence.Any(item => Credited(item.Id) == id))
                 throw new ArgumentException("A listed route names evidence this manifest does not carry: " + id);
+        // An edit-storage route stands on a lane that ran with the native store required, which is a fact about what
+        // is inside its archive and not about the ID it is carried under. The committed check reads those contents
+        // (eng/validation/archive-writing/check_edit_storage_evidence.py) and its report names the archive it accepted
+        // by digest; the report is carried under the route's own "<id>/check", and the route is refused here unless
+        // that report accepts the very archive this manifest carries under "<id>". Until this was read, the ID was a
+        // label: a text file under it satisfied the route, a report saying the archive was NOT evidence satisfied it
+        // too, and the listing of a4606689 carried the archive lane's own archive under both "/full" and "/edit".
+        foreach (string id in NativeEditStorage.Qualified.Select(route => route.EvidenceId).Distinct(StringComparer.Ordinal))
+        {
+            var lanes = evidence.Where(item => item.Id == id).ToArray();
+            var reports = evidence.Where(item => item.Id == id + "/check").ToArray();
+            if (lanes.Length != 1)
+                throw new ArgumentException($"A listed edit-storage route needs one archive of its own under {id}, not {lanes.Length}.");
+            if (reports.Length != 1)
+                throw new ArgumentException($"A listed edit-storage route needs the check of its archive under {id}/check, not {reports.Length} of them.");
+            string archive = Path.GetFileName(lanes[0].File), digest = Hash(lanes[0].File);
+            string accepts = archive + ": edit-storage evidence,", names = ", sha256 " + digest;
+            if (!File.ReadLines(reports[0].File).Any(line =>
+                    line.StartsWith(accepts, StringComparison.Ordinal) && line.EndsWith(names, StringComparison.OrdinalIgnoreCase)))
+                throw new ArgumentException($"The check carried under {id}/check does not accept the archive carried under {id} " +
+                    $"({archive}, sha256 {digest}): run eng/validation/archive-writing/check_edit_storage_evidence.py on that archive " +
+                    "and carry its report.");
+        }
         File.WriteAllText(output, manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         Console.WriteLine($"Wrote {output}: commit {commit}, {payloads.Count} payloads, {packages.Count} packages, {evidence.Count} evidence files, " +
             $"{ArchiveWriteRoutes.Qualified.Count} archive routes and {NativeEditStorage.Qualified.Count} edit-storage routes listed.");

@@ -1,5 +1,52 @@
 # Archive writing implementation status
 
+**14 November, the records reviewed (round twenty-nine).** Two reviewers read the records of the round below: one
+checked every number and verdict in them against the sealed evidence, one checked the listing against the conditions
+this project's own decision document sets for listing a route. The arithmetic, the manifest's digests and sizes and the
+acceptance of all three edit lanes held exactly - one of them re-ran the committed check as it then stood and got output
+byte-identical to the sealed reports. What they found, fixed here:
+
+- **A listed edit-storage route was satisfied by a label, not by a lane.** The manifest refuses a route whose evidence
+  it does not carry, and that was the whole of it: a reviewer wrote a manifest whose three edit routes were satisfied by
+  a 32-byte text file, and another whose `…/edit/check` report said in its own words that the archive was NOT
+  edit-storage evidence. The listing of `a4606689` shows what that permitted - its three `…/edit` entries are
+  byte-identical to its `…/full` entries, the archive lane's own archive under a second label. The check now names the
+  archive it accepted by its SHA-256, and the manifest refuses a listed edit-storage route unless the report carried
+  under that route's own `…/check` accepts the very archive carried under its ID. Six cases of its own
+  ([test_manifest_edit_binding.py](../../../eng/validation/archive-writing/test_manifest_edit_binding.py)) hold the
+  ways the old refusal could be met: no check at all, a file the check never read, one route's report over another
+  route's archive, a report that refuses, and two archives under one ID.
+- **Two sentences this round was written to correct survived it.** Ledger row 13 still said the edit evidence had
+  carried the check's report since `dcf19885`, where no manifest of that commit carried one at all, and the entry below
+  still called the listing "re-validated" on `dcf19885`, which never had a three-platform round. Both now say what
+  happened.
+- **The Ubuntu package cell counted two lanes as whole.** Each ran three cases and skipped one - the installed-bundle
+  check skips the AppImage case, the AppImage lane skips the .deb case - so "2 of 2 each" stated a total those lanes'
+  own summaries contradict.
+- **The rerun of the one Windows failure rested on two files that named neither the machine nor the commit.** Its own
+  sealed archive is now beside the lane's: it records the same source packet as every other Windows lane of the round
+  (`src-048bf334.tar.gz`, sha256 `546d8caf…`) and both rows of the theory as Passed.
+- Smaller, all in the records: the staging of the installed layout ran 33 minutes into the chain, before the installed
+  lane and not before the chain; what shows that lane ran unelevated is its own account record, not the staging log;
+  the decision document's main clause said the candidate "passed" on all three machines where its own status file says
+  one Windows lane failed; row 8 credited round twenty-four's fix to the rounds after it; row 12 still rested the
+  packages on `a4606689`; and row 14 called one open note the only one left.
+
+What the second review found in the gate itself is recorded rather than closed: the three edit-storage routes have no
+packaged-payload evidence. The variable that makes a native edit test fail instead of skip is set by the edit lanes, not
+by the package route lanes, and the composition pin judges the file system of the root its own run gives it - so these
+routes stand on the suites with the native store required, not on an F4 inside the installed or portable payload. The
+fallback is the safe one (a root FileCat cannot hold privately keeps the legacy store), and one packaged F4 per platform
+with the store required is the next piece of work, to be carried as `…/edit/package` when it runs.
+
+This candidate's manifest keeps the digests it was written with. The check now prints the archive's digest, so a report
+made today is not the file the manifest carries - and that manifest cannot be written again: the Windows SBOMs and the
+framework-dependent zip built on this host for this round were removed with the round's folders, and a rebuilt zip would
+no longer be the artifact the virtual machine tested. The three reports are therefore kept exactly as the manifest cites
+them, and the binding is shown to hold for this candidate too: run over the three sealed archives, the check names
+`363e3c1a…`, `cd290a16…` and `8f45e116…`, which are the digests the manifest records for the three `…/edit` entries. The
+refusal itself is in force from the next candidate.
+
 **14 November, the eighth round (twenty-eight).** It read the tip and then the whole contribution with one question:
 whether anything left would lose a user's work, hang, strand them, or let a record claim more than its evidence. It
 found nothing at or above Medium in the code, and two things to close here, both of the kind the earlier rounds closed
@@ -127,22 +174,25 @@ described below:
 |---|---|---|---|
 | macOS (M1) | App 3,112, Core 9,217, Remote 2,638, Rendering 23; no failure | 1,345 passed, 46 skipped | App 12 of 12; packaged launcher 14 of 14 |
 | Windows 11 VM | App 3,204, Core 8,407, Windows platform 1,650, Remote 2,405, Rendering 24; one failure, below | 1,369 passed, 429 skipped | Installed layout 12 of 12; portable 12 of 12, its grant exactly the 247 runtime files |
-| Ubuntu 24.04 | App 3,114, Core 9,276, Remote 2,543, Rendering 23; no failure | 1,347 passed, 44 skipped | .deb 12 of 12; the installed-bundle check and the AppImage mount lane 2 of 2 each |
+| Ubuntu 24.04 | App 3,114, Core 9,276, Remote 2,543, Rendering 23; no failure | 1,347 passed, 44 skipped | .deb 12 of 12; the installed-bundle check and the AppImage mount lane 2 of 3 each, each skipping the other's case |
 
 The Windows full lane's own status file records FAIL, and this is the case it records:
 `ChangeMonitorCadenceTests.A_folder_that_keeps_changing_is_read_again_while_it_changes(holdLastWriter: False)`, which
-waits for a folder that keeps changing to be read again while it changes. Both of its cases passed when the class ran on
-its own on that machine at the same commit, with that rerun's own summary and status kept beside the lane's evidence. It
-is a cadence test, away from edit storage and from everything these rounds touched; it is named here rather than counted
-as a pass.
+waits for a folder that keeps changing to be read again while it changes. Both rows of its theory passed when the class ran on
+its own on that machine: the rerun's own sealed archive is beside the lane's (`recheck-r35-win-evidence.zip`), and it
+records the same source packet as every other Windows lane of the round (`src-048bf334.tar.gz`, sha256 `546d8caf…`),
+both rows as Passed, and one process the runner had to stop after it (`leftover: 2252`). It is a cadence test, away from
+edit storage and from everything these rounds touched; it is named here rather than counted as a pass.
 
 Each full regression ran with `FILECAT_EDIT_NATIVE_REQUIRED=1`, so a native edit test fails instead of skipping. Each
 machine's edit lane is sealed on its own, and the committed checker's report on that archive is carried beside it as the
 route's own evidence: all three accept their archive, with the gate recorded as exactly 1, the runner's own verdict
 read, and the three pins each passing somewhere and failing nowhere (on Windows the dual-root pin passes in the Windows
 class while the Unix class is recorded as not executed). The Windows installed layout was staged into Program Files
-before the chain, from the host and elevated, as an installer is: that folder cannot be made by an unelevated process,
-while the lane that reads it must not be elevated, and its staging log records both and the commit it expanded.
+from the host and elevated, as an installer is - 33 minutes into the chain, before the installed lane itself: that
+folder cannot be made by an unelevated process, while the lane that reads it must not be elevated. The staging log
+records its own elevation and the commit it expanded; that the lane ran unelevated is in the lane's own account record
+(`ElevationType: 3`).
 
 The release manifest is [release-manifest-048bf334.json](release-manifest-048bf334.json): the commit and its clean
 checkout, the worker protocol, the profiles and record schemas, thirty archive-write routes and the three edit-storage
@@ -151,7 +201,7 @@ three edit archives and the three checker reports among them, each under the ID 
 are carried as `…/edit/check` under each route's edit ID: the manifest credits an entry to the longest listed ID it is
 under, so `…/edit-check` would have been credited to the archive route rather than to the edit one.
 
-**14 November, the listing re-validated after the twentieth to twenty-second reviews (`dcf19885`).** Four independent
+**14 November, the twentieth to twenty-second reviews and their fixes (`dcf19885`).** Four independent
 reviewers read this session's whole contribution - the storage gate and its accounting, the exact removal and the
 discard, the creation in progress and what the user sees, and the listing with its manifest and evidence tooling. They
 found four defects, each fixed in `dcf19885` with a case that fails without the fix:

@@ -5,6 +5,7 @@ The real archives are produced by the three machines' edit lanes; these are the 
 """
 
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
@@ -211,6 +212,20 @@ class EvidenceChecks(unittest.TestCase):
         del contents['summary.json']
         problems, _ = self.check(contents)
         self.assertEqual(['it carries no summary.json'], problems)
+
+    def test_names_the_archive_it_accepts_by_its_own_digest(self):
+        """What binds a report to an archive: the release manifest requires the report carried under a route's
+        `.../check` to name, by digest, the archive carried under that route's ID. A name could be any file's, and a
+        report that named only a name could be moved to an archive it never read."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = archive(directory, 'edit-good-evidence.zip', files())
+            report = Path(directory) / 'report.txt'
+            with contextlib.redirect_stdout(io.StringIO()):
+                with unittest.mock.patch.object(sys, 'argv', ['check', str(path), '--out', str(report)]):
+                    self.assertEqual(0, checker.main())
+            verdict = report.read_text(encoding='utf-8').splitlines()[0]
+            self.assertTrue(verdict.startswith('edit-good-evidence.zip: edit-storage evidence,'), verdict)
+            self.assertTrue(verdict.endswith(', sha256 ' + hashlib.sha256(path.read_bytes()).hexdigest()), verdict)
 
     def test_names_an_archive_it_cannot_read_and_still_writes_its_report(self):
         """A malformed archive is one more refusal: the run's other archives are still reported, and `--out` is written."""

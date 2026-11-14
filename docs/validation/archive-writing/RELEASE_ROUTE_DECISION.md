@@ -22,7 +22,9 @@ pinning test records.
 | linux-x64 | ext4 | All ten | Yes |
 | osx-arm64 | APFS | All ten | Yes |
 
-win-arm64 and linux-arm64 stay disabled: no test machine runs them.
+win-arm64 and linux-arm64 stay disabled: no test machine runs them. Writing is unavailable from two payloads that do
+ship - a mounted AppImage (install the .deb, or extract it onto an ext4 drive) and the framework-dependent Windows
+build - each refused with its reason, which is what that payload's own route lane proves.
 
 ## The macOS memory gate
 
@@ -46,8 +48,9 @@ and nothing else. The ordinary-user probe found that such a helper's unrelated r
 `EPERM`, and that a fork fails with `EAGAIN` under a zero process limit. The virtual-machine route is not pursued for this
 release: it would ship a guest kernel and image, and its provider's footprint exceeds the 1 GiB it was designed to hold.
 The [launcher, the footprint monitor and the parent watch](MACOS_SANDBOX_WORKER.md) exist and pass on the Mac (spike:
-[record](MACOS_SANDBOX_WORKER_SPIKE.md)). Still open: the packaged app's route test, and the denial, lifetime and pressure
-runs on the owner-signed candidate.
+[record](MACOS_SANDBOX_WORKER_SPIKE.md)). The packaged app's own route test and the packaged launcher's fourteen
+boundary tests pass as well (`AWQ-osx-arm64-apfs/app` and `/launcher` in each candidate's manifest). Still open: the
+denial, lifetime and pressure runs on the owner-signed candidate.
 
 ## ZIP
 
@@ -67,11 +70,19 @@ On macOS the roles run in the App Sandbox helper described above.
 
 1. The release candidate is built from a clean checkout with its packages for every runtime.
 2. Package route tests run from the installed and portable payloads: Windows setup and portable, Linux .deb and
-   AppImage, and the macOS app. Each exercises the listed formats with that payload's own workers.
+   AppImage, and the macOS app. Each exercises the listed formats with that payload's own workers, except the AppImage,
+   whose lane proves instead that writing from a mounted AppImage is refused with its reason. These lanes do not cover
+   native edit storage: the variable that makes a native edit test fail instead of skip is set by the edit lanes, and
+   the composition pin judges the file system of the root its own run gives it, so the three edit-storage routes stand
+   on those suites and not on an F4 inside a packaged payload. One packaged F4 per platform with the store required is
+   the next piece of work, to be carried as `…/edit/package`.
 3. On macOS, the sandboxed launcher and the memory monitor pass their denial, lifetime, cancellation and pressure tests
-   in the packaged app (they pass in the published application: [record](MACOS_SANDBOX_WORKER.md)).
+   in the packaged app: in the published application ([record](MACOS_SANDBOX_WORKER.md)) and again with the packaged
+   app's own launcher, whose lane is `AWQ-osx-arm64-apfs/launcher` in each candidate's manifest.
 4. The release manifest records the application commit, profile schema, exact source and component hashes, worker
-   protocol, runtimes, filesystem routes and evidence IDs (plan §16.1).
+   protocol, runtimes, filesystem routes and evidence IDs (plan §16.1), and it refuses a listed edit-storage route
+   unless the committed check's report, carried under that route's own `…/edit/check`, accepts by digest the archive
+   carried under its `…/edit`.
 5. The independent review (ledger row 14) closes, and its fixes are re-validated.
 
 The listing is then one reviewed change of both lists, each route with its evidence ID, and their pinning tests. Release
@@ -84,8 +95,8 @@ quarantined application created itself in Downloads (the eighth review's open ch
 12 November 2026: every archive-writing route in the tables above is listed, after the sixth independent review (no
 High or Medium finding; its Low findings fixed in `f4aa66a7`) and the seventh, of the listing itself, whose findings are
 fixed. The archive routes' evidence IDs are `AWQ-win-x64-NTFS`, `AWQ-linux-x64-ext4` and `AWQ-osx-arm64-apfs`
-([status](IMPLEMENTATION_STATUS.md)); the edit-storage routes shared them until `a4606689` gave them their own, below
-each route's (see below). Native edit storage was not listed then: as the default store it changes what a
+([status](IMPLEMENTATION_STATUS.md)); the edit-storage routes shared them until `a4606689` gave them IDs of their own,
+below each archive route's (see below). Native edit storage was not listed then: as the default store it changes what a
 stopped F4 leaves behind, and the application's edit flows had not been qualified against it (ledger rows 4 and 8).
 The release candidate is `3781e7ae`: it passed on all three platforms with its package route tests, and its
 [release manifest](release-manifest-3781e7ae.json) records the routes, packages and evidence.
@@ -105,8 +116,10 @@ of the user's; copies no longer wait for one another; and Save copy works for a 
 The listing stands on `a4606689`, which fixes what the eighteenth review found in it: an edit made before the listing
 could no longer be discarded, and the three edit-storage routes shared the archive routes' evidence IDs, so the manifest
 could not refuse a candidate that never ran an edit suite. They carry their own IDs below the archive routes'
-(`AWQ-win-x64-NTFS/edit`, `AWQ-linux-x64-ext4/edit`, `AWQ-osx-arm64-apfs/edit`), and that commit passed the full
-regression and the package route lanes on all three machines in turn
+(`AWQ-win-x64-NTFS/edit`, `AWQ-linux-x64-ext4/edit`, `AWQ-osx-arm64-apfs/edit`), so a candidate carrying nothing under
+them is refused - though that was all the refusal did, and that commit's own manifest still carried the archive lane's
+archive under both IDs; what is inside an edit entry is read only since the twenty-ninth review, below. That commit
+passed the full regression and the package route lanes on all three machines in turn
 ([manifest](release-manifest-a4606689.json), [status](IMPLEMENTATION_STATUS.md)).
 
 14 November 2026: the listing re-validated after the twentieth to twenty-eighth reviews, on `048bf334`. Each route's
@@ -125,10 +138,20 @@ The twenty-third to twenty-eighth reviews changed the discard, the startup revie
 user is told, and none of them changed either list: the three routes in `NativeEditStorage.Qualified` are those listed
 on 13 November, with the same evidence IDs, still pinned in `EditStoreCompositionTests` and in Core's
 `NativeEditStorageTests`. `048bf334` is the commit they close on. It passed the full regression and the package route
-lanes on all three machines, each package built from a clean checkout of it, with each machine's edit lane sealed on its
-own and accepted by the committed check on all three pins; one Windows cadence case failed in its lane and passed on its
-own at the same commit, away from edit storage and from everything these rounds touched
-([status](IMPLEMENTATION_STATUS.md)). Its [release manifest](release-manifest-048bf334.json) records the commit and its
+lanes on all three machines but one Windows cadence case, each package built from a clean checkout of it, with each
+machine's edit lane sealed on its own and accepted by the committed check on all three pins; that case failed in its
+lane and passed when its class ran alone at the same commit, away from edit storage and from everything these rounds
+touched ([status](IMPLEMENTATION_STATUS.md)). Its [release manifest](release-manifest-048bf334.json) records the commit and its
 clean checkout, the worker protocol, the profiles and record schemas, the thirty archive-write routes and the three
 edit-storage routes with their evidence IDs, fourteen packages with their digests, and twenty-three evidence files - the
 three edit archives and the three checker reports among them.
+
+The twenty-ninth review read these records against the evidence and against the conditions above. Every count, digest
+and lane verdict held; what did not was the refusal this listing leans on. A listed edit-storage route was satisfied by
+a label: the manifest refuses a route whose evidence it does not carry, and nothing read what that evidence was, so a
+text file under the right ID - or a report saying in its own words that the archive was not edit-storage evidence -
+satisfied it. The check now names the archive it accepted by digest, and the manifest refuses an edit-storage route
+unless the report under that route's own `…/check` accepts the archive carried under its ID, with six cases of its own
+for the ways the old refusal could be met. This candidate's manifest keeps the digests it was written with, and the
+binding holds for it: run over the three sealed archives, the check names exactly the digests the manifest records for
+the three `…/edit` entries ([status](IMPLEMENTATION_STATUS.md)).
