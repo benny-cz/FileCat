@@ -207,7 +207,7 @@ public sealed partial class HexEditingTests
             using var file = new ProtectedHexFile(source);
             using var overlay = new HexPatchOverlay(file);
             overlay.Write(1, [9]);
-            using (var heldMark = new FileStream(source + ":Zone.Identifier", FileMode.Open, FileAccess.Read, FileShare.None))
+            using (var heldMark = HeldDownloadMark.Take(source))
             {
                 Assert.Throws<IOException>(() => HexSaveAs.CreateNew(file, overlay, copy, TestContext.Current.CancellationToken));
                 Assert.False(File.Exists(copy));

@@ -153,7 +153,7 @@ public sealed class ElevationTests
             File.WriteAllText(source + ":Zone.Identifier", mark);
             string sourceVolume = ElevationPaths.ToVolumePath(source);
             string destinationVolume = ElevationPaths.ToVolumePath(destination);
-            using (var held = new FileStream(source + ":Zone.Identifier", FileMode.Open, FileAccess.Read, FileShare.None))
+            using (var held = HeldDownloadMark.Take(source))
             {
                 var report = Ops().CopyTree(sourceVolume, destinationVolume, "copy.exe", replace: false);
                 Assert.Equal(0, report.Done);
@@ -276,7 +276,7 @@ public sealed class ElevationTests
                 Destination = ElevationPaths.ToVolumePath(protectedFolder),
                 Name = "approved.exe",
             });
-            using (var held = new FileStream(source + ":Zone.Identifier", FileMode.Open, FileAccess.Read, FileShare.None))
+            using (var held = HeldDownloadMark.Take(source))
             {
                 var refused = Assert.Single(ElevationPlanRunner.Run(plan, () => false, _ => { }));
                 Assert.Equal(ElevatedOutcome.Failed, refused.Outcome);

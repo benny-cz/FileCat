@@ -215,7 +215,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
         File.WriteAllBytes(file, [1, 2, 3]);
         if (!_ops.GetVolumeInfo(file).SupportsNamedStreams) Assert.Skip("The test folder's volume has no named streams.");
         File.WriteAllText(file + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
-        using var held = new FileStream(file + ":Zone.Identifier", FileMode.Open, FileAccess.Read, FileShare.None);
+        using var held = HeldDownloadMark.Take(file);
         Assert.Throws<IOException>(() => _ops.ReadOriginMark(file));
     }
 
@@ -267,7 +267,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
         var root = Core.Archives.ZipProvider.ForFile(zip);
         var listed = new List<EntryData>();
         await zipProvider.EnumerateAsync(root, new ListSink(listed), TestContext.Current.CancellationToken);
-        using var held = new FileStream(zip + ":Zone.Identifier", FileMode.Open, FileAccess.Read, FileShare.None);
+        using var held = HeldDownloadMark.Take(zip);
         var job = jobs.Submit(new JobRequest
         {
             Kind = JobKind.Copy,
