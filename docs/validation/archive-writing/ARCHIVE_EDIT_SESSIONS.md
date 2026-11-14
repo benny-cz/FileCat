@@ -129,3 +129,27 @@ in this process. After a restart the same folder is opened for the removal inste
 such a refusal names a retained copy as plainly as it names the user's own working copy. Nothing acts on that
 difference; it is a sentence the user reads. Carrying it through the removal's own open would change that call on both
 platforms, which is not worth doing without its own case.
+
+### What a saved copy leaves in the user's own folder (recorded, round twenty-four)
+
+"Save verified copy…" makes a file of the user's choosing out of a retained copy's verified payload. Beside that file it
+reserves FileCat's own artifacts in the same folder - a stage it writes into, and two receipts that record the
+publication - and it never removes them: a receipt's disposal closes it and deletes nothing, on purpose, so that a
+publication that did happen survives a later failure to record it. So a successful save leaves the user's file and two
+`.filecat-archive-<nonce>-…` receipts next to it, and an interrupted one leaves the stage; no action in FileCat removes
+either. The whole edit's discard then removes `save-copy.json`, which was the only record naming them, and the
+confirmation the user answers says only that files they saved separately are kept - true of their file, silent about
+FileCat's own beside it. Closing this would mean removing the receipts once the publication is recorded as complete, or
+naming them in that confirmation; neither is done here.
+
+### A commit copy another window is still writing (recorded, round twenty-four, macOS)
+
+A commit's capture copies its bytes without the storage gate, and the register that says a copy is live is this
+process's own. A second FileCat window therefore reads such a capture as an interrupted copy and offers to remove it,
+and on macOS nothing refuses that removal: Linux's write lease and Windows' file sharing both refuse to remove a file
+another process holds, but an ordinary macOS process cannot take that lease at all
+([the removal boundary](UNIX_EDIT_EXACT_REMOVAL_BOUNDARY.md)). The first window's commit then fails as it publishes,
+keeping the user's working copy and the archive as they were, and FileCat has destroyed a copy of its own in flight.
+Within one window the same actions are serialised and refused with their own message. This is the same missing
+cross-process marker as the free-space side the [accounting](NATIVE_EDIT_STORAGE_ACCOUNTING.md) records: closing both
+would mean a capture holding its own record the way a creation holds its marker, and reading it through that hold.

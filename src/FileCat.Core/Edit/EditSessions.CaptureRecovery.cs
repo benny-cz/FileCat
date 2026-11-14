@@ -7,23 +7,35 @@ public enum EditCaptureRecoveryState { Complete, Interrupted, NeedsReview }
 
 /// <summary>A bounded read-only observation. Saved records and paths never authorize deletion or publication.</summary>
 public sealed record EditCaptureRecovery(string Directory,EditCaptureRecoveryState State,string Reason,long? Length=null,string? Sha256=null)
-{public EditSavedCopyRecovery? SavedCopy { get; init; }}
+{
+    public EditSavedCopyRecovery? SavedCopy { get; init; }
+    /// <summary>
+    /// Whether FileCat's own unfinished work is beside this copy: the stage of a record it was publishing, or a name an
+    /// interrupted removal set aside. The copy itself is still verified, and its removal takes those with it, but
+    /// saving a verified copy out of it is refused while they are there (a stage may be a half-published save of its
+    /// own), so that action is not offered for one.
+    /// </summary>
+    public bool Unfinished { get; init; }
+}
 
 public sealed partial class EditSessionStore
 {
     internal const int MaximumRecoveryCaptures=1024;
-    // A retained copy whose captured payload a stopped removal already took: nothing of the user's is in it (the
-    // payload was FileCat's own copy), and what is left are this copy's own records, which its removal takes.
+    // A copy with no receipt: it never finished being verified, however much of its payload is there.
     private const string InterruptedReason="This copy was interrupted before verification. Its files are kept.";
-    // A copy a saved copy still refers to is that saved copy's own recovery evidence. Both of this store's removals
-    // refuse it for that reason, and the list offers a removal only for a verified or an interrupted copy, so saying
-    // "interrupted" of one would offer a removal that can only refuse. It needs that saved copy's review first.
+    // A verified copy whose payload a stopped removal already took: nothing of the user's was ever in it (the payload
+    // was FileCat's own copy of the member), and what is left are this copy's own records, which its removal takes.
+    private const string PayloadGoneReason=
+        "This copy's captured payload has already been removed, and what is left is FileCat's own. Its files are kept.";
     // A copy FileCat left without its own record: made and not recorded, or recorded and then half removed.
     private const string RecordGoneReason=
         "This copy's own record is gone, so nothing can be recovered from it, and what is left is FileCat's. Its files are kept.";
+    // A copy a saved copy still refers to is that saved copy's own recovery evidence, and removing that one copy on its
+    // own is refused while it is. The list offers a removal only for a verified or an interrupted copy, so saying
+    // "interrupted" of one would offer an action that can only refuse; the whole edit's discard still removes it, with
+    // the record that refers to it.
     private const string SavedCopyReason=
         "A saved copy refers to this retained copy and needs its own review first. Its files are kept.";
-    private const string PayloadGoneReason="This copy's captured payload has already been removed, and what is left is FileCat's own. Its files are kept.";
     private const int MaximumCaptureRecordBytes=16384;
 
     /// <summary>
@@ -100,6 +112,24 @@ public sealed partial class EditSessionStore
             if(linked)allowed.Add(EditSaveCopyIntent.FileName);
             if(stored)allowed.Add("files");
             if(!core.SequenceEqual(allowed.Order(StringComparer.Ordinal).ToArray()))throw new IOException("Unknown capture entries.");
+            // Read by the same rule the removal reads it by, so this never calls removable a folder whose removal
+            // refuses: only one of this copy's own records names its payload, and a removal takes that payload before
+            // either record, so with no record of its own the folder holds the receipt's name or nothing but what an
+            // interrupted removal set aside. Anything else is unknown content, kept by both.
+            string? named=null;
+            if(core.Contains("captured.json",StringComparer.Ordinal))
+            {
+                using var recorded=new CaptureRecord(capture,"captured.json",ct);
+                named=ParseCaptureRecord(recorded.Bytes,true).Leaf;
+            }
+            if(stored)
+            {
+                using var stage=capture.OpenDirectory("files",null,ct);
+                var held=stage.Names(ct);
+                string[] rest=held.Where(item=>!IsSetAside(item)).ToArray();
+                if(rest.Length>1||rest.Length==1&&rest[0]!=named)throw new IOException("Unknown captured files.");
+                stage.Review(ct);
+            }
             capture.Review(ct);
             if(!capture.Names(ct).Order(StringComparer.Ordinal).SequenceEqual(names))
                 throw new IOException("The interrupted copy changed during review.");
@@ -171,8 +201,10 @@ public sealed partial class EditSessionStore
         header.Review(ct);receipt.Review(ct);files.Review(ct);capture.Review(ct);
         if(!capture.Names(ct).Order(StringComparer.Ordinal).SequenceEqual(names)||!files.Names(ct).SequenceEqual(fileNames)||
             !files.ObserveSnapshot(payload,start.Leaf,ct).Matches(observed))throw new IOException("The retained copy changed during review.");
-        return new(capture.Path,EditCaptureRecoveryState.Complete,"The complete retained copy matches its verification record. Its files are kept.",end.Length,end.Sha256)
-            {SavedCopy=saved};
+        bool unfinished=left.Length!=0||asideFiles.Length!=0;
+        return new(capture.Path,EditCaptureRecoveryState.Complete,"The complete retained copy matches its verification record. Its files are kept."+
+            (unfinished?" FileCat also left unfinished work of its own beside it, which goes with it when it is removed.":""),end.Length,end.Sha256)
+            {SavedCopy=saved,Unfinished=unfinished};
     }
 
     private static void RequireCaptureBinding(CaptureFacts facts,EditDirectoryLease capture,EditSessionRecord record)

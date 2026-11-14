@@ -1,5 +1,32 @@
 # Archive writing implementation status
 
+**14 November, the fixes reviewed again (round twenty-four).** Two more reviewers read the last round's fixes: one the
+record-less retained copy specifically, one with a free hand over the whole contribution, its seams and its records.
+Nothing they found loses a user's work. What they did find, fixed here:
+
+- **FileCat told the user there were no edits while their edits sat in storage it could not open.** When its own edit
+  storage cannot be held privately without following links - a profile restored or copied from elsewhere, a data folder
+  reached through a junction, one written by another account - startup keeps the legacy folder and does not enumerate
+  that storage at all, so "No edits are open" was said over edit folders that are still there. Startup and the list now
+  name that storage and say its edits are not listed, whenever it holds anything.
+- **A copy with no record of its own had its payload named by "the one file in its folder".** Its receipt names that
+  payload exactly when the receipt is there, and nothing names it when it is not - a removal takes the payload before
+  either record - so the payload is now named from a record or the folder is kept. The startup review reads that folder
+  by the same rule, having read nothing of it before, so it can no longer call removable a folder whose removal
+  refuses.
+- **A verified copy with FileCat's own unfinished work beside it was offered a save that refuses.** Making a copy's
+  verified payload into a file of the user's needs the folder as FileCat finished it (a stage beside it may be a
+  half-published save of its own), so that action is not offered for one, while its removal still is.
+- Two messages with no way out in them: the refusal when retained storage has no room now names discarding an edit as
+  well as reviewing retained copies, and the consent for removing an unfinished copy no longer says the copy is partial
+  (one case removes a complete copy, where what makes it removable is that the source it was copied from is unchanged).
+
+Written down rather than changed, each with its sequence in [the sessions record](ARCHIVE_EDIT_SESSIONS.md): a saved
+copy leaves FileCat's own receipts in the user's chosen folder and nothing removes them; and on macOS a second FileCat
+window can be offered, and can perform, the removal of a commit copy the first window is still writing (Linux's lease
+and Windows' file sharing refuse it there). Both are pre-existing; the second is the same missing cross-process marker
+whose free-space side the [accounting](NATIVE_EDIT_STORAGE_ACCOUNTING.md) already records.
+
 **14 November, the fixes themselves reviewed (round twenty-three).** Two reviewers read only the previous round's
 fixes. Both confirmed the five claims they rest on, and found that one of them had opened a worse instance of the state
 it was closing, and that another kept a copy for a review that could not change anything:

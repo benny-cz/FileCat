@@ -82,8 +82,8 @@ internal sealed class EditStorageAdmission:IDisposable
             payload>limits.Bytes-heldCharged||metadata>limits.Bytes-heldCharged-payload||
             reserved>limits.Bytes-heldCharged-payload-metadata)
             throw new IOException(recordOnly
-                ?"Retained edit storage has no room to record this edit's new state. Review retained copies before trying again. Your working files are kept."
-                :"Retained edit storage has no room for this copy. Review retained copies before trying again. Your working files are kept.");
+                ?"Retained edit storage has no room to record this edit's new state. Review retained copies, or discard an edit you no longer need, before trying again. Your working files are kept."
+                :"Retained edit storage has no room for this copy. Review retained copies, or discard an edit you no longer need, before trying again. Your working files are kept.");
         var capacity=root.StorageCapacity(ct);long required=checked(physical+metadata+(recordOnly?0:usage.PendingBytes)+64L*1024*1024);
         if(capacity is not null&&capacity.AvailableBytes<required)
             throw new IOException(recordOnly

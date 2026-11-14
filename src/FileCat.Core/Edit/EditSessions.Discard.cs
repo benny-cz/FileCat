@@ -230,44 +230,47 @@ public sealed partial class EditSessionStore
             if(stored)expected.Add("files");
             expected.AddRange(left);
             RequireLayout(node,expected.ToArray());
-            CaptureFacts? start=null;EditSessionRecord? originating=null;
+            CaptureFacts? start=null,end=null;EditSessionRecord? originating=null;
             if(recorded)
             {
                 var header=Read(capture,"capture.json",true,MaximumCaptureRecordBytes);start=ParseCaptureRecord(header.Bytes!,false);node.Files.Add(header);
                 if(!history.TryGetValue(start.SessionRecord,out originating))throw new IOException("A captured copy belongs to an unknown edit state.");
                 RequireCaptureBinding(start,capture,originating);
             }
+            // The receipt is read before the payload it names, so that a copy whose own record is gone is still
+            // reviewed against what its receipt says rather than against what its folder happens to hold.
+            if(complete)
+            {
+                var receipt=Read(capture,"captured.json",true,MaximumCaptureRecordBytes);node.Files.Add(receipt);end=ParseCaptureRecord(receipt.Bytes!,true);
+                if(originating is not null)RequireCaptureBinding(end,capture,originating);
+            }
             DiscardFile? payload=null;DiscardNode? data=null;
             if(stored)
             {
                 using var files=capture.OpenStorageDirectory("files",ct);
-                if(start is not null&&files.Identity!=start.Files)throw new IOException("The captured file directory was replaced.");
+                if((start??end) is { } named&&files.Identity!=named.Files)throw new IOException("The captured file directory was replaced.");
                 data=Node(files,"files");
                 string[] aside=data.Names.Where(IsSetAside).Order(StringComparer.Ordinal).ToArray();
                 if(aside.Length>MaximumInterruptedLeftovers)
                     throw new IOException("This retained copy holds "+aside.Length+" files an interrupted removal set aside, and one discard reviews at most "+
                         MaximumInterruptedLeftovers+". Nothing is removed and all of its files are kept.");
-                // Without this copy's own record its payload has no name to be reviewed against: the one file FileCat
-                // puts in this folder is its own copy, so a single file of any name is reviewed and removed as that,
-                // and anything more is kept and named as it is anywhere else.
-                string[] rest=data.Names.Except(aside,StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-                string? leaf=start?.Leaf??(rest.Length==1?rest[0]:null);
+                // Only one of this copy's own records names its payload. With neither of them there this folder can
+                // hold nothing but what an interrupted removal set aside, because that removal takes the payload before
+                // either record: anything else in it is kept and named as it is anywhere else, never taken for the copy.
+                string? leaf=start?.Leaf??end?.Leaf;
                 bool kept=leaf is not null&&data.Names.Contains(leaf,StringComparer.Ordinal);
                 RequireLayout(data,kept?[leaf!,..aside]:aside);
                 if(kept){payload=Read(files,leaf!,false);data.Files.Add(payload);}
                 foreach(string item in aside)data.Files.Add(Read(files,item,false));
             }
-            if(complete)
+            // What the receipt says its payload is, checked against the payload itself wherever both are there - with
+            // this copy's own record too when that is there as well.
+            if(end is not null&&payload is { } held)
             {
-                var receipt=Read(capture,"captured.json",true,MaximumCaptureRecordBytes);node.Files.Add(receipt);var end=ParseCaptureRecord(receipt.Bytes!,true);
-                if(originating is not null)RequireCaptureBinding(end,capture,originating);
-                if(start is not null&&payload is { } held)
-                {
-                    var observed=held.Expected;
-                    if(start.Files!=end.Files||observed.Version.Identity!=end.Identity||observed.Version.Length!=end.Length||
-                        observed.Version.Sha256!=end.Sha256||observed.MetadataDigest!=end.Metadata||observed.Origin.Digest!=end.Origin)
-                        throw new IOException("The retained copy differs from its complete capture record.");
-                }
+                var observed=held.Expected;
+                if(start is not null&&start.Files!=end.Files||observed.Version.Identity!=end.Identity||observed.Version.Length!=end.Length||
+                    observed.Version.Sha256!=end.Sha256||observed.MetadataDigest!=end.Metadata||observed.Origin.Digest!=end.Origin)
+                    throw new IOException("The retained copy differs from its complete capture record.");
             }
             // A saved copy's own record goes with the copy it refers to, as it already did when that copy's payload was
             // there: it is read as FileCat's own file, and bound to the payload whenever there is one to bind it to.

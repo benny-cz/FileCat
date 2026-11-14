@@ -116,9 +116,10 @@ it was publishing (a failed publication keeps its stage on purpose) and a name a
 Both are reviewed and removed with what they belong to, each through a handle bound to what was reviewed, up to 64 of
 them per folder; a folder holding more is kept whole and says how many it holds. A retained copy whose payload - or
 whose whole payload folder - a stopped removal already took is still removable: what is left is that copy's own records,
-which are FileCat's. A saved copy that still refers to a payload that is gone is kept for its own review (`dcf19885`).
+which are FileCat's. A saved copy that still refers to a payload that is gone keeps that one copy's own removal from going ahead
+(`dcf19885`), while the whole edit's discard takes it with the record that refers to it (`3c377dab`, below).
 
-A retained copy that has lost its own record is FileCat's own leftover as well (`round twenty-three`). Its folder is
+A retained copy that has lost its own record is FileCat's own leftover as well (`3c377dab`). Its folder is
 made before that record is published and its removal takes the record first, so a crash or a failure in either window
 leaves the folder empty, holding only its payload folder, or holding only its receipt. Nothing in it can be bound to a
 state of the edit without that record, so nothing can be recovered from it; it is reviewed as FileCat's own, with the

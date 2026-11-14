@@ -58,6 +58,22 @@ public sealed partial class MainViewModel
         _editCommitTrace.Enqueue(checkpoint);
         while (_editCommitTrace.Count > 24) _editCommitTrace.TryDequeue(out _);
     }
+    /// <summary>
+    /// What to add to a list of edits when FileCat's own edit storage holds something it could not open. Startup keeps
+    /// the legacy folder when that storage cannot be held privately without following links - a profile restored or
+    /// copied from elsewhere, a data folder reached through a junction, one written by another account - and edits kept
+    /// there are then not listed at all. Saying there are none would be untrue; nothing of them is touched either way.
+    /// </summary>
+    private string? UnopenedNativeStorage()
+    {
+        if (Services.EditSessions.SupportsRetainedCaptureRemoval) return null; // That storage is open: its edits are listed.
+        string native = Services.Paths.NativeEditSessionsDirectory;
+        try { if (!Directory.Exists(native) || !Directory.EnumerateFileSystemEntries(native).Any()) return null; }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception) { }
+        return "FileCat could not open its own edit storage at " + Formatters.SafeName(native) +
+            ", so edits kept there are not listed. Their files are untouched.";
+    }
+
     private readonly HashSet<string> _sessionActions = new(StringComparer.Ordinal);
     private readonly HashSet<string> _sessionCopyActions = new(StringComparer.Ordinal);
     private readonly HashSet<string> _preparingEdits = new(StringComparer.Ordinal);
@@ -88,8 +104,9 @@ public sealed partial class MainViewModel
                 }
                 if (session.IsSupported) Watch(session);
             }
+            string? unopened = UnopenedNativeStorage();
             if (modified == 0 && unavailable == 0 && retained == 0 && retainedUnknown == 0 && adopted == 0 && interrupted == 0 && notChecked == 0 &&
-                incomplete == 0) return null;
+                incomplete == 0) return unopened;
             return ((modified == 0 ? "" : $"{Formatters.Plural(modified, "edit has", "edits have")} changes that are not committed yet.") +
                 (unavailable == 0 ? "" : $" {(Formatters.Plural(unavailable, "working copy cannot", "working copies cannot"))} be read.") +
                 (interrupted == 0 ? "" : $" {Formatters.Plural(interrupted, "edit was", "edits were")} left incomplete (interrupted while being made or removed).") +
@@ -339,7 +356,9 @@ public sealed partial class MainViewModel
             var sessions = await LoadEditSessionsAsync();
             if (sessions.Count == 0)
             {
-                Notify("No edits are open. F4 on a file inside an archive or on a server starts one.");
+                string? unopened = UnopenedNativeStorage();
+                Notify("No edits are open. F4 on a file inside an archive or on a server starts one." +
+                    (unopened is null ? "" : " " + unopened));
                 return;
             }
             var items = new List<ChoiceItem>();
@@ -534,7 +553,9 @@ public sealed partial class MainViewModel
                           "\n" + saved.State + ". " + saved.Reason;
             var actions = new List<DialogButton> { new("Close", "close", IsCancel: true, IsDefault: true),
                 new("Open retained folder", "folder") };
-            if (selected.State == EditCaptureRecoveryState.Complete && selected.SavedCopy is null &&
+            // Saving a copy out needs the folder as FileCat finished it: a stage of its own, or a name an interrupted
+            // removal set aside, is refused by that save itself, so it is not offered. Removing the copy still is.
+            if (selected.State == EditCaptureRecoveryState.Complete && selected.SavedCopy is null && !selected.Unfinished &&
                 Services.EditSessions.SupportsRecoveredNativeCopy)
                 actions.Add(new("Save verified copy…", "save"));
             // A copy that a saved copy refers to is that copy's recovery evidence; anything unverified stays for review.
@@ -633,9 +654,9 @@ public sealed partial class MainViewModel
             string named = session.DisplayName == session.Id ? "this unfinished copy"
                 : $"the unfinished copy of \"{Formatters.SafeName(session.DisplayName)}\"";
             if (!await Dialogs.ConfirmAsync("Remove unfinished copy",
-                $"Remove {named}? FileCat did not finish making it, so it holds at most part of what it was copying, " +
-                "and what it was copied from is unchanged. FileCat reviews its folder again first and keeps everything it cannot " +
-                "account for as its own unfinished work.", "Remove", danger: true))
+                $"Remove {named}? FileCat did not finish making it, and what it was copying from is unchanged, so nothing " +
+                "of yours goes with it. FileCat reviews its folder again first and keeps everything it cannot account for as its " +
+                "own unfinished work.", "Remove", danger: true))
                 return;
             CheckSessionAction();
             var result = await MutationIoAsync(Services.EditSessions.Root,

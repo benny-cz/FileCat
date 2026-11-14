@@ -81,10 +81,12 @@ internal static unsafe partial class UnixArchiveNative
         finally { if (acl != 0) AclFree(acl); FileSecFree(security); }
     }
     /// <summary>
-    /// As <see cref="RequirePrivate"/>, for a file the user's own editor wrote: an ordinary file this user owns with no
+    /// As <see cref="RequirePrivate"/>, for a file whose permissions are not FileCat's to set: the user's own working
+    /// copy, a name an interrupted removal set aside, a retained commit copy. An ordinary file this user owns with no
     /// second link, whose permission bits are whatever a normal save left (a replacement under the usual umask, or a
-    /// script the user made executable). Set-user-ID, set-group-ID and sticky bits are still refused, as is any ACL on
-    /// macOS, and the bits confer no access through the 0700 private directory that holds it.
+    /// script the user made executable) and which may carry a list of its own on macOS, as the review that decides
+    /// whether such a copy can be edited at all has always allowed. Set-user-ID, set-group-ID and sticky bits are still
+    /// refused, and none of it confers access through the 0700 private directory that holds the file.
     /// </summary>
     internal static void RequirePrivateWorking(SafeFileHandle held, uint user) => RequirePrivateCore(held, user, true);
     internal static void RequirePrivate(SafeFileHandle held, uint user) => RequirePrivateCore(held, user, false);

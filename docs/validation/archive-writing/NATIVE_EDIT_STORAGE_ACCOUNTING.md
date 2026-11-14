@@ -147,7 +147,9 @@ other's outstanding bytes, so on a volume with room for only one of them the sec
 copy keeps the user's files, says so, and is offered for review, and a retry once the first copy is done succeeds -
 against a refusal that was permanent, misleading and needed no second process at all. Proving a copy is still coming
 across processes would need a capture to hold a marker the way a creation does, and to be read through it; that is what
-closing this would take.
+closing this would take. The same missing marker has a second consequence, recorded with it in
+[the sessions record](ARCHIVE_EDIT_SESSIONS.md): on macOS a second window can remove a commit copy the first is still
+writing, because no platform check refuses that there.
 
 A capture record that does not name the folder it is in - a stale one, or one made by hand - speaks for no copy being
 made here, and its folder is measured as the bytes it holds instead. An earlier build's record (version 1) carries no

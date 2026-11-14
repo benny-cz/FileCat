@@ -17,7 +17,8 @@ internal static class ArchiveEditDiscardCases
         "extra-capture","extra-payload","capture-header","capture-receipt","capture-payload","intent-corrupt",
         "replaced-session","replaced-files","replaced-after-review","changed-after-review","extra-after-review","no-factory",
         "stage-session","aside-working","aside-missing","replaced-working","stage-capture","aside-capture-payload",
-        "capture-payload-gone","capture-payload-emptied","capture-record-gone","capture-empty","saved-intent-payload-gone"}
+        "capture-payload-gone","capture-payload-emptied","capture-record-gone","capture-empty","saved-intent-payload-gone",
+        "capture-record-gone-foreign"}
         .Select(value=>new object[]{value});
 
     internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations fs)
@@ -90,6 +91,13 @@ internal static class ArchiveEditDiscardCases
                 // the whole edit. A saved copy beside a payload that is gone was refused for a review that could not
                 // bring the payload back; the record goes with the copy it refers to, and the saved file stays.
                 if(scenario=="capture-record-gone")File.Delete(Path.Combine(capture,"capture.json"));
+                // The same folder with something unknown beside the payload: nothing names that file, so both reviews
+                // keep the folder and say what is in it - the list must not offer a removal that would refuse.
+                if(scenario=="capture-record-gone-foreign")
+                {
+                    File.Delete(Path.Combine(capture,"capture.json"));
+                    File.WriteAllText(Path.Combine(capture,"files","unexpected.txt"),"keep unexpected payload sibling");
+                }
                 if(scenario=="capture-empty")
                 {
                     File.Delete(Path.Combine(capture,"capture.json"));File.Delete(Path.Combine(capture,"captured.json"));
@@ -160,14 +168,18 @@ internal static class ArchiveEditDiscardCases
             // removal only for a verified or an interrupted copy, so a review that called either of these "needs
             // review" would leave the user unable to reach the removal at all.
             if(scenario is "stage-capture" or "aside-capture-payload" or "capture-payload-gone" or "capture-payload-emptied" or
-                "capture-record-gone" or "capture-empty" or "saved-intent-payload-gone")
+                "capture-record-gone" or "capture-empty" or "saved-intent-payload-gone" or "capture-record-gone-foreign")
             {
                 var retained=Assert.Single(store.ReviewRetainedCaptures(record,ct));
-                // A copy a saved copy refers to needs that copy's own review, which is what the list offers no removal
-                // for; everything else here is this copy's own work, interrupted or already half removed.
+                // A copy a saved copy refers to needs that copy's own review, and one holding something nothing names
+                // needs the user's: the list offers no removal for either, because neither removal would succeed.
+                // Everything else here is this copy's own work, interrupted or already half removed.
                 Assert.Equal(scenario is "stage-capture" or "aside-capture-payload"?EditCaptureRecoveryState.Complete:
-                    scenario=="saved-intent-payload-gone"?EditCaptureRecoveryState.NeedsReview:
+                    scenario is "saved-intent-payload-gone" or "capture-record-gone-foreign"?EditCaptureRecoveryState.NeedsReview:
                     EditCaptureRecoveryState.Interrupted,retained.State);
+                // A verified copy with FileCat's own unfinished work beside it says so, because saving a copy out of it
+                // is refused while that is there; its removal is not.
+                Assert.Equal(scenario is "stage-capture" or "aside-capture-payload",retained.Unfinished);
             }
             if(scenario=="cancel-before")stop.Cancel();
             int checks=0;

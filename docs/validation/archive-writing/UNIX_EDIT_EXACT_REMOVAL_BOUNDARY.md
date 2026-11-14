@@ -56,8 +56,9 @@ asks first and names the folder.
 
 A removal reviews the user's own bytes by the rules that every other review of them uses: an ordinary file this user
 owns, with no second link, inside the 0700 folder whose privacy is reviewed on every operation. Its permission bits are
-the editor's to set - a replacement under an ordinary umask leaves group and other read bits, and a script being edited
-may be made executable - and they confer no access through that folder. Set-user-ID, set-group-ID and sticky bits are
-still refused, as is any ACL on macOS, and FileCat's own records must still be exactly as FileCat wrote them. Until
+the editor's to set - a replacement under an ordinary umask leaves group and other read bits, a script being edited may
+be made executable, and on macOS it may carry an access list of its own - and none of that confers access through that
+folder, which no other user can traverse. Set-user-ID, set-group-ID and sticky bits are still refused, and FileCat's own
+records must still be exactly as FileCat wrote them, with no list at all. Until
 `dcf19885` the removal demanded 0600 of the user's working copy too, so an edit an editor had replaced could not be
 discarded at all.
