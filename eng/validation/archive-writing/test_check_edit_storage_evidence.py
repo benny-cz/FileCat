@@ -9,6 +9,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import gzip
@@ -26,9 +27,103 @@ SPEC = importlib.util.spec_from_file_location("checker", Path(__file__).with_nam
 checker = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(checker)
 
+
+def measuring(log_path):
+    """measure_rules.py runs this suite with MEASURE_VERDICTS naming a file, to tell a rule that changes a verdict from
+    one that changes only a message. Every case then runs to its end with each assertion that does not hold written
+    down instead of raised, and the verdict of every call a case makes into the check - an archive accepted (on the
+    system it names) or refused, a listing whole or not, a repeated name or none, main()'s exit code with its report's
+    verdict lines, or what it raised - is written down beside them, for the outermost call only (what check() asks of
+    its own helpers is not a verdict). Nothing here runs otherwise."""
+    current = ['?']
+    depth = [0]
+
+    def note(kind, value):
+        with open(log_path, 'a', encoding='utf-8') as log:
+            log.write('%s\t%s\t%s\n' % (current[0], kind, value))
+
+    def verdict(name, result):
+        if name == 'check':
+            return 'accepted, %s' % result[1].get('system') if not result[0] else 'refused'
+        if name == 'listing_gap':
+            return 'whole' if result is None else 'gap'
+        if name == 'repeated':
+            return 'none repeated' if not result else 'repeated'
+        # main(): its exit code and its report's verdict lines - the system and digest a verdict names are what the
+        # release manifest binds a route by - with each archive's own digest written as such, since a fixture's bytes
+        # differ from run to run.
+        out = sys.argv[sys.argv.index('--out') + 1] if '--out' in sys.argv[:-1] else None
+        text = Path(out).read_text(encoding='utf-8') if out and Path(out).is_file() else ''
+        for argument in sys.argv[1:]:
+            if argument != out and Path(argument).is_file():
+                text = text.replace(hashlib.sha256(Path(argument).read_bytes()).hexdigest(), '<its own digest>')
+        return 'exit %r: %s' % (result, ' | '.join(line for line in text.split('\n') if line and not line[0].isspace()))
+
+    def outermost(name, function):
+        def wrapper(*arguments, **named):
+            depth[0] += 1
+            try:
+                result = function(*arguments, **named)
+            except Exception as error:
+                if depth[0] == 1:
+                    note('verdict', 'raised ' + type(error).__name__)
+                raise
+            finally:
+                depth[0] -= 1
+            if depth[0] == 0:
+                note('verdict', verdict(name, result))
+                if name == 'check' and result[0]:
+                    note('reason', result[0][0][:160])
+            return result
+        return wrapper
+
+    checker.check = outermost('check', checker.check)
+    checker.main = outermost('main', checker.main)
+    checker.Archive.listing_gap = outermost('listing_gap', checker.Archive.listing_gap)
+    checker.Archive.repeated = outermost('repeated', checker.Archive.repeated)
+
+    run = unittest.TestCase.run
+
+    def tracked(self, result=None):
+        current[0] = self.id().rsplit('.', 1)[-1]
+        return run(self, result)
+    unittest.TestCase.run = tracked
+
+    def soft(name, method):
+        def wrapper(self, *arguments, **named):
+            try:
+                return method(self, *arguments, **named)
+            except AssertionError:
+                note('assert', name)
+        return wrapper
+    managers = {'assertRaises', 'assertRaisesRegex', 'assertWarns', 'assertWarnsRegex', 'assertLogs', 'assertNoLogs'}
+    for name in dir(unittest.TestCase):
+        if (name.startswith('assert') and name not in managers) or name == 'fail':
+            setattr(unittest.TestCase, name, soft(name, getattr(unittest.TestCase, name)))
+
+
+if os.environ.get('MEASURE_VERDICTS'):
+    measuring(os.environ['MEASURE_VERDICTS'])
+
+# The words a run is read against, written out here rather than taken from the check: a fixture built from the check's
+# own constants follows them, so a reason dropped or a pin renamed there would change no verdict any case sees.
+PIN_NAMES = (
+    'Ordinary_startup_composes_native_storage_where_listed_and_the_legacy_store_elsewhere',
+    'This_build_lists_native_edit_storage_on_the_owner_s_routes_only',
+    'Legacy_and_native_roots_keep_their_own_sessions_and_revisions',
+)
+STEP_ASIDE_WORDS = (
+    'Native edit storage cannot be held for this test folder',
+    'Native edit storage refuses an elevated or root process',
+    'Native edit storage requires an unelevated process.',
+    'Native edit storage refuses root; run as an ordinary user.',
+    'Edit sessions refuse an elevated token; run unelevated.',
+    "The fixture's filesystem cannot be established here.",
+    'is not a listed native edit storage route for',
+)
 PASSING_TRX = ''.join(
     '<UnitTestResult executionId="%d" testName="FileCat.Tests.%s" outcome="Passed" />' % (index, pin)
-    for index, pin in enumerate(checker.PINS))
+    for index, pin in enumerate(PIN_NAMES))
 SUMMARY = {"ok": True, "failed": [], "exit_codes": {"FileCat.App.Tests-Edit": 0},
            "suites": {"FileCat.App.Tests-Edit": {"total": 7, "passed": 7, "skipped": 0, "failed": 0,
                                                  "counters_total": 7}}}
@@ -45,7 +140,7 @@ def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything 
     # naming neither is not a run of these suites, so it carries the class this fixture's own system implies.
     platform = ('FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' if system.startswith(('Microsoft Windows', 'Windows'))
                 else 'FileCat.Core.Tests.UnixEditStorageTests.')
-    trx = trx.replace('FileCat.Tests.' + checker.PINS[2], platform + checker.PINS[2])
+    trx = trx.replace('FileCat.Tests.' + PIN_NAMES[2], platform + PIN_NAMES[2])
     return {
         'machine.json': json.dumps({"RunId": "edit-test", "Os": system,
                                     "Env": 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate_text}),
@@ -131,12 +226,19 @@ class EvidenceChecks(unittest.TestCase):
         self.assertEqual(2, len(facts['pins'][pin]))
 
     def test_refuses_a_run_in_which_every_case_of_a_pin_stepped_aside(self):
-        pin = checker.PINS[2]
+        """A pin stands only where it ran: every case of it NotExecuted is no evidence, whichever pin it is - the
+        dual-root pin's family rule refuses that one too, so the first pin is what this rule alone refuses."""
+        pin = PIN_NAMES[2]
         trx = PASSING_TRX.replace('testName="FileCat.Tests.%s" outcome="Passed"' % pin,
                                   'testName="FileCat.Tests.%s" outcome="NotExecuted"' % pin)
         problems, _ = self.check(files(trx=trx))
         self.assertIn('no case of the pin %s ran: %s'
                       % (pin, ['FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pin]), problems)
+        pin = PIN_NAMES[0]
+        trx = PASSING_TRX.replace('testName="FileCat.Tests.%s" outcome="Passed"' % pin,
+                                  'testName="FileCat.Tests.%s" outcome="NotExecuted"' % pin)
+        self.assertEqual(['no case of the pin %s ran: %s' % (pin, ['FileCat.Tests.' + pin])],
+                         self.check(files(trx=trx))[0])
 
     def test_refuses_a_run_whose_pin_failed(self):
         pin = checker.PINS[1]
@@ -189,6 +291,8 @@ class EvidenceChecks(unittest.TestCase):
         self.assertEqual([], problems)
 
     def test_refuses_a_run_with_a_failure_however_it_is_recorded(self):
+        """A failure counts wherever the runner wrote it down - its summary's list, a suite's counter, its own ok, a
+        suite's exit code - and each place alone is enough."""
         summary = {"ok": False, "failed": ["FileCat.Tests.Something"], "exit_codes": {"FileCat.App.Tests-Edit": 1},
                    "suites": {"FileCat.App.Tests-Edit": {"total": 7, "passed": 6, "skipped": 0, "failed": 1,
                                                          "counters_total": 7}}}
@@ -197,6 +301,14 @@ class EvidenceChecks(unittest.TestCase):
         self.assertIn('suite FileCat.App.Tests-Edit has 1 failures', problems)
         self.assertIn('the runner did not call this run ok', problems)
         self.assertIn('suite FileCat.App.Tests-Edit exited 1', problems)
+        counters = dict(SUMMARY['suites']['FileCat.App.Tests-Edit'], failed=1)
+        for change, said in (({'failed': ['FileCat.Tests.Something']}, 'it failed: FileCat.Tests.Something'),
+                             ({'suites': {'FileCat.App.Tests-Edit': counters}},
+                              'suite FileCat.App.Tests-Edit has 1 failures'),
+                             ({'ok': False}, 'the runner did not call this run ok'),
+                             ({'exit_codes': {'FileCat.App.Tests-Edit': 1}}, 'suite FileCat.App.Tests-Edit exited 1')):
+            with self.subTest(said):
+                self.assertEqual([said], self.check(files(summary=dict(SUMMARY, **change)))[0])
 
     def test_refuses_a_run_the_runner_did_not_call_ok_even_with_clean_counters(self):
         """A test host that dies, or a lane whose rows and counters disagree, is only visible in the runner's verdict."""
@@ -244,7 +356,9 @@ class EvidenceChecks(unittest.TestCase):
         self.assertEqual(['it carries no test output to read'], problems)
 
     def test_refuses_a_run_where_a_test_stepped_aside_for_native_storage(self):
-        for reason in checker.STEP_ASIDE:
+        """Each reason, written out here rather than taken from the check: a reason dropped there is then a run
+        accepted here."""
+        for reason in STEP_ASIDE_WORDS:
             with self.subTest(reason=reason):
                 problems, _ = self.check(files(log='[xUnit.net] SKIP ' + reason + ' here\n'))
                 self.assertTrue(any('stepped aside' in problem for problem in problems), problems)
@@ -360,7 +474,8 @@ class EvidenceChecks(unittest.TestCase):
     def test_refuses_a_directory_that_states_a_size_the_file_does_not(self):
         """A zip is sized from its directory, and a deflated member stops at its own stream end - so a directory that
         overstates a size leaves the member's bytes alone while its span swallows what follows, which is how an
-        appended directory covered a whole sealed archive on paper. The local header states the size too."""
+        appended directory covered a whole sealed archive on paper. The local header states the size too. Stretched
+        over bytes put after the last member, with every member still listed, it is the only rule that refuses."""
         with tempfile.TemporaryDirectory() as directory:
             path, order, start = self.laid_out(directory)
             first = order[0][0]
@@ -368,6 +483,19 @@ class EvidenceChecks(unittest.TestCase):
             self.rewritten_directory(path, [(first, stretched)])
             problems, _ = checker.check(path)
             self.assertTrue(any('where the file says' in problem for problem in problems), problems)
+        with tempfile.TemporaryDirectory() as directory:
+            contents = with_child_cmd(files())
+            contents['zz-unread.bin'] = 'bytes no rule reads ' * 8
+            path, order, start = self.laid_out(directory, contents)
+            last = order[-1][0]
+            self.assertEqual('zz-unread.bin', last.filename)
+            junk = bytes(64)
+            path.write_bytes(path.read_bytes()[:start] + junk)
+            entries = [(item, item.compress_size) for item, _ in order[:-1]] + [(last, last.compress_size + len(junk))]
+            self.rewritten_directory(path, entries)
+            problems, _ = checker.check(path)
+            self.assertEqual(1, len(problems), problems)
+            self.assertIn('where the file says', problems[0])
 
     def test_refuses_a_listing_that_stops_short_of_its_directory(self):
         """Once the sizes have to agree, a forged directory can still leave an entry out - and those bytes are then in
@@ -398,7 +526,7 @@ class EvidenceChecks(unittest.TestCase):
             self.assertGreaterEqual(padding, 0, 'the log has to fit the span it will be swapped for')
             path = Path(directory) / 'edit-nested-evidence.zip'
             with zipfile.ZipFile(path, 'w') as writing:  # the log before the outer member, so the reach still lands
-                for name, member in files().items():  # not `body`, which is the inner member's own text
+                for name, member in with_child_cmd(files()).items():  # not `body`, which is the inner member's own text
                     writing.writestr(name.replace('/', '\\'), member)
                 writing.writestr('test-h.log', text + 'x' * padding)
                 writing.writestr('outer.bin', blob)
@@ -510,10 +638,14 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_refuses_a_listing_with_a_hole_in_the_middle(self):
         """The half of the sums that catches a hole anywhere but at the end: drop an entry in the middle and the
-        reach still lands on the directory, so only the covered bytes say anything."""
+        reach still lands on the directory, so only the covered bytes say anything. The member dropped is one no
+        rule needs, so nothing else refuses."""
         with tempfile.TemporaryDirectory() as directory:
-            path, order, start = self.laid_out(directory)
-            kept = [(item, item.compress_size) for index, (item, _) in enumerate(order) if index != 1]
+            items = list(with_child_cmd(files()).items())
+            contents = dict(items[:2] + [('extra.bin', 'bytes no rule reads ' * 8)] + items[2:])
+            path, order, start = self.laid_out(directory, contents)
+            kept = [(item, item.compress_size) for item, _ in order if item.filename != 'extra.bin']
+            self.assertEqual(len(order) - 1, len(kept))
             self.rewritten_directory(path, kept, at=start)
             problems, _ = checker.check(path)
             self.assertTrue(any('in no member of it' in problem for problem in problems), problems)
@@ -552,7 +684,7 @@ class EvidenceChecks(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             clean = Path(directory) / 'clean.tar'
             failed = Path(directory) / 'failed.tar'
-            for path, contents in ((clean, files()), (failed, files(status='FAIL'))):
+            for path, contents in ((clean, with_child_cmd(files())), (failed, with_child_cmd(files(status='FAIL')))):
                 with tarfile.open(path, 'w') as held:
                     for leaf, text in contents.items():
                         blob = text.encode('utf-8')
@@ -628,12 +760,13 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_refuses_a_tar_with_another_archive_before_it(self):
         """gzip reads joined members as one stream while tarfile stops at the first tar's end-of-archive blocks: an
-        append is not read, but a sealed archive put after a forged one is passed over in favour of the forgery."""
+        append is not read, but a sealed archive put after another one is passed over in favour of the first. The
+        first here passes too, so its place in front is all that is refused."""
         with tempfile.TemporaryDirectory() as directory:
             sealed = archive(directory, 'edit-sealed-evidence.tar.gz', files(), unix=True)
-            forged = archive(directory, 'edit-forged-evidence.tar.gz', files(status='FAIL'), unix=True)
+            first = archive(directory, 'edit-first-evidence.tar.gz', files(log='[xUnit.net] another run\n'), unix=True)
             joined = Path(directory) / 'edit-joined-evidence.tar.gz'
-            joined.write_bytes(forged.read_bytes() + sealed.read_bytes())
+            joined.write_bytes(first.read_bytes() + sealed.read_bytes())
             self.assertIn(sealed.read_bytes(), joined.read_bytes())  # the sealed archive is there, unread
             problems, _ = checker.check(joined)
             self.assertTrue(any("after this archive's own end" in problem for problem in problems), problems)
@@ -718,23 +851,11 @@ class EvidenceChecks(unittest.TestCase):
         self.assertIn('its summary carries no exit code', problems)
 
     def test_knows_the_reasons_and_the_pins_by_their_own_words(self):
-        """Every fixture here is built from these constants, so dropping a reason or renaming a pin would change
-        nothing that any other case asserts: the words themselves are what a run is read against."""
-        self.assertEqual((
-            'Native edit storage cannot be held for this test folder',
-            'Native edit storage refuses an elevated or root process',
-            'Native edit storage requires an unelevated process.',
-            'Native edit storage refuses root; run as an ordinary user.',
-            'Edit sessions refuse an elevated token; run unelevated.',
-            "The fixture's filesystem cannot be established here.",
-            'is not a listed native edit storage route for',
-        ), checker.STEP_ASIDE)
+        """Every fixture here is built from these words, written out in this file, so the check's own constants have
+        to say the same: a reason dropped or a pin renamed there is a verdict changed here."""
+        self.assertEqual(STEP_ASIDE_WORDS, checker.STEP_ASIDE)
         self.assertEqual(('FILECAT_EDIT_NATIVE_REQUIRED', '1'), (checker.GATE_NAME, checker.GATE_VALUE))
-        self.assertEqual((
-            'Ordinary_startup_composes_native_storage_where_listed_and_the_legacy_store_elsewhere',
-            'This_build_lists_native_edit_storage_on_the_owner_s_routes_only',
-            'Legacy_and_native_roots_keep_their_own_sessions_and_revisions',
-        ), checker.PINS)
+        self.assertEqual(PIN_NAMES, checker.PINS)
 
     def windows_record(self, env):
         """A machine record as the Windows runner seals it: its `-Env` string in `Env` (as given, where that is plain
@@ -934,13 +1055,44 @@ class EvidenceChecks(unittest.TestCase):
         problems, _ = self.check(contents)
         self.assertTrue(any('it carries 2 child.cmd where its runner seals one' in problem for problem in problems),
                         problems)
-        # What real lanes pass: a negated shard's `!`, a path with a space, `{run}` in a value, an empty Env.
+        # What real lanes pass: a negated shard (`#~` now), a path with a space, `{run}` in a value, an empty Env.
         env = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1;FILECAT_ARCHIVE_APP_ASSETS={run}\\publish\\FileCat.App'
         contents = self.windows_record(env)
-        contents['child.cmd'] = launcher(env, projects='tests\\B.csproj#!ArchiveAppContainerTests,tests\\C D\\C.csproj')
+        contents['child.cmd'] = launcher(env, projects='tests\\B.csproj#~ArchiveAppContainerTests,tests\\C D\\C.csproj')
         self.assertEqual([], self.check(contents)[0])
         problems, _ = self.check(self.windows_record(''))
         self.assertEqual(['its machine record does not name ' + gate], problems)
+
+    def test_refuses_a_child_cmd_holding_an_exclamation_mark(self):
+        """Where delayed expansion is on, cmd.exe reads `!NAME:` up to the next colon as an undefined variable and
+        deletes it, no closing `!` needed: `-Dotnet "C:\\FileCatValidation\\dotnet\\!x\\..\\dotnet.exe"` and an Env
+        ending `=:dotnet.exe` lost the `-Env` between them while the Dotnet path still resolved, and the child ran with
+        no gate (the forty-third review, replayed here under `cmd /V:ON`). Whether delayed expansion is on is a setting
+        no record holds, so a child.cmd holding `!` anywhere is refused - a negated shard is written `#~` now."""
+        gate = checker.GATE_NAME
+        env = gate + '=1;FILECAT_ARCHIVE_TXF_NATIVE=:dotnet.exe'
+        for env, changed in ((env, {'dotnet': 'C:\\FileCatValidation\\dotnet\\!x\\..\\dotnet.exe'}),
+                             ('FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1',
+                              {'projects': 'tests\\B.csproj#!ArchiveAppContainerTests'})):
+            with self.subTest(changed):
+                contents = self.windows_record(env)
+                contents['child.cmd'] = launcher(env, **changed)
+                problems, _ = self.check(contents)
+                self.assertTrue(any("its child.cmd holds '!'" in problem for problem in problems), problems)
+
+    def test_reads_a_launcher_argument_only_as_printable_ascii(self):
+        """cmd.exe reads child.cmd in the OEM code page, so a character outside printable ASCII does not reach the child
+        as written; the runner's patterns once ignored case, which let U+0130 and U+212A by. Any argument, not only the
+        Env, is refused for one."""
+        recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + checker.GATE_NAME + '=1'
+        for changed in ({'filter': 'FullyQualifiedName~Caf' + chr(0xE9)},
+                        {'projects': 'tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#' + chr(0x212A) + 'elvin'}):
+            with self.subTest(changed):
+                contents = self.windows_record(recorded)
+                contents['child.cmd'] = launcher(recorded, **changed)
+                problems, _ = self.check(contents)
+                self.assertTrue(any('is not the launcher its runner writes' in problem for problem in problems),
+                                problems)
 
     def test_refuses_a_name_outside_filecat_which_the_test_platform_may_read(self):
         """MSBuild reads the environment as properties, and VSTest reads the VSTestCLIRunSettings property as settings:
@@ -1136,13 +1288,15 @@ class EvidenceChecks(unittest.TestCase):
     def test_reads_the_member_it_listed_and_not_whichever_answers_to_the_name(self):
         """One appended 512-byte folder header with a file's own name made that file read as empty: a tar resolves a
         name to its last member and gives nothing for a folder, and the folder was kept out of the name list, so
-        nothing saw it. It emptied a log that said a test had stepped aside, and the lane was accepted."""
-        step = next(iter(checker.STEP_ASIDE))
+        nothing saw it. It emptied a log that said a test had stepped aside, and the lane was accepted - here beside a
+        second log, so the run still has test output to read."""
+        step = STEP_ASIDE_WORDS[0]
         contents = files(log='[xUnit.net] ' + step + '\n')
+        contents['test-FileCat.Core.Tests-Edit.log'] = '[xUnit.net] everything ran\n'
         with tempfile.TemporaryDirectory() as directory:
             path = archive(directory, 'edit-shadowed-evidence.tar.gz', contents, unix=True)
             self.assertTrue(any(step in problem for problem in checker.check(path)[0]))
-            name = next(n for n in checker.Archive(path).names() if n.split('/')[-1].startswith('test-'))
+            name = next(n for n in checker.Archive(path).names() if n.split('/')[-1].startswith('test-FileCat.App'))
             with tarfile.open(path, 'r:gz') as held:
                 members = [(item, held.extractfile(item).read() if item.isfile() else None)
                            for item in held.getmembers()]
@@ -1187,12 +1341,17 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_refuses_a_machine_record_that_holds_a_member_twice(self):
         """A parser keeps the last of a repeated member while a reader sees the first: one record showed a reader
-        Windows and this check Linux."""
+        Windows and this check Linux. A member repeated with nothing else wrong is refused as well."""
         contents = files()
         contents['machine.json'] = ('{"RunId": "edit-test", "Os": "Microsoft Windows 11 Pro", "Env": "%s", '
                                     '"Os": "Linux h 6.0 x86_64 GNU/Linux"}' % checker.GATE)
         problems, _ = self.check(contents)
         self.assertIn('its machine record holds Os more than once, so what it says depends on who reads it', problems)
+        contents = files()
+        contents['machine.json'] = ('{"RunId": "edit-test", "Os": "Microsoft Windows 11 Pro", "Env": "%s", '
+                                    '"RunId": "edit-test-again"}' % checker.GATE)
+        self.assertEqual(['its machine record holds RunId more than once, so what it says depends on who reads it'],
+                         self.check(contents)[0])
 
     def test_refuses_a_summary_that_names_no_suite(self):
         """Counters are what the report's numbers come from; a summary with none is not a run that passed."""
@@ -1202,7 +1361,8 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_refuses_an_archive_that_holds_a_name_more_than_once(self):
         """A reader gets the last member of a repeated name while every loop here lists each occurrence, so appending
-        a clean copy - with no original byte rewritten - made a run that failed read as one that passed."""
+        a clean copy - with no original byte rewritten - made a run that failed read as one that passed. A name held
+        twice with the same text is refused as well: which copy speaks is not a thing to guess."""
         with tempfile.TemporaryDirectory() as directory:
             failed = files(summary={"ok": False, "failed": ["a case"], "exit_codes": {"S": 1},
                                     "suites": {"S": {"total": 1, "passed": 0, "skipped": 0, "failed": 1}}},
@@ -1217,6 +1377,14 @@ class EvidenceChecks(unittest.TestCase):
                         zipped.writestr(name, clean[name])
             problems, _ = checker.check(path)
             self.assertTrue(any('more than once' in problem for problem in problems), problems)
+            path = archive(directory, 'edit-twice-evidence.zip', files())
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', UserWarning)
+                with zipfile.ZipFile(path, 'a') as zipped:
+                    zipped.writestr('status.txt', 'PASS')
+            problems, _ = checker.check(path)
+            self.assertEqual(1, len(problems), problems)
+            self.assertIn('status.txt more than once', problems[0])
 
     def test_refuses_a_run_whose_machine_record_does_not_say_which_system_ran_it(self):
         problems, _ = self.check(files(system='a machine'))

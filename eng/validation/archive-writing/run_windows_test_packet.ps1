@@ -7,18 +7,21 @@ token an ordinary signed-in user has. The wrapper refuses (status POSTPONED) whi
 test process is running and seals C:\FileCatValidation\aw-claude\<RunId>-evidence.zip.
 #>
 param(
-    [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9._-]{1,60}\z')][string]$RunId,
+    [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9._-]{1,60}\z', Options = 'None')][string]$RunId,
     # Packet, Filter, Projects and Dotnet reach the child through child.cmd, which cmd.exe reads and PowerShell splits
-    # again: a `"` re-cuts the child's arguments (a filter could bind an -Env of its own), a `%` is expanded, a `^` is
-    # removed under delayed expansion, a trailing `\` escapes the closing quote and a leading `-` reads as a parameter
-    # name. So each is printable ASCII without `"`, `%` or `^`, not starting with `-` or ending in `\`; the evidence
-    # check reads child.cmd as this launcher and refuses anything else.
-    [Parameter(Mandatory)][ValidatePattern('^(?!-)[ !#$&-\]_-~]+(?<!\\)\z')][string]$Packet,
-    [Parameter(Mandatory)][ValidatePattern('^[0-9a-fA-F]{64}\z')][string]$Sha256,
-    [Parameter(Mandatory)][ValidatePattern('^(?!-)[ !#$&-\]_-~]+(?<!\\)\z')][string]$Filter,
-    [Parameter(Mandatory)][ValidatePattern('^(?!-)[ !#$&-\]_-~]+(?<!\\)\z')][string]$Projects,
-    [string]$User = 'Admin',
-    [ValidatePattern('^(?!-)[ !#$&-\]_-~]+(?<!\\)\z')][string]$Dotnet = 'C:\FileCatValidation\dotnet\dotnet.exe',
+    # again: a `"` re-cuts the child's arguments (a filter could bind an -Env of its own), a `%` is expanded, a `!` or
+    # `^` is changed where delayed expansion is on (`!x\..` in Dotnet and a `:` in Env deleted the -Env between them),
+    # a trailing `\` escapes the closing quote and a leading `-` reads as a parameter name. So each is printable ASCII
+    # without `"`, `%`, `!` or `^`, not starting with `-` or ending in `\` - matched with case, since the default
+    # options let U+0130 and U+212A by - and a negated shard is written #~; the evidence check reads child.cmd as this
+    # launcher and refuses anything else.
+    [Parameter(Mandatory)][ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Packet,
+    [Parameter(Mandatory)][ValidatePattern('^[0-9a-fA-F]{64}\z', Options = 'None')][string]$Sha256,
+    [Parameter(Mandatory)][ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Filter,
+    [Parameter(Mandatory)][ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Projects,
+    # Recorded in machine.json, which is written in the ANSI code page with best-fit (a fullwidth quote becomes `"`).
+    [ValidatePattern('^[A-Za-z0-9._\\ -]{1,64}\z', Options = 'None')][string]$User = 'Admin',
+    [ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Dotnet = 'C:\FileCatValidation\dotnet\dotnet.exe',
     [int]$TimeoutMinutes = 240,
     [ValidateRange(1, 600)][int]$HangMinutes = 20,
     # Optional 'FILECAT_NAME=value;FILECAT_NAME2=value' test environment; {run} expands to the run folder (for published
@@ -95,7 +98,8 @@ try {
     # the first failing test's output. Native outcomes are judged by exit codes and TRX files instead.
     $ErrorActionPreference = 'Continue'
     # A test project may name a shard after '#': PATH.csproj#ClassA+ClassB runs only tests whose name contains one of them,
-    # PATH.csproj#!ClassA+ClassB every other test; each shard is its own test process with its own TRX and exit code.
+    # PATH.csproj#~ClassA+ClassB every other test (the wrapper refuses a `!` in its arguments, so the Unix runner's #! is
+    # written #~ here); each shard is its own test process with its own TRX and exit code.
     # FileCat's archive-worker gate is per process, so shards let worker-heavy classes use more than one CPU. A parallel:on
     # entry runs all test processes at the same time once every build has finished (default: one after another).
     $parallel = $false; $built = @{}; $tests = @()
@@ -131,7 +135,7 @@ try {
         if ($mode -eq 'build') { continue }
         $testFilter = $Filter
         if ($spec) {
-            $negated = $spec.StartsWith('!'); if ($negated) { $spec = $spec.Substring(1) }
+            $negated = $spec.StartsWith('~') -or $spec.StartsWith('!'); if ($negated) { $spec = $spec.Substring(1) }
             if ($spec -notmatch '^[A-Za-z0-9_.]+(\+[A-Za-z0-9_.]+)*$') { throw "Bad shard: $spec" }
             $parts = $spec.Split('+')
             if ($negated) { $shard = '(' + (($parts | ForEach-Object { "FullyQualifiedName!~$_" }) -join '&') + ')'; $name = "$name-not-" + ($parts -join '-') }

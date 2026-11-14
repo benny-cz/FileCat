@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Which case fails without each rule of the edit-storage evidence check? Run this instead of reasoning about it.
+"""Which verdict changes without each rule of the edit-storage evidence check? Run this instead of reasoning about it.
 
 Review rounds hardened `check_edit_storage_evidence.py`, and three times over they found not a defect in it but a false
 claim written beside a rule: "this guard cannot be reached", "two rules are left with no case", and - of this file's
 own first version - "every rule of the check is listed below". All three were arguments, and all three were wrong.
 
 So: the rules listed below are weakened one at a time, on a copy, with the check's own suite run against that copy, and
-the cases that notice are printed. **This list is not the check, and the exit code speaks for this list alone.** A rule
+what changes is printed. **This list is not the check, and the exit code speaks for this list alone.** A rule
 that is not an entry here is invisible to the measurement, which is how the line in `main()` that turns findings into
 a refusal sat unmeasured for a round - so a rule added to the check wants an entry here.
 
@@ -17,9 +17,19 @@ or the iterable of a loop, which no entry names. It cannot see a rule held in a 
 pins or descriptor shapes - which is why those constants have cases asserting their own words; and it found nothing of
 the rule the fortieth review did find, because the line-prefix filter it replaced could not see a `for` over a split.
 
-Each entry carries what is expected of it: nothing, for a rule a case must hold, or a note saying it is redundant with
-another rule, or that it has no case and why. An entry expected to be held and held by nothing is the finding this
-exists to make, and the exit code reports it.
+What counts is a verdict, not a message. The suite runs with every case going on to its end - an assertion that does
+not hold is written down rather than raised - and with every call a case makes into the check written down by its
+verdict: an archive accepted (on the system it names) or refused, a listing whole or not, main()'s exit code with
+its report's verdict lines, or what it raised - which counts as a refusal, since main() refuses an archive whose reading
+raises. A rule is held when, weakened, some case's verdicts change. Until the forty-third review a case that noticed only a changed message counted
+as holding its rule, and three entries were "held" that way while another rule refused the same archives.
+
+Each entry carries what is expected of it, and the measurement checks it: nothing, for a rule some case holds by a
+verdict; a note beginning `redundant` for a rule whose weakening changes no verdict in the suite (another rule refuses
+the same archives - measured over the suite's archives, which is evidence and not proof); `no case` for a rule no case
+notices at all; or `the weakening raises` for a rule whose weakening can only crash, where it would refuse. An entry
+held only by a message, a note the measurement contradicts, and an entry expected to be held and held by nothing are
+the findings this exists to make, and the exit code reports each.
 
     python -I -X utf8 eng/validation/archive-writing/measure_rules.py [--rule <text to match>] [--audit]
 
@@ -35,6 +45,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import os
 from pathlib import Path
 import re
 import shutil
@@ -79,7 +90,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      "        elif False and system is not None and family != ('windows' if system == 'windows' else 'unix'):", None),
     ('a run that names neither platform class refused',
      '        elif family is None:',
-     '        elif False and family is None:', None),
+     '        elif False and family is None:', 'redundant: with no family, the agreement test after it refuses a record that names a system (None is neither family), and a record that names none is refused for that'),
     ('every summary read, not the first by name',
      '        for name in sorted(summaries):',
      '        for name in sorted(summaries)[:1]:', None),
@@ -241,10 +252,10 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '                    if False:', None),
     ('an archive with no machine record',
      '        if not records:',
-     '        if False:', None),
+     '        if False:', 'the weakening raises where the rule refuses (there is no record to read), so its case ends in an error rather than in a verdict'),
     ('an archive with no summary',
      '        if not summaries:',
-     '        if False:', None),
+     '        if False:', 'redundant: with no summary no suite is named, which is refused'),
     ("a summary's own list of failures",
      "            if summary.get('failed'):",
      "            if False and summary.get('failed'):", None),
@@ -259,7 +270,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '                    if False and code != 0:', None),
     ('a summary that names no suite at all',
      '        if not suites:',
-     '        if False:', None),
+     '        if False:', 'redundant: there is a summary by then, and a summary that names no suite is refused by name'),
     ('an archive with no status file',
      '        if not statuses:',
      '        if False:', None),
@@ -268,28 +279,28 @@ RULES: list[tuple[str, str, str, str | None]] = [
      "            if False and archive.read(name).strip() != 'PASS':", None),
     ('an archive with no console log',
      '        if not logs:',
-     '        if False:', None),
+     '        if False:', 'redundant: with no log the test output reads as empty, which is refused'),
     ('console logs that say nothing',
      '        elif not any(archive.read(log).strip() for log in logs):',
      '        elif False:', None),
     ('an archive with no results to read',
      '        if not results:',
-     '        if False:', None),
+     '        if False:', 'redundant: with no results no pin is held, which is refused'),
     ('a pin the results do not hold at all',
      '            if not matching:',
-     '            if False:', None),
+     '            if False:', 'redundant: a pin with no cases has none that ran, which is refused'),
     ("the outcomes a pin's case may have",
      "                         if not outcome <= {'Passed', 'NotExecuted'}}",
      "                         if not outcome <= {'Passed', 'NotExecuted', 'Failed'}}", None),
     ('results that name both platform classes, refused',
      "        if family == 'both':",
-     "        if False and family == 'both':", None),
+     "        if False and family == 'both':", "redundant: 'both' is neither family, so the agreement test after it refuses the record whichever system it names"),
     ('a Windows gate name matched without case, as the runner sets it',
      '        if separator and (key.isascii() and key.upper() == GATE_NAME if windows else key == GATE_NAME):',
      '        if separator and key == GATE_NAME:', None),
     ('a Windows Env trusted only as printable ASCII without %',
      '        if strange:',
-     '        if False and strange:', None),
+     '        if False and strange:', "redundant: child.cmd has to pass the record's Env, and its arguments are printable ASCII without % or ^, with no ! anywhere in the file"),
     ('a Windows Env trusted only as child.cmd passed it',
      '        if launched.group(7) != recorded:',
      '        if False and launched.group(7) != recorded:', None),
@@ -301,7 +312,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      "        pairs = [line[len('env='):] for line in text.splitlines() if line.startswith('env=')]", None),
     ("a gate's value taken after its first equals sign",
      "        key, separator, value = pair.partition('=')",
-     "        key, separator, value = pair.rpartition('=')", None),
+     "        key, separator, value = pair.rpartition('=')", "redundant: taken after the last, a value holding another = leaves one in the name, which is then not the gate's - refused as a record that does not name it"),
     ('a status read whole, not as a word in it',
      "            if archive.read(name).strip() != 'PASS':",
      "            if 'PASS' not in archive.read(name):", None),
@@ -313,7 +324,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '        test, outcome = match.groups()', None),
     ('a record that cannot say what the tests were given, refused',
      '            if unread is not None:',
-     '            if False and unread is not None:', None),
+     '            if False and unread is not None:', 'redundant: every reason a record cannot be read comes with no values, and a record that names no gate is refused'),
     ('a pin found by its whole method name',
      "            matching = {test: outcome for test, outcome in results.items() if test.split('(')[0].endswith('.' + pin)}",
      "            matching = {test: outcome for test, outcome in results.items() if test.split('(')[0].endswith(pin)}", None),
@@ -322,13 +333,13 @@ RULES: list[tuple[str, str, str, str | None]] = [
      "              if test.split('(')[0].endswith(PINS[2]) and 'Passed' in outcome}", "redundant: the class test right after it asks for the whole suffix, the method's own dot included"),
     ('a percent sign in a Windows Env, which cmd.exe expands',
      "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '%!^']",
-     "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '!^']", None),
+     "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '!^']", "redundant: a launcher argument holds no %, and child.cmd has to pass the record's Env"),
     ('a descriptor shape tried only with its signature as it is',
      '                        if signed != (size_of in (16, 24)) or len(trailer) < at + struct.calcsize(kind):',
      '                        if len(trailer) < at + struct.calcsize(kind):', 'no case: without it the other shapes are tried too, and they match only where a CRC equals a size or a size equals the bytes after it, which no writer arranges'),
     ('a ! or ^ in a Windows Env, which delayed expansion changes',
      "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '%!^']",
-     "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '%']", None),
+     "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '%']", "redundant: child.cmd holds no ! and its arguments no ^, and it has to pass the record's Env"),
     ('one child.cmd, not several',
      '        if len(scripts) != 1:',
      '        if not scripts:', None),
@@ -336,8 +347,8 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '        if len(scripts) != 1:',
      '        if len(scripts) > 1:', 'the weakening raises where the rule refuses (there is no child.cmd to read), so its case ends in an error rather than in a verdict'),
     ('child.cmd read whole, not just its start',
-     '        launched = LAUNCHER.fullmatch(archive.read(scripts[0]))',
-     '        launched = LAUNCHER.match(archive.read(scripts[0]))', None),
+     '        launched = LAUNCHER.fullmatch(script)',
+     '        launched = LAUNCHER.match(script)', None),
     ("a launcher that is not the runner's own, refused",
      '        if launched is None:',
      '        if False and launched is None:', 'the weakening raises where the rule refuses (such a file has no arguments to read), so its case ends in an error rather than in a verdict'),
@@ -362,17 +373,77 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ('a Windows name inside FILECAT_ matched without case',
      "        if not (key.upper() if windows else key).startswith('FILECAT_'):",
      "        if not key.startswith('FILECAT_'):", None),
+    ("a child.cmd holding '!', which delayed expansion changes",
+     "        if '!' in script:",
+     "        if False and '!' in script:", None),
+    ('a name counted as repeated from its second copy',
+     '        return sorted(name for name, count in counted.items() if count > 1)',
+     '        return sorted(name for name, count in counted.items() if count > 2)', None),
+    ("the dual-root pin's theory rows read by their method name",
+     "    passed = {test.split('(')[0] for test, outcome in results.items()",
+     '    passed = {test for test, outcome in results.items()', None),
+    ('a step-aside reason read in the results as well as the logs',
+     "        for log in sorted(set(archive.leaves(prefix='test-')) | set(archive.leaves(suffix='.trx'))):",
+     "        for log in sorted(set(archive.leaves(prefix='test-'))):", None),
+    ('the exit code of a run with a refused archive',
+     '    return 1 if failed else 0',
+     '    return 0', None),
 ]
 
-def run(folder: Path) -> tuple[str, list[str]]:
-    """The suite in `folder`, and the cases that failed."""
+def run(folder: Path) -> tuple[str, set[str], dict[str, list[str]], dict[str, list[str]]]:
+    """The suite in `folder`, run to the end of every case: how many cases ran, the cases that noticed (an assertion
+    that did not hold, or an error), each case's verdicts from the check in order, and its refusals' first reasons."""
     shutil.rmtree(folder / '__pycache__', ignore_errors=True)
+    log = folder / 'verdicts.log'
+    if log.exists():
+        log.unlink()
     done = subprocess.run([sys.executable, '-I', '-B', '-X', 'utf8', '-m', 'unittest', 'discover',
-                           '-s', str(folder), '-p', SUITE.name, '-v'], capture_output=True, text=True, cwd=folder)
+                           '-s', str(folder), '-p', SUITE.name, '-v'], capture_output=True, text=True, cwd=folder,
+                          env=dict(os.environ, MEASURE_VERDICTS=str(log)))
     text = done.stdout + done.stderr
     ran = re.search(r'Ran (\d+) tests', text)
-    return (ran.group(1) if ran else '?'), sorted({name[len('test_'):] for name in
-                                                   re.findall(r'(?:FAIL|ERROR): (test_\w+)', text)})
+    noticed = {name[len('test_'):] for name in re.findall(r'(?:FAIL|ERROR): (test_\w+)', text)}
+    verdicts: dict[str, list[str]] = {}
+    reasons: dict[str, list[str]] = {}
+    for line in (log.read_text(encoding='utf-8').split('\n') if log.exists() else []):
+        if not line:
+            continue
+        test, kind, value = line.split('\t', 2)
+        test = test[len('test_'):]
+        if kind == 'assert':
+            noticed.add(test)
+        elif kind == 'verdict':
+            verdicts.setdefault(test, []).append(value)
+        else:
+            reasons.setdefault(test, []).append(value)
+    return (ran.group(1) if ran else '?'), noticed, verdicts, reasons
+
+
+def settled(values: list[str]) -> list[str]:
+    """A check that raises is a refusal: main() refuses an archive whose reading raises, as it refuses any other."""
+    return ['refused' if value.startswith('raised') else value for value in values]
+
+
+def compare(before: list[str], after: list[str]) -> str:
+    """'same' when a case got the same verdicts in the same order, 'changed' when one of them differs, and 'unknown'
+    when the case stopped early - an error in the case itself - before any differed."""
+    for one, other in zip(before, after):
+        if one != other:
+            return 'changed'
+    return 'same' if len(before) == len(after) else 'unknown'
+
+
+# What a note says of its rule, by how it begins - and what the measurement must then find.
+KINDS = (('redundant', 'redundant'), ('no case', 'caseless'), ('the weakening raises', 'raises'))
+
+
+def expected(note: str | None) -> str:
+    if note is None:
+        return 'held'
+    for prefix, kind in KINDS:
+        if note.startswith(prefix):
+            return kind
+    raise SystemExit('a note begins with one of %s: %r' % (', '.join(prefix for prefix, _ in KINDS), note))
 
 
 PARSING = {'split', 'rsplit', 'partition', 'rpartition', 'strip', 'lstrip', 'rstrip', 'startswith', 'endswith',
@@ -429,47 +500,82 @@ def main() -> int:
     arguments = parser.parse_args()
     if arguments.audit:
         return audit()
+    for _, _, _, note in RULES:
+        expected(note)
     committed = CHECK.read_text(encoding='utf-8')
-    held, unmeasured, noted, wrong = [], [], [], []
+    held, noted, unmeasured, contradicted, stale = [], [], [], [], []
     with tempfile.TemporaryDirectory() as directory:
         folder = Path(directory)
         shutil.copy(SUITE, folder / SUITE.name)
         shutil.copy(CHECK, folder / CHECK.name)
-        ran, failed = run(folder)
-        print('as committed: %s cases, %s' % (ran, 'all passing' if not failed else 'FAILING: ' + ', '.join(failed)))
+        ran, failed, baseline, base_reasons = run(folder)
+        print('as committed: %s cases, %s; %d verdicts' % (
+            ran, 'all passing' if not failed else 'FAILING: ' + ', '.join(sorted(failed)),
+            sum(len(values) for values in baseline.values())))
         if failed or ran == '?':
             return 2
         for what, old, new, note in RULES:
             if arguments.rule and arguments.rule not in what:
                 continue
             if committed.count(old) != 1:
-                wrong.append(what)
+                stale.append(what)
                 print('%-62s THE RULE IS NOT THERE ONCE (%d)' % (what, committed.count(old)))
                 continue
             (folder / CHECK.name).write_text(committed.replace(old, new), encoding='utf-8', newline='')
-            ran, failed = run(folder)
-            if ran == '?':
-                wrong.append(what)
-                print('%-62s the suite did not run' % what)
-            elif failed:
-                (held if note is None else noted).append(what)
-                print('%-62s %s%s' % (what, ', '.join(failed), '' if note is None else '   [%s]' % note))
-            elif note is None:
-                unmeasured.append(what)
-                print('%-62s NO CASE, AND ONE IS EXPECTED' % what)
-            else:
-                noted.append(what)
-                print('%-62s no case   [%s]' % (what, note))
+            ran, noticed, verdicts, reasons = run(folder)
             (folder / CHECK.name).write_text(committed, encoding='utf-8', newline='')
+            if ran == '?':
+                stale.append(what)
+                print('%-62s the suite did not run' % what)
+                continue
+            tests = sorted(set(baseline) | set(verdicts))
+            seen = {test: compare(settled(baseline.get(test, [])), settled(verdicts.get(test, []))) for test in tests}
+            changed = [test for test in tests if seen[test] == 'changed']
+            unknown = [test for test in tests if seen[test] == 'unknown']
+            raised = [test for test in tests if any(value.startswith('raised') for value in verdicts.get(test, []))]
+            kind = expected(note)
+            if kind == 'held' and changed:
+                held.append(what)
+                said = 'a verdict changes in ' + ', '.join(changed)
+            elif kind == 'held' and (unknown or noticed):
+                contradicted.append(what)
+                example = next((test for test in sorted(noticed) if reasons.get(test) != base_reasons.get(test)), None)
+                said = ('HELD BY A MESSAGE ONLY: no verdict changes; noticed by %s%s' % (
+                    ', '.join(sorted(noticed)), '' if example is None else '; %s now says %r' % (
+                        example, (reasons.get(example) or ['?'])[0])) if not unknown else
+                        'UNCONFIRMED: no verdict changes before %s stopped early' % ', '.join(unknown))
+            elif kind == 'held':
+                unmeasured.append(what)
+                said = 'NO CASE, AND ONE IS EXPECTED'
+            elif kind == 'redundant' and not changed and not unknown:
+                noted.append(what)
+                said = 'no verdict changes%s   [%s]' % (
+                    '; a message does in ' + ', '.join(sorted(noticed)) if noticed else '', note)
+            elif kind == 'caseless' and not changed and not noticed:
+                noted.append(what)
+                said = 'no case   [%s]' % note
+            elif kind == 'raises' and raised:
+                noted.append(what)
+                said = 'raises in %s   [%s]' % (', '.join(raised), note)
+            else:
+                contradicted.append(what)
+                said = 'THE NOTE IS FALSE: %s   [%s]' % (
+                    'a verdict changes in ' + ', '.join(changed) if changed else
+                    'cases stopped early: ' + ', '.join(unknown) if unknown and kind == 'redundant' else
+                    'noticed by ' + ', '.join(sorted(noticed)) if noticed and kind == 'caseless' else
+                    'nothing raises', note)
+            print('%-62s %s' % (what, said))
     print()
-    measured = len(held) + len(noted) + len(unmeasured)
-    print('%s: %d held by a case, %d noted as redundant or caseless, %d expected to be held and are not%s'
-          % ('%d rules listed' % len(RULES) if measured + len(wrong) == len(RULES)
+    measured = len(held) + len(noted) + len(unmeasured) + len(contradicted)
+    print('%s: %d held by a verdict, %d noted as redundant, caseless or raising, %d expected to be held and are not, '
+          '%d whose note or expectation the measurement contradicts%s'
+          % ('%d rules listed' % len(RULES) if measured + len(stale) == len(RULES)
              else '%d of the %d rules listed measured' % (measured, len(RULES)),
-             len(held), len(noted), len(unmeasured), ': ' + '; '.join(unmeasured) if unmeasured else ''))
-    if wrong:
-        print('%d entries no longer match the check and have to be rewritten: %s' % (len(wrong), '; '.join(wrong)))
-    return 1 if wrong or unmeasured else 0
+             len(held), len(noted), len(unmeasured), len(contradicted),
+             ': ' + '; '.join(unmeasured + contradicted) if unmeasured or contradicted else ''))
+    if stale:
+        print('%d entries no longer match the check and have to be rewritten: %s' % (len(stale), '; '.join(stale)))
+    return 1 if stale or unmeasured or contradicted else 0
 
 
 if __name__ == '__main__':

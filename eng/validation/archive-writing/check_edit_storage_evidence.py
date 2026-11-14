@@ -75,7 +75,8 @@ GATE_VALUE = '1'
 GATE = GATE_NAME + '=' + GATE_VALUE
 # The one launcher the Windows runner writes into child.cmd, every argument quoted: cmd.exe reads it, and PowerShell
 # splits it again. An argument is printable ASCII without `"` (which would re-cut the line - a filter could bind an
-# -Env of its own), `%` (which cmd.exe expands) or `^` (which delayed expansion removes, turning a `\^"` into `\"`).
+# -Env of its own), `%` (which cmd.exe expands) or `^` (which delayed expansion removes, turning a `\^"` into `\"`);
+# and the file as a whole holds no `!` (see gate_assignments).
 ARGUMENT = r'"([ !#$&-\]_-~]*)"'
 LAUNCHER = re.compile(
     r'@echo off\r\nC:\\Windows\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe -NoProfile -ExecutionPolicy '
@@ -425,7 +426,7 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     applying the last), as the gate in force while the tests ran without it.
 
     The forty-first review found three more layers between the record and the tests. On Windows the names are matched
-    without case - the runner's pattern ignores case and the environment matches names without it - so a lowercase gate
+    without case - the runner's pattern then ignored case, and the environment matches names without it - so a lowercase gate
     after the real one was the value the tests saw; and the recorded Env is not what the child is given: the runner
     hands it to child.cmd, which cmd.exe reads again (expanding %...%, ending at a line break), and writes machine.json
     in the ANSI code page with best-fit, so a fullwidth semicolon in a value reads as a real one there. So a Windows Env
@@ -447,6 +448,12 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     gate with nothing in the record at all; that is beyond this reading, and ends only with the tests recording the
     gate as they read it.
 
+    The forty-third review found delayed expansion's other form. Where it is on, cmd.exe reads `!NAME:` up to the next
+    colon as an undefined variable and deletes it, no closing `!` needed - so a `!` in `-Dotnet` and a `:` in the Env
+    deleted the `-Env` between them, while the rest of the Env value completed the Dotnet path, and the child ran with
+    no gate. Whether delayed expansion is on is a setting no record holds, so a child.cmd holding `!` anywhere is
+    refused; the Windows runner refuses `!` in every argument and takes `#~` for a negated shard.
+
     Returns the values in order, or a reason the record cannot say what the tests were given.
     """
     text = archive.read(name)
@@ -466,7 +473,11 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
         if len(scripts) != 1:
             return [], ('it carries %d child.cmd where its runner seals one, so the record cannot say what the tests '
                         'were given' % len(scripts))
-        launched = LAUNCHER.fullmatch(archive.read(scripts[0]))
+        script = archive.read(scripts[0])
+        if '!' in script:
+            return [], ("its child.cmd holds '!', which cmd.exe expands where delayed expansion is on - a setting no "
+                        'record holds - so the record cannot say what the tests were given')
+        launched = LAUNCHER.fullmatch(script)
         if launched is None:
             return [], ('its child.cmd is not the launcher its runner writes, so the record cannot say what the tests '
                         'were given')

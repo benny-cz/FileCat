@@ -298,7 +298,20 @@ its own bound the child's Env while the real `-Env` text, which the check matche
 (reproduced here); and a Unix filter holding a line break, which wrote an `env=` line its runner never exported. The
 check now reads `child.cmd` whole, as the runner's own launcher, and refuses a name outside `FILECAT_`; both runners
 check every argument that reaches `child.cmd` or `machine.txt`, and every argument the r35 lanes passed goes through.
+(The forty-third review found a `!` in `-Dotnet` still deleting the `-Env` under delayed expansion, and the runner's
+other patterns ignoring case - below.)
 What no record can show is recorded as the boundary: a variable in the machine's own environment can set the gate
 the same way, and a Unix record cannot tell a smuggled line from its runner's own. Both end with the tests recording
 the gate as they read it, queued beside the digest. Eighty-six cases hold the check and fourteen the manifest; the
 harness lists one hundred and five rules, ninety-three held, twelve noted, none unheld.
+
+The forty-third review found delayed expansion's other form: where it is on, cmd.exe deletes `!NAME:` up to the next
+colon with no closing `!`, so a `!` in `-Dotnet` and a `:` in the Env took the `-Env` out of `child.cmd` while the
+Dotnet path still resolved - replayed here, the child ran with no gate and the check accepted the archive. A
+`child.cmd` holding `!` is refused now, and the Windows runner refuses `!` in every argument, with `#~` for a negated
+shard. It found the runner's other patterns ignoring case, so U+0130 and U+212A got by; they match with case now. And it
+found the harness counting a rule as held where a case noticed only a message. The harness now measures verdicts, and
+checks each entry's note against the measurement: thirty-two entries were not held by a verdict, twelve of them
+redundant for any archive and noted so, sixteen held by cases refused for more than one reason, which are single-fault
+now, three about what a verdict names, and one held only by a crash, noted as such. Eighty-eight cases hold the check and fourteen the manifest; the harness
+lists one hundred and ten rules, eighty-five held by a verdict, twenty-five noted, none unheld or contradicted.

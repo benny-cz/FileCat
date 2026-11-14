@@ -10,7 +10,8 @@
 #   env:FILECAT_ARCHIVE_SMALL_VOLUME=/home/benny/FileCatValidation/small-volume for an owned small tmpfs.
 #   A hang:MINUTES entry (1-600) replaces the default 20-minute per-test hang guard, for opt-in scale lanes such as AT18.
 #   A test PROJECT may name a shard after "#": PATH.csproj#ClassA+ClassB runs only tests whose name contains one of them,
-#   PATH.csproj#!ClassA+ClassB runs every other test; each shard is its own test process with its own trx and exit code.
+#   PATH.csproj#!ClassA+ClassB (or #~ClassA+ClassB, as the Windows runner takes it) runs every other test; each shard is
+#   its own test process with its own trx and exit code.
 #   FileCat's archive-worker gate is per process, so shards let worker-heavy test classes use more than one CPU.
 #   A parallel:on entry runs all test processes at the same time after every build has finished (default: one by one).
 #   FILTER is a dotnet test --filter expression; "*" runs the complete project inventory.
@@ -22,11 +23,14 @@ RUN_ID=$1; PACKET=$2; EXPECTED=$3; FILTER=$4; shift 4
 PROJECTS=("$@")
 [[ "$RUN_ID" =~ ^[A-Za-z0-9._-]{1,80}$ ]] || { echo "bad run id" >&2; exit 2; }
 [ "${#PROJECTS[@]}" -ge 1 ] || { echo "no project" >&2; exit 2; }
-# FILTER and each PROJECT entry are written into machine.txt and handed to the test processes: printable ASCII only,
-# judged in the C locale. A line break in the filter wrote a line of its own into the record - an env= line this runner
-# never exported - while each test process took the filter's first line alone.
-( LC_ALL=C; [[ "$FILTER" =~ ^[[:print:]]+$ ]] ) || { echo "bad filter" >&2; exit 2; }
-for P in "${PROJECTS[@]}"; do ( LC_ALL=C; [[ "$P" =~ ^[[:print:]]+$ ]] ) || { echo "bad project entry" >&2; exit 2; }; done
+# FILTER and each PROJECT entry are written into machine.txt and handed to the test processes: printable ASCII without
+# `$`, judged in the C locale. A line break in the filter wrote a line of its own into the record - an env= line this
+# runner never exported - while each test process took the filter's first line alone; and systemd-run expands ${...}
+# in the test processes' arguments, so the record would differ from what ran. (The pattern sits in a variable: a space
+# written into [[ =~ ]] itself would have to be escaped, which bash versions pass to the regex differently.)
+PRINTABLE='^[ -#%-~]+$'
+( LC_ALL=C; [[ "$FILTER" =~ $PRINTABLE ]] ) || { echo "bad filter" >&2; exit 2; }
+for P in "${PROJECTS[@]}"; do ( LC_ALL=C; [[ "$P" =~ $PRINTABLE ]] ) || { echo "bad project entry" >&2; exit 2; }; done
 ROOT="$HOME/FileCatValidation/aw-claude"
 mkdir -p "$ROOT"; chmod 700 "$ROOT"
 D="$ROOT/$RUN_ID"
@@ -84,9 +88,9 @@ for P in "${PROJECTS[@]}"; do
     env:*) KV=${P#env:}; ( LC_ALL=C; [[ "$KV" =~ ^FILECAT_[A-Z0-9_]+=[!-#%-~]*$ ]] ) || { echo "bad env entry" >&2; exit 2; }
       export "$KV"; EXTRA_ENVS+=("$KV"); printf 'env=%s\n' "$KV" >>"$D/machine.txt" ;;
     hang:*) M=${P#hang:}; [[ "$M" =~ ^[1-9][0-9]{0,2}$ ]] && [ "$M" -le 600 ] || { echo "bad hang entry" >&2; exit 2; }
-      HANG="${M}m"; echo "hang=$HANG" >>"$D/machine.txt" ;;
+      HANG="${M}m"; printf 'hang=%s\n' "$HANG" >>"$D/machine.txt" ;;
     parallel:*) case "${P#parallel:}" in on) PARALLEL=1 ;; off) PARALLEL=0 ;; *) echo "bad parallel entry" >&2; exit 2 ;; esac
-      echo "parallel=${P#parallel:}" >>"$D/machine.txt" ;;
+      printf 'parallel=%s\n' "${P#parallel:}" >>"$D/machine.txt" ;;
   esac
 done
 USE_SYSTEMD=0
@@ -127,7 +131,7 @@ for P in "${PROJECTS[@]}"; do
   csproj=${P%%#*}; spec=""; [ "$csproj" = "$P" ] || spec=${P#*#}
   name=$(basename "$csproj" .csproj); shard=""
   if [ -n "$spec" ]; then
-    neg=0; case "$spec" in '!'*) neg=1; spec=${spec#!} ;; esac
+    neg=0; case "$spec" in '!'*|'~'*) neg=1; spec=${spec:1} ;; esac
     [[ "$spec" =~ ^[A-Za-z0-9_.]+(\+[A-Za-z0-9_.]+)*$ ]] || { echo "bad shard entry" >&2; exit 2; }
     IFS='+' read -r -a parts <<<"$spec"
     if [ $neg = 1 ]; then shard=$(printf 'FullyQualifiedName!~%s&' "${parts[@]}"); shard="(${shard%&})"; name="$name-not-${spec//+/-}"

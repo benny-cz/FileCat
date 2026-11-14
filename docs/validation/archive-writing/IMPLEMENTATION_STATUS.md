@@ -1,5 +1,52 @@
 # Archive writing implementation status
 
+**14 November, delayed expansion's other form, and what "held" meant (round forty-three).** Asked again whether
+anything was left that the mechanism did not report, the reviewer found three things:
+
+- **High: a `!` in `-Dotnet` and a `:` in the Env deleted the `-Env` where delayed expansion is on.** cmd.exe reads
+  `!NAME:` up to the next colon as an undefined variable and deletes it, no closing `!` needed. With
+  `-Dotnet "C:\FileCatValidation\dotnet\!x\..\dotnet.exe"` - which the runner accepted, and which resolves - and an
+  Env ending `=:dotnet.exe`, the deletion took the `-Env` with it while the rest of the Env value completed the Dotnet
+  path. Replayed here: under `cmd /V:ON` the child bound no Env and the gate was unset, under `/V:OFF` the same file
+  binds as written, and the check accepted it. Delayed expansion is a registry setting, off by default and in no
+  record, and the round below said a `!` in the Env was "closed" - it was not. A `child.cmd` holding `!` anywhere is
+  refused now, and the Windows runner refuses `!` in every argument; a negated shard is written `#~` (the Windows full
+  lane's `#!ArchiveAppContainerTests` becomes `#~ArchiveAppContainerTests`, and the Unix runner takes both).
+- **High: the runner's other patterns ignored case.** The round below gave `-Packet`, `-Filter`, `-Projects` and
+  `-Dotnet` patterns with PowerShell's default options, which ignore case, so U+0130 and U+212A passed as letters, and
+  "the runner refuses such arguments" was false. The check refused such a launcher anyway (its arguments are ASCII),
+  but no case held that for an argument other than the Env. Every runner pattern matches with case now, `-User` is
+  checked too (it is recorded in `machine.json`, where best-fit turns a fullwidth quote into `"`), and a case holds the
+  ASCII range for the other arguments.
+- **Medium: the harness counted a rule as held when only a message changed.** A case that noticed a changed message
+  counted as holding its rule, even where another rule refused the same archive - the reviewer named three. The
+  harness measures verdicts now: every case runs to its end with its assertions written down rather than raised, every
+  call into the check is written down by its verdict (accepted on a named system or refused, a listing whole or not,
+  main()'s exit code with its report's verdict lines), and a rule is held only when, weakened, some verdict changes.
+  Each entry's note is checked against the measurement as well - `redundant` must change no verdict, `no case` must be
+  noticed by nothing, a weakening said to crash must crash - and the exit code reports a contradiction. Measured that
+  way, thirty-two entries the round below counted as held were not. Twelve are redundant for any archive (another rule
+  refuses whatever they refuse) and say which rule now. Sixteen were held by cases whose archives were refused for more
+  than one reason - since the round below, a Windows layout fixture without `child.cmd`, a failure written in four
+  places at once, fixtures built from the check's own pin and reason constants, which follow a rename - and those
+  cases are single-fault now: an archive the check accepts, with one thing changed. Three were about what a verdict
+  names, its system and digest, which the measurement reads as part of the verdict now. And one, a record missing
+  altogether, was held only by a crash - which main() turns into the same refusal - and is noted as such.
+- Low, closed with them: a `$` in the Unix filter or a project entry is refused (systemd-run expands `${...}` in the
+  test processes' arguments too); the Unix runner's `hang=` and `parallel=` lines are written with `printf` like the
+  rest; a stale "the runner's pattern ignores case" in the check's docstring; and four real rules the audit pointed at
+  and cases held - the repeated-name count, the dual-root pin's theory rows, the step-aside scan's file set, main()'s
+  exit code - are listed.
+
+Every argument the r35 lanes passed goes through the runners' checks but one, the Windows full lane's `#!` shard, which
+is `#~` from now on: thirty-four Windows inputs under Windows PowerShell 5.1, and forty-six Unix inputs under this
+host's bash 5.3, the Mac's `/bin/bash` 3.2 and the Ubuntu VM's bash 5.2, the `#~` shard read as negated on each. The
+r35 verdicts are unchanged - five accepted, nine refused - and the full Windows lane, refused for a test failure, names
+its `#!` now as well.
+
+Eighty-eight cases for the check and fourteen for the manifest; the harness lists one hundred and ten rules, eighty-five held by a verdict,
+twenty-five noted as redundant, caseless or raising, and none unheld or contradicted.
+
 **14 November, the runners' other arguments (round forty-two).** Asked again whether anything was left that the
 mechanism did not report, the reviewer found three: inputs the runners accepted as they stood after the round
 below, each sealing an archive the check read as the gate in force while the tests ran without it:
@@ -11,7 +58,8 @@ below, each sealing an archive the check read as the gate in force while the tes
   child ran with no gate. The check now reads `child.cmd` whole, as the one launcher the runner writes: every argument
   printable ASCII without `"`, `%` or `^`, none starting with `-` (a parameter name to PowerShell) or ending in a
   backslash (which turns its closing quote into a literal one), and its `-Env` the record's. The runner refuses such
-  arguments before a run, and all five sealed r35 `child.cmd` files are that launcher.
+  arguments before a run (not U+0130 or U+212A, its patterns then ignoring case - the round above found it), and all
+  five sealed r35 `child.cmd` files are that launcher.
 - **The gate set through the test platform.** Beside the gate,
   `VSTESTCLIRUNSETTINGS=RunConfiguration.EnvironmentVariables.FILECAT_EDIT_NATIVE_REQUIRED=0` passed both runners' name
   checks; MSBuild reads the environment as properties and VSTest reads that one as settings. Reproduced here with the
@@ -26,14 +74,16 @@ below, each sealing an archive the check read as the gate in force while the tes
 - **Medium: the Windows `-Env` pattern let a final line feed by** - its `$` also matches before one. No verdict changed
   (the check refused such a record), but the round below said the runner refused those inputs; it ends in `\z` now.
 - Low, closed with them: an `Env` holding `!` or `^`, which `cmd.exe` changes where delayed expansion is on (the
-  reviewer: `A=!x;GATE=1;B=!` reached the child as `A=` under `cmd /V:ON`), is refused by the check and the runner;
+  reviewer: `A=!x;GATE=1;B=!` reached the child as `A=` under `cmd /V:ON`), is refused by the check and the runner
+  (not closed: the round above found a `!` in `-Dotnet` doing the same, and refuses `!` anywhere in `child.cmd`);
   and the Unix runner refuses a `$` in an env value, since the Ubuntu lane's `systemd-run` expands `${...}` there
   (checked on the VM's systemd 255, which leaves `$HOME` and `%h` alone) - that cannot reach the gate, but it made the
   record differ from what the tests got.
 
 Every argument the r35 lanes passed goes through the new checks: the five Windows argument sets under Windows PowerShell
 5.1, and the thirty Unix filters, project entries and sealed env values under this host's bash 5.3, the Mac's
-`/bin/bash` 3.2 and the Ubuntu VM's bash 5.2 - all accepted, and every input above refused, on each of them.
+`/bin/bash` 3.2 and the Ubuntu VM's bash 5.2 - all accepted, and every input above refused, on each of them (the
+Windows full lane's `#!` shard is refused since the round above, and written `#~`).
 
 **What this round leaves where it was.** Two things no record can show, recorded as the boundary rather than fixed: a
 variable in the machine's own environment - the VM user's, an ssh session's, the systemd user manager's - can set the
@@ -43,7 +93,8 @@ as they read it, queued for the next candidate beside the digest.
 
 Eighty-six cases for the check and fourteen for the manifest; the harness lists one hundred and five rules, ninety-three held by
 a case, twelve noted as redundant or caseless (three of them because their weakening can only crash), and none expected to
-be held and unheld.
+be held and unheld. (Held by a message or a crash, thirty-two of the ninety-three: the round above measures
+verdicts.)
 
 **14 November, the layers between the record and the tests (round forty-one).** The round below read each runner's
 record the way that runner applies it, as far as its own lines go. This review replayed both runners and found three
