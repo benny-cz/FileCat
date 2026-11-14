@@ -24,12 +24,15 @@ PROJECTS=("$@")
 [[ "$RUN_ID" =~ ^[A-Za-z0-9._-]{1,80}$ ]] || { echo "bad run id" >&2; exit 2; }
 [ "${#PROJECTS[@]}" -ge 1 ] || { echo "no project" >&2; exit 2; }
 # FILTER and each PROJECT entry are written into machine.txt and handed to the test processes: printable ASCII without
-# `$`, judged in the C locale. A line break in the filter wrote a line of its own into the record - an env= line this
-# runner never exported - while each test process took the filter's first line alone; and systemd-run expands ${...}
-# in the test processes' arguments, so the record would differ from what ran. (The pattern sits in a variable: a space
-# written into [[ =~ ]] itself would have to be escaped, which bash versions pass to the regex differently.)
-PRINTABLE='^[ -#%-~]+$'
-( LC_ALL=C; [[ "$FILTER" =~ $PRINTABLE ]] ) || { echo "bad filter" >&2; exit 2; }
+# `"` or `$`, judged in the C locale. A line break in the filter wrote a line of its own into the record - an env= line
+# this runner never exported - while each test process took the filter's first line alone; systemd-run expands ${...}
+# in the test processes' arguments; and dotnet hands the filter to MSBuild inside quotes, so a `"` ended it and what
+# followed a `;` set other properties - the gate among them, through VSTestCLIRunSettings. The filter holds no `@`
+# either (a response file where it begins, an item list inside it) and does not begin with `-`. (The patterns sit in
+# variables: a space written into [[ =~ ]] itself would have to be escaped, which bash versions pass on differently.)
+PRINTABLE='^[ !#%-~]+$'
+FILTERABLE='^[ !#%-,.-?A-~][ !#%-?A-~]*$'
+( LC_ALL=C; [[ "$FILTER" =~ $FILTERABLE ]] ) || { echo "bad filter" >&2; exit 2; }
 for P in "${PROJECTS[@]}"; do ( LC_ALL=C; [[ "$P" =~ $PRINTABLE ]] ) || { echo "bad project entry" >&2; exit 2; }; done
 ROOT="$HOME/FileCatValidation/aw-claude"
 mkdir -p "$ROOT"; chmod 700 "$ROOT"

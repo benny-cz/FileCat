@@ -921,28 +921,31 @@ class EvidenceChecks(unittest.TestCase):
     def test_accepts_a_descriptor_written_without_its_signature(self):
         """A trailing descriptor's signature is optional, and a writer may leave it out: twelve bytes, or twenty where
         the entry is wide. Measured as if it were there, such a member is refused four bytes short."""
-        with tempfile.TemporaryDirectory() as directory:
-            class Unseekable(io.RawIOBase):  # zipfile cannot rewind it, so it writes a trailing descriptor
-                def __init__(self, handle): self.handle = handle
-                def writable(self): return True
-                def seekable(self): return False
-                def write(self, data): return self.handle.write(data)
-            raw = io.BytesIO()
-            with zipfile.ZipFile(Unseekable(raw), 'w', zipfile.ZIP_DEFLATED) as held:
-                held.writestr('summary.json', '{}' * 48)
-            blob = raw.getvalue()
-            at = blob.find(b'PK' + bytes((7, 8)))
-            self.assertNotEqual(-1, at, 'this zipfile wrote no descriptor, so the case proves nothing')
-            blob = blob[:at] + blob[at + 4:]                 # the signature left out, the rest unmoved
-            end = blob.rfind(b'PK' + bytes((5, 6)))
-            start, = struct.unpack('<I', blob[end + 16:end + 20])
-            blob = blob[:end + 16] + struct.pack('<I', start - 4) + blob[end + 20:]  # the directory, four bytes on
-            path = Path(directory) / 'unsigned.zip'
-            path.write_bytes(blob)
-            with zipfile.ZipFile(path) as held:
-                self.assertIsNone(held.testzip())            # an archive any reader reads
-            with checker.Archive(path) as held:
-                self.assertIsNone(held.listing_gap())
+        class Unseekable(io.RawIOBase):  # zipfile cannot rewind it, so it writes a trailing descriptor
+            def __init__(self, handle): self.handle = handle
+            def writable(self): return True
+            def seekable(self): return False
+            def write(self, data): return self.handle.write(data)
+        for wide in (False, True):
+            with self.subTest(wide=wide), tempfile.TemporaryDirectory() as directory:
+                raw = io.BytesIO()
+                with zipfile.ZipFile(Unseekable(raw), 'w', zipfile.ZIP_DEFLATED) as held:
+                    with held.open(zipfile.ZipInfo('summary.json'), 'w', force_zip64=wide) as member:
+                        member.write(('{}' * 48).encode('ascii'))
+                blob = raw.getvalue()
+                at = blob.find(b'PK' + bytes((7, 8)))
+                self.assertNotEqual(-1, at, 'this zipfile wrote no descriptor, so the case proves nothing')
+                self.assertEqual(24 if wide else 16, blob.find(b'PK' + bytes((1, 2)), at) - at)
+                blob = blob[:at] + blob[at + 4:]                 # the signature left out, the rest unmoved
+                end = blob.rfind(b'PK' + bytes((5, 6)))
+                start, = struct.unpack('<I', blob[end + 16:end + 20])
+                blob = blob[:end + 16] + struct.pack('<I', start - 4) + blob[end + 20:]  # the directory, four bytes on
+                path = Path(directory) / 'unsigned.zip'
+                path.write_bytes(blob)
+                with zipfile.ZipFile(path) as held:
+                    self.assertIsNone(held.testzip())            # an archive any reader reads
+                with checker.Archive(path) as held:
+                    self.assertIsNone(held.listing_gap())
 
     def test_refuses_a_descriptor_that_states_sizes_its_directory_does_not(self):
         """A descriptor is where a streamed member's sizes are, so one stating other sizes than the directory's - in
@@ -1207,12 +1210,13 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_refuses_a_launcher_line_longer_than_cmd_reads_as_written(self):
         """cmd.exe reads about 8191 characters of what follows a program's name as written; past that an `&` inside
-        quotes can end the command and run the rest of the line as another. The forty-fourth review padded an Env so its `&` fell there: the gate
-        after it never reached the child, and the check read it as in force. A line of 8191 characters still stands."""
+        quotes can end the command and run the rest of the line as another. The forty-fourth review padded an Env so its
+        `&` fell there: the gate after it never reached the child, and the check read it as in force. A line of 8191
+        characters still stands, and one character more does not."""
         gate = 'FILECAT_EDIT_NATIVE_REQUIRED'
         head, tail = 'FILECAT_ARCHIVE_TXF_NATIVE=1;FILECAT_ARCHIVE_PAD=', '&;' + gate + '=1'
         base = len(launcher(head + tail).split('\r\n')[1])
-        for length in (8191, 8191 + 60):
+        for length in (8191, 8192, 8191 + 60):
             with self.subTest(length):
                 env = head + 'x' * (length - base) + tail
                 self.assertEqual(length, len(launcher(env).split('\r\n')[1]))
@@ -1358,6 +1362,58 @@ class EvidenceChecks(unittest.TestCase):
         self.assertTrue(any(said in problem for problem in problems), problems)
         problems, _ = self.check(self.unix_record('env=' + gate + '=1', 'env=FILECAT_ARCHIVE_TXF_NATIVE'), unix=True)
         self.assertTrue(any(said in problem for problem in problems), problems)
+
+    def test_refuses_a_zip64_member_its_directory_stretches(self):
+        """A zip64 member's local header defers its sizes to its zip64 extra field, which has to state what the
+        directory does: taken unchecked, a directory that dropped a log saying a test stepped aside and stretched the
+        zip64 member over its bytes was accepted (the forty-sixth review). Without that log, the zip64 member stands."""
+        reason = STEP_ASIDE_WORDS[0]
+        with tempfile.TemporaryDirectory() as directory:
+            for logged in (False, True):
+                path = Path(directory) / ('edit-z64-%s-evidence.zip' % logged)
+                with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as held:
+                    for name, text in with_child_cmd(files()).items():
+                        held.writestr(name.replace('/', '\\'), text)
+                    with held.open(zipfile.ZipInfo('zz-wide.bin'), 'w', force_zip64=True) as member:
+                        member.write(b'w' * 300)
+                    if logged:
+                        held.writestr('test-zz-Core.Tests-Edit.log', '[xUnit.net] ' + reason + '\n')
+                problems, _ = checker.check(path)
+                self.assertEqual([], problems) if not logged else self.assertTrue(
+                    any(reason in problem for problem in problems), problems)
+            with zipfile.ZipFile(path) as held:
+                start = held.start_dir
+                order = sorted(held.infolist(), key=lambda item: item.header_offset)
+            wide = next(item for item in order if item.filename == 'zz-wide.bin')
+            log = next(item for item in order if item.filename.startswith('test-zz'))
+            self.assertIs(log, order[-1])
+            kept = [(item, item.compress_size + (start - log.header_offset if item is wide else 0))
+                    for item in order if item is not log]
+            self.rewritten_directory(path, kept, at=start)
+            problems, _ = checker.check(path)
+            self.assertEqual(1, len(problems), problems)
+            self.assertIn("the entry 'zz-wide.bin' is", problems[0])
+
+    def test_refuses_a_filter_dotnet_does_not_pass_on_as_written(self):
+        """dotnet hands --filter to MSBuild as VSTestTestCaseFilter="...", so a `"` ended that property and what
+        followed a `;` set others - VSTestCLIRunSettings among them, which set the gate to 0 inside the test host while
+        the record named it as 1 (the forty-sixth review, through SDK 10.0.101). An `@` reads as a response file where
+        the filter begins and as an item list inside it, and a leading `-` as an option of dotnet's."""
+        gate = 'FILECAT_EDIT_NATIVE_REQUIRED'
+        injected = ('(FullyQualifiedName~Edit)";VSTestCLIRunSettings=RunConfiguration.EnvironmentVariables.' + gate +
+                    '=0;Z="1')
+        for value, said in ((injected, "holding '\"'"), ('@lane.rsp', "holding '@'"), ('X@(None)Y', "holding '@'"),
+                            ('-p:Z=1', 'beginning with -')):
+            with self.subTest(value):
+                problems, _ = self.check(self.unix_record('filter=' + value, 'env=' + gate + '=1'), unix=True)
+                self.assertTrue(any(said in problem for problem in problems), problems)
+        self.assertEqual([], self.check(self.unix_record('filter=FullyQualifiedName~Edit|FullyQualifiedName~Native',
+                                                         'env=' + gate + '=1'), unix=True)[0])
+        recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1'
+        contents = self.windows_record(recorded)
+        contents['child.cmd'] = launcher(recorded, filter='@lane.rsp')
+        problems, _ = self.check(contents)
+        self.assertTrue(any("passes a filter holding '@'" in problem for problem in problems), problems)
 
     def test_names_an_archive_whose_compression_it_cannot_read(self):
         """A method this reader does not know is one more refusal, and the run's other archives are still reported:

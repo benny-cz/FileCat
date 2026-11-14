@@ -1,5 +1,38 @@
 # Archive writing implementation status
 
+**14 November, the filter reaching the gate (round forty-six).** Asked again whether anything was left that the
+mechanism did not report, the reviewer found two things at High and one at Medium:
+
+- **High: a Unix filter holding `"` turned the gate off inside the test host.** dotnet hands `--filter` to MSBuild as
+  `VSTestTestCaseFilter="..."`, so a `"` in the filter ended that property and what followed a `;` set others. With
+  `(FullyQualifiedName~Edit)";VSTestCLIRunSettings=RunConfiguration.EnvironmentVariables.FILECAT_EDIT_NATIVE_REQUIRED=0;Z="1`
+  the test host read the gate as `0` while the record named it as `1` - the reviewer ran it end to end, and it is
+  replayed here through SDK 10.0.101 with an MSBuild probe: the filter property ended at the quote and
+  `VSTestCLIRunSettings` was set. The Unix runner admitted the `"` (the Windows runner did not), and the check read
+  only `env=` lines. A filter holding `"` or `@` - a response file where it begins, an item list inside it (`@(None)`
+  expanded to nothing in the probe) - or beginning with `-` is refused now, by the check for both runners' records and
+  by both runners before a run. `$(...)`, property functions and `%(...)` stay as written, and a `;` or `%3B` stays
+  inside the filter (replayed).
+- **High: "each member as long as its own local header says" was false for a zip64 member,** whose local header leaves
+  its sizes to its zip64 extra field: the check took the directory's size unchecked there, so a directory that dropped
+  a log and stretched a zip64 member over it was accepted. That needs bytes changed, and the runners' zips hold no
+  zip64 member, but the claim was false. The extra field's compressed size is held to the directory's now, with a case.
+- **Medium: two harness entries weakened the check alike** - both dropped the two unsigned descriptor shapes - so one
+  rule was counted twice and the twenty-byte shape was measured nowhere, though it decides a verdict for a wide member
+  whose descriptor leaves its signature out. Each of the four shapes has an entry of its own now, and a case where only
+  it fits, and the harness refuses two entries that weaken the check alike. The round below's "one hundred and
+  thirteen rules, ninety-one held" was one hundred and twelve and ninety. The harness's docstring said descriptor
+  shapes had cases asserting their own words; it says what holds each now.
+- Low, closed with them: a launcher line of 8192 characters is refused by a case, pinning the bound exactly; the
+  docstrings say a forgery put before a sealed tar is read in its place, where they had it the wrong way round; the
+  harness's skip message names both tars; and its docstring says no case calls `repeated()` on its own.
+
+Every r35 argument passes the runners' checks - forty-eight Windows inputs under Windows PowerShell 5.1, forty-four
+Unix inputs under this host's bash 5.3, the Mac's `/bin/bash` 3.2 and the Ubuntu VM's bash 5.2 - and the r35 verdicts
+are unchanged, five accepted and nine refused; all 23 manifest digests match. Ninety-eight cases for the check and
+fourteen for the manifest; the harness lists one hundred and twenty rules, ninety-eight held by a verdict, twenty-two noted as
+redundant, caseless or raising, and none unheld or contradicted.
+
 **14 November, notes broken by shapes the suite never built (round forty-five).** Asked again whether anything was
 left that the mechanism did not report, the reviewer found three things at High, each a harness note or verdict made
 false by an archive the suite did not hold:
@@ -35,7 +68,8 @@ false by an archive the suite did not hold:
 
 The r35 verdicts are unchanged - five accepted, nine refused - and all 23 manifest digests match. Ninety-six cases for
 the check and fourteen for the manifest; the harness lists one hundred and thirteen rules, ninety-one held by a verdict,
-twenty-two noted as redundant, caseless or raising, and none unheld or contradicted.
+twenty-two noted as redundant, caseless or raising, and none unheld or contradicted. (One hundred and twelve and ninety:
+two entries weakened the check alike, the round above found.)
 
 **14 November, the launcher line's length, and three harness verdicts (round forty-four).** Asked again whether
 anything was left that the mechanism did not report, the reviewer found three things at High and three at Medium:

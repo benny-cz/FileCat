@@ -9,15 +9,16 @@ this is what reads what is inside it.
 It reads a run's evidence archive (`<run>-evidence.zip` from the Windows runner, `<run>-evidence.tar.gz` from the Unix
 one) and requires all of:
 
-  * the machine record gives `FILECAT_EDIT_NATIVE_REQUIRED` exactly the value `1`, once, and sets nothing outside
-    `FILECAT_`, read as its runner applies it as far as reviews have found how (see `gate_assignments`), and a record
-    that cannot say what reached the tests is refused. That a native edit test could not skip rests on this reading
+  * the machine record gives `FILECAT_EDIT_NATIVE_REQUIRED` exactly the value `1`, once, sets nothing outside
+    `FILECAT_`, and hands its tests a filter dotnet and MSBuild pass on as written, read as its runner applies it as
+    far as reviews have found how (see `gate_assignments`), and a record that cannot say what reached the tests is
+    refused. That a native edit test could not skip rests on this reading
     and on the machine's own environment, which no record holds; the tests recording the gate as they read it would
     end both, and is queued for the next candidate;
   * its own listing accounts for the whole file, each member as long as its own local header says - a zip is read
     from its end and sized from its directory, so an appended zip is read alone and a directory that overstates a
     size can leave the sealed half inside a member's span; a gzipped tar holds one member and nothing after it,
-    since a tar prepended to another is read as the other one;
+    since of two tars joined in one file a reader reads only the first - a forgery put before a sealed tar;
   * it carries one machine record, whose members do not repeat, and the system that record names agrees with the
     class that passed this run's own dual-root pin - which has to be one of the two real ones, so a record rewritten
     to another system, a second record put before the real one, and a pin whose class was renamed or nested are each
@@ -232,7 +233,14 @@ class Archive:
                                 % (item.orig_filename, item.compress_size))
                     length += fits[0]
                 elif stated == 0xffffffff:
-                    pass  # a size recorded in the zip64 extra field, which the directory's copy carries
+                    # The sizes are in the local zip64 extra field - the plain size, then the compressed one - and
+                    # that has to state what the directory does too: taken unchecked, a directory stretched a zip64
+                    # member over the bytes after it and hid a log, as it cannot any other member (the forty-sixth
+                    # review).
+                    local = zip64_sizes(extra_field)
+                    if local is None or local[1] != item.compress_size:
+                        return ('the entry %r is %d bytes long where the file says %s'
+                                % (item.filename, item.compress_size, 'nothing' if local is None else local[1]))
                 elif stated != item.compress_size:
                     # The size the file itself states for that member, against the one the directory states. A
                     # directory that overstates it leaves the member's bytes alone while its span swallows what
@@ -274,7 +282,7 @@ class Archive:
         """Why this gzipped tar is not the whole of its file; None when it is.
 
         gzip reads concatenated members as one stream and tarfile stops at the first tar's own end-of-archive blocks,
-        so appending to a sealed `.tar.gz` adds nothing a reader sees - but a sealed archive *prepended* to a forged
+        so appending to a sealed `.tar.gz` adds nothing a reader sees - but a forged archive put *before* a sealed
         one is passed over in favour of the forgery, which is how a mac lane's bytes carried a five-member forgery.
         Every archive either runner seals is one gzip member with nothing after it.
         """
@@ -346,6 +354,17 @@ class Archive:
         for handle in (self._zip, self._tar):
             if handle is not None:
                 handle.close()
+
+
+def zip64_sizes(extra: bytes) -> tuple[int, int] | None:
+    """The plain and compressed sizes a local header's zip64 extra field (id 1) states, or None where it has none."""
+    at = 0
+    while at + 4 <= len(extra):
+        kind, size = struct.unpack('<HH', extra[at:at + 4])
+        if kind == 1 and size >= 16:
+            return struct.unpack('<QQ', extra[at + 4:at + 20])  # type: ignore[return-value]
+        at += 4 + size
+    return None
 
 
 def machine_records(archive: Archive) -> list[str]:
@@ -473,6 +492,12 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     The forty-fifth review found a record entry with no `=` read as nothing: the Windows child throws applying one, and
     the Unix runner never writes one, so a record holding one cannot say what the tests were given - it is refused.
 
+    The forty-sixth review found the filter reaching the gate. dotnet hands `--filter` to MSBuild as
+    `VSTestTestCaseFilter="..."`, so a `"` in it ended that property and what followed a `;` set others - among them
+    `VSTestCLIRunSettings`, which set the gate to 0 inside the test host while the record named it as 1. The Unix
+    runner admitted a `"`. A filter holding `"` or `@` (a response file where it begins, an item list inside it) or
+    beginning with `-` (an option of dotnet's) is refused, as both runners refuse it before a run.
+
     Returns the values in order, or a reason the record cannot say what the tests were given.
     """
     text = archive.read(name)
@@ -509,12 +534,25 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
             return [], ('its child.cmd passes %r, which PowerShell does not read as written - a leading - names a '
                         'parameter, a trailing backslash escapes the closing quote - so the record cannot say what the '
                         'tests were given' % odd[0])
+        if '@' in launched.group(4):
+            return [], ("its child.cmd passes a filter holding '@', which dotnet reads as a response file where it "
+                        'begins and MSBuild expands as an item list inside it, so the record cannot say what the tests '
+                        'were given')
         if launched.group(7) != recorded:
             return [], ('its child.cmd passed %r where its machine record holds Env %r, so the record cannot say what '
                         'the tests were given' % (launched.group(7), recorded))
         pairs = [item for item in recorded.split(';') if item]
     else:
-        pairs = [line[len('env='):] for line in text.split('\n') if line.startswith('env=')]
+        lines = text.split('\n')
+        for line in lines:
+            if line.startswith(('filter=', 'test ')) and ('"' in line or '@' in line):
+                return [], ("its machine record hands its tests a filter holding %r, which dotnet and MSBuild do not "
+                            'pass on as written, so the record cannot say what the tests were given'
+                            % ('"' if '"' in line else '@'))
+            if line.startswith('filter=-'):
+                return [], ('its machine record hands its tests a filter beginning with -, which dotnet reads as an '
+                            'option of its own, so the record cannot say what the tests were given')
+        pairs = [line[len('env='):] for line in lines if line.startswith('env=')]
     values = []
     for pair in pairs:
         key, separator, value = pair.partition('=')

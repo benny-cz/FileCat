@@ -336,4 +336,15 @@ has a case, every descriptor shape is tried and what follows decides, and a main
 archive it was given refused, its case putting a passing archive first. A record entry with no `=` is refused, a
 skipped case stops the measurement, and the texts on cmd.exe's 8191 characters are exact. Ninety-six cases hold the
 check and fourteen the manifest; the harness lists one hundred and thirteen rules, ninety-one held by a verdict, twenty-two
-noted, none unheld or contradicted.
+noted, none unheld or contradicted. (One hundred and twelve and ninety - two entries weakened the check alike, the
+forty-sixth review found.)
+
+The forty-sixth review found the filter reaching the gate: dotnet hands `--filter` to MSBuild inside quotes, so a `"` in
+a Unix filter - which the Unix runner admitted - ended that property and set `VSTestCLIRunSettings`, and the test host
+read the gate as `0` while the record named it as `1` (replayed here through SDK 10.0.101). A filter holding `"` or `@`,
+or beginning with `-`, is refused now by the check and by both runners. It found the check taking a zip64 member's size
+from its directory unchecked, against the claim that each member is as long as its own header says, and two harness
+entries that weakened the check alike, leaving one descriptor shape unmeasured; the zip64 size is checked, each shape
+has its own entry and case, and the harness refuses twin entries. Ninety-eight cases hold the check and fourteen the
+manifest; the harness lists one hundred and twenty rules, ninety-eight held by a verdict, twenty-two noted, none unheld or
+contradicted.

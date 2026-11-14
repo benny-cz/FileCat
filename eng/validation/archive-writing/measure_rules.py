@@ -14,14 +14,15 @@ a refusal sat unmeasured for a round - so a rule added to the check wants an ent
 and prints every line that holds a condition (an `if`, a comparison, a boolean, a comprehension's filter), a parsing
 call (split, strip, partition, a prefix or suffix test, a regular expression, `json.loads`, `struct.unpack`, a decode)
 or the iterable of a loop, which no entry names. It cannot see a rule held in a constant's contents - a list of reasons,
-pins or descriptor shapes - which is why those constants have cases asserting their own words; and it found nothing of
+pins or descriptor shapes - which is why the reasons and the pins have cases asserting their own words, and
+each descriptor shape an entry of its own; and it found nothing of
 the rule the fortieth review did find, because the line-prefix filter it replaced could not see a `for` over a split.
 
 What counts is a verdict, not a message. The suite runs with every case going on to its end - an assertion that does
 not hold is written down rather than raised - and with every call a case makes into the check written down by its
 verdict: an archive accepted (on the system it names) or refused, a listing whole or not, main()'s exit code with
-its report's verdict lines - for the four functions the cases call for a verdict, check(), main(), listing_gap() and
-repeated(). A call that raises counts as that call's own refusal, since main() refuses an archive whose reading raises,
+its report's verdict lines - for the functions the cases call for a verdict, check(), main() and listing_gap()
+(repeated() is wrapped too, though no case calls it on its own). A call that raises counts as that call's own refusal, since main() refuses an archive whose reading raises,
 and the case goes on. A rule is held when, weakened, some case's verdicts change. Until the forty-third review a case
 that noticed only a changed message counted as holding its rule, and thirty-two entries were "held" that way.
 
@@ -222,17 +223,14 @@ RULES: list[tuple[str, str, str, str | None]] = [
      "        pairs = [item for item in recorded.split(';') if item]",
      "        pairs = [item for item in re.split(r'[;\\s]+', recorded) if item]", None),
     ("the Unix runner's own env= lines, each one entry",
-     "        pairs = [line[len('env='):] for line in text.split('\\n') if line.startswith('env=')]",
-     "        pairs = [part for line in text.split('\\n') for part in re.split(r'[;\\s]+', line.removeprefix('env='))]", None),
+     "        pairs = [line[len('env='):] for line in lines if line.startswith('env=')]",
+     "        pairs = [part for line in lines for part in re.split(r'[;\\s]+', line.removeprefix('env='))]", None),
     ('a value taken as the runner sets it, untrimmed',
      '            values.append(value)',
      '            values.append(value.strip())', None),
     ('a gate given more than once',
      '            elif len(values) > 1:',
      '            elif False and len(values) > 1:', None),
-    ('a descriptor written without its signature',
-     "((16, '<II', 8), (24, '<QQ', 8), (12, '<II', 4), (20, '<QQ', 4))",
-     "((16, '<II', 8), (24, '<QQ', 8))", None),
     ("an empty member's descriptor told by what follows it",
      '                        fits = followed[:1] or fits[:1]',
      '                        fits = fits[:1]', None),
@@ -306,8 +304,8 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '        if not isinstance(recorded, str):',
      '        if False and not isinstance(recorded, str):', 'redundant: a list in its place is not the string its child.cmd passes, which that rule refuses'),
     ('a Unix record split at newlines alone, as bash writes it',
-     "        pairs = [line[len('env='):] for line in text.split('\\n') if line.startswith('env=')]",
-     "        pairs = [line[len('env='):] for line in text.splitlines() if line.startswith('env=')]", None),
+     "        lines = text.split('\\n')",
+     '        lines = text.splitlines()', None),
     ("a gate's value taken after its first equals sign",
      "        key, separator, value = pair.partition('=')",
      "        key, separator, value = pair.rpartition('=')", None),
@@ -395,9 +393,33 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ('the dual-root pin counted only where it passed',
      "              if test.split('(')[0].endswith('.' + PINS[2]) and 'Passed' in outcome}",
      "              if test.split('(')[0].endswith('.' + PINS[2])}", None),
-    ('a descriptor read without its signature too',
-     "                    for size_of, kind, at in ((16, '<II', 8), (24, '<QQ', 8), (12, '<II', 4), (20, '<QQ', 4)):",
-     "                    for size_of, kind, at in ((16, '<II', 8), (24, '<QQ', 8)):", None),
+    ('a narrow descriptor with its signature',
+     "((16, '<II', 8), (24, '<QQ', 8), (12, '<II', 4), (20, '<QQ', 4))",
+     "((24, '<QQ', 8), (12, '<II', 4), (20, '<QQ', 4))", None),
+    ('a wide descriptor with its signature',
+     "((16, '<II', 8), (24, '<QQ', 8), (12, '<II', 4), (20, '<QQ', 4))",
+     "((16, '<II', 8), (12, '<II', 4), (20, '<QQ', 4))", None),
+    ('a narrow descriptor written without its signature',
+     "((16, '<II', 8), (24, '<QQ', 8), (12, '<II', 4), (20, '<QQ', 4))",
+     "((16, '<II', 8), (24, '<QQ', 8), (20, '<QQ', 4))", None),
+    ('a wide descriptor written without its signature',
+     "((16, '<II', 8), (24, '<QQ', 8), (12, '<II', 4), (20, '<QQ', 4))",
+     "((16, '<II', 8), (24, '<QQ', 8), (12, '<II', 4))", None),
+    ("a zip64 member's size as its own local header states it",
+     '                    if local is None or local[1] != item.compress_size:',
+     '                    if False and (local is None or local[1] != item.compress_size):', None),
+    ("a Windows filter holding '@', refused",
+     "        if '@' in launched.group(4):",
+     "        if False and '@' in launched.group(4):", None),
+    ('a Unix filter holding a quote, refused',
+     '            if line.startswith((\'filter=\', \'test \')) and (\'"\' in line or \'@\' in line):',
+     "            if line.startswith(('filter=', 'test ')) and ('@' in line):", None),
+    ("a Unix filter holding '@', refused",
+     '            if line.startswith((\'filter=\', \'test \')) and (\'"\' in line or \'@\' in line):',
+     '            if line.startswith((\'filter=\', \'test \')) and (\'"\' in line):', None),
+    ('a Unix filter beginning with -, refused',
+     "            if line.startswith('filter=-'):",
+     "            if False and line.startswith('filter=-'):", None),
 ]
 
 def run(folder: Path) -> tuple[str, int, set[str], dict[str, list[str]], dict[str, list[str]]]:
@@ -517,6 +539,15 @@ def main() -> int:
         expected(note)
     committed = CHECK.read_text(encoding='utf-8')
     held, noted, unmeasured, contradicted, stale = [], [], [], [], []
+    # Two entries that weaken the check alike measure one rule twice and count it twice, and leave whatever each
+    # was meant to measure apart unmeasured (one shape of four went so, the forty-sixth review found).
+    mutants: dict[str, str] = {}
+    for what, old, new, _ in RULES:
+        if committed.count(old) == 1:
+            twin = mutants.setdefault(committed.replace(old, new), what)
+            if twin != what:
+                stale.append(what)
+                print('%-62s THE SAME WEAKENING AS %r' % (what, twin))
     with tempfile.TemporaryDirectory() as directory:
         folder = Path(directory)
         shutil.copy(SUITE, folder / SUITE.name)
@@ -531,10 +562,10 @@ def main() -> int:
             # A case that does not run holds nothing, and would show its rules as caseless: the GNU tar case skips
             # where the first tar on PATH is bsdtar (Windows' own tar.exe ahead of Git's, from PowerShell).
             print('%d of them skipped here, so this measurement would not be the suite\'s: run it where every case '
-                  'runs (GNU tar on PATH, as Git Bash has it)' % skipped)
+                  'runs - GNU tar and bsdtar both on PATH, as Git Bash on Windows has them' % skipped)
             return 2
         for what, old, new, note in RULES:
-            if arguments.rule and arguments.rule not in what:
+            if arguments.rule and arguments.rule not in what or what in stale:
                 continue
             if committed.count(old) != 1:
                 stale.append(what)
