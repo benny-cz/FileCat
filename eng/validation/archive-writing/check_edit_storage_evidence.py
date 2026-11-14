@@ -78,9 +78,10 @@ GATE = GATE_NAME + '=' + GATE_VALUE
 # -Env of its own), `%` (which cmd.exe expands) or `^` (which delayed expansion removes, turning a `\^"` into `\"`);
 # and the file as a whole holds no `!` (see gate_assignments).
 ARGUMENT = r'"([ !#$&-\]_-~]*)"'
-# cmd.exe reads a line of up to 8191 characters as written. Past that, an `&` inside quotes can end the command and run
-# the rest of the line as another: the forty-fourth review cut an Env there, and the gate after the `&` never reached
-# the child. So the launcher line is no longer than that.
+# cmd.exe reads about 8191 characters of what follows a program's name as written. Past that, an `&` inside quotes can
+# end the command and run the rest of the line as another (here from column 8249, after the launcher's 57-character
+# program path): the forty-fourth review cut an Env there, and the gate after the `&` never reached the child. So the
+# whole launcher line is held to 8191 characters, which leaves the program's path to spare.
 CMD_LINE = 8191
 LAUNCHER = re.compile(
     r'@echo off\r\nC:\\Windows\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe -NoProfile -ExecutionPolicy '
@@ -116,7 +117,8 @@ class Archive:
 
     def __init__(self, path: Path) -> None:
         self.path = path
-        # Only the files, each kept as its own member: a folder entry whose name ends in a file's name would be
+        # Every member but a folder - for a tar, its links, FIFOs and devices too - each kept as its own member: a
+        # folder entry whose name ends in a file's name would be
         # counted as that file (a tar `notes/machine.json/` was counted as a second machine record), and - because
         # both formats resolve a name to its LAST member and give nothing for a folder - leaving it out of the list
         # while still reading by name let one appended 512-byte folder header empty any file in a sealed tar.
@@ -200,7 +202,6 @@ class Archive:
                     # header at all - so the pair that states this member's own size is the pair that was written.
                     handle.seek(item.header_offset + 30 + name + extra + item.compress_size)
                     trailer = handle.read(24)
-                    signed = trailer[:4] == b'PK\x07\x08'
                     # Both sizes, not the compressed one alone: read as narrow, a wide descriptor's low half states
                     # the compressed size correctly for any member under 4 GiB, and only its second field tells them
                     # apart. An empty member states nought in both widths, so there what follows decides: the next
@@ -208,8 +209,12 @@ class Archive:
                     # archives (an empty file under bsdtar's zip64, and zipfile writing wide to a stream) needed.
                     data_end = item.header_offset + 30 + name + extra + item.compress_size
                     fits = []
+                    # Every shape is tried, signed or not: an unsigned descriptor whose CRC happens to be 0x08074b50
+                    # begins with the signature's own bytes, and read as signed alone it fitted no shape - a valid
+                    # member refused, which the forty-fifth review built. Where more than one shape fits, what follows
+                    # the descriptor decides, below.
                     for size_of, kind, at in ((16, '<II', 8), (24, '<QQ', 8), (12, '<II', 4), (20, '<QQ', 4)):
-                        if signed != (size_of in (16, 24)) or len(trailer) < at + struct.calcsize(kind):
+                        if len(trailer) < at + struct.calcsize(kind):
                             continue
                         compressed, plain = struct.unpack(kind, trailer[at:at + struct.calcsize(kind)])
                         if compressed == item.compress_size and plain == item.file_size:
@@ -306,9 +311,10 @@ class Archive:
             after = len(stream.unused_data) + len(handle.read())
         if after:
             return 'the file holds %d bytes after this archive\'s own end' % after
-        # Redundant, as `measure_rules.py` measures it: tarfile itself raises listing a tar whose last member claims
-        # more than was compressed - it seeks past that member to read what follows - so this floor is never reached
-        # by a tar it lists, and stays as the floor.
+        # tarfile itself raises listing a tar whose last regular member claims more than was compressed - it seeks
+        # past that member's data to read what follows - but it skips no data for a folder or a link whose size field
+        # claims some, nor more than its header's size for an old-GNU sparse member, and lists those: this refuses
+        # them, and has a case (the forty-fifth review).
         return None if at >= end else 'its last member runs %d bytes past what was compressed' % (end - at)
 
     def repeated(self) -> list[str]:
@@ -459,10 +465,13 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     no gate. Whether delayed expansion is on is a setting no record holds, so a child.cmd holding `!` anywhere is
     refused; the Windows runner refuses `!` in every argument and takes `#~` for a negated shard.
 
-    The forty-fourth review found that reading the launcher whole was not yet all: cmd.exe reads a line as written
-    only up to 8191 characters, and past that an `&` inside quotes ended the command - an Env padded there lost the
-    gate after its `&`, and the check read the gate as in force. A launcher line longer than that is refused; the
-    runner bounds each argument so its line cannot reach it.
+    The forty-fourth review found that reading the launcher whole was not yet all: cmd.exe reads about 8191
+    characters of what follows a program's name as written, and past that an `&` inside quotes ended the command - an
+    Env padded there lost the gate after its `&`, and the check read the gate as in force. A launcher line longer than
+    8191 characters is refused; the runner bounds each argument so its line cannot reach it.
+
+    The forty-fifth review found a record entry with no `=` read as nothing: the Windows child throws applying one, and
+    the Unix runner never writes one, so a record holding one cannot say what the tests were given - it is refused.
 
     Returns the values in order, or a reason the record cannot say what the tests were given.
     """
@@ -509,11 +518,14 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     values = []
     for pair in pairs:
         key, separator, value = pair.partition('=')
+        if not separator:
+            return [], ('its machine record gives %r with no value, which its runner cannot apply, so the record '
+                        'cannot say what the tests were given' % pair)
         if not (key.upper() if windows else key).startswith('FILECAT_'):
             return [], ('its machine record sets %r, outside FILECAT_ - the test platform reads some such names '
                         '(VSTESTCLIRUNSETTINGS can set the gate inside the test host), so the record cannot say what the '
                         'tests were given' % key)
-        if separator and (key.isascii() and key.upper() == GATE_NAME if windows else key == GATE_NAME):
+        if (key.isascii() and key.upper() == GATE_NAME) if windows else key == GATE_NAME:
             values.append(value)
     return values, None
 
@@ -536,7 +548,7 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
     facts: dict[str, object] = {}
     with Archive(path) as archive:
         if (gap := archive.listing_gap()) is not None:
-            problems.append('the file does not begin and end with this archive: %s, so one zip is appended to '
+            problems.append('the file does not begin and end with this archive: %s, so one archive is appended to '
                             'another and only one of them is read' % gap)
         if (repeated := archive.repeated()):
             problems.append('it holds %s more than once, and the last member of a name is what a reader gets: which '

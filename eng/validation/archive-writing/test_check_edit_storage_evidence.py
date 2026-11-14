@@ -22,6 +22,7 @@ import unittest
 import unittest.mock
 import warnings
 import zipfile
+import zlib
 
 SPEC = importlib.util.spec_from_file_location("checker", Path(__file__).with_name("check_edit_storage_evidence.py"))
 checker = importlib.util.module_from_spec(SPEC)
@@ -62,9 +63,15 @@ def measuring(log_path):
         return 'exit %r: %s' % (result, ' | '.join(line for line in text.split('\n') if line and not line[0].isspace()))
 
     # What a call that raised stands for: its own refusal, as main() turns any error reading an archive into one - and
-    # handed back so, the case goes on to its end and every verdict after it is written down too.
+    # handed back so, the case goes on to its end and every verdict after it is written down too. A main() that raised
+    # wrote no report and exits 1, which is every archive it was given refused, and is written down as that.
     refusals = {'check': (['raised'], {}), 'listing_gap': 'raised', 'repeated': ['raised'], 'main': 1}
-    words = {'check': 'refused', 'listing_gap': 'gap', 'repeated': 'repeated', 'main': 'exit 1'}
+    words = {'check': 'refused', 'listing_gap': 'gap', 'repeated': 'repeated'}
+
+    def refused_by_main():
+        out = sys.argv[sys.argv.index('--out') + 1] if '--out' in sys.argv[:-1] else None
+        given = [argument for argument in sys.argv[1:] if argument != out and not argument.startswith('--')]
+        return 'exit 1: ' + ' | '.join('%s: NOT edit-storage evidence' % Path(argument).name for argument in given)
 
     def outermost(name, function):
         def wrapper(*arguments, **named):
@@ -74,7 +81,8 @@ def measuring(log_path):
             except Exception as error:
                 if depth[0] != 1:
                     raise
-                note('verdict', '%s (raised %s)' % (words[name], type(error).__name__))
+                note('verdict', '%s (raised %s)' % (refused_by_main() if name == 'main' else words[name],
+                                                    type(error).__name__))
                 return refusals[name]
             finally:
                 depth[0] -= 1
@@ -792,21 +800,23 @@ class EvidenceChecks(unittest.TestCase):
     def test_gives_no_verdict_to_an_archive_it_has_found_fault_with(self):
         """The line that turns findings into a refusal, and the one the release manifest matches: without it a lane
         that failed - a failed case, a suite that exited 1, a status of FAIL - is written an accepting verdict with
-        its own digest in it, which is what a route would then be listed on."""
+        its own digest in it, which is what a route would then be listed on. A passing archive goes first, as in a run
+        of several: alone, the failed one ended main() with an error instead, which said nothing of this line."""
         contents = files(status='FAIL', summary={"ok": False, "failed": ["FileCat.Tests.ARealFailure"],
                                                  "exit_codes": {"S": 1},
                                                  "suites": {"S": {"total": 1, "passed": 0, "skipped": 0,
                                                                   "failed": 1}}})
         with tempfile.TemporaryDirectory() as directory:
+            good = archive(directory, 'edit-good-evidence.zip', files())
             path = archive(directory, 'edit-failed-evidence.zip', contents)
             report = Path(directory) / 'report.txt'
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                with unittest.mock.patch.object(sys, 'argv', ['check', str(path), '--out', str(report)]):
+                with unittest.mock.patch.object(sys, 'argv', ['check', str(good), str(path), '--out', str(report)]):
                     self.assertEqual(1, checker.main())
             said = output.getvalue()
             self.assertIn('edit-failed-evidence.zip: NOT edit-storage evidence', said)
-            self.assertNotIn(': edit-storage evidence,', said)
+            self.assertNotIn('edit-failed-evidence.zip: edit-storage evidence,', said)
             self.assertEqual(said, report.read_text(encoding='utf-8'))
 
     def test_reads_every_outcome_a_test_name_has_across_the_results(self):
@@ -1196,8 +1206,8 @@ class EvidenceChecks(unittest.TestCase):
                 self.assertIsNone(held.listing_gap())
 
     def test_refuses_a_launcher_line_longer_than_cmd_reads_as_written(self):
-        """cmd.exe reads a line of up to 8191 characters as written; past that an `&` inside quotes can end the command
-        and run the rest of the line as another. The forty-fourth review padded an Env so its `&` fell there: the gate
+        """cmd.exe reads about 8191 characters of what follows a program's name as written; past that an `&` inside
+        quotes can end the command and run the rest of the line as another. The forty-fourth review padded an Env so its `&` fell there: the gate
         after it never reached the child, and the check read it as in force. A line of 8191 characters still stands."""
         gate = 'FILECAT_EDIT_NATIVE_REQUIRED'
         head, tail = 'FILECAT_ARCHIVE_TXF_NATIVE=1;FILECAT_ARCHIVE_PAD=', '&;' + gate + '=1'
@@ -1256,7 +1266,8 @@ class EvidenceChecks(unittest.TestCase):
     def test_refuses_a_tar_whose_last_member_claims_more_than_was_compressed(self):
         """A last member cut short - its header kept, some of its bytes, no end-of-archive blocks - is refused: tarfile
         raises listing it, since it seeks past that member to read what follows, and an archive that cannot be read is
-        a refusal. The rule that says so in its own words is the floor beneath that, and redundant with it."""
+        a refusal. For a regular member the floor that says so in its own words lies beneath that; a folder or a
+        link claiming data is listed by tarfile, and the floor alone refuses it (the next case)."""
         contents = with_child_cmd(files())
         with tempfile.TemporaryDirectory() as directory:
             for cut in (0, 100, 511):
@@ -1280,6 +1291,73 @@ class EvidenceChecks(unittest.TestCase):
                             self.assertEqual(1, checker.main())
                     self.assertIn(path.name + ': NOT edit-storage evidence',
                                   report.read_text(encoding='utf-8').splitlines())
+
+    def test_refuses_a_tar_whose_last_entry_claims_data_tarfile_does_not_skip(self):
+        """tarfile skips a member's data only for a regular member: a folder or a link whose size field claims data is
+        listed without it, and the bytes it claims are not there. The floor refuses such a tar, and alone (the
+        forty-fifth review)."""
+        contents = with_child_cmd(files())
+        for kind in (tarfile.DIRTYPE, tarfile.SYMTYPE):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                raw = io.BytesIO()
+                with tarfile.open(fileobj=raw, mode='w', format=tarfile.GNU_FORMAT) as held:
+                    for leaf, text in contents.items():
+                        blob = text.encode('utf-8')
+                        item = tarfile.TarInfo('run/' + leaf)
+                        item.size = len(blob)
+                        held.addfile(item, io.BytesIO(blob))
+                    entry = tarfile.TarInfo('run/zz-entry')
+                    entry.type = kind
+                    entry.linkname = 'machine.json' if kind == tarfile.SYMTYPE else ''
+                    entry.size = 100000
+                    held.addfile(entry)
+                path = Path(directory) / 'edit-claiming-evidence.tar.gz'
+                path.write_bytes(gzip.compress(raw.getvalue()))
+                problems, _ = checker.check(path)
+                self.assertEqual(1, len(problems), problems)
+                self.assertIn('past what was compressed', problems[0])
+
+    def test_accepts_an_unsigned_descriptor_whose_crc_spells_the_signature(self):
+        """A descriptor may leave its signature out, and then its CRC comes first - and a CRC of 0x08074b50 spells the
+        signature. Read as signed alone, no shape fitted and a member every reader reads was refused (the forty-fifth
+        review): every shape is tried now, and what follows decides between them."""
+        body = b'a member whose CRC-32 spells the descriptor signature' + bytes((0xD8, 0xB9, 0x81, 0x3D))
+        self.assertEqual(0x08074B50, zlib.crc32(body))
+
+        class Unseekable(io.RawIOBase):
+            def __init__(self, handle): self.handle = handle
+            def writable(self): return True
+            def seekable(self): return False
+            def write(self, data): return self.handle.write(data)
+        for method in (zipfile.ZIP_DEFLATED, zipfile.ZIP_STORED):
+            with self.subTest(method=method), tempfile.TemporaryDirectory() as directory:
+                raw = io.BytesIO()
+                with zipfile.ZipFile(Unseekable(raw), 'w', method) as held:
+                    held.writestr('zz-crc.bin', body)
+                blob = raw.getvalue()
+                signature = b'PK' + bytes((7, 8))
+                at = blob.find(signature)
+                self.assertEqual(signature, blob[at + 4:at + 8])  # the CRC after it spells the signature again
+                blob = blob[:at] + blob[at + 4:]  # the descriptor's own signature left out, as a writer may
+                end = blob.rfind(b'PK' + bytes((5, 6)))
+                start, = struct.unpack('<I', blob[end + 16:end + 20])
+                blob = blob[:end + 16] + struct.pack('<I', start - 4) + blob[end + 20:]
+                path = Path(directory) / 'crc.zip'
+                path.write_bytes(blob)
+                with zipfile.ZipFile(path) as held:
+                    self.assertIsNone(held.testzip())
+                with checker.Archive(path) as held:
+                    self.assertIsNone(held.listing_gap())
+
+    def test_refuses_a_record_entry_with_no_value(self):
+        """An entry with no `=` is one the Windows child throws on applying and the Unix runner never writes, so a record
+        holding one cannot say what the tests were given (the forty-fifth review)."""
+        gate = 'FILECAT_EDIT_NATIVE_REQUIRED'
+        said = "its machine record gives 'FILECAT_ARCHIVE_TXF_NATIVE' with no value, which its runner cannot apply"
+        problems, _ = self.check(self.windows_record(gate + '=1;FILECAT_ARCHIVE_TXF_NATIVE'))
+        self.assertTrue(any(said in problem for problem in problems), problems)
+        problems, _ = self.check(self.unix_record('env=' + gate + '=1', 'env=FILECAT_ARCHIVE_TXF_NATIVE'), unix=True)
+        self.assertTrue(any(said in problem for problem in problems), problems)
 
     def test_names_an_archive_whose_compression_it_cannot_read(self):
         """A method this reader does not know is one more refusal, and the run's other archives are still reported:

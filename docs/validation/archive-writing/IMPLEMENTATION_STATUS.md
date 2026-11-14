@@ -1,16 +1,55 @@
 # Archive writing implementation status
 
+**14 November, notes broken by shapes the suite never built (round forty-five).** Asked again whether anything was
+left that the mechanism did not report, the reviewer found three things at High, each a harness note or verdict made
+false by an archive the suite did not hold:
+
+- **The tar floor's `redundant` note was false.** The round below said tarfile raises listing any tar whose last member
+  claims more than was compressed. It does for a regular member - it seeks past that member's data - but it skips no
+  data for a folder or a link whose size field claims some, nor more than its header's size for an old-GNU sparse
+  member, and lists those; only the floor refuses them. Reproduced: a last folder entry claiming 100,000 bytes was
+  accepted with the floor weakened. A case holds the floor now, and its texts say what tarfile does.
+- **The descriptor-shape `no case` note was false, and the rule refused a valid zip.** An unsigned descriptor whose CRC
+  happens to be 0x08074b50 begins with the signature's own bytes; read as signed alone it fitted no shape, and a member
+  every reader reads was refused - one streamed member in 2^32, for a writer that leaves the signature out. Every
+  descriptor shape is tried now, signed or not, and what follows the descriptor decides between them, as it already
+  did where more than one fitted. The archive is a case; the two entries that measured the signature's reading went
+  with it, and the shape list has an entry of its own.
+- **One entry was held only by a crash.** The round below moved main()'s counting under its guard, so weakening the
+  line that turns findings into a refusal raised in main() instead of writing an accepting verdict - and the
+  measurement read the raise as a changed verdict. A main() that raises is now written down as every archive it was
+  given refused, and the case puts a passing archive first, as a run of several does: weakened, main() then writes
+  the failed archive an accepting verdict and exits 0. So the round below's "eighty-eight held by a verdict" was
+  eighty-seven.
+- Low, closed with them: a `raises` note must also change no verdict; the note on a launcher that is not the runner's
+  own says where the length rule refuses first; a record entry with no `=` - which the Windows child throws on and the
+  Unix runner never writes - is refused rather than read as nothing; the dual-root pin counted only where it passed,
+  a rule on another entry's line, is listed; the measurement stops when a case is skipped (the GNU-tar case skips
+  where bsdtar comes first on PATH, as from PowerShell) instead of calling its rules caseless; the runner bounds
+  `-TimeoutMinutes`; and the texts say cmd.exe reads about 8191 characters of what follows a program's name as
+  written - an `&` on this launcher is cut from column 8249, after its 57-character program path - which the bound on
+  the whole line leaves to spare. The invoker's line reaches 5,885 characters, not 5,878, its own minutes unbounded.
+- Recorded as boundary 1, each needing bytes changed in a sealed archive: a zip's Unicode Path extra field renaming a
+  member for zipfile; a tar member's type changed to a FIFO, which reads as empty; a zip carrying a Unix-style
+  `machine.txt` that names Windows, read without the `child.cmd` rules.
+
+The r35 verdicts are unchanged - five accepted, nine refused - and all 23 manifest digests match. Ninety-six cases for
+the check and fourteen for the manifest; the harness lists one hundred and thirteen rules, ninety-one held by a verdict,
+twenty-two noted as redundant, caseless or raising, and none unheld or contradicted.
+
 **14 November, the launcher line's length, and three harness verdicts (round forty-four).** Asked again whether
 anything was left that the mechanism did not report, the reviewer found three things at High and three at Medium:
 
-- **High: a launcher line past 8191 characters.** cmd.exe reads a batch line as written only up to 8191 characters;
+- **High: a launcher line past 8191 characters.** cmd.exe reads a batch line as written only up to 8191 characters
+  (of what follows the program's name, the round above measured - the bound leaves the program's path to spare);
   past that, an `&` inside quotes ended the command and the rest of the line ran as another. The runner bounded no
   argument, so an Env padded to put its `&` there, with the gate after it, reached the child without the gate - and
   the check, reading `child.cmd` whole, read the gate as in force. Reproduced here with the reviewer's probe, an
   external program launched from such a line: an `&` 28 or more characters past column 8191 cut its argument, one 24
   or fewer past did not. A launcher line longer than 8191 characters is refused now, and the runner bounds each
   argument - a packet or dotnet path to 260 characters, a filter to 1024, the projects and the Env to 2048 - so its
-  own line is 6,143 characters at most and the invoker's 5,878, and checks the line besides. The reviewer's replay is
+  own line is 6,143 characters at most and the invoker's 5,878 (5,885, its own minutes unbounded), and checks the
+  line besides. The reviewer's replay is
   refused.
 - **High: a `redundant` note was false.** The round below called the rule that takes a gate's value after its first
   `=` redundant, "a value holding another `=` leaves one in the name" - but `GATE=1;GATE=1=0`, which both runners
@@ -32,7 +71,8 @@ anything was left that the mechanism did not report, the reviewer found three th
   verdict of main() names each archive's digest by its archive; the descriptor-shape note's reason is corrected (an
   empty member's CRC and sizes are all 0, and what follows its descriptor still picks the width); the tar floor's note
   said nothing builds a tar whose last member claims more than was compressed, but one is easily built - and tarfile
-  itself raises listing it, so the floor is redundant with tarfile, which a case now shows; and the runner's comment
+  itself raises listing it, so the floor is redundant with tarfile, which a case now shows (for a regular member
+  only: the round above found a folder or a link claiming data, which tarfile lists and the floor alone refuses); and the runner's comment
   says a Windows filter cannot use `!=` or `!~`.
 
 Every r35 argument set passes the runner's new bounds - forty-four Windows inputs under Windows PowerShell 5.1, each
@@ -40,7 +80,8 @@ bound accepting its limit and refusing one character more - and the r35 verdicts
 refused.
 
 Ninety-three cases for the check and fourteen for the manifest; the harness lists one hundred and twelve rules, eighty-eight
-held by a verdict, twenty-four noted as redundant, caseless or raising, and none unheld or contradicted.
+held by a verdict, twenty-four noted as redundant, caseless or raising, and none unheld or contradicted. (Eighty-seven,
+and one held only by a crash; and the tar floor's note was false - the round above.)
 
 **14 November, delayed expansion's other form, and what "held" meant (round forty-three).** Asked again whether
 anything was left that the mechanism did not report, the reviewer found three things:

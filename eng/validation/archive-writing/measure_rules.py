@@ -66,8 +66,8 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '            elif not values:',
      '            elif not values and False:', 'redundant: without it the value comparison refuses a record with no gate, as a value of None'),
     ("the gate's name read whole, not as a part",
-     '        if separator and (key.isascii() and key.upper() == GATE_NAME if windows else key == GATE_NAME):',
-     '        if separator and (GATE_NAME in key.upper() if windows else GATE_NAME in key):', None),
+     '        if (key.isascii() and key.upper() == GATE_NAME) if windows else key == GATE_NAME:',
+     '        if (GATE_NAME in key.upper()) if windows else GATE_NAME in key:', None),
     ('one machine record, not several',
      '        elif len(records) > 1:',
      '        elif len(records) > 1 and False:', None),
@@ -175,7 +175,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '            except KeyError as error:', 'the weakening raises where the rule refuses, so its case ends in an error rather than in a verdict'),
     ('a tar whose last member claims more than was compressed',
      "        return None if at >= end else 'its last member runs %d bytes past what was compressed' % (end - at)",
-     '        return None', 'redundant: tarfile itself raises listing a tar whose last member claims more than was compressed - it seeks past that member to read what follows - and an archive that cannot be read is refused, so this floor is never reached by a tar tarfile lists'),
+     '        return None', None),
     ('the verdict naming the system it read',
      "                     % (path.name, passed, skipped, GATE, facts['system'], accepted_digest(path)))",
      "                     % (path.name, passed, skipped, GATE, 'windows', accepted_digest(path)))", None),
@@ -239,9 +239,6 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ('any error reading one archive is its refusal, and the rest are reported',
      '        except Exception as error:  # noqa: BLE001 - a sealed run that does not read is a finding, not a crash',
      '        except (OSError, zipfile.BadZipFile) as error:', None),
-    ("a descriptor's signature read as there or not",
-     "                    signed = trailer[:4] == b'PK\\x07\\x08'",
-     '                    signed = True', None),
     ('an empty member whose descriptor matches both widths',
      '                    if len(fits) > 1:',
      '                    if False and len(fits) > 1:', None),
@@ -297,8 +294,8 @@ RULES: list[tuple[str, str, str, str | None]] = [
      "        if family == 'both':",
      "        if False and family == 'both':", "redundant: 'both' is neither family, so the agreement test after it refuses the record whichever system it names"),
     ('a Windows gate name matched without case, as the runner sets it',
-     '        if separator and (key.isascii() and key.upper() == GATE_NAME if windows else key == GATE_NAME):',
-     '        if separator and key == GATE_NAME:', None),
+     '        if (key.isascii() and key.upper() == GATE_NAME) if windows else key == GATE_NAME:',
+     '        if key == GATE_NAME:', None),
     ('a Windows Env trusted only as printable ASCII without %',
      '        if strange:',
      '        if False and strange:', "redundant: child.cmd has to pass the record's Env, and its arguments are printable ASCII without % or ^, with no ! anywhere in the file"),
@@ -335,9 +332,6 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ('a percent sign in a Windows Env, which cmd.exe expands',
      "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '%!^']",
      "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '!^']", "redundant: a launcher argument holds no %, and child.cmd has to pass the record's Env"),
-    ('a descriptor shape tried only with its signature as it is',
-     '                        if signed != (size_of in (16, 24)) or len(trailer) < at + struct.calcsize(kind):',
-     '                        if len(trailer) < at + struct.calcsize(kind):', "no case: without it the unsigned shapes are tried on a signed descriptor too, and they fit only where its CRC equals a size - as an empty member's does, all of them 0 - and there what follows the descriptor picks the signed width anyway"),
     ('a ! or ^ in a Windows Env, which delayed expansion changes',
      "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '%!^']",
      "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '%']", "redundant: child.cmd holds no ! and its arguments no ^, and it has to pass the record's Env"),
@@ -352,7 +346,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '        launched = LAUNCHER.match(script)', None),
     ("a launcher that is not the runner's own, refused",
      '        if launched is None:',
-     '        if False and launched is None:', 'the weakening raises where the rule refuses (such a file has no arguments to read), so its case ends in an error rather than in a verdict'),
+     '        if False and launched is None:', 'the weakening raises where the rule refuses (such a file has no arguments to read - or, where its second line runs past 8191 characters, the length rule refuses it first), so its case ends in an error rather than in a verdict'),
     ('a launcher argument without a quote of its own',
      'ARGUMENT = r\'"([ !#$&-\\]_-~]*)"\'',
      'ARGUMENT = r\'"(.*?)"\'', None),
@@ -395,11 +389,21 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ("a member's name read as its header's flag says",
      "                written = handle.read(name).decode('utf-8' if flag & 0x800 else 'cp437', 'replace')",
      "                written = handle.read(name).decode('cp437', 'replace')", None),
+    ('a record entry with no value, refused',
+     '        if not separator:',
+     '        if False and not separator:', None),
+    ('the dual-root pin counted only where it passed',
+     "              if test.split('(')[0].endswith('.' + PINS[2]) and 'Passed' in outcome}",
+     "              if test.split('(')[0].endswith('.' + PINS[2])}", None),
+    ('a descriptor read without its signature too',
+     "                    for size_of, kind, at in ((16, '<II', 8), (24, '<QQ', 8), (12, '<II', 4), (20, '<QQ', 4)):",
+     "                    for size_of, kind, at in ((16, '<II', 8), (24, '<QQ', 8)):", None),
 ]
 
-def run(folder: Path) -> tuple[str, set[str], dict[str, list[str]], dict[str, list[str]]]:
-    """The suite in `folder`, run to the end of every case: how many cases ran, the cases that noticed (an assertion
-    that did not hold, or an error), each case's verdicts from the check in order, and its refusals' first reasons."""
+def run(folder: Path) -> tuple[str, int, set[str], dict[str, list[str]], dict[str, list[str]]]:
+    """The suite in `folder`, run to the end of every case: how many cases ran and how many were skipped, the cases
+    that noticed (an assertion that did not hold, or an error), each case's verdicts from the check in order, and its
+    refusals' first reasons."""
     shutil.rmtree(folder / '__pycache__', ignore_errors=True)
     log = folder / 'verdicts.log'
     if log.exists():
@@ -409,6 +413,7 @@ def run(folder: Path) -> tuple[str, set[str], dict[str, list[str]], dict[str, li
                           env=dict(os.environ, MEASURE_VERDICTS=str(log)))
     text = done.stdout + done.stderr
     ran = re.search(r'Ran (\d+) tests', text)
+    skipped = re.search(r'skipped=(\d+)', text)
     noticed = {name[len('test_'):] for name in re.findall(r'(?:FAIL|ERROR): (test_\w+)', text)}
     verdicts: dict[str, list[str]] = {}
     reasons: dict[str, list[str]] = {}
@@ -423,7 +428,7 @@ def run(folder: Path) -> tuple[str, set[str], dict[str, list[str]], dict[str, li
             verdicts.setdefault(test, []).append(value)
         else:
             reasons.setdefault(test, []).append(value)
-    return (ran.group(1) if ran else '?'), noticed, verdicts, reasons
+    return (ran.group(1) if ran else '?'), int(skipped.group(1)) if skipped else 0, noticed, verdicts, reasons
 
 
 def settled(values: list[str]) -> list[str]:
@@ -516,11 +521,17 @@ def main() -> int:
         folder = Path(directory)
         shutil.copy(SUITE, folder / SUITE.name)
         shutil.copy(CHECK, folder / CHECK.name)
-        ran, failed, baseline, base_reasons = run(folder)
+        ran, skipped, failed, baseline, base_reasons = run(folder)
         print('as committed: %s cases, %s; %d verdicts' % (
             ran, 'all passing' if not failed else 'FAILING: ' + ', '.join(sorted(failed)),
             sum(len(values) for values in baseline.values())))
         if failed or ran == '?':
+            return 2
+        if skipped:
+            # A case that does not run holds nothing, and would show its rules as caseless: the GNU tar case skips
+            # where the first tar on PATH is bsdtar (Windows' own tar.exe ahead of Git's, from PowerShell).
+            print('%d of them skipped here, so this measurement would not be the suite\'s: run it where every case '
+                  'runs (GNU tar on PATH, as Git Bash has it)' % skipped)
             return 2
         for what, old, new, note in RULES:
             if arguments.rule and arguments.rule not in what:
@@ -530,7 +541,7 @@ def main() -> int:
                 print('%-62s THE RULE IS NOT THERE ONCE (%d)' % (what, committed.count(old)))
                 continue
             (folder / CHECK.name).write_text(committed.replace(old, new), encoding='utf-8', newline='')
-            ran, noticed, verdicts, reasons = run(folder)
+            ran, _, noticed, verdicts, reasons = run(folder)
             (folder / CHECK.name).write_text(committed, encoding='utf-8', newline='')
             if ran == '?':
                 stale.append(what)
@@ -562,7 +573,7 @@ def main() -> int:
             elif kind == 'caseless' and not changed and not noticed:
                 noted.append(what)
                 said = 'no case   [%s]' % note
-            elif kind == 'raises' and raised:
+            elif kind == 'raises' and raised and not changed:
                 noted.append(what)
                 said = 'raises in %s   [%s]' % (', '.join(raised), note)
             else:

@@ -324,4 +324,16 @@ It found two harness verdicts false - a `redundant` note on the rule that takes 
 which `GATE=1;GATE=1=0` gets past, and an entry held only by a crash - and a third false note, a real rule with no
 entry, and a stale count; each is closed, and a raise is now measured as that call's own refusal with the case going on.
 Ninety-three cases hold the check and fourteen the manifest; the harness lists one hundred and twelve rules, eighty-eight held
-by a verdict, twenty-four noted, none unheld or contradicted.
+by a verdict, twenty-four noted, none unheld or contradicted. (The forty-fifth review found the 8191 characters to be
+of what follows the program's name, which the bound leaves to spare; one of the eighty-eight held only by a crash; and
+the tar floor's note true for a regular member alone - below.)
+
+The forty-fifth review found three harness verdicts or notes made false by archives the suite did not hold: the tar
+floor's `redundant` note (tarfile lists a last folder or link whose size field claims data, and only the floor refuses
+it), the descriptor-shape `no case` note together with a false refusal (an unsigned descriptor whose CRC spells the
+signature fitted no shape read as signed alone), and an entry held only by a crash in main(). Each is closed: the floor
+has a case, every descriptor shape is tried and what follows decides, and a main() that raises is measured as every
+archive it was given refused, its case putting a passing archive first. A record entry with no `=` is refused, a
+skipped case stops the measurement, and the texts on cmd.exe's 8191 characters are exact. Ninety-six cases hold the
+check and fourteen the manifest; the harness lists one hundred and thirteen rules, ninety-one held by a verdict, twenty-two
+noted, none unheld or contradicted.
