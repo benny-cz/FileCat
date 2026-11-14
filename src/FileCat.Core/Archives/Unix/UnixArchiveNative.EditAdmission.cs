@@ -25,10 +25,17 @@ internal static unsafe partial class UnixArchiveNative
     /// </summary>
     internal static bool TryLockEditCreation(SafeFileHandle file,bool exclusive)
     {
-        if(EditFlock(Fd(file),(exclusive?2:1)|4)==0)return true; // LOCK_EX or LOCK_SH, | LOCK_NB.
-        int error=Marshal.GetLastPInvokeError();
-        if(error==4||error==(Mac?35:11))return false;
-        throw new IOException("The native edit creation folder could not be locked.",error);
+        // Only EWOULDBLOCK answers the question: another open of this folder holds the lock, which is what a creation's
+        // own loop waits out and what a listing reads as "another FileCat process is still making this edit". A signal
+        // (EINTR) answers nothing - it would have said that edit is in use right now, of a folder nobody holds - so the
+        // call is made again, bounded, and anything else is still a failure.
+        for(int attempt=0;;attempt++)
+        {
+            if(EditFlock(Fd(file),(exclusive?2:1)|4)==0)return true; // LOCK_EX or LOCK_SH, | LOCK_NB.
+            int error=Marshal.GetLastPInvokeError();
+            if(error==(Mac?35:11))return false;
+            if(error!=4||attempt>=1024)throw new IOException("The native edit creation folder could not be locked.",error);
+        }
     }
     internal static void UnlockEditCreation(SafeFileHandle file)=>_=EditFlock(Fd(file),8); // LOCK_UN
     [LibraryImport("libc",EntryPoint="flock",SetLastError=true)]

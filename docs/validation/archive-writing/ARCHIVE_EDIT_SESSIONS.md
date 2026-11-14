@@ -153,3 +153,15 @@ keeping the user's working copy and the archive as they were, and FileCat has de
 Within one window the same actions are serialised and refused with their own message. This is the same missing
 cross-process marker as the free-space side the [accounting](NATIVE_EDIT_STORAGE_ACCOUNTING.md) records: closing both
 would mean a capture holding its own record the way a creation holds its marker, and reading it through that hold.
+
+### A signal is not another window (fixed from round 30's own evidence)
+
+Whether another FileCat process is still making an edit is asked by taking a shared lock on that edit's folder for a
+moment, against the exclusive one a creation holds while it copies. The call that does this reported two different
+answers as one: "another open of this folder holds it" and "a signal interrupted the call". Under the full suite's
+parallel load on the Mac, round 30 listed an edit whose creation had already ended and been cleaned up as "in use right
+now (another FileCat window is still copying it)" - not true, and nothing the user can act on, because a folder in use
+is deliberately left alone. Running that case three times on its own passed every time, which is what a signal rather
+than a holder looks like. Only the answer that means another open holds the lock is read as a holder now; a signal makes
+FileCat ask again, bounded, as POSIX expects of an interrupted call.
+
