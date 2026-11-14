@@ -1,5 +1,17 @@
 # Archive writing implementation status
 
+**14 November, the seventh round (twenty-seven).** One Medium, in the half of the last round's pair that the records
+said was already done: the whole edit's discard calls two different folders "files" - the edit's own working folder and
+every retained copy's payload folder - and the message that asks the user to delete something names only "the folder
+“files”" while the path beside it is the edit's own. A desktop file inside a retained copy's payload folder therefore
+sent the user to a folder with nothing to delete, and every retry said the same. Each of those folders now says which
+it is, as that copy's own review already did.
+
+Recorded, not changed: the advice to delete the desktop's own file names the Finder and its keystroke on every
+platform, so a Windows or Linux user whose data folder is shared with a Mac is told about a program they do not have.
+It is true of where the file came from and the file is named either way; the sentence is in four messages now, and
+gating it belongs with its own case rather than at the end of a listing round.
+
 **14 November, the sixth round (twenty-six).** A reviewer read the last round's own fixes. No High. What it found,
 fixed here:
 

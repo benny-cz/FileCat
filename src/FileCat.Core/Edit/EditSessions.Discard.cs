@@ -140,6 +140,7 @@ public sealed partial class EditSessionStore
                 if(aside.Length>MaximumInterruptedLeftovers)
                     throw new IOException("This edit's working folder holds "+aside.Length+" files an interrupted removal set aside, and one discard reviews at most "+
                         MaximumInterruptedLeftovers+". Nothing is removed and all of its files are kept.");
+                const string workingFolder="This edit's working folder";
                 if(reviewed!.State==EditState.Missing)
                 {
                     // Reviewed as missing, and there again now: the editor finished creating it while this discard was
@@ -147,11 +148,11 @@ public sealed partial class EditSessionStore
                     // so the review is simply out of date and is asked for again.
                     if(working.Names.Contains(leaf,StringComparer.Ordinal))
                         throw new IOException("The working copy was created again while this discard was reviewed. Review the edit again; its files are kept.");
-                    RequireLayout(working,aside);
+                    RequireLayout(working,aside,workingFolder);
                 }
                 else
                 {
-                    RequireLayout(working,[leaf,..aside]);var file=Read(files,leaf,false);
+                    RequireLayout(working,[leaf,..aside],workingFolder);var file=Read(files,leaf,false);
                     if(file.Expected.Version.Sha256!=reviewed.Sha256)throw new IOException("The working copy changed while discard was reviewed.");
                     working.Files.Add(file);
                 }
@@ -259,7 +260,8 @@ public sealed partial class EditSessionStore
                 // either record: anything else in it is kept and named as it is anywhere else, never taken for the copy.
                 string? leaf=start?.Leaf??end?.Leaf;
                 bool kept=leaf is not null&&data.Names.Contains(leaf,StringComparer.Ordinal);
-                RequireLayout(data,kept?[leaf!,..aside]:aside);
+                RequireLayout(data,kept?[leaf!,..aside]:aside,
+                    "The \u201cfiles\u201d folder of the retained copy \u201c"+name+"\u201d");
                 if(kept){payload=Read(files,leaf!,false);data.Files.Add(payload);}
                 foreach(string item in aside)data.Files.Add(Read(files,item,false));
             }
@@ -356,10 +358,14 @@ public sealed partial class EditSessionStore
             }
             Check();attempted=true;directory.RemoveEmpty(ct);
         }
-        static void RequireLayout(DiscardNode node,string[] names)
+        // A folder says which it is where its own name does not: one whole-edit discard reviews the edit's own
+        // working folder and every retained copy's payload folder, and both are called "files", while the path the
+        // failure reports is the edit's. A message that asks for a file to be deleted has to name the folder holding
+        // it, which is what the retained copy's own review says of the same name.
+        static void RequireLayout(DiscardNode node,string[] names,string? folder=null)
         {
             if(node.Names.Order(StringComparer.Ordinal).SequenceEqual(names.Order(StringComparer.Ordinal)))return;
-            throw Unexpected("The folder \u201c"+node.Name+"\u201d",node.Names,names);
+            throw Unexpected(folder??"The folder \u201c"+node.Name+"\u201d",node.Names,names);
         }
 
         // What a folder holds that its discard did not expect, said as it is: a file FileCat left behind unfinished (a

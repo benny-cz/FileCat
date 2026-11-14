@@ -58,20 +58,21 @@ public sealed partial class MainViewModel
         _editCommitTrace.Enqueue(checkpoint);
         while (_editCommitTrace.Count > 24) _editCommitTrace.TryDequeue(out _);
     }
+    // What the list says above its rows, with the storage FileCat could not open named when there is one: the rows
+    // themselves do not show those edits, so the hint is where the list says they exist.
+    private static string EditSessionsListHint(string? unopened) =>
+        "Enter shows edit actions or recovery details for a retained copy." + (unopened is null ? "" : " " + unopened);
+
+    /// <summary>Reads <see cref="UnopenedNativeStorage"/> on the owned route this view model uses for its files.</summary>
+    private Task<string?> UnopenedNativeStorageAsync() =>
+        MutationIoAsync(Services.EditSessions.Root, UnopenedNativeStorage, CheckSessionAction);
+
     /// <summary>
     /// What to add to a list of edits when FileCat's own edit storage holds something it could not open. Startup keeps
     /// the legacy folder when that storage cannot be held privately without following links - a profile restored or
     /// copied from elsewhere, a data folder reached through a junction, one written by another account - and edits kept
     /// there are then not listed at all. Saying there are none would be untrue; nothing of them is touched either way.
     /// </summary>
-    // What the list says above its rows, with the storage FileCat could not open named when there is one: the rows
-    // themselves do not show those edits, so the hint is where the list says they exist.
-    private static string EditSessionsListHint(string? unopened) =>
-        "Enter shows edit actions or recovery details for a retained copy." + (unopened is null ? "" : " " + unopened);
-
-    private Task<string?> UnopenedNativeStorageAsync() =>
-        MutationIoAsync(Services.EditSessions.Root, UnopenedNativeStorage, CheckSessionAction);
-
     private string? UnopenedNativeStorage()
     {
         if (Services.EditSessions.SupportsRetainedCaptureRemoval) return null; // That storage is open: its edits are listed.
