@@ -167,6 +167,15 @@ internal static class ArchiveEditDiscardCases
             // The startup review must read what FileCat left in a retained copy as its removal does: the list offers a
             // removal only for a verified or an interrupted copy, so a review that called either of these "needs
             // review" would leave the user unable to reach the removal at all.
+            // A retained copy holding something nobody can account for is reported as what it holds, not as a copy
+            // that is in use or cannot be read: the user is sent to open that folder from this very review.
+            if(scenario is "extra-capture" or "extra-payload")
+            {
+                var unknown=Assert.Single(store.ReviewRetainedCaptures(record,ct));
+                Assert.Equal(EditCaptureRecoveryState.NeedsReview,unknown.State);
+                Assert.Contains("unexpected.txt",unknown.Reason,StringComparison.Ordinal);
+                Assert.Contains("which FileCat did not make",unknown.Reason,StringComparison.Ordinal);
+            }
             if(scenario is "stage-capture" or "aside-capture-payload" or "capture-payload-gone" or "capture-payload-emptied" or
                 "capture-record-gone" or "capture-empty" or "saved-intent-payload-gone" or "capture-record-gone-foreign")
             {

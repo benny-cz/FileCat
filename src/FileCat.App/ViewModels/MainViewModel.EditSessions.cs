@@ -68,7 +68,14 @@ public sealed partial class MainViewModel
     {
         if (Services.EditSessions.SupportsRetainedCaptureRemoval) return null; // That storage is open: its edits are listed.
         string native = Services.Paths.NativeEditSessionsDirectory;
-        try { if (!Directory.Exists(native) || !Directory.EnumerateFileSystemEntries(native).Any()) return null; }
+        try
+        {
+            // An edit of the user's is a folder named by its own id, which is all that storage holds of theirs: its
+            // admission gate is there from the first edit ever made and is never removed, and the desktop may have left
+            // a file of its own. Saying that edits are kept there because of either would be untrue.
+            if (!Directory.Exists(native) || !Directory.EnumerateDirectories(native)
+                .Any(folder => Guid.TryParseExact(Path.GetFileName(folder), "N", out _))) return null;
+        }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception) { }
         return "FileCat could not open its own edit storage at " + Formatters.SafeName(native) +
             ", so edits kept there are not listed. Their files are untouched.";
@@ -115,7 +122,7 @@ public sealed partial class MainViewModel
                 (retained == 0 ? "" : $" {Formatters.Plural(retained, "edit has", "edits have")} retained copy folders to review.") +
                 (retainedUnknown == 0 ? "" : $" {Formatters.Plural(retainedUnknown, "edit has", "edits have")} retained-copy state that could not be checked.") +
                 (adopted == 0 ? "" : $" {Formatters.Plural(adopted, "adopted copy needs", "adopted copies need")} review before use.")).TrimStart() +
-                " Review them in File → Edit sessions.";
+                " Review them in File → Edit sessions." + (unopened is null ? "" : " " + unopened);
         }
         catch (OperationCanceledException) { return null; }
     }
@@ -354,9 +361,9 @@ public sealed partial class MainViewModel
         try
         {
             var sessions = await LoadEditSessionsAsync();
+            string? unopened = UnopenedNativeStorage();
             if (sessions.Count == 0)
             {
-                string? unopened = UnopenedNativeStorage();
                 Notify("No edits are open. F4 on a file inside an archive or on a server starts one." +
                     (unopened is null ? "" : " " + unopened));
                 return;
@@ -382,7 +389,7 @@ public sealed partial class MainViewModel
             CheckSessionAction();
             var pick = await Dialogs.ChooseAsync(new ChoiceOptions("Edit sessions", items)
             {
-                Hint = "Enter shows edit actions or recovery details for a retained copy.",
+                Hint = "Enter shows edit actions or recovery details for a retained copy." + (unopened is null ? "" : " " + unopened),
             });
             CheckSessionAction();
             if (pick.Index >= 0) await ShowSessionAsync(sessions[pick.Index]);
