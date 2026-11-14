@@ -59,6 +59,16 @@ internal static class ArchiveEditLegacyAdoptionCrashCases
             Assert.Equal(2,rows.Count);
             Assert.True(Assert.Single(rows,row=>row.Id==old.Id).IsSupported);
             var copy=Assert.Single(rows,row=>row.Id!=old.Id);
+            // The killed process's hold on its folder, or the storage gate, may still be another program's for a moment
+            // (on Windows a scanner reading the files it just closed): the row then says in use or not checked until that
+            // passes, as the creation's own crash cases wait for too.
+            var settling=System.Diagnostics.Stopwatch.StartNew();
+            while(copy.UnsupportedReason is { } waiting&&(waiting==EditSessionStore.CopyingElsewhereReason||
+                waiting==EditSessionStore.UncheckedReason)&&settling.Elapsed<TimeSpan.FromSeconds(30))
+            {
+                await Task.Delay(100,ct);
+                rows=store.LoadAll();copy=Assert.Single(rows,row=>row.Id!=old.Id);
+            }
             Assert.Equal(point=="ready",copy.IsSupported);
             // Killed while it copied: the copy is listed as interrupted, kept for review.
             if(point=="marker")Assert.Equal(EditSessionStore.InterruptedCreationReason,copy.UnsupportedReason);

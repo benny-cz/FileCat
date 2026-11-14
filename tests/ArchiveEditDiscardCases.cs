@@ -102,10 +102,19 @@ internal static class ArchiveEditDiscardCases
             // FileCat's own interrupted work, which a discard reviews and removes with the edit: the stage of a record it
             // was publishing when it ended, and a name an interrupted exact removal set aside (with the copy still there,
             // or gone with it). Written as FileCat writes its own files, which is what its removal review requires.
-            if(scenario=="stage-session")Own(Path.Combine(session,".record-"+Guid.NewGuid().ToString("N")+".tmp"),"a revision this edit was publishing");
+            if(scenario=="stage-session")Own(session,".record-"+Guid.NewGuid().ToString("N")+".tmp","a revision this edit was publishing");
             if(scenario is "aside-working" or "aside-missing")
-                Own(Path.Combine(Path.GetDirectoryName(record.WorkingPath)!,".filecat-removing-"+Guid.NewGuid().ToString("N")),"what a stopped removal set aside");
+                Own(Path.GetDirectoryName(record.WorkingPath)!,".filecat-removing-"+Guid.NewGuid().ToString("N"),"what a stopped removal set aside");
             if(scenario=="extra-working")File.WriteAllText(Path.Combine(Path.GetDirectoryName(record.WorkingPath)!,"editor.bak"),"keep editor backup");
+            // FileCat's own files are made through its directory's lease, which is what gives them the private
+            // permissions its reviews require; a file written beside them any other way makes the whole folder read as
+            // no longer private (Windows) or as not FileCat's (Unix).
+            void Own(string directory,string leaf,string contents)
+            {
+                using var lease=open(directory,true,ct);
+                using var file=lease.CreateFile(leaf,ct);
+                file.Write(System.Text.Encoding.UTF8.GetBytes(contents));file.Flush(true);
+            }
             if(scenario=="replaced-session")
             {Directory.Move(session,session+".retained");File.WriteAllText(Path.Combine(Private(session),"replacement.txt"),"keep unrelated replacement");}
             if(scenario=="replaced-files")
@@ -174,11 +183,6 @@ internal static class ArchiveEditDiscardCases
     {using var file=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete);using var output=new MemoryStream();file.CopyTo(output);return output.ToArray();}
     private static void Change(string path,string key,JsonNode? value)
     {var record=JsonNode.Parse(File.ReadAllBytes(path))!.AsObject();record[key]=value;File.WriteAllText(path,record.ToJsonString());}
-    private static void Own(string path,string contents)
-    {
-        File.WriteAllText(path,contents);
-        if(!OperatingSystem.IsWindows())File.SetUnixFileMode(path,UnixFileMode.UserRead|UnixFileMode.UserWrite);
-    }
     private static string Private(string path)=>OperatingSystem.IsWindows()?Directory.CreateDirectory(path).FullName:
         Directory.CreateDirectory(path,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute).FullName;
     internal sealed class Faults(string scenario,CancellationTokenSource stop)
