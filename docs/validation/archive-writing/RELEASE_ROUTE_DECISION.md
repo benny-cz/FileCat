@@ -189,3 +189,11 @@ claiming both are refused. It also found that a repeated member name answered fo
 under the names already there turned a failed run into accepted evidence - which is refused by name, and that the twin
 of a count rule was measured by nothing. Every rule of both halves is now measured one at a time, each failing the one
 case that claims it.
+
+The thirty-third review attacked both of those rules and got through both. One appended folder header emptied any file
+in a sealed tar, because a tar resolves a name to its last member, gives nothing for a folder, and the new filter kept
+folders out of the list where anything would have noticed - so a log saying a test had stepped aside read as empty and
+the lane was accepted. Members are read through now rather than by name. And a run naming neither platform class for
+its dual-root pin left the machine record unchallenged, so the Windows lane with one renamed class was accepted as
+Linux evidence; such a run is refused, since nothing in it says what produced it. Thirty-seven cases hold the check and
+ten the manifest, each rule failing the one case that claims it.

@@ -37,6 +37,11 @@ def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything 
         gate_text = checker.GATE_NAME + '=' + gate_value
     else:
         gate_text = checker.GATE if gate else 'FILECAT_EDIT_NATIVE_ROOT=/tmp/x'
+    # The dual-root pin is one method in two real classes, and the check reads the class that passed it: a fixture
+    # naming neither is not a run of these suites, so it carries the class this fixture's own system implies.
+    platform = ('FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' if system.startswith(('Microsoft Windows', 'Windows'))
+                else 'FileCat.Core.Tests.UnixEditStorageTests.')
+    trx = trx.replace('FileCat.Tests.' + checker.PINS[2], platform + checker.PINS[2])
     return {
         'machine.json': json.dumps({"RunId": "edit-test", "Os": system,
                                     "Env": 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate_text}),
@@ -92,7 +97,8 @@ class EvidenceChecks(unittest.TestCase):
         trx = PASSING_TRX.replace('testName="FileCat.Tests.%s" outcome="Passed"' % pin,
                                   'testName="FileCat.Tests.%s" outcome="NotExecuted"' % pin)
         problems, _ = self.check(files(trx=trx))
-        self.assertIn('no case of the pin %s ran: %s' % (pin, ['FileCat.Tests.' + pin]), problems)
+        self.assertIn('no case of the pin %s ran: %s'
+                      % (pin, ['FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pin]), problems)
 
     def test_refuses_a_run_whose_pin_failed(self):
         pin = checker.PINS[1]
@@ -119,7 +125,7 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_reads_the_gate_out_of_the_unix_runner_s_own_record(self):
         """The Unix runner writes one `env=NAME=VALUE` line per variable into machine.txt."""
-        contents = files()
+        contents = files(system='Linux filecat-ubuntu2404 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
         del contents['machine.json']
         contents['machine.txt'] = ('Linux filecat-ubuntu2404 7.0.0-43-generic #43 SMP x86_64 GNU/Linux\n'
                                    'packet=abc\nfilter=*\nenv=FILECAT_ARCHIVE_TXF_NATIVE=1\nenv=%s\n' % checker.GATE)
@@ -222,7 +228,7 @@ class EvidenceChecks(unittest.TestCase):
         self.assertEqual('windows', self.check(files())[1]['system'])
         for first, system in (('Linux filecat-ubuntu2404 7.0.0-43-generic #43 SMP x86_64 GNU/Linux', 'linux'),
                               ('Darwin Mareks-MacBook-Pro.local 27.0.0 Darwin Kernel Version 27.0.0 arm64', 'macos')):
-            contents = files()
+            contents = files(system=first)
             del contents['machine.json']
             contents['machine.txt'] = first + '\nenv=%s\n' % checker.GATE
             problems, facts = self.check(contents, unix=True)
@@ -276,6 +282,73 @@ class EvidenceChecks(unittest.TestCase):
         problems, _ = self.check(files(trx=both))
         self.assertIn("its own dual-root pin passed in the Windows platform suite's class and in the Core suite's Unix "
                       'class, which no one run does, so its results do not say what ran it', problems)
+
+    def test_reads_the_member_it_listed_and_not_whichever_answers_to_the_name(self):
+        """One appended 512-byte folder header with a file's own name made that file read as empty: a tar resolves a
+        name to its last member and gives nothing for a folder, and the folder was kept out of the name list, so
+        nothing saw it. It emptied a log that said a test had stepped aside, and the lane was accepted."""
+        step = next(iter(checker.STEP_ASIDE))
+        contents = files(log='[xUnit.net] ' + step + '\n')
+        with tempfile.TemporaryDirectory() as directory:
+            path = archive(directory, 'edit-shadowed-evidence.tar.gz', contents, unix=True)
+            self.assertTrue(any(step in problem for problem in checker.check(path)[0]))
+            name = next(n for n in checker.Archive(path).names() if n.split('/')[-1].startswith('test-'))
+            with tarfile.open(path, 'r:gz') as held:
+                members = [(item, held.extractfile(item).read() if item.isfile() else None)
+                           for item in held.getmembers()]
+            with tarfile.open(path, 'w:gz') as rebuilt:
+                for item, data in members:
+                    rebuilt.addfile(item) if data is None else rebuilt.addfile(item, io.BytesIO(data))
+                folder = tarfile.TarInfo(name)
+                folder.type = tarfile.DIRTYPE
+                rebuilt.addfile(folder)
+            problems, _ = checker.check(path)
+            self.assertTrue(any(step in problem for problem in problems), problems)
+
+    def test_does_not_count_a_folder_entry_as_the_file_it_is_named_after(self):
+        """A folder of a record's own name was counted as a second machine record, and read as nothing."""
+        contents = files()
+        with tempfile.TemporaryDirectory() as directory:
+            path = archive(directory, 'edit-foldered-evidence.tar.gz', contents, unix=True)
+            with tarfile.open(path, 'r:gz') as held:
+                members = [(item, held.extractfile(item).read() if item.isfile() else None)
+                           for item in held.getmembers()]
+            with tarfile.open(path, 'w:gz') as rebuilt:
+                for item, data in members:
+                    rebuilt.addfile(item) if data is None else rebuilt.addfile(item, io.BytesIO(data))
+                folder = tarfile.TarInfo('notes/machine.json')
+                folder.type = tarfile.DIRTYPE
+                rebuilt.addfile(folder)
+            self.assertEqual([], checker.check(path)[0])
+
+    def test_refuses_a_run_whose_pin_passed_only_in_a_class_of_its_own(self):
+        """A class that is nested, renamed, or merely longer than the two real ones left the family unsaid, and an
+        unsaid family left the machine record unchallenged: the Windows lane, relabelled, was accepted as Linux."""
+        pin = checker.PINS[2]
+        for other in ('FileCat.Platform.Windows.Tests.Outer+WindowsEditStorageTests.',
+                      'FileCat.Platform.Windows.Tests.WindowsEditStorageTestsV2.',
+                      'FileCat.Core.Tests.EditStorageSharedTests.'):
+            with self.subTest(other=other):
+                trx = PASSING_TRX.replace('FileCat.Tests.' + pin, other + pin)
+                problems, _ = self.check(files(trx=trx))
+                self.assertIn('its results hold no passing dual-root pin in either platform class '
+                              '(WindowsEditStorageTests or UnixEditStorageTests), so nothing in the run itself says '
+                              'what produced it', problems)
+
+    def test_refuses_a_machine_record_that_holds_a_member_twice(self):
+        """A parser keeps the last of a repeated member while a reader sees the first: one record showed a reader
+        Windows and this check Linux."""
+        contents = files()
+        contents['machine.json'] = ('{"RunId": "edit-test", "Os": "Microsoft Windows 11 Pro", "Env": "%s", '
+                                    '"Os": "Linux h 6.0 x86_64 GNU/Linux"}' % checker.GATE)
+        problems, _ = self.check(contents)
+        self.assertIn('its machine record holds Os more than once, so what it says depends on who reads it', problems)
+
+    def test_refuses_a_summary_that_names_no_suite(self):
+        """Counters are what the report's numbers come from; a summary with none is not a run that passed."""
+        problems, _ = self.check(files(summary=dict(SUMMARY, suites={})))
+        self.assertIn('summary.json names no suite', problems)
+        self.assertIn('its summary names no suite', problems)
 
     def test_refuses_an_archive_that_holds_a_name_more_than_once(self):
         """A reader gets the last member of a repeated name while every loop here lists each occurrence, so appending

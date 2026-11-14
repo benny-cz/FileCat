@@ -1,5 +1,34 @@
 # Archive writing implementation status
 
+**14 November, the gate attacked a third time (round thirty-three).** One reviewer built its attacks against the two
+rules the round before had added, and both gave way - the first because of the very filter that round added:
+
+- **One appended folder header emptied any file in a sealed tar.** `tarfile` resolves a name to its last member and
+  gives nothing for a folder, and the new filter kept folder entries out of the name list - so a 512-byte header
+  carrying an existing file's name left the file listed and read as empty, with `repeated()` seeing nothing. The
+  reviewer emptied a log that said a test had stepped aside, and the real Linux lane was accepted and listed. Members
+  are read through now, never by name, so what the loops list and what a read returns are the same member. The sealed
+  lanes still pass; every shadow archive is refused.
+- **A run that named neither platform class was still believed.** `pinned_family` answered None for a class nested,
+  renamed, or merely longer than the two it knows, and None left the machine record unchallenged - so the real Windows
+  lane, with its `Os` rewritten and its pin's class renamed once, was accepted as Linux evidence and listed on the
+  Linux route. A run whose results hold no passing dual-root pin in either real class says nothing about what produced
+  it, and is refused.
+- **A repeated member inside the machine record** showed a reader one system and this check another, the same hazard as
+  a repeated name one level down. Refused, with its own case.
+- In the records: "every rule of both halves is measured" was not true (three rules had no case at all, one of them
+  the filter the first finding turned on); "both are closed" was not true of the repeated-name half while a folder
+  entry could still answer for a file; the `NTFS`/`ext4`/`apfs` words are the arguments of another theory in the route
+  list's own class, not of the route-list pin, which is not a theory; and two reports under one route were never read
+  as the first - the rule was always there, and what was missing was a case for it.
+
+Every rule of the check that can change a verdict now fails exactly the case that claims it, measured one at a time:
+the member read through, the folder filter, the family a run must name, a repeated member in the record, a summary
+naming no suite, a repeated archive name, a second machine record, the family read as a set, the record-and-run
+comparison, and only-the-first-summary. Thirty-seven cases for the check, ten for the manifest. The one rule left
+unmeasured is the zip folder filter, which cannot shadow a file: a zip folder's own name ends in a separator, so it is
+never a file's name.
+
 **14 November, the gate attacked again (round thirty-two).** One reviewer drove both halves of the gate through
 twenty-seven crafted archives and nine mutants. It got through twice, and the first way through was a defect in the
 rule the round before it had just added:
@@ -15,18 +44,18 @@ rule the round before it had just added:
   member of that name, while every "read them all" loop in the check lists each occurrence. Appending clean copies of
   the summary, the status, the results and the log under the names already there - with no original byte rewritten -
   turned a run that had failed, with a FAIL status and a step-aside line, into accepted evidence. A repeated name is
-  now refused by name, and a folder entry is no longer counted as the file it is named after.
-- **The twin of a count rule was measured by nothing.** Two reports under one route's `…/edit/check` were read as the
-  first by the order of the arguments, with the other sitting in the manifest as that route's evidence too; its case
-  exists now. The "every summary, not the first by name" rule was only half-measured, because the case's second
+  refused by name, and a folder entry neither counts as the file it is named after nor answers for it (the round after
+  this one found that half of it open, below).
+- **The twin of a count rule was measured by nothing.** Two reports under one route's `…/edit/check` have been
+  refused since the rule was written; what was missing was a case, so removing the rule - and reading the first report
+  by the order of the arguments - broke nothing. Its case exists now. The "every summary, not the first by name" rule was only half-measured, because the case's second
   summary sorted before the real one - it sorts after it now, so reading only the first is a mutant a case notices.
 - In the records: "nothing in a sealed archive says NTFS, ext4 or apfs" was false as written (those words are theory
   arguments in every edit archive's own results); what the binding does not establish was said of the archive and not
   of the report, and a report is the check's own only on the word of whoever carried it; and the mutant arithmetic the
   round before it recorded was looser than it read.
 
-That arithmetic is now measured for every rule of both halves, one at a time, and each fails exactly the case that
-claims it: a repeated name allowed, the repeated-name case; a second machine record allowed, the second-record case;
+That arithmetic is measured one rule at a time, and each fails exactly the case that claims it: a repeated name allowed, the repeated-name case; a second machine record allowed, the second-record case;
 the family read as a set again, the third-class case and the both-classes case; the record and the run not compared,
 those two and the disagreement case; only the first summary read, the second-summary case; two checks or two archives
 under one route, each its own case. On the manifest's side, the whole edit-route block removed fails all nine of its
@@ -64,8 +93,8 @@ the committed check itself had written - no hand-edited text:
 The file system in a route's ID stays unbound, and recording it is the whole of what can be done here: the Unix machine
 record's `df` line names the device and the mount point without a type column, and the Windows record has no
 file-system field at all, so no sealed record says which file system the run used (the words `NTFS`, `ext4` and `apfs`
-are in every edit archive's results, as the arguments of the route-list pin's own theory, and say nothing about the
-machine). The composition pin judges the
+are in every edit archive's results, as the arguments of another theory in the route list's own class
+(`NativeEditStorageTests.A_runtime_and_its_filesystem_qualify_together`), and say nothing about the machine). The composition pin judges the
 file system of the root its own run gives it, which is what [the accounting](NATIVE_EDIT_STORAGE_ACCOUNTING.md) records.
 Nothing in these records claims otherwise: they say "system".
 

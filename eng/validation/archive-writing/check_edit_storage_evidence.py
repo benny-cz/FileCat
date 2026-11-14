@@ -10,9 +10,10 @@ It reads a run's evidence archive (`<run>-evidence.zip` from the Windows runner,
 one) and requires all of:
 
   * the machine record names `FILECAT_EDIT_NATIVE_REQUIRED=1`, so a native edit test could not skip;
-  * it carries one machine record, and the system that record names agrees with the class that passed this run's own
-    dual-root pin - so a record rewritten to another system, or a second record put before the real one, is refused
-    rather than read (Linux and macOS are told apart by the record's own `uname -a` line, and nothing else here);
+  * it carries one machine record, whose members do not repeat, and the system that record names agrees with the
+    class that passed this run's own dual-root pin - which has to be one of the two real ones, so a record rewritten
+    to another system, a second record put before the real one, and a pin whose class was renamed or nested are each
+    refused rather than read (Linux and macOS are told apart by the record's own `uname -a` line, and nothing else);
   * every suite in the summary passed, with no failure anywhere in the run;
   * the pins of the listing are in its results, each with the outcome Passed - the application's composition pin, the
     route list's own pin, and the dual-root case, which is what a renamed, re-filtered or dropped pin would fail;
@@ -77,16 +78,24 @@ class Archive:
 
     def __init__(self, path: Path) -> None:
         self.path = path
-        # Only the files: a folder entry whose name ends in a file's name would be counted as that file and read as
-        # nothing (a tar `notes/machine.json/` was counted as a second machine record).
+        # Only the files, each kept as its own member: a folder entry whose name ends in a file's name would be
+        # counted as that file (a tar `notes/machine.json/` was counted as a second machine record), and - because
+        # both formats resolve a name to its LAST member and give nothing for a folder - leaving it out of the list
+        # while still reading by name let one appended 512-byte folder header empty any file in a sealed tar.
         if path.name.endswith('.zip'):
             self._zip: zipfile.ZipFile | None = zipfile.ZipFile(path)
-            self._names = [item.filename for item in self._zip.infolist() if not item.is_dir()]
             self._tar: tarfile.TarFile | None = None
+            items: list[object] = [item for item in self._zip.infolist() if not item.is_dir()]
+            self._names = [item.filename for item in items]  # type: ignore[attr-defined]
         else:
             self._tar = tarfile.open(path)
-            self._names = [item.name for item in self._tar.getmembers() if not item.isdir()]
             self._zip = None
+            items = [item for item in self._tar.getmembers() if not item.isdir()]
+            self._names = [item.name for item in items]  # type: ignore[attr-defined]
+        # First wins, which is the one a person listing the archive sees; a name held twice is refused anyway.
+        self._members: dict[str, object] = {}
+        for name, item in zip(self._names, items):
+            self._members.setdefault(name, item)
 
     def __enter__(self) -> 'Archive':
         return self
@@ -123,9 +132,11 @@ class Archive:
         return [name for name in self._names if name.replace('\\', '/').split('/')[-1] == leaf]
 
     def read(self, name: str) -> str:
+        """The bytes of the member this archive listed under that name, not of whichever member answers to it."""
+        item = self._members[name]
         if self._zip is not None:
-            return self._zip.read(name).decode('utf-8', 'replace')
-        handle = self._tar.extractfile(name) if self._tar is not None else None
+            return self._zip.read(item).decode('utf-8', 'replace')  # type: ignore[arg-type]
+        handle = self._tar.extractfile(item) if self._tar is not None else None  # type: ignore[arg-type]
         return '' if handle is None else handle.read().decode('utf-8', 'replace')
 
     def close(self) -> None:
@@ -137,6 +148,29 @@ class Archive:
 def machine_records(archive: Archive) -> list[str]:
     """Every machine record in the archive. A run seals one; which of several speaks is not a thing to guess."""
     return [name for leaf in ('machine.json', 'machine.txt') for name in archive.find(leaf)]
+
+
+def repeated_members(text: str) -> list[str]:
+    """Members a JSON object holds more than once: a parser keeps the last, a reader sees the first.
+
+    The same hazard as a repeated name in the archive, one level down - a machine record saying `Os` twice showed a
+    reader Windows and this check Linux.
+    """
+    found: list[str] = []
+
+    def hook(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        kept: dict[str, object] = {}
+        for key, value in pairs:
+            if key in kept:
+                found.append(key)
+            kept[key] = value
+        return kept
+
+    try:
+        json.loads(text, object_pairs_hook=hook)
+    except ValueError:
+        return []
+    return sorted(set(found))
 
 
 def machine_field(archive: Archive, name: str, field: str) -> str:
@@ -226,6 +260,10 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
             problems.append('it carries %d machine records (%s): which of them speaks for this run is not a thing to '
                             'guess' % (len(records), ', '.join(sorted(records))))
         else:
+            if records[0].replace('\\', '/').endswith('machine.json') and \
+                    (twice := repeated_members(archive.read(records[0]))):
+                problems.append('its machine record holds %s more than once, so what it says depends on who reads it'
+                                % ', '.join(twice))
             recorded = machine_field(archive, records[0], 'Env')
             if (value := gate_value(recorded)) is None:
                 problems.append('its machine record does not name ' + GATE_NAME)
@@ -305,7 +343,13 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
         if family == 'both':
             problems.append('its own dual-root pin passed in the Windows platform suite\'s class and in the Core '
                             'suite\'s Unix class, which no one run does, so its results do not say what ran it')
-        elif system is not None and family is not None and family != ('windows' if system == 'windows' else 'unix'):
+        elif family is None:
+            # None left the machine record unchallenged, and a class that is nested, renamed or merely longer than
+            # the two known ones returned None: one renamed class had the Windows lane accepted as Linux evidence.
+            problems.append('its results hold no passing dual-root pin in either platform class '
+                            '(WindowsEditStorageTests or UnixEditStorageTests), so nothing in the run itself says '
+                            'what produced it')
+        elif system is not None and family != ('windows' if system == 'windows' else 'unix'):
             problems.append('its machine record says %s while its own dual-root pin passed in the %s class, so the '
                             'record and the run disagree about which system ran it'
                             % (system, 'Windows platform suite\'s' if family == 'windows' else 'Core suite\'s Unix'))
