@@ -88,10 +88,12 @@ On macOS the roles run in the App Sandbox helper described above.
    is the check's own. What that binds is the report to the archive and the archive to the route. That an archive is a
    machine's own sealed run rests on the runner that sealed it, and that a report is the committed check's own rests
    on whoever carried it - both are read as text and bytes here, so a file built to the shape with a report written
-   for it satisfies this. The file system in a route's ID is in no sealed record, so it rests on the composition pin
-   inside the run. Where the check reads a system, the run's own
-   dual-root pin has to agree with the machine record; Linux and macOS are told apart by that record's `uname -a` line
-   alone.
+   for it satisfies this. The file system in a route's ID is in no sealed record, so it rests on the composition
+   pin inside the run. Where the check reads a system, the run's own dual-root pin has to agree with the machine
+   record; Linux and macOS are told apart by that record's `uname -a` line alone. So what this condition keeps out is
+   the mistake - a lane that did not run the pins, a gate that was off, a report moved to another archive or route, a
+   stale report, an archive renamed or swapped, parts of one archive that disagree. Whoever can write the evidence
+   folder is outside it, and always was: that is what the runner sealing each archive on its own machine is for.
 5. The independent review (ledger row 14) closes, and its fixes are re-validated.
 
 The listing is then one reviewed change of both lists, each route with its evidence ID, and their pinning tests. Release

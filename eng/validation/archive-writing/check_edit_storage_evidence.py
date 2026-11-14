@@ -27,6 +27,14 @@ it carries under the route's ID, on the system that route names. A name alone wo
 it never read, and a digest alone let one machine's lane stand for all three routes - both were accepted until the
 twenty-ninth and thirtieth reviews tried them.
 
+What this reading is for: a lane that did not run the pins, a run whose gate was off or whose tests stepped aside, a
+report moved to another archive or another route, a stale report, an archive renamed or swapped after it was read, and
+an archive whose own parts disagree - the mistakes a release makes. What it cannot do is prove that an archive is a
+machine's own sealed run: it reads text and bytes, so whoever can write the evidence folder can write something this
+accepts. That rests on the runner that sealed the archive on its machine and on whoever carried it here. Each of the
+rules above exists because a review got past the ones before it, so a new way past a rule is worth a case; a way past
+that needs the evidence folder rewritten is the boundary, not a defect.
+
 Usage: check_edit_storage_evidence.py ARCHIVE... [--out REPORT]
 Exits non-zero, naming what failed, if any archive does not meet all of it.
 """
