@@ -215,3 +215,18 @@ was accepted that way. A sealed run's own listing now has to cover its file exac
 halves could change a verdict with no case noticing - how a log, a results file, a system word and the gate's own name
 are matched, whether every status file is read, and whether a remote package's evidence is carried - each of which has
 its case now. Forty-five cases hold the check and twelve the manifest.
+
+The thirty-sixth review took the layout reading apart. Two more ways to add bytes: the spans were measured with the
+sizes a zip's own directory states, so a directory appended with one size overstated covered a sealed archive exactly
+on paper (the local header states that size too, and the two now have to agree); and the tar half had no rule, so a
+sealed `.tar.gz` put after a forged one was passed over in favour of the forgery (one gzip member with nothing after it
+is required now). Nine rules of that reading could change a verdict with nothing holding them, each of which has its
+case; two guards have no case and none to be had, and say so where they are.
+
+This is where that reading stops. Every way past this gate found since the twenty-ninth review needed bytes added to a
+sealed archive, and each was closed by reading the container more carefully - which the next shape of forgery will ask
+again, because a parser can always be asked one more question. What ends it is a digest of each archive taken by the
+runner on the machine that sealed it and carried beside it, so this host compares bytes instead of parsing them.
+Neither runner writes one today; that is a change to both and one more file per lane, for the next candidate. Until
+then the gate keeps out the mistake it says it keeps out, and the layout rules keep out the appends that have been
+tried.

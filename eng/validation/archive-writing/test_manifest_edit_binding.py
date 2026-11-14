@@ -145,6 +145,21 @@ class ManifestEditBinding(unittest.TestCase):
                           said)
             self.assertIsNone(written)
 
+    def test_refuses_evidence_whose_id_only_begins_like_a_route_s(self):
+        """An entry counts for a route when it is the route's ID or lies below it, which is a separator apart:
+        `AWQ-win-x64-NTFS-notes` is neither, and taking it for the route's own evidence would satisfy all ten of
+        that route's formats with a note."""
+        with tempfile.TemporaryDirectory() as directory:
+            note = Path(directory) / 'notes.txt'
+            note.write_text('a note about the win-x64 route', encoding='utf-8')
+            evidence = [(route + '-notes', note) for route in ROUTES]
+            for route, (archive, report) in self.every_route(directory).items():
+                evidence += [(route + '/edit', archive), (route + '/edit/check', report)]
+            code, said, written = self.manifest(evidence)
+            self.assertEqual(2, code, said)
+            self.assertIn('A listed route names evidence this manifest does not carry: AWQ-win-x64-NTFS', said)
+            self.assertIsNone(written)
+
     def test_refuses_a_listed_route_that_carries_no_evidence_at_all(self):
         """The refusal every route rests on, edit-storage or not, and the one ledger rows 4, 8 and 13 cite: nothing
         in either suite held it, so removing it would have written a manifest for routes with no evidence at all."""

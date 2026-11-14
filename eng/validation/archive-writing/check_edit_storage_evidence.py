@@ -10,9 +10,10 @@ It reads a run's evidence archive (`<run>-evidence.zip` from the Windows runner,
 one) and requires all of:
 
   * the machine record names `FILECAT_EDIT_NATIVE_REQUIRED=1`, so a native edit test could not skip;
-  * its own listing accounts for the whole file, so it is not one zip appended to another - a zip is read from its
-    end, so the appended one is read alone and the sealed half is never looked at, whether it is passed over as a
-    stub or left as a hole that no listed member covers;
+  * its own listing accounts for the whole file, each member as long as its own local header says - a zip is read
+    from its end and sized from its directory, so an appended zip is read alone and a directory that overstates a
+    size can leave the sealed half inside a member's span; a gzipped tar holds one member and nothing after it,
+    since a tar prepended to another is read as the other one;
   * it carries one machine record, whose members do not repeat, and the system that record names agrees with the
     class that passed this run's own dual-root pin - which has to be one of the two real ones, so a record rewritten
     to another system, a second record put before the real one, and a pin whose class was renamed or nested are each
@@ -48,6 +49,7 @@ import hashlib
 import json
 import re
 import struct
+import zlib
 import sys
 import tarfile
 import zipfile
@@ -141,7 +143,7 @@ class Archive:
         appended after them are never listed.
         """
         if self._zip is None:
-            return None
+            return self._gzip_gap()
         spans: list[tuple[int, int]] = []
         with open(self.path, 'rb') as handle:
             for item in self._zip.infolist():
@@ -152,16 +154,30 @@ class Archive:
                 # The local header's own name and extra lengths: an entry's extra field may differ between the local
                 # header and the directory's copy, and this is measuring the file's layout, not the directory's.
                 name, extra = struct.unpack('<HH', header[26:30])
-                size = 30 + name + extra + item.compress_size
-                if item.flag_bits & 0x08:  # a trailing data descriptor
-                    size += 16
-                spans.append((item.header_offset, item.header_offset + size))
+                flag, = struct.unpack('<H', header[6:8])
+                stated, = struct.unpack('<I', header[18:22])
+                length = item.compress_size
+                if flag & 0x08:
+                    # The sizes travel after the data in a trailing descriptor: signature, CRC and two sizes, the
+                    # sizes eight bytes each where they are recorded wide. No runner writes one.
+                    length += 24 if item.compress_size > 0xffffffff else 16
+                elif stated == 0xffffffff:
+                    pass  # a size recorded in the zip64 extra field, which the directory's copy carries
+                elif stated != item.compress_size:
+                    # The size the file itself states for that member, against the one the directory states. A
+                    # directory that overstates it leaves the member's bytes alone while its span swallows what
+                    # follows - which is how an appended directory covered a sealed archive exactly, on paper.
+                    return ('the entry %r is %d bytes long where the file says %d'
+                            % (item.filename, item.compress_size, stated))
+                spans.append((item.header_offset, item.header_offset + 30 + name + extra + length))
         directory = getattr(self._zip, 'start_dir', None)
         if directory is None:  # an older reader that does not say where the directory begins
             return None
         covered = 0
         reach = 0
         for start, end in sorted(spans):
+            # Another guard with no case of its own: a span now runs as far as the member's own local header says,
+            # so two listed members overlap only where the file overlaps them, which the reader refuses to read.
             if start < reach:
                 return 'its members %d and %d overlap' % (start, reach)
             covered += end - start
@@ -169,10 +185,39 @@ class Archive:
         first = min((start for start, _ in spans), default=0)
         if first != 0:
             return 'its first member begins %d bytes into the file' % first
+        # A guard with no case, and none to be had: zipfile derives where the directory is from the end record, so a
+        # member listed after it makes the archive unreadable rather than overreaching. It stays because the two
+        # sums below would otherwise have to speak for a layout they were not written for.
+        if reach > directory:
+            return 'its last member runs %d bytes past the directory that lists it' % (reach - directory)
         if reach != directory or covered != directory:
             return ('its listing covers %d of the %d bytes before the directory, so %d are in the file and in no '
                     'member of it' % (covered, directory, directory - covered))
         return None
+
+    def _gzip_gap(self) -> str | None:
+        """Why this gzipped tar is not the whole of its file; None when it is.
+
+        gzip reads concatenated members as one stream and tarfile stops at the first tar's own end-of-archive blocks,
+        so appending to a sealed `.tar.gz` adds nothing a reader sees - but a sealed archive *prepended* to a forged
+        one is passed over in favour of the forgery, which is how a mac lane's bytes carried a five-member forgery.
+        Every archive either runner seals is one gzip member with nothing after it.
+        """
+        with open(self.path, 'rb') as handle:
+            if handle.read(2) != b'\x1f\x8b':
+                return None  # not gzipped at all; what it is, if anything, the rules below decide
+            handle.seek(0)
+            stream = zlib.decompressobj(31)
+            try:
+                while not stream.eof:
+                    block = handle.read(1 << 20)
+                    if not block:
+                        return 'its compressed stream does not end'
+                    stream.decompress(block)
+            except zlib.error as error:
+                return 'its compressed stream cannot be read: %s' % error
+            after = len(stream.unused_data) + len(handle.read())
+        return None if after == 0 else 'the file holds %d bytes after this archive\'s own end' % after
 
     def repeated(self) -> list[str]:
         """Names this archive holds more than once.
@@ -450,7 +495,7 @@ def main() -> int:
         try:
             problems, facts = check(path)
         except (OSError, zipfile.BadZipFile, tarfile.TarError, json.JSONDecodeError, ValueError, TypeError,
-                AttributeError, KeyError) as error:
+                AttributeError, KeyError, NotImplementedError) as error:
             failed = True
             lines.append('%s: NOT edit-storage evidence' % path.name)
             lines.append('    it cannot be read as a sealed run: %s: %s' % (type(error).__name__, error))

@@ -284,6 +284,154 @@ class EvidenceChecks(unittest.TestCase):
         self.assertIn("its own dual-root pin passed in the Windows platform suite's class and in the Core suite's Unix "
                       'class, which no one run does, so its results do not say what ran it', problems)
 
+    # The file's own layout, which decides whether an archive is the whole of its file. Each shape below is built by
+    # hand because no writer makes it: a directory that lies about a size, a member that overlaps another, a listing
+    # that stops short of the directory or runs past it, a tar with something before it. `CENTRAL` is a central
+    # directory entry: signature, versions, flag, method, time, date, CRC, the two sizes, the three lengths, the disk,
+    # the two attribute words and the local header's offset.
+    CENTRAL = '<4sHHHHHHIIIHHHHHII'
+
+    def rewritten_directory(self, path, entries):
+        """The archive at `path` with a directory of its own listing only `entries`, as (ZipInfo, compressed size)."""
+        blob = path.read_bytes()
+        body = bytearray()
+        for item, size in entries:
+            name = item.filename.encode('utf-8')
+            body += struct.pack(self.CENTRAL, b'PK\x01\x02', 20, 20, item.flag_bits, item.compress_type, 0, 0,
+                                item.CRC, size, item.file_size, len(name), 0, 0, 0, 0, 0, item.header_offset) + name
+        path.write_bytes(blob + bytes(body) + struct.pack(
+            '<4sHHHHIIH', b'PK\x05\x06', 0, 0, len(entries), len(entries), len(body), len(blob), 0))
+        return path
+
+    def laid_out(self, directory, contents=None, leaf='edit-layout-evidence.zip'):
+        """A fixture zip, its members in file order with each one's own compressed size from its local header."""
+        path = archive(directory, leaf, contents or files())
+        order = []
+        with zipfile.ZipFile(path) as held, open(path, 'rb') as handle:
+            start = held.start_dir
+            for item in sorted(held.infolist(), key=lambda entry: entry.header_offset):
+                handle.seek(item.header_offset)
+                head = handle.read(30)
+                name, extra = struct.unpack('<HH', head[26:30])
+                order.append((item, 30 + name + extra + item.compress_size))
+        return path, order, start
+
+    def test_refuses_a_directory_that_states_a_size_the_file_does_not(self):
+        """A zip is sized from its directory, and a deflated member stops at its own stream end - so a directory that
+        overstates a size leaves the member's bytes alone while its span swallows what follows, which is how an
+        appended directory covered a whole sealed archive on paper. The local header states the size too."""
+        with tempfile.TemporaryDirectory() as directory:
+            path, order, start = self.laid_out(directory)
+            first = order[0][0]
+            stretched = start - first.header_offset - (order[0][1] - first.compress_size)
+            self.rewritten_directory(path, [(first, stretched)])
+            problems, _ = checker.check(path)
+            self.assertTrue(any('where the file says' in problem for problem in problems), problems)
+
+    def test_refuses_a_listing_that_stops_short_of_its_directory(self):
+        """Once the sizes have to agree, a forged directory can still leave an entry out - and those bytes are then in
+        the file and in no member of it."""
+        with tempfile.TemporaryDirectory() as directory:
+            path, order, _ = self.laid_out(directory)
+            self.rewritten_directory(path, [(item, item.compress_size) for item, _ in order[:-1]])
+            problems, _ = checker.check(path)
+            self.assertTrue(any('in no member of it' in problem for problem in problems), problems)
+
+    def test_refuses_a_member_listed_twice_in_the_directory(self):
+        """One member listed at its own offset twice: the bytes are covered twice and a hole of the same size goes
+        unseen, which is what the overlap guard is for - though it is the repeated name that refuses this, since a
+        span now runs as far as the member's own header says and two real members cannot overlap."""
+        with tempfile.TemporaryDirectory() as directory:
+            path, order, _ = self.laid_out(directory)
+            doubled = [(item, size - 30 - len(item.filename.encode('utf-8'))) for item, size in order]
+            doubled.append(doubled[0])  # the first member listed twice, at its own offset
+            self.rewritten_directory(path, doubled)
+            problems, _ = checker.check(path)
+            self.assertTrue(any('overlap' in problem or 'more than once' in problem for problem in problems), problems)
+
+    def test_refuses_an_entry_that_does_not_point_at_a_member(self):
+        """Only this rule looks at a folder entry's offset, since a folder is never read: pointed inside another
+        member's bytes, it is a listing of something that is not a member of this file."""
+        with tempfile.TemporaryDirectory() as directory:
+            path, order, _ = self.laid_out(directory)
+            folder = zipfile.ZipInfo('shadow/')
+            folder.header_offset = order[0][0].header_offset + 16  # inside the first member's own header
+            folder.CRC = folder.compress_type = folder.file_size = folder.flag_bits = 0
+            self.rewritten_directory(path, [(item, item.compress_size) for item, _ in order] + [(folder, 0)])
+            with checker.Archive(path) as held:
+                self.assertIn('does not point at a member', held.listing_gap() or '')
+
+    def test_accepts_the_zip_shapes_ordinary_writers_make(self):
+        """What the layout rules must never refuse: a wide (zip64) entry whose local extra the directory does not
+        repeat, a member written to an unseekable stream so its sizes travel in a trailing descriptor, and folders."""
+        with tempfile.TemporaryDirectory() as directory:
+            wide = Path(directory) / 'wide.zip'
+            with zipfile.ZipFile(wide, 'w', allowZip64=True) as held:
+                # Written wide on purpose: the local header then carries a 20-byte zip64 extra that the directory
+                # does not repeat, so a span measured from the directory's lengths falls 20 bytes short.
+                with held.open(zipfile.ZipInfo('summary.json'), 'w', force_zip64=True) as member:
+                    member.write(b'{}' * 64)
+            folders = Path(directory) / 'folders.zip'
+            with zipfile.ZipFile(folders, 'w') as held:
+                held.writestr('results/', '')
+                held.writestr('results/a.trx', '<TestRun />')
+            class Unseekable(io.RawIOBase):  # a stream zipfile cannot rewind, so it writes a data descriptor
+                def __init__(self, handle): self.handle = handle
+                def writable(self): return True
+                def seekable(self): return False
+                def write(self, data): return self.handle.write(data)
+            streamed = Path(directory) / 'streamed.zip'
+            with open(streamed, 'wb') as raw:
+                with zipfile.ZipFile(Unseekable(raw), 'w', zipfile.ZIP_DEFLATED) as held:
+                    held.writestr('summary.json', '{}' * 64)
+            for path in (wide, folders, streamed):
+                with self.subTest(path.name):
+                    with checker.Archive(path) as held:
+                        self.assertIsNone(held.listing_gap())
+
+    def test_refuses_a_tar_with_another_archive_before_it(self):
+        """gzip reads joined members as one stream while tarfile stops at the first tar's end-of-archive blocks: an
+        append is not read, but a sealed archive put after a forged one is passed over in favour of the forgery."""
+        with tempfile.TemporaryDirectory() as directory:
+            sealed = archive(directory, 'edit-sealed-evidence.tar.gz', files(), unix=True)
+            forged = archive(directory, 'edit-forged-evidence.tar.gz', files(status='FAIL'), unix=True)
+            joined = Path(directory) / 'edit-joined-evidence.tar.gz'
+            joined.write_bytes(forged.read_bytes() + sealed.read_bytes())
+            self.assertIn(sealed.read_bytes(), joined.read_bytes())  # the sealed archive is there, unread
+            problems, _ = checker.check(joined)
+            self.assertTrue(any("after this archive's own end" in problem for problem in problems), problems)
+
+    def test_refuses_a_run_whose_pin_passed_only_in_a_unix_class_of_its_own(self):
+        """The mirror of the Windows-side case: a class renamed on the Unix side left the family unsaid too, and the
+        record went unchallenged."""
+        pin = checker.PINS[2]
+        trx = PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Core.Tests.UnixEditStorageTestsV2.' + pin)
+        problems, _ = self.check(files(trx=trx, system='Linux host 6.0.0 x86_64 GNU/Linux'))
+        self.assertIn('its results hold no passing dual-root pin in either platform class '
+                      '(WindowsEditStorageTests or UnixEditStorageTests), so nothing in the run itself says '
+                      'what produced it', problems)
+
+    def test_names_an_archive_whose_compression_it_cannot_read(self):
+        """A method this reader does not know is one more refusal, and the run's other archives are still reported:
+        it ended the whole run with a traceback and wrote no report at all."""
+        with tempfile.TemporaryDirectory() as directory:
+            unreadable = Path(directory) / 'edit-method-evidence.zip'
+            with zipfile.ZipFile(unreadable, 'w', zipfile.ZIP_DEFLATED) as held:
+                held.writestr('summary.json', '{}' * 64)
+            blob = bytearray(unreadable.read_bytes())
+            for at in (8, blob.rfind(b'PK\x01\x02') + 10):  # the method, in the local header and the directory
+                blob[at:at + 2] = struct.pack('<H', 9)       # Deflate64, which Python does not implement
+            unreadable.write_bytes(bytes(blob))
+            good = archive(directory, 'edit-good-evidence.zip', files())
+            report = Path(directory) / 'report.txt'
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                with unittest.mock.patch.object(sys, 'argv', ['check', str(unreadable), str(good), '--out', str(report)]):
+                    self.assertEqual(1, checker.main())
+            self.assertIn('edit-method-evidence.zip: NOT edit-storage evidence', output.getvalue())
+            self.assertIn('edit-good-evidence.zip: edit-storage evidence', output.getvalue())
+            self.assertEqual(output.getvalue(), report.read_text(encoding='utf-8'))
+
     def test_refuses_a_zip_appended_to_another_zip(self):
         """zipfile reads a zip from its end, so a sealed zip with another appended is read as the appended one alone:
         a lane whose status said FAIL, whose summary held a failure and whose log held a step-aside reason was

@@ -1,5 +1,42 @@
 # Archive writing implementation status
 
+**14 November, the layout reading taken apart (round thirty-six).** No High, and nothing that makes the gate accept or
+misbind an archive whose bytes were not added to. What it found was two more ways to add bytes, and eight rules of the
+layout reading that no case held:
+
+- **The spans were measured with the directory's own sizes.** A zip is sized from its directory, and a deflated member
+  stops at its own stream end, so a directory that overstates a size leaves that member's bytes identical while its
+  span swallows what follows. 2,050 appended bytes had the failed Windows full-regression lane accepted, its listing
+  covering its file exactly on paper. The same size is in each member's local header - every sealed zip of this round
+  repeats it there - and the two now have to agree.
+- **The tar half had no such rule at all.** gzip reads joined members as one stream while tarfile stops at the first
+  tar's end-of-archive blocks: appending is not read, but a sealed `.tar.gz` put *after* a forged one is passed over in
+  favour of the forgery, which a mac lane's own bytes carried. Every archive either runner seals is one gzip member
+  with nothing after it, which is the rule now.
+- **Nine rules of that reading could change a verdict with nothing holding them**: the local header's signature, its
+  own name and extra lengths, a trailing descriptor's bytes, the coverage sums, the size the file states, the Unix
+  platform class (the mirror of a case that only tried Windows-side names), a compression method this reader does not
+  know - which ended the whole run with a traceback and wrote no report, where a malformed archive is one refusal
+  among others - and, in the manifest, crediting evidence to a route by the ID's text without the separator, so a note
+  under `AWQ-win-x64-NTFS-notes` satisfied all ten of that route's formats. Each has a case now, and each case fails
+  under its own rule's weakening alone.
+- Two rules are left with no case and none to be had, and now say so where they are: the overlap check and the
+  run-past-the-directory check. A span runs as far as the member's own header says, so two listed members overlap only
+  where the file overlaps them - which the reader itself refuses - and a member listed after the directory makes the
+  archive unreadable, because the reader works out where the directory is from the end record.
+
+Fifty-three cases for the check, thirteen for the manifest.
+
+**Where this reading has to stop.** Every one of the eight ways past this gate that the twenty-ninth to thirty-sixth
+reviews found needed bytes added to a sealed archive, and six of the last seven needed only an append. Each was closed
+by reading the container more carefully - and a container format read more carefully is still a container format: the
+next shape is a question about zip64 end records, or a tar's own padding, and the reading cannot be finished, only
+extended. What finishes it is not here: a digest of each archive, taken by the runner on the machine that sealed it
+and carried beside it, so the host compares bytes rather than parsing them. The runners do not write one today (the
+`packet=` digest each records is of the source they tested, not of the archive they produced), so it is a change to
+both runners and one more file per lane, for the next candidate rather than this one. Until then this gate keeps out
+the mistake, as it says, and the layout rules above keep out the appends that have been tried.
+
 **14 November, the append closed and the suites measured against every rule (round thirty-five).** One reviewer found
 no way to make the gate accept or misbind an untampered archive, and two Mediums:
 
@@ -11,9 +48,11 @@ no way to make the gate accept or misbind an untampered archive, and two Mediums
   rewritten; a 429-byte append of the sealed entries with one size zeroed made a member read as empty, which is the
   tar hazard of the round before last, reopened for zip. The rule now asks what a sealed run's own listing does: cover
   its file exactly, once - the lowest member at byte 0, the highest ending where the directory begins, none
-  overlapping, read from the local headers themselves rather than the directory's copy of them. All fourteen archives
-  of this round cover their files exactly, as do a zip64 archive, one with a comment and a deflated one with a folder;
-  both forgeries are refused, naming the bytes that are in the file and in no member of it.
+  overlapping, each member's name and extra lengths read from its own local header (the round below found the sizes
+  still taken from the directory, and the tar side with no rule at all). All five sealed zips cover their files
+  exactly, as do a zip64 archive, one with a comment and a deflated one with a folder; the appended zip is refused for
+  beginning 1,485 bytes into its file and the appended directory for leaving 351 bytes in the file and in no member of
+  it.
 - **Six rules could change a verdict and no case noticed them.** Weakened one at a time: a log or results file found
   by a part of its name (so a run carrying only `latest-run.log`, or only a `.trx.bak`, reads as carrying a log and
   results); the system matched anywhere in the record's line (so a macOS `uname` line naming `Linux-compat` reads as
@@ -23,14 +62,8 @@ no way to make the gate accept or misbind an untampered archive, and two Mediums
   candidate's fourteen packages rest on, since each is recorded by the digest its own machine's log states. Each has a
   case now, and each case fails under its own weakening alone.
 
-So the two sentences that said only two rules were left unmeasured were wrong, and are corrected here. What is left is
-the zip folder filter, the member map's first-wins, the `is_file` branch of the runner's own entry point and the
-first-non-blank-line in reading a system - none of which can change a verdict: a zip folder's name ends in a separator
-so it is never a file's name, a collision in the map means a repeated name and is refused, both branches of the entry
-point refuse, and the line-reading mutant behaves identically.
-
-Forty-five cases for the check, twelve for the manifest, every rule of either that can change a verdict failing exactly
-the case that claims it.
+So the two sentences that said only two rules were left unmeasured were wrong, and are corrected here. The round
+below measured every rule of both halves again and found nine more; what is left after it is listed there.
 
 **14 November, the gate read against its own boundary (round thirty-four).** One reviewer took the boundary written
 down in `0c972144` as the measure: a way past a rule that needs the evidence folder rewritten is that boundary, while an
@@ -43,8 +76,9 @@ closed here:
   Windows lane, 1,493 appended bytes left the check reading 5 members instead of 20; with a failed lane as the first
   half, a FAIL status, a summary holding a failure and a log holding a step-aside reason all went unread and the
   archive was accepted, every sealed byte still present. An archive's own listing has to account for its file now
-  (the round below found the first form of that rule too weak). The tar side needs no such rule: tarfile stops at the
-  sealed tar's own end-of-archive blocks, so members appended after them are never listed.
+  (the round below found the first form of that rule too weak, and the round after that the second). The tar side has
+  its own rule since the thirty-sixth review: appending to a sealed `.tar.gz` is not read, but a sealed archive put
+  after a forged one is passed over in favour of the forgery, so one gzip member with nothing after it is required.
 - **A name was matched as the whole leaf by no case.** Loosened to a part of one, the check accepts an archive
   carrying `full-r35-win-status.txt` and no `status.txt` - and those are the names the runners drop beside an archive,
   so the loose rule would have found a status for every run that has none. Its case exists now.
