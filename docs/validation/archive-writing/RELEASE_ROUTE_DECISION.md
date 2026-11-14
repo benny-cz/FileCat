@@ -24,7 +24,9 @@ pinning test records.
 
 win-arm64 and linux-arm64 stay disabled: no test machine runs them. Writing is unavailable from two payloads that do
 ship - a mounted AppImage (install the .deb, or extract it onto an ext4 drive) and the framework-dependent Windows
-build - each refused with its reason, which is what that payload's own route lane proves.
+build - each refused with its reason: the AppImage in its own package route lane, from a real mount; the
+framework-dependent build in `ArchiveAppContainerRuntimeAccessTests` (`7bc4944a`), on a synthesized layout, since no
+package route lane runs from that zip.
 
 ## The macOS memory gate
 
@@ -129,8 +131,9 @@ own verdict on the run, every file the other requirements are read from, the thr
 no failing one, and no test that stepped aside because native storage could not be held. Until `dcf19885` that checker
 refused every real Windows archive - the dual-root pin is one method name in two classes, and a Windows run carries
 both, the other platform's recorded as not executed - so no Windows archive had ever been accepted by it. The manifest's
-own refusal checks that a listed route carries an entry, not what is inside it, which is why that report is carried as
-evidence in its own right. It is carried under each route's edit ID because the manifest credits an entry to the longest
+refusal then checked that a listed route carried an entry and not what was inside it, which is why that report is
+carried as evidence in its own right; since the twenty-ninth and thirtieth reviews it reads that report, and binds it to
+the archive and the route it speaks for (condition 4). It is carried under each route's edit ID because the manifest credits an entry to the longest
 listed ID it is under: `…/edit/check` is the edit route's evidence, where `…/edit-check` would have been credited to the
 archive route above it.
 
@@ -155,3 +158,11 @@ unless the report under that route's own `…/check` accepts the archive carried
 for the ways the old refusal could be met. This candidate's manifest keeps the digests it was written with, and the
 binding holds for it: run over the three sealed archives, the check names exactly the digests the manifest records for
 the three `…/edit` entries ([status](IMPLEMENTATION_STATUS.md)).
+
+The thirtieth review read that binding by trying it. An archive bound by its digest alone was still bound to no route -
+one machine's lane, with its own true report, satisfied all three - and only the two ends of the report's verdict line
+were read, so a hand-written line could say anything in between. The check now names the system out of the archive's own
+machine record as well as the digest, the manifest requires the whole tail in the check's own words with that route's
+own system in it, and it refuses outright to bind two listed routes that share a system, because a report naming the
+system cannot tell them apart. Read today, each of the three sealed archives names the system and the digest of the
+route it is listed under.

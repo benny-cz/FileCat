@@ -1,5 +1,38 @@
 # Archive writing implementation status
 
+**14 November, the fix reviewed (round thirty).** One reviewer read the twenty-ninth round's binding and the records
+that came with it, and measured rather than argued: it ran the committed tool, and it removed parts of the new
+comparison to see which cases noticed. Everything it checked in the evidence held - all 23 digests and sizes, the
+rerun's packet, both Ubuntu lanes' three-case totals, the staging times, conditions 2 and 3, and that no manifest before
+`048bf334` carried an `…/edit/check` entry. What it found, fixed here:
+
+- **An archive was bound to its report, and to no route.** It carried the Windows lane's own archive, with that lane's
+  own true report, under all three listed routes: accepted, "3 edit-storage routes listed". The digest said which
+  archive the report had read and nothing said which machine had produced it. The check now names the system out of the
+  archive's own machine record - `Os` in the Windows runner's, the first `uname -a` line in the Unix runner's - and the
+  manifest requires that word to be the one its route's runtime implies. Two listed routes on one system would make
+  that word ambiguous, and the architecture is in the Unix line but not in the Windows record, so the tool refuses that
+  state outright rather than binding the wrong one.
+- **Only the two ends of the verdict line were read.** A hand-written line could begin with the archive's name and end
+  with its digest and say anything in between, the gate included. The whole tail is now required, case-sensitively, in
+  the check's own words (`, no failure, FILECAT_EDIT_NATIVE_REQUIRED=1 in force, <system>, sha256 <digest>`), and the
+  digest compared is the one this manifest records for that entry rather than a second reading of the file.
+- **The digest half of the binding was tested by nothing, and a case said otherwise.** Removing it left all six cases
+  passing: the case that claimed to test it refused on the file name instead. Each requirement is now measured. With
+  the whole requirement removed, all seven refusal cases fail; with the system not required to be the route's, exactly
+  the case that carries one machine's lane under another route fails; with the digest not required, exactly the case
+  that carries the real report of another archive of the same name and system fails; reading only the two ends, the
+  case whose line claims the gate was off fails. Eight cases now, from six.
+- Two sentences in the route decision: one said the manifest "checks that a listed route carries an entry, not what is
+  inside it", which condition 4 now contradicts; the other credited the framework-dependent Windows build with a route
+  lane of its own, where what proves its refusal is a unit case on a synthesized layout
+  (`ArchiveAppContainerRuntimeAccessTests`, `7bc4944a`) - no package route lane runs from that zip.
+
+Read today, each of the three sealed archives names its own system and its own digest, which are the route it is listed
+under: `windows, sha256 363e3c1a…`, `linux, sha256 cd290a16…`, `macos, sha256 8f45e116…`, against the manifest's
+`AWQ-win-x64-NTFS/edit`, `AWQ-linux-x64-ext4/edit` and `AWQ-osx-arm64-apfs/edit`. The reports the manifest cites are
+the ones its own candidate produced, kept byte for byte; the refusal is in force from the next candidate.
+
 **14 November, the records reviewed (round twenty-nine).** Two reviewers read the records of the round below: one
 checked every number and verdict in them against the sealed evidence, one checked the listing against the conditions
 this project's own decision document sets for listing a route. The arithmetic, the manifest's digests and sizes and the

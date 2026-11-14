@@ -30,14 +30,15 @@ SUMMARY = {"ok": True, "failed": [], "exit_codes": {"FileCat.App.Tests-Edit": 0}
 
 
 def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything ran\n', status='PASS',
-          gate_value=None):
+          gate_value=None, system='Microsoft Windows 11 Pro 10.0.26220.0'):
     """The four files the runners seal, as a name-to-text map; each argument stands for one way a run can differ."""
     if gate_value is not None:
         gate_text = checker.GATE_NAME + '=' + gate_value
     else:
         gate_text = checker.GATE if gate else 'FILECAT_EDIT_NATIVE_ROOT=/tmp/x'
     return {
-        'machine.json': json.dumps({"RunId": "edit-test", "Env": 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate_text}),
+        'machine.json': json.dumps({"RunId": "edit-test", "Os": system,
+                                    "Env": 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate_text}),
         'summary.json': json.dumps(SUMMARY if summary is None else summary),
         'status.txt': status,
         'results/FileCat.App.Tests-Edit.trx': '<?xml version="1.0"?><TestRun><Results>' + trx + '</Results></TestRun>',
@@ -119,7 +120,8 @@ class EvidenceChecks(unittest.TestCase):
         """The Unix runner writes one `env=NAME=VALUE` line per variable into machine.txt."""
         contents = files()
         del contents['machine.json']
-        contents['machine.txt'] = 'packet=abc\nfilter=*\nenv=FILECAT_ARCHIVE_TXF_NATIVE=1\nenv=%s\n' % checker.GATE
+        contents['machine.txt'] = ('Linux filecat-ubuntu2404 7.0.0-43-generic #43 SMP x86_64 GNU/Linux\n'
+                                   'packet=abc\nfilter=*\nenv=FILECAT_ARCHIVE_TXF_NATIVE=1\nenv=%s\n' % checker.GATE)
         problems, _ = self.check(contents, unix=True)
         self.assertEqual([], problems)
 
@@ -213,6 +215,23 @@ class EvidenceChecks(unittest.TestCase):
         problems, _ = self.check(contents)
         self.assertEqual(['it carries no summary.json'], problems)
 
+    def test_reads_the_system_each_runner_records_in_its_own_way(self):
+        """What binds an archive to a route: the Windows runner's `Os`, the Unix runner's first `uname -a` line."""
+        self.assertEqual('windows', self.check(files())[1]['system'])
+        for first, system in (('Linux filecat-ubuntu2404 7.0.0-43-generic #43 SMP x86_64 GNU/Linux', 'linux'),
+                              ('Darwin Mareks-MacBook-Pro.local 27.0.0 Darwin Kernel Version 27.0.0 arm64', 'macos')):
+            contents = files()
+            del contents['machine.json']
+            contents['machine.txt'] = first + '\nenv=%s\n' % checker.GATE
+            problems, facts = self.check(contents, unix=True)
+            self.assertEqual([], problems)
+            self.assertEqual(system, facts['system'])
+
+    def test_refuses_a_run_whose_machine_record_does_not_say_which_system_ran_it(self):
+        problems, _ = self.check(files(system='a machine'))
+        self.assertIn('its machine record does not say which system ran it, so nothing in it binds it to a route',
+                      problems)
+
     def test_names_the_archive_it_accepts_by_its_own_digest(self):
         """What binds a report to an archive: the release manifest requires the report carried under a route's
         `.../check` to name, by digest, the archive carried under that route's ID. A name could be any file's, and a
@@ -225,7 +244,8 @@ class EvidenceChecks(unittest.TestCase):
                     self.assertEqual(0, checker.main())
             verdict = report.read_text(encoding='utf-8').splitlines()[0]
             self.assertTrue(verdict.startswith('edit-good-evidence.zip: edit-storage evidence,'), verdict)
-            self.assertTrue(verdict.endswith(', sha256 ' + hashlib.sha256(path.read_bytes()).hexdigest()), verdict)
+            self.assertTrue(verdict.endswith(', no failure, %s in force, windows, sha256 %s'
+                                             % (checker.GATE, hashlib.sha256(path.read_bytes()).hexdigest())), verdict)
 
     def test_names_an_archive_it_cannot_read_and_still_writes_its_report(self):
         """A malformed archive is one more refusal: the run's other archives are still reported, and `--out` is written."""

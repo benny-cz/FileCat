@@ -10,16 +10,19 @@ It reads a run's evidence archive (`<run>-evidence.zip` from the Windows runner,
 one) and requires all of:
 
   * the machine record names `FILECAT_EDIT_NATIVE_REQUIRED=1`, so a native edit test could not skip;
+  * the machine record says which system ran it, which is what binds an archive to a route rather than to a name;
   * every suite in the summary passed, with no failure anywhere in the run;
   * the pins of the listing are in its results, each with the outcome Passed - the application's composition pin, the
     route list's own pin, and the dual-root case, which is what a renamed, re-filtered or dropped pin would fail;
   * no test stepped aside because this process or folder could not hold native storage.
 
 A lane's name is not evidence of anything, so nothing here reads one: an archive counts because it carries the pins,
-whether it is a focused edit lane or a full regression. The report names an archive it accepts by its SHA-256, which is
-what binds this reading to that archive: the release manifest refuses a listed edit-storage route unless the report it
-carries under the route's own `.../check` accepts the archive it carries under the route's ID, and a name alone would
-let a report be moved to an archive it never read.
+whether it is a focused edit lane or a full regression. The report names an archive it accepts by its SHA-256 and the
+system that ran it, which is what binds this reading to that archive and that archive to a route: the release manifest
+refuses a listed edit-storage route unless the report it carries under the route's own `.../check` accepts the archive
+it carries under the route's ID, on the system that route names. A name alone would let a report be moved to an archive
+it never read, and a digest alone let one machine's lane stand for all three routes - both were accepted until the
+twenty-ninth and thirtieth reviews tried them.
 
 Usage: check_edit_storage_evidence.py ARCHIVE... [--out REPORT]
 Exits non-zero, naming what failed, if any archive does not meet all of it.
@@ -35,6 +38,10 @@ import tarfile
 import zipfile
 from pathlib import Path
 
+# What each runner's own machine record calls the system it ran on: `Os` in the Windows runner's `machine.json`,
+# the first line of `uname -a` in the Unix runner's `machine.txt`. The architecture is in that line and not in the
+# Windows record, so this names the system and the manifest refuses to bind two routes that share one.
+SYSTEMS = (('Microsoft Windows', 'windows'), ('Windows', 'windows'), ('Linux', 'linux'), ('Darwin', 'macos'))
 GATE_NAME = 'FILECAT_EDIT_NATIVE_REQUIRED'
 GATE_VALUE = '1'
 GATE = GATE_NAME + '=' + GATE_VALUE
@@ -123,6 +130,25 @@ def machine_env(archive: Archive) -> str | None:
     return None
 
 
+def machine_system(archive: Archive) -> str | None:
+    """Which system ran this, out of its own machine record (None: it does not say).
+
+    An archive bound only by its digest is bound to no route: the thirtieth review carried the Windows lane's own
+    archive, with its own true report, under all three listed routes, and the manifest took it for all three.
+    """
+    for leaf in ('machine.json', 'machine.txt'):
+        for name in archive.find(leaf):
+            text = archive.read(name)
+            if leaf == 'machine.json':
+                try:
+                    text = str(json.loads(text).get('Os', ''))
+                except json.JSONDecodeError:
+                    pass
+            first = next((line for line in text.splitlines() if line.strip()), '')
+            return next((system for named, system in SYSTEMS if first.strip().startswith(named)), None)
+    return None
+
+
 def gate_value(recorded: str) -> str | None:
     """What this run set the gate to, or None if it did not set it at all.
 
@@ -164,6 +190,9 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
         elif value != GATE_VALUE:
             problems.append('its machine record sets %s to %r, not %r, so a native edit test could step aside'
                             % (GATE_NAME, value, GATE_VALUE))
+        facts['system'] = system = machine_system(archive)
+        if recorded is not None and system is None:
+            problems.append('its machine record does not say which system ran it, so nothing in it binds it to a route')
         summaries = archive.find('summary.json')
         if not summaries:
             return problems + ['it carries no summary.json'], facts
@@ -274,8 +303,8 @@ def main() -> int:
         assert isinstance(suites, dict)
         passed = sum(int(counters.get('passed', 0)) for counters in suites.values())
         skipped = sum(int(counters.get('skipped', 0)) for counters in suites.values())
-        lines.append('%s: edit-storage evidence, %d passed, %d skipped, no failure, %s in force, sha256 %s'
-                     % (path.name, passed, skipped, GATE, accepted_digest(path)))
+        lines.append('%s: edit-storage evidence, %d passed, %d skipped, no failure, %s in force, %s, sha256 %s'
+                     % (path.name, passed, skipped, GATE, facts['system'], accepted_digest(path)))
         for name, counters in sorted(suites.items()):
             lines.append('    %s: %s of %s passed, %s skipped' % (name, counters.get('passed'),
                                                                   counters.get('total'), counters.get('skipped')))

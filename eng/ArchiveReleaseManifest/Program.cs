@@ -12,7 +12,7 @@
 // A dirty checkout is refused unless --allow-dirty is given, and then the manifest says so. The tool lists and enables
 // nothing: it records the build's own route lists, and refuses a listed route whose evidence it does not carry. For an
 // edit-storage route it also reads that evidence: the route's own "<id>/check" must carry the committed check's report
-// accepting, by digest, the archive carried under "<id>".
+// accepting, by digest and on that route's own system, the archive carried under "<id>".
 using System.Diagnostics;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -24,6 +24,11 @@ using FileCat.Core.Edit;
 static class Program
 {
     private const string Schema = "filecat-archive-release-manifest/1";
+    // The tail of an accepting verdict line from eng/validation/archive-writing/check_edit_storage_evidence.py, in
+    // that check's own words. Spelling it here is what makes a change there refuse every route until both agree,
+    // rather than pass silently: this file cannot read Python, and a gate this tool does not recognise is not a gate.
+    private const string EditVerdict = ": edit-storage evidence,";
+    private const string EditGate = "FILECAT_EDIT_NATIVE_REQUIRED=1";
 
     private static int Main(string[] args)
     {
@@ -139,28 +144,39 @@ static class Program
         foreach (string id in listedIds)
             if (!evidence.Any(item => Credited(item.Id) == id))
                 throw new ArgumentException("A listed route names evidence this manifest does not carry: " + id);
-        // An edit-storage route stands on a lane that ran with the native store required, which is a fact about what
-        // is inside its archive and not about the ID it is carried under. The committed check reads those contents
-        // (eng/validation/archive-writing/check_edit_storage_evidence.py) and its report names the archive it accepted
-        // by digest; the report is carried under the route's own "<id>/check", and the route is refused here unless
-        // that report accepts the very archive this manifest carries under "<id>". Until this was read, the ID was a
-        // label: a text file under it satisfied the route, a report saying the archive was NOT evidence satisfied it
-        // too, and the listing of a4606689 carried the archive lane's own archive under both "/full" and "/edit".
-        foreach (string id in NativeEditStorage.Qualified.Select(route => route.EvidenceId).Distinct(StringComparer.Ordinal))
+        // An edit-storage route stands on a lane that ran with the native store required on that route's own system,
+        // which is a fact about what is inside its archive and not about the ID it is carried under. The committed
+        // check reads those contents (eng/validation/archive-writing/check_edit_storage_evidence.py) and its report
+        // names the archive it accepted by digest and the system that ran it; the report is carried under the route's
+        // own "<id>/check", and the route is refused here unless that report accepts the very archive this manifest
+        // carries under "<id>", on this route's system. Each half was found by a review trying it: the ID alone was a
+        // label (a text file under it satisfied the route, as did a report saying the archive was NOT evidence, and
+        // a4606689 carried the archive lane's own archive under both "/full" and "/edit"), and the digest alone bound
+        // an archive to no route (one machine's lane, with its own true report, satisfied all three).
+        var shared = NativeEditStorage.Qualified.GroupBy(route => EditSystem(route.RuntimeIdentifier))
+            .FirstOrDefault(group => group.Count() > 1);
+        if (shared is not null)
+            throw new InvalidOperationException($"Two listed edit-storage routes run on {shared.Key}, and a check names the system it " +
+                "read and not the architecture: the runners must record the architecture before both can be bound to their evidence.");
+        foreach (var route in NativeEditStorage.Qualified)
         {
+            string id = route.EvidenceId;
             var lanes = evidence.Where(item => item.Id == id).ToArray();
             var reports = evidence.Where(item => item.Id == id + "/check").ToArray();
             if (lanes.Length != 1)
                 throw new ArgumentException($"A listed edit-storage route needs one archive of its own under {id}, not {lanes.Length}.");
             if (reports.Length != 1)
                 throw new ArgumentException($"A listed edit-storage route needs the check of its archive under {id}/check, not {reports.Length} of them.");
-            string archive = Path.GetFileName(lanes[0].File), digest = Hash(lanes[0].File);
-            string accepts = archive + ": edit-storage evidence,", names = ", sha256 " + digest;
+            // The digest compared is the one this manifest records for that entry, so what it says and what it
+            // required are the same number read once.
+            var recorded = manifest["evidence"]!.AsArray().Single(item => (string?)item!["id"] == id)!;
+            string head = (string)recorded["file"]! + EditVerdict;
+            string tail = $", no failure, {EditGate} in force, {EditSystem(route.RuntimeIdentifier)}, sha256 {(string)recorded["sha256"]!}";
             if (!File.ReadLines(reports[0].File).Any(line =>
-                    line.StartsWith(accepts, StringComparison.Ordinal) && line.EndsWith(names, StringComparison.OrdinalIgnoreCase)))
-                throw new ArgumentException($"The check carried under {id}/check does not accept the archive carried under {id} " +
-                    $"({archive}, sha256 {digest}): run eng/validation/archive-writing/check_edit_storage_evidence.py on that archive " +
-                    "and carry its report.");
+                    line.StartsWith(head, StringComparison.Ordinal) && line.EndsWith(tail, StringComparison.Ordinal)))
+                throw new ArgumentException($"The check carried under {id}/check does not accept the archive carried under {id}: a line " +
+                    $"of it has to begin \"{head}\" and end \"{tail}\". Run eng/validation/archive-writing/" +
+                    "check_edit_storage_evidence.py on that archive, on the machine's own sealed run, and carry its report.");
         }
         File.WriteAllText(output, manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         Console.WriteLine($"Wrote {output}: commit {commit}, {payloads.Count} payloads, {packages.Count} packages, {evidence.Count} evidence files, " +
@@ -221,6 +237,17 @@ static class Program
         }
         return new JsonObject { ["rid"] = rid, ["fileCount"] = files.Count, ["bytes"] = total, ["files"] = files };
     }
+
+    // The word the check writes for the system that ran a lane, for one of this build's listed runtimes. A runtime
+    // this does not know is a listing change that has to decide how its evidence is bound, so it stops here.
+    private static string EditSystem(string runtimeIdentifier) => runtimeIdentifier.Split('-')[0] switch
+    {
+        "win" => "windows",
+        "linux" => "linux",
+        "osx" => "macos",
+        _ => throw new InvalidOperationException("No system name is known for the runtime " + runtimeIdentifier +
+            ", so a check's report cannot be bound to its route."),
+    };
 
     private static JsonObject Described(string file, JsonObject facts)
     {
