@@ -12,7 +12,9 @@ import json
 from pathlib import Path
 import sys
 import gzip
+import shutil
 import struct
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -341,6 +343,112 @@ class EvidenceChecks(unittest.TestCase):
             self.rewritten_directory(path, [(item, item.compress_size) for item, _ in order[:-1]])
             problems, _ = checker.check(path)
             self.assertTrue(any('in no member of it' in problem for problem in problems), problems)
+
+    def test_refuses_a_gap_padded_with_a_member_lying_inside_another(self):
+        """Where a member's own bytes hold a local file header - a member holding a stored zip, say - a directory
+        alone can drop an entry and pad the gap with the member inside: both names honest, no name repeated, the
+        coverage exact, and a log that said a test had stepped aside listed by nothing. The overlap check is the only
+        rule that refuses it, and the reader reads that inner member happily."""
+        reason = checker.STEP_ASIDE[0]
+        with tempfile.TemporaryDirectory() as directory:
+            held = io.BytesIO()
+            body = 'nested member bytes, with room for the log it will stand for' * 4
+            with zipfile.ZipFile(held, 'w') as inner:  # stored, so its member's own header is in these bytes
+                inner.writestr('nested.txt', body)
+            blob = held.getvalue()
+            with zipfile.ZipFile(io.BytesIO(blob)) as reading:
+                nested = reading.infolist()[0]
+                span = 30 + len(nested.filename) + len(nested.extra) + nested.compress_size
+            text = '[xUnit.net] %s\n' % reason
+            padding = span - 30 - len('test-h.log') - len(text)
+            self.assertGreaterEqual(padding, 0, 'the log has to fit the span it will be swapped for')
+            path = Path(directory) / 'edit-nested-evidence.zip'
+            with zipfile.ZipFile(path, 'w') as writing:  # the log before the outer member, so the reach still lands
+                for name, member in files().items():  # not `body`, which is the inner member's own text
+                    writing.writestr(name.replace('/', '\\'), member)
+                writing.writestr('test-h.log', text + 'x' * padding)
+                writing.writestr('outer.bin', blob)
+            self.assertTrue(any(reason in problem for problem in checker.check(path)[0]))
+            with zipfile.ZipFile(path) as reading:
+                start = reading.start_dir
+                entries = sorted(reading.infolist(), key=lambda item: item.header_offset)
+                outer = next(item for item in entries if item.filename == 'outer.bin')
+                inside = zipfile.ZipInfo('nested.txt')
+            with open(path, 'rb') as handle:  # where that member's bytes start, from its own header
+                handle.seek(outer.header_offset)
+                head = handle.read(30)
+                name_length, extra_length = struct.unpack('<HH', head[26:30])
+                inside.header_offset = outer.header_offset + 30 + name_length + extra_length
+            if True:
+                inside.CRC, inside.compress_type, inside.flag_bits = nested.CRC, nested.compress_type, 0
+                inside.file_size = nested.file_size
+            kept = [(item, item.compress_size) for item in entries if item.filename != 'test-h.log']
+            self.rewritten_directory(path, kept + [(inside, nested.compress_size)], at=start)
+            with checker.Archive(path) as reading:
+                self.assertEqual(body, reading.read('nested.txt'))  # the reader reads it happily
+            problems, _ = checker.check(path)
+            self.assertFalse(any(reason in problem for problem in problems), 'the log is hidden, as the forgery wants')
+            self.assertTrue(any('overlap' in problem for problem in problems), problems)
+
+    @staticmethod
+    def tar_called(kind):
+        """A tar on this machine whose own version line names it: 'GNU' writes the sparse member, 'bsdtar' the zip."""
+        for name in ('tar', 'bsdtar', 'C:/Windows/System32/tar.exe'):
+            found = shutil.which(name) or (name if Path(name).is_file() else None)
+            if found is None:
+                continue
+            said = subprocess.run([found, '--version'], capture_output=True, text=True)
+            if kind in (said.stdout or '') + (said.stderr or ''):
+                return found
+        return None
+
+    @staticmethod
+    def with_a_hole(directory):
+        """A tree holding a file with a megabyte of hole in it, for a writer that stores holes as holes."""
+        tree = Path(directory) / 'run'
+        tree.mkdir()
+        with open(tree / 'hole.bin', 'wb') as handle:
+            handle.write(b'x' * 1024)
+            handle.seek(1024 * 1024)
+            handle.write(b'y' * 1024)
+        (tree / 'a.txt').write_text('x', encoding='utf-8')
+        return tree
+
+    def test_accepts_a_tar_whose_member_holds_less_than_it_expands_to(self):
+        """A sparse member's size is what it expands to, not what the archive holds, so measuring it by its size
+        refused the archive by however many zeros the writer left out - a latent refusal of a runner's own tar."""
+        found = self.tar_called('GNU')
+        if found is None:
+            self.skipTest('no GNU tar on this machine')
+        with tempfile.TemporaryDirectory() as directory:
+            self.with_a_hole(directory)
+            for leaf, flags in (('sparse.tar.gz', ['-S']), ('plain.tar.gz', [])):
+                done = subprocess.run([found] + flags + ['-czf', leaf, 'run'], cwd=directory, capture_output=True)
+                self.assertEqual(0, done.returncode, done.stderr[-300:])
+                with self.subTest(leaf):
+                    with checker.Archive(Path(directory) / leaf) as held:
+                        self.assertIsNone(held.listing_gap())
+            with tarfile.open(Path(directory) / 'sparse.tar.gz') as held:
+                self.assertTrue(any(getattr(item, 'sparse', None) for item in held.getmembers()),
+                                'this tar did not write the hole as a hole, so the case proves nothing')
+
+    def test_accepts_a_wide_descriptor_whose_header_carries_no_zip64_field(self):
+        """libarchive decides zip64 for the whole archive and then writes eight-byte sizes in every descriptor while
+        its local headers carry no zip64 field at all - so the descriptor itself says how wide it is."""
+        found = self.tar_called('bsdtar')
+        if found is None:
+            self.skipTest('no libarchive tar on this machine')
+        with tempfile.TemporaryDirectory() as directory:
+            self.with_a_hole(directory)
+            done = subprocess.run([found, '--format', 'zip', '--options', 'zip:zip64', '-cf', 'wide.zip', 'run'],
+                                  cwd=directory, capture_output=True)
+            self.assertEqual(0, done.returncode, done.stderr[-300:])
+            wide = Path(directory) / 'wide.zip'
+            with zipfile.ZipFile(wide) as held:
+                self.assertTrue(any(item.flag_bits & 0x08 for item in held.infolist()),
+                                'this writer did not write trailing descriptors, so the case proves nothing')
+            with checker.Archive(wide) as held:
+                self.assertIsNone(held.listing_gap())
 
     def test_refuses_a_gap_padded_with_a_second_name_for_another_member(self):
         """A directory written where the archive's own was - so no member byte changes - that drops one entry and
@@ -714,6 +822,21 @@ class EvidenceChecks(unittest.TestCase):
             self.assertTrue(verdict.startswith('edit-good-evidence.zip: edit-storage evidence,'), verdict)
             self.assertTrue(verdict.endswith(', no failure, %s in force, windows, sha256 %s'
                                              % (checker.GATE, hashlib.sha256(path.read_bytes()).hexdigest())), verdict)
+
+    def test_names_the_system_it_read_and_not_always_one_of_them(self):
+        """The word the release manifest binds a route by. A check that printed one system for every run would have
+        every Unix lane's report bind to the Windows route, which is the hole two reviews closed."""
+        for system, word in (('Microsoft Windows 11 Pro 10.0.26220.0', 'windows'),
+                             ('Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux', 'linux'),
+                             ('Darwin host 27.0.0 Darwin Kernel Version 27.0.0 arm64', 'macos')):
+            with self.subTest(word):
+                with tempfile.TemporaryDirectory() as directory:
+                    path = archive(directory, 'edit-system-evidence.zip', files(system=system))
+                    report = Path(directory) / 'report.txt'
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        with unittest.mock.patch.object(sys, 'argv', ['check', str(path), '--out', str(report)]):
+                            self.assertEqual(0, checker.main())
+                    self.assertIn(', %s, sha256 ' % word, report.read_text(encoding='utf-8').splitlines()[0])
 
     def test_names_an_archive_it_cannot_read_and_still_writes_its_report(self):
         """A malformed archive is one more refusal: the run's other archives are still reported, and `--out` is written."""

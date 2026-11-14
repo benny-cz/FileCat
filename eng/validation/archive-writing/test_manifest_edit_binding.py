@@ -229,6 +229,23 @@ class ManifestEditBinding(unittest.TestCase):
             self.assertIn(', linux, sha256 ', said)  # what that route's own report would have had to say
             self.assertIsNone(written)
 
+    def test_refuses_a_verdict_quoted_inside_a_longer_line(self):
+        """The line has to begin and end as the check writes it, and each anchor is asked for on its own: a note that
+        quotes a true verdict after something else keeps the tail, and one that adds a word after it keeps the head.
+        Either way the line is somebody's sentence about the check's words, not the check's own line."""
+        for what, lead, trail in (('its start', 'NOTE (ignore): ', ''), ('its end', '', ' - superseded')):
+            with self.subTest(what):
+                with tempfile.TemporaryDirectory() as directory:
+                    evidence = self.archive_routes(directory)
+                    for route, (archive, report) in self.every_route(directory).items():
+                        verdict = report.read_text(encoding='utf-8').splitlines()[0]
+                        report.write_text(lead + verdict + trail + '\n', encoding='utf-8', newline='\n')
+                        evidence += [(route + '/edit', archive), (route + '/edit/check', report)]
+                    code, said, written = self.manifest(evidence)
+                    self.assertEqual(2, code, said)
+                    self.assertIn('does not accept the archive carried under', said)
+                    self.assertIsNone(written)
+
     def test_refuses_a_check_that_says_the_archive_is_not_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             evidence = self.archive_routes(directory)

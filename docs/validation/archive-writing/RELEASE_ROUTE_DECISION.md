@@ -241,3 +241,15 @@ archive and were closed by binding rather than by reading a container - so a run
 questions and not the binding ones, and, carried by the same hands as the archive, not forgery either. Also closed: a
 gzip member holding two tars, a tar that was not gzipped, a hole in the middle of a listing, a stream that cannot be
 read, and one ordinary shape refused wrongly. Fifty-eight cases hold the check and thirteen the manifest.
+
+The thirty-eighth review read the guards of that layout reading against what they do. The overlap check, which these
+records called unreachable, is reached by a directory alone wherever a member's own bytes hold a local file header - a
+member holding a stored zip does - and it was the only rule refusing a listing that drops a member and pads the gap
+with the member inside another; it has a case now. The reason given for the run-past-the-directory guard was false (it
+is the reach half of the sums that refuses that shape, and the pair is mutually redundant), and the count of guards
+without a case was three in the zip reading and one in the tar reading, not two. Two archives an ordinary writer makes
+were being refused - a sparse tar member, measured by what it expands to rather than what it holds, which macOS's own
+tar writes and the Mac runner seals with; and a libarchive zip written wide, whose descriptors are eight-byte while its
+local headers carry no zip64 field - and both are accepted now. Two rules the manifest's binding rests on, that the
+verdict line begins and ends as the check writes it, and the system word the check itself prints, had no case; each has
+one. Sixty-two cases hold the check and fourteen the manifest.

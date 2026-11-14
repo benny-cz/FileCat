@@ -139,8 +139,7 @@ class Archive:
         entry satisfied that while covering none of the rest, and one listing the sealed entries with a size zeroed
         made a member read as empty. What a sealed run's own listing does is cover its file exactly, once.
 
-        A gzipped tar needs none of this: tarfile stops at the sealed tar's own end-of-archive blocks, so members
-        appended after them are never listed.
+        A gzipped tar is read by `_gzip_gap` instead, which asks the same question of its own format.
         """
         if self._zip is None:
             return self._gzip_gap()
@@ -166,15 +165,27 @@ class Archive:
                 extra_field = handle.read(extra)
                 length = item.compress_size
                 if flag & 0x08:
-                    # The sizes travel after the data in a trailing descriptor: signature, CRC and two sizes, the
-                    # sizes eight bytes each where the entry is written wide - which its own extra field says, not
-                    # the size it turned out to be. No runner writes one.
-                    wide, field_at = False, 0
-                    while field_at + 4 <= len(extra_field):  # each field: its id, its length, its bytes
-                        field, size = struct.unpack('<HH', extra_field[field_at:field_at + 4])
-                        wide = wide or field == 1
-                        field_at += 4 + size
-                    length += 24 if wide else 16
+                    # The sizes travel after the data, in a descriptor whose own shape says how wide it is: four
+                    # bytes each or eight, with or without its signature. Neither the entry's size nor its extra
+                    # field answers that - libarchive writes wide descriptors with no zip64 extra field in the local
+                    # header at all - so the pair that states this member's own size is the pair that was written.
+                    handle.seek(item.header_offset + 30 + name + extra + item.compress_size)
+                    trailer = handle.read(24)
+                    signed = trailer[:4] == b'PK\x07\x08'
+                    # Both sizes, not the compressed one alone: read as narrow, a wide descriptor's low half states
+                    # the compressed size correctly for any member under 4 GiB, and only its second field tells them
+                    # apart. An empty member written wide to a stream is the one shape this cannot tell, and no
+                    # runner writes one.
+                    for size_of, kind, at in ((16, '<II', 8), (24, '<QQ', 8), (12, '<II', 4), (20, '<QQ', 4)):
+                        if signed != (size_of in (16, 24)) or len(trailer) < at + struct.calcsize(kind):
+                            continue
+                        compressed, plain = struct.unpack(kind, trailer[at:at + struct.calcsize(kind)])
+                        if compressed == item.compress_size and plain == item.file_size:
+                            length += size_of
+                            break
+                    else:
+                        return ('the descriptor after %r does not state the %d bytes its directory does'
+                                % (item.orig_filename, item.compress_size))
                 elif stated == 0xffffffff:
                     pass  # a size recorded in the zip64 extra field, which the directory's copy carries
                 elif stated != item.compress_size:
@@ -185,26 +196,35 @@ class Archive:
                             % (item.filename, item.compress_size, stated))
                 spans.append((item.header_offset, item.header_offset + 30 + name + extra + length))
         directory = getattr(self._zip, 'start_dir', None)
-        if directory is None:  # an older reader that does not say where the directory begins
-            return None
+        if directory is None:
+            # A reader that does not say where the directory begins cannot be asked this question, and the answer
+            # then is not "nothing is wrong" - every rule of this layout reading rests on it.
+            return 'this reader does not say where its directory begins, so the file cannot be accounted for'
         covered = 0
         reach = 0
         for start, end in sorted(spans):
-            # No case, and the way to one is closed by the rule above: two entries pointing at one member must both
-            # carry its name, which repeats; and a member that really lies inside another needs its own header
-            # rewritten, at which point the reader refuses to read either of them. It stays as the sums' own floor.
+            # The one rule that refuses a listing which drops a member and pads the gap with another that lies
+            # inside a third - which a directory alone can do wherever a member's own bytes hold a local file header,
+            # a member holding a stored zip among them: both names are then honest, no name repeats, and the sums
+            # agree. The reader refuses the outer member of such a pair and reads the inner one happily, so nothing
+            # else here sees it. It has a case.
             if start < reach:
                 return 'its members %d and %d overlap' % (start, reach)
             covered += end - start
             reach = max(reach, end)
+        # No case: with the spans sorted and not overlapping, what they cover is at most the reach less the first
+        # member's offset, so a covering listing that reaches the directory has already started at nought.
         first = min((start for start, _ in spans), default=0)
         if first != 0:
             return 'its first member begins %d bytes into the file' % first
-        # A guard with no case to be had, because it cannot be reached on its own: a member whose span runs past
-        # the directory has already made the covered bytes disagree with it, which the rule below refuses. It stays
-        # so that the sums below are read as sums and not as a reach.
+        # No case, and redundant with the reach half of the rule below rather than with the covered half: a
+        # listing whose last member runs past its own directory can cover exactly as many bytes as lie before it
+        # (a directory written inside that member's data does just that), so it is the reach that disagrees, not the
+        # sum. One of this pair is enough; both stay because each says a different thing about the layout.
         if reach > directory:
             return 'its last member runs %d bytes past the directory that lists it' % (reach - directory)
+        # The covered half has a case (a hole anywhere in the listing); the reach half has none of its own, being
+        # the guard above read as a sum.
         if reach != directory or covered != directory:
             return ('its listing covers %d of the %d bytes before the directory, so %d are in the file and in no '
                     'member of it' % (covered, directory, directory - covered))
@@ -220,7 +240,11 @@ class Archive:
         """
         end = 0
         for item in self._tar.getmembers():
-            end = max(end, item.offset_data + (item.size + 511) // 512 * 512)
+            # What this member holds in the archive: for a sparse one that is the sum of its own pieces, while its
+            # size is what it expands to. GNU `tar -S` and macOS's own tar write them, and measuring a sparse member
+            # by its expanded size refused the archive by however many zeros it left out.
+            stored = sum(length for _, length in item.sparse) if getattr(item, 'sparse', None) else item.size
+            end = max(end, item.offset_data + (stored + 511) // 512 * 512)
         with open(self.path, 'rb') as handle:
             if handle.read(2) != b'\x1f\x8b':
                 # Both runners gzip what they seal, and a reader stops at the first tar's end-of-archive blocks, so
@@ -247,6 +271,8 @@ class Archive:
             after = len(stream.unused_data) + len(handle.read())
         if after:
             return 'the file holds %d bytes after this archive\'s own end' % after
+        # No case of its own: it is what keeps the rule above from being shifted by a last member's own header,
+        # and reaching it needs a tar whose last member claims more than was compressed.
         return None if at >= end else 'its last member runs %d bytes past what was compressed' % (end - at)
 
     def repeated(self) -> list[str]:

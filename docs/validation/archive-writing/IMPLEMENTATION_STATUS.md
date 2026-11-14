@@ -1,5 +1,39 @@
 # Archive writing implementation status
 
+**14 November, the guards and the writers (round thirty-eight).** The gate holds for every archive as its runner
+sealed it, and no sealed archive of this round can be forged by any of the ways below - none of them holds a local file
+header that is not one of its own members, which the review checked for all fourteen. What it found was three reasons
+of mine that were false, and two archives an ordinary writer makes that the gate refused:
+
+- **The overlap check is reached by a directory alone, and it was called unreachable.** Wherever a member's own bytes
+  hold a local file header - a member holding a stored zip does - a forged directory can drop an entry and pad the gap
+  with the member *inside* another: both names honest, no name repeated, the coverage exact, and a log that said a test
+  had stepped aside listed by nothing. The reader reads that inner member happily and refuses only the outer one, so
+  nothing else here sees it. The overlap check was the sole refusal, and it now has the case it was said not to have.
+- **The reason given for the run-past-the-directory guard was false.** A listing whose last member runs past its own
+  directory can cover exactly as many bytes as lie before it - a directory written inside that member's data does
+  that - so it is the reach that disagrees, not the covered sum. The pair is mutually redundant, each dead only
+  because the other is there, and both now say so.
+- **"Two guards have no case" was the wrong count.** In the layout reading it is three - the first-member-at-nought
+  rule and both halves of the pair above - and in the tar reading one more, the rule that keeps a last member from
+  shifting where the padding must begin. Each says where it stands now; the overlap check is no longer among them.
+- **A sparse member was measured by what it expands to, not by what it holds.** A GNU `tar -S` archive was refused by
+  however many zeros the writer left out - and macOS's own tar, which the Mac runner seals with, finds holes by
+  itself, so this was a latent refusal of a runner's own writer. A member's stored pieces are what count now.
+- **A wide trailing descriptor whose local header carries no zip64 field was refused.** libarchive decides zip64 for
+  the whole archive and then writes eight-byte sizes in every descriptor while putting only its own fields in the
+  local header, so the extra field is not what says how wide a descriptor is: the descriptor states both sizes, and
+  the pair that matches the directory's is the pair that was written.
+- **Two rules the manifest's own binding rests on had no case**: that the verdict line begins and ends as the check
+  writes it. Unanchored at either end, a note that quotes a true verdict - after something else, or with a word added
+  after it - satisfies the route. Each anchor has its own shape in that case now. And in the check, **the system word
+  itself** was held by nothing: a check that printed one system for every run would have every Unix lane's report bind
+  to the Windows route, which is the hole the thirtieth and thirty-first reviews closed.
+- Smaller: a reader that does not say where its directory begins now refuses rather than skipping the whole layout
+  reading, and the sentence that said a gzipped tar needs none of it is replaced, since it has a reading of its own.
+
+Sixty-two cases for the check, fourteen for the manifest, each of these six rules failing the one case that claims it.
+
 **14 November, the two claims and the reading behind them (round thirty-seven).** The gate holds for every archive as
 its runner sealed it - no way found to make it accept or misbind one without adding to or changing its bytes - and the
 review's own High was against this record, not the code:
@@ -11,10 +45,9 @@ review's own High was against this record, not the code:
   agreeing, the coverage exact and no name repeated: a log that said a test had stepped aside simply stopped being
   listed, and only the overlap check refused it. That shape has a case now, and what refuses it is a new rule rather
   than the overlap check: a member's local header carries its own name, and the directory's name for it has to be that
-  name. With the names bound, no directory alone reaches the overlap check - two entries pointing at one member both
-  carry its name, which repeats - and a member that really lies inside another needs its own header rewritten, at
-  which point the reader refuses to read either. So it keeps no case, and now says so and why where it stands. The
-  other half of that
+  name. That bound the shape this round found, but not the overlap check itself: the round above reached it with a
+  directory alone, where a member's own bytes hold a local file header, and it has a case now. The other half of
+  that
   sentence was right in its conclusion and wrong in its reason: a member can run past the directory in a readable
   file, and what refuses it is the coverage sum, not unreadability.
 - **A directory that renames a member hides it from every rule.** The same shape, without the padding: every rule here
