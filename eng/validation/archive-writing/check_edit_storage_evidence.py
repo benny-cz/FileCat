@@ -39,9 +39,11 @@ accepts. That rests on the runner that sealed the archive on its machine and on 
 rules above exists because a review got past the ones before it, so a new way past a rule is worth a case; a way past
 that needs the evidence folder rewritten is the boundary, not a defect.
 
-Which case fails without each rule here is measured, not argued: `measure_rules.py` beside this file weakens every
-rule in turn and names the cases that notice, and the four it reports with no case are marked as such where they are.
-Two reviews found a false argument written beside a rule, which is why the arguments are gone.
+Which case fails without a rule here is measured, not argued: `measure_rules.py` beside this file weakens the rules it
+lists, one at a time, and names the cases that notice; the ones it reports with no case are marked as such where they
+are, and `measure_rules.py --audit` prints the conditions here that it does not yet list. Three reviews found a false
+claim written beside a rule - two of them beside rules here, one of them that harness's own "every rule" - which is why
+the claims are gone and the command is cited instead.
 
 Usage: check_edit_storage_evidence.py ARCHIVE... [--out REPORT]
 Exits non-zero, naming what failed, if any archive does not meet all of it.

@@ -253,3 +253,11 @@ tar writes and the Mac runner seals with; and a libarchive zip written wide, who
 local headers carry no zip64 field - and both are accepted now. Two rules the manifest's binding rests on, that the
 verdict line begins and ends as the check writes it, and the system word the check itself prints, had no case; each has
 one. Sixty-two cases hold the check and fourteen the manifest.
+
+The thirty-ninth review read that harness against the check it measures, and found the harness's own claim to be the
+false one: its list was not every rule of the check, and six rules it did not list were held by nothing - among them
+the line that turns the check's findings into a refusal, without which a lane that failed is written an accepting
+verdict. Three of its entries measured a message rather than a rule. All of that is closed: each entry says what is
+expected of it, the harness has an audit that prints the conditions no entry names, and its answer today is fifty-four
+rules listed, forty-seven held by a case, seven noted as redundant or caseless, and none expected to be held and
+unheld - which its exit code reports, so a rule added without a case fails the run.

@@ -614,6 +614,93 @@ class EvidenceChecks(unittest.TestCase):
                       '(WindowsEditStorageTests or UnixEditStorageTests), so nothing in the run itself says '
                       'what produced it', problems)
 
+    def test_gives_no_verdict_to_an_archive_it_has_found_fault_with(self):
+        """The line that turns findings into a refusal, and the one the release manifest matches: without it a lane
+        that failed - a failed case, a suite that exited 1, a status of FAIL - is written an accepting verdict with
+        its own digest in it, which is what a route would then be listed on."""
+        contents = files(status='FAIL', summary={"ok": False, "failed": ["FileCat.Tests.ARealFailure"],
+                                                 "exit_codes": {"S": 1},
+                                                 "suites": {"S": {"total": 1, "passed": 0, "skipped": 0,
+                                                                  "failed": 1}}})
+        with tempfile.TemporaryDirectory() as directory:
+            path = archive(directory, 'edit-failed-evidence.zip', contents)
+            report = Path(directory) / 'report.txt'
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                with unittest.mock.patch.object(sys, 'argv', ['check', str(path), '--out', str(report)]):
+                    self.assertEqual(1, checker.main())
+            said = output.getvalue()
+            self.assertIn('edit-failed-evidence.zip: NOT edit-storage evidence', said)
+            self.assertNotIn(': edit-storage evidence,', said)
+            self.assertEqual(said, report.read_text(encoding='utf-8'))
+
+    def test_reads_every_outcome_a_test_name_has_across_the_results(self):
+        """A member added to a zip is a shape ordinary writers make, and the layout rules allow it. So a second
+        results file naming a pin as passed must not replace the first one's Failed: every outcome a name has is
+        read, and a pin that failed anywhere fails."""
+        pin = checker.PINS[1]
+        failed = PASSING_TRX.replace('testName="FileCat.Tests.%s" outcome="Passed"' % pin,
+                                     'testName="FileCat.Tests.%s" outcome="Failed"' % pin)
+        contents = files(trx=failed)
+        contents['results/zz-added.trx'] = ('<?xml version="1.0"?><TestRun><Results>'
+                                            '<UnitTestResult testName="FileCat.Tests.%s" outcome="Passed" />'
+                                            '</Results></TestRun>' % pin)
+        problems, _ = self.check(contents)
+        self.assertTrue(any(('the pin %s did not pass' % pin) in problem for problem in problems), problems)
+
+    def test_reads_the_system_from_the_first_line_and_not_from_all_of_them(self):
+        """The record's own first line is what names the system; a later line that names another - `Linux-compat`
+        under a Darwin kernel - must not decide the route this binds to."""
+        contents = files(system='Darwin host 27.0.0 arm64')
+        del contents['machine.json']
+        contents['machine.txt'] = ('Darwin host 27.0.0 Darwin Kernel Version 27.0.0 arm64\n'
+                                   'Linux-compat layer: off\nenv=%s\n' % checker.GATE)
+        problems, facts = self.check(contents, unix=True)
+        self.assertEqual([], problems)
+        self.assertEqual('macos', facts['system'])
+
+    def test_refuses_a_gzip_stream_that_stops_without_ending(self):
+        """Bytes taken off the end of a sealed archive leave its members listable and its stream unfinished."""
+        with tempfile.TemporaryDirectory() as directory:
+            whole = archive(directory, 'edit-cut-evidence.tar.gz', files(), unix=True)
+            blob = whole.read_bytes()
+            for cut in (4, 16):
+                with self.subTest(cut=cut):
+                    whole.write_bytes(blob[:-cut])
+                    problems, _ = checker.check(whole)
+                    self.assertTrue(any('does not end' in problem for problem in problems), problems)
+
+    def test_refuses_a_second_summary_that_names_no_suite(self):
+        """Each summary has to name the suites it speaks for: one that names none, beside one that does, says
+        nothing about whatever ran under it - and the counters of the other would answer for both."""
+        contents = files()
+        contents['zz-second/summary.json'] = json.dumps(dict(SUMMARY, suites={}))
+        self.assertIn('zz-second/summary.json names no suite', self.check(contents)[0])
+
+    def test_refuses_a_summary_whose_exit_codes_are_an_empty_map(self):
+        """A summary carrying no exit code at all says nothing about how its suites ended, whether the key is
+        missing or the map behind it is empty."""
+        problems, _ = self.check(files(summary=dict(SUMMARY, exit_codes={})))
+        self.assertIn('its summary carries no exit code', problems)
+
+    def test_knows_the_reasons_and_the_pins_by_their_own_words(self):
+        """Every fixture here is built from these constants, so dropping a reason or renaming a pin would change
+        nothing that any other case asserts: the words themselves are what a run is read against."""
+        self.assertEqual((
+            'Native edit storage cannot be held for this test folder',
+            'Native edit storage refuses an elevated or root process',
+            'Native edit storage requires an unelevated process.',
+            'Native edit storage refuses root; run as an ordinary user.',
+            'Edit sessions refuse an elevated token; run unelevated.',
+            "The fixture's filesystem cannot be established here.",
+            'is not a listed native edit storage route for',
+        ), checker.STEP_ASIDE)
+        self.assertEqual((
+            'Ordinary_startup_composes_native_storage_where_listed_and_the_legacy_store_elsewhere',
+            'This_build_lists_native_edit_storage_on_the_owner_s_routes_only',
+            'Legacy_and_native_roots_keep_their_own_sessions_and_revisions',
+        ), checker.PINS)
+
     def test_names_an_archive_whose_compression_it_cannot_read(self):
         """A method this reader does not know is one more refusal, and the run's other archives are still reported:
         it ended the whole run with a traceback and wrote no report at all."""

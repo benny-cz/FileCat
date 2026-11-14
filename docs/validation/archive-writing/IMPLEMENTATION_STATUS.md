@@ -1,5 +1,34 @@
 # Archive writing implementation status
 
+**14 November, the harness read against the check (round thirty-nine).** The gate holds for every archive as its
+runner sealed it, and no false refusal turned up in twelve more archives from both runners' own writers. What the review
+took apart was the harness written the commit before, and it was right to:
+
+- **The line that makes the check's findings a refusal was in no entry, and no case held it.** Weaken `if problems:` in
+  `main()` and a lane that failed - a failed case, a suite that exited 1, a status of FAIL - is written an accepting
+  verdict with its own digest in it, which is the line the manifest matches to list a route. It has an entry and a case
+  now, and it was the harness's own output that named it once the entry existed.
+- **"Every rule of the check is listed below" was false**, in the harness, in the check's comment and in two records -
+  written one commit after two rounds of false claims beside rules, which is the same mistake in a new place. The list
+  is forty-two entries, not the check; a rule that is not an entry is invisible to it. All four places now say the
+  rules it lists, and the harness has an `--audit` that prints the check's own conditions no entry names, which is how
+  five more were found after the review's six.
+- **Six rules nothing listed and nothing held**, each able to change a verdict: `main()`'s refusal above; every outcome
+  a test name has (a second results file, added - a shape ordinary writers make and the layout rules allow - naming a
+  pin as passed, where the sealed one records it as failed); the system read from the record's first line rather than
+  from all of them; a gzip stream that stops without ending (bytes taken off the end leave the members listable); a
+  summary whose exit codes are an empty map rather than absent; and the step-aside reasons and pin names themselves,
+  which every fixture is built from, so dropping one would silently stop a run being read against it.
+- **Three entries measured a message rather than a rule.** With the gate's name-check branch gone, the value
+  comparison refuses the record anyway; with the member-points-at-a-member rule gone, the name rule refuses the same
+  shape; and the no-suite rule's own shape - two summaries, one naming suites and one not - was built by no case. Each
+  entry now carries what is expected of it (a case, or a note saying it is redundant or caseless), the output is
+  grouped by that, and the no-suite rule has a case for its shape.
+
+Sixty-nine cases for the check and fourteen for the manifest, and the harness's answer today: fifty-four rules listed,
+forty-seven held by a case, seven noted as redundant or caseless, and none expected to be held and unheld. Its exit
+code says so, so a rule added without a case fails the run rather than being argued about.
+
 **14 November, the guards and the writers (round thirty-eight).** The gate holds for every archive as its runner
 sealed it, and no sealed archive of this round can be forged by any of the ways below - none of them holds a local file
 header that is not one of its own members, which the review checked for all fourteen. What it found was three reasons
@@ -36,12 +65,10 @@ Sixty-two cases for the check, fourteen for the manifest, each of these six rule
 
 **And the coverage claim stops being a sentence.** Twice now a review has found not a defect in the check but a false
 argument written beside a rule - "this guard cannot be reached", "two rules are left with no case" - so the arguments
-are gone and `eng/validation/archive-writing/measure_rules.py` takes their place: it weakens each rule of the check in
-turn, on a copy, runs the check's own suite against it, and names the cases that notice. Its answer today is forty-two
-rules measured and four with no case - the first member at the start of the file, the last member not past its own
-directory, the reach half of the covering sums, and the floor under the tar's own last member - which are the four
-marked as such where they stand. Anyone reading these records can run it rather than believe them, and a rule added
-without a case shows up the next time it runs.
+are gone and `eng/validation/archive-writing/measure_rules.py` takes their place: it weakens the rules it lists, one at
+a time, on a copy, runs the check's own suite against it, and names the cases that notice. The round above found that
+list incomplete - including the line that turns the check's findings into a refusal - and says what it holds now.
+Anyone reading these records can run it rather than believe them.
 
 **14 November, the two claims and the reading behind them (round thirty-seven).** The gate holds for every archive as
 its runner sealed it - no way found to make it accept or misbind one without adding to or changing its bytes - and the
