@@ -49,24 +49,33 @@ public sealed record ColumnSpec(ColumnField Field, string Header, double Width, 
 /// <summary>Built-in column profiles (the defaults of <see cref="ColumnProfileSet"/>) and dedicated layouts.</summary>
 public static class ColumnProfiles
 {
+    /// <summary>
+    /// How much of the space the fixed columns leave a filling column takes, against the other filling columns' shares
+    /// (its <see cref="ColumnSpec.Width"/>): a name's, and most columns'.
+    /// </summary>
+    public const double DefaultFillShare = 200;
+
+    /// <summary>A link target is a path, most often longer than the name beside it: filling, it takes a larger share.</summary>
+    public const double LinkTargetFillShare = 260;
+
     /// <summary>Linux and macOS show permissions and ownership where Windows shows attributes and file versions.</summary>
     public static IReadOnlyList<(string Name, ColumnSpec[] Columns)> Defaults { get; } = OperatingSystem.IsWindows() ? WindowsDefaults() : UnixDefaults();
 
     private static List<(string Name, ColumnSpec[] Columns)> UnixDefaults() =>
     [
         ("Details", [
-            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Name, "Name", DefaultFillShare, Star: true),
             new(ColumnField.Extension, "Ext", 56),
             new(ColumnField.Size, "Size", 86, RightAlign: true),
             new(ColumnField.Modified, "Modified", 128),
             new(ColumnField.Metadata, "Permissions", 88) { MetadataId = "permissions" },
         ]),
         ("Brief", [
-            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Name, "Name", DefaultFillShare, Star: true),
             new(ColumnField.Size, "Size", 86, RightAlign: true),
         ]),
         ("Full", [
-            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Name, "Name", DefaultFillShare, Star: true),
             new(ColumnField.Extension, "Ext", 56),
             new(ColumnField.Size, "Size", 96, RightAlign: true),
             new(ColumnField.Modified, "Modified", 128),
@@ -77,15 +86,15 @@ public static class ColumnProfiles
             new(ColumnField.Metadata, "Attributes", 70, RightAlign: true) { MetadataId = "hidden" },
         ]),
         ("Media", [
-            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Name, "Name", DefaultFillShare, Star: true),
             new(ColumnField.Size, "Size", 86, RightAlign: true),
             new(ColumnField.Metadata, "Dimensions", 110, RightAlign: true) { MetadataId = "dimensions" },
             new(ColumnField.Metadata, "Origin", 90) { MetadataId = "zone" },
             new(ColumnField.Modified, "Modified", 128),
         ]),
         ("Links", [
-            new(ColumnField.Name, "Name", 200, Star: true),
-            new(ColumnField.Metadata, "Link target", 260, Star: true) { MetadataId = "linkTarget" },
+            new(ColumnField.Name, "Name", DefaultFillShare, Star: true),
+            new(ColumnField.Metadata, "Link target", LinkTargetFillShare, Star: true) { MetadataId = "linkTarget" },
             new(ColumnField.Modified, "Modified", 128),
         ]),
     ];
@@ -93,18 +102,18 @@ public static class ColumnProfiles
     private static List<(string Name, ColumnSpec[] Columns)> WindowsDefaults() =>
     [
         ("Details", [
-            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Name, "Name", DefaultFillShare, Star: true),
             new(ColumnField.Extension, "Ext", 56),
             new(ColumnField.Size, "Size", 86, RightAlign: true),
             new(ColumnField.Modified, "Modified", 128),
             new(ColumnField.Attributes, "Attr", 44),
         ]),
         ("Brief", [
-            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Name, "Name", DefaultFillShare, Star: true),
             new(ColumnField.Size, "Size", 86, RightAlign: true),
         ]),
         ("Full", [
-            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Name, "Name", DefaultFillShare, Star: true),
             new(ColumnField.Extension, "Ext", 56),
             new(ColumnField.Size, "Size", 96, RightAlign: true),
             new(ColumnField.Modified, "Modified", 128),
@@ -114,15 +123,15 @@ public static class ColumnProfiles
             new(ColumnField.Attributes, "Attr", 50),
         ]),
         ("Media", [
-            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Name, "Name", DefaultFillShare, Star: true),
             new(ColumnField.Size, "Size", 86, RightAlign: true),
             new(ColumnField.Metadata, "Dimensions", 110, RightAlign: true) { MetadataId = "dimensions" },
             new(ColumnField.Metadata, "Origin", 90) { MetadataId = "zone" },
             new(ColumnField.Modified, "Modified", 128),
         ]),
         ("Links", [
-            new(ColumnField.Name, "Name", 200, Star: true),
-            new(ColumnField.Metadata, "Link target", 260, Star: true) { MetadataId = "linkTarget" },
+            new(ColumnField.Name, "Name", DefaultFillShare, Star: true),
+            new(ColumnField.Metadata, "Link target", LinkTargetFillShare, Star: true) { MetadataId = "linkTarget" },
             new(ColumnField.Modified, "Modified", 128),
         ]),
     ];
@@ -201,13 +210,18 @@ public static class ColumnProfiles
     ];
 }
 
-/// <summary>A column the profile editor offers: its stable settings key and how to build it.</summary>
-public sealed record ColumnChoice(string Key, string Title, bool RightAlign, double DefaultWidth);
+/// <summary>
+/// A column the profile editor offers: its stable settings key and how to build it. Filling the remaining space, it
+/// takes <paramref name="FillShare"/> of it against the other filling columns' shares.
+/// </summary>
+public sealed record ColumnChoice(string Key, string Title, bool RightAlign, double DefaultWidth,
+    double FillShare = ColumnProfiles.DefaultFillShare);
 
 /// <summary>
 /// The user's column profiles (Alt+0–9), shared by all tabs and backed by settings. Until customized the built-in
-/// profiles apply. A width of 0 in settings means "fill the remaining space". Result sets and the registry keep
-/// their dedicated layouts. Every profile keeps a Name column.
+/// profiles apply. A width of 0 in settings means "fill the remaining space"; filling columns share it as their kind
+/// does (<see cref="ColumnChoice.FillShare"/>), so a profile comes back from settings as it was. Result sets and the
+/// registry keep their dedicated layouts. Every profile keeps a Name column.
 /// </summary>
 public sealed class ColumnProfileSet
 {
@@ -250,7 +264,8 @@ public sealed class ColumnProfileSet
         new("modified", "Modified", false, 128),
         new("created", "Created", false, 128),
         new("attr", "Attr", false, 44),
-        .. Core.Metadata.BuiltInFields.All.Select(f => new ColumnChoice("meta:" + f.Id, f.Title, f.RightAlign, 110)),
+        .. Core.Metadata.BuiltInFields.All.Select(f => new ColumnChoice("meta:" + f.Id, f.Title, f.RightAlign, 110,
+            f.Id == Core.Metadata.BuiltInFields.LinkTarget.Id ? ColumnProfiles.LinkTargetFillShare : ColumnProfiles.DefaultFillShare)),
     ];
 
     /// <summary>Stores a column width chosen by dragging its border (never turns a fill column fixed).</summary>
@@ -273,8 +288,7 @@ public sealed class ColumnProfileSet
         List<(string Name, ColumnSpec[] Columns)> list =
             [.. profiles.Where(p => p.Columns.Length > 0).Take(MaxProfiles).Select(p => (p.Name, EnsureName(p.Columns)))];
         if (list.Count == 0) list = [.. ColumnProfiles.Defaults];
-        // A profile the edit left as it was keeps its own columns (with what the editor does not show, such as how
-        // columns that fill the space share it), so what a list draws and what is stored stay the same.
+        // A profile the edit left as it was keeps its own column list, so no list showing it is told its columns changed.
         for (int i = 0; i < list.Count; i++)
         {
             var next = list[i];
@@ -292,13 +306,13 @@ public sealed class ColumnProfileSet
 
     /// <summary>
     /// Whether two column lists are the same as profiles keep them: the same columns in the same order, at the same widths
-    /// (a column that fills the remaining space has none of its own).
+    /// (a filling column's is its share of the space the fixed columns leave).
     /// </summary>
     public static bool SameColumns(IReadOnlyList<ColumnSpec> a, IReadOnlyList<ColumnSpec> b)
     {
         if (!SameFields(a, b)) return false;
         for (int i = 0; i < a.Count; i++)
-            if (!a[i].Star && a[i].Width != b[i].Width) return false;
+            if (a[i].Width != b[i].Width) return false;
         return true;
     }
 
@@ -331,13 +345,13 @@ public sealed class ColumnProfileSet
         _ => c.Field.ToString().ToLowerInvariant(),
     };
 
-    /// <summary>A column for a settings key; width 0 fills the remaining space. Null for unknown keys.</summary>
+    /// <summary>A column for a settings key; width 0 fills the remaining space, with the column's share of it. Null for unknown keys.</summary>
     public static ColumnSpec? Create(string key, double width)
     {
         var choice = Choices.FirstOrDefault(c => string.Equals(c.Key, key, StringComparison.OrdinalIgnoreCase));
         if (choice is null) return null;
         bool star = width <= 0;
-        double w = star ? 200 : Math.Clamp(width, 24, 2000);
+        double w = star ? choice.FillShare : Math.Clamp(width, 24, 2000);
         var field = choice.Key switch
         {
             "name" => ColumnField.Name,

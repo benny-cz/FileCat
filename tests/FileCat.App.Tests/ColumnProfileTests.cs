@@ -17,13 +17,18 @@ namespace FileCat.App.Tests;
 
 public sealed class ColumnProfileTests
 {
+    /// <summary>
+    /// Settings keep a filling column as 0 (it fills); read back, every built-in profile is as it was, headers and
+    /// alignment too, and the Links profile's link target still takes more of the space than the name beside it.
+    /// </summary>
     [Fact]
-    public void Built_in_profiles_round_trip_through_settings_with_fill_columns_as_zero()
+    public void Built_in_profiles_come_back_from_settings_as_they_were()
     {
         var set = new ColumnProfileSet(null);
         Assert.Equal(ColumnProfiles.Defaults.Count, set.Count);
         var saved = set.ToSettings();
         Assert.Equal(0, saved[0].Columns[0].Width); // Name fills
+        Assert.All(saved.Single(p => p.Name == "Links").Columns.Take(2), c => Assert.Equal(0, c.Width));
         // Full: file versions on Windows; permissions and ownership on Linux and macOS; and everywhere how many streams
         // or attributes a file carries (D-55).
         Assert.Equal(OperatingSystem.IsWindows() ? ["meta:version", "meta:hidden"] : ["meta:permissions", "meta:owner", "meta:group", "meta:hidden"],
@@ -31,9 +36,52 @@ public sealed class ColumnProfileTests
         var reloaded = new ColumnProfileSet(saved);
         Assert.Equal(set.Profiles.Select(p => p.Name), reloaded.Profiles.Select(p => p.Name));
         for (int i = 0; i < set.Count; i++)
+            Assert.Equal(set.Profiles[i].Columns, reloaded.Profiles[i].Columns);
+        var links = reloaded.Profiles.Single(p => p.Name == "Links").Columns;
+        Assert.True(links[1].Width > links[0].Width, "Links' link target should take more of the space than the name");
+    }
+
+    /// <summary>
+    /// How filling columns share the space counts in whether columns are the same: a profile given other shares takes
+    /// them, and a tab on it tells its list as for any other width (the list stays where it is scrolled); the same
+    /// shares again tell it nothing.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_list_is_told_when_its_profiles_filling_columns_share_the_space_anew()
+    {
+        ColumnSpec[] even =
+        [
+            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Extension, "Ext", 200, Star: true),
+            new(ColumnField.Size, "Size", 86, RightAlign: true),
+        ];
+        ColumnSpec[] uneven = [even[0], even[1] with { Width = 300 }, even[2]];
+        Assert.True(ColumnProfileSet.SameFields(even, uneven));
+        Assert.False(ColumnProfileSet.SameColumns(even, uneven));
+
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        string folder = Path.Combine(root, "files");
+        Directory.CreateDirectory(folder);
+        try
         {
-            Assert.Equal(set.Profiles[i].Columns.Select(ColumnProfileSet.KeyOf), reloaded.Profiles[i].Columns.Select(ColumnProfileSet.KeyOf));
-            Assert.Equal(set.Profiles[i].Columns.Select(c => c.Star), reloaded.Profiles[i].Columns.Select(c => c.Star));
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+            var workspace = new WorkspaceViewModel(services);
+            var panel = new PanelViewModel(workspace, services);
+            workspace.Panels.Add(panel);
+            var tab = panel.OpenTab(Location.FileSystem(folder));
+            services.Columns.Replace([("Two fill", even)]);
+            Assert.Same(even, tab.Columns);
+            var told = new List<bool>();
+            tab.ColumnsChanged += (_, e) => told.Add(e.WidthsOnly);
+            services.Columns.Replace([("Two fill", [.. even])]); // the same columns again
+            Assert.Empty(told);
+            services.Columns.Replace([("Two fill", uneven)]);
+            Assert.Same(uneven, tab.Columns);
+            Assert.Equal([true], told);
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
         }
     }
 
@@ -93,8 +141,8 @@ public sealed class ColumnProfileTests
     }
 
     /// <summary>
-    /// An edit to one profile leaves the others as they were, with what the editor does not show: the built-in Links
-    /// profile's two filling columns keep how they share the space.
+    /// An edit to one profile leaves the others' column lists as they were (no list showing one is told its columns
+    /// changed), the built-in Links profile's unevenly shared space included.
     /// </summary>
     [Fact]
     public void An_edit_leaves_the_profiles_it_did_not_touch_as_they_were()
@@ -111,6 +159,37 @@ public sealed class ColumnProfileTests
         set.Replace(edited);
         Assert.Equal(1, changes);
         Assert.Same(linkColumns, set.Profiles[links].Columns);
+    }
+
+    /// <summary>
+    /// A width changed in the Links profile itself (Settings shows its filling columns only as "fills") leaves its link
+    /// target taking more of the space than its name, as before.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_width_edited_in_Links_leaves_its_filling_columns_sharing_the_space_as_before()
+    {
+        var set = new ColumnProfileSet(null);
+        int links = set.Profiles.ToList().FindIndex(p => p.Name == "Links");
+        var before = set.Profiles[links].Columns;
+        var editor = new ColumnProfilesEditor(set);
+        var window = new Window { Width = 900, Height = 700, Content = editor.View };
+        window.Show();
+        try
+        {
+            editor.SelectProfile(links);
+            var columns = editor.View.GetLogicalDescendants().OfType<ListBox>()
+                .Single(l => AutomationProperties.GetName(l) == "Columns of the selected profile");
+            columns.SelectedIndex = Array.FindIndex(before, c => c.Field == ColumnField.Modified);
+            var width = editor.View.GetLogicalDescendants().OfType<NumericUpDown>().Single();
+            width.Value = 150;
+            Dispatcher.UIThread.RunJobs();
+            editor.Apply();
+            var after = set.Profiles[links].Columns;
+            Assert.NotSame(before, after);
+            Assert.Equal(150, after.Single(c => c.Field == ColumnField.Modified).Width);
+            Assert.Equal(before.Where(c => c.Star), after.Where(c => c.Star));
+        }
+        finally { window.Close(); }
     }
 
     [Fact]
@@ -168,6 +247,40 @@ public sealed class ColumnProfileTests
             {
                 window.Close();
             }
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    /// <summary>
+    /// A border dragged in one profile saves them all; at the next start every profile is as it was, and the Links
+    /// profile's link target still takes more of the space than the name beside it (it came back sharing it evenly).
+    /// </summary>
+    [AvaloniaFact]
+    public void Profiles_saved_after_a_drag_are_as_they_were_at_the_next_start()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var paths = AppPaths.Resolve(overrideRoot: root);
+            List<(string Name, ColumnSpec[] Columns)> before;
+            using (var first = AppServices.CreateForPaths(paths))
+            {
+                Assert.Empty(first.Settings.ColumnProfiles); // the built-in profiles, not saved yet
+                first.Columns.SetWidth(0, 1, 90); // a border dragged in a list on the first profile
+                Assert.NotEmpty(first.Settings.ColumnProfiles);
+                before = [.. first.Columns.Profiles];
+            }
+            using var services = AppServices.CreateForPaths(paths);
+            Assert.Equal(before.Select(p => p.Name), services.Columns.Profiles.Select(p => p.Name));
+            for (int i = 0; i < before.Count; i++)
+                Assert.Equal(before[i].Columns, services.Columns.Profiles[i].Columns);
+            Assert.Equal(90, services.Columns.Profiles[0].Columns[1].Width);
+            var links = services.Columns.Profiles.Single(p => p.Name == "Links").Columns;
+            Assert.True(links[1].Width > links[0].Width, "Links' link target should take more of the space than the name");
         }
         finally
         {
