@@ -9,7 +9,8 @@ this is what reads what is inside it.
 It reads a run's evidence archive (`<run>-evidence.zip` from the Windows runner, `<run>-evidence.tar.gz` from the Unix
 one) and requires all of:
 
-  * the machine record names `FILECAT_EDIT_NATIVE_REQUIRED=1`, so a native edit test could not skip;
+  * the machine record gives `FILECAT_EDIT_NATIVE_REQUIRED` exactly the value `1`, once, read the way its own runner
+    applies it - so a native edit test could not skip;
   * its own listing accounts for the whole file, each member as long as its own local header says - a zip is read
     from its end and sized from its directory, so an appended zip is read alone and a directory that overstates a
     size can leave the sealed half inside a member's span; a gzipped tar holds one member and nothing after it,
@@ -41,7 +42,8 @@ that needs the evidence folder rewritten is the boundary, not a defect.
 
 Which case fails without a rule here is measured, not argued: `measure_rules.py` beside this file weakens the rules it
 lists, one at a time, and names the cases that notice; the ones it reports with no case are marked as such where they
-are, and `measure_rules.py --audit` prints the conditions here that it does not yet list. Three reviews found a false
+are, and `measure_rules.py --audit` points at lines here holding a condition, a parse or a loop that no entry
+names - a pointer, not a proof, since a rule held in a constant's contents is beyond it. Three reviews found a false
 claim written beside a rule - two of them beside rules here, one of them that harness's own "every rule" - which is why
 the claims are gone and the command is cited instead.
 
@@ -150,6 +152,11 @@ class Archive:
         if self._zip is None:
             return self._gzip_gap()
         spans: list[tuple[int, int]] = []
+        directory = getattr(self._zip, 'start_dir', None)
+        if directory is None:
+            # A reader that does not say where the directory begins cannot be asked this question, and the answer
+            # then is not "nothing is wrong" - every rule of this layout reading rests on it.
+            return 'this reader does not say where its directory begins, so the file cannot be accounted for'
         with open(self.path, 'rb') as handle:
             for item in self._zip.infolist():
                 handle.seek(item.header_offset)
@@ -180,18 +187,29 @@ class Archive:
                     signed = trailer[:4] == b'PK\x07\x08'
                     # Both sizes, not the compressed one alone: read as narrow, a wide descriptor's low half states
                     # the compressed size correctly for any member under 4 GiB, and only its second field tells them
-                    # apart. An empty member written wide to a stream is the one shape this cannot tell, and no
-                    # runner writes one.
+                    # apart. An empty member states nought in both widths, so there what follows decides: the next
+                    # member's header, the directory's, or the directory's own place - which two ordinary writers'
+                    # archives (an empty file under bsdtar's zip64, and zipfile writing wide to a stream) needed.
+                    data_end = item.header_offset + 30 + name + extra + item.compress_size
+                    fits = []
                     for size_of, kind, at in ((16, '<II', 8), (24, '<QQ', 8), (12, '<II', 4), (20, '<QQ', 4)):
                         if signed != (size_of in (16, 24)) or len(trailer) < at + struct.calcsize(kind):
                             continue
                         compressed, plain = struct.unpack(kind, trailer[at:at + struct.calcsize(kind)])
                         if compressed == item.compress_size and plain == item.file_size:
-                            length += size_of
-                            break
-                    else:
+                            fits.append(size_of)
+                    if len(fits) > 1:
+                        followed = []
+                        for size_of in fits:
+                            handle.seek(data_end + size_of)
+                            after = handle.read(4)
+                            if data_end + size_of == directory or after in (b'PK' + bytes((3, 4)), b'PK' + bytes((1, 2))):
+                                followed.append(size_of)
+                        fits = followed[:1] or fits[:1]
+                    if not fits:
                         return ('the descriptor after %r does not state the %d bytes its directory does'
                                 % (item.orig_filename, item.compress_size))
+                    length += fits[0]
                 elif stated == 0xffffffff:
                     pass  # a size recorded in the zip64 extra field, which the directory's copy carries
                 elif stated != item.compress_size:
@@ -201,11 +219,6 @@ class Archive:
                     return ('the entry %r is %d bytes long where the file says %d'
                             % (item.filename, item.compress_size, stated))
                 spans.append((item.header_offset, item.header_offset + 30 + name + extra + length))
-        directory = getattr(self._zip, 'start_dir', None)
-        if directory is None:
-            # A reader that does not say where the directory begins cannot be asked this question, and the answer
-            # then is not "nothing is wrong" - every rule of this layout reading rests on it.
-            return 'this reader does not say where its directory begins, so the file cannot be accounted for'
         covered = 0
         reach = 0
         for start, end in sorted(spans):
@@ -383,20 +396,36 @@ def pinned_family(results: dict[str, set[str]]) -> str | None:
     return 'both' if windows and unix else 'windows' if windows else 'unix' if unix else None
 
 
-def gate_value(recorded: str) -> str | None:
-    """What this run set the gate to, or None if it did not set it at all.
+def gate_assignments(archive: Archive, name: str) -> list[str]:
+    """Every value this run's own runner gave the gate, read the way that runner applies its record - in order.
 
-    A substring test is not enough. Every reader of this variable compares it to "1" exactly, and both runners pass a
-    value through verbatim, so a run recording `FILECAT_EDIT_NATIVE_REQUIRED=10` had no gate at all: its native edit
-    tests skipped where they were meant to fail, and its composition pin was never armed.
+    A substring test is not enough, and neither is a looser parse than the runner's. Every reader of this variable
+    compares it to "1" exactly, and both runners pass a value through verbatim, so a run recording
+    `FILECAT_EDIT_NATIVE_REQUIRED=10` - or `=1 ` with a trailing space - had no gate at all: its native edit tests
+    skipped where they were meant to fail, and its composition pin was never armed.
+
+    The Windows runner records its `-Env` string as given in `Env`, then splits it on `;` alone and sets each name to
+    the rest of its item, untrimmed; a value may hold spaces, so `A=1 FILECAT_EDIT_NATIVE_REQUIRED=1` is one variable
+    `A` and no gate. The Unix runner writes one `env=NAME=VALUE` line per entry it exports; a value may hold `;`, so
+    `env=A=1;FILECAT_EDIT_NATIVE_REQUIRED=1` is likewise one variable and no gate. This check once split both on
+    `;` and whitespace, trimmed, and took the first - and read each of those, and a gate given twice (the runner
+    applying the last), as the gate in force while the tests ran without it.
     """
-    # The Unix runner writes one `env=NAME=VALUE` line per variable; the Windows one records them in one
-    # semicolon-separated string. So each item is read with its own `env=` prefix removed before its first `=`.
-    for item in re.split(r'[;\s]+', recorded):
-        name, separator, value = item.strip().removeprefix('env=').removeprefix('env:').partition('=')
-        if separator and name.strip() == GATE_NAME:
-            return value.strip()
-    return None
+    text = archive.read(name)
+    if name.replace('\\', '/').endswith('machine.json'):
+        try:
+            recorded = json.loads(text).get('Env', '')
+        except (ValueError, AttributeError):
+            return []
+        pairs = [item for item in str(recorded).split(';') if item]
+    else:
+        pairs = [line[len('env='):] for line in text.splitlines() if line.startswith('env=')]
+    values = []
+    for pair in pairs:
+        key, separator, value = pair.partition('=')
+        if separator and key == GATE_NAME:
+            values.append(value)
+    return values
 
 
 def outcomes(archive: Archive) -> dict[str, set[str]]:
@@ -434,12 +463,15 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
                     (twice := repeated_members(archive.read(records[0]))):
                 problems.append('its machine record holds %s more than once, so what it says depends on who reads it'
                                 % ', '.join(twice))
-            recorded = machine_field(archive, records[0], 'Env')
-            if (value := gate_value(recorded)) is None:
+            values = gate_assignments(archive, records[0])
+            if not values:
                 problems.append('its machine record does not name ' + GATE_NAME)
-            elif value != GATE_VALUE:
+            elif len(values) > 1:
+                problems.append('its machine record gives %s %d values (%s), and its runner applies only the last'
+                                % (GATE_NAME, len(values), ', '.join(repr(value) for value in values)))
+            elif (values[0] if values else None) != GATE_VALUE:
                 problems.append('its machine record sets %s to %r, not %r, so a native edit test could step aside'
-                                % (GATE_NAME, value, GATE_VALUE))
+                                % (GATE_NAME, values[0] if values else None, GATE_VALUE))
             facts['system'] = system = machine_system(archive, records[0])
             if system is None:
                 problems.append('its machine record does not say which system ran it, so nothing in it binds it to a route')
@@ -556,8 +588,10 @@ def main() -> int:
             continue
         try:
             problems, facts = check(path)
-        except (OSError, zipfile.BadZipFile, tarfile.TarError, json.JSONDecodeError, ValueError, TypeError,
-                AttributeError, KeyError, NotImplementedError) as error:
+        # Any error at all, not a list of the ones met so far: a truncated tar raised EOFError and a bit-rotted
+        # member zlib.error, which this list did not hold, so the run ended with a traceback - no verdict for the
+        # archives after it and no report written. An archive that cannot be read is one refusal among others.
+        except Exception as error:  # noqa: BLE001 - a sealed run that does not read is a finding, not a crash
             failed = True
             lines.append('%s: NOT edit-storage evidence' % path.name)
             lines.append('    it cannot be read as a sealed run: %s: %s' % (type(error).__name__, error))

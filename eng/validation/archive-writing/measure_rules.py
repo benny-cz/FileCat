@@ -6,14 +6,20 @@ claim written beside a rule: "this guard cannot be reached", "two rules are left
 own first version - "every rule of the check is listed below". All three were arguments, and all three were wrong.
 
 So: the rules listed below are weakened one at a time, on a copy, with the check's own suite run against that copy, and
-the cases that notice are printed. **This list is not the check.** A rule that is not an entry here is invisible to
-this, which is how the line in `main()` that turns findings into a refusal sat unmeasured for a round - so a rule added
-to the check wants an entry here, and `--audit` prints the check's own conditions that no entry names, to make a
-missing one easier to see.
+the cases that notice are printed. **This list is not the check, and the exit code speaks for this list alone.** A rule
+that is not an entry here is invisible to the measurement, which is how the line in `main()` that turns findings into
+a refusal sat unmeasured for a round - so a rule added to the check wants an entry here.
+
+`--audit` is what points at a rule this list lacks, and it is a pointer, not a proof. It walks the check's syntax tree
+and prints every line that holds a condition (an `if`, a comparison, a boolean, a comprehension's filter), a parsing
+call (split, strip, partition, a prefix or suffix test, a regular expression, `json.loads`, `struct.unpack`, a decode)
+or the iterable of a loop, which no entry names. It cannot see a rule held in a constant's contents - a list of reasons,
+pins or descriptor shapes - which is why those constants have cases asserting their own words; and it found nothing of
+the rule the fortieth review did find, because the line-prefix filter it replaced could not see a `for` over a split.
 
 Each entry carries what is expected of it: nothing, for a rule a case must hold, or a note saying it is redundant with
 another rule, or that it has no case and why. An entry expected to be held and held by nothing is the finding this
-exists to make.
+exists to make, and the exit code reports it.
 
     python -I -X utf8 eng/validation/archive-writing/measure_rules.py [--rule <text to match>] [--audit]
 
@@ -28,6 +34,7 @@ exactly once in the check.
 from __future__ import annotations
 
 import argparse
+import ast
 from pathlib import Path
 import re
 import shutil
@@ -41,14 +48,14 @@ SUITE = HERE / 'test_check_edit_storage_evidence.py'
 
 RULES: list[tuple[str, str, str, str | None]] = [
     ('the gate recorded as exactly 1',
-     '        elif value != GATE_VALUE:',
-     '        elif False and value != GATE_VALUE:', None),
+     '            elif (values[0] if values else None) != GATE_VALUE:',
+     '            elif False and (values[0] if values else None) != GATE_VALUE:', None),
     ('the gate named at all',
-     "                problems.append('its machine record does not name ' + GATE_NAME)",
-     "                problems.append('its machine record is quiet about ' + GATE_NAME)", 'redundant: with this branch gone the value comparison refuses a record with no gate anyway'),
+     '            if not values:',
+     '            if not values and False:', 'redundant: without it the value comparison refuses a record with no gate, as a value of None'),
     ("the gate's name read whole, not as a part",
-     '        if separator and name.strip() == GATE_NAME:',
-     '        if separator and GATE_NAME in name:', None),
+     '        if separator and key == GATE_NAME:',
+     '        if separator and GATE_NAME in key:', None),
     ('one machine record, not several',
      '        elif len(records) > 1:',
      '        elif len(records) > 1 and False:', None),
@@ -111,7 +118,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '        if (gap := archive.listing_gap()) is not None and False:', None),
     ('an entry pointing at a member of this file',
      "                if len(header) < 30 or header[:4] != b'PK\\x03\\x04':",
-     "                if False and (len(header) < 30 or header[:4] != b'PK\\x03\\x04'):", 'redundant since the name rule: an entry pointing elsewhere is refused for the name it does not carry'),
+     "                if False and (len(header) < 30 or header[:4] != b'PK\\x03\\x04'):", 'redundant: an entry pointing elsewhere is refused for the name it does not carry, or - named after what lies there - by the overlap rule; reaching either needs a rewritten directory'),
     ('the name the file gives a member',
      '                if written != item.orig_filename:',
      '                if False and written != item.orig_filename:', None),
@@ -120,7 +127,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '                elif False and stated != item.compress_size:', None),
     ("a descriptor's width from both of its size fields",
      '                        if compressed == item.compress_size and plain == item.file_size:',
-     '                        if compressed == item.compress_size:', None),
+     '                        if compressed == item.compress_size:', 'redundant since the follow-up rule: read narrow, a wide descriptor matches twice, and what follows the descriptor - the next header, or the directory - tells them apart'),
     ("the local header's own name and extra lengths",
      "                name, extra = struct.unpack('<HH', header[26:30])",
      "                name, extra = len(item.filename.encode('utf-8')), len(item.extra)", None),
@@ -163,9 +170,6 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ('the verdict naming the digest of what it read',
      "                     % (path.name, passed, skipped, GATE, facts['system'], accepted_digest(path)))",
      "                     % (path.name, passed, skipped, GATE, facts['system'], 'f' * 64))", None),
-    ('an archive it cannot read named and the rest still reported',
-     '                AttributeError, KeyError, NotImplementedError) as error:',
-     '                AttributeError, KeyError) as error:', None),
     ('an archive with problems refused, not given a verdict',
      '        if problems:',
      '        if problems and False:', None),
@@ -187,23 +191,99 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ('each pin of the listing, by name',
      "    'This_build_lists_native_edit_storage_on_the_owner_s_routes_only',",
      "    'This_build_lists_native_edit_storage_on_the_owner_s_routes_only_v2',", None),
-    # Surfaced by --audit after the thirty-ninth review: conditions no entry named.
     ('a member whose sizes travel in a trailing descriptor',
-     "                if flag & 0x08:",
-     "                if False and flag & 0x08:", None),
+     '                if flag & 0x08:',
+     '                if False and flag & 0x08:', None),
     ('a size the directory records as too wide to hold',
-     "                elif stated == 0xffffffff:",
-     "                elif False and stated == 0xffffffff:",
-     None),  # held after all: a wide shape among the ordinary writers' reaches it
+     '                elif stated == 0xffffffff:',
+     '                elif False and stated == 0xffffffff:', None),
     ('bytes in the file after a tar archive of its own',
-     "        if after:",
-     "        if False and after:", None),
+     '        if after:',
+     '        if False and after:', None),
     ('a member of a machine record named twice inside it',
-     "            if key in kept:",
-     "            if False and key in kept:", None),
+     '            if key in kept:',
+     '            if False and key in kept:', None),
     ('results that name both platform classes as passing',
      "    return 'both' if windows and unix else 'windows' if windows else 'unix' if unix else None",
      "    return 'windows' if windows else 'unix' if unix else None", None),
+    ("the Windows runner's -Env read on ';' alone",
+     "        pairs = [item for item in str(recorded).split(';') if item]",
+     "        pairs = [item for item in re.split(r'[;\\s]+', str(recorded)) if item]", None),
+    ("the Unix runner's own env= lines, each one entry",
+     "        pairs = [line[len('env='):] for line in text.splitlines() if line.startswith('env=')]",
+     "        pairs = [part for line in text.splitlines() for part in re.split(r'[;\\s]+', line.removeprefix('env='))]", None),
+    ('a value taken as the runner sets it, untrimmed',
+     '            values.append(value)',
+     '            values.append(value.strip())', None),
+    ('a gate given more than once',
+     '            elif len(values) > 1:',
+     '            elif False and len(values) > 1:', None),
+    ('a descriptor written without its signature',
+     "((16, '<II', 8), (24, '<QQ', 8), (12, '<II', 4), (20, '<QQ', 4))",
+     "((16, '<II', 8), (24, '<QQ', 8))", None),
+    ("an empty member's descriptor told by what follows it",
+     '                        fits = followed[:1] or fits[:1]',
+     '                        fits = fits[:1]', None),
+    ('any error reading one archive is its refusal, and the rest are reported',
+     '        except Exception as error:  # noqa: BLE001 - a sealed run that does not read is a finding, not a crash',
+     '        except (OSError, zipfile.BadZipFile) as error:', None),
+    ("a descriptor's signature read as there or not",
+     "                    signed = trailer[:4] == b'PK\\x07\\x08'",
+     '                    signed = True', None),
+    ('an empty member whose descriptor matches both widths',
+     '                    if len(fits) > 1:',
+     '                    if False and len(fits) > 1:', None),
+    ('what follows a descriptor: the next header, or the directory',
+     "                            if data_end + size_of == directory or after in (b'PK' + bytes((3, 4)), b'PK' + bytes((1, 2))):",
+     '                            if data_end + size_of == directory:', None),
+    ('a descriptor that states neither width',
+     '                    if not fits:',
+     '                    if False:', None),
+    ('an archive with no machine record',
+     '        if not records:',
+     '        if False:', None),
+    ('an archive with no summary',
+     '        if not summaries:',
+     '        if False:', None),
+    ("a summary's own list of failures",
+     "            if summary.get('failed'):",
+     "            if False and summary.get('failed'):", None),
+    ("a suite's own failure counter",
+     "                if int(counters.get('failed', 0)) != 0:",
+     "                if False and int(counters.get('failed', 0)) != 0:", None),
+    ("the runner's own verdict on the run",
+     "            if summary.get('ok') is not True:",
+     "            if False and summary.get('ok') is not True:", None),
+    ('a suite that exited other than 0',
+     '                    if code != 0:',
+     '                    if False and code != 0:', None),
+    ('a summary that names no suite at all',
+     '        if not suites:',
+     '        if False:', None),
+    ('an archive with no status file',
+     '        if not statuses:',
+     '        if False:', None),
+    ('a status that is not PASS',
+     "            if archive.read(name).strip() != 'PASS':",
+     "            if False and archive.read(name).strip() != 'PASS':", None),
+    ('an archive with no console log',
+     '        if not logs:',
+     '        if False:', None),
+    ('console logs that say nothing',
+     '        elif not any(archive.read(log).strip() for log in logs):',
+     '        elif False:', None),
+    ('an archive with no results to read',
+     '        if not results:',
+     '        if False:', None),
+    ('a pin the results do not hold at all',
+     '            if not matching:',
+     '            if False:', None),
+    ("the outcomes a pin's case may have",
+     "                         if not outcome <= {'Passed', 'NotExecuted'}}",
+     "                         if not outcome <= {'Passed', 'NotExecuted', 'Failed'}}", None),
+    ('results that name both platform classes, refused',
+     "        if family == 'both':",
+     "        if False and family == 'both':", None),
 ]
 
 def run(folder: Path) -> tuple[str, list[str]]:
@@ -217,19 +297,48 @@ def run(folder: Path) -> tuple[str, list[str]]:
                                                    re.findall(r'(?:FAIL|ERROR): (test_\w+)', text)})
 
 
+PARSING = {'split', 'rsplit', 'partition', 'rpartition', 'strip', 'lstrip', 'rstrip', 'startswith', 'endswith',
+           'removeprefix', 'removesuffix', 'match', 'search', 'fullmatch', 'findall', 'finditer', 'loads', 'unpack',
+           'decode', 'splitlines'}
+
+
 def audit() -> int:
-    """The check's own conditions and refusals that no entry here names: a missing rule hides among these."""
-    named = {old.strip() for _, old, _, _ in RULES}
+    """Every line of the check that holds a condition, a parsing call or a loop's iterable and that no entry names.
+
+    A pointer, not a proof: a rule held in a constant's contents is out of its reach, and a line it prints may be a
+    message or plumbing. The exit code is 0 whatever it prints; reading the list is the point.
+    """
+    source = CHECK.read_text(encoding='utf-8')
+    lines = source.splitlines()
+    found: dict[int, set[str]] = {}
+
+    def mark(node: ast.AST, why: str) -> None:
+        found.setdefault(node.lineno, set()).add(why)
+
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, (ast.If, ast.While, ast.IfExp, ast.Assert)):
+            mark(node.test, 'condition')
+        elif isinstance(node, (ast.Compare, ast.BoolOp)):
+            mark(node, 'comparison')
+        elif isinstance(node, ast.comprehension):
+            for test in node.ifs:
+                mark(test, 'filter')
+            mark(node.iter, 'iterable')
+        elif isinstance(node, ast.For):
+            mark(node.iter, 'iterable')
+        elif isinstance(node, ast.Call):
+            name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, 'id', '')
+            if name in PARSING:
+                mark(node, 'parse:' + name)
+    named = [old for _, old, _, _ in RULES]
     loose = []
-    for number, line in enumerate(CHECK.read_text(encoding='utf-8').splitlines(), 1):
-        stripped = line.strip()
-        if not stripped.startswith(('if ', 'elif ', 'problems.append(', 'return ')) or stripped in named:
+    for number in sorted(found):
+        text = lines[number - 1].strip()
+        if not text or text.startswith('#') or any(text in old or old.strip() in text for old in named):
             continue
-        if any(stripped in old or old.strip() in stripped for _, old, _, _ in RULES):
-            continue
-        loose.append('%4d  %s' % (number, stripped[:112]))
-    print('%d conditions and refusals no entry names (each is a rule to list, a message, or a line of plumbing):'
-          % len(loose))
+        loose.append('%4d  %-34s %s' % (number, ','.join(sorted(found[number]))[:34], text[:96]))
+    print('%d lines hold a condition, a parsing call or an iterable that no entry names - each is a rule to list, a '
+          'message, or plumbing:' % len(loose))
     print('\n'.join(loose))
     return 0
 
@@ -237,7 +346,8 @@ def audit() -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--rule', help='measure only the rules whose description holds this text')
-    parser.add_argument('--audit', action='store_true', help='print the check\'s conditions no entry names')
+    parser.add_argument('--audit', action='store_true',
+                        help='print the lines of the check holding a condition, a parse or an iterable no entry names')
     arguments = parser.parse_args()
     if arguments.audit:
         return audit()
@@ -274,9 +384,11 @@ def main() -> int:
                 print('%-62s no case   [%s]' % (what, note))
             (folder / CHECK.name).write_text(committed, encoding='utf-8', newline='')
     print()
-    print('%d rules listed: %d held by a case, %d noted as redundant or caseless, %d expected to be held and are not%s'
-          % (len(RULES), len(held), len(noted), len(unmeasured),
-             ': ' + '; '.join(unmeasured) if unmeasured else ''))
+    measured = len(held) + len(noted) + len(unmeasured)
+    print('%s: %d held by a case, %d noted as redundant or caseless, %d expected to be held and are not%s'
+          % ('%d rules listed' % len(RULES) if measured + len(wrong) == len(RULES)
+             else '%d of the %d rules listed measured' % (measured, len(RULES)),
+             len(held), len(noted), len(unmeasured), ': ' + '; '.join(unmeasured) if unmeasured else ''))
     if wrong:
         print('%d entries no longer match the check and have to be rewritten: %s' % (len(wrong), '; '.join(wrong)))
     return 1 if wrong or unmeasured else 0

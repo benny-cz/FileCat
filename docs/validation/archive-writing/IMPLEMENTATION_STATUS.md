@@ -1,7 +1,48 @@
 # Archive writing implementation status
 
-**14 November, the harness read against the check (round thirty-nine).** The gate holds for every archive as its
-runner sealed it, and no false refusal turned up in twelve more archives from both runners' own writers. What the review
+**14 November, the gate's own parse (round forty).** Asked whether anything was left that the harness, its audit or
+the recorded boundary did not already report, the reviewer answered no - and the first reason was the most serious
+finding since the thirty-third round, because it is about an archive exactly as its runner sealed it:
+
+- **The gate was read by a looser parse than either runner applies.** The Windows runner records its `-Env` string as
+  given, splits it on `;` alone, sets each value untrimmed and applies a repeated name in order; it accepts any value
+  without `;` or `"`, so a value may hold spaces. The Unix runner writes one `env=` line per entry and accepts any
+  value without whitespace, so a value may hold `;`. The check split both on `;` and whitespace, trimmed, and took the
+  first match - so a mistyped command line read as the gate in force while the tests ran without it: a trailing space
+  (`1 `, which every reader compares to `1` and finds off), a pair joined by the other runner's separator (one variable
+  whose value holds the gate's text), and the gate given twice, one then nought (the runner applying the nought). The
+  reviewer rebuilt the real Windows and Ubuntu lanes with only their machine record swapped for what the runner would
+  seal, and the check accepted all six. Each record is now read the way its own runner applies it - `;` alone for the
+  Windows one, only `env=` lines for the Unix one, nothing trimmed - and a gate given more than once is refused. The
+  three sealed lanes name the gate once, exactly `1`, and are accepted as before; every one of the six is refused.
+  The rounds from the thirty-third to the thirty-ninth said the gate held for every archive as its runner sealed it.
+  It did not, and those sentences now say so where they stand.
+- **Two claims about the harness were false.** "A rule added without a case fails the run": the exit code speaks only
+  for the rules the harness lists, and a rule with no entry is invisible to it - shown by adding one. And the audit
+  "prints the conditions no entry names": it filtered lines by their first word, so it never saw the lines this
+  round's finding lived on (a `for` over a split, an assignment that partitions). The audit now walks the check's
+  syntax tree - conditions, comparisons, comprehension filters, loops' iterables and parsing calls - and says plainly
+  that it is a pointer and not a proof: a rule held in a constant's contents is beyond it, which is why those constants
+  have cases asserting their own words. Its exit code is 0 whatever it prints.
+- **A rule neither tool listed and no case held**: the descriptor shapes written without their optional signature.
+  Without them a valid member is refused four bytes short. It has an entry and a case.
+- **Two ordinary writers were still refused**: an empty member written wide - by bsdtar's zip64 over an empty file, and
+  by zipfile writing wide to a stream - states nought in both descriptor widths, and the narrow one was taken. What
+  follows the descriptor now decides: the next member's header, the directory's, or the directory's own place.
+- **An archive that could not be read ended the whole run** when its error was not on a fixed list: a truncated tar
+  raised `EOFError` and a bit-rotted member `zlib.error`, so the archives after it got no verdict and the report was not
+  written. Any error reading one archive is that archive's refusal now, and the rest are reported.
+- Smaller: one entry's reason was false (an entry pointing elsewhere is refused by the name rule or the overlap rule,
+  not the name rule alone); one entry's weakening renamed a message rather than weakening its rule; and the gate's own
+  name and value were held by no case.
+
+Then every line the new audit named that holds a real rule was listed and measured - nineteen of them, eighteen held
+already and one given its case. Seventy-five cases for the check and fourteen for the manifest; the harness lists
+seventy-nine rules, seventy-one held by a case, eight noted as redundant or caseless, and none expected to be held and
+unheld. Its exit code was checked to fail when a listed rule loses its case.
+
+**14 November, the harness read against the check (round thirty-nine).** No way past the gate was found for an
+archive as its runner sealed it (the round above found one, in the gate's own parse), and no false refusal turned up in twelve more archives from both runners' own writers. What the review
 took apart was the harness written the commit before, and it was right to:
 
 - **The line that makes the check's findings a refusal was in no entry, and no case held it.** Weaken `if problems:` in
@@ -11,8 +52,9 @@ took apart was the harness written the commit before, and it was right to:
 - **"Every rule of the check is listed below" was false**, in the harness, in the check's comment and in two records -
   written one commit after two rounds of false claims beside rules, which is the same mistake in a new place. The list
   is forty-two entries, not the check; a rule that is not an entry is invisible to it. All four places now say the
-  rules it lists, and the harness has an `--audit` that prints the check's own conditions no entry names, which is how
-  five more were found after the review's six.
+  rules it lists, and the harness has an `--audit` that points at lines no entry names (a line-prefix filter then,
+  which the round above replaced with a walk of the syntax tree), which is how five more were found after the
+  review's six.
 - **Six rules nothing listed and nothing held**, each able to change a verdict: `main()`'s refusal above; every outcome
   a test name has (a second results file, added - a shape ordinary writers make and the layout rules allow - naming a
   pin as passed, where the sealed one records it as failed); the system read from the record's first line rather than
@@ -27,10 +69,11 @@ took apart was the harness written the commit before, and it was right to:
 
 Sixty-nine cases for the check and fourteen for the manifest, and the harness's answer today: fifty-four rules listed,
 forty-seven held by a case, seven noted as redundant or caseless, and none expected to be held and unheld. Its exit
-code says so, so a rule added without a case fails the run rather than being argued about.
+code says so, so a listed rule that loses its case fails the run rather than being argued about (an unlisted one is
+invisible to it, as the round above showed).
 
-**14 November, the guards and the writers (round thirty-eight).** The gate holds for every archive as its runner
-sealed it, and no sealed archive of this round can be forged by any of the ways below - none of them holds a local file
+**14 November, the guards and the writers (round thirty-eight).** No way past the gate was found for an archive as
+its runner sealed it (the fortieth round found one, in the gate's own parse), and no sealed archive of this round can be forged by any of the ways below - none of them holds a local file
 header that is not one of its own members, which the review checked for all fourteen. What it found was three reasons
 of mine that were false, and two archives an ordinary writer makes that the gate refused:
 
@@ -234,7 +277,7 @@ rules the round before had added, and both gave way - the first because of the v
   list's own class, not of the route-list pin, which is not a theory; and two reports under one route were never read
   as the first - the rule was always there, and what was missing was a case for it.
 
-Every rule of the check that can change a verdict now fails exactly the case that claims it, measured one at a time:
+Every rule of the check this round measured fails exactly the case that claims it, one at a time:
 the member read through, the folder filter, the family a run must name, a repeated member in the record, a summary
 naming no suite, a repeated archive name, a second machine record, the family read as a set, the record-and-run
 comparison, and only-the-first-summary. Thirty-seven cases for the check, ten for the manifest - forty and eleven after

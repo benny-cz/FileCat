@@ -695,11 +695,147 @@ class EvidenceChecks(unittest.TestCase):
             "The fixture's filesystem cannot be established here.",
             'is not a listed native edit storage route for',
         ), checker.STEP_ASIDE)
+        self.assertEqual(('FILECAT_EDIT_NATIVE_REQUIRED', '1'), (checker.GATE_NAME, checker.GATE_VALUE))
         self.assertEqual((
             'Ordinary_startup_composes_native_storage_where_listed_and_the_legacy_store_elsewhere',
             'This_build_lists_native_edit_storage_on_the_owner_s_routes_only',
             'Legacy_and_native_roots_keep_their_own_sessions_and_revisions',
         ), checker.PINS)
+
+    def windows_record(self, env):
+        """A machine record as the Windows runner seals it: its `-Env` string as given, in `Env`."""
+        contents = files()
+        contents['machine.json'] = json.dumps({"RunId": "edit-test", "Os": "Microsoft Windows 11 Pro", "Env": env})
+        return contents
+
+    def unix_record(self, *lines):
+        """A machine record as the Unix runner seals it: uname first, then its own lines, one `env=` per entry."""
+        contents = files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
+        del contents['machine.json']
+        contents['machine.txt'] = 'Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux\n' + '\n'.join(lines) + '\n'
+        return contents
+
+    def test_reads_the_gate_the_way_the_windows_runner_applies_it(self):
+        """The Windows runner splits its `-Env` on `;` alone, sets each value untrimmed and applies a repeated name
+        in order. So a trailing space is a value of `1 `, which every reader compares to `1` and finds off; a pair
+        joined by a space is one variable holding the gate's text; and the gate given twice ends as its last value.
+        This check once read all three as the gate in force while the tests ran without it."""
+        gate = checker.GATE_NAME
+        for env, said in ((gate + '=1 ', "sets %s to '1 ', not '1'" % gate),
+                          ('FILECAT_ARCHIVE_TXF_NATIVE=1 ' + gate + '=1', 'does not name ' + gate),
+                          (gate + '=1;FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=0', "gives %s 2 values ('1', '0')" % gate)):
+            with self.subTest(env):
+                problems, _ = self.check(self.windows_record(env))
+                self.assertTrue(any(said in problem for problem in problems), problems)
+        self.assertEqual([], self.check(self.windows_record('FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1'))[0])
+
+    def test_reads_the_gate_the_way_the_unix_runner_applies_it(self):
+        """The Unix runner exports one entry per `env=` line, and a value may hold `;` - so `A=1;GATE=1` is one
+        variable holding the gate's text. The gate given twice ends as its last value, and a line that is not an
+        `env=` line (a filter, say) sets nothing at all, whatever it holds."""
+        gate = checker.GATE_NAME
+        for lines, said in ((('env=FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1',), 'does not name ' + gate),
+                            (('env=' + gate + '=1', 'env=' + gate + '=0'), "gives %s 2 values ('1', '0')" % gate),
+                            (('filter=' + gate + '=1',), 'does not name ' + gate)):
+            with self.subTest(lines):
+                problems, _ = self.check(self.unix_record(*lines), unix=True)
+                self.assertTrue(any(said in problem for problem in problems), problems)
+        self.assertEqual([], self.check(self.unix_record('packet=abc', 'env=' + gate + '=1'), unix=True)[0])
+
+    def test_accepts_a_descriptor_written_without_its_signature(self):
+        """A trailing descriptor's signature is optional, and a writer may leave it out: twelve bytes, or twenty where
+        the entry is wide. Measured as if it were there, such a member is refused four bytes short."""
+        with tempfile.TemporaryDirectory() as directory:
+            class Unseekable(io.RawIOBase):  # zipfile cannot rewind it, so it writes a trailing descriptor
+                def __init__(self, handle): self.handle = handle
+                def writable(self): return True
+                def seekable(self): return False
+                def write(self, data): return self.handle.write(data)
+            raw = io.BytesIO()
+            with zipfile.ZipFile(Unseekable(raw), 'w', zipfile.ZIP_DEFLATED) as held:
+                held.writestr('summary.json', '{}' * 48)
+            blob = raw.getvalue()
+            at = blob.find(b'PK' + bytes((7, 8)))
+            self.assertNotEqual(-1, at, 'this zipfile wrote no descriptor, so the case proves nothing')
+            blob = blob[:at] + blob[at + 4:]                 # the signature left out, the rest unmoved
+            end = blob.rfind(b'PK' + bytes((5, 6)))
+            start, = struct.unpack('<I', blob[end + 16:end + 20])
+            blob = blob[:end + 16] + struct.pack('<I', start - 4) + blob[end + 20:]  # the directory, four bytes on
+            path = Path(directory) / 'unsigned.zip'
+            path.write_bytes(blob)
+            with zipfile.ZipFile(path) as held:
+                self.assertIsNone(held.testzip())            # an archive any reader reads
+            with checker.Archive(path) as held:
+                self.assertIsNone(held.listing_gap())
+
+    def test_refuses_a_descriptor_that_states_sizes_its_directory_does_not(self):
+        """A descriptor is where a streamed member's sizes are, so one stating other sizes than the directory's - in
+        either width, with or without its signature - is a member the file does not account for."""
+        with tempfile.TemporaryDirectory() as directory:
+            class Unseekable(io.RawIOBase):
+                def __init__(self, handle): self.handle = handle
+                def writable(self): return True
+                def seekable(self): return False
+                def write(self, data): return self.handle.write(data)
+            raw = io.BytesIO()
+            with zipfile.ZipFile(Unseekable(raw), 'w', zipfile.ZIP_DEFLATED) as held:
+                held.writestr('summary.json', '{}' * 48)
+            blob = bytearray(raw.getvalue())
+            at = blob.find(b'PK' + bytes((7, 8)))
+            self.assertNotEqual(-1, at, 'this zipfile wrote no descriptor, so the case proves nothing')
+            blob[at + 12:at + 16] = struct.pack('<I', 7)  # the plain size it states, now neither width's
+            path = Path(directory) / 'misstated.zip'
+            path.write_bytes(bytes(blob))
+            with checker.Archive(path) as held:
+                self.assertIn('does not state', held.listing_gap() or '')
+
+    def test_accepts_an_empty_member_written_wide_to_a_stream(self):
+        """An empty member states nought in both descriptor widths, so the narrow one was taken and the archive refused
+        eight bytes short - for zipfile writing wide to a stream, and for libarchive's zip64 over an empty file."""
+        with tempfile.TemporaryDirectory() as directory:
+            class Unseekable(io.RawIOBase):
+                def __init__(self, handle): self.handle = handle
+                def writable(self): return True
+                def seekable(self): return False
+                def write(self, data): return self.handle.write(data)
+            path = Path(directory) / 'empty-wide.zip'
+            with open(path, 'wb') as raw:
+                with zipfile.ZipFile(Unseekable(raw), 'w', zipfile.ZIP_DEFLATED) as held:
+                    with held.open(zipfile.ZipInfo('empty.txt'), 'w', force_zip64=True):
+                        pass
+                    with held.open(zipfile.ZipInfo('summary.json'), 'w', force_zip64=True) as member:
+                        member.write(b'{}' * 48)
+            with checker.Archive(path) as held:
+                self.assertIsNone(held.listing_gap())
+            found = self.tar_called('bsdtar')
+            if found is not None:
+                tree = Path(directory) / 'run'
+                tree.mkdir()
+                (tree / 'empty.txt').write_bytes(b'')
+                (tree / 'a.txt').write_text('x', encoding='utf-8')
+                done = subprocess.run([found, '--format', 'zip', '--options', 'zip:zip64', '-cf', 'wide.zip', 'run'],
+                                      cwd=directory, capture_output=True)
+                if done.returncode == 0:
+                    with checker.Archive(Path(directory) / 'wide.zip') as held:
+                        self.assertIsNone(held.listing_gap())
+
+    def test_names_an_archive_cut_short_and_still_reports_the_rest(self):
+        """A tar cut off inside a member raises from the reader itself, which once ended the whole run with a traceback:
+        no verdict for the archives after it and no report written. It is one refusal among others."""
+        with tempfile.TemporaryDirectory() as directory:
+            whole = archive(directory, 'edit-cut-evidence.tar.gz', files(log='x' * 20000), unix=True)
+            blob = gzip.decompress(whole.read_bytes())
+            whole.write_bytes(gzip.compress(blob[:len(blob) // 3]))   # cut inside a member, re-wrapped whole
+            good = archive(directory, 'edit-good-evidence.zip', files())
+            report = Path(directory) / 'report.txt'
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                with unittest.mock.patch.object(sys, 'argv', ['check', str(whole), str(good), '--out', str(report)]):
+                    self.assertEqual(1, checker.main())
+            said = output.getvalue()
+            self.assertIn('edit-cut-evidence.tar.gz: NOT edit-storage evidence', said)
+            self.assertIn('edit-good-evidence.zip: edit-storage evidence,', said)
+            self.assertEqual(said, report.read_text(encoding='utf-8'))
 
     def test_names_an_archive_whose_compression_it_cannot_read(self):
         """A method this reader does not know is one more refusal, and the run's other archives are still reported:

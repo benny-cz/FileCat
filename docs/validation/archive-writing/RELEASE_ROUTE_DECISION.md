@@ -228,8 +228,8 @@ sealed archive, and each was closed by reading the container more carefully - wh
 again, because a parser can always be asked one more question. What ends it is a digest of each archive taken by the
 runner on the machine that sealed it and carried beside it, so this host compares bytes instead of parsing them.
 Neither runner writes one today; that is a change to both and one more file per lane, for the next candidate. Until
-then the gate keeps out the mistake it says it keeps out, and the layout rules keep out the appends that have been
-tried.
+then the gate keeps out the mistakes it has been shown, and the layout rules keep out the appends that have been
+tried - the fortieth review found one mistake it did not keep out, in its own reading of a runner's record.
 
 The thirty-seventh review found the gate sound for every archive as its runner sealed it, and two claims of these
 records false. One: the overlap check was said to have no case and none to be had, where two directory entries can
@@ -258,6 +258,19 @@ The thirty-ninth review read that harness against the check it measures, and fou
 false one: its list was not every rule of the check, and six rules it did not list were held by nothing - among them
 the line that turns the check's findings into a refusal, without which a lane that failed is written an accepting
 verdict. Three of its entries measured a message rather than a rule. All of that is closed: each entry says what is
-expected of it, the harness has an audit that prints the conditions no entry names, and its answer today is fifty-four
+expected of it, the harness has an audit that points at lines no entry names, and its answer then was fifty-four
 rules listed, forty-seven held by a case, seven noted as redundant or caseless, and none expected to be held and
-unheld - which its exit code reports, so a rule added without a case fails the run.
+unheld - which its exit code reports for the rules it lists, and for those alone.
+
+The fortieth review was asked whether anything was left that the harness, its audit or this boundary did not already
+report, and it answered no. The gate read a runner's record by a looser parse than the runner itself applies, so a
+mistyped command line - a trailing space, a pair joined by the other runner's separator, the gate given twice - was
+read as the gate in force while the tests ran without it: the first finding since the thirty-third review about an
+archive exactly as its runner sealed it, and the sentences that said the gate held for every such archive now say
+otherwise where they stand. Each runner's record is read as that runner applies it now, and a gate given twice is
+refused; the three sealed lanes are accepted as before. Two claims about the harness were false - its exit code speaks
+only for the rules it lists, and its audit filtered line prefixes and could not see that finding's lines - so the audit
+walks the syntax tree now and calls itself a pointer, not a proof. A descriptor shape with no case, two ordinary
+writers still refused, and a run that an unreadable archive could end with a traceback are closed with it. Seventy-five
+cases hold the check and fourteen the manifest, and the harness lists seventy-nine rules, seventy-one held by a case,
+eight noted and none unheld.
