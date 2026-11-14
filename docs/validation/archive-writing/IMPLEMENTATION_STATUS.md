@@ -1,5 +1,43 @@
 # Archive writing implementation status
 
+**14 November, what the runners write, read as they write it (round forty-seven).** Asked again whether anything was
+left that the mechanism did not report, the reviewer found three things at High and three at Medium:
+
+- **High: a rule that changes the verdict of every runner-sealed archive sat outside the harness and its audit** - the
+  status read past its line end. Both runners end the status with one (`PASS` and a carriage return and newline in the
+  Windows zip, a newline in the Unix tar); the suite's fixtures wrote none, so no case held the trim, and the audit
+  skipped any line an entry named, though a line can hold more than one rule. Without the trim, all three sealed edit
+  archives are refused (the reviewer, on r35). The fixtures seal the status as the runners do now, the trim is listed
+  and held, and the audit also prints a named line whose checks outnumber the entries naming it. Two more rules that
+  hid so - a Unix test line read with the filter, and a zip64 header that carries no zip64 field - are listed with
+  cases. Of the halves the new audit pointed at, a descriptor's compressed size has a case now, two the code makes
+  redundant are noted so, and the blank lines read past before a record's first line - which no runner writes - are
+  not read past any more: the first line is read as it stands.
+- **High: "a filter dotnet and MSBuild pass on as written" was false for a Unix filter holding `%`** - MSBuild decodes
+  `%XX` there (the reviewer: `%22` reached the filter property as `"`, `%3B` as `;`). No route to the gate was found,
+  VSTest quoting the decoded value, but `%` is refused in a Unix filter now as in a Windows one, and `"`, `@` and `%`
+  in a project entry on both runners, whose name reaches MSBuild in the logger's property; the check refuses them in
+  either runner's record.
+- **High: the round below said every r35 argument passes the runners' checks.** The Windows full lane's `#!` shard
+  does not, as the forty-third round recorded; it is written `#~` since then. Corrected where it stands.
+- **Medium: the Windows runner's console logs are UTF-16 with a byte-order mark** - Windows PowerShell 5.1's `*>`
+  writes them so - and the check read every member as UTF-8, so on every Windows archive the log half of the step-aside
+  scan and the empty-output rule were inert. A member is read by its byte-order mark now, and the zip fixtures' logs
+  are UTF-16 as the runner writes them. Read so, no r35 log holds a step-aside reason and none is empty: the r35
+  verdicts are unchanged, five accepted and nine refused.
+- **Medium:** one entry's weakening read every record line as an entry, so the `uname` line tripped the round-forty-five
+  rule and the verdicts that changed were that side effect; it weakens its own rule alone now. And the zip64 field's
+  walk past the fields before it had no case; a member whose extended timestamp comes before its zip64 field is one.
+- Low, closed or recorded: the `raises` notes said the case ends in an error, where the harness writes the raise down
+  as that call's refusal and the case goes on - reworded. Recorded as boundary 1: the directory's plain size and CRC
+  are trusted, so a directory rewritten to understate a log's plain size hides a reason. The backslash handling in the
+  member finders is not exercised on this host, where zipfile already turns `\` into `/`.
+
+Every r35 argument passes the runners' checks but the Windows full lane's `#!` shard - forty-nine Windows inputs under
+Windows PowerShell 5.1 and forty-seven Unix inputs under bash 5.3, 3.2 and 5.2, each as expected - and all 23
+manifest digests match. One hundred and five cases for the check and fourteen for the manifest; the harness lists one hundred and thirty-five rules,
+one hundred and eleven held by a verdict, twenty-four noted as redundant, caseless or raising, and none unheld or contradicted.
+
 **14 November, the filter reaching the gate (round forty-six).** Asked again whether anything was left that the
 mechanism did not report, the reviewer found two things at High and one at Medium:
 
@@ -12,7 +50,7 @@ mechanism did not report, the reviewer found two things at High and one at Mediu
   only `env=` lines. A filter holding `"` or `@` - a response file where it begins, an item list inside it (`@(None)`
   expanded to nothing in the probe) - or beginning with `-` is refused now, by the check for both runners' records and
   by both runners before a run. `$(...)`, property functions and `%(...)` stay as written, and a `;` or `%3B` stays
-  inside the filter (replayed).
+  inside the filter (replayed) - though MSBuild decodes `%XX`, the round above found, so a Unix filter holds no `%` now.
 - **High: "each member as long as its own local header says" was false for a zip64 member,** whose local header leaves
   its sizes to its zip64 extra field: the check took the directory's size unchecked there, so a directory that dropped
   a log and stretched a zip64 member over it was accepted. That needs bytes changed, and the runners' zips hold no
@@ -27,7 +65,8 @@ mechanism did not report, the reviewer found two things at High and one at Mediu
   docstrings say a forgery put before a sealed tar is read in its place, where they had it the wrong way round; the
   harness's skip message names both tars; and its docstring says no case calls `repeated()` on its own.
 
-Every r35 argument passes the runners' checks - forty-eight Windows inputs under Windows PowerShell 5.1, forty-four
+Every r35 argument passes the runners' checks (but the Windows full lane's `#!` shard, written `#~` since the
+forty-third round - the round above) - forty-eight Windows inputs under Windows PowerShell 5.1, forty-four
 Unix inputs under this host's bash 5.3, the Mac's `/bin/bash` 3.2 and the Ubuntu VM's bash 5.2 - and the r35 verdicts
 are unchanged, five accepted and nine refused; all 23 manifest digests match. Ninety-eight cases for the check and
 fourteen for the manifest; the harness lists one hundred and twenty rules, ninety-eight held by a verdict, twenty-two noted as

@@ -145,7 +145,7 @@ SUMMARY = {"ok": True, "failed": [], "exit_codes": {"FileCat.App.Tests-Edit": 0}
                                                  "counters_total": 7}}}
 
 
-def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything ran\n', status='PASS',
+def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything ran\n', status='PASS\r\n',
           gate_value=None, system='Microsoft Windows 11 Pro 10.0.26220.0'):
     """The four files the runners seal, as a name-to-text map; each argument stands for one way a run can differ."""
     if gate_value is not None:
@@ -200,20 +200,30 @@ def with_child_cmd(contents):
     return dict(contents, **{'child.cmd': launcher(env)})
 
 
+def sealed(leaf, text, unix):
+    """A member's bytes as its runner writes them: the Unix runner's status ends in a newline; the Windows runner's in
+    a carriage return and a newline, and its console logs - Windows PowerShell 5.1's `*>` - are UTF-16 with a mark."""
+    if leaf == 'status.txt' and unix:
+        text = text.replace('\r\n', '\n')
+    if leaf.split('/')[-1].startswith('test-') and not unix:
+        return bytes((0xFF, 0xFE)) + text.encode('utf-16-le')
+    return text.encode('utf-8')
+
+
 def archive(directory, name, contents, unix=False):
     contents = with_child_cmd(contents)
     path = Path(directory) / name
     if unix:
         with tarfile.open(path, 'w:gz') as tar:
             for leaf, text in contents.items():
-                blob = text.encode('utf-8')
+                blob = sealed(leaf, text, unix)
                 item = tarfile.TarInfo('edit-test/' + leaf)
                 item.size = len(blob)
                 tar.addfile(item, io.BytesIO(blob))
     else:
         with zipfile.ZipFile(path, 'w') as zipped:
             for leaf, text in contents.items():
-                zipped.writestr(leaf.replace('/', '\\'), text)
+                zipped.writestr(leaf.replace('/', '\\'), sealed(leaf, text, unix))
     return path
 
 
@@ -1413,7 +1423,106 @@ class EvidenceChecks(unittest.TestCase):
         contents = self.windows_record(recorded)
         contents['child.cmd'] = launcher(recorded, filter='@lane.rsp')
         problems, _ = self.check(contents)
-        self.assertTrue(any("passes a filter holding '@'" in problem for problem in problems), problems)
+        self.assertTrue(any("a filter or a project entry holding '@'" in problem for problem in problems), problems)
+
+    def test_reads_a_windows_console_log_in_the_encoding_its_runner_writes(self):
+        """The Windows runner's console logs are UTF-16 with a mark (Windows PowerShell 5.1's `*>`), and read as UTF-8
+        they could neither hold a reason nor be empty: the log half of the step-aside scan and the empty-output rule were
+        inert on every Windows archive (the forty-seventh review). Read by their mark, both work."""
+        for log, said in (('[xUnit.net] SKIP ' + STEP_ASIDE_WORDS[0] + ' here\r\n', 'stepped aside'),
+                          ('', 'its test output is empty'), ('\r\n\r\n', 'its test output is empty')):
+            with self.subTest(log=log):
+                problems, _ = self.check(files(log=log))
+                self.assertTrue(any(said in problem for problem in problems), problems)
+        self.assertEqual([], self.check(files(log='[xUnit.net] ' + 'everything ran ' + chr(0x2713) + '\r\n'))[0])
+
+    def test_refuses_a_status_that_is_not_pass_once_its_line_end_is_read(self):
+        """Both runners end the status with a line end - a newline, or a carriage return and a newline - and that is
+        still PASS; anything else on the line is not."""
+        for status in ('PASS\r\n', 'PASS\n', 'PASS'):
+            with self.subTest(status=status):
+                self.assertEqual([], self.check(files(status=status))[0])
+        self.assertIn('its status is not PASS', self.check(files(status='PASSED\r\n'))[0])
+
+    def test_refuses_a_project_name_dotnet_does_not_pass_on_as_written(self):
+        """A project entry's name reaches MSBuild in the logger's property, so it holds no `"`, `@` or `%` either - on a
+        Unix test line, or in a Windows launcher's projects (the forty-seventh review)."""
+        gate = 'FILECAT_EDIT_NATIVE_REQUIRED'
+        for line, said in (('test FileCat.A@B: *', "holding '@'"), ('test FileCat.A%25B: *', "holding '%'"),
+                           ('test FileCat.A"B: *', "holding '\"'"), ('filter=FullyQualifiedName~A%22B', "holding '%'")):
+            with self.subTest(line=line):
+                problems, _ = self.check(self.unix_record('filter=*', 'env=' + gate + '=1', line), unix=True)
+                self.assertTrue(any(said in problem for problem in problems), problems)
+        self.assertEqual([], self.check(self.unix_record('filter=*', 'env=' + gate + '=1', 'test FileCat.A-B: *'),
+                                        unix=True)[0])
+        recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1'
+        contents = self.windows_record(recorded)
+        contents['child.cmd'] = launcher(recorded, projects='tests\\A@B.csproj')
+        problems, _ = self.check(contents)
+        self.assertTrue(any("a filter or a project entry holding '@'" in problem for problem in problems), problems)
+
+    def test_refuses_a_zip64_header_that_carries_no_zip64_field(self):
+        """A local header stating 0xFFFFFFFF for its size and carrying no zip64 extra field states no size at all, and
+        is refused rather than sized from its directory."""
+        with tempfile.TemporaryDirectory() as directory:
+            contents = with_child_cmd(files())
+            contents['zz-unread.bin'] = 'bytes no rule reads ' * 8
+            path, order, _ = self.laid_out(directory, contents)
+            unread = next(item for item, _ in order if item.filename == 'zz-unread.bin')
+            data = bytearray(path.read_bytes())
+            data[unread.header_offset + 18:unread.header_offset + 22] = bytes((0xFF, 0xFF, 0xFF, 0xFF))
+            path.write_bytes(bytes(data))
+            problems, _ = checker.check(path)
+            self.assertEqual(1, len(problems), problems)
+            self.assertIn("the entry 'zz-unread.bin' is", problems[0])
+            self.assertIn('where the file says nothing', problems[0])
+
+    def test_accepts_a_zip64_member_whose_header_carries_another_extra_field_first(self):
+        """zipfile writes a member's own extra field first and the zip64 field after it, so the zip64 field is found by
+        walking the fields, not by reading the first (the forty-seventh review)."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'edit-z64-extra-evidence.zip'
+            with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as held:
+                for name, text in with_child_cmd(files()).items():
+                    held.writestr(name.replace('/', '\\'), sealed(name, text, False))
+                stamped = zipfile.ZipInfo('zz-stamped.bin')
+                stamped.extra = struct.pack('<HHBI', 0x5455, 5, 1, 0)  # an extended timestamp, before the zip64 field
+                with held.open(stamped, 'w', force_zip64=True) as member:
+                    member.write(b's' * 300)
+            with zipfile.ZipFile(path) as held:
+                self.assertIsNone(held.testzip())
+            self.assertEqual([], checker.check(path)[0])
+
+    def test_refuses_a_descriptor_that_states_another_compressed_size(self):
+        """A descriptor states both sizes, and its compressed size has to be the directory's as well as its plain one:
+        a descriptor stating the plain size right and the compressed size wrong fits no width."""
+        class Unseekable(io.RawIOBase):  # zipfile cannot rewind it, so it writes a trailing descriptor
+            def __init__(self, handle): self.handle = handle
+            def writable(self): return True
+            def seekable(self): return False
+            def write(self, data): return self.handle.write(data)
+        with tempfile.TemporaryDirectory() as directory:
+            raw = io.BytesIO()
+            with zipfile.ZipFile(Unseekable(raw), 'w', zipfile.ZIP_STORED) as held:
+                held.writestr('zz-unread.bin', 'bytes no rule reads ' * 8)
+            blob = bytearray(raw.getvalue())
+            at = blob.find(b'PK' + bytes((7, 8)))
+            self.assertNotEqual(-1, at, 'this zipfile wrote no descriptor, so the case proves nothing')
+            compressed, = struct.unpack('<I', blob[at + 8:at + 12])
+            blob[at + 8:at + 12] = struct.pack('<I', compressed + 1)
+            path = Path(directory) / 'stated.zip'
+            path.write_bytes(bytes(blob))
+            with checker.Archive(path) as held:
+                self.assertIn("the descriptor after 'zz-unread.bin' does not state", held.listing_gap() or '')
+
+    def test_reads_a_machine_record_s_system_from_its_first_line(self):
+        """No runner writes a blank line before the record's first: a record that begins with one does not say which
+        system ran it."""
+        contents = self.unix_record('env=FILECAT_EDIT_NATIVE_REQUIRED=1')
+        contents['machine.txt'] = '\n' + contents['machine.txt']
+        problems, _ = self.check(contents, unix=True)
+        self.assertIn('its machine record does not say which system ran it, so nothing in it binds it to a route',
+                      problems)
 
     def test_names_an_archive_whose_compression_it_cannot_read(self):
         """A method this reader does not know is one more refusal, and the run's other archives are still reported:

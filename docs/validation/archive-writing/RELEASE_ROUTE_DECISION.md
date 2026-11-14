@@ -347,4 +347,15 @@ from its directory unchecked, against the claim that each member is as long as i
 entries that weakened the check alike, leaving one descriptor shape unmeasured; the zip64 size is checked, each shape
 has its own entry and case, and the harness refuses twin entries. Ninety-eight cases hold the check and fourteen the
 manifest; the harness lists one hundred and twenty rules, ninety-eight held by a verdict, twenty-two noted, none unheld or
-contradicted.
+contradicted. (The forty-seventh review found a rule outside both the harness and its audit, and MSBuild decoding `%XX`
+in a filter - below.)
+
+The forty-seventh review found a rule changing the verdict of every runner-sealed archive outside both the harness and
+its audit - the status read past its line end, which the suite's fixtures never ended - with two more rules hidden on
+lines other entries named; the fixtures seal what the runners seal now, the audit prints a named line whose checks
+outnumber its entries, and each of those rules is listed with a case. It found MSBuild decoding `%XX` in a Unix filter,
+against the claim that the filter is passed on as written, and the Windows runner's UTF-16 console logs read as UTF-8,
+which left the log half of the step-aside scan inert on every Windows archive; `%` is refused in filters and project
+entries on both runners, and members are read by their byte-order mark - the r35 verdicts unchanged. One hundred and five cases hold
+the check and fourteen the manifest; the harness lists one hundred and thirty-five rules, one hundred and eleven held by a verdict, twenty-four noted, none
+unheld or contradicted.

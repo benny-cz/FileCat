@@ -15,7 +15,9 @@ and prints every line that holds a condition (an `if`, a comparison, a boolean, 
 call (split, strip, partition, a prefix or suffix test, a regular expression, `json.loads`, `struct.unpack`, a decode)
 or the iterable of a loop, which no entry names. It cannot see a rule held in a constant's contents - a list of reasons,
 pins or descriptor shapes - which is why the reasons and the pins have cases asserting their own words, and
-each descriptor shape an entry of its own; and it found nothing of
+each descriptor shape an entry of its own. Nor does it print a line an entry already names, though a line may hold
+more than one rule: it prints such a line where the checks on it outnumber the entries naming it, and that, too, is
+a pointer - the forty-seventh review found three rules sharing lines with others, held by no case. And it found nothing of
 the rule the fortieth review did find, because the line-prefix filter it replaced could not see a `for` over a split.
 
 What counts is a verdict, not a message. The suite runs with every case going on to its end - an assertion that does
@@ -173,7 +175,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '            stored = item.size', None),
     ('a compressed stream that cannot be read',
      '            except zlib.error as error:',
-     '            except KeyError as error:', 'the weakening raises where the rule refuses, so its case ends in an error rather than in a verdict'),
+     '            except KeyError as error:', "the weakening raises where the rule refuses, which main() refuses as it would the rule's own finding"),
     ('a tar whose last member claims more than was compressed',
      "        return None if at >= end else 'its last member runs %d bytes past what was compressed' % (end - at)",
      '        return None', None),
@@ -189,9 +191,9 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ('every outcome a test name has, not the last file to name it',
      '                found.setdefault(test, set()).add(outcome)',
      '                found[test] = {outcome}', None),
-    ("the system read from the record's first non-blank line",
-     "    first = next((line for line in text.splitlines() if line.strip()), '')",
-     "    first = next((line for line in reversed(text.splitlines()) if line.strip()), '')", None),
+    ("the system read from the record's first line, not its last",
+     "    first = text.split('\\n', 1)[0]",
+     "    first = text.rstrip('\\n').rsplit('\\n', 1)[-1]", None),
     ('a compressed stream that stops without ending',
      "                        return 'its compressed stream does not end'",
      '                        break', None),
@@ -224,7 +226,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      "        pairs = [item for item in re.split(r'[;\\s]+', recorded) if item]", None),
     ("the Unix runner's own env= lines, each one entry",
      "        pairs = [line[len('env='):] for line in lines if line.startswith('env=')]",
-     "        pairs = [part for line in lines for part in re.split(r'[;\\s]+', line.removeprefix('env='))]", None),
+     "        pairs = [part for line in lines if line.startswith('env=') for part in re.split(r'[;\\s]+', line[len('env='):]) if part]", None),
     ('a value taken as the runner sets it, untrimmed',
      '            values.append(value)',
      '            values.append(value.strip())', None),
@@ -245,10 +247,10 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '                            if data_end + size_of == directory:', None),
     ('a descriptor that states neither width',
      '                    if not fits:',
-     '                    if False:', 'the weakening raises where the rule refuses (no width is chosen to read), so its case ends in an error rather than in a verdict'),
+     '                    if False:', "the weakening raises where the rule refuses (no width is chosen to read), which main() refuses as it would the rule's own finding"),
     ('an archive with no machine record',
      '        if not records:',
-     '        if False:', 'the weakening raises where the rule refuses (there is no record to read), so its case ends in an error rather than in a verdict'),
+     '        if False:', "the weakening raises where the rule refuses (there is no record to read), which main() refuses as it would the rule's own finding"),
     ('an archive with no summary',
      '        if not summaries:',
      '        if False:', 'redundant: with no summary no suite is named, which is refused'),
@@ -338,13 +340,13 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '        if not scripts:', None),
     ('a child.cmd at all',
      '        if len(scripts) != 1:',
-     '        if len(scripts) > 1:', 'the weakening raises where the rule refuses (there is no child.cmd to read), so its case ends in an error rather than in a verdict'),
+     '        if len(scripts) > 1:', "the weakening raises where the rule refuses (there is no child.cmd to read), which main() refuses as it would the rule's own finding"),
     ('child.cmd read whole, not just its start',
      '        launched = LAUNCHER.fullmatch(script)',
      '        launched = LAUNCHER.match(script)', None),
     ("a launcher that is not the runner's own, refused",
      '        if launched is None:',
-     '        if False and launched is None:', 'the weakening raises where the rule refuses (such a file has no arguments to read - or, where its second line runs past 8191 characters, the length rule refuses it first), so its case ends in an error rather than in a verdict'),
+     '        if False and launched is None:', "the weakening raises where the rule refuses (such a file has no arguments to read - or, where its second line runs past 8191 characters, the length rule refuses it first), which main() refuses as it would the rule's own finding"),
     ('a launcher argument without a quote of its own',
      'ARGUMENT = r\'"([ !#$&-\\]_-~]*)"\'',
      'ARGUMENT = r\'"(.*?)"\'', None),
@@ -409,17 +411,62 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '                    if local is None or local[1] != item.compress_size:',
      '                    if False and (local is None or local[1] != item.compress_size):', None),
     ("a Windows filter holding '@', refused",
-     "        if '@' in launched.group(4):",
-     "        if False and '@' in launched.group(4):", None),
-    ('a Unix filter holding a quote, refused',
-     '            if line.startswith((\'filter=\', \'test \')) and (\'"\' in line or \'@\' in line):',
-     "            if line.startswith(('filter=', 'test ')) and ('@' in line):", None),
-    ("a Unix filter holding '@', refused",
-     '            if line.startswith((\'filter=\', \'test \')) and (\'"\' in line or \'@\' in line):',
-     '            if line.startswith((\'filter=\', \'test \')) and (\'"\' in line):', None),
+     "        if '@' in launched.group(4) + launched.group(5):",
+     "        if False and '@' in launched.group(4) + launched.group(5):", None),
     ('a Unix filter beginning with -, refused',
      "            if line.startswith('filter=-'):",
      "            if False and line.startswith('filter=-'):", None),
+    ('a status read past its line end',
+     "            if archive.read(name).strip() != 'PASS':",
+     "            if archive.read(name) != 'PASS':", None),
+    ('a quote in a Unix filter or project name, refused',
+     '            held = [character for character in \'"@%\' if character in line]',
+     "            held = [character for character in '@%' if character in line]", None),
+    ("an '@' in a Unix filter or project name, refused",
+     '            held = [character for character in \'"@%\' if character in line]',
+     '            held = [character for character in \'"%\' if character in line]', None),
+    ("a '%' in a Unix filter or project name, refused",
+     '            held = [character for character in \'"@%\' if character in line]',
+     '            held = [character for character in \'"@\' if character in line]', None),
+    ('a Unix test line read with the filter',
+     "            if line.startswith(('filter=', 'test ')) and held:",
+     "            if line.startswith('filter=') and held:", None),
+    ("a Windows project entry holding '@', refused",
+     "        if '@' in launched.group(4) + launched.group(5):",
+     "        if '@' in launched.group(4):", None),
+    ('a zip64 header carrying no zip64 field, refused',
+     '                    if local is None or local[1] != item.compress_size:',
+     '                    if local is not None and local[1] != item.compress_size:', None),
+    ('a zip64 field found past the fields before it',
+     '    while at + 4 <= len(extra):',
+     '    if at + 4 <= len(extra):', None),
+    ('a member read by its byte-order mark',
+     "        for mark, encoding in ((b'\\xff\\xfe', 'utf-16-le'), (b'\\xfe\\xff', 'utf-16-be'), (b'\\xef\\xbb\\xbf', 'utf-8')):",
+     '        for mark, encoding in ():', None),
+    ('a console log of nothing but line ends, read as empty',
+     '        elif not any(archive.read(log).strip() for log in logs):',
+     '        elif not any(archive.read(log) for log in logs):', None),
+    ("a pin's theory rows read by their method name",
+     "            matching = {test: outcome for test, outcome in results.items() if test.split('(')[0].endswith('.' + pin)}",
+     "            matching = {test: outcome for test, outcome in results.items() if test.endswith('.' + pin)}", None),
+    ("a descriptor's compressed size read against its directory's",
+     '                        if compressed == item.compress_size and plain == item.file_size:',
+     '                        if plain == item.file_size:', None),
+    ('a descriptor followed by the directory itself',
+     "                            if data_end + size_of == directory or after in (b'PK' + bytes((3, 4)), b'PK' + bytes((1, 2))):",
+     "                            if after in (b'PK' + bytes((3, 4)), b'PK' + bytes((1, 2))):", 'redundant: the directory begins with its own signature, which the next-header half reads where the directory begins'),
+    ('a local header cut short, refused',
+     "                if len(header) < 30 or header[:4] != b'PK\\x03\\x04':",
+     "                if header[:4] != b'PK\\x03\\x04':", 'redundant: a header cut short of its 30 bytes either does not begin with the signature, which the other half refuses, or raises reading its lengths, which main() refuses'),
+    ('a member found by how its name begins',
+     '            if leaf.startswith(prefix) and leaf.endswith(suffix):',
+     '            if leaf.endswith(suffix):', None),
+    ('a member found by how its name ends',
+     '            if leaf.startswith(prefix) and leaf.endswith(suffix):',
+     '            if leaf.startswith(prefix):', None),
+    ("a record's system read from its first line, not the first that holds something",
+     "    first = text.split('\\n', 1)[0]",
+     "    first = next((line for line in text.splitlines() if line.strip()), '')", None),
 ]
 
 def run(folder: Path) -> tuple[str, int, set[str], dict[str, list[str]], dict[str, list[str]]]:
@@ -495,9 +542,12 @@ def audit() -> int:
     source = CHECK.read_text(encoding='utf-8')
     lines = source.splitlines()
     found: dict[int, set[str]] = {}
+    checks: dict[int, set[int]] = {}  # each line's checks, an `and` or `or` counted by its parts alone
 
     def mark(node: ast.AST, why: str) -> None:
         found.setdefault(node.lineno, set()).add(why)
+        if not isinstance(node, ast.BoolOp):
+            checks.setdefault(node.lineno, set()).add(id(node))
 
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, (ast.If, ast.While, ast.IfExp, ast.Assert)):
@@ -518,11 +568,16 @@ def audit() -> int:
     loose = []
     for number in sorted(found):
         text = lines[number - 1].strip()
-        if not text or text.startswith('#') or any(text in old or old.strip() in text for old in named):
+        if not text or text.startswith('#'):
             continue
-        loose.append('%4d  %-34s %s' % (number, ','.join(sorted(found[number]))[:34], text[:96]))
-    print('%d lines hold a condition, a parsing call or an iterable that no entry names - each is a rule to list, a '
-          'message, or plumbing:' % len(loose))
+        naming = sum(1 for old in named if text in old or old.strip() in text)
+        held = len(checks.get(number, ()))
+        if naming and held <= naming:
+            continue
+        loose.append('%4d  %-34s %s' % (number, ','.join(sorted(found[number]))[:34], text[:96] if not naming else
+                                        '[%d checks, %d entries] %s' % (held, naming, text[:78])))
+    print('%d lines hold a condition, a parsing call or an iterable that no entry names, or more of them than the '
+          'entries naming the line - each is a rule to list, a message, or plumbing:' % len(loose))
     print('\n'.join(loose))
     return 0
 

@@ -343,12 +343,21 @@ class Archive:
         return [name for name in self._names if name.replace('\\', '/').split('/')[-1] == leaf]
 
     def read(self, name: str) -> str:
-        """The bytes of the member this archive listed under that name, not of whichever member answers to it."""
+        """The text of the member this archive listed under that name, not of whichever member answers to it - read
+        as its byte-order mark says, and UTF-8 where it has none. Windows PowerShell 5.1's `*>` writes the Windows
+        runner's console logs in UTF-16 with a mark, and read as UTF-8 they could neither hold a reason nor be empty,
+        so on every Windows archive the log half of the step-aside scan and the empty-output rule were inert (the
+        forty-seventh review)."""
         item = self._members[name]
         if self._zip is not None:
-            return self._zip.read(item).decode('utf-8', 'replace')  # type: ignore[arg-type]
-        handle = self._tar.extractfile(item) if self._tar is not None else None  # type: ignore[arg-type]
-        return '' if handle is None else handle.read().decode('utf-8', 'replace')
+            data = self._zip.read(item)  # type: ignore[arg-type]
+        else:
+            handle = self._tar.extractfile(item) if self._tar is not None else None  # type: ignore[arg-type]
+            data = b'' if handle is None else handle.read()
+        for mark, encoding in ((b'\xff\xfe', 'utf-16-le'), (b'\xfe\xff', 'utf-16-be'), (b'\xef\xbb\xbf', 'utf-8')):
+            if data.startswith(mark):
+                return data[len(mark):].decode(encoding, 'replace')
+        return data.decode('utf-8', 'replace')
 
     def close(self) -> None:
         for handle in (self._zip, self._tar):
@@ -415,7 +424,8 @@ def machine_system(archive: Archive, name: str) -> str | None:
     results for the same fact and the two have to agree.
     """
     text = machine_field(archive, name, 'Os')
-    first = next((line for line in text.splitlines() if line.strip()), '')
+    # Its first line, as the runner writes it: no runner writes a blank one before it.
+    first = text.split('\n', 1)[0]
     return next((system for named, system in SYSTEMS if first.strip().startswith(named)), None)
 
 
@@ -496,7 +506,10 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     `VSTestTestCaseFilter="..."`, so a `"` in it ended that property and what followed a `;` set others - among them
     `VSTestCLIRunSettings`, which set the gate to 0 inside the test host while the record named it as 1. The Unix
     runner admitted a `"`. A filter holding `"` or `@` (a response file where it begins, an item list inside it) or
-    beginning with `-` (an option of dotnet's) is refused, as both runners refuse it before a run.
+    beginning with `-` (an option of dotnet's) is refused, as both runners refuse it before a run. The forty-seventh
+    review found MSBuild decoding `%XX` in it too, which the Unix runner admitted - so `%` is refused in a Unix filter
+    as it is in a Windows one, and `"`, `@` and `%` alike in a project entry, whose name reaches MSBuild in the
+    logger's property.
 
     Returns the values in order, or a reason the record cannot say what the tests were given.
     """
@@ -534,10 +547,10 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
             return [], ('its child.cmd passes %r, which PowerShell does not read as written - a leading - names a '
                         'parameter, a trailing backslash escapes the closing quote - so the record cannot say what the '
                         'tests were given' % odd[0])
-        if '@' in launched.group(4):
-            return [], ("its child.cmd passes a filter holding '@', which dotnet reads as a response file where it "
-                        'begins and MSBuild expands as an item list inside it, so the record cannot say what the tests '
-                        'were given')
+        if '@' in launched.group(4) + launched.group(5):
+            return [], ("its child.cmd passes a filter or a project entry holding '@', which dotnet reads as a response "
+                        'file where it begins and MSBuild expands as an item list inside it, so the record cannot say '
+                        'what the tests were given')
         if launched.group(7) != recorded:
             return [], ('its child.cmd passed %r where its machine record holds Env %r, so the record cannot say what '
                         'the tests were given' % (launched.group(7), recorded))
@@ -545,10 +558,11 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     else:
         lines = text.split('\n')
         for line in lines:
-            if line.startswith(('filter=', 'test ')) and ('"' in line or '@' in line):
-                return [], ("its machine record hands its tests a filter holding %r, which dotnet and MSBuild do not "
-                            'pass on as written, so the record cannot say what the tests were given'
-                            % ('"' if '"' in line else '@'))
+            held = [character for character in '"@%' if character in line]
+            if line.startswith(('filter=', 'test ')) and held:
+                return [], ("its machine record hands its tests a filter or a project name holding %r, which dotnet "
+                            'and MSBuild do not pass on as written, so the record cannot say what the tests were given'
+                            % held[0])
             if line.startswith('filter=-'):
                 return [], ('its machine record hands its tests a filter beginning with -, which dotnet reads as an '
                             'option of its own, so the record cannot say what the tests were given')

@@ -27,11 +27,12 @@ PROJECTS=("$@")
 # `"` or `$`, judged in the C locale. A line break in the filter wrote a line of its own into the record - an env= line
 # this runner never exported - while each test process took the filter's first line alone; systemd-run expands ${...}
 # in the test processes' arguments; and dotnet hands the filter to MSBuild inside quotes, so a `"` ended it and what
-# followed a `;` set other properties - the gate among them, through VSTestCLIRunSettings. The filter holds no `@`
-# either (a response file where it begins, an item list inside it) and does not begin with `-`. (The patterns sit in
+# followed a `;` set other properties - the gate among them, through VSTestCLIRunSettings. Nor do they hold `@` (a
+# response file where the filter begins, an item list inside it) or `%` (MSBuild decodes %XX), as a project entry's
+# name reaches MSBuild too, in the logger's property; and the filter does not begin with `-`. (The patterns sit in
 # variables: a space written into [[ =~ ]] itself would have to be escaped, which bash versions pass on differently.)
-PRINTABLE='^[ !#%-~]+$'
-FILTERABLE='^[ !#%-,.-?A-~][ !#%-?A-~]*$'
+PRINTABLE='^[ !#&-?A-~]+$'
+FILTERABLE='^[ !#&-,.-?A-~][ !#&-?A-~]*$'
 ( LC_ALL=C; [[ "$FILTER" =~ $FILTERABLE ]] ) || { echo "bad filter" >&2; exit 2; }
 for P in "${PROJECTS[@]}"; do ( LC_ALL=C; [[ "$P" =~ $PRINTABLE ]] ) || { echo "bad project entry" >&2; exit 2; }; done
 ROOT="$HOME/FileCatValidation/aw-claude"
