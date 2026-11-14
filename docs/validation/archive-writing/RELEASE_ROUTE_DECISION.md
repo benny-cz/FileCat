@@ -91,8 +91,10 @@ On macOS the roles run in the App Sandbox helper described above.
    for it satisfies this. The file system in a route's ID is in no sealed record, so it rests on the composition
    pin inside the run. Where the check reads a system, the run's own dual-root pin has to agree with the machine
    record; Linux and macOS are told apart by that record's `uname -a` line alone. So what this condition keeps out is
-   the mistake - a lane that did not run the pins, a gate that was off, a report moved to another archive or route, a
-   stale report, an archive renamed or swapped, parts of one archive that disagree. Whoever can write the evidence
+   the mistake - a lane that did not run the pins, a gate its runner's record shows off, a report moved to another
+   archive or route, a stale report, an archive renamed or swapped, parts of one archive that disagree. The record says
+   what reached the tests only through the runner's own layers; two reviews running found one read wrong, and what
+   would end that - the tests recording the gate as they read it - is queued beside the digest. Whoever can write the evidence
    folder is outside it, and always was: that is what the runner sealing each archive on its own machine is for.
 5. The independent review (ledger row 14) closes, and its fixes are re-validated.
 
@@ -268,9 +270,20 @@ mistyped command line - a trailing space, a pair joined by the other runner's se
 read as the gate in force while the tests ran without it: the first finding since the thirty-third review about an
 archive exactly as its runner sealed it, and the sentences that said the gate held for every such archive now say
 otherwise where they stand. Each runner's record is read as that runner applies it now, and a gate given twice is
-refused; the three sealed lanes are accepted as before. Two claims about the harness were false - its exit code speaks
+refused; the three sealed lanes are accepted as before. (The forty-first review found three more layers, below.) Two claims about the harness were false - its exit code speaks
 only for the rules it lists, and its audit filtered line prefixes and could not see that finding's lines - so the audit
 walks the syntax tree now and calls itself a pointer, not a proof. A descriptor shape with no case, two ordinary
 writers still refused, and a run that an unreadable archive could end with a traceback are closed with it. Seventy-five
 cases hold the check and fourteen the manifest, and the harness lists seventy-nine rules, seventy-one held by a case,
 eight noted and none unheld.
+
+The forty-first review replayed both runners and found three layers between what a runner records and what reached its
+tests, each read wrong on an archive exactly as its runner sealed it: Windows names matched without case, so a
+lowercase gate after the real one is the value the tests read; the recorded Windows `Env` passing through `cmd.exe`
+and the ANSI code page on its way to the child; and Python ending a Unix line where bash does not. Each is closed - a
+Windows `Env` is trusted only as plain ASCII and only as its sealed `child.cmd` passed it - and both runners now refuse
+those inputs before a run, while every value the r35 lanes sealed passes them. Two reviews running have found such a
+layer, which is the container question again: the check re-derives what the tests were given from a description of
+what the runner was asked to do. What would end it is the tests recording the gate as they read it, and that is queued
+for the next candidate beside the digest. Eighty-three cases hold the check and fourteen the manifest; the harness
+lists ninety-three rules, eighty-three held, ten noted, none unheld.

@@ -1,19 +1,63 @@
 # Archive writing implementation status
 
+**14 November, the layers between the record and the tests (round forty-one).** The round below read each runner's
+record the way that runner applies it, as far as its own lines go. This review replayed both runners and found three
+layers it did not go through, each giving the tests something other than the record says, on an archive exactly as its
+runner sealed it:
+
+- **Windows names are matched without case.** The runner's `-Env` pattern ignored case, and the environment matches
+  names without it: set the gate to `1` and then its lowercase name to `0` in Windows PowerShell 5.1, and the gate
+  reads `0`. So a lowercase gate after the real one - `...REQUIRED=1;...;filecat_edit_native_required=0` - is the
+  value the tests read, and the check, matching the name exactly, read the gate as in force. It matches a Windows name
+  without case now; a Unix name stays exact, as Unix sets it.
+- **The recorded Windows `Env` is not always what the child is given.** The runner hands it on through `child.cmd`,
+  which `cmd.exe` reads again - expanding `%...%`, ending at a line break - and writes `machine.json` in the ANSI code
+  page with best-fit, so a fullwidth semicolon inside one value reads there as a real one while the child was given
+  one variable. A Windows `Env` is trusted now only where it is printable ASCII without `%`, and only where the sealed
+  `child.cmd` passed exactly that string (all five sealed Windows archives of r35 carry one, equal to their `Env`).
+- **A Unix line ends at a newline alone**, as bash writes it; Python's `splitlines()` also ended one at 0x1c or 0x85,
+  which the runner keeps inside one value. The record is split at newlines alone now.
+
+Both runners now refuse those inputs before a run starts. The Windows `-Env` pattern is case-sensitive and admits names
+of capitals, digits and `_`, with values of printable ASCII without `"`, `%` or `;`; the Unix entry check admits the
+same names with values of printable ASCII without a space, in the C locale. Every value the r35 lanes sealed passes
+them - the Windows check run under Windows PowerShell 5.1, the Unix one under the Mac's `/bin/bash` 3.2 and the Ubuntu
+VM's bash 5.2 - and each input above is refused.
+
+Also closed: a gate value after its first `=` (`GATE=0=1` gives the tests `0=1`) and a status read whole (a runner
+appends `leftover:` after a run it tidied up) had no case; a harness note that called the both-size-fields rule
+redundant was false - a member of exactly 0x02014b50 bytes, written wide to a stream, spells a directory header where a
+narrow descriptor would end, and only both fields tell the widths apart - and it has that case now; a non-string `Env`
+is refused; and a directory listed out of file order is read in file order, with a case. Six lines the audit pointed at
+hold a real rule that no entry listed; they are listed now, four held by a case, one noted as redundant and one as
+having no case.
+
+**Where this reading has to stop, too.** Two reviews running found a layer between what the runner recorded and what
+reached the tests - its own parse, then PowerShell's case, `cmd.exe` and the ANSI code page, then Python's line ends -
+and each was closed by modelling one more layer. That is the container question again: the check re-derives what the
+tests were given from a description of what the runner was asked to do. What would end it is the tests recording the
+gate as they read it, into the run's own results, for the check to read instead of the runner's record - and that,
+like the digest, is queued for the next candidate, since it changes the tests themselves.
+
+Eighty-three cases for the check and fourteen for the manifest; the harness lists ninety-three rules, eighty-three held
+by a case, ten noted as redundant or caseless, and none expected to be held and unheld.
+
 **14 November, the gate's own parse (round forty).** Asked whether anything was left that the harness, its audit or
 the recorded boundary did not already report, the reviewer answered no - and the first reason was the most serious
 finding since the thirty-third round, because it is about an archive exactly as its runner sealed it:
 
-- **The gate was read by a looser parse than either runner applies.** The Windows runner records its `-Env` string as
-  given, splits it on `;` alone, sets each value untrimmed and applies a repeated name in order; it accepts any value
-  without `;` or `"`, so a value may hold spaces. The Unix runner writes one `env=` line per entry and accepts any
+- **The gate was read by a looser parse than either runner applies.** The Windows runner records its `-Env` string
+  (as given only where it is plain ASCII, the round above found), splits it on `;` alone, sets each value untrimmed and
+  applies a repeated name in order (matching names without case, also found above); it accepted any value without `;`
+  or `"`, so a value may hold spaces. The Unix runner writes one `env=` line per entry and accepts any
   value without whitespace, so a value may hold `;`. The check split both on `;` and whitespace, trimmed, and took the
   first match - so a mistyped command line read as the gate in force while the tests ran without it: a trailing space
   (`1 `, which every reader compares to `1` and finds off), a pair joined by the other runner's separator (one variable
   whose value holds the gate's text), and the gate given twice, one then nought (the runner applying the nought). The
   reviewer rebuilt the real Windows and Ubuntu lanes with only their machine record swapped for what the runner would
   seal, and the check accepted all six. Each record is now read the way its own runner applies it - `;` alone for the
-  Windows one, only `env=` lines for the Unix one, nothing trimmed - and a gate given more than once is refused. The
+  Windows one, only `env=` lines for the Unix one, nothing trimmed - and a gate given more than once is refused (the
+  round above found three more layers between the record and the tests, and closed them). The
   three sealed lanes name the gate once, exactly `1`, and are accepted as before; every one of the six is refused.
   The rounds from the thirty-third to the thirty-ninth said the gate held for every archive as its runner sealed it.
   It did not, and those sentences now say so where they stand.
@@ -36,8 +80,8 @@ finding since the thirty-third round, because it is about an archive exactly as 
   not the name rule alone); one entry's weakening renamed a message rather than weakening its rule; and the gate's own
   name and value were held by no case.
 
-Then every line the new audit named that holds a real rule was listed and measured - nineteen of them, eighteen held
-already and one given its case. Seventy-five cases for the check and fourteen for the manifest; the harness lists
+Then nineteen lines the new audit named that hold a real rule were listed and measured, eighteen held already and one
+given its case (the round above found six more it named that no entry listed, and one note false). Seventy-five cases for the check and fourteen for the manifest; the harness lists
 seventy-nine rules, seventy-one held by a case, eight noted as redundant or caseless, and none expected to be held and
 unheld. Its exit code was checked to fail when a listed rule loses its case.
 

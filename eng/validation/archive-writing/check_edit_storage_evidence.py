@@ -9,8 +9,10 @@ this is what reads what is inside it.
 It reads a run's evidence archive (`<run>-evidence.zip` from the Windows runner, `<run>-evidence.tar.gz` from the Unix
 one) and requires all of:
 
-  * the machine record gives `FILECAT_EDIT_NATIVE_REQUIRED` exactly the value `1`, once, read the way its own runner
-    applies it - so a native edit test could not skip;
+  * the machine record gives `FILECAT_EDIT_NATIVE_REQUIRED` exactly the value `1`, once, read as its runner applies
+    it as far as reviews have found how (see `gate_assignments`), and a record that cannot say what reached the tests
+    is refused - so a native edit test could not skip; what would end this re-reading is the tests recording the gate
+    as they read it, queued for the next candidate;
   * its own listing accounts for the whole file, each member as long as its own local header says - a zip is read
     from its end and sized from its directory, so an appended zip is read alone and a directory that overstates a
     size can leave the sealed half inside a member's span; a gzipped tar holds one member and nothing after it,
@@ -32,13 +34,13 @@ it carries under the route's ID, on the system that route names. A name alone wo
 it never read, and a digest alone let one machine's lane stand for all three routes - both were accepted until the
 twenty-ninth and thirtieth reviews tried them.
 
-What this reading is for: a lane that did not run the pins, a run whose gate was off or whose tests stepped aside, a
-report moved to another archive or another route, a stale report, an archive renamed or swapped after it was read, and
-an archive whose own parts disagree - the mistakes a release makes. What it cannot do is prove that an archive is a
-machine's own sealed run: it reads text and bytes, so whoever can write the evidence folder can write something this
-accepts. That rests on the runner that sealed the archive on its machine and on whoever carried it here. Each of the
-rules above exists because a review got past the ones before it, so a new way past a rule is worth a case; a way past
-that needs the evidence folder rewritten is the boundary, not a defect.
+What this reading is for: a lane that did not run the pins, a run whose record shows the gate off or whose tests stepped
+aside, a report moved to another archive or another route, a stale report, an archive renamed or swapped after it was
+read, and an archive whose own parts disagree - the mistakes a release makes. What it cannot do is prove that an archive
+is a machine's own sealed run: it reads text and bytes, so whoever can write the evidence folder can write something
+this accepts. That rests on the runner that sealed the archive on its machine and on whoever carried it here. Each of
+the rules above exists because a review got past the ones before it, so a new way past a rule is worth a case; a way
+past that needs the evidence folder rewritten is the boundary, not a defect.
 
 Which case fails without a rule here is measured, not argued: `measure_rules.py` beside this file weakens the rules it
 lists, one at a time, and names the cases that notice; the ones it reports with no case are marked as such where they
@@ -396,36 +398,60 @@ def pinned_family(results: dict[str, set[str]]) -> str | None:
     return 'both' if windows and unix else 'windows' if windows else 'unix' if unix else None
 
 
-def gate_assignments(archive: Archive, name: str) -> list[str]:
-    """Every value this run's own runner gave the gate, read the way that runner applies its record - in order.
+def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None]:
+    """Every value this run's own runner gave the gate, as far as its record can say - in order.
 
     A substring test is not enough, and neither is a looser parse than the runner's. Every reader of this variable
     compares it to "1" exactly, and both runners pass a value through verbatim, so a run recording
     `FILECAT_EDIT_NATIVE_REQUIRED=10` - or `=1 ` with a trailing space - had no gate at all: its native edit tests
     skipped where they were meant to fail, and its composition pin was never armed.
 
-    The Windows runner records its `-Env` string as given in `Env`, then splits it on `;` alone and sets each name to
+    The Windows runner records its `-Env` string in `Env` - in the ANSI code page with best-fit, so as given only
+    where it is plain ASCII - then splits it on `;` alone and sets each name to
     the rest of its item, untrimmed; a value may hold spaces, so `A=1 FILECAT_EDIT_NATIVE_REQUIRED=1` is one variable
     `A` and no gate. The Unix runner writes one `env=NAME=VALUE` line per entry it exports; a value may hold `;`, so
     `env=A=1;FILECAT_EDIT_NATIVE_REQUIRED=1` is likewise one variable and no gate. This check once split both on
     `;` and whitespace, trimmed, and took the first - and read each of those, and a gate given twice (the runner
     applying the last), as the gate in force while the tests ran without it.
+
+    The forty-first review found three more layers between the record and the tests. On Windows the names are matched
+    without case - the runner's pattern ignores case and the environment matches names without it - so a lowercase gate
+    after the real one was the value the tests saw; and the recorded Env is not what the child is given: the runner
+    hands it to child.cmd, which cmd.exe reads again (expanding %...%, ending at a line break), and writes machine.json
+    in the ANSI code page with best-fit, so a fullwidth semicolon in a value reads as a real one there. So a Windows Env
+    is trusted only where it is printable ASCII without %, and only when the sealed child.cmd passed exactly it. On
+    Unix a line ends at a newline alone, as bash writes it - Python's splitlines() also ends one at 0x1c or 0x85, which
+    bash keeps inside one value.
+
+    Returns the values in order, or a reason the record cannot say what the tests were given.
     """
     text = archive.read(name)
-    if name.replace('\\', '/').endswith('machine.json'):
+    windows = name.replace('\\', '/').endswith('machine.json')
+    if windows:
         try:
             recorded = json.loads(text).get('Env', '')
         except (ValueError, AttributeError):
-            return []
-        pairs = [item for item in str(recorded).split(';') if item]
+            return [], None
+        if not isinstance(recorded, str):
+            return [], 'its machine record gives Env as a %s, not the string its runner passes on' % type(recorded).__name__
+        strange = [character for character in recorded if not ' ' <= character <= '~' or character == '%']
+        if strange:
+            return [], ('its machine record\'s Env holds %r, which cmd.exe or the ANSI code page changes on its way to '
+                        'the tests, so the record cannot say what they were given' % strange[0])
+        given = [found for script in archive.find('child.cmd')
+                 for found in re.findall(r'-Env "([^"]*)"', archive.read(script))]
+        if given != [recorded]:
+            return [], ('its child.cmd passed %s where its machine record holds Env %r, so the record cannot say '
+                        'what the tests were given' % (', '.join(repr(found) for found in given) or 'no -Env', recorded))
+        pairs = [item for item in recorded.split(';') if item]
     else:
-        pairs = [line[len('env='):] for line in text.splitlines() if line.startswith('env=')]
+        pairs = [line[len('env='):] for line in text.split('\n') if line.startswith('env=')]
     values = []
     for pair in pairs:
         key, separator, value = pair.partition('=')
-        if separator and key == GATE_NAME:
+        if separator and (key.isascii() and key.upper() == GATE_NAME if windows else key == GATE_NAME):
             values.append(value)
-    return values
+    return values, None
 
 
 def outcomes(archive: Archive) -> dict[str, set[str]]:
@@ -463,8 +489,10 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
                     (twice := repeated_members(archive.read(records[0]))):
                 problems.append('its machine record holds %s more than once, so what it says depends on who reads it'
                                 % ', '.join(twice))
-            values = gate_assignments(archive, records[0])
-            if not values:
+            values, unread = gate_assignments(archive, records[0])
+            if unread is not None:
+                problems.append(unread)
+            elif not values:
                 problems.append('its machine record does not name ' + GATE_NAME)
             elif len(values) > 1:
                 problems.append('its machine record gives %s %d values (%s), and its runner applies only the last'

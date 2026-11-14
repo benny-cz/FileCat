@@ -17,7 +17,12 @@ param(
     [int]$TimeoutMinutes = 240,
     [ValidateRange(1, 600)][int]$HangMinutes = 20,
     # Optional 'NAME=value;NAME2=value' test environment; {run} expands to the run folder (for published assets).
-    [ValidatePattern('^([A-Z][A-Z0-9_]{0,63}=[^;"]*)?(;[A-Z][A-Z0-9_]{0,63}=[^;"]*)*$')][string]$Env = ''
+    # Case-sensitive, and printable ASCII without `"`, `%` or `;` in a value: the default ignores case (so a lowercase
+    # name overrode the real one), and cmd.exe re-reads this string through child.cmd (expanding %...%, ending at a
+    # line break) while machine.json is written in the ANSI code page with best-fit - so anything else reached the
+    # tests as something other than what the record says. The evidence check refuses such a record; this refuses it
+    # before a run starts.
+    [ValidatePattern('^([A-Z][A-Z0-9_]{0,63}=[ !#$&-:<-~]*)?(;[A-Z][A-Z0-9_]{0,63}=[ !#$&-:<-~]*)*$', Options = 'None')][string]$Env = ''
 
 )
 $ErrorActionPreference = 'Stop'

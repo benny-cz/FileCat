@@ -69,7 +69,10 @@ HANG=20m
 PARALLEL=0
 for P in "${PROJECTS[@]}"; do
   case "$P" in
-    env:*) KV=${P#env:}; [[ "$KV" =~ ^[A-Z][A-Z0-9_]*=[^[:space:]]*$ ]] || { echo "bad env entry" >&2; exit 2; }
+    # Printable ASCII without whitespace, judged in the C locale: elsewhere [A-Z] may take a lowercase letter, and a
+    # value could hold \x1c or \x85, which the evidence check's reader would end a line at. It refuses those; this
+    # refuses them before a run starts.
+    env:*) KV=${P#env:}; ( LC_ALL=C; [[ "$KV" =~ ^[A-Z][A-Z0-9_]*=[!-~]*$ ]] ) || { echo "bad env entry" >&2; exit 2; }
       export "$KV"; EXTRA_ENVS+=("$KV"); echo "env=$KV" >>"$D/machine.txt" ;;
     hang:*) M=${P#hang:}; [[ "$M" =~ ^[1-9][0-9]{0,2}$ ]] && [ "$M" -le 600 ] || { echo "bad hang entry" >&2; exit 2; }
       HANG="${M}m"; echo "hang=$HANG" >>"$D/machine.txt" ;;

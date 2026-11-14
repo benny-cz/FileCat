@@ -56,7 +56,26 @@ def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything 
     }
 
 
+def with_child_cmd(contents):
+    """The Windows runner also seals the child.cmd that handed its `-Env` to the child, and the check reads the gate only
+    where the two agree - so a fixture carries one, derived from its machine record's Env as the runner writes it,
+    unless the case wrote its own. A case drops it by setting it to None."""
+    if contents.get('child.cmd', '') is None:
+        return {name: text for name, text in contents.items() if name != 'child.cmd'}
+    if 'machine.json' not in contents or 'child.cmd' in contents:
+        return contents
+    try:
+        env = json.loads(contents['machine.json']).get('Env')
+    except (ValueError, AttributeError):
+        return contents
+    if not isinstance(env, str):
+        return contents
+    return dict(contents, **{'child.cmd': '@echo off\r\npowershell.exe -NoProfile -File "child.ps1" -Env "%s" '
+                                          '-HangMinutes 20\r\n' % env})
+
+
 def archive(directory, name, contents, unix=False):
+    contents = with_child_cmd(contents)
     path = Path(directory) / name
     if unix:
         with tarfile.open(path, 'w:gz') as tar:
@@ -703,7 +722,8 @@ class EvidenceChecks(unittest.TestCase):
         ), checker.PINS)
 
     def windows_record(self, env):
-        """A machine record as the Windows runner seals it: its `-Env` string as given, in `Env`."""
+        """A machine record as the Windows runner seals it: its `-Env` string in `Env` (as given, where that is plain
+        ASCII)."""
         contents = files()
         contents['machine.json'] = json.dumps({"RunId": "edit-test", "Os": "Microsoft Windows 11 Pro", "Env": env})
         return contents
@@ -836,6 +856,98 @@ class EvidenceChecks(unittest.TestCase):
             self.assertIn('edit-cut-evidence.tar.gz: NOT edit-storage evidence', said)
             self.assertIn('edit-good-evidence.zip: edit-storage evidence,', said)
             self.assertEqual(said, report.read_text(encoding='utf-8'))
+
+    def test_reads_a_windows_gate_name_without_case_as_the_runner_sets_it(self):
+        """The Windows runner's pattern ignored case and the environment matches names without it, so a lowercase gate
+        after the real one is the value the tests saw - and a lowercase gate alone is the gate."""
+        gate = checker.GATE_NAME
+        problems, _ = self.check(self.windows_record(gate + '=1;FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate.lower() + '=0'))
+        self.assertTrue(any("gives %s 2 values ('1', '0')" % gate in problem for problem in problems), problems)
+        self.assertEqual([], self.check(self.windows_record('FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate.lower() + '=1'))[0])
+
+    def test_reads_the_windows_env_only_as_child_cmd_passed_it(self):
+        """The recorded Env reaches the child through child.cmd, which cmd.exe reads again - expanding %...%, ending at
+        a line break - and machine.json is written in the ANSI code page with best-fit, so a fullwidth semicolon in a
+        value reads there as a real one while the child was given one variable. The record is trusted only as plain
+        printable ASCII without %, and only where the sealed child.cmd passed exactly it."""
+        gate = checker.GATE_NAME
+        for env, said in (('FILECAT_ARCHIVE_TXF_NATIVE=100%;' + gate + '=1', "holds '%'"),
+                          ('FILECAT_ARCHIVE_TXF_NATIVE=1\r\nX;' + gate + '=1', "holds '\\r'")):
+            with self.subTest(env):
+                problems, _ = self.check(self.windows_record(env))
+                self.assertTrue(any(said in problem for problem in problems), problems)
+        recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1'
+        widened = recorded.replace(';', chr(0xFF1B))
+        for script, said in (('powershell.exe -File "child.ps1" -Env "%s"\r\n' % widened, 'its child.cmd passed'),
+                             (None, 'its child.cmd passed no -Env')):
+            with self.subTest(script is None and 'no child.cmd' or 'a fullwidth semicolon'):
+                contents = self.windows_record(recorded)
+                contents['child.cmd'] = script
+                problems, _ = self.check(contents)
+                self.assertTrue(any(said in problem for problem in problems), problems)
+
+    def test_reads_a_unix_record_by_its_own_line_ends(self):
+        """bash's echo ends a line at a newline alone; Python's splitlines() also ends one at 0x1c or 0x85, which the
+        runner keeps inside one value - so a line could be split where the tests saw one variable."""
+        gate = checker.GATE_NAME
+        for lines, said in ((('env=' + gate + '=1' + chr(0x1C),), "sets %s to '1\\x1c'" % gate),
+                            (('env=FILECAT_ARCHIVE_TXF_NATIVE=1' + chr(0x1C) + 'env=' + gate + '=1',), 'does not name ' + gate),
+                            (('env=' + gate + '=1' + chr(0x85),), "sets %s to '1\\x85'" % gate)):
+            with self.subTest(lines):
+                problems, _ = self.check(self.unix_record(*lines), unix=True)
+                self.assertTrue(any(said in problem for problem in problems), problems)
+
+    def test_reads_a_gate_value_after_its_first_equals_sign_alone(self):
+        """Both runners split an entry at its first `=` and apply the rest, so `GATE=0=1` gives the tests `0=1`."""
+        gate = checker.GATE_NAME
+        problems, _ = self.check(self.windows_record(gate + '=0=1'))
+        self.assertTrue(any("sets %s to '0=1'" % gate in problem for problem in problems), problems)
+        problems, _ = self.check(self.unix_record('env=' + gate + '=0=1'), unix=True)
+        self.assertTrue(any("sets %s to '0=1'" % gate in problem for problem in problems), problems)
+
+    def test_reads_a_status_whole_and_not_as_a_word_in_it(self):
+        """Both runners append to the status after a run they had to tidy up after - the Windows rerun of this round
+        sealed `PASS` and then `leftover: 2252` - and such a status is not a plain PASS."""
+        problems, _ = self.check(files(status='PASS\r\nleftover: 2252\r\n'))
+        self.assertIn('its status is not PASS', problems)
+
+    def test_refuses_a_machine_record_whose_env_is_not_a_string(self):
+        """The runner passes a string on; a list in its place would be read through its printed form."""
+        contents = files()
+        contents['machine.json'] = json.dumps({"RunId": "edit-test", "Os": "Microsoft Windows 11 Pro",
+                                               "Env": [checker.GATE]})
+        problems, _ = self.check(contents)
+        self.assertTrue(any('gives Env as a list' in problem for problem in problems), problems)
+
+    def test_accepts_a_wide_descriptor_whose_size_field_spells_a_header(self):
+        """A member of exactly 0x02014b50 bytes, written wide to a stream: the descriptor's plain size, read where a
+        narrow descriptor would end, spells a directory header - so what follows cannot tell the widths apart there,
+        and only both size fields together do."""
+        class Unseekable(io.RawIOBase):
+            def __init__(self, handle): self.handle = handle
+            def writable(self): return True
+            def seekable(self): return False
+            def write(self, data): return self.handle.write(data)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'spelled.zip'
+            with open(path, 'wb') as raw:
+                with zipfile.ZipFile(Unseekable(raw), 'w', zipfile.ZIP_DEFLATED) as held:
+                    with held.open(zipfile.ZipInfo('zeros.bin'), 'w', force_zip64=True) as member:
+                        remaining = 0x02014B50
+                        while remaining:
+                            block = min(remaining, 1 << 22)
+                            member.write(bytes(block))
+                            remaining -= block
+            with checker.Archive(path) as held:
+                self.assertIsNone(held.listing_gap())
+
+    def test_accepts_a_directory_listed_out_of_file_order(self):
+        """A directory need not list its members in the order they lie in; the layout is read in file order."""
+        with tempfile.TemporaryDirectory() as directory:
+            path, order, start = self.laid_out(directory)
+            self.rewritten_directory(path, [(item, item.compress_size) for item, _ in reversed(order)], at=start)
+            with checker.Archive(path) as held:
+                self.assertIsNone(held.listing_gap())
 
     def test_names_an_archive_whose_compression_it_cannot_read(self):
         """A method this reader does not know is one more refusal, and the run's other archives are still reported:
