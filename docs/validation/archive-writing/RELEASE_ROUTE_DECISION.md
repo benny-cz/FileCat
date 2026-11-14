@@ -109,12 +109,26 @@ could not refuse a candidate that never ran an edit suite. They carry their own 
 regression and the package route lanes on all three machines in turn
 ([manifest](release-manifest-a4606689.json), [status](IMPLEMENTATION_STATUS.md)).
 
-14 November 2026: the listing re-validated after the twentieth to twenty-third reviews (`dcf19885` and the round that
-read those fixes, with a Windows test's own hold fixed in `3a57fcf5`). Each route's `/edit` entry is the sealed archive of a lane that ran with the
-native store required, and beside it `/edit-check` is the committed checker's own report on that archive: it requires
-the gate's recorded value to be exactly 1, the runner's own verdict on the run, every file the other requirements are
-read from, the three pins by name with a passing row and no failing one, and no test that stepped aside because native
-storage could not be held. Until `dcf19885` that checker refused every real Windows archive - the dual-root pin is one
-method name in two classes, and a Windows run carries both, the other platform's recorded as not executed - so no
-Windows archive had ever been accepted by it. The manifest's own refusal checks that a listed route carries an entry,
-not what is inside it, which is why that report is carried as evidence in its own right.
+14 November 2026: the listing re-validated after the twentieth to twenty-eighth reviews, on `048bf334`. Each route's
+`/edit` entry is the sealed archive of a lane that ran with the native store required, and beside it `/edit/check` is
+the committed checker's own report on that archive: it requires the gate's recorded value to be exactly 1, the runner's
+own verdict on the run, every file the other requirements are read from, the three pins by name with a passing row and
+no failing one, and no test that stepped aside because native storage could not be held. Until `dcf19885` that checker
+refused every real Windows archive - the dual-root pin is one method name in two classes, and a Windows run carries
+both, the other platform's recorded as not executed - so no Windows archive had ever been accepted by it. The manifest's
+own refusal checks that a listed route carries an entry, not what is inside it, which is why that report is carried as
+evidence in its own right. It is carried under each route's edit ID because the manifest credits an entry to the longest
+listed ID it is under: `…/edit/check` is the edit route's evidence, where `…/edit-check` would have been credited to the
+archive route above it.
+
+The twenty-third to twenty-eighth reviews changed the discard, the startup review, the storage accounting and what the
+user is told, and none of them changed either list: the three routes in `NativeEditStorage.Qualified` are those listed
+on 13 November, with the same evidence IDs, still pinned in `EditStoreCompositionTests` and in Core's
+`NativeEditStorageTests`. `048bf334` is the commit they close on. It passed the full regression and the package route
+lanes on all three machines, each package built from a clean checkout of it, with each machine's edit lane sealed on its
+own and accepted by the committed check on all three pins; one Windows cadence case failed in its lane and passed on its
+own at the same commit, away from edit storage and from everything these rounds touched
+([status](IMPLEMENTATION_STATUS.md)). Its [release manifest](release-manifest-048bf334.json) records the commit and its
+clean checkout, the worker protocol, the profiles and record schemas, the thirty archive-write routes and the three
+edit-storage routes with their evidence IDs, fourteen packages with their digests, and twenty-three evidence files - the
+three edit archives and the three checker reports among them.

@@ -118,6 +118,39 @@ first by name, and refuses an archive whose test output says nothing; three more
 own name; and on macOS the user's own working copy is no longer refused for carrying an access list, which the review
 that decides whether that copy can be edited at all has never looked at.
 
+**14 November, the listing re-validated after the twenty-third to twenty-eighth reviews (`048bf334`).** Those six
+rounds changed the discard, the startup review, the storage accounting and what the user is told; `048bf334` then ran on
+all three platforms, each package built from a clean checkout of it, and every lane passed but one Windows case,
+described below:
+
+| Platform | Full regression (passed) | Edit lane, native store required | Package route tests |
+|---|---|---|---|
+| macOS (M1) | App 3,112, Core 9,217, Remote 2,638, Rendering 23; no failure | 1,345 passed, 46 skipped | App 12 of 12; packaged launcher 14 of 14 |
+| Windows 11 VM | App 3,204, Core 8,407, Windows platform 1,650, Remote 2,405, Rendering 24; one failure, below | 1,369 passed, 429 skipped | Installed layout 12 of 12; portable 12 of 12, its grant exactly the 247 runtime files |
+| Ubuntu 24.04 | App 3,114, Core 9,276, Remote 2,543, Rendering 23; no failure | 1,347 passed, 44 skipped | .deb 12 of 12; the installed-bundle check and the AppImage mount lane 2 of 2 each |
+
+The Windows full lane's own status file records FAIL, and this is the case it records:
+`ChangeMonitorCadenceTests.A_folder_that_keeps_changing_is_read_again_while_it_changes(holdLastWriter: False)`, which
+waits for a folder that keeps changing to be read again while it changes. Both of its cases passed when the class ran on
+its own on that machine at the same commit, with that rerun's own summary and status kept beside the lane's evidence. It
+is a cadence test, away from edit storage and from everything these rounds touched; it is named here rather than counted
+as a pass.
+
+Each full regression ran with `FILECAT_EDIT_NATIVE_REQUIRED=1`, so a native edit test fails instead of skipping. Each
+machine's edit lane is sealed on its own, and the committed checker's report on that archive is carried beside it as the
+route's own evidence: all three accept their archive, with the gate recorded as exactly 1, the runner's own verdict
+read, and the three pins each passing somewhere and failing nowhere (on Windows the dual-root pin passes in the Windows
+class while the Unix class is recorded as not executed). The Windows installed layout was staged into Program Files
+before the chain, from the host and elevated, as an installer is: that folder cannot be made by an unelevated process,
+while the lane that reads it must not be elevated, and its staging log records both and the commit it expanded.
+
+The release manifest is [release-manifest-048bf334.json](release-manifest-048bf334.json): the commit and its clean
+checkout, the worker protocol, the profiles and record schemas, thirty archive-write routes and the three edit-storage
+routes with their evidence IDs, fourteen packages with their digests and sizes, and twenty-three evidence files - the
+three edit archives and the three checker reports among them, each under the ID the route it proves lists. The reports
+are carried as `…/edit/check` under each route's edit ID: the manifest credits an entry to the longest listed ID it is
+under, so `…/edit-check` would have been credited to the archive route rather than to the edit one.
+
 **14 November, the listing re-validated after the twentieth to twenty-second reviews (`dcf19885`).** Four independent
 reviewers read this session's whole contribution - the storage gate and its accounting, the exact removal and the
 discard, the creation in progress and what the user sees, and the listing with its manifest and evidence tooling. They
