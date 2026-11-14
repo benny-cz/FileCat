@@ -1,5 +1,23 @@
 # Archive writing implementation status
 
+**14 November, the fifth round (twenty-five).** A reviewer with fresh eyes read the paths the earlier rounds named but
+did not follow. It found that the last round's own fix only fired when nothing else was listed: the sentence naming
+storage FileCat could not open was computed and then dropped on the path that lists an edit - which is the likely path,
+because a fresh F4 over unopened storage makes a second edit in the legacy folder, and that second edit is what gets
+listed. Its test passed without ever reaching that path, because an edit whose working copy still matches its source
+reads as unchanged and leaves every counter at zero. Both are fixed: the sentence is said whatever else is listed, in
+the startup message and in the list's own hint, and the test now makes that edit a changed one and requires both halves
+of what the user is told.
+
+The same sentence claimed edits were kept in that storage when only FileCat's own admission gate was - it is made with
+the first edit ever created there and never removed - so a store whose edits had all been discarded said it for ever,
+with nothing the user could do about it. Only an edit's own folder, named by its id, counts as an edit now.
+
+And a retained copy the user was sent to open was then reported as "in use, changed, or cannot be read completely",
+which is none of the things the Finder's own file is: opening that folder from the review is what puts a `.DS_Store` in
+it. Every unknown name in a retained copy is now reported as what it is, as the removal of the same folder already
+reported it, with the desktop's file named as the desktop's and the way out said.
+
 **14 November, the fixes reviewed again (round twenty-four).** Two more reviewers read the last round's fixes: one the
 record-less retained copy specifically, one with a free hand over the whole contribution, its seams and its records.
 Nothing they found loses a user's work. What they did find, fixed here:
@@ -8,7 +26,7 @@ Nothing they found loses a user's work. What they did find, fixed here:
   storage cannot be held privately without following links - a profile restored or copied from elsewhere, a data folder
   reached through a junction, one written by another account - startup keeps the legacy folder and does not enumerate
   that storage at all, so "No edits are open" was said over edit folders that are still there. Startup and the list now
-  name that storage and say its edits are not listed, whenever it holds anything.
+  name that storage and say its edits are not listed, whenever it holds an edit of the user's.
 - **A copy with no record of its own had its payload named by "the one file in its folder".** Its receipt names that
   payload exactly when the receipt is there, and nothing names it when it is not - a removal takes the payload before
   either record - so the payload is now named from a record or the folder is kept. The startup review reads that folder
