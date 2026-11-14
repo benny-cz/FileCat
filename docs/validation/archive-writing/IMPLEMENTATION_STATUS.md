@@ -11,8 +11,10 @@ review's own High was against this record, not the code:
   agreeing, the coverage exact and no name repeated: a log that said a test had stepped aside simply stopped being
   listed, and only the overlap check refused it. That shape has a case now, and what refuses it is a new rule rather
   than the overlap check: a member's local header carries its own name, and the directory's name for it has to be that
-  name. With the names bound, the way to the overlap check is closed - two entries pointing at one member both carry
-  its name, which repeats - so it keeps no case, and now says so and why where it stands. The other half of that
+  name. With the names bound, no directory alone reaches the overlap check - two entries pointing at one member both
+  carry its name, which repeats - and a member that really lies inside another needs its own header rewritten, at
+  which point the reader refuses to read either. So it keeps no case, and now says so and why where it stands. The
+  other half of that
   sentence was right in its conclusion and wrong in its reason: a member can run past the directory in a readable
   file, and what refuses it is the coverage sum, not unreadability.
 - **A directory that renames a member hides it from every rule.** The same shape, without the padding: every rule here
