@@ -1,5 +1,45 @@
 # Archive writing implementation status
 
+**14 November, the listing re-validated after the twentieth to twenty-second reviews (`dcf19885`).** Four independent
+reviewers read this session's whole contribution - the storage gate and its accounting, the exact removal and the
+discard, the creation in progress and what the user sees, and the listing with its manifest and evidence tooling. They
+found four defects, each fixed in `dcf19885` with a case that fails without the fix:
+
+- **An edit an editor had saved by replacing the file could not be discarded at all.** FileCat reviewed the user's
+  working copy with the rules written for its own records (a mode of exactly 0600 on Unix; protected, uninherited
+  permissions on Windows), while its own working-file review has always accepted what an ordinary save leaves - which
+  is why such an edit commits. "Discard" answered "Archive artifact permissions are no longer private" for good, and
+  the folder could only be removed by hand. The discard now reads and removes the user's bytes by those same rules and
+  FileCat's records by the strict one.
+- **A retained commit copy could refuse its own removal and the whole edit's discard.** A capture's records are staged
+  like an edit's, so an interrupted publication leaves a stage inside that folder, and the removal takes the payload
+  and its folder before the copy's records, so a stopped removal leaves those records alone. Both are now reviewed and
+  removed with the copy; a saved copy that still refers to a payload that is gone is kept for its own review.
+- **A copy still being made was charged less than the same capture becomes.** Two copies could both be admitted into
+  room for one, and the 8 GiB budget was then exceeded by a whole copy: the next review of the store threw, so a commit
+  that had just finished could not record its own new state, and new edits were refused until a retained copy was
+  reviewed. An in-flight capture is charged what its admission demanded, with the reserved part among the running
+  charges so finished work is still recorded.
+- **A capture a crash left behind reserved free space for ever.** Its unwritten remainder was counted as bytes some
+  copy still owed the volume, so later edits were refused on a volume with room for them and the message blamed the
+  volume. Those bytes are now counted only while a process really holds that copy's output; the folder is still charged
+  and still offered for review.
+
+The same round found that the committed evidence checker refused every real Windows archive (the dual-root pin is one
+method name in two classes, and a Windows run carries both) and accepted a run with the gate set to `10`, where every
+native edit test skips. It now judges a pin by whether it passed somewhere and failed nowhere, reads the gate as a
+value, requires the runner's own verdict and every file the other requirements come from, and names an archive it
+cannot read; its own cases grew from eleven to twenty-one. A Windows test that makes a download mark unreadable also
+waited for the virus scanner that reads such a mark, after the mark's own stream was refused once on the validation VM
+(`3a57fcf5`).
+
+Recorded rather than changed: two states leave a folder FileCat lists, keeps and will not remove itself - a complete
+copy whose own removal was refused, and records left by a discard stopped after it had removed the working folder - each
+with the way out named in the message and in [the sessions record](ARCHIVE_EDIT_SESSIONS.md); the composition pin judges
+the file system of the folder its run gives it, not FileCat's data folder; and `Compose` judges the file system where
+the native root will be created, so one mounted at that root itself before FileCat starts is not judged
+([accounting](NATIVE_EDIT_STORAGE_ACCOUNTING.md)).
+
 **13 November, the listing re-validated after the eighteenth and nineteenth reviews (`a4606689`).** Two independent
 reviewers read the listing and its records. Both found the qualification and the removal boundary sound; between them
 they found three defects in the listing, all fixed in `a4606689`:

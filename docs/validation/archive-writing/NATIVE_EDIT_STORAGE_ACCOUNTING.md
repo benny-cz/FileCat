@@ -116,5 +116,44 @@ FileCat's own identity-bound folder; everywhere else the legacy store stays, inc
 is on another file system, is reached through a link, or cannot be held privately. An edit made before the listing stays
 in the legacy folder, commits through its own route, and is still discarded through the legacy store's bound removal
 (`a4606689`). The routes, their evidence and the three-platform runs behind them are in the
-[route decision](RELEASE_ROUTE_DECISION.md) and the [status](IMPLEMENTATION_STATUS.md). The accounting below is what that store applies in
-production, so its budgets and its running-copy charges are now ordinary behaviour on a listed route, not test-only.
+[route decision](RELEASE_ROUTE_DECISION.md) and the [status](IMPLEMENTATION_STATUS.md). The accounting recorded here is what that store
+applies in production, so its budgets and its running-copy charges are now ordinary behaviour on a listed route, not
+test-only; what a copy still being made is charged is below.
+
+## What a copy still being made is charged (`dcf19885`)
+
+A commit's capture takes the storage gate to admit its copy and to make the objects it needs - the capture's folder, its
+payload folder, its own record and the file the bytes go into - and then lets the gate go while the bytes are copied, as
+a creation has since `ef5c36d1`: a large member or a slow source never holds up another edit. Publishing the receipt
+takes the gate again and waits longer for it, because those bytes are already made.
+
+While the gate is down, nothing measures that copy as it grows. Its own record (`capture.json`, version 2) says how long
+it was admitted to be, and every process charges the folder by that record instead: its two folders and two files, the
+payload it was admitted for, and the room a retained copy of that payload reserves (that payload again, plus the 4 MiB
+contingency). That is exactly what the same capture is charged once its receipt lands, which is the point. Charged for
+less, two copies were both admitted into room for one and the 8 GiB budget was then exceeded by the whole of one copy:
+the next review of the store threw, so the commit that had just finished could not write down its own new state, and new
+edits were refused until a retained copy was reviewed (`dcf19885`). The reserved part is kept apart from the stored
+bytes, among the running charges, so a record of work already finished is still judged without it.
+
+The free space a copy still needs is counted only while a process is really writing it: the process making the copy
+holds its output handle and can say what is left of it, and no other process can. A capture a crash or a failed copy
+left behind is therefore charged - the review budget still judges what the store holds, and the user is asked to review
+the retained copy - but reserves no free space. Reserving it held space for bytes nobody would ever write, which refused
+later edits on a volume that had room for them and said the volume was full (`dcf19885`).
+
+A capture record that does not name the folder it is in - a stale one, or one made by hand - speaks for no copy being
+made here, and its folder is measured as the bytes it holds instead. An earlier build's record (version 1) carries no
+admitted length, so a capture of that build is measured as before.
+
+The application's composition pin judges the file system of the folder its run gives it (`FILECAT_EDIT_NATIVE_ROOT`, or
+the run's temporary folder), not FileCat's own data folder: it proves the listing's rule - a listed route composes the
+native store, an unlisted one keeps the legacy store - on the disk the lane runs on. Which file system a release
+composes on is the route decision's question, and is answered by each route's own evidence.
+
+`Compose` judges the file system where the native root will be created, which is its parent: FileCat's own data folder.
+A file system mounted *at* the root itself is not judged, so a user who bind-mounts another file system there before
+FileCat starts would get native storage on an unlisted file system (on Windows a mount point is a reparse point, which
+the private lease refuses). Mounting one over a root FileCat already holds changes nothing it does, because every
+operation goes through the held descriptor rather than the path. This limit is accepted and recorded here; closing it
+would mean judging the root again after it is created.

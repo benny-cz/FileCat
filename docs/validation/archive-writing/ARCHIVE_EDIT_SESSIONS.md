@@ -96,3 +96,29 @@ is on another file system, is reached through a link, or cannot be held privatel
 in the legacy folder, commits through its own route, and is still discarded through the legacy store's bound removal
 (`a4606689`). The routes, their evidence and the three-platform runs behind them are in the
 [route decision](RELEASE_ROUTE_DECISION.md) and the [status](IMPLEMENTATION_STATUS.md).
+
+### A folder FileCat lists but will not remove itself (recorded, `dcf19885`)
+
+Two states leave a folder that FileCat keeps, lists and will not remove on its own. Both need a removal or a cleanup to
+be stopped or refused at one particular step, and neither loses anything the user wrote.
+
+A creation that copied the whole member and then failed or was cancelled removes its own copy under the storage gate. If
+that removal is refused - another program holds the file for longer than the few seconds it waits, or the gate stays busy
+for its whole wait - the folder is left holding its creation marker and a copy as long as the file it was made from.
+FileCat keeps such a copy whole on purpose: it cannot tell it from an edit of the user's, because an adoption copy of an
+older edit's working file has exactly that shape and may hold text the user never saved anywhere else. The row reads
+"files without their record - kept for review" and offers only "Open working folder"; the message the failure showed
+names the folder and says the copy is the user's to delete once they no longer need it (`dcf19885` corrected that
+message, which until then had sent the user to that row to "review" it).
+
+A discard that is stopped after it has removed the working folder but before its first record leaves records with no
+working folder. The record cannot then be read completely, so the row reads "This edit record cannot be read completely.
+Its working folder is kept." and offers only "Close" and "Open working folder". Nothing of the user's is in it - their
+working copy is what the discard removes first - but the records are FileCat's own.
+
+Closing either needs a new reason and a removal action of its own: for the first, a breadcrumb in the creation marker
+saying FileCat abandoned its own copy, which an adoption's marker would not carry; for the second, a reason for "my own
+records, with nothing of yours left" and an action that removes them. Both are in the
+[remaining work ledger](REMAINING_WORK_LEDGER.md) rather than built here, because each adds a user-visible state to a
+surface that is already qualified, and the way out - the folder, named in the message and openable from the row - is the
+user's own.

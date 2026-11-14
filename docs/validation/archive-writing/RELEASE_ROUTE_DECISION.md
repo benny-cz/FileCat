@@ -92,7 +92,8 @@ The release candidate is `3781e7ae`: it passed on all three platforms with its p
 
 13 November 2026: native edit storage is listed on the same three routes, after seventeen rounds of independent review,
 every High and Medium finding of which is fixed, and the connected qualification on all three platforms. The evidence
-IDs are the routes' own (`AWQ-win-x64-NTFS`, `AWQ-linux-x64-ext4`, `AWQ-osx-arm64-apfs`): every edit suite, the
+IDs are each route's own (`AWQ-win-x64-NTFS/edit`, `AWQ-linux-x64-ext4/edit`, `AWQ-osx-arm64-apfs/edit`, under the
+archive route's own ID since `a4606689`): every edit suite, the
 application's and the platforms' own, ran with native storage as the default store, and the listing commit `fda3f03c`
 passed the full regression and the package route lanes on all three machines. From this commit a new edit on a listed
 route is kept in FileCat's own identity-bound folder beside the legacy one: a stopped, cancelled or failed F4 removes
@@ -107,3 +108,13 @@ could not refuse a candidate that never ran an edit suite. They carry their own 
 (`AWQ-win-x64-NTFS/edit`, `AWQ-linux-x64-ext4/edit`, `AWQ-osx-arm64-apfs/edit`), and that commit passed the full
 regression and the package route lanes on all three machines in turn
 ([manifest](release-manifest-a4606689.json), [status](IMPLEMENTATION_STATUS.md)).
+
+14 November 2026: the listing re-validated after the twentieth to twenty-second reviews (`dcf19885`, with a Windows
+test's own hold fixed in `3a57fcf5`). Each route's `/edit` entry is the sealed archive of a lane that ran with the
+native store required, and beside it `/edit-check` is the committed checker's own report on that archive: it requires
+the gate's recorded value to be exactly 1, the runner's own verdict on the run, every file the other requirements are
+read from, the three pins by name with a passing row and no failing one, and no test that stepped aside because native
+storage could not be held. Until `dcf19885` that checker refused every real Windows archive - the dual-root pin is one
+method name in two classes, and a Windows run carries both, the other platform's recorded as not executed - so no
+Windows archive had ever been accepted by it. The manifest's own refusal checks that a listed route carries an entry,
+not what is inside it, which is why that report is carried as evidence in its own right.

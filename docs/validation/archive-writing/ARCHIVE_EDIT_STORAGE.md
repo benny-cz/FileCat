@@ -95,3 +95,25 @@ concurrency, origin/metadata, cancellation and restart cases on all three platfo
 regressions, actual native editor/UI/accessibility acceptance, Unix mutation/confinement and the
 remaining fuzz/resource/RID/package gates before the independent final review. Optional XZ/ISO work
 retains its existing plan priority.
+
+## What a discard reviews, and by whose rules (`dcf19885`)
+
+A discard reviews two kinds of object by two different rules. FileCat's own records - the anchor, each revision, the
+creation marker, a capture's record and receipt, a saved copy's intent - must be exactly as FileCat wrote them, down to
+their permissions: a record whose permissions changed is no longer one FileCat can speak for. The user's own bytes -
+their working copy, a name an interrupted removal set aside, a retained commit copy - are reviewed as every other review
+of them reads them: an ordinary file this user owns, with no second link, inside the private folder whose own privacy
+(0700 on Unix, a protected owner-and-system list on Windows) is reviewed on every operation. Their permission bits are
+the editor's to set: a replacement carries the folder's inherited permissions, an ordinary umask leaves group and other
+read bits, and a script being edited may be made executable.
+
+Until `dcf19885` the discard read the user's bytes by the records' rule, so an edit whose editor had saved it by
+replacing the file - which most editors do - could not be discarded at all: the confirmation was answered with "Archive
+artifact permissions are no longer private", and the only way out was to remove the folder by hand.
+
+A session's folder and a retained copy's folder may both hold what FileCat left behind unfinished: the stage of a record
+it was publishing (a failed publication keeps its stage on purpose) and a name an interrupted exact removal set aside.
+Both are reviewed and removed with what they belong to, each through a handle bound to what was reviewed, up to 64 of
+them per folder; a folder holding more is kept whole and says how many it holds. A retained copy whose payload - or
+whose whole payload folder - a stopped removal already took is still removable: what is left is that copy's own records,
+which are FileCat's. A saved copy that still refers to a payload that is gone is kept for its own review (`dcf19885`).
