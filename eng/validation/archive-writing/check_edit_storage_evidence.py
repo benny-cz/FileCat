@@ -10,8 +10,9 @@ It reads a run's evidence archive (`<run>-evidence.zip` from the Windows runner,
 one) and requires all of:
 
   * the machine record names `FILECAT_EDIT_NATIVE_REQUIRED=1`, so a native edit test could not skip;
-  * it begins at its own start, so it is not a zip appended to another zip - which is read as the appended one
-    alone, the sealed half never looked at;
+  * its own listing accounts for the whole file, so it is not one zip appended to another - a zip is read from its
+    end, so the appended one is read alone and the sealed half is never looked at, whether it is passed over as a
+    stub or left as a hole that no listed member covers;
   * it carries one machine record, whose members do not repeat, and the system that record names agrees with the
     class that passed this run's own dual-root pin - which has to be one of the two real ones, so a record rewritten
     to another system, a second record put before the real one, and a pin whose class was renamed or nested are each
@@ -46,6 +47,7 @@ import argparse
 import hashlib
 import json
 import re
+import struct
 import sys
 import tarfile
 import zipfile
@@ -124,18 +126,53 @@ class Archive:
                 result.append(name)
         return result
 
-    def prefix(self) -> int:
-        """The bytes before this archive's own first member.
+    def listing_gap(self) -> str | None:
+        """Why this archive's own listing does not account for the file it is in; None when it accounts for all of it.
 
-        zipfile reads a zip from its end: it takes the last end-of-directory record and, where that directory says it
-        sits elsewhere, treats everything before it as a self-extractor stub and shifts every offset by that much. So
-        a sealed zip with another zip appended is read as the appended one alone - no member of the sealed run is
-        listed, so no repeated name, no summary and no status of it is ever read, with every sealed byte still there.
-        A gzipped tar has no such reading: a second compressed member appended to a `.tar.gz` is not read at all.
+        A zip is read from its end: zipfile takes the last end-of-directory record, and where that directory says it
+        sits elsewhere it passes over everything before as a self-extractor stub. So a sealed zip with another zip
+        appended is read as the appended one alone - no member of the sealed run listed, so no repeated name, no
+        summary and no status of it ever read, with every sealed byte still in the file. Asking only whether some
+        listed member starts at byte 0 was not enough: an appended directory that lists the sealed zip's own first
+        entry satisfied that while covering none of the rest, and one listing the sealed entries with a size zeroed
+        made a member read as empty. What a sealed run's own listing does is cover its file exactly, once.
+
+        A gzipped tar needs none of this: tarfile stops at the sealed tar's own end-of-archive blocks, so members
+        appended after them are never listed.
         """
         if self._zip is None:
-            return 0
-        return min((item.header_offset for item in self._zip.infolist()), default=0)
+            return None
+        spans: list[tuple[int, int]] = []
+        with open(self.path, 'rb') as handle:
+            for item in self._zip.infolist():
+                handle.seek(item.header_offset)
+                header = handle.read(30)
+                if len(header) < 30 or header[:4] != b'PK\x03\x04':
+                    return 'the entry %r does not point at a member of this file' % item.filename
+                # The local header's own name and extra lengths: an entry's extra field may differ between the local
+                # header and the directory's copy, and this is measuring the file's layout, not the directory's.
+                name, extra = struct.unpack('<HH', header[26:30])
+                size = 30 + name + extra + item.compress_size
+                if item.flag_bits & 0x08:  # a trailing data descriptor
+                    size += 16
+                spans.append((item.header_offset, item.header_offset + size))
+        directory = getattr(self._zip, 'start_dir', None)
+        if directory is None:  # an older reader that does not say where the directory begins
+            return None
+        covered = 0
+        reach = 0
+        for start, end in sorted(spans):
+            if start < reach:
+                return 'its members %d and %d overlap' % (start, reach)
+            covered += end - start
+            reach = max(reach, end)
+        first = min((start for start, _ in spans), default=0)
+        if first != 0:
+            return 'its first member begins %d bytes into the file' % first
+        if reach != directory or covered != directory:
+            return ('its listing covers %d of the %d bytes before the directory, so %d are in the file and in no '
+                    'member of it' % (covered, directory, directory - covered))
+        return None
 
     def repeated(self) -> list[str]:
         """Names this archive holds more than once.
@@ -272,9 +309,9 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
     problems: list[str] = []
     facts: dict[str, object] = {}
     with Archive(path) as archive:
-        if (prefix := archive.prefix()):
-            problems.append('its first member begins %d bytes into the file, so this is a zip appended to another '
-                            'one and only the appended zip is read at all' % prefix)
+        if (gap := archive.listing_gap()) is not None:
+            problems.append('the file does not begin and end with this archive: %s, so one zip is appended to '
+                            'another and only one of them is read' % gap)
         if (repeated := archive.repeated()):
             problems.append('it holds %s more than once, and the last member of a name is what a reader gets: which '
                             'of them speaks for this run is not a thing to guess' % ', '.join(repeated))

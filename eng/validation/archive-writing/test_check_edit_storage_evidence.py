@@ -11,6 +11,7 @@ import io
 import json
 from pathlib import Path
 import sys
+import struct
 import tarfile
 import tempfile
 import unittest
@@ -297,7 +298,58 @@ class EvidenceChecks(unittest.TestCase):
             both.write_bytes(sealed.read_bytes() + clean.read_bytes())
             self.assertIn(sealed.read_bytes(), both.read_bytes())  # nothing of the sealed run was rewritten
             problems, _ = checker.check(both)
-            self.assertTrue(any('is a zip appended to another one' in problem for problem in problems), problems)
+            self.assertTrue(any('does not begin and end with this archive' in problem for problem in problems),
+                            problems)
+
+    def test_refuses_a_zip_whose_own_listing_leaves_the_file_unaccounted_for(self):
+        """Asking only whether some listed member starts at byte 0 was not enough: a directory appended to a sealed
+        zip, listing the sealed entries at their own offsets, satisfies that while the end record puts the directory
+        past them - so the bytes between are in the file and in no member of it, and one zeroed size in that appended
+        copy makes a member read as empty. A sealed run's own listing covers its file exactly, once."""
+        failed = files(status='FAIL')
+        with tempfile.TemporaryDirectory() as directory:
+            path = archive(directory, 'edit-forged-evidence.zip', failed)
+            blob = path.read_bytes()
+            with zipfile.ZipFile(path) as held:
+                start, count = held.start_dir, len(held.infolist())
+            copied = blob[start:blob.rfind(b'PK\x05\x06')]  # its own central directory, verbatim
+            path.write_bytes(blob + copied + struct.pack(
+                '<4sHHHHIIH', b'PK\x05\x06', 0, 0, count, count, len(copied), len(blob), 0))
+            self.assertIn(blob, path.read_bytes())  # nothing of the first zip was rewritten
+            problems, _ = checker.check(path)
+            self.assertTrue(any('in no member of it' in problem for problem in problems), problems)
+
+    def test_reads_a_log_and_a_results_file_by_how_their_names_begin_and_end(self):
+        """The step-aside scan and the two presence rules find their files by a name's start and end, not by a part of
+        it: a run carrying only `latest-run.log` carries no console log of this runner's, and only a `.trx.bak` carries
+        no results. Matched loosely, both would be found where there are none."""
+        contents = files()
+        contents['latest-run.log'] = contents.pop('test-FileCat.App.Tests-Edit.log')
+        self.assertIn('it carries no test output to read', self.check(contents)[0])
+        contents = files()
+        contents['results/FileCat.App.Tests-Edit.trx.bak'] = contents.pop('results/FileCat.App.Tests-Edit.trx')
+        self.assertIn('it carries no test results to read', self.check(contents)[0])
+
+    def test_reads_the_system_from_how_the_record_s_line_begins(self):
+        """A macOS uname line can name Linux further along it (`Linux-compat`), and a system matched anywhere in the
+        line would read that run as the Linux route's."""
+        contents = files(system='Darwin mac.local 27.0.0 Darwin Kernel Version 27.0.0 arm64 Linux-compat')
+        problems, facts = self.check(contents)
+        self.assertEqual([], problems)
+        self.assertEqual('macos', facts['system'])
+
+    def test_reads_the_gate_s_name_whole_and_not_as_a_prefix_of_another(self):
+        """`FILECAT_EDIT_NATIVE_REQUIRED_LEGACY=1` is not this gate, and a name matched as a part would take it."""
+        contents = files()
+        contents['machine.json'] = json.dumps({"RunId": "edit-test", "Os": "Microsoft Windows 11 Pro",
+                                               "Env": checker.GATE_NAME + '_LEGACY=1'})
+        self.assertIn('its machine record does not name ' + checker.GATE_NAME, self.check(contents)[0])
+
+    def test_reads_every_status_file_and_not_the_first_of_them(self):
+        """Each status.txt has to say PASS, as each summary has to pass - the code says so beside the summaries."""
+        contents = files()
+        contents['inner/status.txt'] = 'FAIL'
+        self.assertIn('its status is not PASS', self.check(contents)[0])
 
     def test_reads_a_name_as_the_whole_leaf_and_not_a_part_of_one(self):
         """The runners drop `full-r35-win-status.txt` and its kin beside an archive, so a rule matching part of a

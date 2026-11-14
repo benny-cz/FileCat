@@ -207,3 +207,11 @@ would find a `status.txt` in `full-r35-win-status.txt`; and the refusal every ro
 listed route whose evidence the manifest does not carry - was held by no case in either suite. All three are closed,
 with their cases, and the step-aside scan now reads the results file where a test's own reason is, not only the console
 log that never carries one.
+
+The thirty-fifth review found no way to make the gate accept or misbind an untampered archive, and two things to close.
+The first form of "an archive begins at its own start" asked only whether some listed member starts at byte 0, which a
+directory appended to a sealed zip satisfies while covering none of the rest: the failed Windows full-regression lane
+was accepted that way. A sealed run's own listing now has to cover its file exactly, once. And six rules of the two
+halves could change a verdict with no case noticing - how a log, a results file, a system word and the gate's own name
+are matched, whether every status file is read, and whether a remote package's evidence is carried - each of which has
+its case now. Forty-five cases hold the check and twelve the manifest.

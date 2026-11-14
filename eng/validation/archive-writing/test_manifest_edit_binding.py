@@ -104,13 +104,14 @@ class ManifestEditBinding(unittest.TestCase):
         return {route: self.accepted(Path(directory) / route, system)
                 for route, system in ROUTES.items()}
 
-    def manifest(self, evidence):
+    def manifest(self, evidence, extra=()):
         """Run the tool over one set of (id, file) evidence: its exit code, what it said, and what it wrote."""
         with tempfile.TemporaryDirectory() as directory:
             out = Path(directory) / 'manifest.json'
             arguments = ['dotnet', str(self.tool), '--repo', str(ROOT), '--out', str(out), '--allow-dirty']
             for name, path in evidence:
                 arguments += ['--evidence', '%s=%s' % (name, path)]
+            arguments += list(extra)
             done = subprocess.run(arguments, capture_output=True, text=True)
             written = json.loads(out.read_text(encoding='utf-8')) if out.is_file() else None
         return done.returncode, (done.stdout + done.stderr), written
@@ -128,6 +129,21 @@ class ManifestEditBinding(unittest.TestCase):
             self.assertEqual(9, len(written['evidence']))
 
     # ---------------------------------------------------------------- and what it does not
+
+    def test_refuses_a_remote_package_naming_evidence_the_manifest_does_not_carry(self):
+        """Nine of this candidate's fourteen packages were built on their own machines and are recorded by the digest
+        their own log states, so the entry naming that log is what ties each to a sealed run. Nothing held that rule."""
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = self.archive_routes(directory)
+            for route, (archive, report) in self.every_route(directory).items():
+                evidence += [(route + '/edit', archive), (route + '/edit/check', report)]
+            remote = ('win-x64:portable=FileCat-1.0.0-dev-win-x64-portable.zip:' + '0' * 64 +
+                      ':1024:AWQ-win-x64-NTFS/no-such-log')
+            code, said, written = self.manifest(evidence, extra=['--remote-package', remote])
+            self.assertEqual(2, code, said)
+            self.assertIn('A remote package names evidence this manifest does not carry: AWQ-win-x64-NTFS/no-such-log',
+                          said)
+            self.assertIsNone(written)
 
     def test_refuses_a_listed_route_that_carries_no_evidence_at_all(self):
         """The refusal every route rests on, edit-storage or not, and the one ledger rows 4, 8 and 13 cite: nothing

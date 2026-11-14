@@ -1,5 +1,37 @@
 # Archive writing implementation status
 
+**14 November, the append closed and the suites measured against every rule (round thirty-five).** One reviewer found
+no way to make the gate accept or misbind an untampered archive, and two Mediums:
+
+- **"An archive begins at its own start" asked only whether some listed member starts at byte 0.** A zip is read from
+  its end, and an end record naming the absolute offset of an appended directory makes every listed offset literal -
+  so a directory appended to a sealed zip, listing the sealed zip's own first entry, satisfied the rule while covering
+  none of the rest. The reviewer appended to the **failed** Windows full-regression lane (refused on its own: a case
+  failed, a suite exited 1, its status not PASS) and the forgery was accepted as evidence, nothing of the sealed half
+  rewritten; a 429-byte append of the sealed entries with one size zeroed made a member read as empty, which is the
+  tar hazard of the round before last, reopened for zip. The rule now asks what a sealed run's own listing does: cover
+  its file exactly, once - the lowest member at byte 0, the highest ending where the directory begins, none
+  overlapping, read from the local headers themselves rather than the directory's copy of them. All fourteen archives
+  of this round cover their files exactly, as do a zip64 archive, one with a comment and a deflated one with a folder;
+  both forgeries are refused, naming the bytes that are in the file and in no member of it.
+- **Six rules could change a verdict and no case noticed them.** Weakened one at a time: a log or results file found
+  by a part of its name (so a run carrying only `latest-run.log`, or only a `.trx.bak`, reads as carrying a log and
+  results); the system matched anywhere in the record's line (so a macOS `uname` line naming `Linux-compat` reads as
+  the Linux route's); the gate's name matched as a part (so `FILECAT_EDIT_NATIVE_REQUIRED_LEGACY=1` passes for the
+  gate); only the first status file read (so a second one saying FAIL is ignored, where its summary twin had a case);
+  and, in the manifest, a remote package naming evidence the manifest does not carry - the rule nine of this
+  candidate's fourteen packages rest on, since each is recorded by the digest its own machine's log states. Each has a
+  case now, and each case fails under its own weakening alone.
+
+So the two sentences that said only two rules were left unmeasured were wrong, and are corrected here. What is left is
+the zip folder filter, the member map's first-wins, the `is_file` branch of the runner's own entry point and the
+first-non-blank-line in reading a system - none of which can change a verdict: a zip folder's name ends in a separator
+so it is never a file's name, a collision in the map means a repeated name and is refused, both branches of the entry
+point refuse, and the line-reading mutant behaves identically.
+
+Forty-five cases for the check, twelve for the manifest, every rule of either that can change a verdict failing exactly
+the case that claims it.
+
 **14 November, the gate read against its own boundary (round thirty-four).** One reviewer took the boundary written
 down in `0c972144` as the measure: a way past a rule that needs the evidence folder rewritten is that boundary, while an
 append is not, because a half-finished fetch or a careless re-seal can append. No High. Three rules gave way, all
@@ -10,8 +42,9 @@ closed here:
   `sealed.zip + clean.zip` is read as the clean one alone and no member of the sealed run is listed at all. On the real
   Windows lane, 1,493 appended bytes left the check reading 5 members instead of 20; with a failed lane as the first
   half, a FAIL status, a summary holding a failure and a log holding a step-aside reason all went unread and the
-  archive was accepted, every sealed byte still present. An archive begins at its own start now. The tar side has no
-  such reading: a second compressed member appended to a `.tar.gz` is not read, so an append there adds nothing.
+  archive was accepted, every sealed byte still present. An archive's own listing has to account for its file now
+  (the round below found the first form of that rule too weak). The tar side needs no such rule: tarfile stops at the
+  sealed tar's own end-of-archive blocks, so members appended after them are never listed.
 - **A name was matched as the whole leaf by no case.** Loosened to a part of one, the check accepts an archive
   carrying `full-r35-win-status.txt` and no `status.txt` - and those are the names the runners drop beside an archive,
   so the loose rule would have found a status for every run that has none. Its case exists now.
@@ -24,9 +57,8 @@ closed here:
 
 Two sentences of the round before it were read against the code and corrected: "every shadow archive is refused" is
 true only of a shadow that hid a problem (a folder entry over a sound member is simply ignored, which its own case
-asserts), and "the one rule left unmeasured is the zip folder filter" was not true. What is left unmeasured now is that
-filter and the first-wins in the member map, and neither can change a verdict: a zip folder's name ends in a separator
-so it is never a file's name, and a collision in the map means a repeated name, which is refused.
+asserts), and "the one rule left unmeasured is the zip folder filter" was not true. What was left unmeasured is listed
+in the round above, which measured every rule of both halves and found six more that could change a verdict.
 
 Recorded rather than closed, all inside the boundary: two fragments of the manifest's required tail (the words
 `, no failure, ` and taking the digest from the recorded entry rather than hashing the file again) are measured by no
