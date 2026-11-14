@@ -19,7 +19,7 @@ internal static class ArchiveEditStorageAdmissionCases
         "gate-content","gate-replaced","wrong-root","invalid-policy","intent-wait","intent-cancel-wait",
         "intent-gate-failure","cleanup-admission","cleanup-gate-failure","intent-cleanup-race",
         "native-discard","native-discard-no-factory","native-discard-replaced","wrong-new-root-parent","gate-inspection-budget",
-        "capture-gate","capture-gate-admits"}.Select(value=>new object[]{value});
+        "capture-gate","capture-gate-admits","capture-abandoned"}.Select(value=>new object[]{value});
 
     internal static async Task Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations fs,string nativeAssembly)
     {
@@ -117,6 +117,10 @@ internal static class ArchiveEditStorageAdmissionCases
                     Assert.True(seen.RunningPayloadBytes>=length,$"running payload {seen.RunningPayloadBytes} < {length}");
                     Assert.True(seen.RunningEntries>=4,$"running entries {seen.RunningEntries}");
                     Assert.True(seen.RunningMetadataBytes>0);Assert.Equal(1,seen.Captures);
+                    // What a complete capture reserves, reserved while its copy is still being made: a retained copy of
+                    // this payload takes that room, and a second copy must not be admitted into it.
+                    Assert.True(seen.RunningReservedBytes>=length+EditStorageAdmission.CaptureContingency,
+                        $"running reserve {seen.RunningReservedBytes} < {length+EditStorageAdmission.CaptureContingency}");
                     if(scenario=="capture-gate-admits")
                     {
                         Assert.NotNull(second);Assert.NotEqual(record.Id,second.Id);
@@ -130,10 +134,50 @@ internal static class ArchiveEditStorageAdmissionCases
                     Assert.Equal(0,after.RunningMetadataBytes);Assert.Equal(0,after.PendingBytes);
                     Assert.True(after.PayloadBytes>seen.PayloadBytes,$"payload {after.PayloadBytes} after, {seen.PayloadBytes} during");
                     Assert.True(after.ReservedBytes>=length+EditStorageAdmission.CaptureContingency);
+                    // The invariant admission rests on: a copy in flight is charged at least what it becomes. Charged for
+                    // less, two copies were both admitted into room for one, and the next review of the store threw -
+                    // which left the commit that had just finished unable to write its own new state down.
+                    if(scenario=="capture-gate")
+                        Assert.True(checked(seen.ChargedBytes+seen.RunningChargedBytes)>=after.ChargedBytes,
+                            $"charged {seen.ChargedBytes}+{seen.RunningChargedBytes} while copying, {after.ChargedBytes} once complete");
                 }
                 // The copy is disposed with the capture: its folder goes, and nothing of it is charged.
                 var ended=store.ReviewNativeStorageUsage(ct);
                 Assert.Equal(0,ended.Captures);Assert.Equal(0,ended.RunningEntries);Assert.Equal(0,ended.PendingBytes);
+                return;
+            }
+            if(scenario=="capture-abandoned")
+            {
+                // A commit copy abandoned where a crash would leave it: the capture's folder, its own record and a
+                // partial copy, with no receipt and no process writing it.
+                string? folder=null;
+                var failed=Record.Exception(()=>store.PrepareCommit(record,fixture,ct,()=>
+                {
+                    string? made=Directory.EnumerateDirectories(store.SessionDirectory(record),"commit-*").FirstOrDefault();
+                    if(made is null||!File.Exists(Path.Combine(made,"capture.json")))return;
+                    folder=made;throw new IOException("the copy was abandoned where a crash would leave it");
+                }));
+                Assert.NotNull(failed);Assert.NotNull(folder);
+                Assert.True(File.Exists(Path.Combine(folder,"capture.json")));
+                Assert.False(File.Exists(Path.Combine(folder,"captured.json")));
+                var left=store.ReviewNativeStorageUsage(ct);
+                Assert.Equal(1,left.Captures);
+                // Charged, so the review budget still judges it and the user is asked about it...
+                Assert.True(left.RunningPayloadBytes>=length,$"running payload {left.RunningPayloadBytes} < {length}");
+                Assert.True(left.RunningReservedBytes>=length,$"running reserve {left.RunningReservedBytes} < {length}");
+                // ...but no free space is held for bytes no living process will write.
+                Assert.Equal(0,left.PendingBytes);
+                // Another edit is still admitted beside it, and it is offered for review and removable on its own.
+                var second=Create(store,"beside.txt");Assert.NotEqual(record.Id,second.Id);
+                var retained=store.ReviewRetainedCaptures(record,ct);
+                var only=Assert.Single(retained);
+                Assert.Equal(EditCaptureRecoveryState.Interrupted,only.State);
+                var removed=store.RemoveRetainedCapture(record,only.Directory,ct);
+                Assert.True(removed.Complete,removed.Issue);
+                var cleared=store.ReviewNativeStorageUsage(ct);
+                Assert.Equal(0,cleared.Captures);Assert.Equal(0,cleared.RunningPayloadBytes);
+                Assert.Equal(0,cleared.RunningReservedBytes);Assert.Equal(0,cleared.PendingBytes);
+                Assert.True(File.Exists(record.WorkingPath));
                 return;
             }
             var before=Snapshot();
@@ -393,13 +437,14 @@ internal static class ArchiveEditStorageAdmissionCases
         internal override ContentRevision ReviewWorkingFile(FileStream file,string leaf,CancellationToken ct)=>owner.ReviewWorkingFile(file,leaf,ct);
         internal override ArchiveOriginSnapshot ReadOrigin(FileStream file,string leaf,CancellationToken ct)=>owner.ReadOrigin(file,leaf,ct);
         internal override void CopyOrigin(FileStream file,string leaf,ArchiveOriginSnapshot origin,CancellationToken ct)=>owner.CopyOrigin(file,leaf,origin,ct);
-        internal override void DeleteSnapshot(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct)=>owner.DeleteSnapshot(file,leaf,expected,ct);
+        internal override void DeleteSnapshot(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct,bool working=false)=>owner.DeleteSnapshot(file,leaf,expected,ct,working);
         internal override void RemoveEmpty(CancellationToken ct)=>owner.RemoveEmpty(ct);
         internal override IReadOnlyList<string> Names(CancellationToken ct)=>owner.Names(ct);
         internal override IReadOnlyList<string> Names(CancellationToken ct,int maximum)=>owner.Names(ct,maximum);
         internal override EditStoredFileSize MeasureStoredFile(string leaf,CancellationToken ct)=>owner.MeasureStoredFile(leaf,ct);
         internal override EditStoredDirectorySize MeasureStoredDirectory(CancellationToken ct)=>owner.MeasureStoredDirectory(ct);
         internal override string Identify(SafeFileHandle file)=>owner.Identify(file);
+        internal override string IdentifyWorking(SafeFileHandle file)=>owner.IdentifyWorking(file);
         internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)=>owner.PublishNewFile(file,source,target,expected,ct);
         internal override FileStream OpenStorageGate(CancellationToken ct)=>owner.OpenStorageGate(ct);
         internal override bool TryLockStorageGate(FileStream file,CancellationToken ct)=>owner.TryLockStorageGate(file,ct);

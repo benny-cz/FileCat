@@ -720,8 +720,8 @@ internal static class ArchiveEditCreationCases
         internal override ContentRevision ReviewWorkingFile(FileStream file, string leaf, CancellationToken ct) => owner.ReviewWorkingFile(file, leaf, ct);
         internal override ArchiveOriginSnapshot ReadOrigin(FileStream file, string leaf, CancellationToken ct) => owner.ReadOrigin(file, leaf, ct);
         internal override void CopyOrigin(FileStream file, string leaf, ArchiveOriginSnapshot origin, CancellationToken ct) => owner.CopyOrigin(file, leaf, origin, ct);
-        internal override void ReviewRemoval(FileStream file, string leaf, ArchiveFileObservation expected, CancellationToken ct) => owner.ReviewRemoval(file, leaf, expected, ct);
-        internal override void DeleteSnapshot(FileStream file, string leaf, ArchiveFileObservation expected, CancellationToken ct) => owner.DeleteSnapshot(file, leaf, expected, ct);
+        internal override void ReviewRemoval(FileStream file, string leaf, ArchiveFileObservation expected, CancellationToken ct, bool working = false) => owner.ReviewRemoval(file, leaf, expected, ct, working);
+        internal override void DeleteSnapshot(FileStream file, string leaf, ArchiveFileObservation expected, CancellationToken ct, bool working = false) => owner.DeleteSnapshot(file, leaf, expected, ct, working);
         internal override bool CanRemoveOwnedDirectories => owner.CanRemoveOwnedDirectories;
         internal override void RequireRemovable(FileStream file, string leaf) => owner.RequireRemovable(file, leaf);
         internal override void RemoveEmpty(CancellationToken ct) => owner.RemoveEmpty(ct);
@@ -733,6 +733,7 @@ internal static class ArchiveEditCreationCases
         internal override bool TryLockStorageGate(FileStream file, CancellationToken ct) => owner.TryLockStorageGate(file, ct);
         internal override FileSystemCapacitySnapshot? StorageCapacity(CancellationToken ct) => hooks.Capacity is { } capacity ? capacity() : owner.StorageCapacity(ct);
         internal override string Identify(SafeFileHandle file) => owner.Identify(file);
+        internal override string IdentifyWorking(SafeFileHandle file) => owner.IdentifyWorking(file);
         internal override void PublishNewFile(FileStream file, string source, string target, EditFileVersion expected, CancellationToken ct)
         { hooks.BeforePublish?.Invoke(target); owner.PublishNewFile(file, source, target, expected, ct); hooks.AfterPublish?.Invoke(target); }
         protected override void ReviewCore(CancellationToken ct) => owner.Review(ct);

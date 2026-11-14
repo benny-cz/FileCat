@@ -10,6 +10,7 @@ public sealed partial class EditSessionStore
     {
         void Check(){ct.ThrowIfCancellationRequested();check?.Invoke();}
         Check();using var admission=EditSnapshotAdmission.Acquire(ct);using var root=OpenNativeRoot(ct,false);
+        Action? copying=null;string copyKey="";
         // The gate admits this copy and covers the objects it makes; the bytes are copied without it, so a large member
         // or a slow read never holds up another edit (a creation has worked this way since `ef5c36d1`). While it is down
         // every process charges this capture as its record says it was admitted, not as the folder measures while it
@@ -30,13 +31,17 @@ public sealed partial class EditSessionStore
             EditDirectoryLease? files=null;FileStream? output=null;var records=new List<EditPublishedRecord>(2);
             try
             {
-                files=capture.CreateDirectory("files",ct,removable:true);
+                copyKey=capture.Identity;
+            files=capture.CreateDirectory("files",ct,removable:true);
                 string leaf=Path.GetFileName(record.WorkingPath),path=Path.Combine(files.Path,leaf);
                 records.Add(CreateRecordBytes(capture,"capture.json",JsonSerializer.SerializeToUtf8Bytes(new{Version=2,Session=record.Id,
                     SessionRecord=record.StoredRecordSha256,Directory=capture.Identity,Files=files.Identity,Leaf=leaf,
                     Admitted=revision.Length},Json),ct));
                 output=files.CreateFile(leaf,ct);
                 // Everything this copy needs exists and is admitted: the gate goes, and comes back to publish the receipt.
+                // While it is down, this is the only process that can say what this copy still has to write; after a crash
+                // nothing says it, and what is left is charged and offered for review instead.
+                copying=TrackCopyingCapture(root.Identity,copyKey,revision.Length,output.SafeFileHandle);
                 allocation.Dispose();allocation=null;
                 FileStream Borrow(long length)
                 {if(length!=revision.Length)throw new IOException("The snapshot exceeds its storage reservation.");return new(new SafeFileHandle(output.SafeFileHandle.DangerousGetHandle(),ownsHandle:false),FileAccess.ReadWrite);}
@@ -63,8 +68,41 @@ public sealed partial class EditSessionStore
                 throw; // All uncertain artifacts remain in the recorded session namespace.
             }
         }
-        finally{allocation?.Dispose();}
+        finally{try{copying?.Invoke();}finally{allocation?.Dispose();}}
     }
+
+    // Commit copies this process is making right now, by their storage root and the identity of the capture folder
+    // itself (never its name, which is not authority). The storage accounting charges such a capture as its own record
+    // says it was admitted, in every process; the free space its copy has yet to write is counted only here, where a
+    // live output handle says what is left of it.
+    private static readonly Dictionary<(string Root,string Directory),CaptureReservation> Copying=[];
+    private sealed class CaptureReservation(long working,SafeFileHandle output)
+    {
+        // What its copy still has to write: the admitted length less what the held output already holds. The handle is
+        // closed when the copy has ended, and any other failure to measure it counts all of the copy as still to come.
+        internal long Pending
+        {
+            get
+            {
+                try{return Math.Max(0,working-RandomAccess.GetLength(output));}
+                catch(ObjectDisposedException){return 0;}
+                catch(Exception error)when(error is IOException or UnauthorizedAccessException or ArgumentException or
+                    NotSupportedException or InvalidOperationException){return working;}
+            }
+        }
+    }
+    private static Action TrackCopyingCapture(string root,string directory,long working,SafeFileHandle output)
+    {
+        var key=(root,directory);
+        lock(Copying)
+        {
+            if(Copying.Count>=256)throw new IOException("Too many commit copies are being made at once. Retry when one finishes; your working files are kept.");
+            if(!Copying.TryAdd(key,new(working,output)))throw new IOException("This commit copy is already being made. Your working files are kept.");
+        }
+        return ()=>{lock(Copying)Copying.Remove(key);};
+    }
+    private static CaptureReservation? CopyingIn(string root,string directory)
+    {lock(Copying)return Copying.TryGetValue((root,directory),out var value)?value:null;}
 
     // Sessions whose native commit capture is live in this process, counted until each copy is disposed.
     private readonly Dictionary<string,int> liveCaptures=new(StringComparer.Ordinal);

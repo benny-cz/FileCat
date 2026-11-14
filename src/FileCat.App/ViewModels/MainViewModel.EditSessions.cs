@@ -200,7 +200,9 @@ public sealed partial class MainViewModel
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or
             System.ComponentModel.Win32Exception)
         {
-            if (scope.Current) { Notify($"Cannot edit \"{item.Name}\": {ex.Message}" + (kept is null ? "" : " " + Formatters.SafeName(kept)), true); said = true; }
+            // The member's own name and anything a failure quotes of it are the archive's text: shown as such.
+            if (scope.Current)
+            { Notify($"Cannot edit \"{Formatters.SafeName(item.Name)}\": {Formatters.SafeName(ex.Message)}" + (kept is null ? "" : " " + Formatters.SafeName(kept)), true); said = true; }
         }
         finally
         {
@@ -628,10 +630,11 @@ public sealed partial class MainViewModel
         try
         {
             // A copy that never got as far as its name is named by its folder's id: it is then "this unfinished copy".
-            string named = session.DisplayName == session.Id ? "this unfinished copy" : $"the unfinished copy of \"{session.DisplayName}\"";
+            string named = session.DisplayName == session.Id ? "this unfinished copy"
+                : $"the unfinished copy of \"{Formatters.SafeName(session.DisplayName)}\"";
             if (!await Dialogs.ConfirmAsync("Remove unfinished copy",
-                $"Remove {named}? FileCat did not finish making it, so it should hold nothing you wrote, " +
-                "and the file it was copied from is not changed. FileCat reviews its folder again first and keeps everything it cannot " +
+                $"Remove {named}? FileCat did not finish making it, so it holds at most part of what it was copying, " +
+                "and what it was copied from is unchanged. FileCat reviews its folder again first and keeps everything it cannot " +
                 "account for as its own unfinished work.", "Remove", danger: true))
                 return;
             CheckSessionAction();
@@ -757,7 +760,10 @@ public sealed partial class MainViewModel
         CheckSessionAction(); var local = Location.FileSystem(session.WorkingPath);
         var copy = await Services.Io.Run(Services.Providers.For(local).GetDeviceKey(local), IoPriority.Normal, _ =>
         {
-            CheckSessionAction(); return Services.EditSessions.PrepareCommit(session, Services.Paths.TempDirectory);
+            // The capture's copy of a large member asks this between its reads, so a shutdown is not held up by one:
+            // what it leaves is charged, listed as a retained copy and removable, instead of blocking the close.
+            CheckSessionAction();
+            return Services.EditSessions.PrepareCommit(session, Services.Paths.TempDirectory, check: CheckSessionAction);
         }); // Own active synchronous work until it returns, even during shutdown.
         if (!EditSessionsActive) { copy.Dispose(); throw new OperationCanceledException(); }
         return copy;

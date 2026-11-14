@@ -66,11 +66,11 @@ internal sealed partial class UnixEditDirectoryLease
         }
     }
 
-    internal override void ReviewRemoval(FileStream file, string name, ArchiveFileObservation expected, CancellationToken ct)
+    internal override void ReviewRemoval(FileStream file, string name, ArchiveFileObservation expected, CancellationToken ct, bool working = false)
     {
         lock (Gate)
         {
-            if (!ObserveSnapshot(file, name, ct, expected.Version.Length).Matches(expected))
+            if (!ObserveSnapshot(file, name, ct, expected.Version.Length, working).Matches(expected))
                 throw new IOException("The reviewed edit file changed. Its files are kept.");
             // Reviewed files that another program holds are refused before anything is removed, as Windows' sharing refuses
             // them during review; the removal takes the lease again and reviews the content under it.
@@ -99,7 +99,7 @@ internal sealed partial class UnixEditDirectoryLease
 
     // The removal of one reviewed file (DeleteSnapshot in a lease opened for discard or created removable). The Linux lease
     // is taken first and the complete content is reviewed under it, so no save can land unseen before the name goes.
-    private void RemoveReviewedFile(FileStream file, string name, ArchiveFileObservation expected, CancellationToken ct)
+    private void RemoveReviewedFile(FileStream file, string name, ArchiveFileObservation expected, CancellationToken ct, bool working)
     {
         RequireOpen(); Leaf(name); ReviewCore(ct);
         var held = file.SafeFileHandle; bool leased = false;
@@ -107,7 +107,7 @@ internal sealed partial class UnixEditDirectoryLease
         {
             if (UnixExactRemoval.TakeLease(held, What(name)) is { } refused) throw Kept(refused);
             leased = true;
-            if (!ObserveSnapshot(file, name, ct, expected.Version.Length).Matches(expected))
+            if (!ObserveSnapshot(file, name, ct, expected.Version.Length, working).Matches(expected))
                 throw new IOException("The reviewed edit file changed. Its files are kept.");
             if (UnixFiles.Stat(held) is not { IsRegular: true } facts || facts.Identity.ToString() != expected.Version.Identity ||
                 ArchiveUnixOuterMetadata.Capture(held).Native.LinkCount != 1)

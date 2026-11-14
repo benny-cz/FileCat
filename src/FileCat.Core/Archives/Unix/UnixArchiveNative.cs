@@ -80,10 +80,19 @@ internal static unsafe partial class UnixArchiveNative
         }
         finally { if (acl != 0) AclFree(acl); FileSecFree(security); }
     }
-    internal static void RequirePrivate(SafeFileHandle held, uint user)
+    /// <summary>
+    /// As <see cref="RequirePrivate"/>, for a file the user's own editor wrote: an ordinary file this user owns with no
+    /// second link, whose permission bits are whatever a normal save left (a replacement under the usual umask, or a
+    /// script the user made executable). Set-user-ID, set-group-ID and sticky bits are still refused, as is any ACL on
+    /// macOS, and the bits confer no access through the 0700 private directory that holds it.
+    /// </summary>
+    internal static void RequirePrivateWorking(SafeFileHandle held, uint user) => RequirePrivateCore(held, user, true);
+    internal static void RequirePrivate(SafeFileHandle held, uint user) => RequirePrivateCore(held, user, false);
+    private static void RequirePrivateCore(SafeFileHandle held, uint user, bool working)
     {
         var facts = UnixFiles.Stat(held);
-        if (facts is not { IsRegular: true, Owner: var owner, Mode: 0x180 } || owner != user) throw Unavailable();
+        if (facts is not { IsRegular: true, Owner: var owner, Mode: var mode } || owner != user ||
+            (working ? (mode & ~0x1ffu) != 0 : mode != 0x180)) throw Unavailable();
         if (ArchiveUnixOuterMetadata.Capture(held).Native.LinkCount != 1) throw Unavailable();
         if (Mac)
         {

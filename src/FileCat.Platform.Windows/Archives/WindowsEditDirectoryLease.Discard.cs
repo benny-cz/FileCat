@@ -45,11 +45,11 @@ internal sealed partial class WindowsEditDirectoryLease
             catch{handle.Dispose();throw;}
         }
     }
-    internal override void ReviewRemoval(FileStream file,string name,ArchiveFileObservation expected,CancellationToken ct)
+    internal override void ReviewRemoval(FileStream file,string name,ArchiveFileObservation expected,CancellationToken ct,bool working=false)
     {
         lock(Gate)
         {
-            if(!ObserveSnapshot(file,name,ct,expected.Version.Length).Matches(expected))
+            if(!ObserveSnapshot(file,name,ct,expected.Version.Length,working).Matches(expected))
                 throw new IOException("The reviewed edit file changed. Its files are kept.");
             WindowsArchiveNative.RequireSnapshotStreams(file.SafeFileHandle,expected.Version.Length,expected.Origin);
         }

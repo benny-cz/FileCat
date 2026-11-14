@@ -9,13 +9,16 @@ namespace FileCat.Core.Edit;
 /// cannot be measured), which free space must still hold.
 /// </summary>
 internal sealed record EditStorageUsage(string RootIdentity,int Sessions,int Captures,int Directories,int Files,long PayloadBytes,long MetadataBytes,long ReservedBytes=0,
-    long PendingBytes=0,int RunningSessions=0,int RunningEntries=0,long RunningPayloadBytes=0,long RunningMetadataBytes=0)
+    long PendingBytes=0,int RunningSessions=0,int RunningEntries=0,long RunningPayloadBytes=0,long RunningMetadataBytes=0,
+    long RunningReservedBytes=0)
 {
     internal long ChargedBytes=>checked(PayloadBytes+MetadataBytes+ReservedBytes);
-    // What copies still running are charged at (as they were admitted, not as they are measured). A new copy is admitted
-    // beside them; a record of work already done is judged without them, so a copy in flight never stops FileCat from
-    // writing down what it has already finished.
-    internal long RunningChargedBytes=>checked(RunningPayloadBytes+RunningMetadataBytes);
+    // What copies still running are charged at (as they were admitted, not as they are measured), including what they
+    // will reserve once they are done: a commit copy reserves its own length again, so charging only its payload while
+    // the gate is down let a second copy be admitted into room the first will take, and the budget was then exceeded by
+    // the whole of one copy. A new copy is admitted beside these; a record of work already done is judged without them,
+    // so a copy in flight never stops FileCat from writing down what it has already finished.
+    internal long RunningChargedBytes=>checked(RunningPayloadBytes+RunningMetadataBytes+RunningReservedBytes);
 }
 
 internal sealed record EditStorageReviewLimits(int Entries=8192,int Sessions=128,int Captures=128,

@@ -41,13 +41,13 @@ internal abstract class EditDirectoryLease : IDisposable
     internal abstract FileCat.Core.Resources.ContentRevision ReviewWorkingFile(FileStream file,string leaf,CancellationToken ct);
     internal abstract ArchiveOriginSnapshot ReadOrigin(FileStream file,string leaf,CancellationToken ct);
     internal abstract void CopyOrigin(FileStream file,string leaf,ArchiveOriginSnapshot origin,CancellationToken ct);
-    internal abstract void DeleteSnapshot(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct);
+    internal abstract void DeleteSnapshot(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct,bool working=false);
     internal virtual bool CanDiscardReviewedSession=>false;
     internal virtual EditDirectoryLease OpenDiscardDirectory(string leaf,string? expectedIdentity,CancellationToken ct)
         =>throw new NotSupportedException("FileCat cannot safely discard this edit on this system. Its files are kept.");
     internal virtual FileStream OpenDiscardFile(string leaf,string? expectedIdentity,CancellationToken ct)
         =>throw new NotSupportedException("FileCat cannot safely discard this edit on this system. Its files are kept.");
-    internal virtual void ReviewRemoval(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct)
+    internal virtual void ReviewRemoval(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct,bool working=false)
         =>throw new NotSupportedException("FileCat cannot safely remove this file. Its files are kept.");
     internal virtual bool CanRemoveOwnedDirectories=>false;
     // Whether a reviewed file could be removed now: on Linux its removal's lease is granted (no other program holds it),
@@ -67,6 +67,11 @@ internal abstract class EditDirectoryLease : IDisposable
     internal virtual bool TryLockStorageGate(FileStream file,CancellationToken ct)=>throw new NotSupportedException("Native storage admission is unavailable.");
     internal virtual FileCat.Core.FileSystem.FileSystemCapacitySnapshot? StorageCapacity(CancellationToken ct)=>null;
     internal abstract string Identify(SafeFileHandle file);
+    // The same identity for a file the user's editor wrote: an ordinary file this user owns with no second link, whose
+    // permissions are whatever a normal save left (its private directory's own privacy is what keeps it private, and is
+    // reviewed on every operation). FileCat's own records are identified by the stricter rule above, where permissions
+    // other than the ones FileCat wrote mean the record is not FileCat's any more.
+    internal virtual string IdentifyWorking(SafeFileHandle file)=>Identify(file);
     internal abstract void PublishNewFile(FileStream file,string sourceLeaf,string targetLeaf,EditFileVersion expected,CancellationToken ct);
     protected abstract void ReviewCore(CancellationToken ct);
     protected abstract void CloseCore();
@@ -101,10 +106,11 @@ internal abstract class EditDirectoryLease : IDisposable
         catch (System.Text.EncoderFallbackException error) { throw new ArgumentException("The edit filename has invalid Unicode.", nameof(value), error); }
     }
     internal static void ValidateLeaf(string value)=>Leaf(value);
-    internal EditFileVersion Inspect(FileStream file,CancellationToken ct,long maximumBytes=EditSessionStore.MaxMemberBytes)
+    internal EditFileVersion Inspect(FileStream file,CancellationToken ct,long maximumBytes=EditSessionStore.MaxMemberBytes,bool working=false)
     {
         ct.ThrowIfCancellationRequested();file.Flush();
-        string identity=Identify(file.SafeFileHandle);long length=RandomAccess.GetLength(file.SafeFileHandle);
+        string identity=working?IdentifyWorking(file.SafeFileHandle):Identify(file.SafeFileHandle);
+        long length=RandomAccess.GetLength(file.SafeFileHandle);
         if(maximumBytes<0||maximumBytes>EditSessionStore.MaxMemberBytes||length<0||length>maximumBytes)throw new IOException("The edit artifact exceeds its byte budget.");
         using var hash=IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         byte[] buffer=length==0?[]:new byte[(int)Math.Min(1024*1024,length)];long offset=0;
@@ -114,17 +120,20 @@ internal abstract class EditDirectoryLease : IDisposable
             if(count<=0)throw new IOException("The edit artifact ended during complete inspection.");hash.AppendData(buffer,0,count);offset+=count;
         }
         ct.ThrowIfCancellationRequested();
-        if(RandomAccess.GetLength(file.SafeFileHandle)!=length||Identify(file.SafeFileHandle)!=identity)throw new IOException("The held edit artifact changed during inspection.");
+        if(RandomAccess.GetLength(file.SafeFileHandle)!=length||
+            (working?IdentifyWorking(file.SafeFileHandle):Identify(file.SafeFileHandle))!=identity)throw new IOException("The held edit artifact changed during inspection.");
         return new(identity,length,Convert.ToHexString(hash.GetHashAndReset()));
     }
-    internal ArchiveFileObservation ObserveSnapshot(FileStream file,string leaf,CancellationToken ct,long maximumBytes=EditSessionStore.MaxMemberBytes)
+    internal ArchiveFileObservation ObserveSnapshot(FileStream file,string leaf,CancellationToken ct,long maximumBytes=EditSessionStore.MaxMemberBytes,
+        bool working=false)
     {
         lock(Gate)
         {
             RequireOpen();Leaf(leaf);var before=ReviewWorkingFile(file,leaf,ct);
-            var origin=ReadOrigin(file,leaf,ct);var version=Inspect(file,ct,maximumBytes);
+            var origin=ReadOrigin(file,leaf,ct);var version=Inspect(file,ct,maximumBytes,working);
             var after=ReviewWorkingFile(file,leaf,ct);
-            if(before!=after||origin.Digest!=ReadOrigin(file,leaf,ct).Digest||version.Identity!=Identify(file.SafeFileHandle))
+            if(before!=after||origin.Digest!=ReadOrigin(file,leaf,ct).Digest||
+                version.Identity!=(working?IdentifyWorking(file.SafeFileHandle):Identify(file.SafeFileHandle)))
                 throw new IOException("The native commit snapshot changed during complete review.");
             string metadata=Convert.ToHexString(SHA256.HashData(ArchiveWritePolicy.Utf8.GetBytes(
                 before.NativeId+"\0"+before.ModifiedTicks.ToString(System.Globalization.CultureInfo.InvariantCulture)+"\0"+origin.Digest)));

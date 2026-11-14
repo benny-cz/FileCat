@@ -16,7 +16,8 @@ internal static class ArchiveEditDiscardCases
         "record-changed","record-missing","marker-changed","marker-unknown","marker-origin","extra-session","extra-working",
         "extra-capture","extra-payload","capture-header","capture-receipt","capture-payload","intent-corrupt",
         "replaced-session","replaced-files","replaced-after-review","changed-after-review","extra-after-review","no-factory",
-        "stage-session","aside-working","aside-missing"}
+        "stage-session","aside-working","aside-missing","replaced-working","stage-capture","aside-capture-payload",
+        "capture-payload-gone","capture-payload-emptied"}
         .Select(value=>new object[]{value});
 
     internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations fs)
@@ -71,6 +72,18 @@ internal static class ArchiveEditDiscardCases
                 if(scenario=="capture-receipt")Change(Path.Combine(capture,"captured.json"),"Sha256",new string('A',64));
                 if(scenario=="capture-payload")File.WriteAllText(Path.Combine(capture,"files","owned.txt"),"keep changed captured bytes");
                 if(scenario=="intent-corrupt")File.WriteAllText(Path.Combine(capture,EditSaveCopyIntent.FileName),"{");
+                // FileCat's own interrupted work inside one retained copy: the stage of a record this commit was
+                // publishing (a capture's records are staged like an edit's), a name an interrupted exact removal set
+                // aside, and the payload - or the payload's whole folder - that a stopped removal already took, since
+                // this removal takes them before the copy's own records.
+                if(scenario=="stage-capture")Own(capture,".record-"+Guid.NewGuid().ToString("N")+".tmp","a capture record this commit was publishing");
+                if(scenario=="aside-capture-payload")
+                    Own(Path.Combine(capture,"files"),".filecat-removing-"+Guid.NewGuid().ToString("N"),"what a stopped removal set aside");
+                if(scenario is "capture-payload-gone" or "capture-payload-emptied")
+                {
+                    File.Delete(Path.Combine(capture,"files","owned.txt"));
+                    if(scenario=="capture-payload-gone")Directory.Delete(Path.Combine(capture,"files"));
+                }
             }
             if(scenario=="revision")record=store.Save(record with{LastCommitUtc=DateTime.UtcNow});
             if(scenario=="stale-record")store.Save(record with{LastCommitUtc=DateTime.UtcNow});
@@ -90,6 +103,18 @@ internal static class ArchiveEditDiscardCases
                 // Retain writable pages after the original file handle closes, as an editor can.
             }
             if(scenario=="late-working")File.WriteAllText(record.WorkingPath,"keep the later editor save");
+            // An editor that saves by replacing the file, which most do: the new object carries the private folder's
+            // inherited permissions instead of the ones FileCat writes on its own files, and an ordinary umask leaves
+            // group and other read bits (the user may also make a script being edited executable). FileCat's review of a
+            // working copy has always accepted that - such an edit commits - so its discard must accept it too, instead
+            // of leaving an edit that can never be discarded from inside FileCat.
+            if(scenario=="replaced-working")
+            {
+                byte[] saved=Read(record.WorkingPath);string replacement=record.WorkingPath+".editor-save";
+                File.WriteAllBytes(replacement,saved);File.Move(replacement,record.WorkingPath,true);
+                if(!OperatingSystem.IsWindows())File.SetUnixFileMode(record.WorkingPath,UnixFileMode.UserRead|UnixFileMode.UserWrite|
+                    UnixFileMode.UserExecute|UnixFileMode.GroupRead|UnixFileMode.OtherRead);
+            }
             if(scenario=="wrong-review")reviewed=reviewed with{Sha256=new string('A',64)};
             if(scenario=="unavailable-review")reviewed=new(EditState.Unavailable,null);
             if(scenario=="record-changed")Change(Path.Combine(session,"session.json"),"ServerDisplay","changed state");
@@ -131,7 +156,8 @@ internal static class ArchiveEditDiscardCases
             bool seesEditors=!OperatingSystem.IsMacOS();
             bool success=scenario is "working" or "empty" or "missing" or "revision" or "record-time" or "origin" or "complete-capture" or
                 "old-capture" or "interrupted-empty" or "interrupted-partial" or "saved-intent" or "stage-session" or "aside-working" or
-                "aside-missing"||!seesEditors&&scenario is "open-editor" or "mapped-editor";
+                "aside-missing" or "replaced-working" or "stage-capture" or "aside-capture-payload" or "capture-payload-gone" or
+                "capture-payload-emptied"||!seesEditors&&scenario is "open-editor" or "mapped-editor";
             if(success)
             {
                 Assert.Null(error);Assert.NotNull(result);Assert.True(result.Complete,result.Issue);Assert.False(Directory.Exists(session));
@@ -221,9 +247,9 @@ internal static class ArchiveEditDiscardCases
         internal override ContentRevision ReviewWorkingFile(FileStream file,string leaf,CancellationToken ct)=>owner.ReviewWorkingFile(file,leaf,ct);
         internal override ArchiveOriginSnapshot ReadOrigin(FileStream file,string leaf,CancellationToken ct)=>owner.ReadOrigin(file,leaf,ct);
         internal override void CopyOrigin(FileStream file,string leaf,ArchiveOriginSnapshot origin,CancellationToken ct)=>owner.CopyOrigin(file,leaf,origin,ct);
-        internal override void ReviewRemoval(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct)=>owner.ReviewRemoval(file,leaf,expected,ct);
-        internal override void DeleteSnapshot(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct)
-        {owner.DeleteSnapshot(file,leaf,expected,ct);faults.RemovedFile();}
+        internal override void ReviewRemoval(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct,bool working=false)=>owner.ReviewRemoval(file,leaf,expected,ct,working);
+        internal override void DeleteSnapshot(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct,bool working=false)
+        {owner.DeleteSnapshot(file,leaf,expected,ct,working);faults.RemovedFile();}
         internal override bool CanRemoveOwnedDirectories=>owner.CanRemoveOwnedDirectories;
         internal override void RemoveEmpty(CancellationToken ct){faults.RemoveDirectory(Path);owner.RemoveEmpty(ct);}
         internal override IReadOnlyList<string> Names(CancellationToken ct)=>owner.Names(ct);
@@ -234,6 +260,7 @@ internal static class ArchiveEditDiscardCases
         internal override bool TryLockStorageGate(FileStream file,CancellationToken ct)=>owner.TryLockStorageGate(file,ct);
         internal override FileSystemCapacitySnapshot? StorageCapacity(CancellationToken ct)=>owner.StorageCapacity(ct);
         internal override string Identify(SafeFileHandle file)=>owner.Identify(file);
+        internal override string IdentifyWorking(SafeFileHandle file)=>owner.IdentifyWorking(file);
         internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)=>owner.PublishNewFile(file,source,target,expected,ct);
         protected override void ReviewCore(CancellationToken ct)=>owner.Review(ct);
         protected override void CloseCore()=>owner.Dispose();

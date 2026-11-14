@@ -20,12 +20,14 @@ internal sealed class EditStorageAdmission:IDisposable
     private EditStorageAdmission(EditDirectoryLease root,FileStream file,EditFileVersion version,FileCat.Core.Resources.ContentRevision metadataVersion,ProcessGate process)
     {this.root=root;this.file=file;this.version=version;this.metadataVersion=metadataVersion;this.process=process;}
     /// <summary>
-    /// Takes the gate, waiting up to <paramref name="wait"/> (30 seconds by default) for this process's and other processes'
-    /// writers. A copy whose bytes are already made waits longer to publish or remove them rather than lose its work.
+    /// Takes the gate, waiting up to <paramref name="wait"/> in all (30 seconds by default) for this process's writers and
+    /// then for other processes': one budget, so a caller's own wait is the wait. A copy whose bytes are already made waits
+    /// longer to publish or remove them rather than lose its work.
     /// </summary>
     internal static EditStorageAdmission Acquire(EditDirectoryLease root,CancellationToken ct,TimeSpan? wait=null)
     {
         ct.ThrowIfCancellationRequested();ProcessGate process;TimeSpan limit=wait??TimeSpan.FromSeconds(30);
+        var watch=Stopwatch.StartNew();
         lock(MapLock)
         {
             if(!Gates.TryGetValue(root.Identity,out process!))
@@ -37,7 +39,6 @@ internal sealed class EditStorageAdmission:IDisposable
         {
             if(!process.Semaphore.Wait(limit,ct))throw Busy();held=true;
             root.Review(ct);file=root.OpenStorageGate(ct);
-            var watch=Stopwatch.StartNew();
             while(!root.TryLockStorageGate(file,ct))
             {
                 if(watch.Elapsed>=limit)throw Busy();

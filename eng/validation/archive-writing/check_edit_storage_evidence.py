@@ -30,7 +30,9 @@ import tarfile
 import zipfile
 from pathlib import Path
 
-GATE = 'FILECAT_EDIT_NATIVE_REQUIRED=1'
+GATE_NAME = 'FILECAT_EDIT_NATIVE_REQUIRED'
+GATE_VALUE = '1'
+GATE = GATE_NAME + '=' + GATE_VALUE
 
 # The pins a listing stands on, by their method names (each lives in the suite its platform runs: the application's
 # composition pin, the Core route list, and the dual-root case in the platform's own storage tests).
@@ -45,6 +47,8 @@ PINS = (
 STEP_ASIDE = (
     'Native edit storage cannot be held for this test folder',
     'Native edit storage refuses an elevated or root process',
+    'Native edit storage requires an unelevated process.',
+    'Native edit storage refuses root; run as an ordinary user.',
     'is not a listed native edit storage route for',
 )
 
@@ -98,8 +102,8 @@ class Archive:
                 handle.close()
 
 
-def machine_env(archive: Archive) -> str:
-    """The environment the runner recorded for this run, however its machine record is shaped."""
+def machine_env(archive: Archive) -> str | None:
+    """The environment the runner recorded for this run, however its machine record is shaped (None: no record at all)."""
     for leaf in ('machine.json', 'machine.txt'):
         for name in archive.find(leaf):
             text = archive.read(name)
@@ -109,7 +113,23 @@ def machine_env(archive: Archive) -> str:
                 except json.JSONDecodeError:
                     return text
             return text
-    return ''
+    return None
+
+
+def gate_value(recorded: str) -> str | None:
+    """What this run set the gate to, or None if it did not set it at all.
+
+    A substring test is not enough. Every reader of this variable compares it to "1" exactly, and both runners pass a
+    value through verbatim, so a run recording `FILECAT_EDIT_NATIVE_REQUIRED=10` had no gate at all: its native edit
+    tests skipped where they were meant to fail, and its composition pin was never armed.
+    """
+    # The Unix runner writes one `env=NAME=VALUE` line per variable; the Windows one records them in one
+    # semicolon-separated string. So each item is read with its own `env=` prefix removed before its first `=`.
+    for item in re.split(r'[;\s]+', recorded):
+        name, separator, value = item.strip().removeprefix('env=').removeprefix('env:').partition('=')
+        if separator and name.strip() == GATE_NAME:
+            return value.strip()
+    return None
 
 
 def outcomes(archive: Archive) -> dict[str, set[str]]:
@@ -129,8 +149,14 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
     problems: list[str] = []
     facts: dict[str, object] = {}
     with Archive(path) as archive:
-        if GATE not in machine_env(archive):
-            problems.append('its machine record does not name ' + GATE)
+        recorded = machine_env(archive)
+        if recorded is None:
+            problems.append('it carries no machine record, so nothing in it says the gate was in force')
+        elif (value := gate_value(recorded)) is None:
+            problems.append('its machine record does not name ' + GATE_NAME)
+        elif value != GATE_VALUE:
+            problems.append('its machine record sets %s to %r, not %r, so a native edit test could step aside'
+                            % (GATE_NAME, value, GATE_VALUE))
         summaries = archive.find('summary.json')
         if not summaries:
             return problems + ['it carries no summary.json'], facts
@@ -144,9 +170,26 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
         for name, counters in suites.items():
             if int(counters.get('failed', 0)) != 0:
                 problems.append('suite %s has %s failures' % (name, counters['failed']))
-        for name in archive.find('status.txt'):
+        # The runner's own verdict on the run, which catches what the counters cannot: a test host that died, a lane
+        # whose rows and counters disagree, a suite that never reported at all.
+        if summary.get('ok') is not True:
+            problems.append('the runner did not call this run ok')
+        codes = summary.get('exit_codes')
+        if not isinstance(codes, dict) or not codes:
+            problems.append('its summary carries no exit code')
+        else:
+            for name, code in sorted(codes.items()):
+                if code != 0:
+                    problems.append('suite %s exited %s' % (name, code))
+        # A file that is not there is not a check that passed: each of these carries one of the requirements above.
+        statuses = archive.find('status.txt')
+        if not statuses:
+            problems.append('it carries no status.txt')
+        for name in statuses:
             if archive.read(name).strip() != 'PASS':
                 problems.append('its status is not PASS')
+        if not archive.leaves(prefix='test-'):
+            problems.append('it carries no test output to read')
         results = outcomes(archive)
         if not results:
             problems.append('it carries no test results to read')
@@ -155,10 +198,18 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
             matching = {test: outcome for test, outcome in results.items() if test.split('(')[0].endswith(pin)}
             if not matching:
                 problems.append('it does not hold the pin ' + pin)
-            elif any(outcome != {'Passed'} for outcome in matching.values()):
-                problems.append('the pin %s is not Passed: %s' % (pin, sorted(
-                    sorted(outcome) for outcome in matching.values())))
-            pins[pin] = sorted(matching)
+            else:
+                # The dual-root pin is the same method name in the Core suite's Unix class and in the Windows platform
+                # suite's own class, and a Windows run carries both: there the Unix one is NotExecuted, with "Run the
+                # Windows native storage lane." for its reason. So a pin stands when it passed somewhere in this run and
+                # failed nowhere - a renamed, re-filtered or dropped pin still has no Passed row anywhere.
+                wrong = {test: sorted(outcome) for test, outcome in matching.items()
+                         if not outcome <= {'Passed', 'NotExecuted'}}
+                if wrong:
+                    problems.append('the pin %s did not pass: %s' % (pin, sorted(wrong.items())))
+                elif not any('Passed' in outcome for outcome in matching.values()):
+                    problems.append('no case of the pin %s ran: %s' % (pin, sorted(matching)))
+            pins[pin] = sorted('%s %s' % (test, '+'.join(sorted(outcome))) for test, outcome in matching.items())
         facts['pins'] = pins
         for log in archive.leaves(prefix='test-'):
             text = archive.read(log)
@@ -180,7 +231,14 @@ def main() -> int:
             lines.append('%s: missing' % path.name)
             failed = True
             continue
-        problems, facts = check(path)
+        try:
+            problems, facts = check(path)
+        except (OSError, zipfile.BadZipFile, tarfile.TarError, json.JSONDecodeError, ValueError, TypeError,
+                AttributeError, KeyError) as error:
+            failed = True
+            lines.append('%s: NOT edit-storage evidence' % path.name)
+            lines.append('    it cannot be read as a sealed run: %s: %s' % (type(error).__name__, error))
+            continue
         if problems:
             failed = True
             lines.append('%s: NOT edit-storage evidence' % path.name)

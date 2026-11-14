@@ -415,7 +415,7 @@ public sealed partial class EditSessionStore
                 if(!read)return (UncheckedReason,false); // Its marker could not be read just now.
                 // Read, but naming no working file: FileCat never writes such a marker, so the folder is kept whole.
                 if(leaf is null)return (IncompleteEditReason,false);
-                var (written,measured)=Written(session,leaf);
+                var (written,measured)=Written(session,leaf,default);
                 if(!measured)return (UncheckedReason,false); // Its copy could not be measured just now.
                 if(written is null)return (InterruptedCreationReason,false); // No copy: nothing of the user's.
                 if(!recorded)return (IncompleteEditReason,false); // An earlier build's marker does not say how long.

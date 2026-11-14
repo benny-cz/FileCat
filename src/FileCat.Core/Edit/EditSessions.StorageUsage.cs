@@ -16,11 +16,11 @@ public sealed partial class EditSessionStore
     private static EditStorageUsage MeasureNativeStorageUsage(EditDirectoryLease root,EditStorageReviewLimits limits,CancellationToken ct)
     {
         int entries=0,sessions=0,captures=0,directories=0,files=0,runningSessions=0,runningEntries=0;
-        long payload=0,metadata=0,reserved=0,pending=0,runningPayload=0,runningMetadata=0;
+        long payload=0,metadata=0,reserved=0,pending=0,runningPayload=0,runningMetadata=0,runningReserved=0;
         Walk(root,0,false);
         if(captures>limits.Entries-entries)throw Limit();
         return new(root.Identity,sessions,captures,directories,files,payload,metadata,reserved,pending,
-            runningSessions,runningEntries,runningPayload,runningMetadata);
+            runningSessions,runningEntries,runningPayload,runningMetadata,runningReserved);
 
         void Charge(long length,long auxiliary)
         {
@@ -51,7 +51,7 @@ public sealed partial class EditSessionStore
                 runningSessions++;runningEntries+=5;
                 runningPayload=checked(runningPayload+admitted+2L*MaxRecordBytes);
                 runningMetadata=checked(runningMetadata+4*EditStorageAdmission.MetadataPerEntry);
-                pending=checked(pending+Math.Max(0,admitted-(Written(directory,leaf).Length??0)));
+                pending=checked(pending+Math.Max(0,admitted-(Written(directory,leaf,ct).Length??0)));
                 return;
             }
             foreach(string name in names)
@@ -86,20 +86,27 @@ public sealed partial class EditSessionStore
                 {
                     if(name.Length!=39||!Guid.TryParseExact(name.AsSpan(7),"N",out _))throw Unknown();
                     if(++captures>limits.Captures)throw Limit();
-                    if(AdmittedCapture(directory,name) is { } room)
+                    if(AdmittedCapture(directory,name,ct) is { } room)
                     {
                         // A copy still being made (its record says how long it was admitted to be and its receipt is not
-                        // there): charged as it was admitted - its two folders, its record and its copy - and not measured
-                        // while it grows, so the review budget still judges what the store holds. Free space must hold
-                        // what it has yet to write. A capture an earlier build made, or one a crash left without this
-                        // field, is measured as before; one this build left is charged until its retained copy is
-                        // reviewed, which is what the user is asked to do.
+                        // there): charged as its admission demanded - its two folders, its two files, the payload and the
+                        // reserve a retained copy of that payload takes - and not measured while it grows, so the review
+                        // budget still judges what the store holds and a second copy is not admitted into room this one
+                        // will take. A capture an earlier build made, or one a crash left without this field, is measured
+                        // as before; one this build left is charged until its retained copy is reviewed, which is what the
+                        // user is asked to do.
                         if(4>limits.Entries-entries)throw Limit();
                         entries+=4;directories+=2;files+=2;
+                        long admittedBytes=Math.Max(room.Admitted,room.Written??0);
                         runningEntries+=4;
-                        runningPayload=checked(runningPayload+room.Admitted);
-                        runningMetadata=checked(runningMetadata+3*EditStorageAdmission.MetadataPerEntry);
-                        pending=checked(pending+Math.Max(0,room.Admitted-(room.Written??0)));
+                        runningPayload=checked(runningPayload+admittedBytes+2L*MaxRecordBytes);
+                        runningMetadata=checked(runningMetadata+4*EditStorageAdmission.MetadataPerEntry);
+                        runningReserved=checked(runningReserved+admittedBytes+EditStorageAdmission.CaptureContingency);
+                        // Only the process writing a copy can say that it is still coming, and what is left of it. A
+                        // capture a crash or a failed copy left behind has no such writer: holding free space for bytes
+                        // nobody will ever write refused later edits on a volume that had room for them, and said the
+                        // volume was full. It is still charged above, listed as interrupted, and offered for review.
+                        if(CopyingIn(root.Identity,room.Identity) is { } live)pending=checked(pending+live.Pending);
                         continue;
                     }
                     Reserve(EditStorageAdmission.CaptureContingency);childDirectory=true;childLevel=2;
@@ -152,18 +159,19 @@ public sealed partial class EditSessionStore
     // What a running copy has written so far: its working file's current length, or null with Measured when there is no such
     // file. A copy another process is writing is refused by its own size review, so three attempts a moment apart are made;
     // Measured is false when none of them answered, and all of the copy then counts as still to be written.
-    private static (long? Length,bool Measured) Written(EditDirectoryLease session,string? leaf)
+    private static (long? Length,bool Measured) Written(EditDirectoryLease session,string? leaf,CancellationToken ct)
     {
         // A marker whose working name is unusable names no copy FileCat made, as its own review would refuse it.
         if(string.IsNullOrEmpty(leaf))return (null,true);
         try{EditDirectoryLease.ValidateLeaf(leaf);}catch(ArgumentException){return (null,true);}
         for(int attempt=0;attempt<3;attempt++)
         {
+            ct.ThrowIfCancellationRequested();
             try
             {
-                using var files=session.OpenStorageDirectory("files",default);
-                if(!files.Names(default,8192).Contains(leaf,StringComparer.Ordinal))return (null,true);
-                return (Math.Max(0,files.MeasureStoredFile(leaf,default).Length),true);
+                using var files=session.OpenStorageDirectory("files",ct);
+                if(!files.Names(ct,8192).Contains(leaf,StringComparer.Ordinal))return (null,true);
+                return (Math.Max(0,files.MeasureStoredFile(leaf,ct).Length),true);
             }
             // The working folder itself is gone: a removal took it, so there is no copy (an answer, not a failure).
             catch(Exception error)when(IsMissing(error)){return (null,true);}
@@ -176,19 +184,21 @@ public sealed partial class EditSessionStore
     // one) with no receipt beside it, and what its copy already holds. Null when the folder is not that - no record, an
     // earlier build's record, a receipt already written, or anything this review cannot read, all of which are measured
     // as the store's own bytes instead.
-    private static (long Admitted,long? Written)? AdmittedCapture(EditDirectoryLease session,string name)
+    private static (long Admitted,long? Written,string Identity)? AdmittedCapture(EditDirectoryLease session,string name,CancellationToken ct)
     {
         try
         {
-            using var capture=session.OpenStorageDirectory(name,default);
-            var names=capture.Names(default,8192);
+            using var capture=session.OpenStorageDirectory(name,ct);
+            var names=capture.Names(ct,8192);
             if(names.Contains("captured.json",StringComparer.Ordinal)||!names.Contains("capture.json",StringComparer.Ordinal))return null;
-            using var record=capture.OpenSharedRecord("capture.json",default);
+            using var record=capture.OpenSharedRecord("capture.json",ct);
             if(record.Length>MaximumCaptureRecordBytes)return null;
             byte[] bytes=new byte[checked((int)record.Length)];record.ReadExactly(bytes);
             var facts=ParseCaptureRecord(bytes,false);
-            if(facts.Admitted is not { } admitted)return null;
-            return (admitted,Written(capture,facts.Leaf).Length);
+            // A record that does not name the folder it is in speaks for no copy being made here (a stale or hand-made
+            // one), and the folder is measured as the bytes it holds instead.
+            if(facts.Admitted is not { } admitted||facts.Directory!=capture.Identity)return null;
+            return (admitted,Written(capture,facts.Leaf,ct).Length,capture.Identity);
         }
         catch(Exception error)when(IsStorageFailure(error)||error is System.Text.Json.JsonException or ArgumentException or
             InvalidOperationException or NotSupportedException)

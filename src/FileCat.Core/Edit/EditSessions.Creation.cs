@@ -198,8 +198,12 @@ public sealed partial class EditSessionStore
                         ?"FileCat removed the copy it had made of “"+leaf+"” but kept its folder at "+folder+": "+Sentence(kept)+
                             " Review it in File → Edit sessions."
                         :WorkingKept()&&copied
+                        // A whole copy with no record: FileCat cannot tell such a copy from an edit of the user's, so it
+                        // keeps it whole and the list offers no removal for it. The way out is said here instead of
+                        // sending the user to a row that cannot act.
                         ?"FileCat could not complete the edit of “"+leaf+"” and could not remove the copy it had made, so that copy is kept at "+
-                            folder+": "+Sentence(kept)+" Review it in File → Edit sessions."
+                            folder+": "+Sentence(kept)+" FileCat lists it in File → Edit sessions and keeps it; open its folder from there to see "+
+                            "the copy, which is yours to delete once you no longer need it."
                         :workingIdentity is null
                         ?"FileCat kept the folder it had started for the copy of “"+leaf+"” at "+folder+": "+Sentence(kept)+
                             " It is listed in File → Edit sessions for review."

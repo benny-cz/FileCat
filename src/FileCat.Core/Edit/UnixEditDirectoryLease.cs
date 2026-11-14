@@ -133,13 +133,13 @@ internal sealed partial class UnixEditDirectoryLease : EditDirectoryLease
     {lock(Gate){ReviewWorkingFile(file,name,ct);return ArchiveUnixOrigin.Read(file.SafeFileHandle,ct);}}
     internal override void CopyOrigin(FileStream file,string name,ArchiveOriginSnapshot origin,CancellationToken ct)
     {lock(Gate){ReviewWorkingFile(file,name,ct);ArchiveUnixOrigin.CopyToNewWorkingFile(file.SafeFileHandle,origin,ct);ReviewWorkingFile(file,name,ct);}}
-    internal override void DeleteSnapshot(FileStream file,string name,ArchiveFileObservation expected,CancellationToken ct)
+    internal override void DeleteSnapshot(FileStream file,string name,ArchiveFileObservation expected,CancellationToken ct,bool working=false)
     {
         lock(Gate)
         {
             // Only a lease opened for a reviewed discard or created removable (a commit capture) removes; other cleanup keeps
             // (UnixEditDirectoryLease.Discard.cs). The removal reviews the complete content itself, under the Linux lease.
-            if(discard){RemoveReviewedFile(file,name,expected,ct);return;}
+            if(discard){RemoveReviewedFile(file,name,expected,ct,working);return;}
             ReviewCore(ct); // No unlink is attempted; retaining an artifact does not need another full payload read.
             throw new IOException("The private commit snapshot is kept for native cleanup review: "+Path);
         }
@@ -154,6 +154,8 @@ internal sealed partial class UnixEditDirectoryLease : EditDirectoryLease
     }
     internal override string Identify(SafeFileHandle file)
     {UnixArchiveNative.RequirePrivate(file,user);return UnixFiles.Stat(file)!.Value.Identity.ToString();}
+    internal override string IdentifyWorking(SafeFileHandle file)
+    {UnixArchiveNative.RequirePrivateWorking(file,user);return UnixFiles.Stat(file)!.Value.Identity.ToString();}
     internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)
     {
         lock(Gate)

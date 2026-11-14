@@ -183,11 +183,11 @@ internal sealed partial class WindowsEditDirectoryLease : EditDirectoryLease
     }
     internal override void CopyOrigin(FileStream file,string name,ArchiveOriginSnapshot origin,CancellationToken ct)
     {lock(Gate){ReviewWorkingFile(file,name,ct);WindowsArchiveEditOrigin.Copy(file,directory,name,origin,ct);ReviewWorkingFile(file,name,ct);}}
-    internal override void DeleteSnapshot(FileStream file,string name,ArchiveFileObservation expected,CancellationToken ct)
+    internal override void DeleteSnapshot(FileStream file,string name,ArchiveFileObservation expected,CancellationToken ct,bool working=false)
     {
         lock(Gate)
         {
-            ReviewRemoval(file,name,expected,ct);
+            ReviewRemoval(file,name,expected,ct,working);
             try{WindowsArchiveNative.DeleteExact(file.SafeFileHandle);file.Dispose();}
             catch(System.ComponentModel.Win32Exception error){throw new IOException("The private edit file could not be removed: "+Path,error);}
         }
@@ -213,6 +213,11 @@ internal sealed partial class WindowsEditDirectoryLease : EditDirectoryLease
     }
     internal override string Identify(SafeFileHandle file)
     {WindowsArchiveNative.Regular(file,FileCat.Core.Edit.EditSessionStore.MaxMemberBytes,true,false);WindowsArchiveNative.RequirePrivateSecurity(file,owner);return ProtectedHexFile.Identity(file).ToString();}
+    // A file the user's editor wrote: an editor that saves by replacing it makes a new object that inherits the private
+    // directory's permissions instead of carrying FileCat's own protected ones, which this build's working-file review
+    // has always accepted (and which is what the directory's privacy, reviewed here too, is for).
+    internal override string IdentifyWorking(SafeFileHandle file)
+    {WindowsArchiveNative.Regular(file,FileCat.Core.Edit.EditSessionStore.MaxMemberBytes,true,false);WindowsArchiveNative.RequirePrivateEditSecurity(file,owner,false);return ProtectedHexFile.Identity(file).ToString();}
     internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)
     {
         lock(Gate)
