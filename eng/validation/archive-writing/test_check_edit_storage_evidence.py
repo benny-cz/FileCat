@@ -33,8 +33,9 @@ def measuring(log_path):
     one that changes only a message. Every case then runs to its end with each assertion that does not hold written
     down instead of raised, and the verdict of every call a case makes into the check - an archive accepted (on the
     system it names) or refused, a listing whole or not, a repeated name or none, main()'s exit code with its report's
-    verdict lines, or what it raised - is written down beside them, for the outermost call only (what check() asks of
-    its own helpers is not a verdict). Nothing here runs otherwise."""
+    verdict lines - is written down beside them, for the outermost call only (what check() asks of its own helpers is
+    not a verdict). A call that raises is written down as its own refusal, with what it raised, and handed back as one,
+    so the case goes on. Nothing here runs otherwise."""
     current = ['?']
     depth = [0]
 
@@ -56,8 +57,14 @@ def measuring(log_path):
         text = Path(out).read_text(encoding='utf-8') if out and Path(out).is_file() else ''
         for argument in sys.argv[1:]:
             if argument != out and Path(argument).is_file():
-                text = text.replace(hashlib.sha256(Path(argument).read_bytes()).hexdigest(), '<its own digest>')
+                text = text.replace(hashlib.sha256(Path(argument).read_bytes()).hexdigest(),
+                                    '<the digest of %s>' % Path(argument).name)
         return 'exit %r: %s' % (result, ' | '.join(line for line in text.split('\n') if line and not line[0].isspace()))
+
+    # What a call that raised stands for: its own refusal, as main() turns any error reading an archive into one - and
+    # handed back so, the case goes on to its end and every verdict after it is written down too.
+    refusals = {'check': (['raised'], {}), 'listing_gap': 'raised', 'repeated': ['raised'], 'main': 1}
+    words = {'check': 'refused', 'listing_gap': 'gap', 'repeated': 'repeated', 'main': 'exit 1'}
 
     def outermost(name, function):
         def wrapper(*arguments, **named):
@@ -65,9 +72,10 @@ def measuring(log_path):
             try:
                 result = function(*arguments, **named)
             except Exception as error:
-                if depth[0] == 1:
-                    note('verdict', 'raised ' + type(error).__name__)
-                raise
+                if depth[0] != 1:
+                    raise
+                note('verdict', '%s (raised %s)' % (words[name], type(error).__name__))
+                return refusals[name]
             finally:
                 depth[0] -= 1
             if depth[0] == 0:
@@ -1130,12 +1138,18 @@ class EvidenceChecks(unittest.TestCase):
                 self.assertTrue(any(said in problem for problem in problems), problems)
 
     def test_reads_a_gate_value_after_its_first_equals_sign_alone(self):
-        """Both runners split an entry at its first `=` and apply the rest, so `GATE=0=1` gives the tests `0=1`."""
-        gate = checker.GATE_NAME
+        """Both runners split an entry at its first `=` and apply the rest, so `GATE=0=1` gives the tests `0=1` - and
+        `GATE=1;GATE=1=0` gives them `1=0`, last. Split at the last `=` instead, that second entry named no gate at all
+        and the first read as the gate in force (the forty-fourth review)."""
+        gate = 'FILECAT_EDIT_NATIVE_REQUIRED'
         problems, _ = self.check(self.windows_record(gate + '=0=1'))
         self.assertTrue(any("sets %s to '0=1'" % gate in problem for problem in problems), problems)
         problems, _ = self.check(self.unix_record('env=' + gate + '=0=1'), unix=True)
         self.assertTrue(any("sets %s to '0=1'" % gate in problem for problem in problems), problems)
+        said = "its machine record gives %s 2 values ('1', '1=0'), and its runner applies only the last" % gate
+        self.assertEqual([said], self.check(self.windows_record(gate + '=1;' + gate + '=1=0'))[0])
+        self.assertEqual([said], self.check(self.unix_record('env=' + gate + '=1', 'env=' + gate + '=1=0'),
+                                            unix=True)[0])
 
     def test_reads_a_status_whole_and_not_as_a_word_in_it(self):
         """Both runners append to the status after a run they had to tidy up after - the Windows rerun of this round
@@ -1180,6 +1194,92 @@ class EvidenceChecks(unittest.TestCase):
             self.rewritten_directory(path, [(item, item.compress_size) for item, _ in reversed(order)], at=start)
             with checker.Archive(path) as held:
                 self.assertIsNone(held.listing_gap())
+
+    def test_refuses_a_launcher_line_longer_than_cmd_reads_as_written(self):
+        """cmd.exe reads a line of up to 8191 characters as written; past that an `&` inside quotes can end the command
+        and run the rest of the line as another. The forty-fourth review padded an Env so its `&` fell there: the gate
+        after it never reached the child, and the check read it as in force. A line of 8191 characters still stands."""
+        gate = 'FILECAT_EDIT_NATIVE_REQUIRED'
+        head, tail = 'FILECAT_ARCHIVE_TXF_NATIVE=1;FILECAT_ARCHIVE_PAD=', '&;' + gate + '=1'
+        base = len(launcher(head + tail).split('\r\n')[1])
+        for length in (8191, 8191 + 60):
+            with self.subTest(length):
+                env = head + 'x' * (length - base) + tail
+                self.assertEqual(length, len(launcher(env).split('\r\n')[1]))
+                problems, _ = self.check(self.windows_record(env))
+                self.assertEqual([] if length == 8191 else
+                                 ["its child.cmd's launcher line is %d characters long, past the 8191 cmd.exe reads as "
+                                  'written, so the record cannot say what the tests were given' % length], problems)
+
+    def test_refuses_an_entry_whose_member_header_does_not_begin_as_one(self):
+        """An entry has to point at a local file header. The note that called this redundant - an entry pointing
+        elsewhere being refused for the name it does not carry - was false: with the signature changed and the name
+        left, a member no rule reads is refused by this rule alone (the forty-fourth review)."""
+        with tempfile.TemporaryDirectory() as directory:
+            contents = with_child_cmd(files())
+            contents['zz-unread.bin'] = 'bytes no rule reads ' * 8
+            path, order, _ = self.laid_out(directory, contents)
+            unread = next(item for item, _ in order if item.filename == 'zz-unread.bin')
+            data = bytearray(path.read_bytes())
+            data[unread.header_offset:unread.header_offset + 4] = b'PK\x03\x05'
+            path.write_bytes(bytes(data))
+            problems, _ = checker.check(path)
+            self.assertEqual(1, len(problems), problems)
+            self.assertIn("the entry 'zz-unread.bin' does not point at a member of this file", problems[0])
+
+    def test_accepts_a_member_whose_name_is_not_ascii(self):
+        """zipfile writes a name outside ASCII in UTF-8 and says so in the header's flag, as an ordinary writer may: the
+        name is read as its flag says, or the member is not the one its entry names (the forty-fourth review)."""
+        with tempfile.TemporaryDirectory() as directory:
+            contents = with_child_cmd(files())
+            contents['zz-caf' + chr(0xE9) + '.bin'] = 'bytes no rule reads'
+            path = archive(directory, 'edit-named-evidence.zip', contents)
+            self.assertEqual([], checker.check(path)[0])
+
+    def test_reports_every_archive_when_one_states_counters_that_are_not_numbers(self):
+        """main() once turned a suite's counters into numbers outside its guard, so a summary saying "seven" passed the
+        check and then ended the run with a traceback: no verdict for the archives after it and no report."""
+        counters = dict(SUMMARY['suites']['FileCat.App.Tests-Edit'], passed='seven')
+        summary = dict(SUMMARY, suites={'FileCat.App.Tests-Edit': counters})
+        with tempfile.TemporaryDirectory() as directory:
+            odd = archive(directory, 'edit-odd-evidence.zip', files(summary=summary))
+            good = archive(directory, 'edit-good-evidence.zip', files())
+            report = Path(directory) / 'report.txt'
+            with contextlib.redirect_stdout(io.StringIO()):
+                with unittest.mock.patch.object(sys, 'argv', ['check', str(odd), str(good), '--out', str(report)]):
+                    self.assertEqual(1, checker.main())
+            lines = report.read_text(encoding='utf-8').splitlines()
+            self.assertIn('edit-odd-evidence.zip: NOT edit-storage evidence', lines)
+            self.assertTrue(any(line.startswith('edit-good-evidence.zip: edit-storage evidence,') for line in lines),
+                            lines)
+
+    def test_refuses_a_tar_whose_last_member_claims_more_than_was_compressed(self):
+        """A last member cut short - its header kept, some of its bytes, no end-of-archive blocks - is refused: tarfile
+        raises listing it, since it seeks past that member to read what follows, and an archive that cannot be read is
+        a refusal. The rule that says so in its own words is the floor beneath that, and redundant with it."""
+        contents = with_child_cmd(files())
+        with tempfile.TemporaryDirectory() as directory:
+            for cut in (0, 100, 511):
+                with self.subTest(cut=cut):
+                    raw = io.BytesIO()
+                    with tarfile.open(fileobj=raw, mode='w', format=tarfile.USTAR_FORMAT) as held:
+                        for leaf, text in contents.items():
+                            blob = text.encode('utf-8')
+                            item = tarfile.TarInfo('run/' + leaf)
+                            item.size = len(blob)
+                            held.addfile(item, io.BytesIO(blob))
+                        item = tarfile.TarInfo('run/zz-unread.bin')
+                        item.size = 4096
+                        held.addfile(item, io.BytesIO(bytes(4096)))
+                    data = raw.getvalue()
+                    path = Path(directory) / ('edit-cut-%d-evidence.tar.gz' % cut)
+                    path.write_bytes(gzip.compress(data[:data.rfind(b'run/zz-unread.bin') + 512 + cut]))
+                    report = Path(directory) / 'report.txt'
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        with unittest.mock.patch.object(sys, 'argv', ['check', str(path), '--out', str(report)]):
+                            self.assertEqual(1, checker.main())
+                    self.assertIn(path.name + ': NOT edit-storage evidence',
+                                  report.read_text(encoding='utf-8').splitlines())
 
     def test_names_an_archive_whose_compression_it_cannot_read(self):
         """A method this reader does not know is one more refusal, and the run's other archives are still reported:

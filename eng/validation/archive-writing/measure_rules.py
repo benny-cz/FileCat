@@ -20,9 +20,10 @@ the rule the fortieth review did find, because the line-prefix filter it replace
 What counts is a verdict, not a message. The suite runs with every case going on to its end - an assertion that does
 not hold is written down rather than raised - and with every call a case makes into the check written down by its
 verdict: an archive accepted (on the system it names) or refused, a listing whole or not, main()'s exit code with
-its report's verdict lines, or what it raised - which counts as a refusal, since main() refuses an archive whose reading
-raises. A rule is held when, weakened, some case's verdicts change. Until the forty-third review a case that noticed only a changed message counted
-as holding its rule, and three entries were "held" that way while another rule refused the same archives.
+its report's verdict lines - for the four functions the cases call for a verdict, check(), main(), listing_gap() and
+repeated(). A call that raises counts as that call's own refusal, since main() refuses an archive whose reading raises,
+and the case goes on. A rule is held when, weakened, some case's verdicts change. Until the forty-third review a case
+that noticed only a changed message counted as holding its rule, and thirty-two entries were "held" that way.
 
 Each entry carries what is expected of it, and the measurement checks it: nothing, for a rule some case holds by a
 verdict; a note beginning `redundant` for a rule whose weakening changes no verdict in the suite (another rule refuses
@@ -129,7 +130,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '        if (gap := archive.listing_gap()) is not None and False:', None),
     ('an entry pointing at a member of this file',
      "                if len(header) < 30 or header[:4] != b'PK\\x03\\x04':",
-     "                if False and (len(header) < 30 or header[:4] != b'PK\\x03\\x04'):", 'redundant: an entry pointing elsewhere is refused for the name it does not carry, or - named after what lies there - by the overlap rule; reaching either needs a rewritten directory'),
+     "                if False and (len(header) < 30 or header[:4] != b'PK\\x03\\x04'):", None),
     ('the name the file gives a member',
      '                if written != item.orig_filename:',
      '                if False and written != item.orig_filename:', None),
@@ -174,7 +175,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '            except KeyError as error:', 'the weakening raises where the rule refuses, so its case ends in an error rather than in a verdict'),
     ('a tar whose last member claims more than was compressed',
      "        return None if at >= end else 'its last member runs %d bytes past what was compressed' % (end - at)",
-     '        return None', 'no case: reaching it needs a tar whose last member claims more than was compressed'),
+     '        return None', 'redundant: tarfile itself raises listing a tar whose last member claims more than was compressed - it seeks past that member to read what follows - and an archive that cannot be read is refused, so this floor is never reached by a tar tarfile lists'),
     ('the verdict naming the system it read',
      "                     % (path.name, passed, skipped, GATE, facts['system'], accepted_digest(path)))",
      "                     % (path.name, passed, skipped, GATE, 'windows', accepted_digest(path)))", None),
@@ -249,7 +250,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '                            if data_end + size_of == directory:', None),
     ('a descriptor that states neither width',
      '                    if not fits:',
-     '                    if False:', None),
+     '                    if False:', 'the weakening raises where the rule refuses (no width is chosen to read), so its case ends in an error rather than in a verdict'),
     ('an archive with no machine record',
      '        if not records:',
      '        if False:', 'the weakening raises where the rule refuses (there is no record to read), so its case ends in an error rather than in a verdict'),
@@ -312,7 +313,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      "        pairs = [line[len('env='):] for line in text.splitlines() if line.startswith('env=')]", None),
     ("a gate's value taken after its first equals sign",
      "        key, separator, value = pair.partition('=')",
-     "        key, separator, value = pair.rpartition('=')", "redundant: taken after the last, a value holding another = leaves one in the name, which is then not the gate's - refused as a record that does not name it"),
+     "        key, separator, value = pair.rpartition('=')", None),
     ('a status read whole, not as a word in it',
      "            if archive.read(name).strip() != 'PASS':",
      "            if 'PASS' not in archive.read(name):", None),
@@ -336,7 +337,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '!^']", "redundant: a launcher argument holds no %, and child.cmd has to pass the record's Env"),
     ('a descriptor shape tried only with its signature as it is',
      '                        if signed != (size_of in (16, 24)) or len(trailer) < at + struct.calcsize(kind):',
-     '                        if len(trailer) < at + struct.calcsize(kind):', 'no case: without it the other shapes are tried too, and they match only where a CRC equals a size or a size equals the bytes after it, which no writer arranges'),
+     '                        if len(trailer) < at + struct.calcsize(kind):', "no case: without it the unsigned shapes are tried on a signed descriptor too, and they fit only where its CRC equals a size - as an empty member's does, all of them 0 - and there what follows the descriptor picks the signed width anyway"),
     ('a ! or ^ in a Windows Env, which delayed expansion changes',
      "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '%!^']",
      "        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '%']", "redundant: child.cmd holds no ! and its arguments no ^, and it has to pass the record's Env"),
@@ -388,6 +389,12 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ('the exit code of a run with a refused archive',
      '    return 1 if failed else 0',
      '    return 0', None),
+    ('a launcher line no longer than cmd.exe reads as written',
+     '        if len(line) > CMD_LINE:',
+     '        if False and len(line) > CMD_LINE:', None),
+    ("a member's name read as its header's flag says",
+     "                written = handle.read(name).decode('utf-8' if flag & 0x800 else 'cp437', 'replace')",
+     "                written = handle.read(name).decode('cp437', 'replace')", None),
 ]
 
 def run(folder: Path) -> tuple[str, set[str], dict[str, list[str]], dict[str, list[str]]]:
@@ -420,8 +427,9 @@ def run(folder: Path) -> tuple[str, set[str], dict[str, list[str]], dict[str, li
 
 
 def settled(values: list[str]) -> list[str]:
-    """A check that raises is a refusal: main() refuses an archive whose reading raises, as it refuses any other."""
-    return ['refused' if value.startswith('raised') else value for value in values]
+    """A call that raised is that call's own refusal - written down as such by the suite, with what it raised beside it
+    - since main() refuses an archive whose reading raises, as it refuses any other."""
+    return [value.split(' (raised ')[0] for value in values]
 
 
 def compare(before: list[str], after: list[str]) -> str:
@@ -532,7 +540,7 @@ def main() -> int:
             seen = {test: compare(settled(baseline.get(test, [])), settled(verdicts.get(test, []))) for test in tests}
             changed = [test for test in tests if seen[test] == 'changed']
             unknown = [test for test in tests if seen[test] == 'unknown']
-            raised = [test for test in tests if any(value.startswith('raised') for value in verdicts.get(test, []))]
+            raised = [test for test in tests if any(' (raised ' in value for value in verdicts.get(test, []))]
             kind = expected(note)
             if kind == 'held' and changed:
                 held.append(what)

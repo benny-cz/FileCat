@@ -312,6 +312,16 @@ Dotnet path still resolved - replayed here, the child ran with no gate and the c
 shard. It found the runner's other patterns ignoring case, so U+0130 and U+212A got by; they match with case now. And it
 found the harness counting a rule as held where a case noticed only a message. The harness now measures verdicts, and
 checks each entry's note against the measurement: thirty-two entries were not held by a verdict, twelve of them
-redundant for any archive and noted so, sixteen held by cases refused for more than one reason, which are single-fault
+redundant for any archive and noted so (eleven: the forty-fourth review found one argument wrong), sixteen held by cases refused for more than one reason, which are single-fault
 now, three about what a verdict names, and one held only by a crash, noted as such. Eighty-eight cases hold the check and fourteen the manifest; the harness
 lists one hundred and ten rules, eighty-five held by a verdict, twenty-five noted, none unheld or contradicted.
+
+The forty-fourth review found the launcher line's length: cmd.exe reads a batch line as written only up to 8191
+characters, and past that an `&` inside quotes ended the command, so an Env padded to put its `&` there reached the
+child without the gate after it while the check read the gate as in force - reproduced here. A launcher line longer
+than that is refused now, and the runner bounds each argument so its line cannot reach it (6,143 characters at most).
+It found two harness verdicts false - a `redundant` note on the rule that takes a gate's value after its first `=`,
+which `GATE=1;GATE=1=0` gets past, and an entry held only by a crash - and a third false note, a real rule with no
+entry, and a stale count; each is closed, and a raise is now measured as that call's own refusal with the case going on.
+Ninety-three cases hold the check and fourteen the manifest; the harness lists one hundred and twelve rules, eighty-eight held
+by a verdict, twenty-four noted, none unheld or contradicted.

@@ -78,6 +78,10 @@ GATE = GATE_NAME + '=' + GATE_VALUE
 # -Env of its own), `%` (which cmd.exe expands) or `^` (which delayed expansion removes, turning a `\^"` into `\"`);
 # and the file as a whole holds no `!` (see gate_assignments).
 ARGUMENT = r'"([ !#$&-\]_-~]*)"'
+# cmd.exe reads a line of up to 8191 characters as written. Past that, an `&` inside quotes can end the command and run
+# the rest of the line as another: the forty-fourth review cut an Env there, and the gate after the `&` never reached
+# the child. So the launcher line is no longer than that.
+CMD_LINE = 8191
 LAUNCHER = re.compile(
     r'@echo off\r\nC:\\Windows\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe -NoProfile -ExecutionPolicy '
     r'Bypass -WindowStyle Hidden -File {0} -Run {0} -Packet {0} -Filter {0} -Projects {0} -Dotnet {0} -Env {0} '
@@ -302,8 +306,9 @@ class Archive:
             after = len(stream.unused_data) + len(handle.read())
         if after:
             return 'the file holds %d bytes after this archive\'s own end' % after
-        # No case, as `measure_rules.py` says of it: reaching it needs a tar whose last member claims more than
-        # was compressed, which nothing here builds. It is the floor the rule above stands on.
+        # Redundant, as `measure_rules.py` measures it: tarfile itself raises listing a tar whose last member claims
+        # more than was compressed - it seeks past that member to read what follows - so this floor is never reached
+        # by a tar it lists, and stays as the floor.
         return None if at >= end else 'its last member runs %d bytes past what was compressed' % (end - at)
 
     def repeated(self) -> list[str]:
@@ -454,6 +459,11 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     no gate. Whether delayed expansion is on is a setting no record holds, so a child.cmd holding `!` anywhere is
     refused; the Windows runner refuses `!` in every argument and takes `#~` for a negated shard.
 
+    The forty-fourth review found that reading the launcher whole was not yet all: cmd.exe reads a line as written
+    only up to 8191 characters, and past that an `&` inside quotes ended the command - an Env padded there lost the
+    gate after its `&`, and the check read the gate as in force. A launcher line longer than that is refused; the
+    runner bounds each argument so its line cannot reach it.
+
     Returns the values in order, or a reason the record cannot say what the tests were given.
     """
     text = archive.read(name)
@@ -481,6 +491,10 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
         if launched is None:
             return [], ('its child.cmd is not the launcher its runner writes, so the record cannot say what the tests '
                         'were given')
+        line = script.split('\r\n')[1]
+        if len(line) > CMD_LINE:
+            return [], ("its child.cmd's launcher line is %d characters long, past the %d cmd.exe reads as written, so "
+                        'the record cannot say what the tests were given' % (len(line), CMD_LINE))
         odd = [argument for argument in launched.groups() if argument.startswith('-') or argument.endswith('\\')]
         if odd:
             return [], ('its child.cmd passes %r, which PowerShell does not read as written - a leading - names a '
@@ -666,6 +680,13 @@ def main() -> int:
             continue
         try:
             problems, facts = check(path)
+            if not problems:
+                # Inside the guard: a summary whose counters are not numbers passed the check and then ended the run
+                # here with a traceback, before any report was written.
+                suites = facts['suites']
+                assert isinstance(suites, dict)
+                passed = sum(int(counters.get('passed', 0)) for counters in suites.values())
+                skipped = sum(int(counters.get('skipped', 0)) for counters in suites.values())
         # Any error at all, not a list of the ones met so far: a truncated tar raised EOFError and a bit-rotted
         # member zlib.error, which this list did not hold, so the run ended with a traceback - no verdict for the
         # archives after it and no report written. An archive that cannot be read is one refusal among others.
@@ -679,10 +700,6 @@ def main() -> int:
             lines.append('%s: NOT edit-storage evidence' % path.name)
             lines.extend('    ' + problem for problem in problems)
             continue
-        suites = facts['suites']
-        assert isinstance(suites, dict)
-        passed = sum(int(counters.get('passed', 0)) for counters in suites.values())
-        skipped = sum(int(counters.get('skipped', 0)) for counters in suites.values())
         lines.append('%s: edit-storage evidence, %d passed, %d skipped, no failure, %s in force, %s, sha256 %s'
                      % (path.name, passed, skipped, GATE, facts['system'], accepted_digest(path)))
         for name, counters in sorted(suites.items()):

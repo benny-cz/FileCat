@@ -15,13 +15,15 @@ param(
     # without `"`, `%`, `!` or `^`, not starting with `-` or ending in `\` - matched with case, since the default
     # options let U+0130 and U+212A by - and a negated shard is written #~; the evidence check reads child.cmd as this
     # launcher and refuses anything else.
-    [Parameter(Mandatory)][ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Packet,
+    # Each is bounded too, so the launcher line stays inside the 8191 characters cmd.exe reads as written (past that an
+    # `&` inside quotes ended the command), and a filter cannot use != or !~ here: negate with a #~ shard.
+    [Parameter(Mandatory)][ValidateLength(1, 260)][ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Packet,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-fA-F]{64}\z', Options = 'None')][string]$Sha256,
-    [Parameter(Mandatory)][ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Filter,
-    [Parameter(Mandatory)][ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Projects,
+    [Parameter(Mandatory)][ValidateLength(1, 1024)][ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Filter,
+    [Parameter(Mandatory)][ValidateLength(1, 2048)][ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Projects,
     # Recorded in machine.json, which is written in the ANSI code page with best-fit (a fullwidth quote becomes `"`).
     [ValidatePattern('^[A-Za-z0-9._\\ -]{1,64}\z', Options = 'None')][string]$User = 'Admin',
-    [ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Dotnet = 'C:\FileCatValidation\dotnet\dotnet.exe',
+    [ValidateLength(1, 260)][ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Dotnet = 'C:\FileCatValidation\dotnet\dotnet.exe',
     [int]$TimeoutMinutes = 240,
     [ValidateRange(1, 600)][int]$HangMinutes = 20,
     # Optional 'FILECAT_NAME=value;FILECAT_NAME2=value' test environment; {run} expands to the run folder (for published
@@ -32,7 +34,7 @@ param(
     # expansion), PowerShell reads a final `\"` as a quote, and machine.json is written in the ANSI code page with
     # best-fit. The evidence check refuses such a record; this refuses it before a run starts (`\z`, since `$` also
     # matches before a final line feed).
-    [ValidatePattern('^(FILECAT_[A-Z0-9_]{1,56}=[ #$&-:<-\]_-~]*)?(;FILECAT_[A-Z0-9_]{1,56}=[ #$&-:<-\]_-~]*)*(?<!\\)\z', Options = 'None')][string]$Env = ''
+    [ValidateLength(0, 2048)][ValidatePattern('^(FILECAT_[A-Z0-9_]{1,56}=[ #$&-:<-\]_-~]*)?(;FILECAT_[A-Z0-9_]{1,56}=[ #$&-:<-\]_-~]*)*(?<!\\)\z', Options = 'None')][string]$Env = ''
 
 )
 $ErrorActionPreference = 'Stop'
@@ -182,6 +184,7 @@ try {
 '@
     [IO.File]::WriteAllText((Join-Path $run 'child.ps1'), $child)
     $launcher = "@echo off`r`nC:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$run\child.ps1`" -Run `"$run`" -Packet `"$Packet`" -Filter `"$Filter`" -Projects `"$Projects`" -Dotnet `"$Dotnet`" -Env `"$Env`" -HangMinutes $HangMinutes > `"$run\child.out`" 2>&1`r`n"
+    if ($launcher.Split("`n")[1].TrimEnd("`r").Length -gt 8191) { throw 'The launcher line is longer than the 8191 characters cmd.exe reads as written.' }
     [IO.File]::WriteAllText((Join-Path $run 'child.cmd'), $launcher)
     & schtasks.exe /create /tn $task /tr "`"$run\child.cmd`"" /sc once /st 23:59 /ru $User /it /rl LIMITED /f *> (Join-Path $run 'task.log')
     if ($LASTEXITCODE -ne 0) { throw 'Could not create the interactive limited task.' }

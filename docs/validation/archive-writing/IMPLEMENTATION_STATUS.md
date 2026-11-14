@@ -1,5 +1,47 @@
 # Archive writing implementation status
 
+**14 November, the launcher line's length, and three harness verdicts (round forty-four).** Asked again whether
+anything was left that the mechanism did not report, the reviewer found three things at High and three at Medium:
+
+- **High: a launcher line past 8191 characters.** cmd.exe reads a batch line as written only up to 8191 characters;
+  past that, an `&` inside quotes ended the command and the rest of the line ran as another. The runner bounded no
+  argument, so an Env padded to put its `&` there, with the gate after it, reached the child without the gate - and
+  the check, reading `child.cmd` whole, read the gate as in force. Reproduced here with the reviewer's probe, an
+  external program launched from such a line: an `&` 28 or more characters past column 8191 cut its argument, one 24
+  or fewer past did not. A launcher line longer than 8191 characters is refused now, and the runner bounds each
+  argument - a packet or dotnet path to 260 characters, a filter to 1024, the projects and the Env to 2048 - so its
+  own line is 6,143 characters at most and the invoker's 5,878, and checks the line besides. The reviewer's replay is
+  refused.
+- **High: a `redundant` note was false.** The round below called the rule that takes a gate's value after its first
+  `=` redundant, "a value holding another `=` leaves one in the name" - but `GATE=1;GATE=1=0`, which both runners
+  accept and apply `1=0` last, read under the weakening as one gate, `1`, in force. A case holds it now. So the round
+  below's "twelve redundant for any archive" was eleven: each redundancy was argued, and measured only over the
+  suite's archives, which is evidence and not proof, and this argument was wrong.
+- **High: one entry was held only by a crash.** Weakened, the rule for a descriptor stating neither width raised in a
+  direct call, and the measurement counted the raise as a changed verdict where main() would refuse the archive
+  either way. The suite now hands a raise back as that call's own refusal - a check refused, a listing with a gap, an
+  exit code of 1 - so the case goes on to its end and every verdict after the raise is measured as well; the entry is
+  noted as raising.
+- **Medium:** another note was false - an entry whose member header has lost its signature, its name left as it was,
+  is refused by that rule alone, and a case holds it now; a real rule the audit pointed at had no entry and no case -
+  a member's name read as its header's flag says, without which an ordinary zip holding a name outside ASCII read as
+  a member other than its entry's - and it has both now; and the harness's docstring said three entries had been held
+  by a message, where the round below found thirty-two.
+- Low, closed with them: main() added up a summary's passed and skipped outside its guard, so a summary whose counters
+  were not numbers ended the run with no report - that is the archive's own refusal now, with a case; the measured
+  verdict of main() names each archive's digest by its archive; the descriptor-shape note's reason is corrected (an
+  empty member's CRC and sizes are all 0, and what follows its descriptor still picks the width); the tar floor's note
+  said nothing builds a tar whose last member claims more than was compressed, but one is easily built - and tarfile
+  itself raises listing it, so the floor is redundant with tarfile, which a case now shows; and the runner's comment
+  says a Windows filter cannot use `!=` or `!~`.
+
+Every r35 argument set passes the runner's new bounds - forty-four Windows inputs under Windows PowerShell 5.1, each
+bound accepting its limit and refusing one character more - and the r35 verdicts are unchanged: five accepted, nine
+refused.
+
+Ninety-three cases for the check and fourteen for the manifest; the harness lists one hundred and twelve rules, eighty-eight
+held by a verdict, twenty-four noted as redundant, caseless or raising, and none unheld or contradicted.
+
 **14 November, delayed expansion's other form, and what "held" meant (round forty-three).** Asked again whether
 anything was left that the mechanism did not report, the reviewer found three things:
 
@@ -26,7 +68,7 @@ anything was left that the mechanism did not report, the reviewer found three th
   Each entry's note is checked against the measurement as well - `redundant` must change no verdict, `no case` must be
   noticed by nothing, a weakening said to crash must crash - and the exit code reports a contradiction. Measured that
   way, thirty-two entries the round below counted as held were not. Twelve are redundant for any archive (another rule
-  refuses whatever they refuse) and say which rule now. Sixteen were held by cases whose archives were refused for more
+  refuses whatever they refuse) and say which rule now - eleven, the round above found: one argument was wrong. Sixteen were held by cases whose archives were refused for more
   than one reason - since the round below, a Windows layout fixture without `child.cmd`, a failure written in four
   places at once, fixtures built from the check's own pin and reason constants, which follow a rename - and those
   cases are single-fault now: an archive the check accepts, with one thing changed. Three were about what a verdict
@@ -45,7 +87,8 @@ r35 verdicts are unchanged - five accepted, nine refused - and the full Windows 
 its `#!` now as well.
 
 Eighty-eight cases for the check and fourteen for the manifest; the harness lists one hundred and ten rules, eighty-five held by a verdict,
-twenty-five noted as redundant, caseless or raising, and none unheld or contradicted.
+twenty-five noted as redundant, caseless or raising, and none unheld or contradicted. (One note was false and one
+entry was held only by a crash, the round above found.)
 
 **14 November, the runners' other arguments (round forty-two).** Asked again whether anything was left that the
 mechanism did not report, the reviewer found three: inputs the runners accepted as they stood after the round
