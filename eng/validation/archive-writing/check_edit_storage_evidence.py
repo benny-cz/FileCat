@@ -77,13 +77,15 @@ class Archive:
 
     def __init__(self, path: Path) -> None:
         self.path = path
+        # Only the files: a folder entry whose name ends in a file's name would be counted as that file and read as
+        # nothing (a tar `notes/machine.json/` was counted as a second machine record).
         if path.name.endswith('.zip'):
             self._zip: zipfile.ZipFile | None = zipfile.ZipFile(path)
-            self._names = self._zip.namelist()
+            self._names = [item.filename for item in self._zip.infolist() if not item.is_dir()]
             self._tar: tarfile.TarFile | None = None
         else:
             self._tar = tarfile.open(path)
-            self._names = self._tar.getnames()
+            self._names = [item.name for item in self._tar.getmembers() if not item.isdir()]
             self._zip = None
 
     def __enter__(self) -> 'Archive':
@@ -102,6 +104,20 @@ class Archive:
             if leaf.startswith(prefix) and leaf.endswith(suffix):
                 result.append(name)
         return result
+
+    def repeated(self) -> list[str]:
+        """Names this archive holds more than once.
+
+        Both formats resolve a repeated name to the last member of that name, while every "read them all" loop below
+        lists each occurrence - so an appended copy answers for the original, once per occurrence. Appending clean
+        copies of the summary, the status, the results and the log under the names already there, with no original byte
+        rewritten, turned a run that had failed into accepted evidence. Which member a name means is not a thing to
+        guess, so a repeated name is refused.
+        """
+        counted: dict[str, int] = {}
+        for name in self._names:
+            counted[name] = counted.get(name, 0) + 1
+        return sorted(name for name, count in counted.items() if count > 1)
 
     def find(self, leaf: str) -> list[str]:
         return [name for name in self._names if name.replace('\\', '/').split('/')[-1] == leaf]
@@ -158,9 +174,12 @@ def pinned_family(results: dict[str, set[str]]) -> str | None:
     """
     passed = {test.split('(')[0] for test, outcome in results.items()
               if test.split('(')[0].endswith('.' + PINS[2]) and 'Passed' in outcome}
-    families = {'windows' if name.endswith('.WindowsEditStorageTests.' + PINS[2]) else
-                'unix' if name.endswith('.UnixEditStorageTests.' + PINS[2]) else 'other' for name in passed}
-    return families.pop() if len(families) == 1 and families != {'other'} else None
+    # Each class is asked for on its own. Read as a set of labels, any third class that also passed this pin - a
+    # shared base, a helper, a platform class added later - left the set with two members and silenced the whole rule,
+    # which is how a Windows lane was accepted as Linux evidence with one added row.
+    windows = any(name.endswith('.WindowsEditStorageTests.' + PINS[2]) for name in passed)
+    unix = any(name.endswith('.UnixEditStorageTests.' + PINS[2]) for name in passed)
+    return 'both' if windows and unix else 'windows' if windows else 'unix' if unix else None
 
 
 def gate_value(recorded: str) -> str | None:
@@ -196,6 +215,9 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
     problems: list[str] = []
     facts: dict[str, object] = {}
     with Archive(path) as archive:
+        if (repeated := archive.repeated()):
+            problems.append('it holds %s more than once, and the last member of a name is what a reader gets: which '
+                            'of them speaks for this run is not a thing to guess' % ', '.join(repeated))
         records = machine_records(archive)
         facts['system'] = system = None
         if not records:
@@ -280,7 +302,10 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
         # The record and the run have to agree about the family that produced this archive; where the run does not say
         # (a pin in neither class), the record is all there is, as it is between Linux and macOS.
         family = pinned_family(results)
-        if system is not None and family is not None and family != ('windows' if system == 'windows' else 'unix'):
+        if family == 'both':
+            problems.append('its own dual-root pin passed in the Windows platform suite\'s class and in the Core '
+                            'suite\'s Unix class, which no one run does, so its results do not say what ran it')
+        elif system is not None and family is not None and family != ('windows' if system == 'windows' else 'unix'):
             problems.append('its machine record says %s while its own dual-root pin passed in the %s class, so the '
                             'record and the run disagree about which system ran it'
                             % (system, 'Windows platform suite\'s' if family == 'windows' else 'Core suite\'s Unix'))

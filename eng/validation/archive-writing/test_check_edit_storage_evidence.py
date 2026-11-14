@@ -15,6 +15,7 @@ import tarfile
 import tempfile
 import unittest
 import unittest.mock
+import warnings
 import zipfile
 
 SPEC = importlib.util.spec_from_file_location("checker", Path(__file__).with_name("check_edit_storage_evidence.py"))
@@ -181,7 +182,7 @@ class EvidenceChecks(unittest.TestCase):
     def test_refuses_a_second_summary_that_failed(self):
         """Every summary in the archive is read, not the first one by name."""
         contents = files()
-        contents['other/summary.json'] = json.dumps(dict(SUMMARY, failed=['FileCat.Tests.Other'], ok=False))
+        contents['zz-other/summary.json'] = json.dumps(dict(SUMMARY, failed=['FileCat.Tests.Other'], ok=False))
         problems, _ = self.check(contents)
         self.assertIn('it failed: FileCat.Tests.Other', problems)
 
@@ -253,6 +254,46 @@ class EvidenceChecks(unittest.TestCase):
         problems, _ = self.check(files(trx=unix))
         self.assertIn("its machine record says windows while its own dual-root pin passed in the Core suite's Unix "
                       'class, so the record and the run disagree about which system ran it', problems)
+
+    def test_reads_the_family_past_a_third_class_that_also_passed_the_pin(self):
+        """Read as a set of labels, a third class passing the dual-root pin silenced the agreement rule altogether:
+        one added row had this check accept the real Windows archive as Linux evidence. Each class is asked for on its
+        own now, so a third one is ignored and the two known ones are read as they were."""
+        pin = checker.PINS[2]
+        windows = PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pin)
+        shared = '<UnitTestResult testName="FileCat.Core.Tests.EditStorageSharedTests.%s" outcome="Passed" />' % pin
+        self.assertEqual([], self.check(files(trx=windows + shared))[0])
+        problems, _ = self.check(files(trx=windows + shared, system='Linux host 6.0.0 x86_64 GNU/Linux'))
+        self.assertIn('its machine record says linux while its own dual-root pin passed in the Windows platform '
+                      "suite's class, so the record and the run disagree about which system ran it", problems)
+
+    def test_refuses_a_run_whose_pin_passed_in_both_platforms_classes(self):
+        """No one run passes both: the Unix class is not executed on Windows and the Windows class does not exist
+        elsewhere. Results saying both say nothing about what ran it."""
+        pin = checker.PINS[2]
+        both = (PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pin) +
+                '<UnitTestResult testName="FileCat.Core.Tests.UnixEditStorageTests.%s" outcome="Passed" />' % pin)
+        problems, _ = self.check(files(trx=both))
+        self.assertIn("its own dual-root pin passed in the Windows platform suite's class and in the Core suite's Unix "
+                      'class, which no one run does, so its results do not say what ran it', problems)
+
+    def test_refuses_an_archive_that_holds_a_name_more_than_once(self):
+        """A reader gets the last member of a repeated name while every loop here lists each occurrence, so appending
+        a clean copy - with no original byte rewritten - made a run that failed read as one that passed."""
+        with tempfile.TemporaryDirectory() as directory:
+            failed = files(summary={"ok": False, "failed": ["a case"], "exit_codes": {"S": 1},
+                                    "suites": {"S": {"total": 1, "passed": 0, "skipped": 0, "failed": 1}}},
+                           status='FAIL')
+            path = archive(directory, 'edit-appended-evidence.zip', failed)
+            self.assertNotEqual([], checker.check(path)[0])
+            clean = files()
+            with warnings.catch_warnings():  # the duplicate name is the point of this case
+                warnings.simplefilter('ignore', UserWarning)
+                with zipfile.ZipFile(path, 'a') as zipped:
+                    for name in ('summary.json', 'status.txt'):
+                        zipped.writestr(name, clean[name])
+            problems, _ = checker.check(path)
+            self.assertTrue(any('more than once' in problem for problem in problems), problems)
 
     def test_refuses_a_run_whose_machine_record_does_not_say_which_system_ran_it(self):
         problems, _ = self.check(files(system='a machine'))

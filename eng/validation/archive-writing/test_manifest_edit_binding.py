@@ -17,8 +17,9 @@ check itself, so nothing in this file can agree with the manifest while the chec
 
 What this requirement does not establish: that an archive is a machine's own sealed run. The manifest reads bytes and
 text, so a file built to this shape, with a report the check wrote for it, satisfies it - which is what the accepting
-case here does on purpose. What makes an archive a run is the runner that sealed it on its own machine; what this adds
-is that the report, the archive and the route cannot be moved apart or mixed up afterwards.
+case here does on purpose. What makes an archive a run is the runner that sealed it on its own
+machine, and what makes a report the committed check's own is whoever carried it; what this adds is that the report,
+the archive and the route cannot be moved apart or mixed up afterwards.
 
 Run by hand, as its sibling is, from the checkout's root (isolated Python keeps the working folder off the path, so
 discovery is what puts this folder on it):
@@ -235,6 +236,22 @@ class ManifestEditBinding(unittest.TestCase):
             self.assertEqual(2, code, said)
             self.assertIn('does not accept the archive carried under', said)
             self.assertIn('edit-renamed-evidence.zip: edit-storage evidence,', said)
+            self.assertIsNone(written)
+
+    def test_refuses_two_checks_under_one_route_s_id(self):
+        """The twin of the case below, and measured by nothing until now: with two reports under one route's
+        `.../edit/check` the tool read the first by the order of its arguments, and the other sat in the manifest as
+        that route's evidence too."""
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = self.archive_routes(directory)
+            lanes = self.every_route(directory)
+            for route, (archive, report) in lanes.items():
+                evidence += [(route + '/edit', archive), (route + '/edit/check', report)]
+            spare, other = self.accepted(Path(directory) / 'spare', ROUTES['AWQ-win-x64-NTFS'])
+            evidence.append(('AWQ-win-x64-NTFS/edit/check', other))
+            code, said, written = self.manifest(evidence)
+            self.assertEqual(2, code, said)
+            self.assertIn('needs the check of its archive under AWQ-win-x64-NTFS/edit/check, not 2 of them', said)
             self.assertIsNone(written)
 
     def test_refuses_two_archives_under_one_route_s_id(self):

@@ -1,5 +1,40 @@
 # Archive writing implementation status
 
+**14 November, the gate attacked again (round thirty-two).** One reviewer drove both halves of the gate through
+twenty-seven crafted archives and nine mutants. It got through twice, and the first way through was a defect in the
+rule the round before it had just added:
+
+- **One added row silenced the agreement between the record and the run.** `pinned_family` read the classes that
+  passed the dual-root pin as a set of labels, so any third class putting a third label in it left the set with two
+  members and the rule did not run at all. The reviewer took the real Windows archive, set its one `Os` field to a
+  Linux uname line, added one row naming a class of its own, and the check accepted it as Linux evidence - and the
+  manifest listed the Windows lane on the Linux route. Each class is asked for on its own now, a third one is ignored,
+  and results claiming both known classes are a contradiction the check refuses. It would also have degraded with no
+  tamper at all: the same method name in a shared base or a later platform class would have switched the rule off.
+- **A repeated member name answered for the original.** Both archive formats resolve a repeated name to the last
+  member of that name, while every "read them all" loop in the check lists each occurrence. Appending clean copies of
+  the summary, the status, the results and the log under the names already there - with no original byte rewritten -
+  turned a run that had failed, with a FAIL status and a step-aside line, into accepted evidence. A repeated name is
+  now refused by name, and a folder entry is no longer counted as the file it is named after.
+- **The twin of a count rule was measured by nothing.** Two reports under one route's `…/edit/check` were read as the
+  first by the order of the arguments, with the other sitting in the manifest as that route's evidence too; its case
+  exists now. The "every summary, not the first by name" rule was only half-measured, because the case's second
+  summary sorted before the real one - it sorts after it now, so reading only the first is a mutant a case notices.
+- In the records: "nothing in a sealed archive says NTFS, ext4 or apfs" was false as written (those words are theory
+  arguments in every edit archive's own results); what the binding does not establish was said of the archive and not
+  of the report, and a report is the check's own only on the word of whoever carried it; and the mutant arithmetic the
+  round before it recorded was looser than it read.
+
+That arithmetic is now measured for every rule of both halves, one at a time, and each fails exactly the case that
+claims it: a repeated name allowed, the repeated-name case; a second machine record allowed, the second-record case;
+the family read as a set again, the third-class case and the both-classes case; the record and the run not compared,
+those two and the disagreement case; only the first summary read, the second-summary case; two checks or two archives
+under one route, each its own case. On the manifest's side, the whole edit-route block removed fails all nine of its
+refusal cases, and the system, the digest, the archive's name and the whole tail each fail exactly the case that claims
+them. The measuring itself had to be fixed first: the check is loaded through importlib, whose source loader validates
+a cached `.pyc` by size and mtime, so mutants of the same size written within one second ran the previous mutant's
+bytecode - four labels in the first measurement were one mutant behind, and nothing in the result looked wrong.
+
 **14 November, the binding attacked (round thirty-one).** One reviewer drove the committed tool through fifteen crafted
 manifests and seven mutants of its comparison. It defeated the route half of the binding twice, both times with reports
 the committed check itself had written - no hand-edited text:
@@ -28,7 +63,9 @@ the committed check itself had written - no hand-edited text:
 
 The file system in a route's ID stays unbound, and recording it is the whole of what can be done here: the Unix machine
 record's `df` line names the device and the mount point without a type column, and the Windows record has no
-file-system field at all, so nothing in a sealed archive says `NTFS`, `ext4` or `apfs`. The composition pin judges the
+file-system field at all, so no sealed record says which file system the run used (the words `NTFS`, `ext4` and `apfs`
+are in every edit archive's results, as the arguments of the route-list pin's own theory, and say nothing about the
+machine). The composition pin judges the
 file system of the root its own run gives it, which is what [the accounting](NATIVE_EDIT_STORAGE_ACCOUNTING.md) records.
 Nothing in these records claims otherwise: they say "system".
 

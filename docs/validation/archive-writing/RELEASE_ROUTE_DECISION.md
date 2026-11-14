@@ -85,9 +85,11 @@ On macOS the roles run in the App Sandbox helper described above.
    protocol, runtimes, filesystem routes and evidence IDs (plan §16.1), and it refuses a listed edit-storage route
    unless the committed check's report, carried under that route's own `…/edit/check`, accepts the archive carried
    under its `…/edit` - by digest, by name, and on the system that route's runtime implies, by a line whose whole tail
-   is the check's own. What that binds is the report to the archive and the archive to the route: that an archive is a
-   machine's own sealed run rests on the runner that sealed it, and the file system in a route's ID is not in any
-   sealed record, so it rests on the composition pin inside the run. Where the check reads a system, the run's own
+   is the check's own. What that binds is the report to the archive and the archive to the route. That an archive is a
+   machine's own sealed run rests on the runner that sealed it, and that a report is the committed check's own rests
+   on whoever carried it - both are read as text and bytes here, so a file built to the shape with a report written
+   for it satisfies this. The file system in a route's ID is in no sealed record, so it rests on the composition pin
+   inside the run. Where the check reads a system, the run's own
    dual-root pin has to agree with the machine record; Linux and macOS are told apart by that record's `uname -a` line
    alone.
 5. The independent review (ledger row 14) closes, and its fixes are re-validated.
@@ -179,3 +181,11 @@ dual-root pin passing in the Windows class. An archive now carries one machine r
 has to agree with the class that passed the run's own dual-root pin, so both of those archives are refused by the check.
 Nine cases hold the requirement now, each failing the one it claims; what the binding does not establish is said in
 condition 4.
+
+The thirty-second review attacked both halves again and found the rule the round before it had added: read as a set of
+labels, any third class that also passed the dual-root pin switched the agreement off, so one added row had a Windows
+lane accepted as Linux evidence and listed on the Linux route. Each class is asked for on its own now, and results
+claiming both are refused. It also found that a repeated member name answered for the original - appending clean copies
+under the names already there turned a failed run into accepted evidence - which is refused by name, and that the twin
+of a count rule was measured by nothing. Every rule of both halves is now measured one at a time, each failing the one
+case that claims it.
