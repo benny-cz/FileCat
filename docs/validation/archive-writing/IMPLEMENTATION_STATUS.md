@@ -1,5 +1,43 @@
 # Archive writing implementation status
 
+**14 November, the two claims and the reading behind them (round thirty-seven).** The gate holds for every archive as
+its runner sealed it - no way found to make it accept or misbind one without adding to or changing its bytes - and the
+review's own High was against this record, not the code:
+
+- **"Two rules are left with no case and none to be had" was false of one of them, and that rule was load-bearing.**
+  Two directory entries can point at one member under two names, which the reader allows because the name it checks is
+  the name it is asked to read, and nothing reads the second entry. So a directory written where the archive's own was
+  - not one member byte changed - could drop an entry and pad the gap by listing another member again, with every size
+  agreeing, the coverage exact and no name repeated: a log that said a test had stepped aside simply stopped being
+  listed, and only the overlap check refused it. That shape has a case now, and what refuses it is a new rule rather
+  than the overlap check: a member's local header carries its own name, and the directory's name for it has to be that
+  name. With the names bound, the way to the overlap check is closed - two entries pointing at one member both carry
+  its name, which repeats - so it keeps no case, and now says so and why where it stands. The other half of that
+  sentence was right in its conclusion and wrong in its reason: a member can run past the directory in a readable
+  file, and what refuses it is the coverage sum, not unreadability.
+- **A directory that renames a member hides it from every rule.** The same shape, without the padding: every rule here
+  finds its files by the directory's names, and a renamed member cannot be read at all, so renaming one is how it is
+  hidden rather than how it is swapped. Demonstrated on the real Windows lane with every member byte untouched. The
+  name rule above closes it; a required file still cannot be hidden, because its absence refuses.
+- **The tar rule asked about the gzip wrapper, not about the tar.** One gzip member can hold a clean tar and then a
+  failed one, which a reader never reaches, and a tar that was not gzipped at all was asked nothing. Both are refused
+  now: what follows a tar's own last member has to be the padding it writes, and a sealed run is gzipped.
+- **A hole anywhere but at the end of a listing had no case**, because the one case dropped the last entry, which the
+  reach catches on its own; and the refusal for a stream that cannot be read had none either. Both have one.
+- **One ordinary shape was refused wrongly**: a trailing descriptor is 24 bytes where the entry is written wide, which
+  its own extra field says and its size does not, so a small member written wide was refused eight bytes per entry.
+  No runner writes one, and it is now read from the extra field.
+
+Fifty-eight cases for the check, thirteen for the manifest, each of these six rules failing the one case that claims it.
+
+**And the stopping paragraph below overstated.** Two of the eight ways past this gate needed no sealed archive at all -
+the twenty-ninth's was a text file under a route's ID, the thirtieth's the Windows lane's own unmodified archive under
+all three routes - and neither was closed by reading a container: they were closed by binding the report to the archive
+and naming the system. So it is the ways past the *layout* reading, found from the thirty-first review on, that needed
+bytes added; a runner-sealed digest ends those and not the binding ones. The digest is also written and carried by the
+same hands as the archive, so it ends the parsing questions, not forgery: the boundary paragraph in the check still
+governs.
+
 **14 November, the layout reading taken apart (round thirty-six).** No High, and nothing that makes the gate accept or
 misbind an archive whose bytes were not added to. What it found was two more ways to add bytes, and eight rules of the
 layout reading that no case held:
@@ -12,7 +50,8 @@ layout reading that no case held:
 - **The tar half had no such rule at all.** gzip reads joined members as one stream while tarfile stops at the first
   tar's end-of-archive blocks: appending is not read, but a sealed `.tar.gz` put *after* a forged one is passed over in
   favour of the forgery, which a mac lane's own bytes carried. Every archive either runner seals is one gzip member
-  with nothing after it, which is the rule now.
+  with nothing after it, which is the rule - and, since the round above, that what follows a tar's own last member is
+  the padding it writes, and that a sealed run is gzipped at all.
 - **Nine rules of that reading could change a verdict with nothing holding them**: the local header's signature, its
   own name and extra lengths, a trailing descriptor's bytes, the coverage sums, the size the file states, the Unix
   platform class (the mirror of a case that only tried Windows-side names), a compression method this reader does not
@@ -20,22 +59,24 @@ layout reading that no case held:
   among others - and, in the manifest, crediting evidence to a route by the ID's text without the separator, so a note
   under `AWQ-win-x64-NTFS-notes` satisfied all ten of that route's formats. Each has a case now, and each case fails
   under its own rule's weakening alone.
-- Two rules are left with no case and none to be had, and now say so where they are: the overlap check and the
-  run-past-the-directory check. A span runs as far as the member's own header says, so two listed members overlap only
-  where the file overlaps them - which the reader itself refuses - and a member listed after the directory makes the
-  archive unreadable, because the reader works out where the directory is from the end record.
+- Two rules are left with no case: the overlap check and the run-past-the-directory check. The round above found
+  that first claim false as it stood - the overlap check was reachable and load-bearing - and the rule it added
+  closed the way to it instead: see there for both, and for why each keeps no case.
 
 Fifty-three cases for the check, thirteen for the manifest.
 
-**Where this reading has to stop.** Every one of the eight ways past this gate that the twenty-ninth to thirty-sixth
-reviews found needed bytes added to a sealed archive, and six of the last seven needed only an append. Each was closed
-by reading the container more carefully - and a container format read more carefully is still a container format: the
+**Where this reading has to stop.** Every way past the layout reading, from the thirty-first review on, needed bytes
+added to a sealed archive, and most needed only an append (the twenty-ninth's and thirtieth's ways needed no sealed
+archive at all and were closed by binding the report to the archive and naming the system, not by reading a container).
+Each layout way was closed by reading the container more carefully - and a container format read more carefully is still a container format: the
 next shape is a question about zip64 end records, or a tar's own padding, and the reading cannot be finished, only
 extended. What finishes it is not here: a digest of each archive, taken by the runner on the machine that sealed it
 and carried beside it, so the host compares bytes rather than parsing them. The runners do not write one today (the
 `packet=` digest each records is of the source they tested, not of the archive they produced), so it is a change to
-both runners and one more file per lane, for the next candidate rather than this one. Until then this gate keeps out
-the mistake, as it says, and the layout rules above keep out the appends that have been tried.
+both runners and one more file per lane, for the next candidate rather than this one. It ends the container questions
+and not the binding ones, and - written and carried by the same hands as the archive - not forgery either: the
+boundary paragraph in the check still governs. Until then this gate keeps out the mistake, as it says, and the layout
+rules above keep out the appends that have been tried.
 
 **14 November, the append closed and the suites measured against every rule (round thirty-five).** One reviewer found
 no way to make the gate accept or misbind an untampered archive, and two Mediums:

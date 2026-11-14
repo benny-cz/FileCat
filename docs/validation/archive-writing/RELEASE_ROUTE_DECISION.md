@@ -230,3 +230,14 @@ runner on the machine that sealed it and carried beside it, so this host compare
 Neither runner writes one today; that is a change to both and one more file per lane, for the next candidate. Until
 then the gate keeps out the mistake it says it keeps out, and the layout rules keep out the appends that have been
 tried.
+
+The thirty-seventh review found the gate sound for every archive as its runner sealed it, and two claims of these
+records false. One: the overlap check was said to have no case and none to be had, where two directory entries can
+point at one member under two names - a listing that drops a member and pads the gap that way was refused by that check
+alone, with no member byte changed. It is closed by a new rule instead, that a member's local header carries its own
+name and the directory's name for it has to be that name, which also closes a directory that renames a member to hide
+it. Two: "every way past this gate needed bytes added to a sealed archive" counted two ways that needed no sealed
+archive and were closed by binding rather than by reading a container - so a runner-sealed digest ends the container
+questions and not the binding ones, and, carried by the same hands as the archive, not forgery either. Also closed: a
+gzip member holding two tars, a tar that was not gzipped, a hole in the middle of a listing, a stream that cannot be
+read, and one ordinary shape refused wrongly. Fifty-eight cases hold the check and thirteen the manifest.

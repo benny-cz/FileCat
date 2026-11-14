@@ -156,11 +156,25 @@ class Archive:
                 name, extra = struct.unpack('<HH', header[26:30])
                 flag, = struct.unpack('<H', header[6:8])
                 stated, = struct.unpack('<I', header[18:22])
+                # The name the file gives this member, against the name its directory gives it. Every rule below finds
+                # its files by the directory's names, and reading a renamed member is refused by the reader itself -
+                # so a directory that renames one hides it instead: a log that said a test had stepped aside stopped
+                # being a log, with every byte of the archive untouched.
+                written = handle.read(name).decode('utf-8' if flag & 0x800 else 'cp437', 'replace')
+                if written != item.orig_filename:
+                    return ('the entry %r is the member %r where it points' % (item.orig_filename, written))
+                extra_field = handle.read(extra)
                 length = item.compress_size
                 if flag & 0x08:
                     # The sizes travel after the data in a trailing descriptor: signature, CRC and two sizes, the
-                    # sizes eight bytes each where they are recorded wide. No runner writes one.
-                    length += 24 if item.compress_size > 0xffffffff else 16
+                    # sizes eight bytes each where the entry is written wide - which its own extra field says, not
+                    # the size it turned out to be. No runner writes one.
+                    wide, field_at = False, 0
+                    while field_at + 4 <= len(extra_field):  # each field: its id, its length, its bytes
+                        field, size = struct.unpack('<HH', extra_field[field_at:field_at + 4])
+                        wide = wide or field == 1
+                        field_at += 4 + size
+                    length += 24 if wide else 16
                 elif stated == 0xffffffff:
                     pass  # a size recorded in the zip64 extra field, which the directory's copy carries
                 elif stated != item.compress_size:
@@ -176,8 +190,9 @@ class Archive:
         covered = 0
         reach = 0
         for start, end in sorted(spans):
-            # Another guard with no case of its own: a span now runs as far as the member's own local header says,
-            # so two listed members overlap only where the file overlaps them, which the reader refuses to read.
+            # No case, and the way to one is closed by the rule above: two entries pointing at one member must both
+            # carry its name, which repeats; and a member that really lies inside another needs its own header
+            # rewritten, at which point the reader refuses to read either of them. It stays as the sums' own floor.
             if start < reach:
                 return 'its members %d and %d overlap' % (start, reach)
             covered += end - start
@@ -185,9 +200,9 @@ class Archive:
         first = min((start for start, _ in spans), default=0)
         if first != 0:
             return 'its first member begins %d bytes into the file' % first
-        # A guard with no case, and none to be had: zipfile derives where the directory is from the end record, so a
-        # member listed after it makes the archive unreadable rather than overreaching. It stays because the two
-        # sums below would otherwise have to speak for a layout they were not written for.
+        # A guard with no case to be had, because it cannot be reached on its own: a member whose span runs past
+        # the directory has already made the covered bytes disagree with it, which the rule below refuses. It stays
+        # so that the sums below are read as sums and not as a reach.
         if reach > directory:
             return 'its last member runs %d bytes past the directory that lists it' % (reach - directory)
         if reach != directory or covered != directory:
@@ -203,21 +218,36 @@ class Archive:
         one is passed over in favour of the forgery, which is how a mac lane's bytes carried a five-member forgery.
         Every archive either runner seals is one gzip member with nothing after it.
         """
+        end = 0
+        for item in self._tar.getmembers():
+            end = max(end, item.offset_data + (item.size + 511) // 512 * 512)
         with open(self.path, 'rb') as handle:
             if handle.read(2) != b'\x1f\x8b':
-                return None  # not gzipped at all; what it is, if anything, the rules below decide
+                # Both runners gzip what they seal, and a reader stops at the first tar's end-of-archive blocks, so
+                # a plain tar would carry whatever follows it unread and unasked about.
+                return 'it is not gzipped, as a sealed run is'
             handle.seek(0)
             stream = zlib.decompressobj(31)
+            at = 0
             try:
                 while not stream.eof:
                     block = handle.read(1 << 20)
                     if not block:
                         return 'its compressed stream does not end'
-                    stream.decompress(block)
+                    plain = stream.decompress(block)
+                    # Past the last member: the two end-of-archive blocks and the padding after them, which are
+                    # zeros. Anything else there is another tar, which the reader above would never reach.
+                    tail = plain[max(0, end - at):]
+                    if tail.strip(b'\x00'):
+                        return 'what it holds after its own last member is not padding but %d bytes of something' \
+                               % len(tail.strip(b'\x00'))
+                    at += len(plain)
             except zlib.error as error:
                 return 'its compressed stream cannot be read: %s' % error
             after = len(stream.unused_data) + len(handle.read())
-        return None if after == 0 else 'the file holds %d bytes after this archive\'s own end' % after
+        if after:
+            return 'the file holds %d bytes after this archive\'s own end' % after
+        return None if at >= end else 'its last member runs %d bytes past what was compressed' % (end - at)
 
     def repeated(self) -> list[str]:
         """Names this archive holds more than once.

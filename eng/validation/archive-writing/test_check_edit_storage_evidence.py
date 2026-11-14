@@ -11,6 +11,7 @@ import io
 import json
 from pathlib import Path
 import sys
+import gzip
 import struct
 import tarfile
 import tempfile
@@ -291,12 +292,16 @@ class EvidenceChecks(unittest.TestCase):
     # the two attribute words and the local header's offset.
     CENTRAL = '<4sHHHHHHIIIHHHHHII'
 
-    def rewritten_directory(self, path, entries):
-        """The archive at `path` with a directory of its own listing only `entries`, as (ZipInfo, compressed size)."""
-        blob = path.read_bytes()
+    def rewritten_directory(self, path, entries, at=None, names=None):
+        """The archive at `path` with a directory listing only `entries`, as (ZipInfo, compressed size).
+
+        `at` writes it where the archive's own directory was, so not one byte of any member changes; `names` gives an
+        entry a name of its own, which is how one member is listed twice under two names.
+        """
+        blob = path.read_bytes() if at is None else path.read_bytes()[:at]
         body = bytearray()
-        for item, size in entries:
-            name = item.filename.encode('utf-8')
+        for index, (item, size) in enumerate(entries):
+            name = ((names or {}).get(index) or item.filename).encode('utf-8')
             body += struct.pack(self.CENTRAL, b'PK\x01\x02', 20, 20, item.flag_bits, item.compress_type, 0, 0,
                                 item.CRC, size, item.file_size, len(name), 0, 0, 0, 0, 0, item.header_offset) + name
         path.write_bytes(blob + bytes(body) + struct.pack(
@@ -336,6 +341,91 @@ class EvidenceChecks(unittest.TestCase):
             self.rewritten_directory(path, [(item, item.compress_size) for item, _ in order[:-1]])
             problems, _ = checker.check(path)
             self.assertTrue(any('in no member of it' in problem for problem in problems), problems)
+
+    def test_refuses_a_gap_padded_with_a_second_name_for_another_member(self):
+        """A directory written where the archive's own was - so no member byte changes - that drops one entry and
+        pads the gap by listing another member a second time under a name of its own. Every size agrees, the
+        coverage is exact and no name repeats, and the dropped file is in the file and listed by nothing: what
+        refuses it is that the member it points at carries its own name, which this entry is not."""
+        reason = checker.STEP_ASIDE[0]
+        contents = files()
+        contents['test-FileCat.Core.Tests-Edit.log'] = '[xUnit.net] %s\n' % reason
+        with tempfile.TemporaryDirectory() as directory:
+            path, order, start = self.laid_out(directory, contents)
+            self.assertTrue(any(reason in problem for problem in checker.check(path)[0]))
+            dropped = next(index for index, (item, _) in enumerate(order)
+                           if item.filename.endswith('Core.Tests-Edit.log'))
+            padding = next(index for index, (item, _) in enumerate(order) if index != dropped)
+            kept = [(item, item.compress_size) for index, (item, _) in enumerate(order) if index != dropped]
+            # The dropped member's bytes are covered by listing another member a second time, under a name of its own.
+            twin = order[padding][0]
+            kept.append((twin, twin.compress_size))
+            spare = {len(kept) - 1: 'padding.bin'}
+            self.rewritten_directory(path, kept, at=start, names=spare)
+            problems, _ = checker.check(path)
+            self.assertFalse(any(reason in problem for problem in problems), 'the log is hidden, as the forgery wants')
+            self.assertTrue(any('where it points' in problem for problem in problems), problems)
+
+    def test_refuses_a_listing_with_a_hole_in_the_middle(self):
+        """The half of the sums that catches a hole anywhere but at the end: drop an entry in the middle and the
+        reach still lands on the directory, so only the covered bytes say anything."""
+        with tempfile.TemporaryDirectory() as directory:
+            path, order, start = self.laid_out(directory)
+            kept = [(item, item.compress_size) for index, (item, _) in enumerate(order) if index != 1]
+            self.rewritten_directory(path, kept, at=start)
+            problems, _ = checker.check(path)
+            self.assertTrue(any('in no member of it' in problem for problem in problems), problems)
+
+    def test_refuses_a_member_renamed_by_its_directory(self):
+        """Every rule here finds its files by the directory's names, and a renamed member cannot be read - so a
+        directory that renames one hides it: a log that said a test had stepped aside stopped being a log, with every
+        byte of the archive untouched. The file gives each member its own name too."""
+        reason = checker.STEP_ASIDE[0]
+        contents = files()
+        contents['test-FileCat.Core.Tests-Edit.log'] = '[xUnit.net] %s\n' % reason
+        with tempfile.TemporaryDirectory() as directory:
+            path, order, start = self.laid_out(directory, contents)
+            renamed = {index: 'notes.bin' for index, (item, _) in enumerate(order)
+                       if item.filename.endswith('Core.Tests-Edit.log')}
+            self.rewritten_directory(path, [(item, item.compress_size) for item, _ in order], at=start, names=renamed)
+            problems, _ = checker.check(path)
+            self.assertTrue(any('where it points' in problem for problem in problems), problems)
+
+    def test_refuses_a_gzip_stream_that_does_not_read(self):
+        """A reader stops at the first tar's end-of-archive blocks and never reaches the trailer, so a second member
+        whose own trailer is broken is read as if it were not there at all."""
+        with tempfile.TemporaryDirectory() as directory:
+            clean = archive(directory, 'edit-clean-evidence.tar.gz', files(), unix=True)
+            failed = archive(directory, 'edit-failed-evidence.tar.gz', files(status='FAIL'), unix=True)
+            broken = bytearray(clean.read_bytes())
+            broken[-8:-4] = b'\x00\x00\x00\x00'  # its CRC32 trailer
+            joined = Path(directory) / 'edit-joined-evidence.tar.gz'
+            joined.write_bytes(bytes(broken) + failed.read_bytes())
+            problems, _ = checker.check(joined)
+            self.assertTrue(any('cannot be read' in problem for problem in problems), problems)
+
+    def test_refuses_a_tar_that_is_not_the_whole_of_what_was_compressed(self):
+        """The rule is about the tar, not its wrapper: one gzip member can hold a clean tar and then a failed one,
+        which a reader never reaches - and a tar that is not gzipped at all was asked nothing."""
+        with tempfile.TemporaryDirectory() as directory:
+            clean = Path(directory) / 'clean.tar'
+            failed = Path(directory) / 'failed.tar'
+            for path, contents in ((clean, files()), (failed, files(status='FAIL'))):
+                with tarfile.open(path, 'w') as held:
+                    for leaf, text in contents.items():
+                        blob = text.encode('utf-8')
+                        item = tarfile.TarInfo('run/' + leaf)
+                        item.size = len(blob)
+                        held.addfile(item, io.BytesIO(blob))
+            both = clean.read_bytes() + failed.read_bytes()
+            wrapped = Path(directory) / 'edit-wrapped-evidence.tar.gz'
+            wrapped.write_bytes(gzip.compress(both))
+            problems, _ = checker.check(wrapped)
+            self.assertTrue(any('not padding' in problem for problem in problems), problems)
+            bare = Path(directory) / 'edit-bare-evidence.tar.gz'
+            bare.write_bytes(both)
+            problems, _ = checker.check(bare)
+            self.assertTrue(any('not gzipped' in problem for problem in problems), problems)
 
     def test_refuses_a_member_listed_twice_in_the_directory(self):
         """One member listed at its own offset twice: the bytes are covered twice and a hole of the same size goes
@@ -384,7 +474,12 @@ class EvidenceChecks(unittest.TestCase):
             with open(streamed, 'wb') as raw:
                 with zipfile.ZipFile(Unseekable(raw), 'w', zipfile.ZIP_DEFLATED) as held:
                     held.writestr('summary.json', '{}' * 64)
-            for path in (wide, folders, streamed):
+            wide_streamed = Path(directory) / 'wide-streamed.zip'
+            with open(wide_streamed, 'wb') as raw:  # a descriptor is 24 bytes where the entry is written wide
+                with zipfile.ZipFile(Unseekable(raw), 'w', zipfile.ZIP_DEFLATED) as held:
+                    with held.open(zipfile.ZipInfo('summary.json'), 'w', force_zip64=True) as member:
+                        member.write(b'{}' * 64)
+            for path in (wide, folders, streamed, wide_streamed):
                 with self.subTest(path.name):
                     with checker.Archive(path) as held:
                         self.assertIsNone(held.listing_gap())
