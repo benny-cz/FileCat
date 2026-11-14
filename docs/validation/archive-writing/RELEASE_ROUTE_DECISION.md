@@ -89,12 +89,13 @@ On macOS the roles run in the App Sandbox helper described above.
    machine's own sealed run rests on the runner that sealed it, and that a report is the committed check's own rests
    on whoever carried it - both are read as text and bytes here, so a file built to the shape with a report written
    for it satisfies this. The file system in a route's ID is in no sealed record, so it rests on the composition
-   pin inside the run. Where the check reads a system, the run's own dual-root pin has to agree with the machine
+   pin inside the run, which the gate arms. Where the check reads a system, the run's own dual-root pin has to agree with the machine
    record; Linux and macOS are told apart by that record's `uname -a` line alone. So what this condition keeps out is
    the mistake - a lane that did not run the pins, a gate its runner's record shows off, a report moved to another
    archive or route, a stale report, an archive renamed or swapped, parts of one archive that disagree. The record says
-   what reached the tests only through the runner's own layers; two reviews running found one read wrong, and what
-   would end that - the tests recording the gate as they read it - is queued beside the digest. Whoever can write the evidence
+   what reached the tests only through the runner's own layers - three reviews running found one read wrong - and
+   the machine's own environment is in no record at all; what would end both, the tests recording the gate as they
+   read it, is queued beside the digest. Whoever can write the evidence
    folder is outside it, and always was: that is what the runner sealing each archive on its own machine is for.
 5. The independent review (ledger row 14) closes, and its fixes are re-validated.
 
@@ -265,7 +266,7 @@ rules listed, forty-seven held by a case, seven noted as redundant or caseless, 
 unheld - which its exit code reports for the rules it lists, and for those alone.
 
 The fortieth review was asked whether anything was left that the harness, its audit or this boundary did not already
-report, and it answered no. The gate read a runner's record by a looser parse than the runner itself applies, so a
+report, and it found that something was. The gate read a runner's record by a looser parse than the runner itself applies, so a
 mistyped command line - a trailing space, a pair joined by the other runner's separator, the gate given twice - was
 read as the gate in force while the tests ran without it: the first finding since the thirty-third review about an
 archive exactly as its runner sealed it, and the sentences that said the gate held for every such archive now say
@@ -282,8 +283,22 @@ tests, each read wrong on an archive exactly as its runner sealed it: Windows na
 lowercase gate after the real one is the value the tests read; the recorded Windows `Env` passing through `cmd.exe`
 and the ANSI code page on its way to the child; and Python ending a Unix line where bash does not. Each is closed - a
 Windows `Env` is trusted only as plain ASCII and only as its sealed `child.cmd` passed it - and both runners now refuse
-those inputs before a run, while every value the r35 lanes sealed passes them. Two reviews running have found such a
+those inputs before a run, while every value the r35 lanes sealed passes them. (The forty-second review found
+`child.cmd` re-cut through the runner's other arguments, which neither runner checked, and the Windows pattern letting
+a final line feed by - below.) Two reviews running have found such a
 layer, which is the container question again: the check re-derives what the tests were given from a description of
 what the runner was asked to do. What would end it is the tests recording the gate as they read it, and that is queued
 for the next candidate beside the digest. Eighty-three cases hold the check and fourteen the manifest; the harness
 lists ninety-three rules, eighty-three held, ten noted, none unheld.
+
+The forty-second review found three inputs the runners accepted as they then stood, each sealing an archive the check
+read as the gate in force while the tests ran without it: a `"` in the Windows filter re-cut `child.cmd`, so an `-e` of
+its own bound the child's Env while the real `-Env` text, which the check matched by pattern, still stood in the file;
+`VSTESTCLIRUNSETTINGS` beside the gate, which the test platform turns into the gate set to `0` inside the test host
+(reproduced here); and a Unix filter holding a line break, which wrote an `env=` line its runner never exported. The
+check now reads `child.cmd` whole, as the runner's own launcher, and refuses a name outside `FILECAT_`; both runners
+check every argument that reaches `child.cmd` or `machine.txt`, and every argument the r35 lanes passed goes through.
+What no record can show is recorded as the boundary: a variable in the machine's own environment can set the gate
+the same way, and a Unix record cannot tell a smuggled line from its runner's own. Both end with the tests recording
+the gate as they read it, queued beside the digest. Eighty-six cases hold the check and fourteen the manifest; the
+harness lists one hundred and five rules, ninety-three held, twelve noted, none unheld.

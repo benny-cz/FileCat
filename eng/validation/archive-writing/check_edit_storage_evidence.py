@@ -9,10 +9,11 @@ this is what reads what is inside it.
 It reads a run's evidence archive (`<run>-evidence.zip` from the Windows runner, `<run>-evidence.tar.gz` from the Unix
 one) and requires all of:
 
-  * the machine record gives `FILECAT_EDIT_NATIVE_REQUIRED` exactly the value `1`, once, read as its runner applies
-    it as far as reviews have found how (see `gate_assignments`), and a record that cannot say what reached the tests
-    is refused - so a native edit test could not skip; what would end this re-reading is the tests recording the gate
-    as they read it, queued for the next candidate;
+  * the machine record gives `FILECAT_EDIT_NATIVE_REQUIRED` exactly the value `1`, once, and sets nothing outside
+    `FILECAT_`, read as its runner applies it as far as reviews have found how (see `gate_assignments`), and a record
+    that cannot say what reached the tests is refused. That a native edit test could not skip rests on this reading
+    and on the machine's own environment, which no record holds; the tests recording the gate as they read it would
+    end both, and is queued for the next candidate;
   * its own listing accounts for the whole file, each member as long as its own local header says - a zip is read
     from its end and sized from its directory, so an appended zip is read alone and a directory that overstates a
     size can leave the sealed half inside a member's span; a gzipped tar holds one member and nothing after it,
@@ -72,6 +73,14 @@ SYSTEMS = (('Microsoft Windows', 'windows'), ('Windows', 'windows'), ('Linux', '
 GATE_NAME = 'FILECAT_EDIT_NATIVE_REQUIRED'
 GATE_VALUE = '1'
 GATE = GATE_NAME + '=' + GATE_VALUE
+# The one launcher the Windows runner writes into child.cmd, every argument quoted: cmd.exe reads it, and PowerShell
+# splits it again. An argument is printable ASCII without `"` (which would re-cut the line - a filter could bind an
+# -Env of its own), `%` (which cmd.exe expands) or `^` (which delayed expansion removes, turning a `\^"` into `\"`).
+ARGUMENT = r'"([ !#$&-\]_-~]*)"'
+LAUNCHER = re.compile(
+    r'@echo off\r\nC:\\Windows\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe -NoProfile -ExecutionPolicy '
+    r'Bypass -WindowStyle Hidden -File {0} -Run {0} -Packet {0} -Filter {0} -Projects {0} -Dotnet {0} -Env {0} '
+    r'-HangMinutes [0-9]+ > {0} 2>&1\r\n'.replace('{0}', ARGUMENT))
 
 # The pins a listing stands on, by their method names (each lives in the suite its platform runs: the application's
 # composition pin, the Core route list, and the dual-root case in the platform's own storage tests).
@@ -402,16 +411,17 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     """Every value this run's own runner gave the gate, as far as its record can say - in order.
 
     A substring test is not enough, and neither is a looser parse than the runner's. Every reader of this variable
-    compares it to "1" exactly, and both runners pass a value through verbatim, so a run recording
+    compares it to "1" exactly, and both runners pass the gate's value through verbatim (the Windows child replaces
+    `{run}` in a value, which `1` does not hold), so a run recording
     `FILECAT_EDIT_NATIVE_REQUIRED=10` - or `=1 ` with a trailing space - had no gate at all: its native edit tests
     skipped where they were meant to fail, and its composition pin was never armed.
 
     The Windows runner records its `-Env` string in `Env` - in the ANSI code page with best-fit, so as given only
-    where it is plain ASCII - then splits it on `;` alone and sets each name to
-    the rest of its item, untrimmed; a value may hold spaces, so `A=1 FILECAT_EDIT_NATIVE_REQUIRED=1` is one variable
-    `A` and no gate. The Unix runner writes one `env=NAME=VALUE` line per entry it exports; a value may hold `;`, so
-    `env=A=1;FILECAT_EDIT_NATIVE_REQUIRED=1` is likewise one variable and no gate. This check once split both on
-    `;` and whitespace, trimmed, and took the first - and read each of those, and a gate given twice (the runner
+    where it is plain ASCII - then splits it on `;` alone and sets each name to the rest of its item, untrimmed; a
+    value may hold spaces, so `FILECAT_X=1 FILECAT_EDIT_NATIVE_REQUIRED=1` is one variable `FILECAT_X` and no gate.
+    The Unix runner writes one `env=NAME=VALUE` line per entry it exports; a value may hold `;`, so
+    `env=FILECAT_X=1;FILECAT_EDIT_NATIVE_REQUIRED=1` is likewise one variable and no gate. This check once split both
+    on `;` and whitespace, trimmed, and took the first - and read each of those, and a gate given twice (the runner
     applying the last), as the gate in force while the tests ran without it.
 
     The forty-first review found three more layers between the record and the tests. On Windows the names are matched
@@ -419,9 +429,23 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     after the real one was the value the tests saw; and the recorded Env is not what the child is given: the runner
     hands it to child.cmd, which cmd.exe reads again (expanding %...%, ending at a line break), and writes machine.json
     in the ANSI code page with best-fit, so a fullwidth semicolon in a value reads as a real one there. So a Windows Env
-    is trusted only where it is printable ASCII without %, and only when the sealed child.cmd passed exactly it. On
+    is trusted only where it is printable ASCII without %, ! or ^, and only where the sealed child.cmd passes it. On
     Unix a line ends at a newline alone, as bash writes it - Python's splitlines() also ends one at 0x1c or 0x85, which
     bash keeps inside one value.
+
+    The forty-second review re-cut child.cmd through its other arguments: a `"` in the filter let an `-e` of its own
+    bind the child's Env while the real `-Env` text still stood in the file, which the check matched by pattern. So
+    child.cmd is read whole, as the one launcher its runner writes - every argument printable ASCII without `"`, `%`
+    or `^`, none starting with `-` or ending in a backslash, which PowerShell would read otherwise - and its `-Env` must
+    be the record's. It also set the gate through the test platform: beside the gate,
+    `VSTESTCLIRUNSETTINGS=RunConfiguration.EnvironmentVariables.FILECAT_EDIT_NATIVE_REQUIRED=0` is read by MSBuild as
+    a property and by VSTest as settings, which set the gate to 0 inside the test host. A name outside `FILECAT_` is
+    refused. And the Unix runner writes its filter into the same record as its `env=` lines: a filter holding a line
+    break wrote a line of its own there - an `env=` line the runner never exported, while each test process took the
+    filter's first line alone. Nothing in the record tells such a line from the runner's own, so the runner refuses a
+    filter or project entry that is not printable ASCII now. A variable in the machine's own environment can set the
+    gate with nothing in the record at all; that is beyond this reading, and ends only with the tests recording the
+    gate as they read it.
 
     Returns the values in order, or a reason the record cannot say what the tests were given.
     """
@@ -434,21 +458,36 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
             return [], None
         if not isinstance(recorded, str):
             return [], 'its machine record gives Env as a %s, not the string its runner passes on' % type(recorded).__name__
-        strange = [character for character in recorded if not ' ' <= character <= '~' or character == '%']
+        strange = [character for character in recorded if not ' ' <= character <= '~' or character in '%!^']
         if strange:
             return [], ('its machine record\'s Env holds %r, which cmd.exe or the ANSI code page changes on its way to '
                         'the tests, so the record cannot say what they were given' % strange[0])
-        given = [found for script in archive.find('child.cmd')
-                 for found in re.findall(r'-Env "([^"]*)"', archive.read(script))]
-        if given != [recorded]:
-            return [], ('its child.cmd passed %s where its machine record holds Env %r, so the record cannot say '
-                        'what the tests were given' % (', '.join(repr(found) for found in given) or 'no -Env', recorded))
+        scripts = archive.find('child.cmd')
+        if len(scripts) != 1:
+            return [], ('it carries %d child.cmd where its runner seals one, so the record cannot say what the tests '
+                        'were given' % len(scripts))
+        launched = LAUNCHER.fullmatch(archive.read(scripts[0]))
+        if launched is None:
+            return [], ('its child.cmd is not the launcher its runner writes, so the record cannot say what the tests '
+                        'were given')
+        odd = [argument for argument in launched.groups() if argument.startswith('-') or argument.endswith('\\')]
+        if odd:
+            return [], ('its child.cmd passes %r, which PowerShell does not read as written - a leading - names a '
+                        'parameter, a trailing backslash escapes the closing quote - so the record cannot say what the '
+                        'tests were given' % odd[0])
+        if launched.group(7) != recorded:
+            return [], ('its child.cmd passed %r where its machine record holds Env %r, so the record cannot say what '
+                        'the tests were given' % (launched.group(7), recorded))
         pairs = [item for item in recorded.split(';') if item]
     else:
         pairs = [line[len('env='):] for line in text.split('\n') if line.startswith('env=')]
     values = []
     for pair in pairs:
         key, separator, value = pair.partition('=')
+        if not (key.upper() if windows else key).startswith('FILECAT_'):
+            return [], ('its machine record sets %r, outside FILECAT_ - the test platform reads some such names '
+                        '(VSTESTCLIRUNSETTINGS can set the gate inside the test host), so the record cannot say what the '
+                        'tests were given' % key)
         if separator and (key.isascii() and key.upper() == GATE_NAME if windows else key == GATE_NAME):
             values.append(value)
     return values, None

@@ -22,6 +22,11 @@ RUN_ID=$1; PACKET=$2; EXPECTED=$3; FILTER=$4; shift 4
 PROJECTS=("$@")
 [[ "$RUN_ID" =~ ^[A-Za-z0-9._-]{1,80}$ ]] || { echo "bad run id" >&2; exit 2; }
 [ "${#PROJECTS[@]}" -ge 1 ] || { echo "no project" >&2; exit 2; }
+# FILTER and each PROJECT entry are written into machine.txt and handed to the test processes: printable ASCII only,
+# judged in the C locale. A line break in the filter wrote a line of its own into the record - an env= line this runner
+# never exported - while each test process took the filter's first line alone.
+( LC_ALL=C; [[ "$FILTER" =~ ^[[:print:]]+$ ]] ) || { echo "bad filter" >&2; exit 2; }
+for P in "${PROJECTS[@]}"; do ( LC_ALL=C; [[ "$P" =~ ^[[:print:]]+$ ]] ) || { echo "bad project entry" >&2; exit 2; }; done
 ROOT="$HOME/FileCatValidation/aw-claude"
 mkdir -p "$ROOT"; chmod 700 "$ROOT"
 D="$ROOT/$RUN_ID"
@@ -62,18 +67,22 @@ date -u +%Y-%m-%dT%H:%M:%SZ >"$D/started.txt"
 tar -xzf "$PACKET" -C "$D/src"
 export DOTNET_ROOT PATH="$DOTNET_ROOT:$PATH" DOTNET_CLI_TELEMETRY_OPTOUT=1 MSBUILDDISABLENODEREUSE=1 DOTNET_NOLOGO=1
 { uname -a; if [ $LABEL = mac ]; then sw_vers; sysctl -n hw.logicalcpu; else lsb_release -d; nproc; fi
-  "$DOTNET_ROOT/dotnet" --version; df -h "$D" | tail -1; echo "packet=$EXPECTED"; echo "filter=$FILTER"; } >"$D/machine.txt" 2>&1
+  "$DOTNET_ROOT/dotnet" --version; df -h "$D" | tail -1; printf 'packet=%s\nfilter=%s\n' "$EXPECTED" "$FILTER"; } >"$D/machine.txt" 2>&1
+# A record line that carries an argument's text is written with printf: echo under sh (xpg_echo) turns a \n inside
+# a value into a line of its own.
 if [ $LABEL = ubuntu ]; then NICE=(nice -n 5); else NICE=(env); fi
 EXTRA_ENVS=()
 HANG=20m
 PARALLEL=0
 for P in "${PROJECTS[@]}"; do
   case "$P" in
-    # Printable ASCII without whitespace, judged in the C locale: elsewhere [A-Z] may take a lowercase letter, and a
-    # value could hold \x1c or \x85, which the evidence check's reader would end a line at. It refuses those; this
-    # refuses them before a run starts.
-    env:*) KV=${P#env:}; ( LC_ALL=C; [[ "$KV" =~ ^[A-Z][A-Z0-9_]*=[!-~]*$ ]] ) || { echo "bad env entry" >&2; exit 2; }
-      export "$KV"; EXTRA_ENVS+=("$KV"); echo "env=$KV" >>"$D/machine.txt" ;;
+    # FILECAT_ names in capitals, values of printable ASCII without a space or `$`, judged in the C locale (elsewhere
+    # [A-Z] may take a lowercase letter): a value could hold \x1c or \x85, which Python's splitlines() takes for a line
+    # end (the evidence check once read the record that way);
+    # the test platform reads some other names (VSTESTCLIRUNSETTINGS can set a variable inside the test host); and
+    # systemd-run expands ${...} in a value on its way to the tests. This refuses them before a run starts.
+    env:*) KV=${P#env:}; ( LC_ALL=C; [[ "$KV" =~ ^FILECAT_[A-Z0-9_]+=[!-#%-~]*$ ]] ) || { echo "bad env entry" >&2; exit 2; }
+      export "$KV"; EXTRA_ENVS+=("$KV"); printf 'env=%s\n' "$KV" >>"$D/machine.txt" ;;
     hang:*) M=${P#hang:}; [[ "$M" =~ ^[1-9][0-9]{0,2}$ ]] && [ "$M" -le 600 ] || { echo "bad hang entry" >&2; exit 2; }
       HANG="${M}m"; echo "hang=$HANG" >>"$D/machine.txt" ;;
     parallel:*) case "${P#parallel:}" in on) PARALLEL=1 ;; off) PARALLEL=0 ;; *) echo "bad parallel entry" >&2; exit 2 ;; esac
@@ -142,7 +151,7 @@ run_test() {
   if [ $USE_SYSTEMD = 1 ]; then
     runner=(systemd-run --user --wait --pipe --collect --quiet -p Nice=5 --unit="filecat-aw-claude-$RUN_ID-test$idx" /usr/bin/env "${ENVS[@]}")
   fi
-  echo "test $name: $f" >>"$D/machine.txt"
+  printf 'test %s: %s\n' "$name" "$f" >>"$D/machine.txt"
   "${runner[@]}" "$DOTNET_ROOT/dotnet" "${args[@]}" </dev/null >"$D/test-$name.log" 2>&1; echo $? >"$D/exit-$name.txt"
 }
 set +e

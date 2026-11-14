@@ -1,5 +1,50 @@
 # Archive writing implementation status
 
+**14 November, the runners' other arguments (round forty-two).** Asked again whether anything was left that the
+mechanism did not report, the reviewer found three: inputs the runners accepted as they stood after the round
+below, each sealing an archive the check read as the gate in force while the tests ran without it:
+
+- **`child.cmd` re-cut through its other arguments.** The Windows runner checked `-Env` but not `-Filter`, `-Projects`,
+  `-Packet` or `-Dotnet`, which go into the same `child.cmd` line. A `"` in the filter let an `-e "..."` of its own bind
+  the child's Env - `cmd.exe` and PowerShell split the line differently - while the real `-Env "..."` still stood in
+  the file, where the check found it by pattern and trusted it. The reviewer replayed the runner's own lines and the
+  child ran with no gate. The check now reads `child.cmd` whole, as the one launcher the runner writes: every argument
+  printable ASCII without `"`, `%` or `^`, none starting with `-` (a parameter name to PowerShell) or ending in a
+  backslash (which turns its closing quote into a literal one), and its `-Env` the record's. The runner refuses such
+  arguments before a run, and all five sealed r35 `child.cmd` files are that launcher.
+- **The gate set through the test platform.** Beside the gate,
+  `VSTESTCLIRUNSETTINGS=RunConfiguration.EnvironmentVariables.FILECAT_EDIT_NATIVE_REQUIRED=0` passed both runners' name
+  checks; MSBuild reads the environment as properties and VSTest reads that one as settings. Reproduced here with the
+  reviewer's probe (SDK 10.0.101, the repo's own test packages, the child's own Env loop and `dotnet test` arguments):
+  the child process holds `1`, and the test reads `0`. A name outside `FILECAT_` is refused now, by the check and by
+  both runners; every name the r35 lanes passed is a `FILECAT_` one.
+- **A Unix filter wrote a line of its own.** The Unix runner wrote its unchecked filter into `machine.txt`: a filter
+  holding a line break added an `env=FILECAT_EDIT_NATIVE_REQUIRED=1` line it never exported, while each test process
+  took the filter's first line alone. Nothing in the record tells such a line from the runner's own, so this one is
+  closed at the runner: a filter or project entry must be printable ASCII, and record lines are written with `printf`
+  (`echo` under `sh` turns a `\n` inside a value into a line; the Mac's `/bin/sh` does, its `/bin/bash` does not).
+- **Medium: the Windows `-Env` pattern let a final line feed by** - its `$` also matches before one. No verdict changed
+  (the check refused such a record), but the round below said the runner refused those inputs; it ends in `\z` now.
+- Low, closed with them: an `Env` holding `!` or `^`, which `cmd.exe` changes where delayed expansion is on (the
+  reviewer: `A=!x;GATE=1;B=!` reached the child as `A=` under `cmd /V:ON`), is refused by the check and the runner;
+  and the Unix runner refuses a `$` in an env value, since the Ubuntu lane's `systemd-run` expands `${...}` there
+  (checked on the VM's systemd 255, which leaves `$HOME` and `%h` alone) - that cannot reach the gate, but it made the
+  record differ from what the tests got.
+
+Every argument the r35 lanes passed goes through the new checks: the five Windows argument sets under Windows PowerShell
+5.1, and the thirty Unix filters, project entries and sealed env values under this host's bash 5.3, the Mac's
+`/bin/bash` 3.2 and the Ubuntu VM's bash 5.2 - all accepted, and every input above refused, on each of them.
+
+**What this round leaves where it was.** Two things no record can show, recorded as the boundary rather than fixed: a
+variable in the machine's own environment - the VM user's, an ssh session's, the systemd user manager's - can set the
+gate the way `VSTESTCLIRUNSETTINGS` did, with nothing in any record; and a Unix record cannot tell a line its runner
+wrote from one smuggled through an argument the runner did not check. Both end only with the tests recording the gate
+as they read it, queued for the next candidate beside the digest.
+
+Eighty-six cases for the check and fourteen for the manifest; the harness lists one hundred and five rules, ninety-three held by
+a case, twelve noted as redundant or caseless (three of them because their weakening can only crash), and none expected to
+be held and unheld.
+
 **14 November, the layers between the record and the tests (round forty-one).** The round below read each runner's
 record the way that runner applies it, as far as its own lines go. This review replayed both runners and found three
 layers it did not go through, each giving the tests something other than the record says, on an archive exactly as its
@@ -14,7 +59,9 @@ runner sealed it:
   which `cmd.exe` reads again - expanding `%...%`, ending at a line break - and writes `machine.json` in the ANSI code
   page with best-fit, so a fullwidth semicolon inside one value reads there as a real one while the child was given
   one variable. A Windows `Env` is trusted now only where it is printable ASCII without `%`, and only where the sealed
-  `child.cmd` passed exactly that string (all five sealed Windows archives of r35 carry one, equal to their `Env`).
+  `child.cmd` passed exactly that string (all five sealed Windows archives of r35 carry one, equal to their `Env`) -
+  read as its text then, which the round above found the runner's other arguments could re-cut; it is read as the
+  runner's own launcher now.
 - **A Unix line ends at a newline alone**, as bash writes it; Python's `splitlines()` also ended one at 0x1c or 0x85,
   which the runner keeps inside one value. The record is split at newlines alone now.
 
@@ -22,7 +69,8 @@ Both runners now refuse those inputs before a run starts. The Windows `-Env` pat
 of capitals, digits and `_`, with values of printable ASCII without `"`, `%` or `;`; the Unix entry check admits the
 same names with values of printable ASCII without a space, in the C locale. Every value the r35 lanes sealed passes
 them - the Windows check run under Windows PowerShell 5.1, the Unix one under the Mac's `/bin/bash` 3.2 and the Ubuntu
-VM's bash 5.2 - and each input above is refused.
+VM's bash 5.2 - and each input above is refused. (The Windows pattern also let a final line feed by, and neither
+runner checked its other arguments; the round above found both.)
 
 Also closed: a gate value after its first `=` (`GATE=0=1` gives the tests `0=1`) and a status read whole (a runner
 appends `leftover:` after a run it tidied up) had no case; a harness note that called the both-size-fields rule
@@ -43,7 +91,7 @@ Eighty-three cases for the check and fourteen for the manifest; the harness list
 by a case, ten noted as redundant or caseless, and none expected to be held and unheld.
 
 **14 November, the gate's own parse (round forty).** Asked whether anything was left that the harness, its audit or
-the recorded boundary did not already report, the reviewer answered no - and the first reason was the most serious
+the recorded boundary did not already report, the reviewer found that something was - and the first thing was the most serious
 finding since the thirty-third round, because it is about an archive exactly as its runner sealed it:
 
 - **The gate was read by a looser parse than either runner applies.** The Windows runner records its `-Env` string

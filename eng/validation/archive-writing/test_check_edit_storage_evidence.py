@@ -56,10 +56,26 @@ def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything 
     }
 
 
+LAUNCHED = {'run': 'C:\\FileCatValidation\\aw-claude\\edit-test',
+            'packet': 'C:\\FileCatValidation\\aw-claude\\packets\\src-048bf334.tar.gz', 'filter': '*',
+            'projects': 'tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit',
+            'dotnet': 'C:\\FileCatValidation\\dotnet\\dotnet.exe', 'hang': '20'}
+
+
+def launcher(env, **changed):
+    """The child.cmd the Windows runner writes, character for character, with whichever arguments a case changes."""
+    given = dict(LAUNCHED, env=env, **changed)
+    return ('@echo off\r\nC:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -ExecutionPolicy '
+            'Bypass -WindowStyle Hidden -File "{run}\\child.ps1" -Run "{run}" -Packet "{packet}" -Filter "{filter}" '
+            '-Projects "{projects}" -Dotnet "{dotnet}" -Env "{env}" -HangMinutes {hang} > "{run}\\child.out" 2>&1\r\n'
+            ).format(**given)
+
+
 def with_child_cmd(contents):
     """The Windows runner also seals the child.cmd that handed its `-Env` to the child, and the check reads the gate only
-    where the two agree - so a fixture carries one, derived from its machine record's Env as the runner writes it,
-    unless the case wrote its own. A case drops it by setting it to None."""
+    where that file is the runner's own launcher passing the record's Env - so a fixture carries one, written as the
+    runner writes it from its machine record's Env, unless the case wrote its own. A case drops it by setting it to
+    None."""
     if contents.get('child.cmd', '') is None:
         return {name: text for name, text in contents.items() if name != 'child.cmd'}
     if 'machine.json' not in contents or 'child.cmd' in contents:
@@ -70,8 +86,7 @@ def with_child_cmd(contents):
         return contents
     if not isinstance(env, str):
         return contents
-    return dict(contents, **{'child.cmd': '@echo off\r\npowershell.exe -NoProfile -File "child.ps1" -Env "%s" '
-                                          '-HangMinutes 20\r\n' % env})
+    return dict(contents, **{'child.cmd': launcher(env)})
 
 
 def archive(directory, name, contents, unix=False):
@@ -723,7 +738,7 @@ class EvidenceChecks(unittest.TestCase):
 
     def windows_record(self, env):
         """A machine record as the Windows runner seals it: its `-Env` string in `Env` (as given, where that is plain
-        ASCII)."""
+        ASCII); archive() adds the launcher that passed it, as child.cmd."""
         contents = files()
         contents['machine.json'] = json.dumps({"RunId": "edit-test", "Os": "Microsoft Windows 11 Pro", "Env": env})
         return contents
@@ -751,8 +766,10 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_reads_the_gate_the_way_the_unix_runner_applies_it(self):
         """The Unix runner exports one entry per `env=` line, and a value may hold `;` - so `A=1;GATE=1` is one
-        variable holding the gate's text. The gate given twice ends as its last value, and a line that is not an
-        `env=` line (a filter, say) sets nothing at all, whatever it holds."""
+        variable holding the gate's text. The gate given twice ends as its last value, and the gate's text inside
+        another line (a filter, say) sets nothing. A filter holding a line break once wrote a line of its own there, an
+        `env=` line the runner never exported: nothing in the record tells it from the runner's own, and the runner
+        refuses such a filter now."""
         gate = checker.GATE_NAME
         for lines, said in ((('env=FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1',), 'does not name ' + gate),
                             (('env=' + gate + '=1', 'env=' + gate + '=0'), "gives %s 2 values ('1', '0')" % gate),
@@ -869,7 +886,8 @@ class EvidenceChecks(unittest.TestCase):
         """The recorded Env reaches the child through child.cmd, which cmd.exe reads again - expanding %...%, ending at
         a line break - and machine.json is written in the ANSI code page with best-fit, so a fullwidth semicolon in a
         value reads there as a real one while the child was given one variable. The record is trusted only as plain
-        printable ASCII without %, and only where the sealed child.cmd passed exactly it."""
+        printable ASCII without %, ! or ^, and only where the sealed child.cmd - the runner's own launcher, read whole -
+        passes exactly it."""
         gate = checker.GATE_NAME
         for env, said in (('FILECAT_ARCHIVE_TXF_NATIVE=100%;' + gate + '=1', "holds '%'"),
                           ('FILECAT_ARCHIVE_TXF_NATIVE=1\r\nX;' + gate + '=1', "holds '\\r'")):
@@ -877,13 +895,75 @@ class EvidenceChecks(unittest.TestCase):
                 problems, _ = self.check(self.windows_record(env))
                 self.assertTrue(any(said in problem for problem in problems), problems)
         recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1'
-        widened = recorded.replace(';', chr(0xFF1B))
-        for script, said in (('powershell.exe -File "child.ps1" -Env "%s"\r\n' % widened, 'its child.cmd passed'),
-                             (None, 'its child.cmd passed no -Env')):
-            with self.subTest(script is None and 'no child.cmd' or 'a fullwidth semicolon'):
+        for script, said in ((launcher(recorded.replace(';', chr(0xFF1B))), 'is not the launcher its runner writes'),
+                             (launcher('FILECAT_ARCHIVE_TXF_NATIVE=1'),
+                              "its child.cmd passed 'FILECAT_ARCHIVE_TXF_NATIVE=1' where its machine record holds Env"),
+                             (None, 'it carries 0 child.cmd where its runner seals one')):
+            with self.subTest(script):
                 contents = self.windows_record(recorded)
                 contents['child.cmd'] = script
                 problems, _ = self.check(contents)
+                self.assertTrue(any(said in problem for problem in problems), problems)
+
+    def test_reads_child_cmd_whole_as_the_launcher_its_runner_writes(self):
+        """The forty-second review re-cut child.cmd through its other arguments: a `"` in the filter let an `-e` of its
+        own bind the child's Env (cmd.exe and PowerShell split the line differently), while the real `-Env` text still
+        stood in the file for a pattern to find. So child.cmd is read whole, as the one launcher its runner writes:
+        every argument printable ASCII without `"`, `%` or `^`, none starting with `-` (a parameter name to PowerShell)
+        or ending in a backslash (which turns the closing quote into a literal one)."""
+        gate = checker.GATE_NAME
+        recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1'
+        smuggled = '*" -Projects "x" -Dotnet "y" -e "FILECAT_ARCHIVE_TXF_NATIVE=1" -HangMinutes 20 '
+        for changed, said in (({'filter': smuggled}, 'is not the launcher its runner writes'),
+                              ({'filter': 'FullyQualifiedName~100%'}, 'is not the launcher its runner writes'),
+                              ({'projects': 'tests\\A.csproj^'}, 'is not the launcher its runner writes'),
+                              ({'filter': '-e:FILECAT_ARCHIVE_TXF_NATIVE=1'}, "passes '-e:FILECAT_ARCHIVE_TXF_NATIVE=1'"),
+                              ({'dotnet': 'C:\\FileCatValidation\\dotnet\\'},
+                               "passes 'C:\\\\FileCatValidation\\\\dotnet\\\\'")):
+            with self.subTest(changed):
+                contents = self.windows_record(recorded)
+                contents['child.cmd'] = launcher(recorded, **changed)
+                problems, _ = self.check(contents)
+                self.assertTrue(any(said in problem for problem in problems), problems)
+        contents = self.windows_record(recorded)
+        contents['child.cmd'] = launcher(recorded) + 'set ' + gate + '=0\r\n'
+        problems, _ = self.check(contents)
+        self.assertTrue(any('is not the launcher its runner writes' in problem for problem in problems), problems)
+        contents = self.windows_record(recorded)
+        contents['extra/child.cmd'] = launcher(recorded)
+        problems, _ = self.check(contents)
+        self.assertTrue(any('it carries 2 child.cmd where its runner seals one' in problem for problem in problems),
+                        problems)
+        # What real lanes pass: a negated shard's `!`, a path with a space, `{run}` in a value, an empty Env.
+        env = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1;FILECAT_ARCHIVE_APP_ASSETS={run}\\publish\\FileCat.App'
+        contents = self.windows_record(env)
+        contents['child.cmd'] = launcher(env, projects='tests\\B.csproj#!ArchiveAppContainerTests,tests\\C D\\C.csproj')
+        self.assertEqual([], self.check(contents)[0])
+        problems, _ = self.check(self.windows_record(''))
+        self.assertEqual(['its machine record does not name ' + gate], problems)
+
+    def test_refuses_a_name_outside_filecat_which_the_test_platform_may_read(self):
+        """MSBuild reads the environment as properties, and VSTest reads the VSTestCLIRunSettings property as settings:
+        beside the gate, `VSTESTCLIRUNSETTINGS=RunConfiguration.EnvironmentVariables.FILECAT_EDIT_NATIVE_REQUIRED=0`
+        set the gate to 0 inside the test host (the forty-second review, through the child's own Env loop and
+        `dotnet test` arguments). A name outside FILECAT_ is refused - a Windows one matched without case."""
+        gate = checker.GATE_NAME
+        settings = 'VSTESTCLIRUNSETTINGS=RunConfiguration.EnvironmentVariables.' + gate + '=0'
+        said = "sets 'VSTESTCLIRUNSETTINGS', outside FILECAT_"
+        problems, _ = self.check(self.windows_record(gate + '=1;' + settings))
+        self.assertTrue(any(said in problem for problem in problems), problems)
+        problems, _ = self.check(self.unix_record('env=' + gate + '=1', 'env=' + settings), unix=True)
+        self.assertTrue(any(said in problem for problem in problems), problems)
+        self.assertEqual([], self.check(self.windows_record('filecat_archive_txf_native=1;' + gate + '=1'))[0])
+
+    def test_refuses_a_windows_env_that_delayed_expansion_would_change(self):
+        """Where delayed expansion is on, cmd.exe replaces `!...!` and removes `^` in child.cmd: `A=!x;GATE=1;B=!`
+        reached the child as `A=`, with no gate (the forty-second review, under cmd /V:ON)."""
+        gate = checker.GATE_NAME
+        for env, said in (('FILECAT_ARCHIVE_TXF_NATIVE=!x;' + gate + '=1;FILECAT_ARCHIVE_CONTAINMENT=!', "holds '!'"),
+                          ('FILECAT_ARCHIVE_TXF_NATIVE=1^;' + gate + '=1', "holds '^'")):
+            with self.subTest(env):
+                problems, _ = self.check(self.windows_record(env))
                 self.assertTrue(any(said in problem for problem in problems), problems)
 
     def test_reads_a_unix_record_by_its_own_line_ends(self):

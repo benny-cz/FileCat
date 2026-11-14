@@ -7,22 +7,29 @@ token an ordinary signed-in user has. The wrapper refuses (status POSTPONED) whi
 test process is running and seals C:\FileCatValidation\aw-claude\<RunId>-evidence.zip.
 #>
 param(
-    [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9._-]{1,60}$')][string]$RunId,
-    [Parameter(Mandatory)][string]$Packet,
-    [Parameter(Mandatory)][ValidatePattern('^[0-9a-fA-F]{64}$')][string]$Sha256,
-    [Parameter(Mandatory)][string]$Filter,
-    [Parameter(Mandatory)][string]$Projects,
+    [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9._-]{1,60}\z')][string]$RunId,
+    # Packet, Filter, Projects and Dotnet reach the child through child.cmd, which cmd.exe reads and PowerShell splits
+    # again: a `"` re-cuts the child's arguments (a filter could bind an -Env of its own), a `%` is expanded, a `^` is
+    # removed under delayed expansion, a trailing `\` escapes the closing quote and a leading `-` reads as a parameter
+    # name. So each is printable ASCII without `"`, `%` or `^`, not starting with `-` or ending in `\`; the evidence
+    # check reads child.cmd as this launcher and refuses anything else.
+    [Parameter(Mandatory)][ValidatePattern('^(?!-)[ !#$&-\]_-~]+(?<!\\)\z')][string]$Packet,
+    [Parameter(Mandatory)][ValidatePattern('^[0-9a-fA-F]{64}\z')][string]$Sha256,
+    [Parameter(Mandatory)][ValidatePattern('^(?!-)[ !#$&-\]_-~]+(?<!\\)\z')][string]$Filter,
+    [Parameter(Mandatory)][ValidatePattern('^(?!-)[ !#$&-\]_-~]+(?<!\\)\z')][string]$Projects,
     [string]$User = 'Admin',
-    [string]$Dotnet = 'C:\FileCatValidation\dotnet\dotnet.exe',
+    [ValidatePattern('^(?!-)[ !#$&-\]_-~]+(?<!\\)\z')][string]$Dotnet = 'C:\FileCatValidation\dotnet\dotnet.exe',
     [int]$TimeoutMinutes = 240,
     [ValidateRange(1, 600)][int]$HangMinutes = 20,
-    # Optional 'NAME=value;NAME2=value' test environment; {run} expands to the run folder (for published assets).
-    # Case-sensitive, and printable ASCII without `"`, `%` or `;` in a value: the default ignores case (so a lowercase
-    # name overrode the real one), and cmd.exe re-reads this string through child.cmd (expanding %...%, ending at a
-    # line break) while machine.json is written in the ANSI code page with best-fit - so anything else reached the
-    # tests as something other than what the record says. The evidence check refuses such a record; this refuses it
-    # before a run starts.
-    [ValidatePattern('^([A-Z][A-Z0-9_]{0,63}=[ !#$&-:<-~]*)?(;[A-Z][A-Z0-9_]{0,63}=[ !#$&-:<-~]*)*$', Options = 'None')][string]$Env = ''
+    # Optional 'FILECAT_NAME=value;FILECAT_NAME2=value' test environment; {run} expands to the run folder (for published
+    # assets). FILECAT_ names only, in capitals: the test platform reads some other names (VSTESTCLIRUNSETTINGS can set
+    # a variable inside the test host), and the environment matches names without case, which the default pattern
+    # options let through as a second gate. A value is printable ASCII without `"`, `%`, `;`, `!` or `^`, and the whole
+    # string does not end in `\`: cmd.exe re-reads it through child.cmd (expanding %...%, and !...! under delayed
+    # expansion), PowerShell reads a final `\"` as a quote, and machine.json is written in the ANSI code page with
+    # best-fit. The evidence check refuses such a record; this refuses it before a run starts (`\z`, since `$` also
+    # matches before a final line feed).
+    [ValidatePattern('^(FILECAT_[A-Z0-9_]{1,56}=[ #$&-:<-\]_-~]*)?(;FILECAT_[A-Z0-9_]{1,56}=[ #$&-:<-\]_-~]*)*(?<!\\)\z', Options = 'None')][string]$Env = ''
 
 )
 $ErrorActionPreference = 'Stop'
