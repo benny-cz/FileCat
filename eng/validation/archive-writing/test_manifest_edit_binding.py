@@ -15,6 +15,11 @@ that route's own system, by a line whose whole tail it reads. These cases are th
 every way of satisfying the older, weaker refusals that it now turns down. Each report here is written by the committed
 check itself, so nothing in this file can agree with the manifest while the check disagrees.
 
+What this requirement does not establish: that an archive is a machine's own sealed run. The manifest reads bytes and
+text, so a file built to this shape, with a report the check wrote for it, satisfies it - which is what the accepting
+case here does on purpose. What makes an archive a run is the runner that sealed it on its own machine; what this adds
+is that the report, the archive and the route cannot be moved apart or mixed up afterwards.
+
 Run by hand, as its sibling is, from the checkout's root (isolated Python keeps the working folder off the path, so
 discovery is what puts this folder on it):
 
@@ -213,6 +218,23 @@ class ManifestEditBinding(unittest.TestCase):
             code, said, written = self.manifest(evidence)
             self.assertEqual(2, code, said)
             self.assertIn('does not accept the archive carried under', said)
+            self.assertIsNone(written)
+
+    def test_refuses_an_archive_renamed_after_its_check_read_it(self):
+        """The head of the verdict line is the archive's own name, so a file renamed after its check read it is
+        refused until the check is run again - a re-reading that costs nothing. Without this case nothing measured the
+        head: equal bytes give an equal digest, so the digest alone would have accepted the renamed file."""
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = self.archive_routes(directory)
+            for route, system in ROUTES.items():
+                archive, report = self.accepted(Path(directory) / route, system)
+                renamed = archive.with_name('edit-renamed-evidence.zip')
+                archive.rename(renamed)
+                evidence += [(route + '/edit', renamed), (route + '/edit/check', report)]
+            code, said, written = self.manifest(evidence)
+            self.assertEqual(2, code, said)
+            self.assertIn('does not accept the archive carried under', said)
+            self.assertIn('edit-renamed-evidence.zip: edit-storage evidence,', said)
             self.assertIsNone(written)
 
     def test_refuses_two_archives_under_one_route_s_id(self):

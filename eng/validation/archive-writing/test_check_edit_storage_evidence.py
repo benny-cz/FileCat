@@ -122,6 +122,7 @@ class EvidenceChecks(unittest.TestCase):
         del contents['machine.json']
         contents['machine.txt'] = ('Linux filecat-ubuntu2404 7.0.0-43-generic #43 SMP x86_64 GNU/Linux\n'
                                    'packet=abc\nfilter=*\nenv=FILECAT_ARCHIVE_TXF_NATIVE=1\nenv=%s\n' % checker.GATE)
+        # Its results name neither class, so the record is all that says the system - as it is between Linux and macOS.
         problems, _ = self.check(contents, unix=True)
         self.assertEqual([], problems)
 
@@ -226,6 +227,32 @@ class EvidenceChecks(unittest.TestCase):
             problems, facts = self.check(contents, unix=True)
             self.assertEqual([], problems)
             self.assertEqual(system, facts['system'])
+
+    def test_refuses_a_run_that_carries_a_second_machine_record(self):
+        """Put an extra record before the real one and the system was read from the extra one: nothing was removed, and
+        the archive said whatever that record said. A run seals one record."""
+        contents = files()
+        contents['aa-notes/machine.json'] = json.dumps({"Os": "Linux something 6.0.0 x86_64 GNU/Linux",
+                                                        "Env": checker.GATE})
+        problems, _ = self.check(contents)
+        self.assertTrue(any('it carries 2 machine records' in problem for problem in problems), problems)
+
+    def test_refuses_a_run_whose_record_and_results_disagree_about_its_system(self):
+        """One rewritten `Os` field had this check call a real Windows run Linux. The dual-root pin's own class is in
+        the run's results, so the run says the family too, and the two have to agree."""
+        pin = checker.PINS[2]
+        windows = (PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pin) +
+                   '<UnitTestResult testName="FileCat.Core.Tests.UnixEditStorageTests.%s" outcome="NotExecuted" />' % pin)
+        unix = PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Core.Tests.UnixEditStorageTests.' + pin)
+        self.assertEqual([], self.check(files(trx=windows))[0])  # its record says Windows, as that run's does
+        problems, _ = self.check(files(trx=windows, system='Linux host 6.0.0 x86_64 GNU/Linux'))
+        self.assertIn('its machine record says linux while its own dual-root pin passed in the Windows platform '
+                      "suite's class, so the record and the run disagree about which system ran it", problems)
+        problems, _ = self.check(files(trx=unix, system='Darwin host 27.0.0 arm64'))
+        self.assertEqual([], problems)  # a Unix run and a Unix record agree, whichever Unix it is
+        problems, _ = self.check(files(trx=unix))
+        self.assertIn("its machine record says windows while its own dual-root pin passed in the Core suite's Unix "
+                      'class, so the record and the run disagree about which system ran it', problems)
 
     def test_refuses_a_run_whose_machine_record_does_not_say_which_system_ran_it(self):
         problems, _ = self.check(files(system='a machine'))

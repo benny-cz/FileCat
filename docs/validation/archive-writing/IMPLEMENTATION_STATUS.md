@@ -1,5 +1,37 @@
 # Archive writing implementation status
 
+**14 November, the binding attacked (round thirty-one).** One reviewer drove the committed tool through fifteen crafted
+manifests and seven mutants of its comparison. It defeated the route half of the binding twice, both times with reports
+the committed check itself had written - no hand-edited text:
+
+- **The system was read from whichever machine record came first.** Adding one extra `aa-notes/machine.json` ahead of
+  the real one, removing nothing, made the check call a Windows run Linux, and the manifest took that archive for the
+  Linux route. An archive now carries one machine record, and more than one is refused by name.
+- **A record rewritten said whatever it liked.** One `Os` field changed to a Linux uname line had the check accept a
+  copy of the real Windows archive as Linux evidence - while the same report listed `FileCat.Platform.Windows.Tests-Edit`
+  and the dual-root pin passing in the Windows class, which only a Windows run has. That pin is one method in the
+  Windows platform suite's class and in the Core suite's Unix class, so the run's own results witness the family: the
+  record and the results now have to agree, and both of the review's archives are refused by the check itself. Linux and
+  macOS are still told apart by the record's own `uname -a` line, which is said in the check and in condition 4.
+- **The head of the verdict line was measured by nothing.** Dropping it left all eight cases passing: equal bytes give
+  an equal digest, so only an accepted archive renamed after its check read it notices. That case exists now, and the
+  five requirements of the comparison each fail exactly the case that claims them - the whole requirement all eight
+  refusals, the system the cross-route case, the digest the same-name case, the name the renamed case, the whole tail
+  the gate-off case. Nine cases.
+- **What the binding does not establish was nowhere said.** It reads bytes and text, so an archive built to this shape
+  with a report the check wrote for it satisfies it - as the accepting case does on purpose. That an archive is a
+  machine's own sealed run rests on the runner that sealed it; the requirement adds that the report, the archive and the
+  route cannot be moved apart afterwards. Said now in condition 4 and in the test's own first paragraph.
+- Smaller: condition 4 stated only the digest half while the sentence below it pointed there for the system; a
+  "six cases" count the same commit's status entry had already corrected to eight; one over-long line; and a file this
+  process cannot read ended the manifest tool with a stack trace instead of its own refusal.
+
+The file system in a route's ID stays unbound, and recording it is the whole of what can be done here: the Unix machine
+record's `df` line names the device and the mount point without a type column, and the Windows record has no
+file-system field at all, so nothing in a sealed archive says `NTFS`, `ext4` or `apfs`. The composition pin judges the
+file system of the root its own run gives it, which is what [the accounting](NATIVE_EDIT_STORAGE_ACCOUNTING.md) records.
+Nothing in these records claims otherwise: they say "system".
+
 **14 November, the fix reviewed (round thirty).** One reviewer read the twenty-ninth round's binding and the records
 that came with it, and measured rather than argued: it ran the committed tool, and it removed parts of the new
 comparison to see which cases noticed. Everything it checked in the evidence held - all 23 digests and sizes, the

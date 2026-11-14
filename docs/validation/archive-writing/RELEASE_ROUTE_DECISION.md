@@ -83,8 +83,13 @@ On macOS the roles run in the App Sandbox helper described above.
    app's own launcher, whose lane is `AWQ-osx-arm64-apfs/launcher` in each candidate's manifest.
 4. The release manifest records the application commit, profile schema, exact source and component hashes, worker
    protocol, runtimes, filesystem routes and evidence IDs (plan §16.1), and it refuses a listed edit-storage route
-   unless the committed check's report, carried under that route's own `…/edit/check`, accepts by digest the archive
-   carried under its `…/edit`.
+   unless the committed check's report, carried under that route's own `…/edit/check`, accepts the archive carried
+   under its `…/edit` - by digest, by name, and on the system that route's runtime implies, by a line whose whole tail
+   is the check's own. What that binds is the report to the archive and the archive to the route: that an archive is a
+   machine's own sealed run rests on the runner that sealed it, and the file system in a route's ID is not in any
+   sealed record, so it rests on the composition pin inside the run. Where the check reads a system, the run's own
+   dual-root pin has to agree with the machine record; Linux and macOS are told apart by that record's `uname -a` line
+   alone.
 5. The independent review (ledger row 14) closes, and its fixes are re-validated.
 
 The listing is then one reviewed change of both lists, each route with its evidence ID, and their pinning tests. Release
@@ -132,10 +137,10 @@ no failing one, and no test that stepped aside because native storage could not 
 refused every real Windows archive - the dual-root pin is one method name in two classes, and a Windows run carries
 both, the other platform's recorded as not executed - so no Windows archive had ever been accepted by it. The manifest's
 refusal then checked that a listed route carried an entry and not what was inside it, which is why that report is
-carried as evidence in its own right; since the twenty-ninth and thirtieth reviews it reads that report, and binds it to
-the archive and the route it speaks for (condition 4). It is carried under each route's edit ID because the manifest credits an entry to the longest
-listed ID it is under: `…/edit/check` is the edit route's evidence, where `…/edit-check` would have been credited to the
-archive route above it.
+carried as evidence in its own right; since the twenty-ninth to thirty-first reviews it reads that report, and binds
+it to the archive and the route it speaks for (condition 4). It is carried under each route's edit ID because the
+manifest credits an entry to the longest listed ID it is under: `…/edit/check` is the edit route's evidence, where
+`…/edit-check` would have been credited to the archive route above it.
 
 The twenty-third to twenty-eighth reviews changed the discard, the startup review, the storage accounting and what the
 user is told, and none of them changed either list: the three routes in `NativeEditStorage.Qualified` are those listed
@@ -154,8 +159,8 @@ and lane verdict held; what did not was the refusal this listing leans on. A lis
 a label: the manifest refuses a route whose evidence it does not carry, and nothing read what that evidence was, so a
 text file under the right ID - or a report saying in its own words that the archive was not edit-storage evidence -
 satisfied it. The check now names the archive it accepted by digest, and the manifest refuses an edit-storage route
-unless the report under that route's own `…/check` accepts the archive carried under its ID, with six cases of its own
-for the ways the old refusal could be met. This candidate's manifest keeps the digests it was written with, and the
+unless the report under that route's own `…/check` accepts the archive carried under its ID, with cases of its own for
+the ways the old refusal could be met. This candidate's manifest keeps the digests it was written with, and the
 binding holds for it: run over the three sealed archives, the check names exactly the digests the manifest records for
 the three `…/edit` entries ([status](IMPLEMENTATION_STATUS.md)).
 
@@ -166,3 +171,11 @@ machine record as well as the digest, the manifest requires the whole tail in th
 own system in it, and it refuses outright to bind two listed routes that share a system, because a report naming the
 system cannot tell them apart. Read today, each of the three sealed archives names the system and the digest of the
 route it is listed under.
+
+The thirty-first review attacked that binding with reports the check itself had written. It read the system from
+whichever machine record came first, so an extra record put ahead of the real one spoke for the run; and a record whose
+one `Os` field was rewritten said whatever it liked, while the same report listed the Windows platform suite and the
+dual-root pin passing in the Windows class. An archive now carries one machine record, and the system that record names
+has to agree with the class that passed the run's own dual-root pin, so both of those archives are refused by the check.
+Nine cases hold the requirement now, each failing the one it claims; what the binding does not establish is said in
+condition 4.

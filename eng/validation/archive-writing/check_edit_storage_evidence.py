@@ -10,7 +10,9 @@ It reads a run's evidence archive (`<run>-evidence.zip` from the Windows runner,
 one) and requires all of:
 
   * the machine record names `FILECAT_EDIT_NATIVE_REQUIRED=1`, so a native edit test could not skip;
-  * the machine record says which system ran it, which is what binds an archive to a route rather than to a name;
+  * it carries one machine record, and the system that record names agrees with the class that passed this run's own
+    dual-root pin - so a record rewritten to another system, or a second record put before the real one, is refused
+    rather than read (Linux and macOS are told apart by the record's own `uname -a` line, and nothing else here);
   * every suite in the summary passed, with no failure anywhere in the run;
   * the pins of the listing are in its results, each with the outcome Passed - the application's composition pin, the
     route list's own pin, and the dual-root case, which is what a renamed, re-filtered or dropped pin would fail;
@@ -116,37 +118,49 @@ class Archive:
                 handle.close()
 
 
-def machine_env(archive: Archive) -> str | None:
-    """The environment the runner recorded for this run, however its machine record is shaped (None: no record at all)."""
-    for leaf in ('machine.json', 'machine.txt'):
-        for name in archive.find(leaf):
-            text = archive.read(name)
-            if leaf == 'machine.json':
-                try:
-                    return str(json.loads(text).get('Env', ''))
-                except json.JSONDecodeError:
-                    return text
+def machine_records(archive: Archive) -> list[str]:
+    """Every machine record in the archive. A run seals one; which of several speaks is not a thing to guess."""
+    return [name for leaf in ('machine.json', 'machine.txt') for name in archive.find(leaf)]
+
+
+def machine_field(archive: Archive, name: str, field: str) -> str:
+    """One field of a machine record, however that runner shapes it: a JSON member, or the whole text to read on."""
+    text = archive.read(name)
+    if name.replace('\\', '/').endswith('machine.json'):
+        try:
+            return str(json.loads(text).get(field, ''))
+        except json.JSONDecodeError:
             return text
-    return None
+    return text
 
 
-def machine_system(archive: Archive) -> str | None:
+def machine_system(archive: Archive, name: str) -> str | None:
     """Which system ran this, out of its own machine record (None: it does not say).
 
     An archive bound only by its digest is bound to no route: the thirtieth review carried the Windows lane's own
-    archive, with its own true report, under all three listed routes, and the manifest took it for all three.
+    archive, with its own true report, under all three listed routes, and the manifest took it for all three. This word
+    is what the release manifest compares with the route's runtime, so `pinned_family` below reads the run's own
+    results for the same fact and the two have to agree.
     """
-    for leaf in ('machine.json', 'machine.txt'):
-        for name in archive.find(leaf):
-            text = archive.read(name)
-            if leaf == 'machine.json':
-                try:
-                    text = str(json.loads(text).get('Os', ''))
-                except json.JSONDecodeError:
-                    pass
-            first = next((line for line in text.splitlines() if line.strip()), '')
-            return next((system for named, system in SYSTEMS if first.strip().startswith(named)), None)
-    return None
+    text = machine_field(archive, name, 'Os')
+    first = next((line for line in text.splitlines() if line.strip()), '')
+    return next((system for named, system in SYSTEMS if first.strip().startswith(named)), None)
+
+
+def pinned_family(results: dict[str, set[str]]) -> str | None:
+    """Which family of systems this run's own results say produced it, or None where they do not say.
+
+    The dual-root pin is one method in two classes - the Windows platform suite's `WindowsEditStorageTests` and the
+    Core suite's `UnixEditStorageTests` - and a Windows run passes the first while recording the second as not
+    executed. So the results witness the family, and a machine record that disagrees with them is not read as evidence
+    of either: the thirty-first review rewrote one `Os` field and had this check call a Windows run Linux, while the
+    same report listed the Windows platform suite and that pin passing in the Windows class.
+    """
+    passed = {test.split('(')[0] for test, outcome in results.items()
+              if test.split('(')[0].endswith('.' + PINS[2]) and 'Passed' in outcome}
+    families = {'windows' if name.endswith('.WindowsEditStorageTests.' + PINS[2]) else
+                'unix' if name.endswith('.UnixEditStorageTests.' + PINS[2]) else 'other' for name in passed}
+    return families.pop() if len(families) == 1 and families != {'other'} else None
 
 
 def gate_value(recorded: str) -> str | None:
@@ -182,17 +196,23 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
     problems: list[str] = []
     facts: dict[str, object] = {}
     with Archive(path) as archive:
-        recorded = machine_env(archive)
-        if recorded is None:
+        records = machine_records(archive)
+        facts['system'] = system = None
+        if not records:
             problems.append('it carries no machine record, so nothing in it says the gate was in force')
-        elif (value := gate_value(recorded)) is None:
-            problems.append('its machine record does not name ' + GATE_NAME)
-        elif value != GATE_VALUE:
-            problems.append('its machine record sets %s to %r, not %r, so a native edit test could step aside'
-                            % (GATE_NAME, value, GATE_VALUE))
-        facts['system'] = system = machine_system(archive)
-        if recorded is not None and system is None:
-            problems.append('its machine record does not say which system ran it, so nothing in it binds it to a route')
+        elif len(records) > 1:
+            problems.append('it carries %d machine records (%s): which of them speaks for this run is not a thing to '
+                            'guess' % (len(records), ', '.join(sorted(records))))
+        else:
+            recorded = machine_field(archive, records[0], 'Env')
+            if (value := gate_value(recorded)) is None:
+                problems.append('its machine record does not name ' + GATE_NAME)
+            elif value != GATE_VALUE:
+                problems.append('its machine record sets %s to %r, not %r, so a native edit test could step aside'
+                                % (GATE_NAME, value, GATE_VALUE))
+            facts['system'] = system = machine_system(archive, records[0])
+            if system is None:
+                problems.append('its machine record does not say which system ran it, so nothing in it binds it to a route')
         summaries = archive.find('summary.json')
         if not summaries:
             return problems + ['it carries no summary.json'], facts
@@ -257,6 +277,13 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
                     problems.append('no case of the pin %s ran: %s' % (pin, sorted(matching)))
             pins[pin] = sorted('%s %s' % (test, '+'.join(sorted(outcome))) for test, outcome in matching.items())
         facts['pins'] = pins
+        # The record and the run have to agree about the family that produced this archive; where the run does not say
+        # (a pin in neither class), the record is all there is, as it is between Linux and macOS.
+        family = pinned_family(results)
+        if system is not None and family is not None and family != ('windows' if system == 'windows' else 'unix'):
+            problems.append('its machine record says %s while its own dual-root pin passed in the %s class, so the '
+                            'record and the run disagree about which system ran it'
+                            % (system, 'Windows platform suite\'s' if family == 'windows' else 'Core suite\'s Unix'))
         for log in archive.leaves(prefix='test-'):
             text = archive.read(log)
             for reason in STEP_ASIDE:

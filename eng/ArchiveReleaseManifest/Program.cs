@@ -33,7 +33,7 @@ static class Program
     private static int Main(string[] args)
     {
         try { return Run(args); }
-        catch (Exception ex) when (ex is ArgumentException or IOException or InvalidOperationException)
+        catch (Exception ex) when (ex is ArgumentException or IOException or InvalidOperationException or UnauthorizedAccessException)
         { Console.Error.WriteLine("Release manifest refused: " + ex.Message); return 2; }
     }
 
@@ -170,6 +170,8 @@ static class Program
             // The digest compared is the one this manifest records for that entry, so what it says and what it
             // required are the same number read once.
             var recorded = manifest["evidence"]!.AsArray().Single(item => (string?)item!["id"] == id)!;
+            // The head is the archive's own name: what binds the report is the digest, and this says so in the
+            // refusal and refuses an accepted archive renamed after its check read it, which one case holds.
             string head = (string)recorded["file"]! + EditVerdict;
             string tail = $", no failure, {EditGate} in force, {EditSystem(route.RuntimeIdentifier)}, sha256 {(string)recorded["sha256"]!}";
             if (!File.ReadLines(reports[0].File).Any(line =>
