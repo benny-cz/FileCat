@@ -112,6 +112,7 @@ public partial class PanelView : UserControl
             _main = vm;
             vm.PlacesChanged += OnPlacesChanged;
             if (vm.Services.Icons.Native is { } native) native.IconsLoaded += OnIconsLoaded;
+            vm.Services.Icons.Cleared += OnIconsLoaded;
             ThemeManager.ThemeChanged += OnThemeChanged;
             BuildPlaceButtons(force: true);
         };
@@ -121,6 +122,7 @@ public partial class PanelView : UserControl
             {
                 _main.PlacesChanged -= OnPlacesChanged;
                 if (_main.Services.Icons.Native is { } native) native.IconsLoaded -= OnIconsLoaded;
+                _main.Services.Icons.Cleared -= OnIconsLoaded;
                 ThemeManager.ThemeChanged -= OnThemeChanged;
             }
             _main = null;
@@ -398,7 +400,10 @@ public partial class PanelView : UserControl
 
     private bool _iconsPending;
 
-    /// <summary>The platform's icons load in the background: the buttons take them when they arrive (once per batch).</summary>
+    /// <summary>
+    /// The platform's icons load in the background, and are made anew when settings apply (Shell pictures on or off): the
+    /// buttons take them when they arrive or change (once per batch).
+    /// </summary>
     private void OnIconsLoaded()
     {
         if (_iconsPending) return;
@@ -410,7 +415,8 @@ public partial class PanelView : UserControl
         }, DispatcherPriority.Background);
     }
 
-    private void OnThemeChanged() => Dispatcher.UIThread.Post(() => BuildPlaceButtons(force: true), DispatcherPriority.Background);
+    // One rebuild with the icons made anew for the theme (the same batch as theirs).
+    private void OnThemeChanged() => OnIconsLoaded();
 
     private void OpenPlace(Place place, bool newTab)
     {

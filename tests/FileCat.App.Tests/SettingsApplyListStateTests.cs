@@ -6,12 +6,14 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
+using FileCat.Core.Commands;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using FileCat.Core.Search;
@@ -195,6 +197,167 @@ public sealed class SettingsApplyListStateTests
             services.Dispose();
             try { Directory.Delete(root, recursive: true); } catch (IOException) { }
         }
+    }
+
+    /// <summary>
+    /// Alt+1 in a view with columns of its own: the view keeps them, where it is scrolled and with the width dragged in
+    /// it, and says the profile is for folders; in a folder, the profile already shown chosen again keeps the list where
+    /// it is, another one starts it from the first column.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_profile_chosen_for_columns_already_shown_leaves_the_list_as_it_is()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 760, height: 600);
+        try
+        {
+            var lists = await TwoScrolledLists(services, vm, window, root);
+            var resultTab = lists.Result.Tab!;
+            Assert.Same(resultTab, vm.ActiveTab); // the drag in it made its panel the active one
+            await vm.ExecuteAsync(CommandIds.ColumnProfilePrefix + "1");
+            window.CaptureRenderedFrame();
+            Assert.Equal(1, resultTab.ColumnProfile);
+            Assert.Equal(lists.ResultOffset, lists.Result.HorizontalOffset);
+            Assert.Equal(lists.DraggedWidth, Width(lists.Result, lists.DraggedColumn), 1);
+            Assert.Contains("keeps its own columns", vm.RecentNotifications[^1].Message);
+
+            var folderTab = lists.Folder.Tab!;
+            folderTab.ColumnProfile = folderTab.ColumnProfile;
+            window.CaptureRenderedFrame();
+            Assert.Equal(lists.FolderOffset, lists.Folder.HorizontalOffset);
+            folderTab.ColumnProfile = 0;
+            window.CaptureRenderedFrame();
+            Assert.Equal(0, lists.Folder.HorizontalOffset);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    /// <summary>
+    /// A list outside the panels (a Find window's) draws the platform's icons as they arrive, as the panels' lists do.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_list_outside_the_panels_draws_the_icons_as_they_arrive()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        string folder = Directory.CreateDirectory(Path.Combine(root, "files")).FullName;
+        File.WriteAllText(Path.Combine(folder, "a.txt"), "alpha");
+        var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+        var icons = new ArrivingIcons();
+        services.Icons.Native = icons;
+        var workspace = new WorkspaceViewModel(services);
+        var panel = new PanelViewModel(workspace, services);
+        workspace.Panels.Add(panel);
+        var tab = panel.OpenTab(Location.FileSystem(folder));
+        var list = new FileListControl { Tab = tab };
+        var window = new Window { Width = 400, Height = 300, Content = list };
+        int renders = 0;
+        Action<double, long> counted = (_, _) => renders++;
+        window.Show();
+        try
+        {
+            await Until(() => tab.Listing.State == ListingState.Complete && tab.Listing.VisibleCount >= 1);
+            window.CaptureRenderedFrame();
+            FileListControl.RenderTimed += counted;
+            await Task.Delay(300, TestContext.Current.CancellationToken);
+            Dispatcher.UIThread.RunJobs();
+            bool settled = false;
+            for (int i = 0; i < 10 && !settled; i++)
+            {
+                renders = 0;
+                window.CaptureRenderedFrame();
+                settled = renders == 0;
+            }
+            Assert.True(settled, "The list kept drawing with nothing changed.");
+
+            renders = 0;
+            icons.Arrive();
+            Dispatcher.UIThread.RunJobs();
+            window.CaptureRenderedFrame();
+            Assert.True(renders > 0, "The list was not drawn again with the icons that arrived.");
+        }
+        finally
+        {
+            FileListControl.RenderTimed -= counted;
+            window.Close();
+            tab.Dispose();
+            services.Dispose();
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    /// <summary>The place buttons above a panel take the icons made anew (Settings applied: Shell pictures on or off).</summary>
+    [AvaloniaFact]
+    public async Task Place_buttons_take_the_icons_made_anew()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1000, height: 680);
+        try
+        {
+            var bar = window.GetVisualDescendants().OfType<PanelView>().First().FindControl<PlaceBarPanel>("DriveButtonsPanel")!;
+            // Settled first: nothing else rebuilds the bar meanwhile (the drives arriving after start), or the check below
+            // would prove nothing.
+            Control? first = null;
+            bool settled = false;
+            for (int i = 0; i < 20 && !settled; i++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                first = bar.Children.Count > 0 ? bar.Children[0] : null;
+                await Task.Delay(100, TestContext.Current.CancellationToken);
+                Dispatcher.UIThread.RunJobs();
+                settled = first is not null && bar.Children.Count > 0 && ReferenceEquals(first, bar.Children[0]);
+            }
+            Assert.True(settled, "The place bar kept being rebuilt with nothing changed.");
+            services.Icons.ClearCache();
+            Dispatcher.UIThread.RunJobs();
+            Assert.NotEmpty(bar.Children);
+            Assert.NotSame(first, bar.Children[0]);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    /// <summary>
+    /// The icon provider listens to the platform's source only while a list is shown on it: a closed list leaves no
+    /// listener behind (dialogs count them to prove they release theirs), and a source set meanwhile takes it over.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task The_platform_icon_source_is_listened_to_only_while_a_list_is_shown()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        string folder = Directory.CreateDirectory(Path.Combine(root, "files")).FullName;
+        var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+        var (first, second) = (new ArrivingIcons(), new ArrivingIcons());
+        services.Icons.Native = first;
+        Assert.Equal(0, first.Subscribers);
+        var workspace = new WorkspaceViewModel(services);
+        var panel = new PanelViewModel(workspace, services);
+        workspace.Panels.Add(panel);
+        var tab = panel.OpenTab(Location.FileSystem(folder));
+        var window = new Window { Width = 400, Height = 300, Content = new FileListControl { Tab = tab } };
+        window.Show();
+        try
+        {
+            await Until(() => tab.Listing.State == ListingState.Complete);
+            Assert.Equal(1, first.Subscribers);
+            services.Icons.Native = second;
+            Assert.Equal((0, 1), (first.Subscribers, second.Subscribers));
+            window.Close();
+            Assert.Equal(0, second.Subscribers);
+        }
+        finally
+        {
+            window.Close();
+            tab.Dispose();
+            services.Dispose();
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    /// <summary>A platform icon source whose icons "arrive" when the test says so (none drawn: FileCat's own stand in).</summary>
+    private sealed class ArrivingIcons : INativeIconSource
+    {
+        private Action? _loaded;
+        public int Subscribers => _loaded?.GetInvocationList().Length ?? 0;
+        public IImage? GetIcon(in EntryData entry, Location? folder = null) => null;
+        public event Action? IconsLoaded { add => _loaded += value; remove => _loaded -= value; }
+        public void Arrive() => _loaded?.Invoke();
     }
 
     private sealed record Lists(FileListControl Folder, double FolderOffset, FileListControl Result, double ResultOffset,

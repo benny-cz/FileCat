@@ -155,6 +155,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         set
         {
             _columnProfile = Math.Clamp(value, 0, Services.Columns.Count - 1);
+            // The columns shown already (the same profile again, or a view with columns of its own, which keeps them until
+            // the tab shows a folder): nothing to announce, so the list stays where it is scrolled, with its widths.
+            if (ReferenceEquals(_shownColumns, Columns)) return;
             AnnounceColumns();
             RefreshSortDescription();
         }

@@ -145,7 +145,7 @@ public sealed partial class FileListControl : Control
     private bool _showLoadingHint;
     private readonly Action _metadataHandler;
     private Core.Metadata.MetadataService? _metadataSource;
-    /// <summary>The icons this list draws (its tab's): when they are made again, the list draws them again.</summary>
+    /// <summary>The icons this list draws (its tab's): when they are made anew or arrive, the list draws them again.</summary>
     private IconProvider? _iconSource;
     private GitStatusSnapshot? _gitStatuses;
     private string? _gitStatusFolder;
@@ -576,9 +576,9 @@ public sealed partial class FileListControl : Control
                 }
                 if (!ReferenceEquals(_iconSource, tab.Services.Icons))
                 {
-                    if (_iconSource is not null) _iconSource.Cleared -= OnIconsCleared;
+                    DetachIconEvents();
                     _iconSource = tab.Services.Icons;
-                    if (_viewEventsAttached) _iconSource.Cleared += OnIconsCleared;
+                    if (_viewEventsAttached) AttachIconEvents();
                 }
                 tab.ColumnsChanged += OnColumnsChanged;
                 tab.ExplicitSortRequested += OnExplicitSortRequested;
@@ -590,7 +590,7 @@ public sealed partial class FileListControl : Control
             {
                 if (_metadataSource is not null) _metadataSource.ValuesChanged -= _metadataHandler;
                 _metadataSource = null;
-                if (_iconSource is not null) _iconSource.Cleared -= OnIconsCleared;
+                DetachIconEvents();
                 _iconSource = null;
             }
             _widthOverrides.Clear();
@@ -668,17 +668,31 @@ public sealed partial class FileListControl : Control
     }
 
     /// <summary>
-    /// The icons were made anew (Settings applied: Shell pictures on or off, say): drawn again where the list is, its
-    /// scroll and widths kept.
+    /// The icons were made anew (Settings applied: Shell pictures on or off, say) or the platform's arrived (in a Find
+    /// window as in a panel): drawn again where the list is, its scroll and widths kept.
     /// </summary>
-    private void OnIconsCleared()
+    private void OnIconsChanged()
     {
         if (!Dispatcher.UIThread.CheckAccess())
         {
-            Dispatcher.UIThread.Post(OnIconsCleared);
+            Dispatcher.UIThread.Post(OnIconsChanged);
             return;
         }
         InvalidateVisual();
+    }
+
+    private void AttachIconEvents()
+    {
+        if (_iconSource is null) return;
+        _iconSource.Cleared += OnIconsChanged;
+        _iconSource.Loaded += OnIconsChanged;
+    }
+
+    private void DetachIconEvents()
+    {
+        if (_iconSource is null) return;
+        _iconSource.Cleared -= OnIconsChanged;
+        _iconSource.Loaded -= OnIconsChanged;
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -686,7 +700,7 @@ public sealed partial class FileListControl : Control
         base.OnAttachedToVisualTree(e);
         _viewEventsAttached = true;
         if (_metadataSource is not null) _metadataSource.ValuesChanged += _metadataHandler;
-        if (_iconSource is not null) _iconSource.Cleared += OnIconsCleared;
+        AttachIconEvents();
         if (_identityPanel is not null) _identityPanel.PropertyChanged += OnPanelIdentityChanged;
         _focusWindow = TopLevel.GetTopLevel(this) as Window;
         if (_focusWindow is not null) _focusWindow.Deactivated += OnWindowDeactivated;
@@ -704,7 +718,7 @@ public sealed partial class FileListControl : Control
         base.OnDetachedFromVisualTree(e);
         _viewEventsAttached = false;
         if (_metadataSource is not null) _metadataSource.ValuesChanged -= _metadataHandler;
-        if (_iconSource is not null) _iconSource.Cleared -= OnIconsCleared;
+        DetachIconEvents();
         if (_identityPanel is not null) _identityPanel.PropertyChanged -= OnPanelIdentityChanged;
         if (_focusWindow is not null) _focusWindow.Deactivated -= OnWindowDeactivated;
         _focusWindow = null;
