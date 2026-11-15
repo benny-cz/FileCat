@@ -203,7 +203,9 @@ public sealed partial class MainViewModel
                 return;
             }
             tab.ColumnProfile = profile;
-            Notify($"Columns: {Services.Columns.NameOf(profile)} (Alt+{profile})");
+            Notify(tab.UsesColumnProfiles
+                ? $"Columns: {Services.Columns.NameOf(profile)} (Alt+{profile})"
+                : $"This view keeps its own columns; {Services.Columns.NameOf(profile)} (Alt+{profile}) applies when this tab shows a folder, an archive or a connection.");
             return;
         }
 

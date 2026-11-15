@@ -97,7 +97,15 @@ public sealed partial class FileListControl : Control
     private int _resizingColumn = -1;
     private double _resizeStartX;
     private double _resizeStartWidth;
-    // Live widths while dragging a border, by column position (cleared when the profile stores them).
+    /// <summary>The dragged column's scale, taken when its border was pressed (the columns may be replaced meanwhile).</summary>
+    private double _resizeScale = 1;
+    /// <summary>The pointer holding a border, so the drag can let it go when it stops early.</summary>
+    private IPointer? _resizePointer;
+    /// <summary>The dragged column's own width before the drag (a view with columns of its own keeps one), put back if the drag stops.</summary>
+    private double? _resizeOldOverride;
+    // Widths dragged in this list, by column position, at the default font's scale as profiles keep theirs (so they follow
+    // the font and the date format): live while a border is dragged, then stored in the profile and cleared, or kept for
+    // this view only when its columns are its own.
     private readonly Dictionary<int, double> _widthOverrides = new();
 
     /// <summary>
@@ -137,6 +145,8 @@ public sealed partial class FileListControl : Control
     private bool _showLoadingHint;
     private readonly Action _metadataHandler;
     private Core.Metadata.MetadataService? _metadataSource;
+    /// <summary>The icons this list draws (its tab's): when they are made anew or arrive, the list draws them again.</summary>
+    private IconProvider? _iconSource;
     private GitStatusSnapshot? _gitStatuses;
     private string? _gitStatusFolder;
     private CancellationTokenSource? _gitStatusCancel;
@@ -164,6 +174,7 @@ public sealed partial class FileListControl : Control
     // Brushes resolved from theme tokens.
     private IBrush _bg = Brushes.White, _bgInactive = Brushes.White, _header = Brushes.LightGray, _text = Brushes.Black;
     private IBrush _muted = Brushes.Gray, _dim = Brushes.Gray, _dir = Brushes.Black, _archive = Brushes.Brown, _exec = Brushes.Green, _link = Brushes.Blue;
+    private IBrush _compressed = Brushes.Blue, _encrypted = Brushes.Green;
     private IBrush _markedText = Brushes.Red, _markedBg = Brushes.MistyRose, _focusBg = Brushes.LightBlue, _focusText = Brushes.Black;
     private IBrush _focusBorder = Brushes.Blue, _focusInactive = Brushes.Gray, _grid = Brushes.LightGray, _headerText = Brushes.Black;
     private IBrush _accent = Brushes.Blue, _error = Brushes.Red;
@@ -325,6 +336,15 @@ public sealed partial class FileListControl : Control
     public event EventHandler<string>? InspectRequested;
     /// <summary>A right click on listing whitespace, independent of focused or marked rows.</summary>
     public event EventHandler<Point>? BackgroundContextRequested;
+
+    /// <summary>A right click on the column header row: its menu sets up the columns (Settings → Columns).</summary>
+    public event EventHandler<Point>? HeaderContextRequested;
+
+    /// <summary>
+    /// Whether Shift was held for the right click that raised the latest <see cref="ContextMenuRequested"/> or
+    /// <see cref="BackgroundContextRequested"/>: Windows then adds its extended verbs, as Explorer does.
+    /// </summary>
+    public bool ContextWithShift { get; private set; }
 
     /// <summary>Raised when a drag starts; carries the original press, which drag-and-drop requires.</summary>
     public event EventHandler<PointerPressedEventArgs>? DragRequested;
@@ -534,6 +554,7 @@ public sealed partial class FileListControl : Control
             _viewportIntentGeneration++;
             FinishRename(null, restoreFocus: false);
             ResetSelectionGesture();
+            CancelColumnResize();
             if (change.OldValue is TabViewModel oldTab)
             {
                 oldTab.Listing.Changed -= OnListingChanged;
@@ -553,16 +574,24 @@ public sealed partial class FileListControl : Control
                     _metadataSource = tab.Services.Metadata;
                     if (_viewEventsAttached) _metadataSource.ValuesChanged += _metadataHandler;
                 }
+                if (!ReferenceEquals(_iconSource, tab.Services.Icons))
+                {
+                    DetachIconEvents();
+                    _iconSource = tab.Services.Icons;
+                    if (_viewEventsAttached) AttachIconEvents();
+                }
                 tab.ColumnsChanged += OnColumnsChanged;
                 tab.ExplicitSortRequested += OnExplicitSortRequested;
                 _identityPanel = tab.Panel;
                 if (_viewEventsAttached) _identityPanel.PropertyChanged += OnPanelIdentityChanged;
                 _columns = tab.Columns;
             }
-            else if (_metadataSource is not null)
+            else
             {
-                _metadataSource.ValuesChanged -= _metadataHandler;
+                if (_metadataSource is not null) _metadataSource.ValuesChanged -= _metadataHandler;
                 _metadataSource = null;
+                DetachIconEvents();
+                _iconSource = null;
             }
             _widthOverrides.Clear();
             ClearTextCache();
@@ -583,6 +612,7 @@ public sealed partial class FileListControl : Control
         }
         else if (change.Property == PictureModeProperty)
         {
+            CancelColumnResize(); // the pictures have no columns to drag
             ClearPictureThumbnails();
             _topRow = 0;
             _horizontalOffset = 0;
@@ -614,11 +644,15 @@ public sealed partial class FileListControl : Control
             _automationPeer?.QueueUpdate(ListingChange.State);
     }
 
-    private void OnColumnsChanged(object? sender, EventArgs e)
+    private void OnColumnsChanged(object? sender, ColumnsChangedEventArgs e)
     {
         if (Tab is null) return;
+        // A drag stops when its columns are replaced; the same ones at other widths still hold the column it is on.
+        if (!e.WidthsOnly) CancelColumnResize();
         _columns = Tab.Columns;
-        _horizontalOffset = 0;
+        // Other columns start from the first; the same ones at other widths (a border dragged here or in another list on
+        // the profile, a width set in Settings) stay where they are scrolled, kept within the new widths on arrange.
+        if (!e.WidthsOnly) _horizontalOffset = 0;
         _widthOverrides.Clear();
         ClearTextCache();
         InvalidateArrange();
@@ -633,11 +667,40 @@ public sealed partial class FileListControl : Control
         InvalidateVisual();
     }
 
+    /// <summary>
+    /// The icons were made anew (Settings applied: Shell pictures on or off, say) or the platform's arrived (in a Find
+    /// window as in a panel): drawn again where the list is, its scroll and widths kept.
+    /// </summary>
+    private void OnIconsChanged()
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(OnIconsChanged);
+            return;
+        }
+        InvalidateVisual();
+    }
+
+    private void AttachIconEvents()
+    {
+        if (_iconSource is null) return;
+        _iconSource.Cleared += OnIconsChanged;
+        _iconSource.Loaded += OnIconsChanged;
+    }
+
+    private void DetachIconEvents()
+    {
+        if (_iconSource is null) return;
+        _iconSource.Cleared -= OnIconsChanged;
+        _iconSource.Loaded -= OnIconsChanged;
+    }
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
         _viewEventsAttached = true;
         if (_metadataSource is not null) _metadataSource.ValuesChanged += _metadataHandler;
+        AttachIconEvents();
         if (_identityPanel is not null) _identityPanel.PropertyChanged += OnPanelIdentityChanged;
         _focusWindow = TopLevel.GetTopLevel(this) as Window;
         if (_focusWindow is not null) _focusWindow.Deactivated += OnWindowDeactivated;
@@ -655,6 +718,7 @@ public sealed partial class FileListControl : Control
         base.OnDetachedFromVisualTree(e);
         _viewEventsAttached = false;
         if (_metadataSource is not null) _metadataSource.ValuesChanged -= _metadataHandler;
+        DetachIconEvents();
         if (_identityPanel is not null) _identityPanel.PropertyChanged -= OnPanelIdentityChanged;
         if (_focusWindow is not null) _focusWindow.Deactivated -= OnWindowDeactivated;
         _focusWindow = null;
@@ -748,6 +812,8 @@ public sealed partial class FileListControl : Control
         _dir = B("FcTextDirectory", _text);
         _archive = B("FcTextArchive", _text);
         _exec = B("FcTextExecutable", _text);
+        _compressed = B("FcTextCompressed", _text);
+        _encrypted = B("FcTextEncrypted", _text);
         _link = B("FcTextLink", _text);
         _markedText = B("FcTextMarked", Brushes.Red);
         _markedBg = B("FcMarkedBackground", Brushes.Transparent);
@@ -1089,7 +1155,7 @@ public sealed partial class FileListControl : Control
         for (int i = 0; i < n; i++)
         {
             var c = _columns[i];
-            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow : c.Star ? c.Width : c.Width * ScaleOf(c);
+            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow * ScaleOf(c) : c.Star ? c.Width : c.Width * ScaleOf(c);
             if (c.Star && !_widthOverrides.ContainsKey(i)) starSum += w;
             else fixedSum += w;
         }
@@ -1099,7 +1165,7 @@ public sealed partial class FileListControl : Control
         for (int i = 0; i < n; i++)
         {
             var c = _columns[i];
-            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow
+            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow * ScaleOf(c)
                 : c.Star ? Math.Max(MinimumStarWidth(c),
                     starSpace * (c.Width / Math.Max(1, starSum))) : c.Width * ScaleOf(c);
             _columnX[i] = x;
@@ -1187,6 +1253,23 @@ public sealed partial class FileListControl : Control
         }
     }
 
+    /// <summary>
+    /// A row's name color: marked, then under the active cursor, then unavailable; then NTFS-encrypted and compressed
+    /// (green and blue as Explorer and Open Salamander draw them, in the theme's shades), which a hidden or system item
+    /// keeps too, its icon being dimmed instead; then hidden, folder, archive, and program colors.
+    /// </summary>
+    internal IBrush NameBrush(in EntryData e, bool marked, bool cursor) =>
+        marked ? _markedText
+        : cursor ? _focusText
+        : e.Has(EntryFlags.Unavailable) ? _dim
+        : e.Has(EntryFlags.Encrypted) ? _encrypted
+        : e.Has(EntryFlags.Compressed) ? _compressed
+        : e.Has(EntryFlags.Hidden) || e.Has(EntryFlags.System) ? _dim
+        : e.IsContainer ? _dir
+        : e.Has(EntryFlags.Container) ? _archive
+        : IconProvider.Classify(e) == IconKind.Executable ? _exec
+        : _text;
+
     private void RenderRow(DrawingContext dc, ListingModel listing, int row, double y, double width, bool focused, bool active)
     {
         var e = listing.GetVisible(row);
@@ -1198,15 +1281,10 @@ public sealed partial class FileListControl : Control
         if (focused && active) dc.FillRectangle(_focusBg, rowRect);
         if (marked) dc.FillRectangle(_markedText, new Rect(0, y + 1, 3, _rowHeight - 2));
 
-        IBrush textBrush = marked ? _markedText
-            : focused && active ? _focusText
-            : e.Has(EntryFlags.Hidden) || e.Has(EntryFlags.System) || e.Has(EntryFlags.Unavailable) ? _dim
-            : e.IsContainer ? _dir
-            : e.Has(EntryFlags.Container) ? _archive
-            : IconProvider.Classify(e) == IconKind.Executable ? _exec
-            : _text;
+        IBrush textBrush = NameBrush(e, marked, focused && active);
         int style = marked ? 1 : focused && active ? 2 : ReferenceEquals(textBrush, _dim) ? 3 : ReferenceEquals(textBrush, _dir) ? 4
-            : ReferenceEquals(textBrush, _archive) ? 5 : ReferenceEquals(textBrush, _exec) ? 6 : 0;
+            : ReferenceEquals(textBrush, _archive) ? 5 : ReferenceEquals(textBrush, _exec) ? 6
+            : ReferenceEquals(textBrush, _compressed) ? 7 : ReferenceEquals(textBrush, _encrypted) ? 8 : 0;
         var typeface = marked ? _boldTypeface : _typeface;
 
         using (dc.PushTransform(Matrix.CreateTranslation(-_horizontalOffset, 0)))
@@ -1568,6 +1646,13 @@ public sealed partial class FileListControl : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        // A border is being dragged: a press meanwhile (a pen's barrel button, a finger) neither takes the drag over nor
+        // starts another gesture. (Another button of the same mouse arrives as a move, not a press.)
+        if (_resizingColumn >= 0)
+        {
+            e.Handled = true;
+            return;
+        }
         Focus();
         ActivateRequested?.Invoke(this, EventArgs.Empty);
         var point = e.GetCurrentPoint(this);
@@ -1579,10 +1664,13 @@ public sealed partial class FileListControl : Control
         if (edge >= 0 && point.Properties.IsLeftButtonPressed)
         {
             ClearNameClick();
-            _resizingColumn = edge;
             _resizeInverse = inverse;
             _resizeStartX = pos.X;
             _resizeStartWidth = _columnW[edge];
+            _resizeScale = ScaleOf(_columns[edge]);
+            _resizeOldOverride = _widthOverrides.TryGetValue(edge, out var own) ? own : null;
+            _resizePointer = e.Pointer;
+            _resizingColumn = edge; // last: a drag is under way only with all of the above in place
             e.Pointer.Capture(this);
             e.Handled = true;
             return;
@@ -1593,6 +1681,7 @@ public sealed partial class FileListControl : Control
             int col = ColumnAt(pos);
             if (col >= 0 && point.Properties.IsLeftButtonPressed && _columns[col] is { Field: ColumnField.Metadata or ColumnField.Folder, MetadataId: { } mid }) Tab?.SortByMetadata(mid);
             else if (col >= 0 && point.Properties.IsLeftButtonPressed && _columns[col].SortField is { } sf) Tab?.SortBy(sf);
+            else if (point.Properties.IsRightButtonPressed) HeaderContextRequested?.Invoke(this, pos);
             e.Handled = true;
             return;
         }
@@ -1610,7 +1699,10 @@ public sealed partial class FileListControl : Control
             ClearNameClick();
             if (point.Properties.IsRightButtonPressed && pos.X >= 0 && pos.X < _horizontalViewport &&
                 pos.Y >= (PictureMode ? 0 : _headerHeight) && pos.Y < Bounds.Height - (_hbar.IsVisible ? HorizontalBarHeight : 0))
+            {
+                ContextWithShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
                 BackgroundContextRequested?.Invoke(this, pos);
+            }
             e.Handled = true;
             return;
         }
@@ -1623,6 +1715,7 @@ public sealed partial class FileListControl : Control
                 _listing.UnmarkEverything();
                 _listing.SetFocus(row);
             }
+            ContextWithShift = (mods & KeyModifiers.Shift) != 0;
             ContextMenuRequested?.Invoke(this, pos);
             e.Handled = true;
             return;
@@ -1682,9 +1775,10 @@ public sealed partial class FileListControl : Control
         var pos = e.GetPosition(this);
         if (_resizingColumn >= 0)
         {
+            if (!ReferenceEquals(e.Pointer, _resizePointer)) return; // the drag is the held pointer's
             double delta = pos.X - _resizeStartX;
             double w = Math.Max(30, _resizeStartWidth + (_resizeInverse ? -delta : delta));
-            _widthOverrides[_resizingColumn] = w;
+            _widthOverrides[_resizingColumn] = w / _resizeScale;
             ClearTextCache();
             InvalidateArrange();
             InvalidateVisual();
@@ -1833,16 +1927,58 @@ public sealed partial class FileListControl : Control
         _dragStart = null;
         _pressArgs = null;
         _pressedRow = -1;
-        if (_resizingColumn >= 0)
+        if (_resizingColumn >= 0 && ReferenceEquals(e.Pointer, _resizePointer))
         {
-            int column = _resizingColumn;
-            _resizingColumn = -1;
-            e.Pointer.Capture(null);
-            // The profile keeps the width for every tab using it (and across restarts).
-            // Stored at the default font's scale (the width the user sees is the stored one times the font's).
-            if (_widthOverrides.TryGetValue(column, out var width) && column < _columns.Length)
-                Tab?.SetColumnWidth(column, width / ScaleOf(_columns[column]));
+            _resizePointer = null;
+            FinishColumnResize(e.Pointer);
         }
+    }
+
+    /// <summary>
+    /// A border drag ends with the width as drawn. The profile keeps it for every tab using it (and across restarts), at
+    /// the default font's scale as the override holds it (the width the user sees is the stored one times the font's);
+    /// stored, rounded and kept within the profile's limits, it is what this list draws too, as every other list on the
+    /// profile does. A view with columns of its own keeps it for itself.
+    /// </summary>
+    private void FinishColumnResize(IPointer? release)
+    {
+        int column = _resizingColumn;
+        _resizingColumn = -1;
+        release?.Capture(null);
+        if (_widthOverrides.TryGetValue(column, out var width) && column < _columns.Length &&
+            Tab?.SetColumnWidth(column, width) == true && _widthOverrides.Remove(column))
+        {
+            InvalidateArrange();
+            InvalidateVisual();
+        }
+    }
+
+    /// <summary>
+    /// A border drag stops where it is when the columns it was on are replaced (another tab, profile or view): the column
+    /// it held may be gone, and its width is not stored for another.
+    /// </summary>
+    private void CancelColumnResize()
+    {
+        if (_resizingColumn < 0) return;
+        int column = _resizingColumn;
+        _resizingColumn = -1;
+        // The column as it was before the drag (what the profile or this view keeps), not as the drag left it.
+        if (_resizeOldOverride is { } old) _widthOverrides[column] = old;
+        else _widthOverrides.Remove(column);
+        InvalidateArrange();
+        InvalidateVisual();
+        var pointer = _resizePointer;
+        _resizePointer = null;
+        if (ReferenceEquals(pointer?.Captured, this)) pointer!.Capture(null);
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
+        // Another window or control took the pointer mid-drag: the drag ends as a release would end it.
+        if (_resizingColumn < 0 || !ReferenceEquals(e.Pointer, _resizePointer)) return;
+        _resizePointer = null;
+        FinishColumnResize(null);
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)

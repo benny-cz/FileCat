@@ -437,6 +437,9 @@ public sealed partial class MainViewModel
         return null;
     }
 
+    /// <summary>File-system names being edited in their rows now: the rename a Shell New command offers never takes over one.</summary>
+    private int _inlineRenames;
+
     private async Task RenameAsync()
     {
         var tab = ActiveTab;
@@ -464,13 +467,19 @@ public sealed partial class MainViewModel
         }
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
         var dir = Path.GetDirectoryName(item.FileSystemPath!)!;
-        var newName = await View.RenameInlineAsync(new PromptOptions("Rename", $"New name for \"{Formatters.SafeName(f.Name)}\":")
+        string? newName;
+        _inlineRenames++;
+        try
         {
-            Text = f.Name,
-            SelectStem = !f.IsContainer,
-            Validate = n => ValidateSiblingName(dir, n, f.Name),
-            ConfirmText = "Rename",
-        });
+            newName = await View.RenameInlineAsync(new PromptOptions("Rename", $"New name for \"{Formatters.SafeName(f.Name)}\":")
+            {
+                Text = f.Name,
+                SelectStem = !f.IsContainer,
+                Validate = n => ValidateSiblingName(dir, n, f.Name),
+                ConfirmText = "Rename",
+            });
+        }
+        finally { _inlineRenames--; }
         if (newName is null) return;
         var job = Services.Jobs.Submit(new JobRequest { Kind = JobKind.Rename, Sources = [item], NewName = newName });
         Track(job, tab);

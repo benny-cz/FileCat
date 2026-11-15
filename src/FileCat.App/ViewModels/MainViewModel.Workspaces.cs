@@ -253,6 +253,21 @@ public sealed partial class MainViewModel
         View.FocusActivePanel();
     }
 
+    /// <summary>
+    /// Settings, opened on one page by its name (the file list's header menu opens Columns, on the panel's own column
+    /// profile); never over another dialog.
+    /// </summary>
+    internal async Task ShowSettingsAsync(string page, int? columnProfile = null)
+    {
+        if (Dialogs.IsOpen) return;
+        try { await Views.SettingsDialog.ShowAsync(this, page, columnProfile); }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            AppLog.Error("Settings could not open", ex);
+            Notify("Settings could not open: " + Formatters.SafeName(ex.Message), true);
+        }
+    }
+
     private async Task<bool> ExecuteWorkspaceCommandAsync(string id)
     {
         if (ExecuteLayoutCommand(id)) return true;

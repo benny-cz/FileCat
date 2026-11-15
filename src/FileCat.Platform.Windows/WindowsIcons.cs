@@ -114,6 +114,86 @@ public static unsafe partial class WindowsIcons
     /// </summary>
     public static string TypeProbe(string name) => Path.Combine(Environment.SystemDirectory, "FileCat type probe", Path.GetFileName(name));
 
+    /// <summary>What a type's association says about its icon (<see cref="AssociatedIcon"/>).</summary>
+    public enum AssociatedIconKind
+    {
+        /// <summary>No association, or one that names no icon FileCat may read.</summary>
+        None,
+        /// <summary>Each file's own ("%1": programs, icon files): the type has no single icon.</summary>
+        PerFile,
+        /// <summary>A packaged app's resource ("@{Package?ms-resource://…}"), which only the Shell resolves.</summary>
+        Packaged,
+        /// <summary>A resource file on this computer and an index in it.</summary>
+        Location,
+    }
+
+    /// <summary>
+    /// A type's icon as its association names it: the user's choice of program first (as Explorer resolves it), then the
+    /// type's registration. Only the registry is read. Windows 11 answers SHGetFileInfo's icon-location question for a
+    /// type with an empty file name, so this is where a type's icon is found there.
+    /// </summary>
+    /// <param name="extension">The extension with its dot (".dll").</param>
+    public static (AssociatedIconKind Kind, IconLocation? Location) AssociatedIcon(string extension) =>
+        ClassifyAssociatedIcon(AssociatedIconText(extension));
+
+    /// <summary>
+    /// What a type's DefaultIcon text means for FileCat: a resource file it reads itself only when that is on this
+    /// computer's fixed drives (a share named there would be contacted), a bare library name being the system's own
+    /// ("cryptui.dll,-3425", as the Shell finds it).
+    /// </summary>
+    public static (AssociatedIconKind Kind, IconLocation? Location) ClassifyAssociatedIcon(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return (AssociatedIconKind.None, null);
+        text = text.Trim();
+        if (text.StartsWith("@{", StringComparison.Ordinal))
+        {
+            // Only a package's own resource ("@{Package.Full_Name?ms-resource://…}"): the same form can name a resource
+            // file by path, which may be on a share, and the Shell would contact it.
+            int query = text.IndexOf('?');
+            bool package = query > 2 && text.EndsWith('}') && text.IndexOfAny(['\\', '/', ':', '%'], 2, query - 2) < 0 &&
+                           text.AsSpan(query + 1).StartsWith("ms-resource:", StringComparison.OrdinalIgnoreCase);
+            return (package ? AssociatedIconKind.Packaged : AssociatedIconKind.None, null);
+        }
+        if (text.Contains("%1", StringComparison.Ordinal)) return (AssociatedIconKind.PerFile, null);
+        if (text.StartsWith('@') || IconLocation.Parse(text) is not { } location) return (AssociatedIconKind.None, null);
+        if (!Path.IsPathFullyQualified(location.File))
+        {
+            string file = location.File;
+            if (file.Length == 0 || file.IndexOfAny(['\\', '/', ':']) >= 0) return (AssociatedIconKind.None, null);
+            string system = Path.Combine(Environment.SystemDirectory, file);
+            if (!File.Exists(system)) return (AssociatedIconKind.None, null);
+            location = new IconLocation(system, location.Index);
+        }
+        return IsLocal(location.File) ? (AssociatedIconKind.Location, location) : (AssociatedIconKind.None, null);
+    }
+
+    /// <summary>A type's DefaultIcon text as the Shell resolves its association, or null when it has none.</summary>
+    public static string? AssociatedIconText(string extension)
+    {
+        if (extension.Length is < 2 or > 64 || extension[0] != '.' || extension.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return null;
+        // ASSOCF_INIT_IGNOREUNKNOWN: a type nothing claims has no icon here. ASSOCF_NOTRUNCATE: a longer answer is
+        // refused with E_POINTER and the length it needs, never cut short (a cut path could name another file).
+        const uint Flags = 0x400 | 0x20;
+        const int DefaultIcon = 15; // ASSOCSTR_DEFAULTICON
+        const int TooSmall = unchecked((int)0x80004003); // E_POINTER: the answer needs the length it reports.
+        uint capacity = 512;
+        for (int attempt = 0; attempt < 2; attempt++)
+        {
+            var buffer = new char[capacity];
+            uint length = capacity;
+            int hr;
+            fixed (char* text = buffer) hr = AssocQueryStringW(Flags, DefaultIcon, extension, null, text, ref length);
+            if (hr >= 0)
+            {
+                int end = Array.IndexOf(buffer, '\0');
+                return end < 0 ? null : new string(buffer, 0, end);
+            }
+            if (hr != TooSmall || length <= capacity || length > 32_768) return null;
+            capacity = length;
+        }
+        return null;
+    }
+
     /// <summary>A path on this computer's fixed drives (never a share, whose contact would reveal credentials).</summary>
     public static bool IsLocal(string path) =>
         Path.IsPathFullyQualified(path) && !path.StartsWith(@"\\", StringComparison.Ordinal) && !Shell.ShellPreviewPolicy.IsNetworkOrRemovable(path);
@@ -279,6 +359,9 @@ public static unsafe partial class WindowsIcons
 
     [LibraryImport("shell32.dll")]
     private static partial int SHGetKnownFolderPath(Guid* id, uint flags, nint token, out nint path);
+
+    [LibraryImport("shlwapi.dll", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int AssocQueryStringW(uint flags, int str, string association, string? extra, char* output, ref uint length);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

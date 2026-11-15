@@ -273,6 +273,8 @@ internal sealed class ShotApp : Application
     public override void Initialize()
     {
         Styles.Add(new FluentTheme { DensityStyle = DensityStyle.Compact });
+        // Avalonia finds FileCat's precompiled styles only in a loaded assembly; nothing has loaded FileCat's yet here.
+        _ = typeof(MainWindow).Assembly;
         Styles.Add(new StyleInclude(new Uri("avares://FileCat.Screenshots/")) { Source = new Uri("avares://FileCat/Themes/Styles.axaml") });
     }
 }

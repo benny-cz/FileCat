@@ -35,9 +35,12 @@ internal sealed class UserCommandsEditor
     private readonly Button _down = new() { Content = "Move command or menu down" };
     private List<Row> _rows = [];
     private bool _updating;
+    /// <summary>Settings that cannot be saved (read-only): commands and menus can be looked through, not changed.</summary>
+    private readonly bool _readOnly;
 
-    public UserCommandsEditor(IEnumerable<ToolDefinition> commands, string sampleFolder)
+    public UserCommandsEditor(IEnumerable<ToolDefinition> commands, string sampleFolder, bool readOnly = false)
     {
+        _readOnly = readOnly;
         _draft = Clone(commands);
         RememberArguments(_draft);
         _invocation = new ToolInvocationPreview("Command", _arguments, SnapshotInvocation, sampleFolder);
@@ -249,14 +252,16 @@ internal sealed class UserCommandsEditor
         _hotkey.Text = command ? tool!.Hotkey ?? string.Empty : string.Empty;
         _shell.IsChecked = command && tool!.ShellMode;
         _name.IsEnabled = tool is not null;
-        foreach (var control in new Control[] { _program, _arguments, _directory, _hotkey, _shell }) control.IsEnabled = command;
+        // Read-only text stays selectable; the shell switch stays off.
+        foreach (var control in new Control[] { _program, _arguments, _directory, _hotkey }) control.IsEnabled = command;
+        _shell.IsEnabled = command && !_readOnly;
         _updating = false;
         RefreshButtons();
     }
 
     private void RefreshButtons()
     {
-        var row = Selected;
+        var row = _readOnly ? null : Selected;
         _duplicate.IsEnabled = _remove.IsEnabled = row is not null;
         _up.IsEnabled = row is { Index: > 0 };
         _down.IsEnabled = row is not null && row.Index < row.Parent.Count - 1;

@@ -45,6 +45,21 @@ public static class ShellPreviewPolicy
         return null;
     }
 
+    /// <summary>
+    /// Why the Shell may not draw a type's icon (<see cref="ShellImageKind.TypeIcon"/>), or null when it may: only for one
+    /// plain extension, and never for the shortcut-like types, whose handlers follow paths stored in their files.
+    /// </summary>
+    public static string? TypeIconRefusal(string extension)
+    {
+        if (!OperatingSystem.IsWindows()) return "Shell pictures exist only on Windows.";
+        if (extension.Length is < 2 or > 64 || extension[0] != '.' || extension.IndexOf('.', 1) >= 0 ||
+            extension.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || extension.IndexOfAny(['\\', '/', ':', '*', '?', '"', '<', '>', '|']) >= 0 ||
+            extension.EndsWith(' '))
+            return "Not a file type.";
+        if (Excluded.Contains(extension)) return "Shortcut-like files are never handed to the Shell: their handlers follow paths stored inside them.";
+        return null;
+    }
+
     /// <summary>Why no Shell handler may run for this file, or null when one may.</summary>
     public static string? Refusal(string path, FileAttributes attributes, bool allowNetworkAndRemovable)
     {
@@ -188,10 +203,14 @@ public sealed class ShellPreviews : IDisposable
                     ? (known, ShellAnswer.Answered)
                     : ((ShellImage?)null, ShellAnswer.Failed));
         }
-        if (kind == ShellImageKind.IconResource
-                ? IconResourceRequest.Parse(path) is not { } location || ShellPreviewPolicy.IconResourceRefusal(location, _allowNetworkAndRemovable()) is not null
-                : ShellPreviewPolicy.Refusal(path, attributes, _allowNetworkAndRemovable()) is not null)
-            return Task.FromResult<(ShellImage?, ShellAnswer)>((null, ShellAnswer.Refused));
+        bool refused = kind switch
+        {
+            ShellImageKind.IconResource => IconResourceRequest.Parse(path) is not { } location ||
+                                           ShellPreviewPolicy.IconResourceRefusal(location, _allowNetworkAndRemovable()) is not null,
+            ShellImageKind.TypeIcon => ShellPreviewPolicy.TypeIconRefusal(path) is not null,
+            _ => ShellPreviewPolicy.Refusal(path, attributes, _allowNetworkAndRemovable()) is not null,
+        };
+        if (refused) return Task.FromResult<(ShellImage?, ShellAnswer)>((null, ShellAnswer.Refused));
         string key = KeyOf(kind, path, modifiedTicks, size);
         var tcs = new TaskCompletionSource<(ShellImage? Image, ShellAnswer Answer)>(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (_lock)
@@ -207,6 +226,8 @@ public sealed class ShellPreviews : IDisposable
             var request = _pending.FirstOrDefault(r => r.Key == key);
             if (request is null)
             {
+                // A type's icon may be a packaged app's: the first one loads the package resource machinery, which takes
+                // longer than an ordinary icon, and a type that timed out would never be asked for again.
                 request = new Request(key, kind, path, size, kind is ShellImageKind.Icon or ShellImageKind.OverlayIcon ? TimeSpan.FromSeconds(3) : TimeSpan.FromSeconds(8));
                 _pending.Add(request);
             }
