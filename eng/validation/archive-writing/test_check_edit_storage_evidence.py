@@ -43,6 +43,10 @@ def measuring(log_path):
     depth = [0]
 
     def note(kind, value):
+        # One line a note, whatever a name holds: a line feed in an archive's name, or a carriage return - which a
+        # reader in text mode takes for a line's end too - cut the line the harness reads it from, and a weakening that
+        # made main() raise on such a name stopped the measurement (the fifty-eighth review).
+        value = value.replace('\r', '\\r').replace('\n', '\\n')
         with open(log_path, 'a', encoding='utf-8') as log:
             log.write('%s\t%s\t%s\n' % (current[0], kind, value))
 
@@ -177,15 +181,16 @@ def logger_trx(rows):
 
 
 def zip_with_backslashes(path, members):
-    """A zip as Compress-Archive writes one: each file deflated, each folder stored, and every name's folders split
-    with a backslash - the bytes of each name rewritten after zipfile wrote it, since zipfile turns a backslash into a
-    slash on Windows (the fifty-third review found no case holding a name so written)."""
+    """A zip as Compress-Archive writes one: each file deflated but an empty one, which it stores (as r35's empty
+    child.out is; the fifty-eighth review found this said every file deflated), each folder stored, and every name's
+    folders split with a backslash - the bytes of each name rewritten after zipfile wrote it, since zipfile turns a
+    backslash into a slash on Windows (the fifty-third review found no case holding a name so written)."""
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as held:
         for name, blob in members:
             if name.endswith('/'):
                 held.writestr(zipfile.ZipInfo(name), b'')
             else:
-                held.writestr(name, blob)
+                held.writestr(name, blob, zipfile.ZIP_DEFLATED if blob else zipfile.ZIP_STORED)
     data = path.read_bytes()
     for name, _ in members:
         if '/' in name:
@@ -228,20 +233,23 @@ SECOND = 'FileCat.Core.Tests-Edit-NativeEditStorage'
 
 def two_process_run(unix, counted=0, exited=0):
     """An edit lane as the runners seal one: two test processes, each with its own TRX, log, exit code and line in
-    its runner's list, the pins split between them as r35's are - the composition and route pins in the first suite,
-    the dual-root pin in the second, which skips a test as r35's suites skip some (the fifty-fourth review found the
-    skipped count's sum held by no case, no fixture suite skipping one). `counted` and `exited` are the second suite's
-    failure counter and exit code."""
+    its runner's list, the pins split between them as r35's Unix lanes hold them - the composition pin in the first
+    suite, the route pin and the dual-root pin in the second (r35's Windows lane runs its platform's dual-root pin in a
+    third process; the fifty-eighth review found this said the route pin stood in the first) - the second skipping a
+    test as r35's suites skip some (the fifty-fourth review found the skipped count's sum held by no case, no fixture
+    suite skipping one). `counted` and `exited` are the second suite's failure counter and exit code."""
     system = 'Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux' if unix else 'Microsoft Windows 11 Pro 10.0.26220.0'
     platform = ('FileCat.Core.Tests.UnixEditStorageTests.' if unix else
                 'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.')
-    first = ''.join('<UnitTestResult testName="FileCat.Tests.%s" outcome="Passed" />' % pin for pin in PIN_NAMES[:2])
+    first = '<UnitTestResult testName="FileCat.Tests.%s" outcome="Passed" />' % PIN_NAMES[0]
     counters = {"total": 5, "passed": 4, "skipped": 1, "failed": counted, "counters_total": 5}
     summary = dict(SUMMARY, exit_codes={"FileCat.App.Tests-Edit": 0, SECOND: exited},
                    suites=dict(SUMMARY['suites'], **{SECOND: counters}))
     contents = files(trx=first, summary=summary, system=system)
-    contents['results/%s.trx' % SECOND] = ('<?xml version="1.0"?><TestRun><Results><UnitTestResult testName="%s%s" '
-                                           'outcome="Passed" /></Results></TestRun>' % (platform, PIN_NAMES[2]))
+    contents['results/%s.trx' % SECOND] = ('<?xml version="1.0"?><TestRun><Results><UnitTestResult testName="FileCat.'
+                                           'Core.Tests.NativeEditStorageTests.%s" outcome="Passed" /><UnitTestResult '
+                                           'testName="%s%s" outcome="Passed" /></Results></TestRun>'
+                                           % (PIN_NAMES[1], platform, PIN_NAMES[2]))
     contents['test-%s.log' % SECOND] = '[xUnit.net] everything ran\n'
     line = 'test %s: (FullyQualifiedName~Edit|FullyQualifiedName~NativeEditStorage)' % SECOND
     if unix:
@@ -267,16 +275,25 @@ ATTACHMENTS = 'results/2e34b0aa-6184-4683-a741-373b45165ae0'
 
 def windows_json(record):
     """A record as the Windows runner writes it: Windows PowerShell 5.1's ConvertTo-Json - a member a line, four spaces
-    in, two after the colon, what is not ASCII as written - through Set-Content, which ends every line with CRLF."""
-    return '{\r\n' + ',\r\n'.join('    %s:  %s' % (json.dumps(key), json.dumps(value, ensure_ascii=False))
+    in, two after the colon, what is not ASCII as written, and `'`, `&`, `<` and `>` each as its six-character escape
+    (read so from PowerShell 5.1 itself, the fifty-eighth review found the fixture writing them as they are) - through
+    Set-Content, which ends every line with CRLF. A nested value is written here on one line, where PowerShell spreads
+    it over lines of its own; the check reads a record as JSON, not by its lines."""
+    escapes = {character: chr(92) + 'u%04x' % ord(character) for character in "'&<>"}
+
+    def written(value):
+        return ''.join(escapes.get(character, character) for character in json.dumps(value, ensure_ascii=False))
+    return '{\r\n' + ',\r\n'.join('    %s:  %s' % (written(key), written(value))
                                for key, value in record.items()) + '\r\n}\r\n'
 
 
 def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything ran\n', status='PASS\r\n',
           gate_value=None, system='Microsoft Windows 11 Pro 10.0.26220.0'):
-    """The files the runners seal, as a name-to-text map: each member r35's edit lanes hold, though not each in
-    every shape r35's has - the result rows here are short, the launcher's projects plain, the Windows zip's members
-    stored and its names split with `/` - shapes the cases built as r35's own lanes carry instead (the fifty-third
+    """The files the runners seal, as a name-to-text map: each kind of member r35's edit lanes hold but the Windows
+    lane's publish log, the launcher here publishing nothing (the case built as r35's own Windows lane holds one; the
+    fifty-eighth review found this said each member), though not each in every shape r35's has - the result rows here
+    are short, the launcher's projects plain, the Windows zip's members stored and its names split with `/` - shapes
+    the cases built as r35's own lanes carry instead (the fifty-third
     review found five rules the sealed lanes rest on held by none of these fixtures); each argument stands for one way
     a run can differ. The machine record is the one
     the system's own runner writes: the Windows runner's `machine.json`, its caption in `Os` with what is not ASCII as
@@ -513,6 +530,26 @@ class EvidenceChecks(unittest.TestCase):
             '<UnitTestResult outcome="Passed" testName="FileCat.Tests.%s" />' % pin for pin in checker.PINS)
         problems, _ = self.check(files(trx=reversed_trx))
         self.assertEqual([], problems)
+
+    def test_reads_a_result_from_its_own_element_and_attributes_alone(self):
+        """A result is a `UnitTestResult` element's `testName` and `outcome`, in either order: a pin's row under another
+        element's name, or with its name or outcome only in an attribute whose name ends in theirs, is no result of it -
+        the logger writes none such, and read as one, a pin passed in no row of its own (the fifty-eighth review found
+        the patterns' anchors held by no case)."""
+        pin = PIN_NAMES[0]
+        name = 'FileCat.Tests.' + pin
+        row = '<UnitTestResult executionId="0" testName="%s" outcome="Passed" />' % name
+        for forged in ('<UnitTestResults testName="%s" outcome="Passed" />',
+                       '<UnitTestResult datatestName="%s" outcome="Passed" />',
+                       '<UnitTestResult testName="%s" dataoutcome="Passed" />',
+                       '<UnitTestResults outcome="Passed" testName="%s" />',
+                       '<UnitTestResult outcome="Passed" datatestName="%s" />',
+                       '<UnitTestResult dataoutcome="Passed" testName="%s" />'):
+            with self.subTest(forged):
+                trx = PASSING_TRX.replace(row, forged % name)
+                self.assertNotEqual(PASSING_TRX, trx)
+                problems, _ = self.check(files(trx=trx))
+                self.assertEqual(['it does not hold the pin ' + pin], problems)
 
     def test_reads_a_theory_row_as_its_pin(self):
         rows = ''.join('<UnitTestResult testName="FileCat.Tests.%s(store: 1)" outcome="Passed" />' % pin
@@ -1305,7 +1342,11 @@ class EvidenceChecks(unittest.TestCase):
         own bind the child's Env (cmd.exe and PowerShell split the line differently), while the real `-Env` text still
         stood in the file for a pattern to find. So child.cmd is read whole, as the one launcher its runner writes:
         every argument printable ASCII without `"`, `%` or `^`, none starting with `-` (a parameter name to PowerShell)
-        or ending in a backslash (which turns the closing quote into a literal one)."""
+        or ending in a backslash (which turns the closing quote into a literal one). Each literal part of it holds too:
+        a child.cmd without one of its words or with one changed, running another program, its lines ended otherwise,
+        or with a `%` in an argument no other rule reads, is not the launcher its runner writes - without `-NoProfile`
+        the child would run the account's PowerShell profile, which can set a variable such as VSTESTCLIRUNSETTINGS
+        before the tests start (the fifty-eighth review found these parts held by no case)."""
         gate = checker.GATE_NAME
         recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1'
         smuggled = '*" -Projects "x" -Dotnet "y" -e "FILECAT_ARCHIVE_TXF_NATIVE=1" -HangMinutes 20 '
@@ -1329,6 +1370,32 @@ class EvidenceChecks(unittest.TestCase):
         problems, _ = self.check(contents)
         self.assertTrue(any('it carries 2 child.cmd where its runner seals one' in problem for problem in problems),
                         problems)
+        real = launcher(recorded)
+        program = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
+        # Each word dropped, and each word changed - a part read as any word in its place would take either.
+        words = ('@echo off', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', '-Run',
+                 '-Packet', '-Filter', '-Projects', '-Dotnet', '-Env', '-HangMinutes', '>', '2>&1')
+        variants = [('without ' + word, real.replace(word + '\r\n' if word == '@echo off' else ' ' + word, '', 1))
+                    for word in words + ('-ExecutionPolicy Bypass', '-WindowStyle Hidden')]
+        variants += [('with %sx' % word, real.replace(word, word + 'x', 1)) for word in words]
+        variants += [('another powershell.exe', real.replace(program, 'C:\\Users\\Public\\powershell.exe')),
+                     ('another program', real.replace(program, 'C:\\Users\\Public\\wrapper.exe')),
+                     ('no hang minutes', launcher(recorded, hang='')),
+                     ('hang minutes holding a letter', launcher(recorded, hang='2x')),
+                     ('its lines ended with a line feed alone', real.replace('\r\n', '\n')),
+                     ('its last line unended', real[:-2])]
+        variants += [('a %% in %s' % where, real.replace(text, text[:-1] + '%1"', 1)) for where, text in (
+            ('-File', 'child.ps1"'), ('-Run', '-Run "%s"' % LAUNCHED['run']),
+            ('-Packet', '-Packet "%s"' % LAUNCHED['packet']), ('-Dotnet', '-Dotnet "%s"' % LAUNCHED['dotnet']),
+            ('its output', 'child.out"'))]
+        for label, script in variants:
+            with self.subTest(label):
+                self.assertNotEqual(real, script)
+                contents = self.windows_record(recorded)
+                contents['child.cmd'] = script
+                problems, _ = self.check(contents)
+                self.assertTrue(any('is not the launcher its runner writes' in problem for problem in problems),
+                                problems)
         # What real lanes pass: a negated shard (`#~` now), a path with a space, `{run}` in a value, an empty Env.
         env = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1;FILECAT_ARCHIVE_APP_ASSETS={run}\\publish\\FileCat.App'
         contents = self.windows_record(env)
@@ -2262,7 +2329,10 @@ class EvidenceChecks(unittest.TestCase):
         """A project path holding `..` reached another run's sources beside the packet, with the packet's hash still in
         the record (the forty-ninth review): refused in a Windows launcher's projects, and in the Unix record's entry
         lines, which its runner writes since then. A variable's value and a test entry's shard name no path; a built or
-        published entry is a path to its end, `#` and all, as its runner takes it (the fiftieth review)."""
+        published entry is a path to its end, `#` and all, as its runner takes it (the fiftieth review). Each Unix entry
+        comes with the lines its runner writes beside it - an env: entry's own `env=` line, a shard's own test line -
+        and a filter may hold `..` too: the rule reads entry lines alone, and read on every line it refused such lanes
+        while no case changed (the fifty-eighth review)."""
         said = 'reaches out of the hash-pinned packet'
         recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;FILECAT_EDIT_NATIVE_REQUIRED=1'
         for projects, refused in (('..\\..\\edit-r35-win\\src\\tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit', True),
@@ -2278,16 +2348,25 @@ class EvidenceChecks(unittest.TestCase):
                 contents['child.cmd'] = launcher(recorded, projects=projects)
                 problems, _ = self.check(contents)
                 self.assertEqual(refused, any(said in problem for problem in problems), problems)
-        for entry, refused in (('../../edit-r34-ubuntu/src/tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit', True),
-                               ('publish:../x/src/FileCat.App/FileCat.App.csproj', True),
-                               ('publish:#/../../../edit-r34-ubuntu/src/src/FileCat.App/FileCat.App.csproj', True),
-                               ('build:x#/../../../other/A.csproj', True),
-                               ('tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit..Native', False),
-                               ('env:FILECAT_ARCHIVE_SMALL_VOLUME=/srv/../small', False)):
-            with self.subTest(entry=entry):
-                record = self.unix_record('entry=' + entry, 'env=FILECAT_EDIT_NATIVE_REQUIRED=1')
-                problems, _ = self.check(record, unix=True)
+        gate = 'env=FILECAT_EDIT_NATIVE_REQUIRED=1'
+        app = 'entry=tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit'
+        for lines, refused in (
+                (('entry=../../edit-r34-ubuntu/src/tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit', gate), True),
+                (('entry=publish:../x/src/FileCat.App/FileCat.App.csproj', gate), True),
+                (('entry=publish:#/../../../edit-r34-ubuntu/src/src/FileCat.App/FileCat.App.csproj', gate), True),
+                (('entry=build:x#/../../../other/A.csproj', gate), True),
+                (('entry=tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit..Native', gate,
+                  'test FileCat.App.Tests-Edit..Native: (FullyQualifiedName~Edit..Native)'), False),
+                (('entry=env:FILECAT_ARCHIVE_SMALL_VOLUME=/srv/../small', app,
+                  'env=FILECAT_ARCHIVE_SMALL_VOLUME=/srv/../small', gate, TEST_LINE), False),
+                (('filter=FullyQualifiedName~FileCat..Tests', app, gate,
+                  'test FileCat.App.Tests-Edit: (FullyQualifiedName~FileCat..Tests)&(FullyQualifiedName~Edit)'),
+                 False)):
+            with self.subTest(lines=lines):
+                problems, _ = self.check(self.unix_record(*lines), unix=True)
                 self.assertEqual(refused, any(said in problem for problem in problems), problems)
+                if not refused:
+                    self.assertEqual([], problems)
 
     def test_refuses_a_unix_entry_line_holding_what_dotnet_changes(self):
         """The Unix record names each entry since the forty-ninth review, and an entry holding `"`, `@`, `%` or a
@@ -2476,11 +2555,11 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_accepts_a_windows_edit_lane_shaped_as_r35_s(self):
         """The Windows edit lane as r35 holds it, in the shapes the rules read: the launcher's own projects - a publish
-        entry, and a shard of two classes joined by `+` - each file deflated and each name split with a backslash as
-        Compress-Archive writes them, the results rows as the logger writes them across three results files, the Unix
-        class's dual-root row stepped aside with its reason before the Windows class's passed, the records in the ANSI
-        code page of the runner that sealed it. The fifty-third review found five rules the sealed lanes rest on held by
-        no case, the fixtures' members shaped otherwise."""
+        entry, and a shard of two classes joined by `+` - each file deflated but the empty child.out, stored, and each
+        name split with a backslash as Compress-Archive writes them, the results rows as the logger writes them across
+        three results files, the Unix class's dual-root row stepped aside with its reason before the Windows class's
+        passed, the records in the ANSI code page of the runner that sealed it. The fifty-third review found five rules
+        the sealed lanes rest on held by no case, the fixtures' members shaped otherwise."""
         pins = checker.PINS
         app = logger_trx([logger_row('FileCat.App.Tests.EditStoreCompositionTests.' + pins[0], 'Passed', number=1),
                           logger_row('FileCat.App.Tests.EditTestStores.A_theory(scenario: &quot;capture-gate&quot;)',
@@ -2642,10 +2721,11 @@ class EvidenceChecks(unittest.TestCase):
         `&` - a filter beside a shard, a negated shard of two classes - and five digits in no accepted record's lines)."""
         system = 'Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux'
         notes = 'FILECAT_NOTES=' + UNIX_ENV_VALUE
-        # A filter by display name holds `test ` and `packet=` inside its line, which the record's own rules read only
-        # where a line begins; and an env: entry may give an empty value, which the runner exports as such (the
-        # fifty-seventh review found each held by no case).
-        expression = 'DisplayName~a test case|DisplayName~packet=1|' + UNIX_ENTRY
+        # A filter by display name holds `test ` inside its line, which the record's own rules read as a listed process
+        # only where a line begins; and an env: entry may give an empty value, which the runner exports as such (the
+        # fifty-seventh review found each held by no case). A filter's `packet=` would hold nothing: the record's own
+        # lines begin at its runner's `packet=` line, which comes before the filter's (the fifty-eighth review).
+        expression = 'DisplayName~a test case|' + UNIX_ENTRY
         lines = unix_head(system) + [
             'packet=546d8caf28f54066cbb58e5d222a9e5aab464899ab35568b4108e01fc8c982d4', 'filter=' + expression,
             'entry=env:FILECAT_ARCHIVE_TXF_NATIVE=1', 'entry=env:' + checker.GATE, 'entry=env:' + notes,

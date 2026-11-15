@@ -456,9 +456,19 @@ r35 verdicts unchanged. One hundred and forty-five cases hold the check and four
 held by a verdict, twenty-seven noted, none unheld or contradicted.
 
 The fifty-seventh review found two rules read where a line begins - a listed process's `test `, a Unix record's own
-`packet=` - and an empty env value held by no case, each of which, narrowed, refused a lane built from inputs its runner
-accepts; the round-fifty-six entry naming a descriptor reading wrongly; and "a log of its own" said where the check
+`packet=` - and an empty env value held by no case, each of which, narrowed, refused a lane: `test ` and the empty value
+lanes built from inputs their runner accepts, `packet=` only a machine configured so - its file system named `test` and
+mounted under a path holding `packet=` (corrected by the fifty-eighth review, which found this said every one a runner
+input's); the round-fifty-six entry naming a descriptor reading wrongly; and "a log of its own" said where the check
 compares counts. Cases carry each reading and value, the words are corrected, what follows a descriptor is read from the
 listing rather than from bytes, and every report line is written as one line - the r35 verdicts unchanged. One hundred and forty-six
 cases hold the check and fourteen the manifest; the harness lists two hundred and sixty-nine rules, two hundred and forty-one held by a verdict, twenty-eight
 noted, none unheld or contradicted.
+
+The fifty-eighth review found the Unix path rule's `entry=` half and literal parts of the launcher's and a result's
+patterns held by no case, the round-fifty-seven record overstating the `packet=` reading, and the suite's texts saying
+four things r35 does not - where its pins run, which members it holds, how PowerShell 5.1 writes a record and how
+Compress-Archive stores an empty file. Cases hold each part now, the records and texts are corrected, and the measuring
+suite writes each note as one line; a child.cmd naming another script - bytes changed in a sealed archive - falls inside
+the first boundary. The r35 verdicts are unchanged. One hundred and forty-seven cases hold the check and fourteen the manifest; the harness
+lists two hundred and ninety-one rules, two hundred and sixty-two held by a verdict, twenty-nine noted, none unheld or contradicted.

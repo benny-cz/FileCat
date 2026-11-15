@@ -1,15 +1,59 @@
 # Archive writing implementation status
 
+**15 November, the launcher's words, and where r35 runs its pins (round fifty-eight).** Asked again whether
+anything was left that the mechanism did not report, the reviewer found four things at High - all by the grading's
+letter - and two at Low; the gate is wrong about no archive a runner seals:
+
+- **High, by the grading's letter: the Unix path rule's `entry=` half was held by no case.** The rule reads a path for
+  `..` on a record's entry lines alone; read on every line, it refused lanes the Unix runner writes from inputs it
+  accepts - an env: entry whose value holds `..` (the runner writes it as an `env=` line too), a filter holding `..`, a
+  shard named `Edit..Native` (in its test line) - while no case changed, the case's entries coming without the lines
+  their runner writes beside them. They come with them now, a filter holding `..` beside them, and an entry holds the
+  reading.
+- **High, by the grading's letter: literal parts of the launcher's and a result's patterns were held by no case.**
+  Without `-NoProfile`, `-WindowStyle Hidden` or `@echo off`, running another program or another `powershell.exe`, with
+  no hang minutes, or with a `%` in an argument no other rule reads (`-File`, `-Run`, `-Packet`, `-Dotnet`, its
+  output), a child.cmd is not the launcher its runner writes and the check refuses it, yet weakening any of those parts
+  changed no case; and so with a result read from an element other than `UnitTestResult`, or from an attribute whose
+  name only ends in `testName` or `outcome`. Each such file is bytes changed in a sealed archive (boundary 1), but the
+  rules are the check's own: a case drops and changes each word of the launcher in turn, runs another program, ends
+  its lines otherwise and puts a `%` in each such argument, another reads forged rows in both orders, and an entry
+  holds each part found and each argument's alphabet - the launcher's `-Env` noted redundant, since it must be the
+  record's Env, whose own rule refuses the same.
+- **High, by the grading's letter: the round-fifty-seven entry below overstated the `packet=` reading**, as did its
+  commit message and the release decision's paragraph. Narrowed, it refused no lane built from a runner's inputs - a
+  filter's, an entry's or a value's `packet=` comes after the record's own `packet=` line - only a machine whose file
+  system is named `test` and mounted under a path holding `packet=`: its own configuration, boundary 2. The entry and
+  the paragraph are corrected where they stand (the commit message cannot be), and the every-character case's filter
+  no longer carries a `packet=` that held nothing.
+- **High, by the grading's letter: the suite's texts said four things r35 does not.** The two-process fixture put the
+  route pin in its first suite "as r35's are" - every r35 lane runs it in the Core suite, with the dual-root pin; the
+  fixtures held "each member r35's edit lanes hold" - not the Windows lane's publish log; a Windows record was written
+  as PowerShell 5.1 writes one - which writes `'`, `&`, `<` and `>` as their escapes; and Compress-Archive deflated
+  "each file" - it stores an empty one, as r35's child.out is. The fixtures follow r35 now where they can, and the texts
+  say where they do not.
+- Low, closed: the measuring suite's log took a name holding a line break for two lines, and a weakening that made
+  main() raise on such a name stopped the measurement; each note is written as one line now.
+- Low, inside boundary 1: a child.cmd naming another script for `-File`, passing the record's Env as written, is
+  accepted - the sealed child.ps1 is not read, and nothing binds the launcher's paths to the run. Only bytes changed in a
+  sealed archive make one; the digest each runner takes on its own machine, queued for the next candidate, ends it.
+
+The fourteen r35 archives read exactly as before (five accepted, nine refused), and all 23 manifest digests match.
+One hundred and forty-seven cases for the check and fourteen for the manifest; the harness lists two hundred and ninety-one rules, two hundred and sixty-two held by a verdict,
+twenty-nine noted as redundant, caseless or raising, and none unheld or contradicted; the audit prints forty-five lines.
+
 **15 November, where a line begins, and what a listing says (round fifty-seven).** Asked again whether anything
 was left that the mechanism did not report, the reviewer found four things at High - all by the grading's letter - and
 two at Low; the gate is wrong about no archive a runner seals:
 
 - **High, by the grading's letter: two rules read where a line begins were held by no case.** A listed process is a
   line that begins `test `, and a Unix record's own lines begin at the line that begins `packet=`: read anywhere in a
-  line instead, no case changed, while lanes built from inputs the Unix runner accepts were refused - a filter by
-  display name, `a test case`; a built entry under `Edit test fixtures/`; and, contrived, a file system mounted where
-  its path holds `packet=`. The Unix every-character case's filter holds `test ` and `packet=` now, and the own-lines
-  case's `df` line a mount point holding `packet=`; an entry holds each reading.
+  line instead, no case changed. So read, `test ` refused lanes built from inputs the Unix runner accepts - a filter by
+  display name, `a test case`; a built entry under `Edit test fixtures/` - and `packet=` none (this said both did until
+  the fifty-eighth review: a filter's, an entry's or a value's `packet=` comes after the record's own), only a
+  machine whose file system is named `test` and mounted under a path holding `packet=` - its own configuration. The
+  Unix every-character case's filter holds `test ` now, and the own-lines case's `df` line such a mount; an entry holds
+  each reading.
 - **High, by the grading's letter: an empty env value was accepted, and held by no case.** Both runners admit `NAME=`
   (the Windows child clears an inherited variable so), and read as no value, the narrowing refused such lanes while
   no case changed. Each runner's every-character case gives one now, with an entry.
