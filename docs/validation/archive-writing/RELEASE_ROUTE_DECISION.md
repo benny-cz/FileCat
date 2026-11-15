@@ -426,8 +426,8 @@ hold, and the Unix runner matches its run folder as text - the r35 verdicts unch
 and fourteen the manifest; the harness lists two hundred and thirty-four rules, two hundred and seven held by a verdict, twenty-seven noted, none unheld or
 contradicted.
 
-The fifty-fourth review found the sealed Unix lanes resting on the gzip reader's full window with no case holding it
-(no accepted case's stream reached back further than 512 bytes, r35's further than 16 KiB), the skipped count's sum held by no
+The fifty-fourth review found the accepted Unix lanes resting on the gzip reader's full window with no case holding it
+(no accepted case's stream reached back further than 512 bytes, the accepted r35 lanes' further than 16 KiB), the skipped count's sum held by no
 case, two loops held only by the string-hash seed each run drew, the Windows caption's own test held by no case, two
 comparisons and the tar floor's rounding held on one side only, and a record naming three of the five lanes a rule
 protects. The case built as r35's full Unix lane carries a thousand result rows, the two-process fixture
@@ -435,3 +435,12 @@ skips a test, the family's names are read sorted, each rule and side has an entr
 corrected where it stands; the Unix runner matches its run folder with its slash, and the harness reports a suite run
 that does not end - the r35 verdicts unchanged. One hundred and thirty-nine cases hold the check and fourteen the manifest; the harness lists
 two hundred and forty-five rules, two hundred and eighteen held by a verdict, twenty-seven noted, none unheld or contradicted.
+
+The fifty-fifth review found the check's acceptance of what the runners admit held by no case - which characters a
+launcher argument, a Windows Env value or a Unix record line may hold, and how many digits the hang minutes have, each
+of which, narrowed, refuses a lane built from inputs its runner accepts while no case changed - the Unix side of
+reading the gate's name whole held by no case, and three texts saying every r35 Unix lane's stream needs gzip's full
+window, true of the four accepted lanes only. A case per runner carries every character its own patterns admit, an
+entry holds each rule, a Unix case holds the gate's name, and the words say "accepted" - the r35 verdicts unchanged.
+One hundred and forty-one cases hold the check and fourteen the manifest; the harness lists two hundred and fifty-seven rules, two hundred and twenty-six held by a verdict,
+thirty-one noted, none unheld or contradicted.

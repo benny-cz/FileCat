@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import random
+import re
 import sys
 import gzip
 import shutil
@@ -199,6 +200,27 @@ R35_PROJECTS = ('publish:src\\FileCat.App\\FileCat.App.csproj,tests\\FileCat.Cor
                 'tests\\FileCat.Platform.Windows.Tests\\FileCat.Platform.Windows.Tests.csproj#Edit')
 R35_ENV = ('FILECAT_ARCHIVE_CONTAINMENT=1;FILECAT_ARCHIVE_TXF_NATIVE=1;FILECAT_EDIT_NATIVE_REQUIRED=1;'
            'FILECAT_ARCHIVE_APP_ASSETS={run}\\publish\\FileCat.App')
+
+
+def admitted(bracket):
+    """Every printable ASCII character a pattern's bracket admits, in order - read by Python's engine, which reads these
+    brackets as the runners' own engines do (a `]` leading a bracket is itself, and so is a `[` inside one)."""
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', FutureWarning)
+        pattern = re.compile(bracket)
+    return ''.join(chr(code) for code in range(0x20, 0x7f) if pattern.fullmatch(chr(code)))
+
+
+# What each runner lets through, from the brackets of its own patterns as its source writes them: an accepted case
+# carries all of it, so the check is held to accept every character a runner admits and not only the ones the other
+# fixtures happen to hold (the fifty-fifth review found a launcher's `(`, `)`, `|` and four of the digits, a hang of
+# three digits, an Env value's `:`, and a Unix line's `&` and five of the digits, in no accepted case). The Windows
+# runner's -Filter (and -Projects), and each value of its -Env; the Unix runner's filter and each entry, and an env:
+# entry's value, which its own pattern also holds to no space.
+WINDOWS_FILTER = admitted(r'[ #$&-?A-\]_-~]')
+WINDOWS_ENV_VALUE = admitted(r'[ #$&-:<-\]_-~]')
+UNIX_ENTRY = admitted('[] !#&-?A-[^-~]')
+UNIX_ENV_VALUE = ''.join(character for character in admitted('[!-#%-~]') if character in UNIX_ENTRY)
 
 
 SECOND = 'FileCat.Core.Tests-Edit-NativeEditStorage'
@@ -1810,11 +1832,15 @@ class EvidenceChecks(unittest.TestCase):
         self.assertEqual('macos', facts['system'])
 
     def test_reads_the_gate_s_name_whole_and_not_as_a_prefix_of_another(self):
-        """`FILECAT_EDIT_NATIVE_REQUIRED_LEGACY=1` is not this gate, and a name matched as a part would take it."""
+        """`FILECAT_EDIT_NATIVE_REQUIRED_LEGACY=1` is not this gate, and a name matched as a part would take it - in
+        either runner's record (the fifty-fifth review found the Unix record's reading held by no case)."""
         contents = files()
         contents['machine.json'] = json.dumps({"RunId": "edit-test", "Os": "Microsoft Windows 11 Pro",
                                                "Env": checker.GATE_NAME + '_LEGACY=1'})
         self.assertIn('its machine record does not name ' + checker.GATE_NAME, self.check(contents)[0])
+        legacy = checker.GATE_NAME + '_LEGACY=1'
+        record = self.unix_record('entry=env:' + legacy, 'env=' + legacy)
+        self.assertIn('its machine record does not name ' + checker.GATE_NAME, self.check(record, unix=True)[0])
 
     def test_reads_every_status_file_and_not_the_first_of_them(self):
         """Each status.txt has to say PASS, as each summary has to pass - the code says so beside the summaries."""
@@ -2515,9 +2541,9 @@ class EvidenceChecks(unittest.TestCase):
                            logger_row('FileCat.Core.Tests.UnixEditStorageTests.' + pins[2], 'Passed', number=3)],
                 names[2]: [logger_row('FileCat.App.Tests.EditStoreCompositionTests.' + pins[0], 'Passed', number=4)]}
         # The App suite's other rows, a thousand of them (a full lane's results hold thousands): a stream of that size
-        # refers back further than 16 KiB - to a class's name a few dozen rows back - as every r35 Unix lane's does,
-        # which a reader with less than gzip's own window refuses (the fifty-fourth review found no accepted case's
-        # stream reaching back further than 512 bytes).
+        # refers back further than 16 KiB - to a class's name a few dozen rows back - as every accepted r35 Unix lane's
+        # does, which a reader with less than gzip's own window refuses (the fifty-fourth review found no accepted
+        # case's stream reaching back further than 512 bytes).
         rows[names[2]] += [logger_row('FileCat.App.Tests.Some%dTests.A_case_%d' % (number % 37, number), 'Passed',
                                       number=number) for number in range(5, 1005)]
         suites = {name: {"total": len(rows[name]), "passed": len(rows[name]), "skipped": 0, "failed": 0,
@@ -2579,6 +2605,40 @@ class EvidenceChecks(unittest.TestCase):
             problems, facts = checker.check(path)
         self.assertEqual([], problems)
         self.assertEqual('linux', facts['system'])
+
+    def test_accepts_every_character_the_windows_runner_admits(self):
+        """A filter holding every character the Windows runner's -Filter admits, an Env value holding every character
+        its -Env admits, and hang minutes of every digit, one to three of them: the launcher, the record and the test
+        list as the runner writes them from inputs it accepts, and the check accepts each (the fifty-fifth review found
+        a narrower reading of each noticed by no case)."""
+        env = 'FILECAT_ARCHIVE_TXF_NATIVE=1;%s;FILECAT_NOTES=%s' % (checker.GATE, WINDOWS_ENV_VALUE)
+        record = {"RunId": "edit-test", "Os": 'Microsoft Windows 11 Pro 10.0.26220.0', "Env": env}
+        for hang in ('9', '78', '120', '345', '600'):
+            with self.subTest(hang=hang):
+                contents = files()
+                contents['machine.json'] = windows_json(record)
+                contents['child.cmd'] = launcher(env, filter=WINDOWS_FILTER, hang=hang)
+                contents['tests.txt'] = 'test FileCat.App.Tests-Edit: (%s)&(FullyQualifiedName~Edit)\r\n' % WINDOWS_FILTER
+                problems, facts = self.check(contents)
+                self.assertEqual(([], 'windows'), (problems, facts.get('system')))
+
+    def test_accepts_every_character_the_unix_runner_admits(self):
+        """A filter holding every character the Unix runner's filter admits, as the runner writes it into the test line
+        beside a shard, and an env: entry whose value holds every character such a value admits: the record as the
+        runner writes it from inputs it accepts, and the check accepts it (the fifty-fifth review found a test line's
+        `&` - a filter beside a shard, a negated shard of two classes - and five digits in no accepted record's lines)."""
+        system = 'Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux'
+        notes = 'FILECAT_NOTES=' + UNIX_ENV_VALUE
+        lines = unix_head(system) + [
+            'packet=546d8caf28f54066cbb58e5d222a9e5aab464899ab35568b4108e01fc8c982d4', 'filter=' + UNIX_ENTRY,
+            'entry=env:FILECAT_ARCHIVE_TXF_NATIVE=1', 'entry=env:' + checker.GATE, 'entry=env:' + notes, 'entry=hang:600',
+            'entry=tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit', 'env=FILECAT_ARCHIVE_TXF_NATIVE=1',
+            'env=' + checker.GATE, 'env=' + notes, 'hang=600m',
+            'test FileCat.App.Tests-Edit: (%s)&(FullyQualifiedName~Edit)' % UNIX_ENTRY]
+        contents = files(system=system)
+        contents['machine.txt'] = '\n'.join(lines) + '\n'
+        problems, facts = self.check(contents, unix=True)
+        self.assertEqual(([], 'linux'), (problems, facts.get('system')))
 
 
 if __name__ == '__main__':

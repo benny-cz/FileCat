@@ -316,8 +316,8 @@ class Archive:
                 return 'it is not gzipped, as a sealed run is'
             handle.seek(0)
             # 31 is gzip's framing (16) around a deflate stream with the widest window (15 bits, 32 KiB), as gzip writes
-            # one: every r35 Unix lane's stream refers back further than 16 KiB, and a narrower window refused them all
-            # while no case changed (the fifty-fourth review; a case holds it now).
+            # one: every accepted r35 Unix lane's stream refers back further than 16 KiB, and a narrower window refused
+            # all four while no case changed (the fifty-fourth review; a case holds it now).
             stream = zlib.decompressobj(31)
             at = 0
             try:

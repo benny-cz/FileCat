@@ -1,10 +1,43 @@
 # Archive writing implementation status
 
+**15 November, every character a runner admits (round fifty-five).** Asked again whether anything was left that
+the mechanism did not report, the reviewer found two things at High - both by the grading's letter - one at Medium, and
+two at Low:
+
+- **High, by the grading's letter: the check's acceptance of what the runners admit was held by no case.** Which
+  characters a launcher argument, a Windows Env value or a Unix record line may hold, and how many digits the hang
+  minutes have, are rules held in constants that the harness listed none of and the audit cannot see. Narrowed, each
+  refuses a lane built from inputs its runner accepts - a filter in dotnet's own grammar (`(`, `)`, `|`), the next
+  candidate's run folder `edit-r36-win` (a `6`), two hours of hang guard (`120`), an Env value naming a drive
+  (`D:\fixtures`), a Unix test line beside a shard (`&`), `hang:30` (a `3`) - while no case changed, every accepted
+  fixture's inputs being narrower than the runners'. A case per runner now carries every character the runner's own
+  patterns admit, computed from their brackets as the runners' sources write them: the Windows runner's filter and an
+  Env value, with hang minutes of every digit, one to three of them; the Unix runner's filter, as it writes it into a
+  test line beside a shard, and an env: entry's value. An entry holds each rule.
+- **Medium: the Unix side of reading the gate's name whole was held by no case.** The entry weakened both sides at
+  once and a Windows case alone held it: weakened on its own, a Unix record setting `FILECAT_EDIT_NATIVE_REQUIRED_LEGACY`
+  and no gate was accepted while no case changed. A Unix case and an entry of its own hold it, and the Windows side's
+  ASCII test is noted as redundant - the Env is refused unless it is printable ASCII before any name in it is read.
+- **High, by the grading's letter: three texts said every r35 Unix lane's stream refers back further than 16 KiB** -
+  true of the four accepted lanes, not of two refused ones (`pkgroute-appimage` and `pkgroute-debcheck` on Ubuntu read
+  whole with a 512-byte window). The check's, the harness's and the suite's words say "accepted" now, and the round
+  fifty-four records' words that could be read otherwise are corrected where they stand.
+- Low, recorded and noted: a zip directory's sizes against the file's are held by cases where the directory overstates
+  one, and where it understates one by the listing's coverage (bytes no member covers, refused) or by the reader (a
+  member read short) - those two sides are entries noted as redundant now; a descriptor stating fewer compressed or more
+  plain bytes than its directory is refused by its own rule alone, but no writer makes one - it takes bytes changed in a
+  sealed archive, boundary 1 - and it hides nothing, the member's span being the directory's. And the next-header
+  test's directory signature is redundant with the directory's own offset, which an entry notes now.
+
+The fourteen r35 archives read exactly as before (five accepted, nine refused), and all 23 manifest digests match.
+One hundred and forty-one cases for the check and fourteen for the manifest; the harness lists two hundred and fifty-seven rules, two hundred and twenty-six held by a verdict,
+thirty-one noted as redundant, caseless or raising, and none unheld or contradicted; the audit prints forty-five lines.
+
 **15 November, r35's reach, a fixed order, and both sides (round fifty-four).** Asked again whether anything was
 left that the mechanism did not report, the reviewer found seven things at High - six of them by the grading's letter -
 and two at Low:
 
-- **High: the sealed Unix lanes rest on the gzip reader's full window, and no case held it.** Read with a 16 KiB
+- **High: the accepted Unix lanes rest on the gzip reader's full window, and no case held it.** Read with a 16 KiB
   window instead of gzip's own 32 KiB, all four accepted r35 Unix archives are refused - their streams refer back
   further than that - while no accepted case's stream reached back further than 512 bytes. The case built as r35's
   full Unix lane carries a thousand result rows now (a full lane's results hold thousands) and asserts that its own
