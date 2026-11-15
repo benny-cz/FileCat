@@ -354,6 +354,81 @@ def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything 
     return contents
 
 
+# A full Unix lane at r35's scale or past it in every count the check reads. r35's full lanes seal five test processes
+# in thirty-seven members, thirty of them files; the gates of their records stand at line 4 of their own lines, and the
+# runner-shaped lanes' at line 15; their furthest pins stand at result 14,957 of a run and element 16,779 of a results
+# file, the furthest of them in the fifth results file read. Here seven processes in forty-five members, thirty-six of
+# them files, what the check reads last among them; the gate at line 23; and the route and dual-root pins past 18,000
+# rows in the seventh results file read. So a loop read only as far as r35's lanes reach refuses this lane: the
+# sixtieth review found every case below r35's counts, and loops read only that far passing every case while refusing
+# every archive r35 accepted.
+FULL_PROCESSES = (
+    ('FileCat.Core.Tests-UnixArchiveStorageTests', 'FileCat.Core.Tests', '#UnixArchiveStorageTests',
+     '(FullyQualifiedName~UnixArchiveStorageTests)'),
+    ('FileCat.App.Tests-Edit', 'FileCat.App.Tests', '#Edit', '(FullyQualifiedName~Edit)'),
+    ('FileCat.App.Tests-not-Edit', 'FileCat.App.Tests', '#!Edit', '(FullyQualifiedName!~Edit)'),
+    ('FileCat.Rendering.Tests', 'FileCat.Rendering.Tests', '', '*'),
+    ('FileCat.Remote.Tests-Sftp', 'FileCat.Remote.Tests', '#Sftp', '(FullyQualifiedName~Sftp)'),
+    ('FileCat.Remote.Tests-not-Sftp', 'FileCat.Remote.Tests', '#!Sftp', '(FullyQualifiedName!~Sftp)'),
+    ('FileCat.Core.Tests-not-UnixArchiveStorageTests', 'FileCat.Core.Tests', '#!UnixArchiveStorageTests',
+     '(FullyQualifiedName!~UnixArchiveStorageTests)'))
+# The test platform's attachment folder of each process, as r35's lanes hold one each.
+FULL_FOLDERS = tuple('results/%08x-dcaa-471d-b059-1f1e70c99361' % number for number in range(len(FULL_PROCESSES)))
+
+
+def full_unix_lane(rows=18000):
+    """The full Unix lane above, as its runner seals it: its record's own lines - publish, build and test entries, its
+    hang, parallel and env: entries, and the lines its runner writes for them - a results file, a log and an exit code
+    for each process, each suite skipping a test as r35's suites skip some, its build and publish logs, and `rows` rows
+    before the route and dual-root pins in the last results file; its members in an order that puts what the check reads
+    last, as a run folder's own order may."""
+    system = ('Linux filecat-ubuntu2404 7.0.0-43-generic #43~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Sat Oct 31 06:52:47 '
+              'UTC 2 x86_64 x86_64 x86_64 GNU/Linux')
+    env = ('FILECAT_ARCHIVE_CONTAINMENT=1', 'FILECAT_ARCHIVE_TXF_NATIVE=1',
+           'FILECAT_ARCHIVE_APP_ASSETS={run}/publish/FileCat.App', checker.GATE)
+    entries = (['publish:src/FileCat.App/FileCat.App.csproj',
+                'publish:tests/FileCat.WorkerProbe/FileCat.WorkerProbe.csproj',
+                'build:tests/FileCat.CoreCrashHarness/FileCat.CoreCrashHarness.csproj']
+               + ['tests/%s/%s.csproj%s' % (project, project, shard) for _, project, shard, _ in FULL_PROCESSES]
+               + ['hang:60', 'parallel:on'] + ['env:' + pair for pair in env])
+    lines = (unix_head(system) + ['packet=546d8caf28f54066cbb58e5d222a9e5aab464899ab35568b4108e01fc8c982d4', 'filter=*']
+             + ['entry=' + entry for entry in entries] + ['hang=60m', 'parallel=on'] + ['env=' + pair for pair in env]
+             + ['test %s: %s' % (name, expression) for name, _, _, expression in FULL_PROCESSES])
+    skipped = 'Runs on Windows alone.'
+    results = {name: [logger_row('%s.Some%dTests.A_case' % (project, index), 'Passed', number=index) for index in (1, 2)]
+               + [logger_row('%s.SomeWindowsTests.A_case' % project, 'NotExecuted', skipped, number=3)]
+               for name, project, _, _ in FULL_PROCESSES}
+    results['FileCat.App.Tests-Edit'].append(
+        logger_row('FileCat.App.Tests.EditStoreCompositionTests.' + PIN_NAMES[0], 'Passed', number=4))
+    last = results[FULL_PROCESSES[-1][0]]
+    last += [logger_row('FileCat.Core.Tests.Some%dTests.A_case_%d' % (number % 41, number),
+                        'NotExecuted' if number % 50 == 0 else 'Passed', skipped if number % 50 == 0 else None,
+                        number=number) for number in range(10, 10 + rows)]
+    last += [logger_row('FileCat.Core.Tests.NativeEditStorageTests.' + PIN_NAMES[1], 'Passed', number=5),
+             logger_row('FileCat.Core.Tests.UnixEditStorageTests.' + PIN_NAMES[2], 'Passed', number=6)]
+    suites = {}
+    for name, written in results.items():
+        held = sum('outcome="NotExecuted"' in row for row in written)
+        suites[name] = {"total": len(written), "passed": len(written) - held, "skipped": held, "failed": 0,
+                        "counters_total": len(written)}
+    contents = {'build-%s.log' % project: '  Determining projects to restore...\n' for project in (
+        'FileCat.App.Tests', 'FileCat.Core.Tests', 'FileCat.CoreCrashHarness', 'FileCat.Remote.Tests',
+        'FileCat.Rendering.Tests')}
+    contents.update({'publish-FileCat.App.log': '  FileCat.App -> publish/FileCat.App/\n',
+                     'publish-FileCat.App.size': '190812160\n',
+                     'publish-FileCat.WorkerProbe.log': '  FileCat.WorkerProbe -> publish/FileCat.WorkerProbe/\n',
+                     'publish-FileCat.WorkerProbe.size': '74448896\n',
+                     'publish-sha256.txt': '%064x  publish/FileCat.App/FileCat.App.dll\n' % 0x5eed,
+                     'started.txt': '2026-11-14T08:48:57Z\n', 'finished.txt': '2026-11-14T09:58:02Z\n'})
+    contents.update({'exit-%s.txt' % name: '0\n' for name, _, _, _ in FULL_PROCESSES})
+    contents.update({'results/%s.trx' % name: logger_trx(written) for name, written in results.items()})
+    contents.update({'test-%s.log' % name: '[xUnit.net] everything ran\n' for name, _, _, _ in FULL_PROCESSES})
+    contents.update({'machine.txt': '\n'.join(lines) + '\n', 'status.txt': 'PASS\n',
+                     'summary.json': json.dumps({"suites": suites, "failed": [], "ok": True,
+                                                 "exit_codes": {name: 0 for name in results}}, indent=2)})
+    return contents
+
+
 LAUNCHED = {'run': 'C:\\FileCatValidation\\aw-claude\\edit-test',
             'packet': 'C:\\FileCatValidation\\aw-claude\\packets\\src-048bf334.tar.gz', 'filter': '*',
             'projects': 'tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit',
@@ -415,17 +490,17 @@ def sealed(leaf, text, unix):
     return text.encode('utf-8')
 
 
-def archive(directory, name, contents, unix=False):
+def archive(directory, name, contents, unix=False, folders=(ATTACHMENTS,)):
     """The archive its runner seals of these contents, folders and all: the Unix runner tars its run folder - that
-    folder, its results folder and the test platform's attachment folder are members of it - and the Windows runner
-    zips the folder's contents, the empty attachment folder an entry of its own - the members as r35's archives hold
-    them, though here stored where Compress-Archive deflates and named with `/` where it writes a backslash, which
-    zipfile cannot write on Windows; `zip_with_backslashes` writes those."""
+    folder, its results folder and the test platform's attachment folders, one a process, are members of it - and the
+    Windows runner zips the folder's contents, each empty attachment folder an entry of its own - the members as r35's
+    archives hold them, though here stored where Compress-Archive deflates and named with `/` where it writes a
+    backslash, which zipfile cannot write on Windows; `zip_with_backslashes` writes those."""
     contents = with_child_cmd(contents)
     path = Path(directory) / name
     if unix:
         with tarfile.open(path, 'w:gz') as tar:
-            for folder in ('edit-test', 'edit-test/results', 'edit-test/' + ATTACHMENTS):
+            for folder in ('edit-test', 'edit-test/results') + tuple('edit-test/' + folder for folder in folders):
                 item = tarfile.TarInfo(folder)
                 item.type = tarfile.DIRTYPE
                 item.mode = 0o755
@@ -437,7 +512,8 @@ def archive(directory, name, contents, unix=False):
                 tar.addfile(item, io.BytesIO(blob))
     else:
         with zipfile.ZipFile(path, 'w') as zipped:
-            zipped.writestr(ATTACHMENTS + '/', b'')
+            for folder in folders:
+                zipped.writestr(folder + '/', b'')
             for leaf, text in contents.items():
                 zipped.writestr(leaf.replace('/', '\\'), sealed(leaf, text, unix))
     return path
@@ -449,6 +525,14 @@ class EvidenceChecks(unittest.TestCase):
             leaf = name + ('.tar.gz' if unix else '.zip')
             problems, facts = checker.check(archive(directory, leaf, contents, unix))
         return problems, facts
+
+    def report(self, *paths):
+        """main()'s exit code and its report over these archives, as the release reads it: from `--out`."""
+        out = Path(paths[0]).parent / 'report.txt'
+        with contextlib.redirect_stdout(io.StringIO()):
+            with unittest.mock.patch.object(sys, 'argv', ['check'] + [str(path) for path in paths] + ['--out', str(out)]):
+                code = checker.main()
+        return code, out.read_text(encoding='utf-8') if out.is_file() else ''
 
     def test_accepts_a_run_that_carries_the_gate_the_pins_and_no_failure(self):
         for unix in (False, True):
@@ -534,8 +618,9 @@ class EvidenceChecks(unittest.TestCase):
     def test_reads_a_result_as_xml_reads_it(self):
         """A result is a `UnitTestResult` element's `testName` and `outcome`, read as XML reads them - in either order,
         in either quote, with space around their `=`, each inside its own element - and nothing else is one: a pin's
-        row under an element of another name, or with its name only in an attribute whose name ends in `testName`, is no
-        result of it, and one with no outcome of its own did not pass. Two patterns read results until the fifty-ninth
+        row under an element of another name, or with its name only in an attribute whose name ends in `testName` or in
+        one of another namespace (the sixtieth review's own sweep found that held by no case), is no result of it, and
+        one with no outcome of its own did not pass. Two patterns read results until the fifty-ninth
         review, and the fifty-eighth and fifty-ninth found parts of both held by no case: an element's name and the
         attributes' read inside longer ones, an outcome-first row's failure unseen where another attribute stood before
         or between the two, a row's missing outcome taken from the next row; and a failure in single quotes went
@@ -549,6 +634,8 @@ class EvidenceChecks(unittest.TestCase):
                              ('<UnitTestResult datatestName="%s" outcome="Passed" />', missing),
                              ('<UnitTestResults outcome="Passed" testName="%s" />', missing),
                              ('<UnitTestResult outcome="Passed" datatestName="%s" />', missing),
+                             ('<UnitTestResult xmlns:x="urn:not-the-trx-logger" x:testName="%s" x:outcome="Passed" />',
+                              missing),
                              ('<UnitTestResult testName="%s" dataoutcome="Passed" />', failed),
                              ('<UnitTestResult dataoutcome="Passed" testName="%s" />', failed),
                              (row + '<UnitTestResult testName="%s" />', failed),
@@ -571,6 +658,28 @@ class EvidenceChecks(unittest.TestCase):
         self.assertEqual(1, len(problems), problems)
         self.assertTrue(problems[0].startswith('not every results file of it is XML, so what ran in '
                                                'results/FileCat.App.Tests-Edit-cut.trx (no element found'), problems)
+
+    def test_reads_a_result_wherever_it_stands_and_in_whatever_namespace(self):
+        """A result is a `UnitTestResult` element wherever it stands: the logger nests a row whose adapter names a parent
+        for it in that parent's `InnerResults`, and a pin's failure there is a failure - as one is in a results file under
+        another root, or in another namespace than the logger's (the sixtieth review found the check's text saying it
+        read the logger's namespace or none, and nothing holding the rest)."""
+        name = 'FileCat.Tests.' + PIN_NAMES[0]
+        failed = 'the pin %s did not pass: ' % PIN_NAMES[0]
+        for row in ('<UnitTestResult testName="%s" outcome="Passed"><InnerResults><UnitTestResult testName="%s" '
+                    'outcome="Failed" /></InnerResults></UnitTestResult>' % (name, name),
+                    '<x:UnitTestResult xmlns:x="urn:not-the-trx-logger" testName="%s" outcome="Failed" />' % name,
+                    '<UnitTestResult xmlns="urn:not-the-trx-logger" testName="%s" outcome="Failed" />' % name):
+            with self.subTest(row):
+                problems, _ = self.check(files(trx=PASSING_TRX + row))
+                self.assertEqual(1, len(problems), problems)
+                self.assertTrue(problems[0].startswith(failed), problems)
+        contents = files()
+        contents['results/FileCat.App.Tests-Edit-other.trx'] = ('<?xml version="1.0"?><Other><Results><UnitTestResult '
+                                                               'testName="%s" outcome="Failed" /></Results></Other>' % name)
+        problems, _ = self.check(contents)
+        self.assertEqual(1, len(problems), problems)
+        self.assertTrue(problems[0].startswith(failed), problems)
 
     def test_reads_a_theory_row_as_its_pin(self):
         rows = ''.join('<UnitTestResult testName="FileCat.Tests.%s(store: 1)" outcome="Passed" />' % pin
@@ -1365,7 +1474,8 @@ class EvidenceChecks(unittest.TestCase):
         every argument printable ASCII without `"`, `%` or `^`, none starting with `-` (a parameter name to PowerShell)
         or ending in a backslash (which turns the closing quote into a literal one). Each literal part of it holds too:
         a child.cmd without one of its words or with one changed, running another program or one at a path changed in
-        one character, its lines ended otherwise, its case, spaces or redirection changed, its hang minutes quoted, or
+        one character, its lines ended otherwise, its words' case, its spaces or redirection changed, its hang minutes
+        quoted, or
         with a `%` in an argument no other rule reads, is not the launcher its runner writes - without `-NoProfile` the
         child would run the account's PowerShell profile, which can set a variable such as VSTESTCLIRUNSETTINGS before
         the tests start (the fifty-eighth and fifty-ninth reviews found such parts held by no case)."""
@@ -1408,7 +1518,8 @@ class EvidenceChecks(unittest.TestCase):
                      ('its first line ended with a line feed alone', real.replace('@echo off\r\n', '@echo off\n', 1)),
                      ('its last line ended with a line feed alone', real[:-2] + '\n'),
                      ('its last line unended', real[:-2]),
-                     ('its words in capitals', real.upper()),
+                     ('its words in capitals', '"'.join(part if index % 2 else part.upper()
+                                                        for index, part in enumerate(real.split('"')))),
                      ('its spaces doubled', real.replace(' ', '  ')),
                      ('its output appended to', real.replace(' > ', ' >> ', 1)),
                      ('its hang minutes quoted', launcher(recorded, hang='"20"'))]
@@ -1435,6 +1546,46 @@ class EvidenceChecks(unittest.TestCase):
         self.assertEqual([], self.check(contents)[0])
         problems, _ = self.check(self.windows_record(''))
         self.assertEqual(['its machine record does not name ' + gate], problems)
+
+    def test_reads_the_launcher_s_hang_minutes_and_run_folder_as_its_runner_writes_them(self):
+        """The runner takes its hang minutes as a whole number from 1 to 600 and writes it as PowerShell writes an
+        [int], and runs its child in the folder its RunId names under its own root - -File, -Run and the output there -
+        which its record holds: a launcher writing either otherwise is not its runner's (the sixtieth review found both
+        read more loosely, though only bytes changed in a sealed archive write them so)."""
+        recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + checker.GATE
+        for hang, refused in (('1', False), ('99', False), ('600', False), ('0', True), ('00', True), ('0020', True),
+                              ('601', True), ('1000', True), ('6000', True)):
+            with self.subTest(hang=hang):
+                contents = self.windows_record(recorded)
+                contents['child.cmd'] = launcher(recorded, hang=hang)
+                problems, _ = self.check(contents)
+                self.assertEqual(['its child.cmd passes %r hang minutes where its runner writes a whole number from 1 '
+                                  'to 600, so it is not the launcher its runner writes and the record cannot say what '
+                                  'the tests were given' % hang] if refused else [], problems)
+        run = LAUNCHED['run']
+        other = 'C:\\FileCatValidation\\aw-claude\\edit-other'
+        real = launcher(recorded)
+        for label, script, run_id in (
+                ('-File elsewhere', real.replace(run + '\\child.ps1', other + '\\child.ps1'), 'edit-test'),
+                ('-Run elsewhere', real.replace('-Run "%s"' % run, '-Run "%s"' % other), 'edit-test'),
+                ('the output elsewhere', real.replace(run + '\\child.out', other + '\\child.out'), 'edit-test'),
+                ('all three under another root', real.replace(run, 'D:\\Runs\\edit-test'), 'edit-test'),
+                ('all three in the folder of another RunId', real, 'edit-other'),
+                ('a record naming no RunId', real, None)):
+            with self.subTest(label):
+                if run_id == 'edit-test':
+                    self.assertNotEqual(real, script)
+                record = {"Os": "Microsoft Windows 11 Pro", "Env": recorded}
+                if run_id is not None:
+                    record["RunId"] = run_id
+                contents = files()
+                contents['machine.json'] = json.dumps(record)
+                contents['child.cmd'] = script
+                problems, _ = self.check(contents)
+                self.assertEqual(["its child.cmd's -File, -Run and output are not in the run folder %r its machine "
+                                  "record's RunId names, so it is not the launcher its runner writes and the record "
+                                  'cannot say what the tests were given' % ('C:\\FileCatValidation\\aw-claude\\%s' % run_id)],
+                                 problems)
 
     def test_refuses_a_child_cmd_holding_an_exclamation_mark(self):
         """Where delayed expansion is on, cmd.exe reads `!NAME:` up to the next colon as an undefined variable and
@@ -2048,7 +2199,7 @@ class EvidenceChecks(unittest.TestCase):
         self.assertIn('its machine record holds Os more than once, so what it says depends on who reads it', problems)
         contents = files()
         contents['machine.json'] = ('{"RunId": "edit-test", "Os": "Microsoft Windows 11 Pro", "Env": "%s", '
-                                    '"RunId": "edit-test-again"}' % checker.GATE)
+                                    '"RunId": "edit-test"}' % checker.GATE)
         self.assertEqual(['its machine record holds RunId more than once, so what it says depends on who reads it'],
                          self.check(contents)[0])
 
@@ -2352,13 +2503,14 @@ class EvidenceChecks(unittest.TestCase):
         self.assertTrue(any(problem.startswith('the pin %s did not pass' % pin) for problem in problems), problems)
 
     def test_names_an_archive_larger_than_a_block_by_the_digest_of_all_of_it(self):
-        """The digest is read a block of 1 MiB at a time, and the full lanes r35 accepted are six times that: it is the
-        digest of every block, not of the first (the forty-ninth review)."""
+        """The digest is read a block of 1 MiB at a time, and the full lanes r35 accepted span seven blocks: it is the
+        digest of every block, not of the first (the forty-ninth review), nor of the first seven - nine blocks here (the
+        sixtieth review found no case past two)."""
         contents = files()
-        contents['zz-ballast.bin'] = random.Random(49).randbytes(1536 * 1024)
+        contents['zz-ballast.bin'] = random.Random(49).randbytes(8704 * 1024)
         with tempfile.TemporaryDirectory() as directory:
             path = archive(directory, 'edit-large-evidence.zip', contents)
-            self.assertGreater(path.stat().st_size, 1 << 20)
+            self.assertGreater(path.stat().st_size, 8 << 20)
             report = Path(directory) / 'report.txt'
             with contextlib.redirect_stdout(io.StringIO()):
                 with unittest.mock.patch.object(sys, 'argv', ['check', str(path), '--out', str(report)]):
@@ -2600,7 +2752,8 @@ class EvidenceChecks(unittest.TestCase):
         name split with a backslash as Compress-Archive writes them, the results rows as the logger writes them across
         three results files, the Unix class's dual-root row stepped aside with its reason before the Windows class's
         passed, the records in the ANSI code page of the runner that sealed it. The fifty-third review found five rules
-        the sealed lanes rest on held by no case, the fixtures' members shaped otherwise."""
+        the sealed lanes rest on held by no case, the fixtures' members shaped otherwise. It is read through main(), as
+        the release reads it (the sixtieth review found no case reading a lane of three suites so)."""
         pins = checker.PINS
         app = logger_trx([logger_row('FileCat.App.Tests.EditStoreCompositionTests.' + pins[0], 'Passed', number=1),
                           logger_row('FileCat.App.Tests.EditTestStores.A_theory(scenario: &quot;capture-gate&quot;)',
@@ -2644,60 +2797,43 @@ class EvidenceChecks(unittest.TestCase):
             with zipfile.ZipFile(path) as held:
                 self.assertIn('results\\' + names[0] + '.trx', [item.orig_filename for item in held.infolist()])
                 self.assertIsNone(held.testzip())
-            problems, facts = checker.check(path)
-            self.assertEqual([], problems)
-            self.assertEqual('windows', facts['system'])
+            code, report = self.report(path)
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        self.assertEqual(0, code, report)
+        self.assertEqual('edit-r35-win-evidence.zip: edit-storage evidence, 6 passed, 0 skipped, no failure, %s in force, '
+                         'windows, sha256 %s' % (checker.GATE, digest), report.split('\n')[0])
 
     def test_accepts_a_unix_full_lane_shaped_as_r35_s(self):
         """A full Unix lane as r35 holds one, in the shapes the rules read, with the entry lines its runner writes now:
-        a build entry and a publish entry, a shard and the negated shard beside it - whose test line holds `!`, which
-        dotnet passes on as written - the results rows as the logger writes them (the fifty-third review)."""
-        pins = checker.PINS
-        system = ('Linux filecat-ubuntu2404 7.0.0-43-generic #43~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Sat Oct 31 06:52:47 '
-                  'UTC 2 x86_64 x86_64 x86_64 GNU/Linux')
-        names = ('FileCat.Core.Tests-UnixArchiveStorageTests', 'FileCat.Core.Tests-not-UnixArchiveStorageTests',
-                 'FileCat.App.Tests')
-        lines = unix_head(system) + [
-            'packet=546d8caf28f54066cbb58e5d222a9e5aab464899ab35568b4108e01fc8c982d4', 'filter=*',
-            'entry=publish:src/FileCat.App/FileCat.App.csproj',
-            'entry=build:tests/FileCat.CoreCrashHarness/FileCat.CoreCrashHarness.csproj',
-            'entry=tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj#UnixArchiveStorageTests',
-            'entry=tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj#!UnixArchiveStorageTests',
-            'entry=tests/FileCat.App.Tests/FileCat.App.Tests.csproj', 'entry=hang:60', 'entry=parallel:on',
-            'entry=env:FILECAT_EDIT_NATIVE_REQUIRED=1', 'hang=60m', 'parallel=on', 'env=FILECAT_EDIT_NATIVE_REQUIRED=1',
-            'test %s: (FullyQualifiedName~UnixArchiveStorageTests)' % names[0],
-            'test %s: (FullyQualifiedName!~UnixArchiveStorageTests)' % names[1], 'test %s: *' % names[2]]
-        rows = {names[0]: [logger_row('FileCat.Core.Tests.UnixArchiveStorageTests.A_case', 'Passed', number=1)],
-                names[1]: [logger_row('FileCat.Core.Tests.NativeEditStorageTests.' + pins[1], 'Passed', number=2),
-                           logger_row('FileCat.Core.Tests.UnixEditStorageTests.' + pins[2], 'Passed', number=3)],
-                names[2]: [logger_row('FileCat.App.Tests.EditStoreCompositionTests.' + pins[0], 'Passed', number=4)]}
-        # The App suite's other rows, a thousand of them (a full lane's results hold thousands): a stream of that size
-        # refers back further than 16 KiB - to a class's name a few dozen rows back - as every accepted r35 Unix lane's
-        # does, which a reader with less than gzip's own window refuses (the fifty-fourth review found no accepted
-        # case's stream reaching back further than 512 bytes).
-        rows[names[2]] += [logger_row('FileCat.App.Tests.Some%dTests.A_case_%d' % (number % 37, number), 'Passed',
-                                      number=number) for number in range(5, 1005)]
-        suites = {name: {"total": len(rows[name]), "passed": len(rows[name]), "skipped": 0, "failed": 0,
-                         "counters_total": len(rows[name])} for name in names}
-        contents = {'build-FileCat.App.Tests.log': '  Determining projects to restore...\n',
-                    'build-FileCat.CoreCrashHarness.log': '  Determining projects to restore...\n',
-                    'started.txt': '2026-11-14T08:48:57Z\n'}
-        contents.update({'results/%s.trx' % name: logger_trx(rows[name]) for name in names})
-        contents.update({'publish-FileCat.App.log': '  FileCat.App -> publish/FileCat.App/\n',
-                         'machine.txt': '\n'.join(lines) + '\n', 'finished.txt': '2026-11-14T09:58:02Z\n',
-                         'summary.json': json.dumps({"suites": suites, "failed": [], "ok": True,
-                                                     "exit_codes": {name: 0 for name in names}}, indent=2),
-                         'status.txt': 'PASS\n'})
-        contents.update({'exit-%s.txt' % name: '0\n' for name in names})
-        contents.update({'test-%s.log' % name: '[xUnit.net] everything ran\n' for name in names})
+        build and publish entries, shards and the negated shards beside them - whose test lines hold `!`, which dotnet
+        passes on as written - and the results rows as the logger writes them (the fifty-third review); at r35's scale
+        or past it in every count the check reads, and read through main() as the release reads it (the sixtieth review
+        found every case below r35's counts, and none reading a full lane through main())."""
+        contents = full_unix_lane()
         with tempfile.TemporaryDirectory() as directory:
-            path = archive(directory, 'edit-run-evidence.tar.gz', contents, unix=True)
-            # The fixture's own shape, asserted: read with a 16 KiB window, its stream does not read.
+            path = archive(directory, 'full-run-evidence.tar.gz', contents, unix=True, folders=FULL_FOLDERS)
+            # The fixture's own shape, asserted: read with a 16 KiB window, its stream does not read, as no accepted r35
+            # Unix lane's does (the fifty-fourth review found no accepted case's stream reaching back further than 512
+            # bytes); and each count past r35's.
             with self.assertRaises(zlib.error):
                 zlib.decompressobj(30).decompress(path.read_bytes())
-            problems, facts = checker.check(path)
-        self.assertEqual([], problems)
-        self.assertEqual('linux', facts['system'])
+            with tarfile.open(path) as held:
+                members = held.getnames()
+            code, report = self.report(path)
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        last = contents['results/%s.trx' % FULL_PROCESSES[-1][0]]
+        lines = contents['machine.txt'].split('\n')
+        own = lines[next(index for index, line in enumerate(lines) if line.startswith('packet=')):]
+        suites = json.loads(contents['summary.json'])['suites']
+        self.assertEqual((45, 'edit-test/summary.json'), (len(members), members[-1]))
+        self.assertGreater(last[:last.index(PIN_NAMES[1])].count('<UnitTestResult '), 18000)
+        self.assertEqual(23, own.index('env=' + checker.GATE))
+        self.assertEqual(7, len(suites))
+        self.assertEqual(0, code, report)
+        self.assertEqual('full-run-evidence.tar.gz: edit-storage evidence, %d passed, %d skipped, no failure, %s in '
+                         'force, linux, sha256 %s' % (sum(counters['passed'] for counters in suites.values()),
+                                                      sum(counters['skipped'] for counters in suites.values()),
+                                                      checker.GATE, digest), report.split('\n')[0])
 
     def test_refuses_more_test_logs_than_its_runner_listed_processes(self):
         """A log of a process no line lists is no more its runner's than a line with no log: the count is compared
@@ -2834,6 +2970,50 @@ class EvidenceChecks(unittest.TestCase):
                 problems, _ = self.check(contents, unix)
                 self.assertTrue(any(problem.startswith('a test stepped aside in') and SECOND in problem
                                     for problem in problems), problems)
+
+    def test_reads_a_step_aside_reason_in_the_last_file_of_a_full_lane(self):
+        """A full lane's seven processes write fourteen logs and results files between them, and a reason in the last of
+        them by name - past the ten r35's full lanes write - is a step aside as much as one in the first (the sixtieth
+        review found no case putting one past the fourth)."""
+        contents = full_unix_lane(rows=40)
+        scanned = sorted(name for name in contents if name.startswith('test-') or name.endswith('.trx'))
+        self.assertEqual((14, 'test-FileCat.Rendering.Tests.log'), (len(scanned), scanned[-1]))
+        contents[scanned[-1]] = '[xUnit.net] %s\n' % STEP_ASIDE_WORDS[3]
+        problems, _ = self.check(contents, unix=True)
+        self.assertEqual(['a test stepped aside in edit-test/%s: %r' % (scanned[-1], STEP_ASIDE_WORDS[3])], problems)
+
+    def test_reads_every_suite_s_exit_code_and_failure_counter_in_a_full_lane(self):
+        """A full lane's summary names seven suites, and the last of them to be read - by name for its exit code, in the
+        summary's own order for its failure counter - is read as much as the first. Its runner marks such a run not ok
+        as well, so a summary saying otherwise takes bytes changed in a sealed archive, but each rule holds on its own
+        (the sixtieth review's own sweep found reading the first two or three passing every case)."""
+        contents = full_unix_lane(rows=40)
+        summary = json.loads(contents['summary.json'])
+        last = sorted(summary['exit_codes'])[-1]
+        exited = dict(summary, exit_codes=dict(summary['exit_codes'], **{last: 1}))
+        problems, _ = self.check(dict(contents, **{'summary.json': json.dumps(exited)}), unix=True)
+        self.assertEqual(['suite %s exited 1' % last], problems)
+        counted = list(summary['suites'])[-1]
+        failing = dict(summary, suites=dict(summary['suites'], **{counted: dict(summary['suites'][counted], failed=1)}))
+        problems, _ = self.check(dict(contents, **{'summary.json': json.dumps(failing)}), unix=True)
+        self.assertEqual(['suite %s has 1 failures' % counted], problems)
+
+    def test_reports_every_archive_of_a_run_past_the_records_own(self):
+        """Every archive given is reported, and every line of the report written: the records read r35's fourteen
+        archives in one run, a report of ninety-three lines, where no case gave main() more than two archives (the
+        sixtieth review). Forty here, the last refused, each with a log of its own: zipfile stamps a member with the
+        second it was written, so archives of one content written within one second were one file, and the measurement
+        names each archive's digest by the archive."""
+        with tempfile.TemporaryDirectory() as directory:
+            paths = [archive(directory, 'edit-%02d-evidence.zip' % number,
+                             files(log='[xUnit.net] everything ran in run %d\n' % number)) for number in range(39)]
+            paths.append(archive(directory, 'edit-39-evidence.zip', files(gate=False)))
+            code, report = self.report(*paths)
+        verdicts = [line.split(',')[0] for line in report.split('\n') if line and not line[0].isspace()]
+        self.assertEqual(1, code)
+        self.assertEqual(['edit-%02d-evidence.zip: edit-storage evidence' % number for number in range(39)]
+                         + ['edit-39-evidence.zip: NOT edit-storage evidence'], verdicts)
+        self.assertGreater(len(report.split('\n')), 195)
 
     def test_reads_a_unix_record_s_own_lines_past_what_the_machine_says(self):
         """The Unix runner writes what the machine says before its own lines - the `df -h` line of the run's folder

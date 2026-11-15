@@ -94,8 +94,9 @@ ARGUMENT = r'"([ !#$&-\]_-~]*)"'
 # program path): the forty-fourth review cut an Env there, and the gate after the `&` never reached the child. So
 # every line of the launcher is held to 8191 characters, which leaves the program's path to spare.
 CMD_LINE = 8191
-# The launcher's own text as the runner writes it - `{0}` where it passes a quoted argument, `{1}` its hang minutes -
-# and every other character of it read as written: escaped, not a pattern of its own. So a launcher differing from it
+# The launcher's own text as the runner writes it - `{0}` where it passes a quoted argument, `{1}` its hang minutes,
+# whose digits `gate_assignments` reads as the number its runner writes - and every other character of it read as
+# written: escaped, not a pattern of its own. So a launcher differing from it
 # in any one character is not the runner's, and a character changed here refuses the runner's own launcher, which
 # every case accepting one notices. Written as a pattern by hand until the fifty-ninth review, its words, line ends and
 # the characters of its program's path were read more loosely than written by weakenings no case held (the
@@ -104,7 +105,7 @@ LAUNCHER_TEXT = ('@echo off\r\n'
                  'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -ExecutionPolicy Bypass '
                  '-WindowStyle Hidden -File {0} -Run {0} -Packet {0} -Filter {0} -Projects {0} -Dotnet {0} -Env {0} '
                  '-HangMinutes {1} > {0} 2>&1\r\n')
-LAUNCHER = re.compile(re.escape(LAUNCHER_TEXT).replace(re.escape('{0}'), ARGUMENT).replace(re.escape('{1}'), '[0-9]+'))
+LAUNCHER = re.compile(re.escape(LAUNCHER_TEXT).replace(re.escape('{0}'), ARGUMENT).replace(re.escape('{1}'), '([0-9]+)'))
 
 # The pins a listing stands on, by their method names (each lives in the suite its platform runs: the application's
 # composition pin, the Core route list, and the dual-root case in the platform's own storage tests).
@@ -569,13 +570,21 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     runner writing them since then. The fiftieth found that rule cutting a `build:` or `publish:` entry at its `#`, where
     the runner takes the whole of such an entry for its path.
 
+    The sixtieth review found the launcher's hang minutes and its run folder read more loosely than its runner writes
+    them, though only bytes changed in a sealed archive write them otherwise: its hang minutes are the whole number its
+    runner writes, from 1 to 600, and its -File, -Run and output lie in the run folder its record's RunId names. A
+    packet or SDK named without its drive, and a test entry naming no project file, its runner refuses before a run and
+    this does not look for; two entries naming one process leave fewer logs than listed processes, which is refused
+    below.
+
     Returns the values in order, or a reason the record cannot say what the tests were given.
     """
     text = archive.read(name)
     windows = name.replace('\\', '/').endswith('machine.json')
     if windows:
         try:
-            recorded = json.loads(text).get('Env', '')
+            record = json.loads(text)
+            recorded = record.get('Env', '')
         except (ValueError, AttributeError):
             return [], None
         if not isinstance(recorded, str):
@@ -622,6 +631,20 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
         if launched.group(7) != recorded:
             return [], ('its child.cmd passed %r where its machine record holds Env %r, so the record cannot say what '
                         'the tests were given' % (launched.group(7), recorded))
+        # Its hang minutes as its runner writes its whole number of them, 1 to 600: none begins with 0, and none is past
+        # 600 - compared by its length first and then digit by digit, so no string of digits is too long to compare; and
+        # its -File, -Run and output in the run folder its record's RunId names, under the runner's own root. Each was
+        # read more loosely until the sixtieth review, though only bytes changed in a sealed archive write it otherwise.
+        hang = launched.group(8)
+        if hang[:1] == '0' or (len(hang), hang) > (3, '600'):
+            return [], ('its child.cmd passes %r hang minutes where its runner writes a whole number from 1 to 600, so '
+                        'it is not the launcher its runner writes and the record cannot say what the tests were given'
+                        % hang)
+        run = 'C:\\FileCatValidation\\aw-claude\\' + str(record.get('RunId'))
+        if (launched.group(1), launched.group(2), launched.group(9)) != (run + '\\child.ps1', run, run + '\\child.out'):
+            return [], ("its child.cmd's -File, -Run and output are not in the run folder %r its machine record's "
+                        'RunId names, so it is not the launcher its runner writes and the record cannot say what the '
+                        'tests were given' % run)
         pairs = [item for item in recorded.split(';') if item]
     else:
         lines = own_lines(text.split('\n'))
@@ -699,9 +722,15 @@ def outcomes(archive: Archive) -> tuple[dict[str, set[str]], list[str]]:
     """Every test result in the run's TRX files - its name to the outcomes it has (a test may be a theory's rows) - and
     the files that are not XML at all.
 
-    A result is a `UnitTestResult` element, in the logger's namespace or in none, with its `testName` and `outcome`
-    attributes, read by an XML parser as XML reads them: in either order, in either quote, with space around their `=`,
-    each inside its own element. Two patterns read them until the fifty-ninth review, and the fifty-eighth and
+    A result is a `UnitTestResult` element with its `testName` and `outcome` attributes, read by an XML parser as XML
+    reads them: in either order, in either quote, with space around their `=`, each inside its own element, and each in
+    no namespace, as the logger writes them - an attribute of that name in a namespace is another attribute. The element
+    is read wherever it stands - the logger nests a row whose adapter names a parent for it in that parent's
+    `InnerResults`, as a data-driven test's rows may be, though the xUnit adapter these suites run names none - under
+    whatever root, and in whatever namespace, by its local name alone: the logger writes its own namespace, and only
+    bytes changed in a sealed archive write another, whose rows count as the logger's would, a failure among them
+    refusing the run (the sixtieth review found this said "in the logger's namespace or in none", and rows nested or
+    under another root held by no case). Two patterns read them until the fifty-ninth review, and the fifty-eighth and
     fifty-ninth found parts of both held by no case - a `testName` read inside a longer attribute's name, an
     outcome-first row's failure unseen where another attribute stood before or between the two, a row's missing outcome
     taken from the next row - and a failure written in single quotes not read at all. A result without one of the two

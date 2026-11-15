@@ -1,5 +1,57 @@
 # Archive writing implementation status
 
+**15 November, r35's own scale, and results read wherever they stand (round sixty).** Asked again whether anything
+was left that the mechanism did not report, the reviewer found three things at High - all by the grading's letter - one
+at Medium and one at Low; the gate is wrong about no archive a runner seals:
+
+- **High, by the grading's letter: no case put a pin where r35's lanes put theirs.** r35's edit lanes hold their pins
+  at results 73 to 1,406 of a run and elements 37 to 2,012 of a results file, and its full lanes up to result 14,957 and
+  element 16,779, while every accepting case held them within its first five results and six elements: results read
+  only to the first 900 elements of each file, or a run's first 900 results, passed every case and refused every archive
+  r35 accepted, the three edit lanes the manifest binds among them. The harness cut those loops to their first item
+  alone.
+- **High, by the grading's letter: no case reached the counts r35's lanes reach.** r35's full Unix lanes seal five
+  processes in thirty-seven members over seven 1 MiB blocks, its Windows edit lane reports three suites, and the records
+  read its fourteen archives in one run of ninety-three report lines, while no accepting case held more than three
+  results files or logs, a member it needs past its twentieth, two blocks, or two suites or archives read through main(); the
+  runner-shaped lanes' gates stand at line 15 of their records' own lines, and no case put a step-aside reason past the
+  fourth file it scans. Each such loop read only as far as the cases reached passed every case, and refused r35's full
+  lanes or changed the counts and digests the report gives them. A full Unix lane at r35's scale or past it in every
+  count the check reads - seven processes in forty-five members, the gate at line 23 of its record's own lines, the route
+  and dual-root pins past 18,000 rows in the seventh results file read - is read through main() now, as the Windows edit
+  lane is; a run of forty archives, the last refused, writes a report of more than ninety-three lines; the digest's case
+  spans nine blocks; a step-aside reason stands in the last of a full lane's fourteen scanned files, and an exit code
+  and a failure counter in the last of its seven suites read. Twenty-one entries read each such loop only as far as
+  r35's lanes reach, and the harness's text says it cannot see how far a loop reads.
+- **High, by the grading's letter: the check's text claimed a narrower reading than its code.** outcomes() said it read a
+  result "in the logger's namespace or in none", and it reads one in any.
+- **Medium: a misleading entry and record.** The entry "every element of a results file read, nested ones too" was held
+  only because its weakening dropped the rows of `Results` as well, while no case held a row nested in a parent's
+  `InnerResults` - where the test platform's logger puts a row whose adapter names a parent for it - nor one under
+  another root; and the round-fifty-nine entry below said entries held the element's "namespace, nested elements". The
+  text says what the code reads now - a `UnitTestResult` wherever it stands, under whatever root and in whatever
+  namespace - a case holds a pin's failure in each such place, the entry reads depth two alone, two more hold the
+  namespace and the root, and the entry below is corrected where it stands. No sealed archive holds such a row: the
+  xUnit adapter names no parent, and r35 nests none.
+- Low, closed in part: the launcher's hang minutes are read as the whole number from 1 to 600 its runner writes, and its
+  -File, -Run and output must lie in the run folder its record's RunId names - so the three entries reading those as
+  arguments are noted redundant now, and the case capitalizing the launcher capitalizes its own words alone. A packet or
+  SDK named without its drive and a test entry naming no project file, which the runner refuses before a run, stay
+  unread here - only bytes changed in a sealed archive write them (boundary 1) - and two entries naming one process
+  leave fewer logs than listed processes, which is refused already.
+
+The fourteen r35 archives read exactly as before (five accepted, nine refused) and all 23 manifest digests match; the
+runner's own PowerShell text wrote 799 launchers from inputs it accepts, over two seeds - random hang minutes and run
+ids, and their edges, among them - and the check reads every one with the gate in force.
+The review's own sweeps, rerun on the new check, find nothing left: every loop of the check cut to its first one to
+sixty items, or to all but its first or last, over r35's edit and full lanes and the twenty-six runner-shaped lanes -
+1,134 cuts - changes an archive's verdict 316 times, and a case notices each; and each of the review's forty-six
+candidates - the caps at 900, the counts and reaches, the readings of XML, ten one-character changes of the launcher's
+text, the step-aside scan - is noticed by a case, five of them by cases added after the rerun found them unheld: a
+result's attributes read in a namespace, and only the first two or three suites' exit codes or failure counters read.
+One hundred and fifty-two cases for the check and fourteen for the manifest; the harness lists three hundred and thirty-one rules, two hundred and ninety-eight held by a verdict,
+thirty-three noted as redundant, caseless or raising, and none unheld or contradicted; the audit prints forty-one lines.
+
 **15 November, the launcher as written, and results as XML reads them (round fifty-nine).** Asked again whether
 anything was left that the mechanism did not report, the reviewer found three things at High - all by the grading's
 letter - one at Medium and one at Low; the gate is wrong about no archive a runner seals:
@@ -24,8 +76,9 @@ letter - one at Medium and one at Low; the gate is wrong about no archive a runn
   fourteen r35 archives' report is the same byte for byte: each of their thirty-one results files parses, and though
   31,654 of their 52,909 result names hold an XML entity - a theory row's `&quot;`, which the parser decodes - the
   report prints a result's name for a pin alone, and no pin's holds one. A case reads forged rows of each shape the
-  reviews named, and entries hold the element's name and namespace, nested elements, a row naming no test and a file
-  that is not XML.
+  reviews named, and entries hold the element's name, the logger's namespace, a row naming no test and a file that is
+  not XML (the sixtieth review found "namespace, nested elements" here, where no case held a nested row or another
+  namespace).
 - **Medium: two records claimed more than was closed.** The release decision's round-fifty-eight paragraph said "Cases
   hold each part now" and the ledger's row 14 "cases holding each part" - true of the parts found, not of every literal
   part, as the round-fifty-eight entry below says. Both are corrected where they stand.

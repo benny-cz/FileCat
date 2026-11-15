@@ -481,3 +481,14 @@ measures every line of child.cmd; results are read as XML, not by patterns - an 
 around its `=` included; the records are corrected. The r35 report is the same byte for byte. One hundred and forty-seven cases hold the
 check and fourteen the manifest; the harness lists two hundred and ninety-nine rules, two hundred and sixty-nine held by a verdict, thirty noted, none unheld or
 contradicted.
+
+The sixtieth review found no case reaching the counts r35's own lanes reach - where their pins stand among thousands of
+results, their processes, members, blocks and suites, the fourteen archives the records read in one run - so that a loop
+read only as far as the cases reached refused every archive r35 accepted while no case changed; the check's text saying
+it read results in the logger's namespace or none, where it reads any; and no case holding a nested row. A full Unix lane
+at r35's scale or past it in each count is read through main() now, with a run of forty archives, a digest over nine
+blocks, a step-aside reason in a full lane's last file and a failure in its last suite; twenty-one entries read each
+such loop only as far as r35's lanes reach; the text says what the code reads, and cases hold a failure nested, under another root and in another
+namespace. The launcher's hang minutes and run folder are read as its runner writes them. The r35 report is the same
+byte for byte. One hundred and fifty-two cases hold the check and fourteen the manifest; the harness lists three hundred and thirty-one rules, two hundred and ninety-eight held by a
+verdict, thirty-three noted, none unheld or contradicted.
