@@ -179,6 +179,20 @@ def two_process_run(unix, counted=0, exited=0):
     return contents
 
 
+def unix_head(system):
+    """What the Unix runner writes into machine.txt before its own lines: `uname -a`, the system's own description
+    (`sw_vers` on macOS, `lsb_release -d` elsewhere), its CPUs, the SDK, and the `df -h` line of the run's folder, which
+    holds `%` - as r35's records do, and the fifty-second review found a rule held by no fixture for want of it."""
+    if system.startswith('Darwin'):
+        return [system, 'ProductName:\t\tmacOS', 'ProductVersion:\t\t27.0.1', 'BuildVersion:\t\t26A434', '8', '10.0.101',
+                '/dev/disk3s5   926Gi   297Gi   605Gi    33%    2.4M  6.3G    0%   /System/Volumes/Data']
+    return [system, 'Description:\tUbuntu 24.04.5 LTS', '12', '10.0.101', '/dev/sda2       196G  103G   83G  56% /']
+
+
+# The test platform's attachment folder in results/, empty, which both runners seal (r35's hold one per process).
+ATTACHMENTS = 'results/2e34b0aa-6184-4683-a741-373b45165ae0'
+
+
 def windows_json(record):
     """A record as the Windows runner writes it: Windows PowerShell 5.1's ConvertTo-Json - a member a line, four spaces
     in, two after the colon, what is not ASCII as written - through Set-Content, which ends every line with CRLF."""
@@ -188,10 +202,14 @@ def windows_json(record):
 
 def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything ran\n', status='PASS\r\n',
           gate_value=None, system='Microsoft Windows 11 Pro 10.0.26220.0'):
-    """The files the runners seal, as a name-to-text map; each argument stands for one way a run can differ. The
-    machine record is the one the system's own runner writes: the Windows runner's `machine.json`, its caption in `Os`
-    with what is not ASCII as written, and its tests.txt; the Unix runner's `machine.txt`, its `uname -a` line first,
-    one `env=` line per entry and a `test` line for its test process."""
+    """The files the runners seal, as a name-to-text map, member by member as each runner writes them - the r35
+    edit lanes' own members the model; each argument stands for one way a run can differ. The machine record is the one
+    the system's own runner writes: the Windows runner's `machine.json`, its caption in `Os` with what is not ASCII as
+    written, and its tests.txt; the Unix runner's `machine.txt` - the lines `unix_head` gives, then `packet=`, `filter=`,
+    an `entry=` line per entry, its `hang=`, `parallel=` and `env=` lines and a `test` line for its test process. Beside
+    them each runner seals its build log, the Windows runner its scheduled task's log, its account and launch records and
+    its child's script and output, the Unix runner its start, finish and exit files: the fifty-second review found three
+    rules no case held because no fixture carried the members a runner seals besides the ones they read."""
     if gate_value is not None:
         gate_text = checker.GATE_NAME + '=' + gate_value
     else:
@@ -206,8 +224,12 @@ def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything 
         contents = {'machine.json': windows_json({"RunId": "edit-test", "Os": system,
                                                   "Env": 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate_text})}
     else:
-        contents = {'machine.txt': '%s\npacket=abc\nfilter=*\nenv=FILECAT_ARCHIVE_TXF_NATIVE=1\nenv=%s\n%s\n'
-                                   % (system, gate_text, TEST_LINE)}
+        lines = unix_head(system) + [
+            'packet=546d8caf28f54066cbb58e5d222a9e5aab464899ab35568b4108e01fc8c982d4', 'filter=*',
+            'entry=hang:25', 'entry=parallel:on', 'entry=env:FILECAT_ARCHIVE_TXF_NATIVE=1', 'entry=env:' + gate_text,
+            'entry=tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit', 'hang=25m', 'parallel=on',
+            'env=FILECAT_ARCHIVE_TXF_NATIVE=1', 'env=' + gate_text, TEST_LINE]
+        contents = {'machine.txt': '\n'.join(lines) + '\n'}
     contents.update({
         'summary.json': json.dumps(SUMMARY if summary is None else summary),
         'status.txt': status,
@@ -215,7 +237,28 @@ def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything 
         'test-FileCat.App.Tests-Edit.log': log,
     })
     if windows:
-        contents['tests.txt'] = TEST_LINE + '\r\n'
+        contents.update({
+            'tests.txt': TEST_LINE + '\r\n',
+            'build-FileCat.App.Tests.log': ('  Determining projects to restore...\r\n  FileCat.App.Tests -> C:\\FileCatValidation'
+                                            '\\aw-claude\\edit-test\\src\\tests\\FileCat.App.Tests\\bin\\Release\\'
+                                            'FileCat.App.Tests.dll\r\n'),
+            'task.log': ('SUCCESS: The scheduled task "FcRun-edit-test" has successfully been created.\r\n'
+                         'SUCCESS: Attempted to run the scheduled task "FcRun-edit-test".\r\n'),
+            'account.json': windows_json({"Name": "FILECAT-VM\\Admin", "Sid": "S-1-5-21-1-2-3-1001",
+                                          "EnabledAdministrators": False, "ElevationType": 3, "Session": 1, "Cpus": 4}),
+            'launch.json': windows_json({"Finished": "2026-11-14T07:34:17.0872071Z"}),
+            'child.ps1': 'param([string]$Run, [string]$Packet, [string]$Filter, [string]$Projects)\r\n',
+            'child.out': '',
+        })
+    else:
+        contents.update({
+            'build-FileCat.App.Tests.log': ('  Determining projects to restore...\n  FileCat.App.Tests -> /home/benny/'
+                                            'FileCatValidation/aw-claude/edit-test/src/tests/FileCat.App.Tests/bin/'
+                                            'Release/FileCat.App.Tests.dll\n'),
+            'started.txt': '2026-11-14T08:48:57Z\n',
+            'finished.txt': '2026-11-14T08:52:55Z\n',
+            'exit-FileCat.App.Tests-Edit.txt': '0\n',
+        })
     return contents
 
 
@@ -259,26 +302,40 @@ def with_child_cmd(contents):
 
 
 def sealed(leaf, text, unix):
-    """A member's bytes as its runner writes them now: the Unix runner's status ends in a newline; the Windows runner's
-    in a carriage return and a newline, its console logs - Windows PowerShell 5.1's `*>` - are UTF-16 with a mark, and
-    its machine.json and summary.json are UTF-8 with a mark (`Set-Content -Encoding UTF8`, since the forty-ninth review;
-    the r35 lanes' were in the ANSI code page with no mark, which a case builds as bytes). Bytes a case gives stand."""
+    """A member's bytes as its runner writes them now. The test platform writes each TRX file in UTF-8 with a mark, on
+    both systems. The Unix runner's other members are UTF-8 with no mark, its status ending in a newline. The Windows
+    runner's status ends in a carriage return and a newline; its logs - each test process's, each build's and publish's,
+    and the scheduled task's, all through Windows PowerShell 5.1's `*>` - are UTF-16 with a mark; its JSON records are
+    UTF-8 with a mark (`Set-Content -Encoding UTF8`: machine.json and summary.json since the forty-ninth review,
+    account.json and launch.json since the fifty-second; the r35 lanes' were in the ANSI code page with no mark, which a
+    case builds as bytes). Bytes a case gives stand."""
     if isinstance(text, bytes):
         return text
-    if leaf == 'status.txt' and unix:
+    name = leaf.split('/')[-1]
+    if name == 'status.txt' and unix:
         text = text.replace('\r\n', '\n')
-    if leaf.split('/')[-1].startswith('test-') and not unix:
+    if name.endswith('.trx'):
+        return bytes((0xEF, 0xBB, 0xBF)) + text.encode('utf-8')
+    if name.endswith('.log') and not unix:
         return bytes((0xFF, 0xFE)) + text.encode('utf-16-le')
-    if leaf in ('machine.json', 'summary.json') and not unix:
+    if name.endswith('.json') and not unix:
         return bytes((0xEF, 0xBB, 0xBF)) + text.encode('utf-8')
     return text.encode('utf-8')
 
 
 def archive(directory, name, contents, unix=False):
+    """The archive its runner seals of these contents, folders and all: the Unix runner tars its run folder - that
+    folder, its results folder and the test platform's attachment folder are members of it - and the Windows runner
+    zips the folder's contents, the empty attachment folder an entry of its own, as r35's archives hold them."""
     contents = with_child_cmd(contents)
     path = Path(directory) / name
     if unix:
         with tarfile.open(path, 'w:gz') as tar:
+            for folder in ('edit-test', 'edit-test/results', 'edit-test/' + ATTACHMENTS):
+                item = tarfile.TarInfo(folder)
+                item.type = tarfile.DIRTYPE
+                item.mode = 0o755
+                tar.addfile(item)
             for leaf, text in contents.items():
                 blob = sealed(leaf, text, unix)
                 item = tarfile.TarInfo('edit-test/' + leaf)
@@ -286,6 +343,7 @@ def archive(directory, name, contents, unix=False):
                 tar.addfile(item, io.BytesIO(blob))
     else:
         with zipfile.ZipFile(path, 'w') as zipped:
+            zipped.writestr(ATTACHMENTS + '/', b'')
             for leaf, text in contents.items():
                 zipped.writestr(leaf.replace('/', '\\'), sealed(leaf, text, unix))
     return path
@@ -970,7 +1028,8 @@ class EvidenceChecks(unittest.TestCase):
         contents = files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
         if not any(line.startswith('test ') for line in lines):
             lines += (TEST_LINE,)
-        contents['machine.txt'] = 'Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux\n' + '\n'.join(lines) + '\n'
+        head = unix_head('Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
+        contents['machine.txt'] = '\n'.join(head + list(lines)) + '\n'
         return contents
 
     def test_reads_the_gate_the_way_the_windows_runner_applies_it(self):
@@ -2118,7 +2177,7 @@ class EvidenceChecks(unittest.TestCase):
                 self.assertTrue(any(said in problem for problem in problems), problems)
 
     def test_reads_a_windows_record_its_runner_writes_in_utf8(self):
-        """The Windows runner writes its JSON records in UTF-8 with a mark since the forty-ninth review: in a double-byte
+        """The Windows runner writes machine.json and summary.json in UTF-8 with a mark since the forty-ninth review: in a double-byte
         ANSI code page a character's second byte can be a backslash (表 is 0x95 0x5C in cp932), and such a record did not
         read as JSON at all."""
         mark = bytes((0xEF, 0xBB, 0xBF))
@@ -2281,6 +2340,17 @@ class EvidenceChecks(unittest.TestCase):
         problems, facts = self.check(contents)
         self.assertEqual([], problems)
         self.assertEqual('windows', facts['system'])
+
+    def test_reads_a_tar_whose_stream_runs_past_one_block(self):
+        """A gzipped tar is read a block of 1 MiB of its stream at a time, and how far it reached is the sum of every
+        block's output: r35's full Unix lanes run to several such blocks, where every tar the suite accepted had fitted
+        in one (the fifty-second review)."""
+        contents = files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
+        contents['zz-ballast.bin'] = random.Random(52).randbytes(1536 * 1024)
+        with tempfile.TemporaryDirectory() as directory:
+            path = archive(directory, 'edit-large-evidence.tar.gz', contents, unix=True)
+            self.assertGreater(path.stat().st_size, 1 << 20)
+            self.assertEqual([], checker.check(path)[0])
 
 
 if __name__ == '__main__':

@@ -48,6 +48,9 @@ $run = Join-Path $root $RunId
 $evidence = "$run-evidence.zip"
 $status = "$run-status.txt"
 $task = "FcRun-$RunId"
+# The wrapper hashes the packet and finds the SDK from its own folder, and the child - a scheduled task - starts in
+# another, so each is named by a full path, drive and all (the fifty-second review).
+if ($Packet -notmatch '^[A-Za-z]:\\' -or $Dotnet -notmatch '^[A-Za-z]:\\') { throw 'Name the packet and the SDK by full paths.' }
 # Each test process writes its TRX, log and exit code under its name, so two named alike - an entry given twice, a #~X
 # beside a #not+X, or names that differ only in case, which NTFS and the child's own table do not tell apart - wrote over
 # each other and hid a failure; and a project path holding `..` reached out of the hash-pinned packet (the forty-ninth
@@ -115,7 +118,7 @@ try {
     if ($admin) { throw 'The child token unexpectedly has an enabled Administrators group.' }
     @{ Name = $identity.Name; Sid = $identity.User.Value; EnabledAdministrators = $admin; ElevationType = $elevationType;
        Session = [Diagnostics.Process]::GetCurrentProcess().SessionId; Cpus = [Environment]::ProcessorCount } |
-        ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Run 'account.json')
+        ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Run 'account.json') -Encoding UTF8
     $src = Join-Path $Run 'src'; New-Item -ItemType Directory -Path $src | Out-Null
     & tar.exe -xzf $Packet -C $src
     if ($LASTEXITCODE -ne 0) { throw 'Packet extraction failed.' }
@@ -231,7 +234,7 @@ try {
         Start-Sleep -Seconds 10
     }
     Start-Sleep -Seconds 5
-    @{ Finished = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $run 'launch.json')
+    @{ Finished = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $run 'launch.json') -Encoding UTF8
     # Only processes running from inside the run folder, and not this wrapper, whose own command line can name a path
     # there (the forty-ninth review found the Unix runner killing itself so).
     $leftover = Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.Contains("$run\") }

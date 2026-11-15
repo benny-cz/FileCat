@@ -18,8 +18,9 @@ pins, descriptor shapes, byte-order marks or system words - which is why the rea
 their own words, and each descriptor shape, mark and system word an entry of its own (the forty-eighth review found a
 mark and a system word that none measured). Nor can it see a rule held in a plain expression - a bound, a sum, a slice:
 the fiftieth review found two held by no case (the tar's floor taken over every member, and every byte of a later
-block read past it), each an entry with a case now. Nor does it print a line an entry already names, though a line may hold
-more than one rule: it prints such a line where the checks on it outnumber the entries naming it, and that, too, is
+block read past it), each an entry with a case now. Nor does it print a line an entry already names - an entry naming the lines its
+committed text lies on, and no other (matched as text, the fifty-second review found two lines hidden as parts of others'
+entries) - though a line may hold more than one rule: it prints such a line where the checks on it outnumber the entries naming it, and that, too, is
 a pointer - the forty-seventh review found three rules sharing lines with others, held by no case. And it found nothing of
 the rule the fortieth review did find, because the line-prefix filter it replaced could not see a `for` over a split.
 
@@ -724,6 +725,24 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ('every case of a pin read for whether one passed',
      "                elif not any('Passed' in outcome for outcome in matching.values()):",
      "                elif not any('Passed' in outcome for outcome in list(matching.values())[:1]):", None),
+    ("a run's test processes' logs told by their prefix from its other logs",
+     "            written = {archive._leaf(log).lower() for log in archive.leaves(prefix='test-', suffix='.log')}",
+     "            written = {archive._leaf(log).lower() for log in archive.leaves(suffix='.log')}", None),
+    ("a tar's stream measured by every block it read",
+     '                    at += len(plain)',
+     '                    at = len(plain)', None),
+    ('a record scanned for what dotnet changes only where its lines hand the tests something',
+     "            if line.startswith(('filter=', 'test ', 'entry=')) and held:",
+     '            if held:', None),
+    ('every member a leaf is looked for in',
+     '        for name in self._names:\n            leaf = self._leaf(name)',
+     '        for name in self._names[:1]:\n            leaf = self._leaf(name)', None),
+    ("a built or published entry's path read for ..",
+     "        return '..' in entry",
+     '        return False', None),
+    ("a test entry's path read for ..",
+     "    return '..' in entry.split('#', 1)[0]",
+     '    return False', None),
 ]
 
 def run(folder: Path) -> tuple[str, int, set[str], dict[str, list[str]], dict[str, list[str]]]:
@@ -821,13 +840,21 @@ def audit() -> int:
             name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, 'id', '')
             if name in PARSING:
                 mark(node, 'parse:' + name)
-    named = [old for _, old, _, _ in RULES]
+    # An entry names the lines its committed text lies on, and no other. Matched as text, a line was taken for named
+    # where it was a part of another line's entry - a loop over the same names, a return the start of a longer one -
+    # and two rules were hidden so (the fifty-second review).
+    spans = []
+    for _, old, _, _ in RULES:
+        at = source.find(old)
+        if at >= 0:
+            first = source.count('\n', 0, at) + 1
+            spans.append((first, first + old.rstrip('\n').count('\n')))
     loose = []
     for number in sorted(found):
         text = lines[number - 1].strip()
         if not text or text.startswith('#'):
             continue
-        naming = sum(1 for old in named if text in old or old.strip() in text)
+        naming = sum(1 for first, last in spans if first <= number <= last)
         held = len(checks.get(number, ()))
         if naming and held <= naming:
             continue

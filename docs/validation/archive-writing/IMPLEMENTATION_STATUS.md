@@ -1,5 +1,40 @@
 # Archive writing implementation status
 
+**15 November, fixtures with every member the runners seal (round fifty-two).** Asked again whether anything was
+left that the mechanism did not report, the reviewer found four things at High, one of them by the grading's letter:
+
+- **High: three rules were held by no case, because no fixture carried the members a runner seals besides the ones
+  the rules read.** A run's test-process logs are told from its other logs by their `test-` prefix - both runners seal
+  build logs, and the Windows runner its publish and scheduled task's logs too: counted with them, every runner-sealed
+  archive is refused. A gzipped tar's stream is measured by every block it read, summed - r35's full Unix lanes run to
+  several blocks of 1 MiB, where every tar the suite accepted fitted in one. And the record's characters dotnet changes
+  are looked for only on the lines that hand the tests something - the Unix record's `df` line holds `%`, and scanned
+  whole, all four accepted r35 Unix archives are refused. The fixtures now seal what the runners seal, member by
+  member, as r35's edit lanes hold them: each runner's build log; the Windows runner's scheduled task's log, account
+  and launch records and child script and output, every log in UTF-16 and every JSON record and TRX file with a UTF-8
+  mark; the Unix runner's start, finish and exit files, and its record's own lines - the system's description, its
+  CPUs, the SDK, the `df` line, and its entry, hang and parallel lines; and both runners' empty attachment folders. An
+  accepted tar longer than one block is a case, and each of the three rules has an entry.
+- **High, by the grading's letter: "the Windows runner writes its JSON records in UTF-8 with a mark" was true of
+  machine.json and summary.json alone** - its account.json and launch.json, which no rule reads, were still in the
+  ANSI code page. The runner writes those in UTF-8 too now; the check's, the suite's and the records' words name the
+  two records that changed in the forty-ninth review, the records corrected where they stand.
+- Low, closed or recorded: the audit took a line for named where its text was part of another line's entry, which hid
+  two rules, both held by cases; an entry names only the lines its text lies on now, and both are listed. The Windows
+  wrapper accepted a relative `-Packet` or `-Dotnet`, which it hashed and found from its own folder while its child
+  starts in another; it refuses either unless named by a full path now. Two of the check's comments said both runners
+  gzip what they seal, where the Windows runner seals a zip, and the route decision's last paragraph pointed at "the
+  two records below" in another file - corrected. Recorded: the launcher's fixed words (`-NoProfile` and the rest) are
+  held by no case, a forged child.cmd alone telling them apart (boundary 1); a wrapper that fails after its child wrote
+  PASS leaves the archive's own status PASS and its `wrapper-error.txt` unread (boundary 2); and the manifest suite
+  counts a tool that fails to build as fourteen skipped cases - every run here reports none skipped.
+
+The fourteen r35 archives read exactly as before (five accepted, nine refused), all 23 manifest digests match, and the
+Windows wrapper's own checks read r35's five lanes and the round's shapes as expected under Windows PowerShell 5.1, its
+full-path rule accepting r35's packet and SDK. One hundred and thirty-four cases for the check and fourteen for the manifest; the harness
+lists two hundred and twenty-five rules, one hundred and ninety-eight held by a verdict, twenty-seven noted as redundant, caseless or raising, and none unheld or
+contradicted; the audit prints forty-nine lines.
+
 **15 November, what no case could tell, and fixtures as the runner seals now (round fifty-one).** Asked again
 whether anything was left that the mechanism did not report, the reviewer found three things at High - two of them by
 the grading's letter - and two at Medium:
@@ -14,7 +49,9 @@ the grading's letter - and two at Medium:
   package path holds one is a case now, and each prefix the rule passes over has an entry; `hang:` and `parallel:` are
   read as paths now, since no entry a runner admits under them holds `..`.
 - **High, by the grading's letter: the check and the suite still said the Windows runner writes its JSON records in
-  the ANSI code page**, which it has not since the forty-ninth review, and the fixtures sealed them so by default. The
+  the ANSI code page**, which it has not since the forty-ninth review for machine.json and summary.json - its
+  account.json and launch.json, which no rule reads, it did until the round above - and the fixtures sealed them so by
+  default. The
   texts say which runner wrote which, and the fixtures seal what the runner writes now - UTF-8 with a mark - with the
   r35 lanes' shape a case of its own.
 - **Medium: the dual-root pin's "a case of it passed" loop was held by no case.** Every fixture put the passing row

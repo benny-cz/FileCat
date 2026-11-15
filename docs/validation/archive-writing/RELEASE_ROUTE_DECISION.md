@@ -378,7 +378,8 @@ comment claiming every step-aside became a failure under the gate; double-byte c
 did not read as JSON; and five loops no case held. Both runners refuse names alike and `..` paths before a run, the Unix
 runner records each entry, and the check refuses an archive that does not hold a log of its own for each process its
 runner listed, and a recorded project path holding `..` (but not, until the fiftieth review, where it followed a `#`
-in a built or published entry); the Windows runner writes its JSON records in UTF-8; each loop, and every other
+in a built or published entry); the Windows runner writes machine.json and summary.json in UTF-8 (its account.json and launch.json from the
+fifty-second review); each loop, and every other
 printed line found to be a rule, is listed with a case - the r35 verdicts unchanged. One hundred and twenty-six cases hold the check and
 fourteen the manifest; the harness lists two hundred and one rules, one hundred and seventy-five held by a verdict, twenty-six noted, none unheld or
 contradicted.
@@ -394,10 +395,22 @@ verdict, twenty-seven noted, none unheld or contradicted.
 
 The fifty-first review found a zip64 member's compressed size read by a subscript no case could tell from the plain
 one, the suite's zip64 members all stored; the `expand:` prefix the packet rule passes over held by no case; the check
-and the suite still saying the Windows runner writes its JSON records in the ANSI code page, with fixtures sealed so;
+and the suite still saying the Windows runner writes machine.json and summary.json in the ANSI code page, with fixtures sealed so;
 the dual-root pin's "a case of it passed" loop held by no case, every fixture reading the passing row first where r35's
-Windows lane reads the stepped-aside row first; and the two records below counting six of r35's Windows `-Projects`
+Windows lane reads the stepped-aside row first; and the round-forty-nine and round-fifty entries of the implementation status counting six of r35's Windows
+`-Projects`
 values where it has five. Each rule has a case and an entry, the texts and fixtures follow what the runner writes now
 (the r35 shape a case of its own), the records are corrected, and both runners refuse a test entry that names no
 project file - the r35 verdicts unchanged. One hundred and thirty-three cases hold the check and fourteen the manifest; the harness lists
 two hundred and nineteen rules, one hundred and ninety-two held by a verdict, twenty-seven noted, none unheld or contradicted.
+
+The fifty-second review found three rules held by no case because no fixture carried the members a runner seals
+besides the ones those rules read - the test-process logs told by their prefix from the build, publish and task logs;
+a gzipped tar's stream measured over every block, where the suite's tars fitted in one; and the record scanned for what
+dotnet changes only on the lines that hand the tests something, where the Unix record's `df` line holds `%` - and the
+Windows runner's account and launch records still in the ANSI code page beneath words that said all its JSON records
+were UTF-8. The fixtures seal every member the runners seal, as r35's edit lanes hold them; each rule has an entry and
+an accepted tar longer than a block is a case; the runner writes those two records in UTF-8 and the words name the
+records they mean; the audit names lines by where an entry's text lies; and the wrapper takes the packet and SDK by
+full paths alone - the r35 verdicts unchanged. One hundred and thirty-four cases hold the check and fourteen the manifest; the harness lists
+two hundred and twenty-five rules, one hundred and ninety-eight held by a verdict, twenty-seven noted, none unheld or contradicted.

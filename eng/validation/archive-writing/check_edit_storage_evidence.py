@@ -300,7 +300,7 @@ class Archive:
         gzip reads concatenated members as one stream and tarfile stops at the first tar's own end-of-archive blocks,
         so appending to a sealed `.tar.gz` adds nothing a reader sees - but a forged archive put *before* a sealed
         one is passed over in favour of the forgery, which is how a mac lane's bytes carried a five-member forgery.
-        Every archive either runner seals is one gzip member with nothing after it.
+        Every archive the Unix runner seals is one gzip member with nothing after it (the Windows runner seals a zip).
         """
         end = 0
         for item in self._tar.getmembers():
@@ -311,7 +311,7 @@ class Archive:
             end = max(end, item.offset_data + (stored + 511) // 512 * 512)
         with open(self.path, 'rb') as handle:
             if handle.read(2) != b'\x1f\x8b':
-                # Both runners gzip what they seal, and a reader stops at the first tar's end-of-archive blocks, so
+                # The Unix runner gzips what it seals, and a reader stops at the first tar's end-of-archive blocks, so
                 # a plain tar would carry whatever follows it unread and unasked about.
                 return 'it is not gzipped, as a sealed run is'
             handle.seek(0)
@@ -374,7 +374,8 @@ class Archive:
         `für` on a German system, Cyrillic on a Russian one - holds such bytes, and no rule reads them (the
         forty-eighth review). That holds for a single-byte code page alone: in a double-byte one (Japanese, Chinese) a
         character's second byte can be a backslash, which no reading of the bytes undoes, and the record does not read
-        as JSON at all - so the runner writes its JSON records in UTF-8 with a mark now (the forty-ninth review)."""
+        as JSON at all - so the runner writes machine.json and summary.json in UTF-8 with a mark now (the forty-ninth
+        review)."""
         item = self._members[name]
         if self._zip is not None:
             data = self._zip.read(item)  # type: ignore[arg-type]
