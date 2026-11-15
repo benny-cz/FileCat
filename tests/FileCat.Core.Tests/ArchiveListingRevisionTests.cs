@@ -114,15 +114,21 @@ public sealed partial class ArchiveListingRevisionTests
         var probe = new Probe(file, holdLease: true);
         var first = probe.Revision.Show(long.MaxValue);
         Assert.True(SpinWait.SpinUntil(() => probe.Taking == 1, Patience), "The read should be waiting for the index.");
-        // As a panel's tab closing and another opening on the UI thread, while a viewer holds the index's lock.
+        // As a panel's tab closing and another opening on the UI thread, while a viewer holds the index's lock. Each step
+        // is timed, so a panel that does not return says which call it is in: on 15 November 2026 hosted Windows ARM64
+        // runners twice failed this case after the full patience, a case Windows x64, macOS and Linux pass.
+        var steps = new System.Collections.Concurrent.ConcurrentQueue<string>(); var clock = System.Diagnostics.Stopwatch.StartNew();
         var panel = Task.Factory.StartNew(() =>
         {
-            first.Dispose();
-            probe.Revision.Show(long.MaxValue).Dispose();
+            steps.Enqueue($"hiding the first at {clock.ElapsedMilliseconds} ms"); first.Dispose();
+            steps.Enqueue($"showing again at {clock.ElapsedMilliseconds} ms"); var again = probe.Revision.Show(long.MaxValue);
+            steps.Enqueue($"hiding again at {clock.ElapsedMilliseconds} ms"); again.Dispose();
+            steps.Enqueue($"returned at {clock.ElapsedMilliseconds} ms");
         }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         bool returned = await Task.WhenAny(panel, Task.Delay(Patience, Ct)) == panel;
         probe.ReleaseLease();
-        Assert.True(returned, "Hiding or showing the listing waited for the index the read waits for.");
+        Assert.True(returned, "Hiding or showing the listing waited for the index the read waits for; the panel began " +
+            string.Join(", then ", steps) + $" and was still there at {clock.ElapsedMilliseconds} ms.");
         await panel; // A hide or show that threw fails here, as the blocking wait this replaced did.
         Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, Patience));
         Assert.Equal(1, probe.Revision.BackgroundReads);
