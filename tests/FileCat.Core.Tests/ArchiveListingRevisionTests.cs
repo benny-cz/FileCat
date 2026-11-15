@@ -123,6 +123,7 @@ public sealed partial class ArchiveListingRevisionTests
         bool returned = await Task.WhenAny(panel, Task.Delay(Patience, Ct)) == panel;
         probe.ReleaseLease();
         Assert.True(returned, "Hiding or showing the listing waited for the index the read waits for.");
+        await panel; // A hide or show that threw fails here, as the blocking wait this replaced did.
         Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, Patience));
         Assert.Equal(1, probe.Revision.BackgroundReads);
     }
