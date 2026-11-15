@@ -14,18 +14,21 @@ a refusal sat unmeasured for a round - so a rule added to the check wants an ent
 and prints every line that holds a condition (an `if`, a comparison, a boolean, a comprehension's filter), a parsing
 call (split, strip, partition, a prefix or suffix test, a regular expression, `json.loads`, `struct.unpack`, a decode)
 or the iterable of a loop, which no entry names. It cannot see a rule held in a constant's contents - a list of reasons,
-pins or descriptor shapes - which is why the reasons and the pins have cases asserting their own words, and
-each descriptor shape an entry of its own. Nor does it print a line an entry already names, though a line may hold
+pins, descriptor shapes, byte-order marks or system words - which is why the reasons and the pins have cases asserting
+their own words, and each descriptor shape, mark and system word an entry of its own (the forty-eighth review found a
+mark and a system word that none measured). Nor does it print a line an entry already names, though a line may hold
 more than one rule: it prints such a line where the checks on it outnumber the entries naming it, and that, too, is
 a pointer - the forty-seventh review found three rules sharing lines with others, held by no case. And it found nothing of
 the rule the fortieth review did find, because the line-prefix filter it replaced could not see a `for` over a split.
 
-What counts is a verdict, not a message. The suite runs with every case going on to its end - an assertion that does
-not hold is written down rather than raised - and with every call a case makes into the check written down by its
-verdict: an archive accepted (on the system it names) or refused, a listing whole or not, main()'s exit code with
-its report's verdict lines - for the functions the cases call for a verdict, check(), main() and listing_gap()
-(repeated() is wrapped too, though no case calls it on its own). A call that raises counts as that call's own refusal, since main() refuses an archive whose reading raises,
-and the case goes on. A rule is held when, weakened, some case's verdicts change. Until the forty-third review a case
+What counts is a verdict, not a message. The suite runs with every case going on to its end - an assertion that does not
+hold is written down rather than raised - and with every call a case makes into the check written down by its verdict:
+an archive accepted (on the system it names) or refused, a listing whole or not, main()'s exit code with its report's
+verdict lines - for the functions the cases call for a verdict, check(), main() and listing_gap() (repeated() is wrapped
+too, though no case calls it on its own). A call that raises counts as that call's own refusal, since main() refuses an
+archive whose reading raises, and the case goes on. A rule is held when, weakened, some case's verdicts change - by its
+own absence: a weakening takes its rule away and nothing after it, where one that returned early held its entry by
+skipping what followed (the forty-eighth review found the gzip header's entry so). Until the forty-third review a case
 that noticed only a changed message counted as holding its rule, and thirty-two entries were "held" that way.
 
 Each entry carries what is expected of it, and the measurement checks it: nothing, for a rule some case holds by a
@@ -78,7 +81,7 @@ RULES: list[tuple[str, str, str, str | None]] = [
      "            if records[0].replace('\\\\', '/').endswith('machine.json') and \\",
      "            if False and records[0].replace('\\\\', '/').endswith('machine.json') and \\", None),
     ('the system read from how the record line begins',
-     '    return next((system for named, system in SYSTEMS if first.strip().startswith(named)), None)',
+     '    return next((system for named, system in SYSTEMS if first.startswith(named)), None)',
      '    return next((system for named, system in SYSTEMS if named in first), None)', None),
     ('the system named at all',
      '            if system is None:',
@@ -117,8 +120,8 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '            if leaf.startswith(prefix) and leaf.endswith(suffix):',
      '            if prefix in leaf and suffix in leaf:', None),
     ('a name matched as the whole leaf',
-     "        return [name for name in self._names if name.replace('\\\\', '/').split('/')[-1] == leaf]",
-     "        return [name for name in self._names if leaf in name.replace('\\\\', '/').split('/')[-1]]", None),
+     '        return [name for name in self._names if self._leaf(name) == leaf]',
+     '        return [name for name in self._names if leaf in self._leaf(name)]', None),
     ('a name the archive holds more than once',
      '        if (repeated := archive.repeated()):',
      '        if (repeated := archive.repeated()) and False:', None),
@@ -165,8 +168,8 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '            return self._gzip_gap()',
      '            return None', None),
     ('a tar that is gzipped at all',
-     "                return 'it is not gzipped, as a sealed run is'",
-     '                return None', None),
+     "            if handle.read(2) != b'\\x1f\\x8b':",
+     "            if False and handle.read(2) != b'\\x1f\\x8b':", 'redundant: without it the gzip reader refuses a stream with no gzip header'),
     ("what follows a tar's last member being its own padding",
      "                    if tail.strip(b'\\x00'):",
      "                    if False and tail.strip(b'\\x00'):", None),
@@ -414,20 +417,20 @@ RULES: list[tuple[str, str, str, str | None]] = [
      "        if '@' in launched.group(4) + launched.group(5):",
      "        if False and '@' in launched.group(4) + launched.group(5):", None),
     ('a Unix filter beginning with -, refused',
-     "            if line.startswith('filter=-'):",
-     "            if False and line.startswith('filter=-'):", None),
+     "            if line.startswith(('filter=-', 'filter=/')):",
+     "            if line.startswith('filter=/'):", None),
     ('a status read past its line end',
      "            if archive.read(name).strip() != 'PASS':",
      "            if archive.read(name) != 'PASS':", None),
     ('a quote in a Unix filter or project name, refused',
-     '            held = [character for character in \'"@%\' if character in line]',
-     "            held = [character for character in '@%' if character in line]", None),
+     '            held = [character for character in \'"@%\\\\\' if character in line]',
+     "            held = [character for character in '@%\\\\' if character in line]", None),
     ("an '@' in a Unix filter or project name, refused",
-     '            held = [character for character in \'"@%\' if character in line]',
-     '            held = [character for character in \'"%\' if character in line]', None),
+     '            held = [character for character in \'"@%\\\\\' if character in line]',
+     '            held = [character for character in \'"%\\\\\' if character in line]', None),
     ("a '%' in a Unix filter or project name, refused",
-     '            held = [character for character in \'"@%\' if character in line]',
-     '            held = [character for character in \'"@\' if character in line]', None),
+     '            held = [character for character in \'"@%\\\\\' if character in line]',
+     '            held = [character for character in \'"@\\\\\' if character in line]', None),
     ('a Unix test line read with the filter',
      "            if line.startswith(('filter=', 'test ')) and held:",
      "            if line.startswith('filter=') and held:", None),
@@ -467,6 +470,84 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ("a record's system read from its first line, not the first that holds something",
      "    first = text.split('\\n', 1)[0]",
      "    first = next((line for line in text.splitlines() if line.strip()), '')", None),
+    ('a Unix filter beginning with /, refused',
+     "            if line.startswith(('filter=-', 'filter=/')):",
+     "            if line.startswith('filter=-'):", None),
+    ('a backslash in a Unix filter or project name, refused',
+     '            held = [character for character in \'"@%\\\\\' if character in line]',
+     '            held = [character for character in \'"@%\' if character in line]', None),
+    ('a Windows filter beginning with /, refused',
+     "        if launched.group(4).startswith('/'):",
+     "        if False and launched.group(4).startswith('/'):", None),
+    ('a zip name split at its backslashes, and a tar name not',
+     "        return (name.replace('\\\\', '/') if self._zip is not None else name).split('/')[-1]",
+     "        return name.replace('\\\\', '/').split('/')[-1]", None),
+    ("a member's leaf read after its last folder",
+     "        return (name.replace('\\\\', '/') if self._zip is not None else name).split('/')[-1]",
+     "        return (name.replace('\\\\', '/') if self._zip is not None else name)", None),
+    ('the Windows record read apart from the Unix one',
+     "    if name.endswith('machine.json'):",
+     "    if False and name.endswith('machine.json'):", None),
+    ('a Windows caption read wherever it names Windows',
+     "        return 'windows' if 'Windows' in first else None",
+     "        return 'windows' if first.strip().startswith(('Microsoft Windows', 'Windows')) else None", None),
+    ('a machine.json naming another system, read as naming none',
+     "        return 'windows' if 'Windows' in first else None",
+     "        return 'windows' if 'Windows' in first else next((system for named, system in SYSTEMS if first.strip().startswith(named)), None)", None),
+    ('a machine.txt naming only a system its runner runs on',
+     "SYSTEMS = (('Linux', 'linux'), ('Darwin', 'macos'))",
+     "SYSTEMS = (('Windows', 'windows'), ('Linux', 'linux'), ('Darwin', 'macos'))", None),
+    ('a Linux uname line read as linux',
+     "SYSTEMS = (('Linux', 'linux'), ('Darwin', 'macos'))",
+     "SYSTEMS = (('Darwin', 'macos'),)", None),
+    ('a Darwin uname line read as macos',
+     "SYSTEMS = (('Linux', 'linux'), ('Darwin', 'macos'))",
+     "SYSTEMS = (('Linux', 'linux'),)", None),
+    ("a member's name read in the OEM code page where its header names no other",
+     "                written = handle.read(name).decode('utf-8' if flag & 0x800 else 'cp437', 'replace')",
+     "                written = handle.read(name).decode('utf-8' if flag & 0x800 else 'latin-1', 'replace')", None),
+    ('what is not UTF-8 in a member without a mark, read as replaced',
+     "        return data.decode('utf-8', 'replace')",
+     "        return data.decode('utf-8', 'strict')", None),
+    ('a zip64 field told by its id, not its width',
+     '        if kind == 1:',
+     '        if size >= 16:', None),
+    ('a zip64 field too narrow for both sizes, read as stating none',
+     "            return struct.unpack('<QQ', extra[at + 4:at + 20]) if size >= 16 else None  # type: ignore[return-value]",
+     "            return struct.unpack('<QQ', extra[at + 4:at + 20])  # type: ignore[return-value]", None),
+    ("a zip64 field's sizes read eight bytes wide",
+     "            return struct.unpack('<QQ', extra[at + 4:at + 20]) if size >= 16 else None  # type: ignore[return-value]",
+     "            return struct.unpack('<II', extra[at + 4:at + 12]) if size >= 16 else None  # type: ignore[return-value]", None),
+    ("an empty entry in the Windows runner's -Env passed over, as its child passes it",
+     "        pairs = [item for item in recorded.split(';') if item]",
+     "        pairs = recorded.split(';')", None),
+    ('a passed count that is not a number, refused',
+     "                passed = sum(int(counters.get('passed', 0)) for counters in suites.values())",
+     "                passed = sum(int(counters.get('passed', 0)) for counters in suites.values() if str(counters.get('passed', 0)).isdigit())", None),
+    ('a skipped count that is not a number, refused',
+     "                skipped = sum(int(counters.get('skipped', 0)) for counters in suites.values())",
+     "                skipped = sum(int(counters.get('skipped', 0)) for counters in suites.values() if str(counters.get('skipped', 0)).isdigit())", None),
+    ('a UTF-16 little-endian member read by its mark',
+     "        for mark, encoding in ((b'\\xff\\xfe', 'utf-16-le'), (b'\\xfe\\xff', 'utf-16-be'), (b'\\xef\\xbb\\xbf', 'utf-8')):",
+     "        for mark, encoding in ((b'\\xfe\\xff', 'utf-16-be'), (b'\\xef\\xbb\\xbf', 'utf-8')):", None),
+    ('a UTF-16 big-endian member read by its mark',
+     "        for mark, encoding in ((b'\\xff\\xfe', 'utf-16-le'), (b'\\xfe\\xff', 'utf-16-be'), (b'\\xef\\xbb\\xbf', 'utf-8')):",
+     "        for mark, encoding in ((b'\\xff\\xfe', 'utf-16-le'), (b'\\xef\\xbb\\xbf', 'utf-8')):", None),
+    ('a UTF-8 member read past its mark',
+     "        for mark, encoding in ((b'\\xff\\xfe', 'utf-16-le'), (b'\\xfe\\xff', 'utf-16-be'), (b'\\xef\\xbb\\xbf', 'utf-8')):",
+     "        for mark, encoding in ((b'\\xff\\xfe', 'utf-16-le'), (b'\\xfe\\xff', 'utf-16-be')):", None),
+    ('a Windows record read by its Os member, not as text',
+     "    if name.replace('\\\\', '/').endswith('machine.json'):",
+     "    if False and name.replace('\\\\', '/').endswith('machine.json'):", None),
+    ('a member with a mark read with what does not decode replaced',
+     "                return data[len(mark):].decode(encoding, 'replace')",
+     "                return data[len(mark):].decode(encoding, 'strict')", None),
+    ('a record line read as an entry only where it begins env=',
+     "        pairs = [line[len('env='):] for line in lines if line.startswith('env=')]",
+     "        pairs = [line[len('env='):] for line in lines if 'env=' in line]", None),
+    ("the dual-root pin's family read past its theory rows' arguments",
+     "              if test.split('(')[0].endswith('.' + PINS[2]) and 'Passed' in outcome}",
+     "              if test.endswith('.' + PINS[2]) and 'Passed' in outcome}", None),
 ]
 
 def run(folder: Path) -> tuple[str, int, set[str], dict[str, list[str]], dict[str, list[str]]]:

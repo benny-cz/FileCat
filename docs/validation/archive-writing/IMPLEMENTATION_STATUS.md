@@ -1,5 +1,54 @@
 # Archive writing implementation status
 
+**15 November, the filter's backslashes and the rules no case held (round forty-eight).** Asked again whether anything
+was left that the mechanism did not report, the reviewer found two things at High and three at Medium:
+
+- **High: "a filter dotnet and MSBuild pass on as written" was false for a Unix filter ending in backslashes** - dotnet
+  halves them on their way to the filter property (two arriving as one; the reviewer, on SDK 10.0.101), and the Unix
+  runner admitted them. No route to the gate was found, VSTest quoting the filter, but a Unix filter or project entry
+  holds no backslash now - the runner refuses one before a run, and the check in a Unix record's filter and test
+  lines - and neither runner's filter begins with `/`, which dotnet reads as a switch of its own (`/p:`, `/t:`); the
+  check refuses that in either runner's record. A Windows filter may still hold a backslash inside it, which is passed
+  on as written (replayed: one to four in a row, passed as the child passes them under Windows PowerShell 5.1), and
+  never at its end.
+- **High: the harness called the rule that a tar is gzipped at all held, and only its weakening's skipping the
+  decompression after it held it** - without the rule itself no verdict changes, since the gzip reader refuses a stream
+  with no gzip header on its own. The entry weakens the rule alone now and is noted redundant. Every count recorded
+  since it was listed held one entry too many and noted one too few; the round below's are corrected where they stand.
+- **Medium: five rules the audit printed that no case held** - a member's name in the OEM code page where its header
+  names no other (as Explorer writes it); what is not UTF-8 in a member without a mark, read as replaced (the Windows
+  runner writes machine.json in the ANSI code page, so `für` in a German caption is a byte UTF-8 does not decode); a
+  zip64 field told from an NTFS field as wide by its id, not its width; an empty first entry in the Windows runner's
+  `-Env`, which its pattern takes and its child passes over; and a skipped count that is not a number. Each is listed
+  with a case, and a zip64 field too narrow for both sizes now states none rather than being passed over.
+- **Medium: rules held in constants that no entry measured** - each byte-order mark on its own (a UTF-16 big-endian
+  log holding a reason; a log of a UTF-8 mark and a line end, which says nothing), and the system words, among them a
+  bare `Windows` that no case needed. Reading them, `machine.json` was read by a prefix - `Microsoft Windows` or
+  `Windows` - so a Windows caption in another language named no system (the reviewer believes a Russian system's
+  begins `Майкрософт Windows`, which no one here could check). `machine.json`, which only the Windows runner writes, now
+  names Windows wherever its caption says the word and no other system; `machine.txt`, which only the Unix runner
+  writes, names Linux or macOS by how its `uname -a` line begins, read as it stands, and never Windows. Each mark and
+  each system word is an entry of its own.
+- Low, closed or recorded: a tar's member names were split at `\` too, so a log named `test-A\B.log` was read as
+  `B.log` and never scanned - the round below called that backslash handling unexercised here, true of a zip and not of
+  a tar. A tar's names are split at `/` alone now, and a Unix project entry holds no backslash. The Unix runner's
+  comment left out of what an env value may hold the `"`, `%`, `@` and `\` it refuses in every entry - corrected.
+  Recorded within boundary 2: a `Directory.Build.rsp` above the run's sources, or a `-Dotnet` pointing at another SDK,
+  can set `VSTestCLIRunSettings` with nothing in the record.
+
+The fixtures seal each runner's own record now - the Windows runner's `machine.json` as Windows PowerShell 5.1 writes
+it (a member a line, in the ANSI code page), the Unix runner's `machine.txt` for a Unix system - and the audit's printed
+lines were read again: four more that are real rules (the Windows record read by its `Os` member, a member with a mark
+read with what does not decode replaced, a Unix record line read as an entry only where it begins `env=`, and the
+dual-root pin's family read past its theory rows' arguments) are listed, with cases where none held them.
+
+Every r35 argument passes the runners' checks but the Windows full lane's `#!` shard - fifty Windows inputs under
+Windows PowerShell 5.1 and sixty-two Unix inputs under bash 5.3, 3.2 and 5.2, each as expected - the fourteen r35
+archives read as they did at the round below (five accepted, nine refused, the three edit archives on their routes'
+systems and digests), and all 23 manifest digests match. One hundred and seventeen cases for the check and fourteen for the manifest;
+the harness lists one hundred and sixty-one rules, one hundred and thirty-six held by a verdict, twenty-five noted as redundant, caseless or raising, and none
+unheld or contradicted.
+
 **14 November, what the runners write, read as they write it (round forty-seven).** Asked again whether anything was
 left that the mechanism did not report, the reviewer found three things at High and three at Medium:
 
@@ -17,7 +66,7 @@ left that the mechanism did not report, the reviewer found three things at High 
   `%XX` there (the reviewer: `%22` reached the filter property as `"`, `%3B` as `;`). No route to the gate was found,
   VSTest quoting the decoded value, but `%` is refused in a Unix filter now as in a Windows one, and `"`, `@` and `%`
   in a project entry on both runners, whose name reaches MSBuild in the logger's property; the check refuses them in
-  either runner's record.
+  either runner's record. (It was false for trailing backslashes too, which dotnet halves - the round above.)
 - **High: the round below said every r35 argument passes the runners' checks.** The Windows full lane's `#!` shard
   does not, as the forty-third round recorded; it is written `#~` since then. Corrected where it stands.
 - **Medium: the Windows runner's console logs are UTF-16 with a byte-order mark** - Windows PowerShell 5.1's `*>`
@@ -31,12 +80,15 @@ left that the mechanism did not report, the reviewer found three things at High 
 - Low, closed or recorded: the `raises` notes said the case ends in an error, where the harness writes the raise down
   as that call's refusal and the case goes on - reworded. Recorded as boundary 1: the directory's plain size and CRC
   are trusted, so a directory rewritten to understate a log's plain size hides a reason. The backslash handling in the
-  member finders is not exercised on this host, where zipfile already turns `\` into `/`.
+  member finders is not exercised on this host, where zipfile already turns `\` into `/` - true of a zip, and not of a
+  tar, whose names it misread (the round above).
 
 Every r35 argument passes the runners' checks but the Windows full lane's `#!` shard - forty-nine Windows inputs under
 Windows PowerShell 5.1 and forty-seven Unix inputs under bash 5.3, 3.2 and 5.2, each as expected - and all 23
 manifest digests match. One hundred and five cases for the check and fourteen for the manifest; the harness lists one hundred and thirty-five rules,
-one hundred and eleven held by a verdict, twenty-four noted as redundant, caseless or raising, and none unheld or contradicted.
+one hundred and ten held by a verdict, twenty-five noted as redundant, caseless or raising (one hundred and eleven and
+twenty-four as first written: the round above found one entry held only by its weakening's skipping what followed), and
+none unheld or contradicted.
 
 **14 November, the filter reaching the gate (round forty-six).** Asked again whether anything was left that the
 mechanism did not report, the reviewer found two things at High and one at Medium:

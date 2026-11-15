@@ -22,7 +22,9 @@ one) and requires all of:
   * it carries one machine record, whose members do not repeat, and the system that record names agrees with the
     class that passed this run's own dual-root pin - which has to be one of the two real ones, so a record rewritten
     to another system, a second record put before the real one, and a pin whose class was renamed or nested are each
-    refused rather than read (Linux and macOS are told apart by the record's own `uname -a` line, and nothing else);
+    refused rather than read (Windows is named by the word in its runner's `machine.json` caption, whatever
+    language the rest is in, and Linux and macOS by how the Unix runner's `uname -a` line begins, which alone tells
+    them apart);
   * every suite in the summary passed, with no failure anywhere in the run;
   * the pins of the listing are in its results, each with the outcome Passed - the application's composition pin, the
     route list's own pin, and the dual-root case, which is what a renamed, re-filtered or dropped pin would fail;
@@ -68,9 +70,10 @@ import zipfile
 from pathlib import Path
 
 # What each runner's own machine record calls the system it ran on: `Os` in the Windows runner's `machine.json`,
-# the first line of `uname -a` in the Unix runner's `machine.txt`. The architecture is in that line and not in the
+# which says `Windows` whatever language the rest of the caption is in, and the first line of `uname -a` in the Unix
+# runner's `machine.txt`, by how it begins. The architecture is in that line and not in the
 # Windows record, so this names the system and the manifest refuses to bind two routes that share one.
-SYSTEMS = (('Microsoft Windows', 'windows'), ('Windows', 'windows'), ('Linux', 'linux'), ('Darwin', 'macos'))
+SYSTEMS = (('Linux', 'linux'), ('Darwin', 'macos'))
 GATE_NAME = 'FILECAT_EDIT_NATIVE_REQUIRED'
 GATE_VALUE = '1'
 GATE = GATE_NAME + '=' + GATE_VALUE
@@ -150,7 +153,7 @@ class Archive:
     def leaves(self, suffix: str = '', prefix: str = '') -> list[str]:
         result = []
         for name in self._names:
-            leaf = name.replace('\\', '/').split('/')[-1]
+            leaf = self._leaf(name)
             if leaf.startswith(prefix) and leaf.endswith(suffix):
                 result.append(name)
         return result
@@ -339,15 +342,24 @@ class Archive:
             counted[name] = counted.get(name, 0) + 1
         return sorted(name for name, count in counted.items() if count > 1)
 
+    def _leaf(self, name: str) -> str:
+        # A zip made on Windows may separate its folders with `\`, which zipfile reads as `/` only on Windows itself; a
+        # tar's names are POSIX, where `\` is part of a name - split there, a log named `test-A\B.log` was read as
+        # `B.log` and never scanned (the forty-eighth review).
+        return (name.replace('\\', '/') if self._zip is not None else name).split('/')[-1]
+
     def find(self, leaf: str) -> list[str]:
-        return [name for name in self._names if name.replace('\\', '/').split('/')[-1] == leaf]
+        return [name for name in self._names if self._leaf(name) == leaf]
 
     def read(self, name: str) -> str:
         """The text of the member this archive listed under that name, not of whichever member answers to it - read
         as its byte-order mark says, and UTF-8 where it has none. Windows PowerShell 5.1's `*>` writes the Windows
         runner's console logs in UTF-16 with a mark, and read as UTF-8 they could neither hold a reason nor be empty,
         so on every Windows archive the log half of the step-aside scan and the empty-output rule were inert (the
-        forty-seventh review)."""
+        forty-seventh review). Where it has none, a byte that is not UTF-8 is read as a replacement character: the
+        Windows runner writes machine.json in the ANSI code page (`Set-Content`), so a caption in another language -
+        `für` on a German system, Cyrillic on a Russian one - holds such bytes, and no rule reads them (the
+        forty-eighth review)."""
         item = self._members[name]
         if self._zip is not None:
             data = self._zip.read(item)  # type: ignore[arg-type]
@@ -370,8 +382,11 @@ def zip64_sizes(extra: bytes) -> tuple[int, int] | None:
     at = 0
     while at + 4 <= len(extra):
         kind, size = struct.unpack('<HH', extra[at:at + 4])
-        if kind == 1 and size >= 16:
-            return struct.unpack('<QQ', extra[at + 4:at + 20])  # type: ignore[return-value]
+        if kind == 1:
+            # Told by its id, not its width: an NTFS field before it is as wide (the forty-eighth review). A local
+            # header's zip64 field holds both sizes, and one too narrow for them states no compressed size - read past
+            # its end, the bytes after it would be taken for one.
+            return struct.unpack('<QQ', extra[at + 4:at + 20]) if size >= 16 else None  # type: ignore[return-value]
         at += 4 + size
     return None
 
@@ -424,9 +439,15 @@ def machine_system(archive: Archive, name: str) -> str | None:
     results for the same fact and the two have to agree.
     """
     text = machine_field(archive, name, 'Os')
-    # Its first line, as the runner writes it: no runner writes a blank one before it.
+    # Its first line, as the runner writes it: no runner writes a blank one before it, nor a space before the system
+    # it names.
     first = text.split('\n', 1)[0]
-    return next((system for named, system in SYSTEMS if first.strip().startswith(named)), None)
+    if name.endswith('machine.json'):
+        # Only the Windows runner writes this record, and its caption says `Windows` whatever language the rest of
+        # it is in: read by how it began, a caption in another language named no system at all. A record of this kind
+        # naming another system names none (the forty-eighth review).
+        return 'windows' if 'Windows' in first else None
+    return next((system for named, system in SYSTEMS if first.startswith(named)), None)
 
 
 def pinned_family(results: dict[str, set[str]]) -> str | None:
@@ -509,7 +530,9 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     beginning with `-` (an option of dotnet's) is refused, as both runners refuse it before a run. The forty-seventh
     review found MSBuild decoding `%XX` in it too, which the Unix runner admitted - so `%` is refused in a Unix filter
     as it is in a Windows one, and `"`, `@` and `%` alike in a project entry, whose name reaches MSBuild in the
-    logger's property.
+    logger's property. The forty-eighth found trailing backslashes halved on their way (two arriving as one) and a
+    leading `/` read as a switch, so a Unix filter or project entry holds no backslash and neither runner's filter
+    begins with `/`.
 
     Returns the values in order, or a reason the record cannot say what the tests were given.
     """
@@ -547,6 +570,9 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
             return [], ('its child.cmd passes %r, which PowerShell does not read as written - a leading - names a '
                         'parameter, a trailing backslash escapes the closing quote - so the record cannot say what the '
                         'tests were given' % odd[0])
+        if launched.group(4).startswith('/'):
+            return [], ('its child.cmd passes a filter beginning with /, which dotnet reads as a switch of its own, so '
+                        'the record cannot say what the tests were given')
         if '@' in launched.group(4) + launched.group(5):
             return [], ("its child.cmd passes a filter or a project entry holding '@', which dotnet reads as a response "
                         'file where it begins and MSBuild expands as an item list inside it, so the record cannot say '
@@ -558,14 +584,15 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     else:
         lines = text.split('\n')
         for line in lines:
-            held = [character for character in '"@%' if character in line]
+            held = [character for character in '"@%\\' if character in line]
             if line.startswith(('filter=', 'test ')) and held:
                 return [], ("its machine record hands its tests a filter or a project name holding %r, which dotnet "
-                            'and MSBuild do not pass on as written, so the record cannot say what the tests were given'
+                            'and MSBuild do not always pass on as written, so the record cannot say what the tests '
+                            'were given'
                             % held[0])
-            if line.startswith('filter=-'):
-                return [], ('its machine record hands its tests a filter beginning with -, which dotnet reads as an '
-                            'option of its own, so the record cannot say what the tests were given')
+            if line.startswith(('filter=-', 'filter=/')):
+                return [], ('its machine record hands its tests a filter beginning with %s, which dotnet reads as an '
+                            'option of its own, so the record cannot say what the tests were given' % line[7])
         pairs = [line[len('env='):] for line in lines if line.startswith('env=')]
     values = []
     for pair in pairs:

@@ -354,8 +354,19 @@ The forty-seventh review found a rule changing the verdict of every runner-seale
 its audit - the status read past its line end, which the suite's fixtures never ended - with two more rules hidden on
 lines other entries named; the fixtures seal what the runners seal now, the audit prints a named line whose checks
 outnumber its entries, and each of those rules is listed with a case. It found MSBuild decoding `%XX` in a Unix filter,
-against the claim that the filter is passed on as written, and the Windows runner's UTF-16 console logs read as UTF-8,
+against the claim that the filter is passed on as written (false, the forty-eighth found, for its trailing backslashes
+too), and the Windows runner's UTF-16 console logs read as UTF-8,
 which left the log half of the step-aside scan inert on every Windows archive; `%` is refused in filters and project
 entries on both runners, and members are read by their byte-order mark - the r35 verdicts unchanged. One hundred and five cases hold
-the check and fourteen the manifest; the harness lists one hundred and thirty-five rules, one hundred and eleven held by a verdict, twenty-four noted, none
-unheld or contradicted.
+the check and fourteen the manifest; the harness lists one hundred and thirty-five rules, one hundred and ten held by a verdict, twenty-five noted (one
+hundred and eleven and twenty-four as first written - the forty-eighth review), none unheld or contradicted.
+
+The forty-eighth review found the claim that a filter is passed on as written false once more - dotnet halves a Unix
+filter's trailing backslashes - and a harness entry held only by its weakening's skipping the work after it, with five
+rules the audit printed and the byte-order marks and system words held in constants, none of them held by a case.
+Reading those, a Windows caption in another language named no system. A Unix filter or project entry holds no
+backslash and neither runner's filter begins with `/` now; the gzip header's entry is noted redundant and the
+forty-seventh's counts corrected; each of those rules is listed with a case; and the Windows record names Windows
+wherever its caption says the word, and nothing else, the Unix record Linux or macOS and nothing else - the r35 verdicts unchanged. One hundred and seventeen cases hold the
+check and fourteen the manifest; the harness lists one hundred and sixty-one rules, one hundred and thirty-six held by a verdict, twenty-five noted, none unheld or
+contradicted.

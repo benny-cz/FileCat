@@ -145,26 +145,42 @@ SUMMARY = {"ok": True, "failed": [], "exit_codes": {"FileCat.App.Tests-Edit": 0}
                                                  "counters_total": 7}}}
 
 
+def windows_json(record):
+    """A record as the Windows runner writes it: Windows PowerShell 5.1's ConvertTo-Json - a member a line, four spaces
+    in, two after the colon, what is not ASCII as written - through Set-Content, which ends every line with CRLF."""
+    return '{\r\n' + ',\r\n'.join('    %s:  %s' % (json.dumps(key), json.dumps(value, ensure_ascii=False))
+                               for key, value in record.items()) + '\r\n}\r\n'
+
+
 def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything ran\n', status='PASS\r\n',
           gate_value=None, system='Microsoft Windows 11 Pro 10.0.26220.0'):
-    """The four files the runners seal, as a name-to-text map; each argument stands for one way a run can differ."""
+    """The files the runners seal, as a name-to-text map; each argument stands for one way a run can differ. The
+    machine record is the one the system's own runner writes: the Windows runner's `machine.json`, its caption in `Os`
+    with what is not ASCII as written; the Unix runner's `machine.txt`, its `uname -a` line first and one `env=` line
+    per entry."""
     if gate_value is not None:
         gate_text = checker.GATE_NAME + '=' + gate_value
     else:
         gate_text = checker.GATE if gate else 'FILECAT_EDIT_NATIVE_ROOT=/tmp/x'
+    windows = 'Windows' in system
     # The dual-root pin is one method in two real classes, and the check reads the class that passed it: a fixture
     # naming neither is not a run of these suites, so it carries the class this fixture's own system implies.
-    platform = ('FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' if system.startswith(('Microsoft Windows', 'Windows'))
+    platform = ('FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' if windows
                 else 'FileCat.Core.Tests.UnixEditStorageTests.')
     trx = trx.replace('FileCat.Tests.' + PIN_NAMES[2], platform + PIN_NAMES[2])
-    return {
-        'machine.json': json.dumps({"RunId": "edit-test", "Os": system,
-                                    "Env": 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate_text}),
+    if windows:
+        contents = {'machine.json': windows_json({"RunId": "edit-test", "Os": system,
+                                                  "Env": 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate_text})}
+    else:
+        contents = {'machine.txt': '%s\npacket=abc\nfilter=*\nenv=FILECAT_ARCHIVE_TXF_NATIVE=1\nenv=%s\n'
+                                   % (system, gate_text)}
+    contents.update({
         'summary.json': json.dumps(SUMMARY if summary is None else summary),
         'status.txt': status,
         'results/FileCat.App.Tests-Edit.trx': '<?xml version="1.0"?><TestRun><Results>' + trx + '</Results></TestRun>',
         'test-FileCat.App.Tests-Edit.log': log,
-    }
+    })
+    return contents
 
 
 LAUNCHED = {'run': 'C:\\FileCatValidation\\aw-claude\\edit-test',
@@ -191,8 +207,10 @@ def with_child_cmd(contents):
         return {name: text for name, text in contents.items() if name != 'child.cmd'}
     if 'machine.json' not in contents or 'child.cmd' in contents:
         return contents
+    record = contents['machine.json']
     try:
-        env = json.loads(contents['machine.json']).get('Env')
+        # A record a case gives as bytes is in some ANSI code page, and its Env is ASCII whichever one it is.
+        env = json.loads(record.decode('latin-1') if isinstance(record, bytes) else record).get('Env')
     except (ValueError, AttributeError):
         return contents
     if not isinstance(env, str):
@@ -202,11 +220,16 @@ def with_child_cmd(contents):
 
 def sealed(leaf, text, unix):
     """A member's bytes as its runner writes them: the Unix runner's status ends in a newline; the Windows runner's in
-    a carriage return and a newline, and its console logs - Windows PowerShell 5.1's `*>` - are UTF-16 with a mark."""
+    a carriage return and a newline, its console logs - Windows PowerShell 5.1's `*>` - are UTF-16 with a mark, and
+    its machine.json is in the ANSI code page (`Set-Content`), cp1252 on a Western system. Bytes a case gives stand."""
+    if isinstance(text, bytes):
+        return text
     if leaf == 'status.txt' and unix:
         text = text.replace('\r\n', '\n')
     if leaf.split('/')[-1].startswith('test-') and not unix:
         return bytes((0xFF, 0xFE)) + text.encode('utf-16-le')
+    if leaf == 'machine.json' and not unix:
+        return text.encode('cp1252')
     return text.encode('utf-8')
 
 
@@ -292,7 +315,6 @@ class EvidenceChecks(unittest.TestCase):
     def test_reads_the_gate_out_of_the_unix_runner_s_own_record(self):
         """The Unix runner writes one `env=NAME=VALUE` line per variable into machine.txt."""
         contents = files(system='Linux filecat-ubuntu2404 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
-        del contents['machine.json']
         contents['machine.txt'] = ('Linux filecat-ubuntu2404 7.0.0-43-generic #43 SMP x86_64 GNU/Linux\n'
                                    'packet=abc\nfilter=*\nenv=FILECAT_ARCHIVE_TXF_NATIVE=1\nenv=%s\n' % checker.GATE)
         # Its results name neither class, so the record is all that says the system - as it is between Linux and macOS.
@@ -407,7 +429,6 @@ class EvidenceChecks(unittest.TestCase):
         for first, system in (('Linux filecat-ubuntu2404 7.0.0-43-generic #43 SMP x86_64 GNU/Linux', 'linux'),
                               ('Darwin Mareks-MacBook-Pro.local 27.0.0 Darwin Kernel Version 27.0.0 arm64', 'macos')):
             contents = files(system=first)
-            del contents['machine.json']
             contents['machine.txt'] = first + '\nenv=%s\n' % checker.GATE
             problems, facts = self.check(contents, unix=True)
             self.assertEqual([], problems)
@@ -424,16 +445,17 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_refuses_a_run_whose_record_and_results_disagree_about_its_system(self):
         """One rewritten `Os` field had this check call a real Windows run Linux. The dual-root pin's own class is in
-        the run's results, so the run says the family too, and the two have to agree."""
+        the run's results, so the run says the family too, and the two have to agree - here a Unix record with a
+        Windows run's results, since a Windows record names no other system (the forty-eighth review)."""
         pin = checker.PINS[2]
         windows = (PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pin) +
                    '<UnitTestResult testName="FileCat.Core.Tests.UnixEditStorageTests.%s" outcome="NotExecuted" />' % pin)
         unix = PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Core.Tests.UnixEditStorageTests.' + pin)
         self.assertEqual([], self.check(files(trx=windows))[0])  # its record says Windows, as that run's does
-        problems, _ = self.check(files(trx=windows, system='Linux host 6.0.0 x86_64 GNU/Linux'))
+        problems, _ = self.check(files(trx=windows, system='Linux host 6.0.0 x86_64 GNU/Linux'), unix=True)
         self.assertIn('its machine record says linux while its own dual-root pin passed in the Windows platform '
                       "suite's class, so the record and the run disagree about which system ran it", problems)
-        problems, _ = self.check(files(trx=unix, system='Darwin host 27.0.0 arm64'))
+        problems, _ = self.check(files(trx=unix, system='Darwin host 27.0.0 arm64'), unix=True)
         self.assertEqual([], problems)  # a Unix run and a Unix record agree, whichever Unix it is
         problems, _ = self.check(files(trx=unix))
         self.assertIn("its machine record says windows while its own dual-root pin passed in the Core suite's Unix "
@@ -447,7 +469,7 @@ class EvidenceChecks(unittest.TestCase):
         windows = PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pin)
         shared = '<UnitTestResult testName="FileCat.Core.Tests.EditStorageSharedTests.%s" outcome="Passed" />' % pin
         self.assertEqual([], self.check(files(trx=windows + shared))[0])
-        problems, _ = self.check(files(trx=windows + shared, system='Linux host 6.0.0 x86_64 GNU/Linux'))
+        problems, _ = self.check(files(trx=windows + shared, system='Linux host 6.0.0 x86_64 GNU/Linux'), unix=True)
         self.assertIn('its machine record says linux while its own dual-root pin passed in the Windows platform '
                       "suite's class, so the record and the run disagree about which system ran it", problems)
 
@@ -802,7 +824,7 @@ class EvidenceChecks(unittest.TestCase):
         record went unchallenged."""
         pin = checker.PINS[2]
         trx = PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Core.Tests.UnixEditStorageTestsV2.' + pin)
-        problems, _ = self.check(files(trx=trx, system='Linux host 6.0.0 x86_64 GNU/Linux'))
+        problems, _ = self.check(files(trx=trx, system='Linux host 6.0.0 x86_64 GNU/Linux'), unix=True)
         self.assertIn('its results hold no passing dual-root pin in either platform class '
                       '(WindowsEditStorageTests or UnixEditStorageTests), so nothing in the run itself says '
                       'what produced it', problems)
@@ -847,7 +869,6 @@ class EvidenceChecks(unittest.TestCase):
         """The record's own first line is what names the system; a later line that names another - `Linux-compat`
         under a Darwin kernel - must not decide the route this binds to."""
         contents = files(system='Darwin host 27.0.0 arm64')
-        del contents['machine.json']
         contents['machine.txt'] = ('Darwin host 27.0.0 Darwin Kernel Version 27.0.0 arm64\n'
                                    'Linux-compat layer: off\nenv=%s\n' % checker.GATE)
         problems, facts = self.check(contents, unix=True)
@@ -895,7 +916,6 @@ class EvidenceChecks(unittest.TestCase):
     def unix_record(self, *lines):
         """A machine record as the Unix runner seals it: uname first, then its own lines, one `env=` per entry."""
         contents = files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
-        del contents['machine.json']
         contents['machine.txt'] = 'Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux\n' + '\n'.join(lines) + '\n'
         return contents
 
@@ -1595,7 +1615,7 @@ class EvidenceChecks(unittest.TestCase):
         """A macOS uname line can name Linux further along it (`Linux-compat`), and a system matched anywhere in the
         line would read that run as the Linux route's."""
         contents = files(system='Darwin mac.local 27.0.0 Darwin Kernel Version 27.0.0 arm64 Linux-compat')
-        problems, facts = self.check(contents)
+        problems, facts = self.check(contents, unix=True)
         self.assertEqual([], problems)
         self.assertEqual('macos', facts['system'])
 
@@ -1757,7 +1777,9 @@ class EvidenceChecks(unittest.TestCase):
                              ('Darwin host 27.0.0 Darwin Kernel Version 27.0.0 arm64', 'macos')):
             with self.subTest(word):
                 with tempfile.TemporaryDirectory() as directory:
-                    path = archive(directory, 'edit-system-evidence.zip', files(system=system))
+                    unix = word != 'windows'
+                    path = archive(directory, 'edit-system-evidence' + ('.tar.gz' if unix else '.zip'),
+                                   files(system=system), unix=unix)
                     report = Path(directory) / 'report.txt'
                     with contextlib.redirect_stdout(io.StringIO()):
                         with unittest.mock.patch.object(sys, 'argv', ['check', str(path), '--out', str(report)]):
@@ -1782,6 +1804,159 @@ class EvidenceChecks(unittest.TestCase):
             self.assertIn('it cannot be read as a sealed run: BadZipFile', text)
             self.assertIn('edit-good-evidence.zip: edit-storage evidence', text)
             self.assertEqual(text, report.read_text(encoding='utf-8'))
+
+    def test_reads_windows_wherever_its_caption_says_the_word(self):
+        """`Os` is the system's caption in its own language, written in its ANSI code page, and read by a prefix the
+        first of these named no system at all (the forty-eighth review): Windows is named wherever the word stands, and
+        what is not UTF-8 is read as a replacement character."""
+        for caption, page in (('Майкрософт Windows 10 Pro 10.0.19045.0', 'cp1251'),
+                              ('Microsoft Windows 11 Pro für Workstations 10.0.26100.0', 'cp1252'),
+                              ('Windows 11 Pro 10.0.26100.0', 'cp1252')):
+            with self.subTest(caption=caption):
+                contents = files(system=caption)
+                contents['machine.json'] = contents['machine.json'].encode(page)
+                problems, facts = self.check(contents)
+                self.assertEqual([], problems)
+                self.assertEqual('windows', facts['system'])
+
+    def test_reads_a_system_only_from_the_record_its_runner_writes(self):
+        """Only the Windows runner writes `machine.json`, and only the Unix runner - on Linux or macOS, nowhere else -
+        writes `machine.txt`: a `machine.json` naming Linux and a `machine.txt` naming Windows name no system (the
+        forty-eighth review)."""
+        pin = checker.PINS[2]
+        said = 'its machine record does not say which system ran it, so nothing in it binds it to a route'
+        unix = PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Core.Tests.UnixEditStorageTests.' + pin)
+        contents = files(trx=unix)
+        contents['machine.json'] = json.dumps({"RunId": "edit-test", "Os": 'Linux host 6.0.0 x86_64 GNU/Linux',
+                                               "Env": 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + checker.GATE})
+        self.assertIn(said, self.check(contents)[0])
+        windows = PASSING_TRX.replace('FileCat.Tests.' + pin,
+                                      'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pin)
+        contents = files(trx=windows, system='Linux host 6.0.0 x86_64 GNU/Linux')
+        contents['machine.txt'] = 'Windows host 10.0.26100 x86_64\nenv=%s\n' % checker.GATE
+        self.assertIn(said, self.check(contents, unix=True)[0])
+
+    def test_reads_a_tar_member_s_name_with_its_backslashes(self):
+        """A tar's names are POSIX, where a backslash is part of a name: split there, a log named `test-A\\B.log`
+        was read as `B.log`, never scanned, and its reason never read (the forty-eighth review). In a zip it separates
+        folders."""
+        contents = files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
+        contents['test-A\\B.log'] = '[xUnit.net] SKIP ' + STEP_ASIDE_WORDS[0] + ' here\n'
+        problems, _ = self.check(contents, unix=True)
+        self.assertTrue(any('stepped aside' in problem for problem in problems), problems)
+
+    def test_refuses_a_filter_dotnet_halves_or_reads_as_a_switch(self):
+        """dotnet halves a filter's trailing backslashes on their way (two arriving as one) and reads a filter beginning
+        with `/` as a switch of its own (the forty-eighth review): a Unix filter or project name holds no backslash, and
+        neither runner's filter begins with `/`."""
+        gate = 'FILECAT_EDIT_NATIVE_REQUIRED'
+        for line, said in (('filter=FullyQualifiedName~X\\\\', "holding '\\\\'"),
+                           ('filter=FullyQualifiedName~A\\B', "holding '\\\\'"),
+                           ('test FileCat.A\\B: *', "holding '\\\\'"),
+                           ('filter=/p:X=1', 'a filter beginning with /'),
+                           ('filter=-p:X=1', 'a filter beginning with -')):
+            with self.subTest(line=line):
+                problems, _ = self.check(self.unix_record('filter=*', 'env=' + gate + '=1', line), unix=True)
+                self.assertTrue(any(said in problem for problem in problems), problems)
+        recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1'
+        contents = self.windows_record(recorded)
+        contents['child.cmd'] = launcher(recorded, filter='/p:X=1')
+        problems, _ = self.check(contents)
+        self.assertTrue(any('passes a filter beginning with /' in problem for problem in problems), problems)
+
+    def test_reads_a_member_s_name_in_the_oem_code_page_where_its_header_names_no_other(self):
+        """A zip whose names are not flagged UTF-8 stores them in the OEM code page - as Explorer writes them - and both
+        the reader and this check read them so: read in another, an ordinary archive's own name would not be its own
+        (the forty-eighth review)."""
+        with tempfile.TemporaryDirectory() as directory:
+            contents = files()
+            contents['Pr?fung.txt'] = 'a member no rule reads\r\n'
+            path = archive(directory, 'edit-oem-evidence.zip', contents)
+            data = path.read_bytes()
+            self.assertEqual(2, data.count(b'Pr?fung.txt'))
+            path.write_bytes(data.replace(b'Pr?fung.txt', b'Pr' + bytes((0x81,)) + b'fung.txt'))
+            with zipfile.ZipFile(path) as held:
+                self.assertIn('Pr' + chr(0xFC) + 'fung.txt', held.namelist())
+            self.assertEqual([], checker.check(path)[0])
+
+    def test_accepts_a_zip64_member_whose_header_carries_a_field_as_wide_first(self):
+        """An NTFS field (32 bytes) before the zip64 field is as wide as it, and the zip64 field is told by its id, not
+        its width (the forty-eighth review)."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'edit-z64-ntfs-evidence.zip'
+            with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as held:
+                for name, text in with_child_cmd(files()).items():
+                    held.writestr(name.replace('/', '\\'), sealed(name, text, False))
+                stamped = zipfile.ZipInfo('zz-ntfs.bin')
+                # NTFS times (id 10): four reserved bytes, then attribute 1 of 24 bytes - three times of eight.
+                stamped.extra = struct.pack('<HHIHHQQQ', 0x000A, 32, 0, 1, 24, 1, 2, 3)
+                with held.open(stamped, 'w', force_zip64=True) as member:
+                    member.write(b's' * 300)
+            with zipfile.ZipFile(path) as held:
+                self.assertIsNone(held.testzip())
+            self.assertEqual([], checker.check(path)[0])
+
+    def test_refuses_a_zip64_field_too_narrow_for_both_sizes(self):
+        """A local header's zip64 field holds both sizes; one too narrow for them states no compressed size, and read
+        past its end, the bytes after it - here the member's size itself - would be taken for one (bytes changed: no
+        writer writes such a field)."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'edit-z64-narrow-evidence.zip'
+            with zipfile.ZipFile(path, 'w') as held:
+                for name, text in with_child_cmd(files()).items():
+                    held.writestr(name.replace('/', '\\'), sealed(name, text, False))
+                narrow = zipfile.ZipInfo('zz-narrow.bin')
+                narrow.extra = struct.pack('<HHQQ', 1, 8, 300, 300)  # a zip64 field of one size, and that size again
+                held.writestr(narrow, b'n' * 300)
+            with zipfile.ZipFile(path) as held:
+                offset = held.getinfo('zz-narrow.bin').header_offset
+            data = bytearray(path.read_bytes())
+            data[offset + 18:offset + 22] = bytes((0xFF, 0xFF, 0xFF, 0xFF))
+            path.write_bytes(bytes(data))
+            problems, _ = checker.check(path)
+            self.assertEqual(1, len(problems), problems)
+            self.assertIn("the entry 'zz-narrow.bin' is 300 bytes long where the file says nothing", problems[0])
+
+    def test_reads_a_windows_env_past_an_empty_entry(self):
+        """`;FILECAT_EDIT_NATIVE_REQUIRED=1` passes the Windows runner's own pattern, and its child passes the empty
+        entry over and sets the gate (the forty-eighth review): an empty entry is passed over here too, not read as one
+        with no value."""
+        self.assertEqual([], self.check(self.windows_record(';' + checker.GATE))[0])
+
+    def test_refuses_a_run_whose_skipped_count_is_not_a_number(self):
+        """As a passed count that is not a number is refused, so is a skipped one (the forty-eighth review)."""
+        counters = dict(SUMMARY['suites']['FileCat.App.Tests-Edit'], skipped='none')
+        summary = dict(SUMMARY, suites={'FileCat.App.Tests-Edit': counters})
+        with tempfile.TemporaryDirectory() as directory:
+            odd = archive(directory, 'edit-odd-evidence.zip', files(summary=summary))
+            report = Path(directory) / 'report.txt'
+            with contextlib.redirect_stdout(io.StringIO()):
+                with unittest.mock.patch.object(sys, 'argv', ['check', str(odd), '--out', str(report)]):
+                    self.assertEqual(1, checker.main())
+            self.assertIn('edit-odd-evidence.zip: NOT edit-storage evidence',
+                          report.read_text(encoding='utf-8').splitlines())
+
+    def test_reads_each_byte_order_mark_a_member_may_carry(self):
+        """Each mark on its own (the forty-eighth review): a console log in UTF-16 big-endian holding a reason, and a
+        log of a UTF-8 mark and a line end alone, which says nothing."""
+        reason = '[xUnit.net] SKIP ' + STEP_ASIDE_WORDS[0] + ' here\r\n'
+        for log, said in ((bytes((0xFE, 0xFF)) + reason.encode('utf-16-be'), 'stepped aside'),
+                          (bytes((0xEF, 0xBB, 0xBF)) + b'\r\n', 'its test output is empty')):
+            with self.subTest(said=said):
+                problems, _ = self.check(files(log=log))
+                self.assertTrue(any(said in problem for problem in problems), problems)
+
+    def test_reads_a_marked_member_with_what_does_not_decode_replaced(self):
+        """A console log with a mark is read as its mark says, and a unit that does not decode - a lone surrogate - is
+        read as a replacement character, as in a member without a mark, not taken for an archive that cannot be read."""
+        log = (bytes((0xFF, 0xFE)) + '[xUnit.net] ran '.encode('utf-16-le') + bytes((0x00, 0xD8)) +
+               ' here\r\n'.encode('utf-16-le'))
+        self.assertEqual([], self.check(files(log=log))[0])
+
+    def test_reads_a_record_line_as_an_entry_only_where_it_begins_env(self):
+        """A Unix record's entries are its `env=` lines, and a filter holding `env=` further along is a filter."""
+        record = self.unix_record('filter=FullyQualifiedName~Xenv=Y', 'env=FILECAT_EDIT_NATIVE_REQUIRED=1')
+        self.assertEqual([], self.check(record, unix=True)[0])
 
 
 if __name__ == '__main__':

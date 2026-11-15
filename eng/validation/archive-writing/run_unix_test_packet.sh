@@ -29,10 +29,13 @@ PROJECTS=("$@")
 # in the test processes' arguments; and dotnet hands the filter to MSBuild inside quotes, so a `"` ended it and what
 # followed a `;` set other properties - the gate among them, through VSTestCLIRunSettings. Nor do they hold `@` (a
 # response file where the filter begins, an item list inside it) or `%` (MSBuild decodes %XX), as a project entry's
-# name reaches MSBuild too, in the logger's property; and the filter does not begin with `-`. (The patterns sit in
-# variables: a space written into [[ =~ ]] itself would have to be escaped, which bash versions pass on differently.)
-PRINTABLE='^[ !#&-?A-~]+$'
-FILTERABLE='^[ !#&-,.-?A-~][ !#&-?A-~]*$'
+# name reaches MSBuild too, in the logger's property; nor `\` (dotnet halves trailing backslashes, and a project
+# name's backslash split the log's own name in the evidence check's reading); and the filter does not begin with `-` or
+# `/`, which dotnet reads as its own options. These hold for every entry, env: ones too. (The patterns sit in
+# variables: a space written into [[ =~ ]] itself would have to be escaped, which bash versions pass on differently;
+# a `]` leads its bracket to be read as itself.)
+PRINTABLE='^[] !#&-?A-[^-~]+$'
+FILTERABLE='^[] !#&-,.0-?A-[^-~][] !#&-?A-[^-~]*$'
 ( LC_ALL=C; [[ "$FILTER" =~ $FILTERABLE ]] ) || { echo "bad filter" >&2; exit 2; }
 for P in "${PROJECTS[@]}"; do ( LC_ALL=C; [[ "$P" =~ $PRINTABLE ]] ) || { echo "bad project entry" >&2; exit 2; }; done
 ROOT="$HOME/FileCatValidation/aw-claude"
@@ -84,7 +87,8 @@ HANG=20m
 PARALLEL=0
 for P in "${PROJECTS[@]}"; do
   case "$P" in
-    # FILECAT_ names in capitals, values of printable ASCII without a space or `$`, judged in the C locale (elsewhere
+    # FILECAT_ names in capitals, values of printable ASCII without a space or `$` (nor the `"`, `%`, `@` and `\`
+    # every entry is refused above), judged in the C locale (elsewhere
     # [A-Z] may take a lowercase letter): a value could hold \x1c or \x85, which Python's splitlines() takes for a line
     # end (the evidence check once read the record that way);
     # the test platform reads some other names (VSTESTCLIRUNSETTINGS can set a variable inside the test host); and

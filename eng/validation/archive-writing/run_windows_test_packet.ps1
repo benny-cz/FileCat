@@ -21,8 +21,9 @@ param(
     [Parameter(Mandatory)][ValidateLength(1, 260)][ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Packet,
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-fA-F]{64}\z', Options = 'None')][string]$Sha256,
     # dotnet hands the filter to MSBuild as a property, and a project entry's name reaches it in the logger's, so
-    # neither holds `@` either: a response file where it begins, an item list inside it.
-    [Parameter(Mandatory)][ValidateLength(1, 1024)][ValidatePattern('^(?!-)[ #$&-?A-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Filter,
+    # neither holds `@` either: a response file where it begins, an item list inside it. Nor does the filter begin with
+    # `/`, which dotnet reads as a switch.
+    [Parameter(Mandatory)][ValidateLength(1, 1024)][ValidatePattern('^(?![-/])[ #$&-?A-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Filter,
     [Parameter(Mandatory)][ValidateLength(1, 2048)][ValidatePattern('^(?!-)[ #$&-?A-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Projects,
     # Recorded in machine.json, which is written in the ANSI code page with best-fit (a fullwidth quote becomes `"`).
     [ValidatePattern('^[A-Za-z0-9._\\ -]{1,64}\z', Options = 'None')][string]$User = 'Admin',
