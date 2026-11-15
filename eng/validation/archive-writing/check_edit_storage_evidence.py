@@ -493,8 +493,9 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     `FILECAT_EDIT_NATIVE_REQUIRED=10` - or `=1 ` with a trailing space - had no gate at all: its native edit tests
     skipped where they were meant to fail, and its composition pin was never armed.
 
-    The Windows runner records its `-Env` string in `Env` - in the ANSI code page with best-fit, so as given only
-    where it is plain ASCII - then splits it on `;` alone and sets each name to the rest of its item, untrimmed; a
+    The Windows runner records its `-Env` string in `Env` - in UTF-8 with a mark since the forty-ninth review, and in
+    the ANSI code page with best-fit before (the r35 lanes' records), so as given only where it is plain ASCII - then
+    splits it on `;` alone and sets each name to the rest of its item, untrimmed; a
     value may hold spaces, so `FILECAT_X=1 FILECAT_EDIT_NATIVE_REQUIRED=1` is one variable `FILECAT_X` and no gate.
     The Unix runner writes one `env=NAME=VALUE` line per entry it exports; a value may hold `;`, so
     `env=FILECAT_X=1;FILECAT_EDIT_NATIVE_REQUIRED=1` is likewise one variable and no gate. This check once split both
@@ -504,8 +505,9 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     The forty-first review found three more layers between the record and the tests. On Windows the names are matched
     without case - the runner's pattern then ignored case, and the environment matches names without it - so a lowercase gate
     after the real one was the value the tests saw; and the recorded Env is not what the child is given: the runner
-    hands it to child.cmd, which cmd.exe reads again (expanding %...%, ending at a line break), and writes machine.json
-    in the ANSI code page with best-fit, so a fullwidth semicolon in a value reads as a real one there. So a Windows Env
+    hands it to child.cmd, which cmd.exe reads again (expanding %...%, ending at a line break), and wrote machine.json
+    in the ANSI code page with best-fit until the forty-ninth review, so a fullwidth semicolon in a value read as a real
+    one there. So a Windows Env
     is trusted only where it is printable ASCII without %, ! or ^, and only where the sealed child.cmd passes it. On
     Unix a line ends at a newline alone, as bash writes it - Python's splitlines() also ends one at 0x1c or 0x85, which
     bash keeps inside one value.
@@ -638,10 +640,12 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
 def leaves_packet(entry: str) -> bool:
     """Whether a runner's project entry names a path holding `..`, which reaches out of the hash-pinned packet the
     record names - the forty-ninth review ran another run's sources so, with the packet's hash still in the record. A
-    variable, a hang guard, the parallel switch and a package to expand name no project. In a test entry what follows a
-    `#` is a shard of its tests, not a path; a `build:` or `publish:` entry is a path to its end, `#` and all, as its
-    runner takes it - cut at its `#`, `publish:#/../..` reached out of the packet (the fiftieth review)."""
-    if entry.startswith(('env:', 'hang:', 'parallel:', 'expand:')):
+    variable names no path, and a Windows package to expand is an absolute path the child resolves and bounds to
+    C:\\FileCatValidation itself; every other entry is read as a path (a hang guard or the parallel switch holds no `..`
+    a runner admits). In a test entry what follows a `#` is a shard of its tests, not a path; a `build:` or `publish:`
+    entry is a path to its end, `#` and all, as its runner takes it - cut at its `#`, `publish:#/../..` reached out of
+    the packet (the fiftieth review)."""
+    if entry.startswith(('env:', 'expand:')):
         return False
     if entry.startswith(('build:', 'publish:')):
         return '..' in entry

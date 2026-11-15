@@ -391,3 +391,13 @@ and three printed lines no case held. A built or published entry is read to its 
 case, the scan holds every reason the six give, and the texts say what the audit cannot see - the r35 verdicts
 unchanged. One hundred and thirty-one cases hold the check and fourteen the manifest; the harness lists two hundred and fifteen rules, one hundred and eighty-eight held by a
 verdict, twenty-seven noted, none unheld or contradicted.
+
+The fifty-first review found a zip64 member's compressed size read by a subscript no case could tell from the plain
+one, the suite's zip64 members all stored; the `expand:` prefix the packet rule passes over held by no case; the check
+and the suite still saying the Windows runner writes its JSON records in the ANSI code page, with fixtures sealed so;
+the dual-root pin's "a case of it passed" loop held by no case, every fixture reading the passing row first where r35's
+Windows lane reads the stepped-aside row first; and the two records below counting six of r35's Windows `-Projects`
+values where it has five. Each rule has a case and an entry, the texts and fixtures follow what the runner writes now
+(the r35 shape a case of its own), the records are corrected, and both runners refuse a test entry that names no
+project file - the r35 verdicts unchanged. One hundred and thirty-three cases hold the check and fourteen the manifest; the harness lists
+two hundred and nineteen rules, one hundred and ninety-two held by a verdict, twenty-seven noted, none unheld or contradicted.

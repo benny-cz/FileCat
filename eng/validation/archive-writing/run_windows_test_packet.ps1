@@ -52,7 +52,9 @@ $task = "FcRun-$RunId"
 # beside a #not+X, or names that differ only in case, which NTFS and the child's own table do not tell apart - wrote over
 # each other and hid a failure; and a project path holding `..` reached out of the hash-pinned packet (the forty-ninth
 # review) - a test entry's path ends at its shard's `#`, a build: or publish: entry's at its own end, as the child takes
-# them (the fiftieth). Both are refused before a run starts, as the evidence check refuses them in a sealed run.
+# them (the fiftieth). Both are refused before a run starts, as the evidence check refuses them in a sealed run. So
+# is a test entry that names no project file - a solution, the packet's root, or nothing between two commas - whose
+# projects dotnet runs as one listed process, each writing over the last one's results file (the fifty-first review).
 $names = @{}
 foreach ($entry in $Projects.Split(',')) {
     if ($entry -eq 'parallel:on' -or $entry.StartsWith('expand:')) { continue }
@@ -62,6 +64,7 @@ foreach ($entry in $Projects.Split(',')) {
     elseif ($entry.Contains('#')) { $spec = $entry.Substring($entry.IndexOf('#') + 1); $project = $entry.Substring(0, $entry.IndexOf('#')) }
     if ($project.Contains('..')) { throw "A project path leaves the packet: $entry" }
     if ($entry.StartsWith('build:') -or $entry.StartsWith('publish:')) { continue }
+    if (-not $project.EndsWith('.csproj', [StringComparison]::OrdinalIgnoreCase)) { throw "A test entry names no project file: '$entry'" }
     $name = [IO.Path]::GetFileNameWithoutExtension($project)
     if ($spec) {
         $negated = $spec.StartsWith('~') -or $spec.StartsWith('!'); if ($negated) { $spec = $spec.Substring(1) }

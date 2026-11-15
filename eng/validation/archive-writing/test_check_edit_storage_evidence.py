@@ -259,17 +259,18 @@ def with_child_cmd(contents):
 
 
 def sealed(leaf, text, unix):
-    """A member's bytes as its runner writes them: the Unix runner's status ends in a newline; the Windows runner's in
-    a carriage return and a newline, its console logs - Windows PowerShell 5.1's `*>` - are UTF-16 with a mark, and
-    its machine.json is in the ANSI code page (`Set-Content`), cp1252 on a Western system. Bytes a case gives stand."""
+    """A member's bytes as its runner writes them now: the Unix runner's status ends in a newline; the Windows runner's
+    in a carriage return and a newline, its console logs - Windows PowerShell 5.1's `*>` - are UTF-16 with a mark, and
+    its machine.json and summary.json are UTF-8 with a mark (`Set-Content -Encoding UTF8`, since the forty-ninth review;
+    the r35 lanes' were in the ANSI code page with no mark, which a case builds as bytes). Bytes a case gives stand."""
     if isinstance(text, bytes):
         return text
     if leaf == 'status.txt' and unix:
         text = text.replace('\r\n', '\n')
     if leaf.split('/')[-1].startswith('test-') and not unix:
         return bytes((0xFF, 0xFE)) + text.encode('utf-16-le')
-    if leaf == 'machine.json' and not unix:
-        return text.encode('cp1252')
+    if leaf in ('machine.json', 'summary.json') and not unix:
+        return bytes((0xEF, 0xBB, 0xBF)) + text.encode('utf-8')
     return text.encode('utf-8')
 
 
@@ -306,13 +307,18 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_accepts_a_windows_run_whose_other_platform_s_class_stepped_aside(self):
         """The dual-root pin is the same method in two classes, and a Windows run holds both: the Core suite's Unix
-        class says "Run the Windows native storage lane." while the Windows platform suite's own class passes."""
+        class says "Run the Windows native storage lane." while the Windows platform suite's own class passes - read in
+        either order, and r35's reads the Unix class first, the Core suite's results file before the platform suite's
+        (the fifty-first review: every fixture had the passing row first)."""
         pin = checker.PINS[2]
-        trx = (PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pin) +
-               '<UnitTestResult testName="FileCat.Core.Tests.UnixEditStorageTests.%s" outcome="NotExecuted" />' % pin)
-        problems, facts = self.check(files(trx=trx))
-        self.assertEqual([], problems)
-        self.assertEqual(2, len(facts['pins'][pin]))
+        passed = '<UnitTestResult testName="FileCat.Platform.Windows.Tests.WindowsEditStorageTests.%s" outcome="Passed" />' % pin
+        aside = '<UnitTestResult testName="FileCat.Core.Tests.UnixEditStorageTests.%s" outcome="NotExecuted" />' % pin
+        rest = PASSING_TRX.replace('<UnitTestResult executionId="2" testName="FileCat.Tests.%s" outcome="Passed" />' % pin, '')
+        for first, trx in (('the class that stepped aside', rest + aside + passed), ('the class that passed', rest + passed + aside)):
+            with self.subTest(first=first):
+                problems, facts = self.check(files(trx=trx))
+                self.assertEqual([], problems)
+                self.assertEqual(2, len(facts['pins'][pin]))
 
     def test_refuses_a_run_in_which_every_case_of_a_pin_stepped_aside(self):
         """A pin stands only where it ran: every case of it NotExecuted is no evidence, whichever pin it is - the
@@ -1104,8 +1110,8 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_reads_the_windows_env_only_as_child_cmd_passed_it(self):
         """The recorded Env reaches the child through child.cmd, which cmd.exe reads again - expanding %...%, ending at
-        a line break - and machine.json is written in the ANSI code page with best-fit, so a fullwidth semicolon in a
-        value reads there as a real one while the child was given one variable. The record is trusted only as plain
+        a line break - and machine.json was in the ANSI code page with best-fit (r35's), so a fullwidth semicolon in
+        a value read there as a real one while the child was given one variable. The record is trusted only as plain
         printable ASCII without %, ! or ^, and only where the sealed child.cmd - the runner's own launcher, read whole -
         passes exactly it."""
         gate = checker.GATE_NAME
@@ -1855,9 +1861,9 @@ class EvidenceChecks(unittest.TestCase):
             self.assertEqual(text, report.read_text(encoding='utf-8'))
 
     def test_reads_windows_wherever_its_caption_says_the_word(self):
-        """`Os` is the system's caption in its own language, written in its ANSI code page, and read by a prefix the
-        first of these named no system at all (the forty-eighth review): Windows is named wherever the word stands, and
-        what is not UTF-8 is read as a replacement character."""
+        """`Os` is the system's caption in its own language, written in its ANSI code page by the runner that sealed the
+        r35 lanes, and read by a prefix the first of these named no system at all (the forty-eighth review): Windows is
+        named wherever the word stands, and what is not UTF-8 is read as a replacement character."""
         for caption, page in (('Майкрософт Windows 10 Pro 10.0.19045.0', 'cp1251'),
                               ('Microsoft Windows 11 Pro für Workstations 10.0.26100.0', 'cp1252'),
                               ('Windows 11 Pro 10.0.26100.0', 'cp1252')):
@@ -2083,6 +2089,8 @@ class EvidenceChecks(unittest.TestCase):
                                   ('tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit,..\\x\\B.csproj', True),
                                   ('publish:#\\..\\..\\..\\edit-r34-win\\src\\src\\FileCat.App\\FileCat.App.csproj', True),
                                   ('build:x#\\..\\other\\A.csproj', True),
+                                  ('expand:C:\\FileCatValidation\\aw-claude\\packets\\..\\packets\\X.zip,'
+                                   'tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit', False),
                                   ('tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit..Native', False)):
             with self.subTest(projects=projects):
                 contents = self.windows_record(recorded)
@@ -2244,6 +2252,35 @@ class EvidenceChecks(unittest.TestCase):
         problems, _ = self.check(record, unix=True)
         self.assertTrue(any("sets 'filecat_archive_txf_native', outside FILECAT_" in problem for problem in problems),
                         problems)
+
+    def test_reads_a_deflated_zip64_member_s_compressed_size_from_its_own_field(self):
+        """A zip64 field states the plain size first and the compressed size second, and a deflated member's two differ:
+        the compressed one is what its span is measured by (the fifty-first review - every zip64 member here had been
+        stored, its two sizes alike)."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'edit-z64-deflated-evidence.zip'
+            with zipfile.ZipFile(path, 'w') as held:
+                for name, text in with_child_cmd(files()).items():
+                    held.writestr(name.replace('/', '\\'), sealed(name, text, False))
+                packed = zipfile.ZipInfo('zz-packed.bin')
+                packed.compress_type = zipfile.ZIP_DEFLATED
+                with held.open(packed, 'w', force_zip64=True) as member:
+                    member.write(b'p' * 5000)
+            with zipfile.ZipFile(path) as held:
+                item = held.getinfo('zz-packed.bin')
+                self.assertLess(item.compress_size, item.file_size)
+                self.assertIsNone(held.testzip())
+            self.assertEqual([], checker.check(path)[0])
+
+    def test_reads_a_windows_run_as_the_r35_lanes_sealed_it(self):
+        """The runner that sealed the r35 lanes wrote machine.json and summary.json in the ANSI code page with no mark;
+        it writes them in UTF-8 with a mark now, as the fixtures seal them, and an archive of either is read."""
+        contents = with_child_cmd(files())
+        contents['machine.json'] = contents['machine.json'].encode('cp1252')
+        contents['summary.json'] = contents['summary.json'].encode('cp1252')
+        problems, facts = self.check(contents)
+        self.assertEqual([], problems)
+        self.assertEqual('windows', facts['system'])
 
 
 if __name__ == '__main__':

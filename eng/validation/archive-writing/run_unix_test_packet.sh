@@ -44,13 +44,15 @@ for P in "${PROJECTS[@]}"; do ( LC_ALL=C; [[ "$P" =~ $PRINTABLE ]] ) || { echo "
 # over each other and hid a failure; and a project path holding `..` reached out of the hash-pinned packet (the
 # forty-ninth review) - a test entry's path ends at its shard's `#`, a build: or publish: entry's at its own end, as
 # the steps below take them (the fiftieth). Both are refused before a run starts, as the evidence check refuses them in
-# a sealed run.
+# a sealed run. So is a test entry that names no project file - a solution, the packet's root - whose projects dotnet
+# runs as one listed process, each writing over the last one's results file (the fifty-first review).
 NL=$'\n'; NAMES=$NL
 for P in "${PROJECTS[@]}"; do
   case "$P" in env:*|hang:*|parallel:*) continue ;; esac
   case "$P" in build:*|publish:*) path=${P#build:}; path=${path#publish:} ;; *) path=${P%%#*} ;; esac
   case "$path" in *..*) echo "bad project entry" >&2; exit 2 ;; esac
   case "$P" in build:*|publish:*) continue ;; esac
+  case "$path" in *.csproj) ;; *) echo "bad project entry" >&2; exit 2 ;; esac
   csproj=${P%%#*}; spec=""; [ "$csproj" = "$P" ] || spec=${P#*#}
   name=$(basename "$csproj" .csproj)
   if [ -n "$spec" ]; then

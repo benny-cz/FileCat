@@ -1,5 +1,43 @@
 # Archive writing implementation status
 
+**15 November, what no case could tell, and fixtures as the runner seals now (round fifty-one).** Asked again
+whether anything was left that the mechanism did not report, the reviewer found three things at High - two of them by
+the grading's letter - and two at Medium:
+
+- **High: a zip64 member's compressed size was read by a subscript no case could tell from the other.** Its zip64
+  field states the plain size first and the compressed second, and every zip64 member the suite built was stored,
+  its two sizes alike, so reading the first changed no verdict - though read so, an ordinary writer's deflated zip64
+  member is refused, and round forty-six's stretched-directory forgery with its wide member deflated accepted. A
+  deflated zip64 member is a case now, with its own entry.
+- **High, by the grading's letter: a prefix the packet rule passes over was held by no case** - `expand:`, a Windows
+  package path the child resolves and bounds to C:\FileCatValidation itself, which may hold `..`. A launcher whose
+  package path holds one is a case now, and each prefix the rule passes over has an entry; `hang:` and `parallel:` are
+  read as paths now, since no entry a runner admits under them holds `..`.
+- **High, by the grading's letter: the check and the suite still said the Windows runner writes its JSON records in
+  the ANSI code page**, which it has not since the forty-ninth review, and the fixtures sealed them so by default. The
+  texts say which runner wrote which, and the fixtures seal what the runner writes now - UTF-8 with a mark - with the
+  r35 lanes' shape a case of its own.
+- **Medium: the dual-root pin's "a case of it passed" loop was held by no case.** Every fixture put the passing row
+  first, where r35's own Windows lane reads the Unix class's not-executed row first - its Core results file before the
+  platform suite's - so read to its first case alone, the sealed r35 Windows edit lane was refused and no case said so.
+  The case reads both orders now, with an entry.
+- **Medium: the two records below said six of r35's own Windows `-Projects` values passed the runners' refusals.** r35
+  has five Windows lanes, the full lane's `#!` written `#~` as the runner takes it, and the sixth value was the length
+  probe of round forty-four. Corrected where they stand.
+- Low, closed or recorded: a test entry naming no project file - a solution, the packet's root, a bare shard, nothing
+  between two commas - ran every project it reached as one listed process, each writing over the last one's results
+  file, so a reason in one could go unread (no verdict change was found: the exit codes still carried the failures);
+  both runners refuse one before a run now. A zip64 field of exactly fifteen bytes and a summary's missing failure
+  counter matter to forged archives alone (boundary 1).
+
+The runners' new refusal was probed against r35's own lists - nine Unix entry lists under bash 5.3, 3.2 and 5.2 and
+the five Windows lanes' `-Projects` values under Windows PowerShell 5.1 pass, the full lane's `#!` written `#~` - and
+eighteen Unix and twenty Windows shapes read as expected, the length probe now among those refused; the whole Unix
+runner parses under bash 3.2 and 5.2. The fourteen r35 archives read exactly as before (five accepted, nine refused)
+and all 23 manifest digests match. One hundred and thirty-three cases for the check and fourteen for the manifest; the harness lists two hundred and nineteen
+rules, one hundred and ninety-two held by a verdict, twenty-seven noted as redundant, caseless or raising, and none unheld or contradicted; the
+audit prints fifty lines.
+
 **15 November, a built path read to its end, and rules held in expressions (round fifty).** Asked again whether
 anything was left that the mechanism did not report, the reviewer found three things at High and one at Medium:
 
@@ -33,11 +71,12 @@ anything was left that the mechanism did not report, the reviewer found three th
   accepting stdout where `--out` is unwritten - the release reads `--out` and the exit code.
 
 The runners' corrected refusal was probed against r35's own lists - nine Unix entry lists under bash 5.3, 3.2 and 5.2,
-and six Windows `-Projects` values under Windows PowerShell 5.1, pass, and fourteen shapes each read as expected, the
-two new ones refused - and the whole Unix runner parses under bash 3.2 and 5.2. The fourteen r35 archives read exactly
-as before (five accepted, nine refused) and all 23 manifest digests match. One hundred and thirty-one cases for the
-check and fourteen for the manifest; the harness lists two hundred and fifteen rules, one hundred and eighty-eight held
-by a verdict, twenty-seven noted as redundant, caseless or raising, and none unheld or contradicted; the audit prints
+and six Windows `-Projects` values under Windows PowerShell 5.1 (five of r35's lanes, the full lane's `#!` written `#~`,
+and the length probe of round forty-four - the round above), pass, and fourteen shapes each read as expected, the two
+new ones refused - and the whole Unix runner parses under bash 3.2 and 5.2. The fourteen r35 archives read exactly as
+before (five accepted, nine refused) and all 23 manifest digests match. One hundred and thirty-one cases for the check
+and fourteen for the manifest; the harness lists two hundred and fifteen rules, one hundred and eighty-eight held by a
+verdict, twenty-seven noted as redundant, caseless or raising, and none unheld or contradicted; the audit prints
 fifty-one lines.
 
 **15 November, one log for each test process, and every loop held (round forty-nine).** Asked again whether anything
@@ -91,7 +130,8 @@ was left that the mechanism did not report, the reviewer found three things at H
   runner writes.
 
 The runners' new refusals were probed against r35's own lists - nine Unix entry lists under bash 5.3, 3.2 and 5.2 and
-six Windows `-Projects` values under Windows PowerShell 5.1 pass, and twelve shapes each runner must refuse or accept
+six Windows `-Projects` values under Windows PowerShell 5.1 (five of r35's lanes, the full lane's `#!` written `#~`, and
+the length probe of round forty-four - the fifty-first review) pass, and twelve shapes each runner must refuse or accept
 read as expected - and the round below's fifty Windows and sixty-two Unix inputs still read as expected under Windows
 PowerShell 5.1 and bash 5.3. The fourteen r35 archives read exactly as they did at the round below (five accepted, nine
 refused) and all 23 manifest digests match. One hundred and twenty-six cases for the check and fourteen for the
