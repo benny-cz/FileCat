@@ -108,7 +108,7 @@ public sealed partial class ArchiveListingRevisionTests
     }
 
     [Fact]
-    public void Hiding_or_showing_a_listing_never_waits_for_the_index_its_read_is_waiting_for()
+    public async Task Hiding_or_showing_a_listing_never_waits_for_the_index_its_read_is_waiting_for()
     {
         using var temp = new TempDir(); using var file = Plain(temp);
         var probe = new Probe(file, holdLease: true);
@@ -120,7 +120,7 @@ public sealed partial class ArchiveListingRevisionTests
             first.Dispose();
             probe.Revision.Show(long.MaxValue).Dispose();
         }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-        bool returned = panel.Wait(Patience, Ct);
+        bool returned = await Task.WhenAny(panel, Task.Delay(Patience, Ct)) == panel;
         probe.ReleaseLease();
         Assert.True(returned, "Hiding or showing the listing waited for the index the read waits for.");
         Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, Patience));

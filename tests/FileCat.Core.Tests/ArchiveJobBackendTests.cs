@@ -163,7 +163,7 @@ public sealed class ArchiveJobBackendTests
         });
         var manager = Manager(temp, backend); var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
         var first = manager.SubmitArchive(new(Path.Combine(temp.Dir("one"), "first.tar"), null, [], Profile: profile), description: "Pack first");
-        Assert.True(entered.Wait(TimeSpan.FromSeconds(15)));
+        Assert.True(entered.Wait(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));
         // Different folders: nothing but the one-at-a-time rule holds the second job back.
         var second = manager.SubmitArchive(new(Path.Combine(temp.Dir("two"), "second.tar"), null, [], Profile: profile), description: "Pack second");
         Assert.Equal(JobState.Queued, second.State); Assert.Same(first, second.WaitingFor);
