@@ -409,8 +409,19 @@ besides the ones those rules read - the test-process logs told by their prefix f
 a gzipped tar's stream measured over every block, where the suite's tars fitted in one; and the record scanned for what
 dotnet changes only on the lines that hand the tests something, where the Unix record's `df` line holds `%` - and the
 Windows runner's account and launch records still in the ANSI code page beneath words that said all its JSON records
-were UTF-8. The fixtures seal every member the runners seal, as r35's edit lanes hold them; each rule has an entry and
+were UTF-8. The fixtures seal every member the runners seal, as r35's edit lanes hold them (the members, not each in r35's
+shapes - the fifty-third review); each rule has an entry and
 an accepted tar longer than a block is a case; the runner writes those two records in UTF-8 and the words name the
 records they mean; the audit names lines by where an entry's text lies; and the wrapper takes the packet and SDK by
 full paths alone - the r35 verdicts unchanged. One hundred and thirty-four cases hold the check and fourteen the manifest; the harness lists
 two hundred and twenty-five rules, one hundred and ninety-eight held by a verdict, twenty-seven noted, none unheld or contradicted.
+
+The fifty-third review found five rules the sealed lanes rest on held by no case, the fixtures holding the right
+members but not in r35's shapes - a result's name and outcome read across the logger's attributes, a built or published
+entry refused for `..` alone, a launcher argument's `+`, a member's name compared as its directory wrote it, a Unix
+test line's `!` - each of which, weakened, refuses sealed r35 lanes; the records saying the fixtures held r35's shapes;
+three comparisons held on one side only; and the Unix class's leading dot held by no case. Two cases are built as
+r35's own lanes, each rule and each comparison's other side has an entry and a case, the words say what the fixtures
+hold, and the Unix runner matches its run folder as text - the r35 verdicts unchanged. One hundred and thirty-eight cases hold the check
+and fourteen the manifest; the harness lists two hundred and thirty-four rules, two hundred and seven held by a verdict, twenty-seven noted, none unheld or
+contradicted.

@@ -76,7 +76,10 @@ others() {
   for pid in $(pgrep -f 'FileCat\.(App|Core\.Tests|Remote\.Tests|App\.Tests|Rendering\.Tests)|testhost|vstest\.console|ArchiveFuzzHarness|FileCat\.ArchiveWorker' || true); do
     args=$(ps -o args= -p "$pid" 2>/dev/null || true)
     case "$args" in *run_unix_test_packet.sh*|"") continue ;; esac
-    echo "$pid $args" | grep -v -- "$D" || true
+    # The run folder matched as text: read as a pattern, a `.` in RUN_ID matched any character, so another run's folder
+    # differing there passed for this one's (the fifty-third review).
+    case "$args" in *"$D"*) continue ;; esac
+    echo "$pid $args"
   done
 }
 if [ -n "$(others)" ]; then echo "another tester owns this machine:" >&2; others >&2; exit 3; fi
@@ -92,9 +95,11 @@ finish() {
   # Only processes running from inside the run folder: a sibling path such as RUN_ID.log in a caller's arguments is not
   # ours - nor is this runner, whose own command line holds "$D/" where an argument points inside the run folder, and
   # which pkill took before it sealed (the forty-ninth review).
-  # (Each pattern opens with `(`: bash 3.2 misreads a case pattern's lone `)` inside $(...).)
+  # (Each pattern opens with `(`: bash 3.2 misreads a case pattern's lone `)` inside $(...).) pgrep reads its pattern as
+  # a regular expression, so each process it finds is taken only where its arguments hold "$D/" as text.
   leftover=$(for pid in $(pgrep -f "$D/" || true); do
-    case "$(ps -o args= -p "$pid" 2>/dev/null || true)" in (*run_unix_test_packet.sh*|"") ;; (*) printf '%s ' "$pid" ;; esac
+    case "$(ps -o args= -p "$pid" 2>/dev/null || true)" in
+      (*run_unix_test_packet.sh*|"") ;; (*"$D/"*) printf '%s ' "$pid" ;; (*) ;; esac
   done)
   if [ -n "$leftover" ]; then echo "leftover processes" >>"$D/status.txt"; kill $leftover 2>/dev/null || true; fi
   # Published apps are rebuilt from the pinned packet, so the evidence keeps each published file's SHA-256 instead of

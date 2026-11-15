@@ -1,5 +1,43 @@
 # Archive writing implementation status
 
+**15 November, lanes built as r35's own (round fifty-three).** Asked again whether anything was left that the
+mechanism did not report, the reviewer found three things at High - one of them by the grading's letter - and one at
+Medium:
+
+- **High: five rules the sealed lanes rest on were held by no case - the fixtures held the right members, not in
+  r35's shapes.** A result's name and outcome are read across the attributes the logger writes between them, and
+  every fixture row had the two side by side; a built or published entry is refused for `..` alone, and every one in
+  the suite held `..`; a launcher argument may hold `+`, as a shard of two classes does, and no fixture launcher had
+  one; a member's name is compared as its directory wrote it, and Compress-Archive splits r35's names with a
+  backslash, which zipfile cannot write on Windows; and a Unix test line's `!` is passed, as a negated shard's is, and
+  no fixture line held one. Weakened, each refuses sealed r35 lanes - the three edit lanes for the first, the Windows
+  edit lane for the next three, the two full Unix lanes for the last - while no case changed. Two cases are built as
+  r35's own lanes now: the Windows edit lane (its launcher's publish entry and `+` shard, its members deflated and
+  named with backslashes, the logger's rows across three results files, the Unix class's row stepped aside with its
+  reason before the Windows class's passed, its records in the ANSI code page) and a full Unix lane (a build and a
+  publish entry, a shard and its negated twin, the logger's rows). Each rule has an entry.
+- **High: the records said the fixtures seal what the runners seal "as r35's edit lanes hold them"** - true of the
+  members, not of their shapes. The suite's words say which now, and the records' are corrected where they stand.
+- **High, by the grading's letter: three comparisons were held on one side only** - more test logs than listed
+  processes, an exit code below zero (Windows' -1 for a job that returned nothing, a crash's status code), and a
+  failure counter below zero. A case holds the other side of each now, with an entry.
+- **Medium: the Unix class's own leading dot was held by no case** - without it a class nested in another,
+  `Outer+UnixEditStorageTests`, read as the Unix family, where the Windows mirror had a case. One holds it now, with an
+  entry.
+- Low, closed or recorded: the Unix runner matched its run folder as a pattern, so a `.` in a run's name matched
+  another run's folder differing there - it matches the folder as text now (probed on the Mac and on Ubuntu beside such
+  a folder); the suite's bsdtar half ran only where bsdtar was found, out of sight of the harness's stop on a skipped
+  case - it skips where it cannot run now. Forged-only precision - the result pattern's laziness, the launcher's
+  excluded control characters and fixed words, the odd-argument rule on the hang minutes, the zip half of a leaf's
+  split (a no-op on Windows), the floor's and the overlap test's one-block and one-byte tolerances - is boundary 1.
+  And the reports the `048bf334` manifest carries predate the system-and-digest tail, as ledger row 13 says: the next
+  manifest carries fresh ones.
+
+The fourteen r35 archives read exactly as before (five accepted, nine refused), all 23 manifest digests match, and the
+Unix runner parses under bash 3.2 and 5.2. One hundred and thirty-eight cases for the check and fourteen for the manifest; the harness lists
+two hundred and thirty-four rules, two hundred and seven held by a verdict, twenty-seven noted as redundant, caseless or raising, and none unheld or
+contradicted; the audit prints forty-eight lines.
+
 **15 November, fixtures with every member the runners seal (round fifty-two).** Asked again whether anything was
 left that the mechanism did not report, the reviewer found four things at High, one of them by the grading's letter:
 
@@ -10,7 +48,7 @@ left that the mechanism did not report, the reviewer found four things at High, 
   several blocks of 1 MiB, where every tar the suite accepted fitted in one. And the record's characters dotnet changes
   are looked for only on the lines that hand the tests something - the Unix record's `df` line holds `%`, and scanned
   whole, all four accepted r35 Unix archives are refused. The fixtures now seal what the runners seal, member by
-  member, as r35's edit lanes hold them: each runner's build log; the Windows runner's scheduled task's log, account
+  member, as r35's edit lanes hold them (the members, though not each in r35's shapes, the round above found): each runner's build log; the Windows runner's scheduled task's log, account
   and launch records and child script and output, every log in UTF-16 and every JSON record and TRX file with a UTF-8
   mark; the Unix runner's start, finish and exit files, and its record's own lines - the system's description, its
   CPUs, the SDK, the `df` line, and its entry, hang and parallel lines; and both runners' empty attachment folders. An

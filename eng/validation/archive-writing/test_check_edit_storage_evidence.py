@@ -153,6 +153,54 @@ SUMMARY = {"ok": True, "failed": [], "exit_codes": {"FileCat.App.Tests-Edit": 0}
 TEST_LINE = 'test FileCat.App.Tests-Edit: (FullyQualifiedName~Edit)'
 
 
+def logger_row(test, outcome, message=None, number=0):
+    """A result row as the test platform's TRX logger writes it: its name and its outcome far apart, with the
+    attributes the logger writes between them, and a skipped row's reason in its error message (as r35's rows hold
+    them; the fifty-third review found the result pattern held by no case for want of them)."""
+    ids = '%08x-6184-4683-a741-%012x' % (number, number)
+    row = ('<UnitTestResult executionId="%s" testId="%s" testName="%s" computerName="FILECAT-VM" duration="00:00:00.0071731" '
+           'startTime="2026-11-14T08:30:44.0704720+01:00" endTime="2026-11-14T08:30:44.0776835+01:00" '
+           'testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="%s" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" '
+           'relativeResultsDirectory="%s"' % (ids, ids, test, outcome, ids))
+    if message is None:
+        return '    ' + row + ' />\r\n'
+    return ('    ' + row + '>\r\n      <Output>\r\n        <ErrorInfo>\r\n          <Message>%s</Message>\r\n'
+            '        </ErrorInfo>\r\n      </Output>\r\n    </UnitTestResult>\r\n' % message)
+
+
+def logger_trx(rows):
+    """A TRX file as the logger writes it, around its result rows."""
+    return ('<?xml version="1.0" encoding="utf-8"?>\r\n<TestRun id="2e34b0aa-6184-4683-a741-373b45165ae0" '
+            'name="filecat@FILECAT-VM 2026-11-14 08:29:20" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
+            '\r\n  <Results>\r\n' + ''.join(rows) + '  </Results>\r\n</TestRun>\r\n')
+
+
+def zip_with_backslashes(path, members):
+    """A zip as Compress-Archive writes one: each file deflated, each folder stored, and every name's folders split
+    with a backslash - the bytes of each name rewritten after zipfile wrote it, since zipfile turns a backslash into a
+    slash on Windows (the fifty-third review found no case holding a name so written)."""
+    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as held:
+        for name, blob in members:
+            if name.endswith('/'):
+                held.writestr(zipfile.ZipInfo(name), b'')
+            else:
+                held.writestr(name, blob)
+    data = path.read_bytes()
+    for name, _ in members:
+        if '/' in name:
+            raw, folded = name.encode('ascii'), name.replace('/', '\\').encode('ascii')
+            assert data.count(raw) == 2, name  # its local header and its directory entry
+            data = data.replace(raw, folded)
+    path.write_bytes(data)
+
+
+R35_PROJECTS = ('publish:src\\FileCat.App\\FileCat.App.csproj,tests\\FileCat.Core.Tests\\FileCat.Core.Tests.csproj'
+                '#Edit+NativeEditStorage,tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit,'
+                'tests\\FileCat.Platform.Windows.Tests\\FileCat.Platform.Windows.Tests.csproj#Edit')
+R35_ENV = ('FILECAT_ARCHIVE_CONTAINMENT=1;FILECAT_ARCHIVE_TXF_NATIVE=1;FILECAT_EDIT_NATIVE_REQUIRED=1;'
+           'FILECAT_ARCHIVE_APP_ASSETS={run}\\publish\\FileCat.App')
+
+
 SECOND = 'FileCat.Core.Tests-Edit-NativeEditStorage'
 
 
@@ -202,8 +250,11 @@ def windows_json(record):
 
 def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything ran\n', status='PASS\r\n',
           gate_value=None, system='Microsoft Windows 11 Pro 10.0.26220.0'):
-    """The files the runners seal, as a name-to-text map, member by member as each runner writes them - the r35
-    edit lanes' own members the model; each argument stands for one way a run can differ. The machine record is the one
+    """The files the runners seal, as a name-to-text map: each member r35's edit lanes hold, though not each in
+    every shape r35's has - the result rows here are short, the launcher's projects plain, the Windows zip's members
+    stored and its names split with `/` - shapes the cases built as r35's own lanes carry instead (the fifty-third
+    review found five rules the sealed lanes rest on held by none of these fixtures); each argument stands for one way
+    a run can differ. The machine record is the one
     the system's own runner writes: the Windows runner's `machine.json`, its caption in `Os` with what is not ASCII as
     written, and its tests.txt; the Unix runner's `machine.txt` - the lines `unix_head` gives, then `packet=`, `filter=`,
     an `entry=` line per entry, its `hang=`, `parallel=` and `env=` lines and a `test` line for its test process. Beside
@@ -326,7 +377,9 @@ def sealed(leaf, text, unix):
 def archive(directory, name, contents, unix=False):
     """The archive its runner seals of these contents, folders and all: the Unix runner tars its run folder - that
     folder, its results folder and the test platform's attachment folder are members of it - and the Windows runner
-    zips the folder's contents, the empty attachment folder an entry of its own, as r35's archives hold them."""
+    zips the folder's contents, the empty attachment folder an entry of its own - the members as r35's archives hold
+    them, though here stored where Compress-Archive deflates and named with `/` where it writes a backslash, which
+    zipfile cannot write on Windows; `zip_with_backslashes` writes those."""
     contents = with_child_cmd(contents)
     path = Path(directory) / name
     if unix:
@@ -931,13 +984,16 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_refuses_a_run_whose_pin_passed_only_in_a_unix_class_of_its_own(self):
         """The mirror of the Windows-side case: a class renamed on the Unix side left the family unsaid too, and the
-        record went unchallenged."""
+        record went unchallenged - one nested in another as well, whose name the class's own leading dot keeps from
+        being read as the Unix class (the fifty-third review)."""
         pin = checker.PINS[2]
-        trx = PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Core.Tests.UnixEditStorageTestsV2.' + pin)
-        problems, _ = self.check(files(trx=trx, system='Linux host 6.0.0 x86_64 GNU/Linux'), unix=True)
-        self.assertIn('its results hold no passing dual-root pin in either platform class '
-                      '(WindowsEditStorageTests or UnixEditStorageTests), so nothing in the run itself says '
-                      'what produced it', problems)
+        for renamed in ('FileCat.Core.Tests.UnixEditStorageTestsV2.', 'FileCat.Core.Tests.Outer+UnixEditStorageTests.'):
+            with self.subTest(renamed=renamed):
+                trx = PASSING_TRX.replace('FileCat.Tests.' + pin, renamed + pin)
+                problems, _ = self.check(files(trx=trx, system='Linux host 6.0.0 x86_64 GNU/Linux'), unix=True)
+                self.assertIn('its results hold no passing dual-root pin in either platform class '
+                              '(WindowsEditStorageTests or UnixEditStorageTests), so nothing in the run itself says '
+                              'what produced it', problems)
 
     def test_gives_no_verdict_to_an_archive_it_has_found_fault_with(self):
         """The line that turns findings into a refusal, and the one the release manifest matches: without it a lane
@@ -1129,17 +1185,20 @@ class EvidenceChecks(unittest.TestCase):
                         member.write(b'{}' * 48)
             with checker.Archive(path) as held:
                 self.assertIsNone(held.listing_gap())
+            # bsdtar's half: where it is not found the case says so as a skip, which measure_rules.py stops on, rather
+            # than passing with half of it unrun (the fifty-third review).
             found = self.tar_called('bsdtar')
-            if found is not None:
-                tree = Path(directory) / 'run'
-                tree.mkdir()
-                (tree / 'empty.txt').write_bytes(b'')
-                (tree / 'a.txt').write_text('x', encoding='utf-8')
-                done = subprocess.run([found, '--format', 'zip', '--options', 'zip:zip64', '-cf', 'wide.zip', 'run'],
-                                      cwd=directory, capture_output=True)
-                if done.returncode == 0:
-                    with checker.Archive(Path(directory) / 'wide.zip') as held:
-                        self.assertIsNone(held.listing_gap())
+            if found is None:
+                self.skipTest('no bsdtar here: the half of this case it writes cannot run')
+            tree = Path(directory) / 'run'
+            tree.mkdir()
+            (tree / 'empty.txt').write_bytes(b'')
+            (tree / 'a.txt').write_text('x', encoding='utf-8')
+            done = subprocess.run([found, '--format', 'zip', '--options', 'zip:zip64', '-cf', 'wide.zip', 'run'],
+                                  cwd=directory, capture_output=True)
+            self.assertEqual(0, done.returncode, done.stderr)
+            with checker.Archive(Path(directory) / 'wide.zip') as held:
+                self.assertIsNone(held.listing_gap())
 
     def test_names_an_archive_cut_short_and_still_reports_the_rest(self):
         """A tar cut off inside a member raises from the reader itself, which once ended the whole run with a traceback:
@@ -2351,6 +2410,120 @@ class EvidenceChecks(unittest.TestCase):
             path = archive(directory, 'edit-large-evidence.tar.gz', contents, unix=True)
             self.assertGreater(path.stat().st_size, 1 << 20)
             self.assertEqual([], checker.check(path)[0])
+
+    def test_accepts_a_windows_edit_lane_shaped_as_r35_s(self):
+        """The Windows edit lane as r35 holds it, in the shapes the rules read: the launcher's own projects - a publish
+        entry, and a shard of two classes joined by `+` - each file deflated and each name split with a backslash as
+        Compress-Archive writes them, the results rows as the logger writes them across three results files, the Unix
+        class's dual-root row stepped aside with its reason before the Windows class's passed, the records in the ANSI
+        code page of the runner that sealed it. The fifty-third review found five rules the sealed lanes rest on held by
+        no case, the fixtures' members shaped otherwise."""
+        pins = checker.PINS
+        app = logger_trx([logger_row('FileCat.App.Tests.EditStoreCompositionTests.' + pins[0], 'Passed', number=1),
+                          logger_row('FileCat.App.Tests.EditTestStores.A_theory(scenario: &quot;capture-gate&quot;)',
+                                     'Passed', number=2)])
+        core = logger_trx([logger_row('FileCat.Core.Tests.NativeEditStorageTests.' + pins[1], 'Passed', number=3),
+                           logger_row('FileCat.Core.Tests.UnixEditStorageTests.' + pins[2], 'NotExecuted',
+                                      'Run the Windows native storage lane.', number=4)])
+        platform = logger_trx([logger_row('FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pins[2], 'Passed',
+                                          number=5)])
+        names = ('FileCat.App.Tests-Edit', 'FileCat.Core.Tests-Edit-NativeEditStorage', 'FileCat.Platform.Windows.Tests-Edit')
+        suites = {name: {"total": 2, "passed": 2, "skipped": 0, "failed": 0, "counters_total": 2} for name in names}
+        summary = windows_json({"ok": True, "exit_codes": {name: 0 for name in names}, "failed": [], "suites": suites})
+        record = windows_json({"RunId": "edit-r35-win", "Os": "Microsoft Windows 11 Pro Insider Preview 10.0.26340.0",
+                               "Env": R35_ENV, "User": "Admin"})
+        tests = ''.join('test %s: %s\r\n' % (name, shard) for name, shard in (
+            (names[1], '(FullyQualifiedName~Edit|FullyQualifiedName~NativeEditStorage)'),
+            (names[0], '(FullyQualifiedName~Edit)'), (names[2], '(FullyQualifiedName~Edit)')))
+        utf16 = lambda text: bytes((0xFF, 0xFE)) + text.encode('utf-16-le')
+        marked = lambda text: bytes((0xEF, 0xBB, 0xBF)) + text.encode('utf-8')
+        launched = launcher(R35_ENV, run='C:\\FileCatValidation\\aw-claude\\edit-r35-win', projects=R35_PROJECTS,
+                            hang='25')
+        members = [('results/039f1593-6184-4683-a741-373b45165ae0/', b''),
+                   ('results/24b7231a-dcaa-471d-b059-1f1e70c99361/', b''),
+                   ('results/f90c1e6f-3835-4cfa-829e-bd8eca26fae2/', b''),
+                   ('results/' + names[0] + '.trx', marked(app)), ('results/' + names[1] + '.trx', marked(core)),
+                   ('results/' + names[2] + '.trx', marked(platform)),
+                   ('account.json', windows_json({"Name": "FILECAT-VM\\Admin", "ElevationType": 3}).encode('cp1252'))]
+        members += [('build-%s.log' % name.split('-')[0], utf16('  Determining projects to restore...\r\n'))
+                    for name in names]
+        members += [('child.cmd', launched.encode('ascii')), ('child.out', b''),
+                    ('child.ps1', b'param([string]$Run)\r\n'), ('launch.json', b'{\r\n    "Finished":  "2026"\r\n}\r\n'),
+                    ('machine.json', record.encode('cp1252')),
+                    ('publish-FileCat.App.log', utf16('  FileCat.App -> publish\\FileCat.App\\\r\n')),
+                    ('status.txt', b'PASS\r\n'), ('summary.json', summary.encode('cp1252')),
+                    ('task.log', utf16('SUCCESS: The scheduled task "FcRun-edit-r35-win" has successfully been created.\r\n'))]
+        members += [('test-%s.log' % name, utf16('[xUnit.net] everything ran\r\n')) for name in names]
+        members += [('tests.txt', tests.encode('ascii'))]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'edit-r35-win-evidence.zip'
+            zip_with_backslashes(path, members)
+            with zipfile.ZipFile(path) as held:
+                self.assertIn('results\\' + names[0] + '.trx', [item.orig_filename for item in held.infolist()])
+                self.assertIsNone(held.testzip())
+            problems, facts = checker.check(path)
+            self.assertEqual([], problems)
+            self.assertEqual('windows', facts['system'])
+
+    def test_accepts_a_unix_full_lane_shaped_as_r35_s(self):
+        """A full Unix lane as r35 holds one, in the shapes the rules read, with the entry lines its runner writes now:
+        a build entry and a publish entry, a shard and the negated shard beside it - whose test line holds `!`, which
+        dotnet passes on as written - the results rows as the logger writes them (the fifty-third review)."""
+        pins = checker.PINS
+        system = ('Linux filecat-ubuntu2404 7.0.0-43-generic #43~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Sat Oct 31 06:52:47 '
+                  'UTC 2 x86_64 x86_64 x86_64 GNU/Linux')
+        names = ('FileCat.Core.Tests-UnixArchiveStorageTests', 'FileCat.Core.Tests-not-UnixArchiveStorageTests',
+                 'FileCat.App.Tests')
+        lines = unix_head(system) + [
+            'packet=546d8caf28f54066cbb58e5d222a9e5aab464899ab35568b4108e01fc8c982d4', 'filter=*',
+            'entry=publish:src/FileCat.App/FileCat.App.csproj',
+            'entry=build:tests/FileCat.CoreCrashHarness/FileCat.CoreCrashHarness.csproj',
+            'entry=tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj#UnixArchiveStorageTests',
+            'entry=tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj#!UnixArchiveStorageTests',
+            'entry=tests/FileCat.App.Tests/FileCat.App.Tests.csproj', 'entry=hang:60', 'entry=parallel:on',
+            'entry=env:FILECAT_EDIT_NATIVE_REQUIRED=1', 'hang=60m', 'parallel=on', 'env=FILECAT_EDIT_NATIVE_REQUIRED=1',
+            'test %s: (FullyQualifiedName~UnixArchiveStorageTests)' % names[0],
+            'test %s: (FullyQualifiedName!~UnixArchiveStorageTests)' % names[1], 'test %s: *' % names[2]]
+        rows = {names[0]: [logger_row('FileCat.Core.Tests.UnixArchiveStorageTests.A_case', 'Passed', number=1)],
+                names[1]: [logger_row('FileCat.Core.Tests.NativeEditStorageTests.' + pins[1], 'Passed', number=2),
+                           logger_row('FileCat.Core.Tests.UnixEditStorageTests.' + pins[2], 'Passed', number=3)],
+                names[2]: [logger_row('FileCat.App.Tests.EditStoreCompositionTests.' + pins[0], 'Passed', number=4)]}
+        suites = {name: {"total": len(rows[name]), "passed": len(rows[name]), "skipped": 0, "failed": 0,
+                         "counters_total": len(rows[name])} for name in names}
+        contents = {'build-FileCat.App.Tests.log': '  Determining projects to restore...\n',
+                    'build-FileCat.CoreCrashHarness.log': '  Determining projects to restore...\n',
+                    'started.txt': '2026-11-14T08:48:57Z\n'}
+        contents.update({'results/%s.trx' % name: logger_trx(rows[name]) for name in names})
+        contents.update({'publish-FileCat.App.log': '  FileCat.App -> publish/FileCat.App/\n',
+                         'machine.txt': '\n'.join(lines) + '\n', 'finished.txt': '2026-11-14T09:58:02Z\n',
+                         'summary.json': json.dumps({"suites": suites, "failed": [], "ok": True,
+                                                     "exit_codes": {name: 0 for name in names}}, indent=2),
+                         'status.txt': 'PASS\n'})
+        contents.update({'exit-%s.txt' % name: '0\n' for name in names})
+        contents.update({'test-%s.log' % name: '[xUnit.net] everything ran\n' for name in names})
+        problems, facts = self.check(contents, unix=True)
+        self.assertEqual([], problems)
+        self.assertEqual('linux', facts['system'])
+
+    def test_refuses_more_test_logs_than_its_runner_listed_processes(self):
+        """A log of a process no line lists is no more its runner's than a line with no log: the count is compared
+        both ways (the fifty-third review found the other way held by no case)."""
+        contents = files()
+        contents['test-FileCat.Unlisted.Tests.log'] = '[xUnit.net] everything ran\n'
+        problems, _ = self.check(contents)
+        self.assertTrue(any('its runner listed 1 test processes where the archive holds the logs of 2' in problem
+                            for problem in problems), problems)
+
+    def test_refuses_a_suite_that_exited_below_zero_or_counted_failures_below_zero(self):
+        """An exit code below zero is a failure - Windows' -1 for a job that returned nothing, a crash's status code -
+        and a failure counter below zero is no clean count: each is refused, as one above zero is (the fifty-third
+        review found the lower side of each held by no case)."""
+        name = 'FileCat.App.Tests-Edit'
+        exited = dict(SUMMARY, exit_codes={name: -1073741819})
+        self.assertIn('suite %s exited -1073741819' % name, self.check(files(summary=exited))[0])
+        counters = dict(SUMMARY['suites'][name], failed=-1)
+        counted = dict(SUMMARY, suites={name: counters})
+        self.assertIn('suite %s has -1 failures' % name, self.check(files(summary=counted))[0])
 
 
 if __name__ == '__main__':
