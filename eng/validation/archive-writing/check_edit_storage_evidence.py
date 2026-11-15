@@ -74,6 +74,7 @@ import sys
 import tarfile
 import zipfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 # What each runner's own machine record calls the system it ran on: `Os` in the Windows runner's `machine.json`,
 # which says `Windows` whatever language the rest of the caption is in, and the first line of `uname -a` in the Unix
@@ -90,13 +91,20 @@ GATE = GATE_NAME + '=' + GATE_VALUE
 ARGUMENT = r'"([ !#$&-\]_-~]*)"'
 # cmd.exe reads about 8191 characters of what follows a program's name as written. Past that, an `&` inside quotes can
 # end the command and run the rest of the line as another (here from column 8249, after the launcher's 57-character
-# program path): the forty-fourth review cut an Env there, and the gate after the `&` never reached the child. So the
-# whole launcher line is held to 8191 characters, which leaves the program's path to spare.
+# program path): the forty-fourth review cut an Env there, and the gate after the `&` never reached the child. So
+# every line of the launcher is held to 8191 characters, which leaves the program's path to spare.
 CMD_LINE = 8191
-LAUNCHER = re.compile(
-    r'@echo off\r\nC:\\Windows\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe -NoProfile -ExecutionPolicy '
-    r'Bypass -WindowStyle Hidden -File {0} -Run {0} -Packet {0} -Filter {0} -Projects {0} -Dotnet {0} -Env {0} '
-    r'-HangMinutes [0-9]+ > {0} 2>&1\r\n'.replace('{0}', ARGUMENT))
+# The launcher's own text as the runner writes it - `{0}` where it passes a quoted argument, `{1}` its hang minutes -
+# and every other character of it read as written: escaped, not a pattern of its own. So a launcher differing from it
+# in any one character is not the runner's, and a character changed here refuses the runner's own launcher, which
+# every case accepting one notices. Written as a pattern by hand until the fifty-ninth review, its words, line ends and
+# the characters of its program's path were read more loosely than written by weakenings no case held (the
+# fifty-eighth and fifty-ninth reviews).
+LAUNCHER_TEXT = ('@echo off\r\n'
+                 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -ExecutionPolicy Bypass '
+                 '-WindowStyle Hidden -File {0} -Run {0} -Packet {0} -Filter {0} -Projects {0} -Dotnet {0} -Env {0} '
+                 '-HangMinutes {1} > {0} 2>&1\r\n')
+LAUNCHER = re.compile(re.escape(LAUNCHER_TEXT).replace(re.escape('{0}'), ARGUMENT).replace(re.escape('{1}'), '[0-9]+'))
 
 # The pins a listing stands on, by their method names (each lives in the suite its platform runs: the application's
 # composition pin, the Core route list, and the dual-root case in the platform's own storage tests).
@@ -124,9 +132,6 @@ STEP_ASIDE = (
     "The fixture's filesystem cannot be established here.",
     'is not a listed native edit storage route for',
 )
-
-RESULT = re.compile(r'<UnitTestResult\b[^>]*?\btestName="([^"]+)"[^>]*?\boutcome="([^"]+)"', re.S)
-RESULT_REVERSED = re.compile(r'<UnitTestResult\b[^>]*?\boutcome="([^"]+)"[^>]*?\btestName="([^"]+)"', re.S)
 
 
 class Archive:
@@ -591,7 +596,10 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
         if launched is None:
             return [], ('its child.cmd is not the launcher its runner writes, so the record cannot say what the tests '
                         'were given')
-        line = script.split('\r\n')[1]
+        # Its longest line, each line ending at a line feed with a carriage return before it not counted - so the bound
+        # holds whatever a launcher's line ends are. It read the line after the first CRLF until the fifty-ninth review:
+        # with the first line ended otherwise, that was the empty string after the last.
+        line = max((part.rstrip('\r') for part in script.split('\n')), key=len)
         if len(line) > CMD_LINE:
             return [], ("its child.cmd's launcher line is %d characters long, past the %d cmd.exe reads as written, so "
                         'the record cannot say what the tests were given' % (len(line), CMD_LINE))
@@ -687,16 +695,29 @@ def listed_tests(archive: Archive, record: str) -> list[str]:
     return [line for name in lists for line in own_lines(archive.read(name).split('\n')) if line.startswith('test ')]
 
 
-def outcomes(archive: Archive) -> dict[str, set[str]]:
-    """Every test result in the run's TRX files: its name to the outcomes it has (a test may be a theory's rows)."""
+def outcomes(archive: Archive) -> tuple[dict[str, set[str]], list[str]]:
+    """Every test result in the run's TRX files - its name to the outcomes it has (a test may be a theory's rows) - and
+    the files that are not XML at all.
+
+    A result is a `UnitTestResult` element, in the logger's namespace or in none, with its `testName` and `outcome`
+    attributes, read by an XML parser as XML reads them: in either order, in either quote, with space around their `=`,
+    each inside its own element. Two patterns read them until the fifty-ninth review, and the fifty-eighth and
+    fifty-ninth found parts of both held by no case - a `testName` read inside a longer attribute's name, an
+    outcome-first row's failure unseen where another attribute stood before or between the two, a row's missing outcome
+    taken from the next row - and a failure written in single quotes not read at all. A result without one of the two
+    is read with that one empty: no pin's name, and a pin's case with no outcome did not pass."""
     found: dict[str, set[str]] = {}
+    unread: list[str] = []
     for name in archive.leaves(suffix='.trx'):
-        text = archive.read(name)
-        for pattern, order in ((RESULT, 'name-first'), (RESULT_REVERSED, 'outcome-first')):
-            for match in pattern.finditer(text):
-                test, outcome = match.groups() if order == 'name-first' else match.groups()[::-1]
-                found.setdefault(test, set()).add(outcome)
-    return found
+        try:
+            root = ElementTree.fromstring(archive.read(name))
+        except ElementTree.ParseError as error:
+            unread.append('%s (%s)' % (name, error))
+            continue
+        for element in root.iter():
+            if element.tag.rpartition('}')[2] == 'UnitTestResult':
+                found.setdefault(element.get('testName', ''), set()).add(element.get('outcome', ''))
+    return found, unread
 
 
 def check(path: Path) -> tuple[list[str], dict[str, object]]:
@@ -791,7 +812,9 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
             problems.append('it carries no test output to read')
         elif not any(archive.read(log).strip() for log in logs):
             problems.append('its test output is empty')
-        results = outcomes(archive)
+        results, unread = outcomes(archive)
+        if unread:
+            problems.append('not every results file of it is XML, so what ran in %s cannot be read' % '; '.join(unread))
         if not results:
             problems.append('it carries no test results to read')
         pins = {}

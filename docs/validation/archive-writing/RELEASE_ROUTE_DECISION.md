@@ -468,7 +468,16 @@ noted, none unheld or contradicted.
 The fifty-eighth review found the Unix path rule's `entry=` half and literal parts of the launcher's and a result's
 patterns held by no case, the round-fifty-seven record overstating the `packet=` reading, and the suite's texts saying
 four things r35 does not - where its pins run, which members it holds, how PowerShell 5.1 writes a record and how
-Compress-Archive stores an empty file. Cases hold each part now, the records and texts are corrected, and the measuring
+Compress-Archive stores an empty file. Cases hold each part found now (the fifty-ninth review corrected "each part"),
+the records and texts are corrected, and the measuring
 suite writes each note as one line; a child.cmd naming another script - bytes changed in a sealed archive - falls inside
 the first boundary. The r35 verdicts are unchanged. One hundred and forty-seven cases hold the check and fourteen the manifest; the harness
 lists two hundred and ninety-one rules, two hundred and sixty-two held by a verdict, twenty-nine noted, none unheld or contradicted.
+
+The fifty-ninth review found the launcher's line ends and the characters of its program's path, and parts of the two
+result patterns, held by no case, and two records saying "each part" where the parts found were meant. The launcher is
+built from its own text escaped now, so a character changed in it refuses the runner's own launcher, and the length rule
+measures every line of child.cmd; results are read as XML, not by patterns - an attribute in single quotes or with space
+around its `=` included; the records are corrected. The r35 report is the same byte for byte. One hundred and forty-seven cases hold the
+check and fourteen the manifest; the harness lists two hundred and ninety-nine rules, two hundred and sixty-nine held by a verdict, thirty noted, none unheld or
+contradicted.

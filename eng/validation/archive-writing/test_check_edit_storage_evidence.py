@@ -531,25 +531,46 @@ class EvidenceChecks(unittest.TestCase):
         problems, _ = self.check(files(trx=reversed_trx))
         self.assertEqual([], problems)
 
-    def test_reads_a_result_from_its_own_element_and_attributes_alone(self):
-        """A result is a `UnitTestResult` element's `testName` and `outcome`, in either order: a pin's row under another
-        element's name, or with its name or outcome only in an attribute whose name ends in theirs, is no result of it -
-        the logger writes none such, and read as one, a pin passed in no row of its own (the fifty-eighth review found
-        the patterns' anchors held by no case)."""
+    def test_reads_a_result_as_xml_reads_it(self):
+        """A result is a `UnitTestResult` element's `testName` and `outcome`, read as XML reads them - in either order,
+        in either quote, with space around their `=`, each inside its own element - and nothing else is one: a pin's
+        row under an element of another name, or with its name only in an attribute whose name ends in `testName`, is no
+        result of it, and one with no outcome of its own did not pass. Two patterns read results until the fifty-ninth
+        review, and the fifty-eighth and fifty-ninth found parts of both held by no case: an element's name and the
+        attributes' read inside longer ones, an outcome-first row's failure unseen where another attribute stood before
+        or between the two, a row's missing outcome taken from the next row; and a failure in single quotes went
+        unread."""
         pin = PIN_NAMES[0]
         name = 'FileCat.Tests.' + pin
         row = '<UnitTestResult executionId="0" testName="%s" outcome="Passed" />' % name
-        for forged in ('<UnitTestResults testName="%s" outcome="Passed" />',
-                       '<UnitTestResult datatestName="%s" outcome="Passed" />',
-                       '<UnitTestResult testName="%s" dataoutcome="Passed" />',
-                       '<UnitTestResults outcome="Passed" testName="%s" />',
-                       '<UnitTestResult outcome="Passed" datatestName="%s" />',
-                       '<UnitTestResult dataoutcome="Passed" testName="%s" />'):
+        missing, failed = 'it does not hold the pin ' + pin, 'the pin %s did not pass: ' % pin
+        for forged, said in (('<UnitTestResults testName="%s" outcome="Passed" />', missing),
+                             ('<XUnitTestResult testName="%s" outcome="Passed" />', missing),
+                             ('<UnitTestResult datatestName="%s" outcome="Passed" />', missing),
+                             ('<UnitTestResults outcome="Passed" testName="%s" />', missing),
+                             ('<UnitTestResult outcome="Passed" datatestName="%s" />', missing),
+                             ('<UnitTestResult testName="%s" dataoutcome="Passed" />', failed),
+                             ('<UnitTestResult dataoutcome="Passed" testName="%s" />', failed),
+                             (row + '<UnitTestResult testName="%s" />', failed),
+                             (row + '<UnitTestResult executionId="9" outcome="Failed" testName="%s" />', failed),
+                             (row + '<UnitTestResult outcome="Failed" duration="00:00:00.01" testName="%s" />', failed),
+                             (row + "<UnitTestResult testName='%s' outcome='Failed' />", failed),
+                             (row + '<UnitTestResult testName = "%s" outcome = "Failed" />', failed)):
             with self.subTest(forged):
                 trx = PASSING_TRX.replace(row, forged % name)
                 self.assertNotEqual(PASSING_TRX, trx)
                 problems, _ = self.check(files(trx=trx))
-                self.assertEqual(['it does not hold the pin ' + pin], problems)
+                self.assertEqual(1, len(problems), problems)
+                self.assertTrue(problems[0].startswith(said), problems)
+        # A result naming no test is no pin's, and a results file that is not XML is refused: a run's logger writes
+        # neither, and the second is read as nothing at all.
+        self.assertEqual([], self.check(files(trx=PASSING_TRX + '<UnitTestResult outcome="Failed" />'))[0])
+        contents = files()
+        contents['results/FileCat.App.Tests-Edit-cut.trx'] = '<?xml version="1.0"?><TestRun><Results>' + PASSING_TRX
+        problems, _ = self.check(contents)
+        self.assertEqual(1, len(problems), problems)
+        self.assertTrue(problems[0].startswith('not every results file of it is XML, so what ran in '
+                                               'results/FileCat.App.Tests-Edit-cut.trx (no element found'), problems)
 
     def test_reads_a_theory_row_as_its_pin(self):
         rows = ''.join('<UnitTestResult testName="FileCat.Tests.%s(store: 1)" outcome="Passed" />' % pin
@@ -1343,10 +1364,11 @@ class EvidenceChecks(unittest.TestCase):
         stood in the file for a pattern to find. So child.cmd is read whole, as the one launcher its runner writes:
         every argument printable ASCII without `"`, `%` or `^`, none starting with `-` (a parameter name to PowerShell)
         or ending in a backslash (which turns the closing quote into a literal one). Each literal part of it holds too:
-        a child.cmd without one of its words or with one changed, running another program, its lines ended otherwise,
-        or with a `%` in an argument no other rule reads, is not the launcher its runner writes - without `-NoProfile`
-        the child would run the account's PowerShell profile, which can set a variable such as VSTESTCLIRUNSETTINGS
-        before the tests start (the fifty-eighth review found these parts held by no case)."""
+        a child.cmd without one of its words or with one changed, running another program or one at a path changed in
+        one character, its lines ended otherwise, its case, spaces or redirection changed, its hang minutes quoted, or
+        with a `%` in an argument no other rule reads, is not the launcher its runner writes - without `-NoProfile` the
+        child would run the account's PowerShell profile, which can set a variable such as VSTESTCLIRUNSETTINGS before
+        the tests start (the fifty-eighth and fifty-ninth reviews found such parts held by no case)."""
         gate = checker.GATE_NAME
         recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1'
         smuggled = '*" -Projects "x" -Dotnet "y" -e "FILECAT_ARCHIVE_TXF_NATIVE=1" -HangMinutes 20 '
@@ -1383,7 +1405,17 @@ class EvidenceChecks(unittest.TestCase):
                      ('no hang minutes', launcher(recorded, hang='')),
                      ('hang minutes holding a letter', launcher(recorded, hang='2x')),
                      ('its lines ended with a line feed alone', real.replace('\r\n', '\n')),
-                     ('its last line unended', real[:-2])]
+                     ('its first line ended with a line feed alone', real.replace('@echo off\r\n', '@echo off\n', 1)),
+                     ('its last line ended with a line feed alone', real[:-2] + '\n'),
+                     ('its last line unended', real[:-2]),
+                     ('its words in capitals', real.upper()),
+                     ('its spaces doubled', real.replace(' ', '  ')),
+                     ('its output appended to', real.replace(' > ', ' >> ', 1)),
+                     ('its hang minutes quoted', launcher(recorded, hang='"20"'))]
+        variants += [('its program at a path with %s' % what, real.replace(old, new, 1)) for what, old, new in (
+            ('another drive', 'C:\\Windows', 'D:\\Windows'), ('another separator', '\\System32', '_System32'),
+            ("v1.0's dot changed", 'v1.0', 'v1x0'),
+            ("powershell.exe's dot changed", 'powershell.exe', 'powershell_exe'))]
         variants += [('a %% in %s' % where, real.replace(text, text[:-1] + '%1"', 1)) for where, text in (
             ('-File', 'child.ps1"'), ('-Run', '-Run "%s"' % LAUNCHED['run']),
             ('-Packet', '-Packet "%s"' % LAUNCHED['packet']), ('-Dotnet', '-Dotnet "%s"' % LAUNCHED['dotnet']),
@@ -1544,6 +1576,15 @@ class EvidenceChecks(unittest.TestCase):
                 self.assertEqual([] if length == 8191 else
                                  ["its child.cmd's launcher line is %d characters long, past the 8191 cmd.exe reads as "
                                   'written, so the record cannot say what the tests were given' % length], problems)
+        # The bound holds whatever a line ends with: the forty-fourth review's launcher after a first line ended with
+        # a line feed alone is refused - not the runner's launcher, and its long line read whichever line it is (the
+        # fifty-ninth review found the length read from the line after the first CRLF).
+        env = head + 'x' * (8192 - base) + tail
+        script = launcher(env).replace('@echo off\r\n', '@echo off\n', 1)
+        contents = self.windows_record(env)
+        contents['child.cmd'] = script
+        problems, _ = self.check(contents)
+        self.assertEqual(1, len(problems), problems)
 
     def test_refuses_an_entry_whose_member_header_does_not_begin_as_one(self):
         """An entry has to point at a local file header. The note that called this redundant - an entry pointing

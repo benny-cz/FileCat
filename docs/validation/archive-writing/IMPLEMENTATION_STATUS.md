@@ -1,5 +1,44 @@
 # Archive writing implementation status
 
+**15 November, the launcher as written, and results as XML reads them (round fifty-nine).** Asked again whether
+anything was left that the mechanism did not report, the reviewer found three things at High - all by the grading's
+letter - one at Medium and one at Low; the gate is wrong about no archive a runner seals:
+
+- **High, by the grading's letter: the launcher's line ends and the characters of its program's path were held by no
+  case.** Either line end read with its carriage return optional changed no case, nor did a dot of `v1.0` or
+  `powershell.exe` or a separator of the path read as any character, or its drive as any letter; and with the first line
+  end so read, the forty-fourth review's padded launcher after an `@echo off` ended by a line feed alone was accepted,
+  the length rule measuring the empty string after the last CRLF. Only bytes changed in a sealed archive make such a
+  file (boundary 1), but the rules are the check's own. The launcher is no longer a pattern written by hand: it is built
+  from its own text escaped, so a character changed in that text refuses the runner's own launcher, which every case
+  accepting one says - each of eight one-character changes measured changes forty-one cases. A case drops and changes
+  its words and line ends, moves its program, and changes its case, spaces and redirection and quotes its hang minutes
+  (the parts the review did not ask to hold among them), an entry weakens each part a review named, and the length rule
+  measures every line of child.cmd.
+- **High, by the grading's letter: parts of the two result patterns were held by no case.** The outcome-first pattern's
+  gaps read as spaces alone, and the name-first one read across an element's end, changed no case - an outcome-first
+  row's failure went unseen with another attribute before or between its two, and a pin's row with no outcome took the
+  next row's. Results are read by an XML parser now, not by patterns: a `UnitTestResult` element's `testName` and
+  `outcome`, in either order, in either quote, with space around their `=`, each inside its own element; a results file
+  that is not XML is refused; a row naming no test is no pin's, and a pin's case with no outcome did not pass. The
+  fourteen r35 archives' report is the same byte for byte: each of their thirty-one results files parses, and though
+  31,654 of their 52,909 result names hold an XML entity - a theory row's `&quot;`, which the parser decodes - the
+  report prints a result's name for a pin alone, and no pin's holds one. A case reads forged rows of each shape the
+  reviews named, and entries hold the element's name and namespace, nested elements, a row naming no test and a file
+  that is not XML.
+- **Medium: two records claimed more than was closed.** The release decision's round-fifty-eight paragraph said "Cases
+  hold each part now" and the ledger's row 14 "cases holding each part" - true of the parts found, not of every literal
+  part, as the round-fifty-eight entry below says. Both are corrected where they stand.
+- Low, closed: neither result pattern read an attribute in single quotes or with space around its `=`, so a pin's
+  failure so written went unseen (bytes changed in a sealed archive); read as XML, both are read.
+
+The reviewer, who reaches no remote machine, read the Unix runner's patterns under bash 5.3 and 5.2 and left macOS's
+own unverified: run read-only on the Mac, its `/bin/bash` 3.2.57 admits exactly what bash 5.3 does - as an entry, as a
+filter's first and later characters, as an env value - and both exactly what the suite's constants say. The fourteen
+r35 archives read exactly as before (five accepted, nine refused), and all 23 manifest digests match.
+One hundred and forty-seven cases for the check and fourteen for the manifest; the harness lists two hundred and ninety-nine rules, two hundred and sixty-nine held by a verdict,
+thirty noted as redundant, caseless or raising, and none unheld or contradicted; the audit prints forty-five lines.
+
 **15 November, the launcher's words, and where r35 runs its pins (round fifty-eight).** Asked again whether
 anything was left that the mechanism did not report, the reviewer found four things at High - all by the grading's
 letter - and two at Low; the gate is wrong about no archive a runner seals:
