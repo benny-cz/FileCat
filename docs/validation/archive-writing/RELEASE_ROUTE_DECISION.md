@@ -505,3 +505,17 @@ stands thirty-eighth of forty files, a macOS record's own lines are read; entrie
 RunId, the starts and a zip's listing only as far as r35's lanes reach; the texts are corrected where they stand. The
 check is unchanged, and the r35 report the same byte for byte. One hundred and fifty-three cases hold the check and fourteen the manifest;
 the harness lists three hundred and forty-four rules, three hundred and eleven held by a verdict, thirty-three noted, none unheld or contradicted.
+
+The sixty-second review found no case holding how far into a file the step-aside scan reads - r35's lanes write their
+skip messages as far as character 25,974,265 of a results file, every case within its first 608 - nor where a tar
+member's data begins behind a long name's header, which an eighty-character run id makes GNU tar write; and r35's
+Windows records, in PowerShell 5.1's own layout, larger than any case's. A reason stands past 26 MiB of a full lane's
+results file now, a full lane is tarred as GNU tar does under an eighty-character run folder, the Windows records are
+written in PowerShell 5.1's layout - which writes r35's own byte for byte - and entries read the scan, a member's data,
+the summary, a machine record, a launcher, a test list and the expanded stream only as far as r35's lanes reach. The
+check is unchanged, and the r35 report the same byte for byte. One hundred and fifty-five cases hold the check and fourteen the manifest;
+the harness lists three hundred and fifty-one rules, three hundred and eighteen held by a verdict, thirty-three noted, none unheld or contradicted.
+
+The review stops after sixty-two rounds by the owner's decision. In its last six rounds no review found the gate wrong
+about an archive a runner as it now stands seals; each found a weakening no case notices at some reach of a sealed
+lane, a class no finite suite closes. What is left stays recorded: the two boundaries, the Lows, and that class.

@@ -284,16 +284,32 @@ ATTACHMENTS = 'results/2e34b0aa-6184-4683-a741-373b45165ae0'
 
 def windows_json(record):
     """A record as the Windows runner writes it: Windows PowerShell 5.1's ConvertTo-Json - a member a line, four spaces
-    in, two after the colon, what is not ASCII as written, and `'`, `&`, `<` and `>` each as its six-character escape
-    (read so from PowerShell 5.1 itself, the fifty-eighth review found the fixture writing them as they are) - through
-    Set-Content, which ends every line with CRLF. A nested value is written here on one line, where PowerShell spreads
-    it over lines of its own; the check reads a record as JSON, not by its lines."""
+    in past the column its object's bracket opens at, two after the colon; a nested object or array spread over lines of
+    its own the same way, under the column its bracket opens at, an empty one with an empty line inside; what is not ASCII
+    as written, and `'`, `&`, `<` and `>` each as its six-character escape (read so from PowerShell 5.1 itself, the
+    fifty-eighth review found the fixture writing them as they are) - through Set-Content, which ends every line with
+    CRLF. From their values this writes each of r35's own Windows JSON records - both lanes' summary, record, account and
+    launch records - byte for byte. It wrote a nested value on one line until the sixty-second review found r35's
+    summaries larger than any fixture's for that."""
     escapes = {character: chr(92) + 'u%04x' % ord(character) for character in "'&<>"}
 
     def written(value):
         return ''.join(escapes.get(character, character) for character in json.dumps(value, ensure_ascii=False))
-    return '{\r\n' + ',\r\n'.join('    %s:  %s' % (written(key), written(value))
-                               for key, value in record.items()) + '\r\n}\r\n'
+
+    def laid(value, column):
+        if not isinstance(value, (dict, list)):
+            return written(value)
+        opening, closing = '{}' if isinstance(value, dict) else '[]'
+        if not value:
+            return opening + '\r\n\r\n' + ' ' * column + closing
+        inner = column + 4
+        if isinstance(value, dict):
+            items = [' ' * inner + written(key) + ':  ' + laid(item, inner + len(written(key)) + 3)
+                     for key, item in value.items()]
+        else:
+            items = [' ' * inner + laid(item, inner) for item in value]
+        return opening + '\r\n' + ',\r\n'.join(items) + '\r\n' + ' ' * column + closing
+    return laid(record, 0) + '\r\n'
 
 
 def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything ran\n', status='PASS\r\n',
@@ -369,11 +385,13 @@ def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything 
 # run and element 16,779 of a results file, the furthest of them in the fifth results file read. Here seven processes in
 # forty-five members, thirty-six of them files, what the check reads last among them; the gate at line 23; the route
 # and dual-root pins past 18,000 rows in the seventh results file read, which runs past 36 MiB with what its tests wrote
-# to their output. So a loop or a read reaching only as far as r35's lanes do refuses this lane: the sixtieth review
+# to their output. Such a loop or read reaching only as far as r35's lanes do refuses this lane: the sixtieth review
 # found every case below r35's counts, and the sixty-first below the sizes of its members (which this said it was past,
 # with "every count the check reads"), loops and reads reaching only that far passing every case while refusing every
 # archive r35 accepted. Its compressed stream is short; `test_reads_a_tar_whose_stream_runs_past_one_block` carries one
-# past the seven blocks of r35's.
+# past the seven blocks of r35's, and past the 51.4 MB they expand to. A loop or a read over one of these counts and
+# sizes refuses it when it reaches only as far as r35's lanes do - not every loop and read, which the sixty-second review
+# found this said.
 FULL_PROCESSES = (
     ('FileCat.Core.Tests-UnixArchiveStorageTests', 'FileCat.Core.Tests', '#UnixArchiveStorageTests',
      '(FullyQualifiedName~UnixArchiveStorageTests)'),
@@ -593,24 +611,25 @@ def sealed(leaf, text, unix):
     return text.encode('utf-8')
 
 
-def archive(directory, name, contents, unix=False, folders=(ATTACHMENTS,)):
+def archive(directory, name, contents, unix=False, folders=(ATTACHMENTS,), run='edit-test', fmt=tarfile.DEFAULT_FORMAT):
     """The archive its runner seals of these contents, folders and all: the Unix runner tars its run folder - that
     folder, its results folder and the test platform's attachment folders, one a process, are members of it - and the
     Windows runner zips the folder's contents, each empty attachment folder an entry of its own - the members as r35's
     archives hold them, though here stored where Compress-Archive deflates and named with `/` where it writes a
-    backslash, which zipfile cannot write on Windows; `zip_with_backslashes` writes those."""
+    backslash, which zipfile cannot write on Windows; `zip_with_backslashes` writes those. A tar's run folder is `run`,
+    the run id its runner was given, and `fmt` the format it is written in - GNU tar's, where a case asks for it."""
     contents = with_child_cmd(contents)
     path = Path(directory) / name
     if unix:
-        with tarfile.open(path, 'w:gz') as tar:
-            for folder in ('edit-test', 'edit-test/results') + tuple('edit-test/' + folder for folder in folders):
+        with tarfile.open(path, 'w:gz', format=fmt) as tar:
+            for folder in (run, run + '/results') + tuple(run + '/' + folder for folder in folders):
                 item = tarfile.TarInfo(folder)
                 item.type = tarfile.DIRTYPE
                 item.mode = 0o755
                 tar.addfile(item)
             for leaf, text in contents.items():
                 blob = sealed(leaf, text, unix)
-                item = tarfile.TarInfo('edit-test/' + leaf)
+                item = tarfile.TarInfo(run + '/' + leaf)
                 item.size = len(blob)
                 tar.addfile(item, io.BytesIO(blob))
     else:
@@ -2851,13 +2870,18 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_reads_a_tar_whose_stream_runs_past_one_block(self):
         """A gzipped tar is read a block of 1 MiB of its stream at a time, and how far it reached is the sum of every
-        block's output: r35's full Unix lanes run to seven such blocks, where every tar the suite accepted had fitted in
-        one (the fifty-second review) and then two (the sixty-first) - nine here."""
-        contents = files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
+        block's output: r35's full Unix lanes run to seven such blocks and expand to 51.4 MB, where every tar the suite
+        accepted had fitted in one (the fifty-second review) and then two (the sixty-first) - nine here, expanding past
+        60 MiB, most of it what tests wrote to their output and read in the first block: a stream so compressible that
+        it fits in one block passes no size between blocks at all."""
+        output = ''.join(logger_row('FileCat.Tests.SomeOutputTests.A_case_%d' % number, 'Passed', number=number,
+                                    output=OUTPUT) for number in range(52))
+        contents = files(trx=PASSING_TRX + output, system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
         contents['zz-ballast.bin'] = random.Random(52).randbytes(8704 * 1024)
         with tempfile.TemporaryDirectory() as directory:
             path = archive(directory, 'edit-large-evidence.tar.gz', contents, unix=True)
             self.assertGreater(path.stat().st_size, 8 << 20)
+            self.assertGreater(len(gzip.decompress(path.read_bytes())), 60 << 20)
             self.assertEqual([], checker.check(path)[0])
 
     def test_accepts_a_windows_edit_lane_shaped_as_r35_s(self):
@@ -3165,21 +3189,59 @@ class EvidenceChecks(unittest.TestCase):
                          + ['edit-39-evidence.zip: NOT edit-storage evidence'], verdicts)
         self.assertGreater(len(report.split('\n')), 195)
 
+    def test_reads_a_step_aside_reason_past_where_r35_writes_its_skip_messages(self):
+        """A test that steps aside writes its reason in its result's message, and r35's lanes write their skip messages
+        as far as character 25,974,265 of a results file, where every case put its reason within its first 608 (the
+        sixty-second review). A reason past 26 MiB of a full lane's last results file is a step aside as much as one at
+        its start - as a run started as root writes one, which the Unix runner does not refuse."""
+        contents = full_unix_lane(rows=40, output=27)
+        last = 'results/%s.trx' % FULL_PROCESSES[-1][0]
+        reason = STEP_ASIDE_WORDS[3]
+        row = logger_row('FileCat.Core.Tests.NativeEditStorageTests.A_case_run_as_root', 'NotExecuted', reason, number=99)
+        contents[last] = contents[last].replace('  </Results>', row + '  </Results>')
+        self.assertGreater(contents[last].index(reason), 26 << 20)
+        problems, _ = self.check(contents, unix=True)
+        self.assertEqual(['a test stepped aside in edit-test/%s: %r' % (last, reason)], problems)
+
+    def test_accepts_a_tar_whose_names_run_past_a_header_s_hundred_characters(self):
+        """The Unix runner tars its run folder under the run id it was given, up to eighty characters, and GNU tar writes a
+        member whose name runs past a header's hundred characters behind a header of its own holding the name: its data
+        begins two blocks further on, and the last member's data is what the gzip floor has to reach (the sixty-second
+        review found no case holding where a member's data begins, every name short)."""
+        run = 'edit-r36-ubuntu-' + 'x' * 64
+        self.assertEqual(80, len(run))
+        contents = full_unix_lane(rows=40)
+        last = 'results/%s.trx' % FULL_PROCESSES[-1][0]
+        contents[last] = contents.pop(last)
+        with tempfile.TemporaryDirectory() as directory:
+            path = archive(directory, 'edit-run-evidence.tar.gz', contents, unix=True, folders=FULL_FOLDERS, run=run,
+                           fmt=tarfile.GNU_FORMAT)
+            with tarfile.open(path) as held:
+                final = held.getmembers()[-1]
+            self.assertEqual((run + '/' + last, 3 * 512), (final.name, final.offset_data - final.offset))
+            problems, facts = checker.check(path)
+        self.assertEqual(([], 'linux'), (problems, facts.get('system')))
+
     def test_reads_a_unix_record_s_own_lines_past_what_the_machine_says(self):
         """The Unix runner writes what the machine says before its own lines - the `df -h` line of the run's folder
         among them, which begins with the file system's name - so a file system named `test`, as a tmpfs or a pool's
         root dataset can be, began that line `test `: read as a listed process, and its `%` as a character dotnet does
         not pass on, it refused an ordinary lane. The runner's own lines begin at its `packet=` line (the fifty-sixth
         review) - the line that begins so, not one that holds it, as a mount point may (the fifty-seventh) - wherever
-        it stands: after the five lines Linux's head holds, and the seven of macOS's (the sixty-first review found the
-        search held to the fifth line alone)."""
-        for system, word in (('Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux', 'linux'),
-                             ('Darwin host 27.0.0 Darwin Kernel Version 27.0.0 arm64', 'macos')):
-            with self.subTest(word):
+        it stands: after the five lines Linux's head holds, the seven of macOS's, and the eight of macOS's where a Rapid
+        Security Response is applied, which `sw_vers` names on a line of its own (the sixty-first review found the search
+        held to the fifth line alone, the sixty-second to the seventh)."""
+        darwin = 'Darwin host 27.0.0 Darwin Kernel Version 27.0.0 arm64'
+        for system, word, extra in (('Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux', 'linux', False),
+                                    (darwin, 'macos', False), (darwin, 'macos', True)):
+            with self.subTest(word=word, extra=extra):
                 contents = files(system=system)
+                if extra:
+                    contents['machine.txt'] = contents['machine.txt'].replace(
+                        'ProductVersion:\t\t27.0.1\n', 'ProductVersion:\t\t27.0.1\nProductVersionExtra:\t(a)\n')
                 lines = contents['machine.txt'].split('\n')
                 df = next(index for index, line in enumerate(lines) if line.startswith('packet=')) - 1
-                self.assertEqual(len(unix_head(system)) - 1, df)
+                self.assertEqual(len(unix_head(system)) - 1 + extra, df)
                 lines[df] = 'test            196G  103G   83G  56% /srv/packet=1'
                 contents['machine.txt'] = '\n'.join(lines)
                 problems, facts = self.check(contents, unix=True)

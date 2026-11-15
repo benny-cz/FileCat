@@ -1,5 +1,48 @@
 # Archive writing implementation status
 
+**15 November, how far a scan, a header and a Windows record reach (round sixty-two).** Asked again whether anything
+was left that the mechanism did not report, the reviewer found two things at High - both by the grading's letter - one
+at Medium and two at Low; the gate is wrong about no archive a runner seals:
+
+- **High, by the grading's letter: no case held how far into a file the step-aside scan reads.** r35's lanes write their
+  skip messages - where a step-aside reason stands - as far as character 25,974,265 of a results file, and every case put
+  its reason within its first 608: a scan reading each file's first 256 KiB alone passed every case, and accepted a run
+  started as root, which the Unix runner does not refuse, its reason at character 495,752. A case puts a reason past
+  26 MiB of a full lane's last results file now, and an entry reads each scanned file to 26 MiB alone.
+- **High, by the grading's letter: no case held where a tar member's data begins behind a long name's header.** The Unix
+  runner tars its run folder under the run id it was given, up to eighty characters, and GNU tar writes a member whose
+  name runs past a header's hundred behind a header of its own holding the name, its data two blocks further on: read as
+  beginning one block past its header, the floor fell short of the last member's data, and no case changed. A case tars a
+  full lane as GNU tar does under an eighty-character run folder, its last member so written, and an entry reads a
+  member's data as beginning one block past its header.
+- **Medium: r35's own Windows records ran larger than any case's.** Windows PowerShell 5.1 spreads a nested value over
+  lines of its own, deeply indented, where the fixtures wrote it on one line: r35's summaries run to 3,735 characters and
+  no case's ran past 1,422, so a summary read only to 1,800 characters passed every case and refused the Windows edit lane
+  the manifest binds. The Windows records are written in PowerShell 5.1's own layout now - which writes each of r35's
+  eight Windows JSON records byte for byte from its values - the full Windows lane's summary runs past 4 KiB and its
+  record, launcher and test list past r35's largest, and entries read the summary, a machine record, a launcher and a
+  test list only as far as r35's reach - as one reads the stream's expanded bytes past the 51.4 MB of r35's full lanes,
+  which the stream's case passes now across its nine blocks (a stream that fits in one block, as the full Unix lane's
+  compresses to, passes no size between blocks).
+- Low, closed: a macOS head runs to eight lines where a Rapid Security Response is applied - `sw_vers` names it on a line
+  of its own, as its manual on the Mac says - and the case reads such a record too, the search's entry stopping at the
+  eighth line; and the full Unix lane's comment said a loop or a read reaching only as far as r35's lanes do refuses it,
+  true of the counts and sizes it names alone, which is what it says now.
+
+The check is unchanged; the fourteen r35 archives read exactly as before (five accepted, nine refused) and all 23
+manifest digests match.
+One hundred and fifty-five cases for the check and fourteen for the manifest; the harness lists three hundred and fifty-one rules, three hundred and eighteen held by a verdict,
+thirty-three noted as redundant, caseless or raising, and none unheld or contradicted; the audit prints thirty-seven lines.
+
+The independent review of the evidence gate stops here, after sixty-two rounds, by the owner's decision. In each of its
+last six rounds, the fifty-seventh to this one, the review found the gate right about every archive a runner as it now
+stands seals; what they found were weakenings of the check that no case notices at some count, size, position or layout
+a sealed lane reaches, and in several texts that claimed more than the cases held. That class has no end for a finite
+suite: each
+round closed what it named, and the next found another. Left as recorded: boundary 1 (bytes changed in a sealed
+archive), boundary 2 (the machine's own environment and configuration), the Lows each round left, and weakenings past
+what any case reaches.
+
 **15 November, the sizes of r35's members, and how far an Env, a RunId and a listing reach (round sixty-one).** Asked
 again whether anything was left that the mechanism did not report, the reviewer found four things at High - one in
 substance, three by the grading's letter - and two at Low; the gate is wrong about no archive a runner seals:
