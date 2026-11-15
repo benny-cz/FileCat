@@ -1,5 +1,52 @@
 # Archive writing implementation status
 
+**15 November, the sizes of r35's members, and how far an Env, a RunId and a listing reach (round sixty-one).** Asked
+again whether anything was left that the mechanism did not report, the reviewer found four things at High - one in
+substance, three by the grading's letter - and two at Low; the gate is wrong about no archive a runner seals:
+
+- **High: r35's own accepted lanes read members larger than any case's, and the round-sixty texts said every count
+  was reached.** edit-r35-win, which the manifest binds to the Windows route, reads a results file of 1.86 MB, and r35's
+  full Unix lanes results files of 34.9 MB from compressed streams of seven 1 MiB blocks, while no zip case read a member
+  past 8 KiB, no tar case one past 9 MB, and no stream ran past two blocks: a member read only to 1 MiB or 32 MiB, or a
+  stream read only to 6 MiB, passed every case and refused archives r35 accepted. The sweep the round-sixty entry below
+  cited cut no `while` loop, and the stream's is one. A full Windows lane past r35's own - seven processes in thirty-nine
+  zip entries, the last of them one the check reads, the twelve record members its runner writes, a results file past
+  36 MiB - is read through main() now; the full Unix lane's last results file runs past 36 MiB with what its tests wrote
+  to their output; the stream's case spans nine blocks; and entries read a zip member to 35 MiB, a tar member to 34 MiB,
+  the stream to seven blocks and a zip's listing to thirty-six entries - past r35's largest in each, its refused full
+  Windows lane's thirty-six entries and 35.9 MB results file among them. The texts that said every count are corrected
+  where they stand, each now naming the counts and sizes it reaches.
+- **High, by the grading's letter: a second gate past a Windows Env's third item was held by no case,** while r35's own
+  Env holds four and the runner admits a gate given twice. A case gives the second gate as the fifth item now, and an
+  entry reads the Env to its fourth alone.
+- **High, by the grading's letter: no case held the RunIds the run-folder rule accepts.** The runner admits
+  `[A-Za-z0-9._-]{1,60}`, and every case used one of three plain ones: a run folder named by its RunId in lower case, by
+  its first twelve characters, or without its dots and underscores, passed every case and refused a runner-shaped lane.
+  Two RunIds of sixty characters, between them every character the runner admits, are accepted now, and entries narrow
+  the RunId each of those ways.
+- **High, by the grading's letter: where a descriptor's width is ambiguous, the cases decided it by the first member's
+  start alone.** bsdtar's zip64 zip with an empty member third is whole as committed and short by eight bytes with every
+  start past the first two unread; the cases' empty members stood first or last. Its case writes forty files now, the
+  empty one thirty-eighth, and an entry reads the starts of the first thirty alone.
+- Low, closed: the search for a Unix record's `packet=` line was held to its sixth line, where macOS's head runs to
+  seven, so that a record so begun, on a file system named `test`, could be refused falsely; the case reads a macOS
+  record too, and an entry stops the search at the seventh line. Low, left: loops that only refuse, read past every case,
+  for what the runners refuse before a run or never write (boundary 1, or a runner input refused) - a Unix record's
+  filter lines, a launcher's projects and arguments, an Env's characters, the names counted for repeats and a machine
+  record's members - and the empty-output rule, read over the first logs alone, which only a lane whose first logs are
+  empty would tell from the whole, and no runner writes an empty log.
+
+The session's scratchpad was cleared while this round was worked, and the review's own tools with it. The report the
+records compare r35's against was regenerated from the committed check, which wrote it byte for byte the round before;
+the check is unchanged this round, and the fourteen r35 archives read exactly as before (five accepted, nine refused);
+all 23 manifest digests match. A sweep rebuilt to do what the review's did - each `for` loop and comprehension of the
+check cut to its first one to thirty-six items, short of how far r35's fourteen archives take it, with the suite alone
+run against each cut (kept with the round's notes) - makes 447 cuts, 373 noticed by a case; the rest are report lines
+below a verdict, an archive's closing, a launcher's third line, which its pattern cannot hold, the first member's start
+already noted redundant, the `packet=` search past where every record's line stands, and the Low ones above.
+One hundred and fifty-three cases for the check and fourteen for the manifest; the harness lists three hundred and forty-four rules, three hundred and eleven held by a verdict,
+thirty-three noted as redundant, caseless or raising, and none unheld or contradicted; the audit prints thirty-eight lines.
+
 **15 November, r35's own scale, and results read wherever they stand (round sixty).** Asked again whether anything
 was left that the mechanism did not report, the reviewer found three things at High - all by the grading's letter - one
 at Medium and one at Low; the gate is wrong about no archive a runner seals:
@@ -16,8 +63,10 @@ at Medium and one at Low; the gate is wrong about no archive a runner seals:
   results files or logs, a member it needs past its twentieth, two blocks, or two suites or archives read through main(); the
   runner-shaped lanes' gates stand at line 15 of their records' own lines, and no case put a step-aside reason past the
   fourth file it scans. Each such loop read only as far as the cases reached passed every case, and refused r35's full
-  lanes or changed the counts and digests the report gives them. A full Unix lane at r35's scale or past it in every
-  count the check reads - seven processes in forty-five members, the gate at line 23 of its record's own lines, the route
+  lanes or changed the counts and digests the report gives them. A full Unix lane past r35's own in the counts named
+  here (the sixty-first review found "at r35's scale or past it in every count the check reads" here, the sizes of r35's
+  members and its stream past every case) - seven processes in forty-five members, the gate at line 23 of its record's
+  own lines, the route
   and dual-root pins past 18,000 rows in the seventh results file read - is read through main() now, as the Windows edit
   lane is; a run of forty archives, the last refused, writes a report of more than ninety-three lines; the digest's case
   spans nine blocks; a step-aside reason stands in the last of a full lane's fourteen scanned files, and an exit code
@@ -43,8 +92,10 @@ at Medium and one at Low; the gate is wrong about no archive a runner seals:
 The fourteen r35 archives read exactly as before (five accepted, nine refused) and all 23 manifest digests match; the
 runner's own PowerShell text wrote 799 launchers from inputs it accepts, over two seeds - random hang minutes and run
 ids, and their edges, among them - and the check reads every one with the gate in force.
-The review's own sweeps, rerun on the new check, find nothing left: every loop of the check cut to its first one to
-sixty items, or to all but its first or last, over r35's edit and full lanes and the twenty-six runner-shaped lanes -
+The review's own sweeps, rerun on the new check, find nothing left of what they cut (the sixty-first review found
+"every loop" here, where they cut no `while` loop and no read of a member's bytes): every `for` loop and comprehension
+of the check cut to its first one to sixty items, or to all but its first or last, over r35's edit and full lanes and
+the twenty-six runner-shaped lanes -
 1,134 cuts - changes an archive's verdict 316 times, and a case notices each; and each of the review's forty-six
 candidates - the caps at 900, the counts and reaches, the readings of XML, ten one-character changes of the launcher's
 text, the step-aside scan - is noticed by a case, five of them by cases added after the rerun found them unheld: a

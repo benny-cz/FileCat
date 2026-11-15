@@ -486,9 +486,22 @@ The sixtieth review found no case reaching the counts r35's own lanes reach - wh
 results, their processes, members, blocks and suites, the fourteen archives the records read in one run - so that a loop
 read only as far as the cases reached refused every archive r35 accepted while no case changed; the check's text saying
 it read results in the logger's namespace or none, where it reads any; and no case holding a nested row. A full Unix lane
-at r35's scale or past it in each count is read through main() now, with a run of forty archives, a digest over nine
+past r35's own in the counts it names (the sixty-first review found "in each count" here, the sizes of r35's members
+past every case) is read through main() now, with a run of forty archives, a digest over nine
 blocks, a step-aside reason in a full lane's last file and a failure in its last suite; twenty-one entries read each
 such loop only as far as r35's lanes reach; the text says what the code reads, and cases hold a failure nested, under another root and in another
 namespace. The launcher's hang minutes and run folder are read as its runner writes them. The r35 report is the same
 byte for byte. One hundred and fifty-two cases hold the check and fourteen the manifest; the harness lists three hundred and thirty-one rules, two hundred and ninety-eight held by a
 verdict, thirty-three noted, none unheld or contradicted.
+
+The sixty-first review found r35's own accepted lanes reading members larger than any case's - a 1.86 MB results file in
+the Windows edit lane the manifest binds, 34.9 MB ones from seven-block streams in the full Unix lanes - so that a member
+or a stream read only part way refused archives r35 accepted while no case changed, and the round-sixty texts saying
+every count was reached; a second gate past a Windows Env's third item, the RunIds the runner admits, and a descriptor's
+width decided past the first members, each held by no case. A full Windows lane past r35's own, with a results file past
+36 MiB, is read through main() now, as the full Unix lane is with one of its own; the stream's case spans nine blocks; a
+second gate stands fifth, two RunIds of sixty characters hold every character the runner admits, bsdtar's empty member
+stands thirty-eighth of forty files, a macOS record's own lines are read; entries read each member, the stream, the Env, the
+RunId, the starts and a zip's listing only as far as r35's lanes reach; the texts are corrected where they stand. The
+check is unchanged, and the r35 report the same byte for byte. One hundred and fifty-three cases hold the check and fourteen the manifest;
+the harness lists three hundred and forty-four rules, three hundred and eleven held by a verdict, thirty-three noted, none unheld or contradicted.

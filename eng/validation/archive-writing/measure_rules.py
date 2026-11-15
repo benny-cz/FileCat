@@ -22,10 +22,13 @@ and redirection, with entries weakening each part a review named; a result is re
 fifty-eighth and fifty-ninth reviews found parts of both patterns held by no case). Nor can it see a rule held in a
 plain expression - a bound, a sum, a slice:
 the fiftieth review found two held by no case (the tar's floor taken over every member, and every byte of a later
-block read past it), each an entry with a case now. Nor can it see how far a loop reads: a loop read to its first item
-alone has an entry, and the sixtieth review found loops read only as far as every case reached - past each case's count,
-short of r35's lanes' - passing every case while refusing every archive r35 accepted; so a case built as r35's lanes
-reaches past each count they reach, and an entry reads each such loop only as far as they reach. Nor does it print a line an entry already names - an entry naming the lines its
+block read past it), each an entry with a case now. Nor can it see how far a loop or a read reaches: a loop read to its
+first item alone has an entry, and the sixtieth and sixty-first reviews found loops and reads reaching only as far as
+every case did - past each case's counts and sizes, short of r35's lanes' - passing every case while refusing every
+archive r35 accepted. So the cases built as r35's lanes reach past the counts and sizes those reviews measured r35's
+lanes reaching, each named where its case is built, and an entry reads each such loop or read only as far as r35's
+lanes reach (this said "each count they reach" until the sixty-first review found the sizes of members and a stream
+past every case). Nor does it print a line an entry already names - an entry naming the lines its
 committed text lies on, and no other (matched as text, the fifty-second review found two lines hidden as parts of others'
 entries) - though a line may hold more than one rule: it prints such a line where the checks on it outnumber the entries naming it, and that, too, is
 a pointer - the forty-seventh review found three rules sharing lines with others, held by no case. And it found nothing of
@@ -1076,6 +1079,45 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ("every suite's failure counter read, past the five of a full r35 lane",
      "            for suite, counters in (summary.get('suites') or {}).items():\n                if int(counters.get('failed', 0)) != 0:",
      "            for suite, counters in list((summary.get('suites') or {}).items())[:5]:\n                if int(counters.get('failed', 0)) != 0:", None),
+    ("a zip member read whole, past the 35.9 MB of r35's largest",
+     '            data = self._zip.read(item)  # type: ignore[arg-type]',
+     '            data = self._zip.open(item).read(35 << 20)  # type: ignore[arg-type]', None),
+    ("a tar member read whole, past the 34.9 MB of r35's largest",
+     "            data = b'' if handle is None else handle.read()",
+     "            data = b'' if handle is None else handle.read(34 << 20)", None),
+    ('a compressed stream read to its end, past the seven blocks of a full r35 lane',
+     '                while not stream.eof:',
+     '                while not stream.eof and handle.tell() < 7 << 20:', None),
+    ("every item of a Windows Env read, past the four of r35's own",
+     "        pairs = [item for item in recorded.split(';') if item]",
+     "        pairs = [item for item in recorded.split(';')[:4] if item]", None),
+    ("a launcher's run folder read from its record's RunId in the RunId's own case",
+     "        run = 'C:\\\\FileCatValidation\\\\aw-claude\\\\' + str(record.get('RunId'))",
+     "        run = 'C:\\\\FileCatValidation\\\\aw-claude\\\\' + str(record.get('RunId')).lower()", None),
+    ("a launcher's run folder read from its record's whole RunId, past fifty-nine characters",
+     "        run = 'C:\\\\FileCatValidation\\\\aw-claude\\\\' + str(record.get('RunId'))",
+     "        run = 'C:\\\\FileCatValidation\\\\aw-claude\\\\' + str(record.get('RunId'))[:59]", None),
+    ("a launcher's run folder read from its record's RunId with its dots and underscores",
+     "        run = 'C:\\\\FileCatValidation\\\\aw-claude\\\\' + str(record.get('RunId'))",
+     "        run = 'C:\\\\FileCatValidation\\\\aw-claude\\\\' + str(record.get('RunId')).replace('.', '').replace('_', '')", None),
+    ("every member's start known where a descriptor's width is decided, past thirty members",
+     '        starts = {entry.header_offset for entry in self._zip.infolist()} | {directory}',
+     '        starts = {entry.header_offset for entry in self._zip.infolist()[:30]} | {directory}', None),
+    ("a Unix record's packet= line looked for past the seven lines of macOS's head",
+     '    for index, line in enumerate(lines):',
+     '    for index, line in enumerate(lines[:7]):', None),
+    ("every zip entry listed, past the thirty-six of r35's full Windows lane",
+     '            items: list[object] = [item for item in self._zip.infolist() if not item.is_dir()]',
+     '            items: list[object] = [item for item in self._zip.infolist()[:36] if not item.is_dir()]', None),
+    ("every zip member named, past the thirty files of r35's full Windows lane",
+     '            self._names = [item.filename for item in items]  # type: ignore[attr-defined]',
+     '            self._names = [item.filename for item in items[:30]]  # type: ignore[attr-defined]', None),
+    ("every zip entry measured for the listing, past the thirty-six of r35's full Windows lane",
+     '            for item in self._zip.infolist():',
+     '            for item in self._zip.infolist()[:36]:', None),
+    ("every span of a zip's listing summed, past the thirty-six of r35's full Windows lane",
+     '        for start, end in sorted(spans):',
+     '        for start, end in sorted(spans)[:36]:', None),
 ]
 
 # A suite run that has not ended in this many seconds is reported rather than waited for: a weakening can loop for

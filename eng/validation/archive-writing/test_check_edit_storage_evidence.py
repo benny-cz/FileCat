@@ -158,19 +158,28 @@ SUMMARY = {"ok": True, "failed": [], "exit_codes": {"FileCat.App.Tests-Edit": 0}
 TEST_LINE = 'test FileCat.App.Tests-Edit: (FullyQualifiedName~Edit)'
 
 
-def logger_row(test, outcome, message=None, number=0):
+def logger_row(test, outcome, message=None, number=0, output=None):
     """A result row as the test platform's TRX logger writes it: its name and its outcome far apart, with the
-    attributes the logger writes between them, and a skipped row's reason in its error message (as r35's rows hold
-    them; the fifty-third review found the result pattern held by no case for want of them)."""
+    attributes the logger writes between them, a skipped row's reason in its error message (as r35's rows hold
+    them; the fifty-third review found the result pattern held by no case for want of them), and what a test wrote
+    in its `StdOut` - most of the tens of megabytes of r35's largest results files."""
     ids = '%08x-6184-4683-a741-%012x' % (number, number)
     row = ('<UnitTestResult executionId="%s" testId="%s" testName="%s" computerName="FILECAT-VM" duration="00:00:00.0071731" '
            'startTime="2026-11-14T08:30:44.0704720+01:00" endTime="2026-11-14T08:30:44.0776835+01:00" '
            'testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="%s" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" '
            'relativeResultsDirectory="%s"' % (ids, ids, test, outcome, ids))
+    if output is not None:
+        return ('    ' + row + '>\r\n      <Output>\r\n        <StdOut>%s</StdOut>\r\n      </Output>\r\n'
+                '    </UnitTestResult>\r\n' % output)
     if message is None:
         return '    ' + row + ' />\r\n'
     return ('    ' + row + '>\r\n      <Output>\r\n        <ErrorInfo>\r\n          <Message>%s</Message>\r\n'
             '        </ErrorInfo>\r\n      </Output>\r\n    </UnitTestResult>\r\n' % message)
+
+
+# A mebibyte of what a test writes to its output, as xUnit's lines run.
+OUTPUT_LINE = '[xUnit.net 00:00:02.10]     FileCat.Core.Tests: a test wrote this line to its output\r\n'
+OUTPUT = (OUTPUT_LINE * ((1 << 20) // len(OUTPUT_LINE) + 1))[:1 << 20]
 
 
 def logger_trx(rows):
@@ -354,14 +363,17 @@ def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything 
     return contents
 
 
-# A full Unix lane at r35's scale or past it in every count the check reads. r35's full lanes seal five test processes
-# in thirty-seven members, thirty of them files; the gates of their records stand at line 4 of their own lines, and the
-# runner-shaped lanes' at line 15; their furthest pins stand at result 14,957 of a run and element 16,779 of a results
-# file, the furthest of them in the fifth results file read. Here seven processes in forty-five members, thirty-six of
-# them files, what the check reads last among them; the gate at line 23; and the route and dual-root pins past 18,000
-# rows in the seventh results file read. So a loop read only as far as r35's lanes reach refuses this lane: the
-# sixtieth review found every case below r35's counts, and loops read only that far passing every case while refusing
-# every archive r35 accepted.
+# A full Unix lane past r35's own in the counts and sizes these name. r35's full lanes seal five test processes in
+# thirty-seven members, thirty of them files, the largest a results file of 34.9 MB; the gates of their records stand at
+# line 4 of their own lines, and the runner-shaped lanes' at line 15; their furthest pins stand at result 14,957 of a
+# run and element 16,779 of a results file, the furthest of them in the fifth results file read. Here seven processes in
+# forty-five members, thirty-six of them files, what the check reads last among them; the gate at line 23; the route
+# and dual-root pins past 18,000 rows in the seventh results file read, which runs past 36 MiB with what its tests wrote
+# to their output. So a loop or a read reaching only as far as r35's lanes do refuses this lane: the sixtieth review
+# found every case below r35's counts, and the sixty-first below the sizes of its members (which this said it was past,
+# with "every count the check reads"), loops and reads reaching only that far passing every case while refusing every
+# archive r35 accepted. Its compressed stream is short; `test_reads_a_tar_whose_stream_runs_past_one_block` carries one
+# past the seven blocks of r35's.
 FULL_PROCESSES = (
     ('FileCat.Core.Tests-UnixArchiveStorageTests', 'FileCat.Core.Tests', '#UnixArchiveStorageTests',
      '(FullyQualifiedName~UnixArchiveStorageTests)'),
@@ -376,12 +388,12 @@ FULL_PROCESSES = (
 FULL_FOLDERS = tuple('results/%08x-dcaa-471d-b059-1f1e70c99361' % number for number in range(len(FULL_PROCESSES)))
 
 
-def full_unix_lane(rows=18000):
+def full_unix_lane(rows=18000, output=0):
     """The full Unix lane above, as its runner seals it: its record's own lines - publish, build and test entries, its
     hang, parallel and env: entries, and the lines its runner writes for them - a results file, a log and an exit code
     for each process, each suite skipping a test as r35's suites skip some, its build and publish logs, and `rows` rows
-    before the route and dual-root pins in the last results file; its members in an order that puts what the check reads
-    last, as a run folder's own order may."""
+    and `output` rows holding a mebibyte each of a test's output before the route and dual-root pins in the last results
+    file; its members in an order that puts what the check reads last, as a run folder's own order may."""
     system = ('Linux filecat-ubuntu2404 7.0.0-43-generic #43~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Sat Oct 31 06:52:47 '
               'UTC 2 x86_64 x86_64 x86_64 GNU/Linux')
     env = ('FILECAT_ARCHIVE_CONTAINMENT=1', 'FILECAT_ARCHIVE_TXF_NATIVE=1',
@@ -404,6 +416,8 @@ def full_unix_lane(rows=18000):
     last += [logger_row('FileCat.Core.Tests.Some%dTests.A_case_%d' % (number % 41, number),
                         'NotExecuted' if number % 50 == 0 else 'Passed', skipped if number % 50 == 0 else None,
                         number=number) for number in range(10, 10 + rows)]
+    last += [logger_row('FileCat.Core.Tests.SomeOutputTests.A_case_%d' % number, 'Passed', number=number, output=OUTPUT)
+             for number in range(10 + rows, 10 + rows + output)]
     last += [logger_row('FileCat.Core.Tests.NativeEditStorageTests.' + PIN_NAMES[1], 'Passed', number=5),
              logger_row('FileCat.Core.Tests.UnixEditStorageTests.' + PIN_NAMES[2], 'Passed', number=6)]
     suites = {}
@@ -427,6 +441,95 @@ def full_unix_lane(rows=18000):
                      'summary.json': json.dumps({"suites": suites, "failed": [], "ok": True,
                                                  "exit_codes": {name: 0 for name in results}}, indent=2)})
     return contents
+
+
+# A full Windows lane past r35's own in the counts and sizes these name. r35's full Windows lane seals six test
+# processes in thirty-six zip entries, thirty of them files, one a results file of 35.9 MB (it is refused, for a failure
+# and a launcher holding !), and its accepted edit lane reads a results file of 1.86 MB. Here seven processes in
+# thirty-nine entries, thirty-two of them files, the last of them one the check reads, the record with the twelve members
+# its runner writes, and a results file past 36 MiB: the sixty-first review found the zip's members read only as far as
+# 1 MiB, and its listing only as far as thirty entries, passing every case.
+WINDOWS_FULL_PROCESSES = (
+    ('FileCat.App.Tests', 'tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj', '*'),
+    ('FileCat.Core.Tests-ChangeMonitorCadenceTests',
+     'tests\\FileCat.Core.Tests\\FileCat.Core.Tests.csproj#ChangeMonitorCadenceTests',
+     '(FullyQualifiedName~ChangeMonitorCadenceTests)'),
+    ('FileCat.Core.Tests-not-ChangeMonitorCadenceTests',
+     'tests\\FileCat.Core.Tests\\FileCat.Core.Tests.csproj#~ChangeMonitorCadenceTests',
+     '(FullyQualifiedName!~ChangeMonitorCadenceTests)'),
+    ('FileCat.Platform.Windows.Tests-ArchiveAppContainerTests',
+     'tests\\FileCat.Platform.Windows.Tests\\FileCat.Platform.Windows.Tests.csproj#ArchiveAppContainerTests',
+     '(FullyQualifiedName~ArchiveAppContainerTests)'),
+    ('FileCat.Platform.Windows.Tests-not-ArchiveAppContainerTests',
+     'tests\\FileCat.Platform.Windows.Tests\\FileCat.Platform.Windows.Tests.csproj#~ArchiveAppContainerTests',
+     '(FullyQualifiedName!~ArchiveAppContainerTests)'),
+    ('FileCat.Remote.Tests', 'tests\\FileCat.Remote.Tests\\FileCat.Remote.Tests.csproj', '*'),
+    ('FileCat.Rendering.Tests', 'tests\\FileCat.Rendering.Tests\\FileCat.Rendering.Tests.csproj', '*'))
+
+
+def full_windows_lane(output=37):
+    """The full Windows lane above, as its runner seals it, members in order for `zip_with_backslashes`: an attachment
+    folder for each process, a results file, a log and a summary line each, the composition pin in the App suite, the
+    route pin and the Unix class's dual-root row (stepped aside, as on every Windows run) in the second Core shard, with
+    `output` mebibytes of a test's output before them, and the Windows class's dual-root pin in the second platform
+    shard; its launcher, record, account, launch and task records, its build and publish logs, each in the encoding its
+    runner writes now (UTF-8 with a mark for the JSON records, UTF-16 with a mark for the logs)."""
+    run_id = 'full-r36-win'
+    run = 'C:\\FileCatValidation\\aw-claude\\' + run_id
+    projects = ','.join(['publish:src\\FileCat.App\\FileCat.App.csproj',
+                         'publish:tests\\FileCat.WorkerProbe\\FileCat.WorkerProbe.csproj',
+                         'build:tests\\FileCat.CoreCrashHarness\\FileCat.CoreCrashHarness.csproj']
+                        + [entry for _, entry, _ in WINDOWS_FULL_PROCESSES])
+    skipped = 'Runs on Linux alone.'
+    results = {name: [logger_row('%s.Some%dTests.A_case' % (name.split('-')[0], index), 'Passed', number=index)
+                      for index in (1, 2)]
+               + [logger_row('%s.SomeLinuxTests.A_case' % name.split('-')[0], 'NotExecuted', skipped, number=3)]
+               for name, _, _ in WINDOWS_FULL_PROCESSES}
+    results['FileCat.App.Tests'].append(
+        logger_row('FileCat.App.Tests.EditStoreCompositionTests.' + PIN_NAMES[0], 'Passed', number=4))
+    core = results['FileCat.Core.Tests-not-ChangeMonitorCadenceTests']
+    core += [logger_row('FileCat.Core.Tests.SomeOutputTests.A_case_%d' % number, 'Passed', number=number, output=OUTPUT)
+             for number in range(10, 10 + output)]
+    core += [logger_row('FileCat.Core.Tests.NativeEditStorageTests.' + PIN_NAMES[1], 'Passed', number=5),
+             logger_row('FileCat.Core.Tests.UnixEditStorageTests.' + PIN_NAMES[2], 'NotExecuted',
+                        'Run the Windows native storage lane.', number=6)]
+    results['FileCat.Platform.Windows.Tests-not-ArchiveAppContainerTests'].append(
+        logger_row('FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + PIN_NAMES[2], 'Passed', number=7))
+    suites = {}
+    for name, written in results.items():
+        held = sum('outcome="NotExecuted"' in row for row in written)
+        suites[name] = {"total": len(written), "passed": len(written) - held, "skipped": held, "failed": 0,
+                        "counters_total": len(written)}
+    marked = lambda text: bytes((0xEF, 0xBB, 0xBF)) + text.encode('utf-8')
+    utf16 = lambda text: bytes((0xFF, 0xFE)) + text.encode('utf-16-le')
+    record = windows_json({"RunId": run_id, "Packet": LAUNCHED['packet'],
+                           "Sha256": '546d8caf28f54066cbb58e5d222a9e5aab464899ab35568b4108e01fc8c982d4',
+                           "Filter": "*", "Projects": projects, "User": "Admin", "Env": R35_ENV,
+                           "Started": "2026-11-14T07:12:40.4401337Z",
+                           "Os": "Microsoft Windows 11 Pro 10.0.26220.0", "Sdk": "10.0.101", "Cpus": 4,
+                           "Defender": {"RealTime": True, "OnAccess": True, "Behavior": True,
+                                        "Exclusions": ["N/A: Must be an administrator to view exclusions"]}})
+    summary = windows_json({"ok": True, "exit_codes": {name: 0 for name in results}, "failed": [], "suites": suites})
+    members = [('results/%08x-4b60-4b9e-8814-5293a0c1d0cc/' % number, b'') for number in range(len(results))]
+    members += [('results/%s.trx' % name, marked(logger_trx(written))) for name, written in results.items()]
+    members += [('account.json', marked(windows_json({"Name": "FILECAT-VM\\Admin", "Sid": "S-1-5-21-1-2-3-1001",
+                                                      "EnabledAdministrators": False, "ElevationType": 3,
+                                                      "Session": 1, "Cpus": 4})))]
+    members += [('build-%s.log' % project, utf16('  Determining projects to restore...\r\n')) for project in (
+        'FileCat.App.Tests', 'FileCat.Core.Tests', 'FileCat.CoreCrashHarness', 'FileCat.Platform.Windows.Tests',
+        'FileCat.Remote.Tests', 'FileCat.Rendering.Tests')]
+    members += [('child.cmd', launcher(R35_ENV, run=run, projects=projects, hang='30').encode('ascii')),
+                ('child.out', b''), ('child.ps1', b'param([string]$Run)\r\n'),
+                ('launch.json', marked(windows_json({"Finished": "2026-11-14T09:44:17.0872071Z"}))),
+                ('machine.json', marked(record)),
+                ('publish-FileCat.App.log', utf16('  FileCat.App -> publish\\FileCat.App\\\r\n')),
+                ('publish-FileCat.WorkerProbe.log', utf16('  FileCat.WorkerProbe -> publish\\FileCat.WorkerProbe\\\r\n')),
+                ('status.txt', b'PASS\r\n'), ('summary.json', marked(summary)),
+                ('task.log', utf16('SUCCESS: The scheduled task "FcRun-%s" has successfully been created.\r\n' % run_id))]
+    members += [('test-%s.log' % name, utf16('[xUnit.net] everything ran\r\n')) for name, _, _ in WINDOWS_FULL_PROCESSES]
+    members += [('tests.txt', ''.join('test %s: %s\r\n' % (name, expression)
+                                      for name, _, expression in WINDOWS_FULL_PROCESSES).encode('ascii'))]
+    return members
 
 
 LAUNCHED = {'run': 'C:\\FileCatValidation\\aw-claude\\edit-test',
@@ -1295,11 +1398,16 @@ class EvidenceChecks(unittest.TestCase):
         """The Windows runner splits its `-Env` on `;` alone, sets each value untrimmed and applies a repeated name
         in order. So a trailing space is a value of `1 `, which every reader compares to `1` and finds off; a pair
         joined by a space is one variable holding the gate's text; and the gate given twice ends as its last value.
-        This check once read all three as the gate in force while the tests ran without it."""
+        This check once read all three as the gate in force while the tests ran without it. The second gate stands
+        past the four items of r35's own Env too, as the runner admits (the sixty-first review found it held by no case
+        past the third)."""
         gate = checker.GATE_NAME
         for env, said in ((gate + '=1 ', "sets %s to '1 ', not '1'" % gate),
                           ('FILECAT_ARCHIVE_TXF_NATIVE=1 ' + gate + '=1', 'does not name ' + gate),
-                          (gate + '=1;FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=0', "gives %s 2 values ('1', '0')" % gate)):
+                          (gate + '=1;FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=0', "gives %s 2 values ('1', '0')" % gate),
+                          ('FILECAT_ARCHIVE_CONTAINMENT=1;' + gate + '=1;FILECAT_ARCHIVE_TXF_NATIVE=1;'
+                           'FILECAT_ARCHIVE_APP_ASSETS={run}\\publish\\FileCat.App;' + gate + '=0',
+                           "gives %s 2 values ('1', '0')" % gate)):
             with self.subTest(env):
                 problems, _ = self.check(self.windows_record(env))
                 self.assertTrue(any(said in problem for problem in problems), problems)
@@ -1404,13 +1512,19 @@ class EvidenceChecks(unittest.TestCase):
             found = self.tar_called('bsdtar')
             if found is None:
                 self.skipTest('no bsdtar here: the half of this case it writes cannot run')
+            # Forty files, the empty one among the last but not last: its descriptor states nought in both widths,
+            # and the member after it decides which - the sixty-first review found every empty member here first or
+            # last, and every member's start but the first two's unread passing every case.
             tree = Path(directory) / 'run'
             tree.mkdir()
-            (tree / 'empty.txt').write_bytes(b'')
-            (tree / 'a.txt').write_text('x', encoding='utf-8')
+            for number in range(40):
+                (tree / ('m%02d.txt' % number)).write_bytes(b'' if number == 37 else b'x')
             done = subprocess.run([found, '--format', 'zip', '--options', 'zip:zip64', '-cf', 'wide.zip', 'run'],
                                   cwd=directory, capture_output=True)
             self.assertEqual(0, done.returncode, done.stderr)
+            with zipfile.ZipFile(Path(directory) / 'wide.zip') as held:
+                names = [item.filename for item in held.infolist()]
+            self.assertTrue(30 < names.index('run/m37.txt') < len(names) - 1, names)
             with checker.Archive(Path(directory) / 'wide.zip') as held:
                 self.assertIsNone(held.listing_gap())
 
@@ -2737,13 +2851,13 @@ class EvidenceChecks(unittest.TestCase):
 
     def test_reads_a_tar_whose_stream_runs_past_one_block(self):
         """A gzipped tar is read a block of 1 MiB of its stream at a time, and how far it reached is the sum of every
-        block's output: r35's full Unix lanes run to several such blocks, where every tar the suite accepted had fitted
-        in one (the fifty-second review)."""
+        block's output: r35's full Unix lanes run to seven such blocks, where every tar the suite accepted had fitted in
+        one (the fifty-second review) and then two (the sixty-first) - nine here."""
         contents = files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
-        contents['zz-ballast.bin'] = random.Random(52).randbytes(1536 * 1024)
+        contents['zz-ballast.bin'] = random.Random(52).randbytes(8704 * 1024)
         with tempfile.TemporaryDirectory() as directory:
             path = archive(directory, 'edit-large-evidence.tar.gz', contents, unix=True)
-            self.assertGreater(path.stat().st_size, 1 << 20)
+            self.assertGreater(path.stat().st_size, 8 << 20)
             self.assertEqual([], checker.check(path)[0])
 
     def test_accepts_a_windows_edit_lane_shaped_as_r35_s(self):
@@ -2806,10 +2920,11 @@ class EvidenceChecks(unittest.TestCase):
     def test_accepts_a_unix_full_lane_shaped_as_r35_s(self):
         """A full Unix lane as r35 holds one, in the shapes the rules read, with the entry lines its runner writes now:
         build and publish entries, shards and the negated shards beside them - whose test lines hold `!`, which dotnet
-        passes on as written - and the results rows as the logger writes them (the fifty-third review); at r35's scale
-        or past it in every count the check reads, and read through main() as the release reads it (the sixtieth review
-        found every case below r35's counts, and none reading a full lane through main())."""
-        contents = full_unix_lane()
+        passes on as written - and the results rows as the logger writes them (the fifty-third review); past r35's own in
+        the counts and sizes `full_unix_lane` names, and read through main() as the release reads it (the sixtieth review
+        found every case below r35's counts, and none reading a full lane through main(); the sixty-first, below the
+        sizes of r35's members, where this said "every count the check reads")."""
+        contents = full_unix_lane(output=30)
         with tempfile.TemporaryDirectory() as directory:
             path = archive(directory, 'full-run-evidence.tar.gz', contents, unix=True, folders=FULL_FOLDERS)
             # The fixture's own shape, asserted: read with a 16 KiB window, its stream does not read, as no accepted r35
@@ -2827,6 +2942,7 @@ class EvidenceChecks(unittest.TestCase):
         suites = json.loads(contents['summary.json'])['suites']
         self.assertEqual((45, 'edit-test/summary.json'), (len(members), members[-1]))
         self.assertGreater(last[:last.index(PIN_NAMES[1])].count('<UnitTestResult '), 18000)
+        self.assertGreater(len(last.encode('utf-8')), 36 << 20)
         self.assertEqual(23, own.index('env=' + checker.GATE))
         self.assertEqual(7, len(suites))
         self.assertEqual(0, code, report)
@@ -2834,6 +2950,29 @@ class EvidenceChecks(unittest.TestCase):
                          'force, linux, sha256 %s' % (sum(counters['passed'] for counters in suites.values()),
                                                       sum(counters['skipped'] for counters in suites.values()),
                                                       checker.GATE, digest), report.split('\n')[0])
+
+    def test_accepts_a_windows_full_lane_past_r35_s_own(self):
+        """A full Windows lane past r35's own in the counts and sizes `full_windows_lane` names - seven processes in
+        thirty-nine zip entries, the last of them one the check reads, and a results file past 36 MiB - read through
+        main() as the release reads it: r35's full Windows lane seals thirty-six entries and a results file of 35.9 MB,
+        and its edit lane reads one of 1.86 MB, where no zip case read a member past 8 KiB or held more than twenty-three
+        entries (the sixty-first review)."""
+        members = full_windows_lane()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'full-run-evidence.zip'
+            zip_with_backslashes(path, members)
+            with zipfile.ZipFile(path) as held:
+                entries = held.infolist()
+            code, report = self.report(path)
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        summary = json.loads(dict(members)['summary.json'][3:].decode('utf-8'))
+        self.assertEqual((39, 'tests.txt'), (len(entries), entries[-1].orig_filename))
+        self.assertGreater(max(entry.file_size for entry in entries), 36 << 20)
+        self.assertEqual(0, code, report)
+        self.assertEqual('full-run-evidence.zip: edit-storage evidence, %d passed, %d skipped, no failure, %s in force, '
+                         'windows, sha256 %s' % (sum(counters['passed'] for counters in summary['suites'].values()),
+                                                 sum(counters['skipped'] for counters in summary['suites'].values()),
+                                                 checker.GATE, digest), report.split('\n')[0])
 
     def test_refuses_more_test_logs_than_its_runner_listed_processes(self):
         """A log of a process no line lists is no more its runner's than a line with no log: the count is compared
@@ -2877,7 +3016,7 @@ class EvidenceChecks(unittest.TestCase):
         """A filter holding every character the Windows runner's -Filter admits, an Env value holding every character
         its -Env admits, and hang minutes of every digit, one to three of them: the launcher, the record and the test
         list as the runner writes them from inputs it accepts, and the check accepts each (the fifty-fifth review found
-        a narrower reading of each noticed by no case)."""
+        a narrower reading of each noticed by no case), and run ids of every character its -RunId admits."""
         # And an empty value, which the runner admits and the child applies - clearing the variable (the fifty-seventh
         # review found an empty value held by no case).
         env = 'FILECAT_ARCHIVE_TXF_NATIVE=1;FILECAT_EMPTY=;%s;FILECAT_NOTES=%s' % (checker.GATE, WINDOWS_ENV_VALUE)
@@ -2888,6 +3027,17 @@ class EvidenceChecks(unittest.TestCase):
                 contents['machine.json'] = windows_json(record)
                 contents['child.cmd'] = launcher(env, filter=WINDOWS_FILTER, hang=hang)
                 contents['tests.txt'] = 'test FileCat.App.Tests-Edit: (%s)&(FullyQualifiedName~Edit)\r\n' % WINDOWS_FILTER
+                problems, facts = self.check(contents)
+                self.assertEqual(([], 'windows'), (problems, facts.get('system')))
+        # And a RunId of every character the runner admits, sixty of them, its bound - two cover the sixty-five - in the
+        # run folder the launcher names (the sixty-first review found the run folder's RunId held by no case but three).
+        characters = admitted('[A-Za-z0-9._-]')
+        self.assertEqual(65, len(characters))
+        for run_id in (characters[:60], characters[-60:]):
+            with self.subTest(run_id=run_id):
+                contents = files()
+                contents['machine.json'] = windows_json(dict(record, RunId=run_id))
+                contents['child.cmd'] = launcher(env, run='C:\\FileCatValidation\\aw-claude\\' + run_id)
                 problems, facts = self.check(contents)
                 self.assertEqual(([], 'windows'), (problems, facts.get('system')))
 
@@ -3020,14 +3170,20 @@ class EvidenceChecks(unittest.TestCase):
         among them, which begins with the file system's name - so a file system named `test`, as a tmpfs or a pool's
         root dataset can be, began that line `test `: read as a listed process, and its `%` as a character dotnet does
         not pass on, it refused an ordinary lane. The runner's own lines begin at its `packet=` line (the fifty-sixth
-        review) - the line that begins so, not one that holds it, as a mount point may (the fifty-seventh)."""
-        contents = files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
-        lines = contents['machine.txt'].split('\n')
-        df = next(index for index, line in enumerate(lines) if line.endswith('% /'))
-        lines[df] = 'test            196G  103G   83G  56% /srv/packet=1'
-        contents['machine.txt'] = '\n'.join(lines)
-        problems, facts = self.check(contents, unix=True)
-        self.assertEqual(([], 'linux'), (problems, facts.get('system')))
+        review) - the line that begins so, not one that holds it, as a mount point may (the fifty-seventh) - wherever
+        it stands: after the five lines Linux's head holds, and the seven of macOS's (the sixty-first review found the
+        search held to the fifth line alone)."""
+        for system, word in (('Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux', 'linux'),
+                             ('Darwin host 27.0.0 Darwin Kernel Version 27.0.0 arm64', 'macos')):
+            with self.subTest(word):
+                contents = files(system=system)
+                lines = contents['machine.txt'].split('\n')
+                df = next(index for index, line in enumerate(lines) if line.startswith('packet=')) - 1
+                self.assertEqual(len(unix_head(system)) - 1, df)
+                lines[df] = 'test            196G  103G   83G  56% /srv/packet=1'
+                contents['machine.txt'] = '\n'.join(lines)
+                problems, facts = self.check(contents, unix=True)
+                self.assertEqual(([], word), (problems, facts.get('system')))
 
     def test_writes_each_report_line_as_one_line(self):
         """An archive's name comes from the command line, and a suite's or a pin's from the archive itself: a line break
