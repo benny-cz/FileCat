@@ -247,7 +247,9 @@ public sealed class ArchiveStandaloneUiTests
     private static async Task Finished(Job job)
     {
         await Wait(() => job.State.IsFinished());
-        Assert.True(job.State == JobState.Completed, job.State + ": " + job.Summary + " " + JobIssue.Summarize(job.Issues));
+        // Each issue's technical detail too: the user's text names the kind of refusal, not which check made it.
+        Assert.True(job.State == JobState.Completed, job.State + ": " + job.Summary + " " + JobIssue.Summarize(job.Issues) + " " +
+            string.Join(" | ", job.Issues.Where(issue => issue.Details is not null).Select(issue => issue.Details)));
     }
 
     private static async Task Wait(Func<bool> ready)
