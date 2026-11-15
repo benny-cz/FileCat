@@ -1,5 +1,62 @@
 # Archive writing implementation status
 
+**15 November, one log for each test process, and every loop held (round forty-nine).** Asked again whether anything
+was left that the mechanism did not report, the reviewer found three things at High and two at Medium:
+
+- **High: two test processes named alike wrote over each other, and the check read "no failure anywhere in the run".**
+  Each process writes its results, its log and its exit code under its name, and both runners accepted two that name
+  alike: an entry given twice, a `#~X` shard beside a `#not+X` one (both named `-not-X`), one project name in two
+  folders, or names that differ only in case, which NTFS and APFS do not tell apart. The reviewer ran it through the
+  Unix runner's own steps: the first process failed, the second passed, and the summary, the status and the check all
+  said the run passed. The gate was set for both; what was lost was the failure. Both runners refuse such a list now,
+  before a run starts, comparing names without case; and the check refuses an archive that does not hold a log of its
+  own for each test process its runner listed (the Unix runner lists them in its record, the Windows runner in
+  `tests.txt`; names compared without case) - in r35 each listed process has its log.
+- **High: a project entry could reach out of the hash-pinned packet, and the runners' text said it could not.** A path
+  holding `..` resolved to another run's sources - which neither runner removes - while the record still named the
+  packet's hash; and the Unix runner said each project entry was written into its record, where none was. That alone
+  did not turn the gate off, but it broke the link from an archive to the packet and the commit the records cite. Both
+  runners refuse a project path holding `..` before a run now; the Unix runner writes each entry into its record (an
+  `entry=` line); and the check refuses such a path in a Windows launcher's projects and in the Unix record's entry
+  lines, and the characters dotnet changes in those lines as in its test lines. The r35 lanes' entries hold none (each
+  list probed).
+- **High: the check said that with the gate in force every step-aside becomes a failure.** Two of
+  `NativeEditStorageTests`' cases skip as root whatever the gate says, so for those the scan is what refuses them; the
+  comment says so now.
+- **Medium: a `machine.json` written in a double-byte ANSI code page did not read as JSON** - in Japanese or Chinese a
+  character's second byte can be a backslash, which no reading of the bytes undoes - so a lane on such a system was
+  refused, and "whatever language the rest is in" held for single-byte code pages alone. The Windows runner writes
+  `machine.json` and `summary.json` in UTF-8 with a mark now, and the check's text says which code pages its reading
+  holds for. The r35 records are ASCII.
+- **Medium: five loops the audit printed change verdicts, and no case held them** - every results file read, every
+  suite's failure counter and exit code, every pin, and the digest over every block - because each fixture carried one
+  test process and no archive passed one block of 1 MiB, where the r35 edit lanes split their pins over two or three
+  results files and its full lanes are six times that size. A lane shaped as the runners seal one (two processes, the
+  pins split between them), a dual-root pin failing in one row beside a passing one, and an archive larger than a block
+  hold them now, each with its own entry. And the record below said the printed lines "were read again", which
+  overstated how closely: corrected where it stands. This round weakened the printed lines that look like rules, the
+  reviewer's and more, and measured each: twenty-one held by a verdict are listed, one is noted redundant, and three
+  that no case held are listed with a case each - a Windows launcher's projects read one entry at a time, a byte-order
+  mark read only where a member begins, and a zip folder listed twice. The audit prints fifty-nine lines now, from
+  eighty-two.
+- Low, closed or recorded: the Windows runner's parallel mode read a job that returned nothing as exit code 0; it is a
+  failure now. The Unix runner's cleanup took the runner itself when an argument pointed inside the run folder, before
+  it sealed - it leaves itself out now (probed on the Mac and on Ubuntu), and the Windows wrapper's sweep leaves itself
+  out too. While probing that, bash 3.2 on the Mac misread the new cleanup's `case` pattern inside `$(...)`, which would
+  have stopped every Mac lane: its patterns open with `(` now, and the whole runner parses under bash 3.2 and 5.2.
+  Ledger row 13 now says what this record said of the reports the `048bf334` manifest carries: they are its candidate's
+  own, kept byte for byte, and name neither system nor digest - the binding by both holds from the next candidate. And
+  the entry for a marked member read with what does not decode replaced is held only by a lone surrogate, which no
+  runner writes.
+
+The runners' new refusals were probed against r35's own lists - nine Unix entry lists under bash 5.3, 3.2 and 5.2 and
+six Windows `-Projects` values under Windows PowerShell 5.1 pass, and twelve shapes each runner must refuse or accept
+read as expected - and the round below's fifty Windows and sixty-two Unix inputs still read as expected under Windows
+PowerShell 5.1 and bash 5.3. The fourteen r35 archives read exactly as they did at the round below (five accepted, nine
+refused) and all 23 manifest digests match. One hundred and twenty-six cases for the check and fourteen for the
+manifest; the harness lists two hundred and one rules, one hundred and seventy-five held by a verdict, twenty-six noted
+as redundant, caseless or raising, and none unheld or contradicted.
+
 **15 November, the filter's backslashes and the rules no case held (round forty-eight).** Asked again whether anything
 was left that the mechanism did not report, the reviewer found two things at High and three at Medium:
 
@@ -40,7 +97,9 @@ The fixtures seal each runner's own record now - the Windows runner's `machine.j
 it (a member a line, in the ANSI code page), the Unix runner's `machine.txt` for a Unix system - and the audit's printed
 lines were read again: four more that are real rules (the Windows record read by its `Os` member, a member with a mark
 read with what does not decode replaced, a Unix record line read as an entry only where it begins `env=`, and the
-dual-root pin's family read past its theory rows' arguments) are listed, with cases where none held them.
+dual-root pin's family read past its theory rows' arguments) are listed, with cases where none held them. (Not
+closely enough: the round above found five loops among the lines still printed that change verdicts with no case to
+hold them.)
 
 Every r35 argument passes the runners' checks but the Windows full lane's `#!` shard - fifty Windows inputs under
 Windows PowerShell 5.1 and sixty-two Unix inputs under bash 5.3, 3.2 and 5.2, each as expected - the fourteen r35

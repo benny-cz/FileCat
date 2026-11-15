@@ -23,7 +23,8 @@ RUN_ID=$1; PACKET=$2; EXPECTED=$3; FILTER=$4; shift 4
 PROJECTS=("$@")
 [[ "$RUN_ID" =~ ^[A-Za-z0-9._-]{1,80}$ ]] || { echo "bad run id" >&2; exit 2; }
 [ "${#PROJECTS[@]}" -ge 1 ] || { echo "no project" >&2; exit 2; }
-# FILTER and each PROJECT entry are written into machine.txt and handed to the test processes: printable ASCII without
+# FILTER and each PROJECT entry are written into machine.txt (filter= and entry= lines, and each test process's name
+# and filter in a test line) and handed to the test processes: printable ASCII without
 # `"` or `$`, judged in the C locale. A line break in the filter wrote a line of its own into the record - an env= line
 # this runner never exported - while each test process took the filter's first line alone; systemd-run expands ${...}
 # in the test processes' arguments; and dotnet hands the filter to MSBuild inside quotes, so a `"` ended it and what
@@ -38,6 +39,25 @@ PRINTABLE='^[] !#&-?A-[^-~]+$'
 FILTERABLE='^[] !#&-,.0-?A-[^-~][] !#&-?A-[^-~]*$'
 ( LC_ALL=C; [[ "$FILTER" =~ $FILTERABLE ]] ) || { echo "bad filter" >&2; exit 2; }
 for P in "${PROJECTS[@]}"; do ( LC_ALL=C; [[ "$P" =~ $PRINTABLE ]] ) || { echo "bad project entry" >&2; exit 2; }; done
+# Each test process writes its trx, log and exit code under its name, so two named alike - an entry given twice, a #~X
+# beside a #not+X, or names that differ only in case, which macOS and Windows file systems do not tell apart - wrote
+# over each other and hid a failure; and a project path holding `..` reached out of the hash-pinned packet (the
+# forty-ninth review). Both are refused before a run starts, as the evidence check refuses them in a sealed run.
+NL=$'\n'; NAMES=$NL
+for P in "${PROJECTS[@]}"; do
+  case "$P" in env:*|hang:*|parallel:*) continue ;; esac
+  path=${P#build:}; path=${path#publish:}; path=${path%%#*}
+  case "$path" in *..*) echo "bad project entry" >&2; exit 2 ;; esac
+  case "$P" in build:*|publish:*) continue ;; esac
+  csproj=${P%%#*}; spec=""; [ "$csproj" = "$P" ] || spec=${P#*#}
+  name=$(basename "$csproj" .csproj)
+  if [ -n "$spec" ]; then
+    case "$spec" in '!'*|'~'*) spec=${spec:1}; name="$name-not-${spec//+/-}" ;; *) name="$name-${spec//+/-}" ;; esac
+  fi
+  folded=$(printf '%s' "$name" | LC_ALL=C tr '[:upper:]' '[:lower:]')
+  case "$NAMES" in *"$NL$folded$NL"*) echo "two test processes named $name" >&2; exit 2 ;; esac
+  NAMES="$NAMES$folded$NL"
+done
 ROOT="$HOME/FileCatValidation/aw-claude"
 mkdir -p "$ROOT"; chmod 700 "$ROOT"
 D="$ROOT/$RUN_ID"
@@ -65,8 +85,14 @@ mkdir -m 700 "$D"; mkdir "$D/src" "$D/results"
 finish() {
   local code=$?
   [ -f "$D/status.txt" ] || echo FAIL >"$D/status.txt"
-  # Only processes running from inside the run folder: a sibling path such as RUN_ID.log in a caller's arguments is not ours.
-  if [ -n "$(pgrep -f "$D/" || true)" ]; then echo "leftover processes" >>"$D/status.txt"; pkill -f "$D/" || true; fi
+  # Only processes running from inside the run folder: a sibling path such as RUN_ID.log in a caller's arguments is not
+  # ours - nor is this runner, whose own command line holds "$D/" where an argument points inside the run folder, and
+  # which pkill took before it sealed (the forty-ninth review).
+  # (Each pattern opens with `(`: bash 3.2 misreads a case pattern's lone `)` inside $(...).)
+  leftover=$(for pid in $(pgrep -f "$D/" || true); do
+    case "$(ps -o args= -p "$pid" 2>/dev/null || true)" in (*run_unix_test_packet.sh*|"") ;; (*) printf '%s ' "$pid" ;; esac
+  done)
+  if [ -n "$leftover" ]; then echo "leftover processes" >>"$D/status.txt"; kill $leftover 2>/dev/null || true; fi
   # Published apps are rebuilt from the pinned packet, so the evidence keeps each published file's SHA-256 instead of
   # 200+ MiB of binaries per run (the Windows runner also leaves src and publish out).
   if [ -d "$D/publish" ]; then (cd "$D/publish" && find . -type f -exec shasum -a 256 {} + | LC_ALL=C sort -k2) >"$D/publish-sha256.txt" || true; fi
@@ -78,7 +104,8 @@ date -u +%Y-%m-%dT%H:%M:%SZ >"$D/started.txt"
 tar -xzf "$PACKET" -C "$D/src"
 export DOTNET_ROOT PATH="$DOTNET_ROOT:$PATH" DOTNET_CLI_TELEMETRY_OPTOUT=1 MSBUILDDISABLENODEREUSE=1 DOTNET_NOLOGO=1
 { uname -a; if [ $LABEL = mac ]; then sw_vers; sysctl -n hw.logicalcpu; else lsb_release -d; nproc; fi
-  "$DOTNET_ROOT/dotnet" --version; df -h "$D" | tail -1; printf 'packet=%s\nfilter=%s\n' "$EXPECTED" "$FILTER"; } >"$D/machine.txt" 2>&1
+  "$DOTNET_ROOT/dotnet" --version; df -h "$D" | tail -1; printf 'packet=%s\nfilter=%s\n' "$EXPECTED" "$FILTER"
+  printf 'entry=%s\n' "${PROJECTS[@]}"; } >"$D/machine.txt" 2>&1
 # A record line that carries an argument's text is written with printf: echo under sh (xpg_echo) turns a \n inside
 # a value into a line of its own.
 if [ $LABEL = ubuntu ]; then NICE=(nice -n 5); else NICE=(env); fi

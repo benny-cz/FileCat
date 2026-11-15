@@ -370,3 +370,14 @@ forty-seventh's counts corrected; each of those rules is listed with a case; and
 wherever its caption says the word, and nothing else, the Unix record Linux or macOS and nothing else - the r35 verdicts unchanged. One hundred and seventeen cases hold the
 check and fourteen the manifest; the harness lists one hundred and sixty-one rules, one hundred and thirty-six held by a verdict, twenty-five noted, none unheld or
 contradicted.
+
+The forty-ninth review found two test processes named alike writing over each other's results, log and exit code, so
+that a failed process went unread and the check said the run had no failure; a project path holding `..` reaching
+another run's sources under the packet's own hash, where the Unix runner's text said every entry was recorded; a
+comment claiming every step-aside became a failure under the gate; double-byte code pages, in which the Windows record
+did not read as JSON; and five loops no case held. Both runners refuse names alike and `..` paths before a run, the Unix
+runner records each entry, and the check refuses an archive that does not hold a log of its own for each process its
+runner listed, and a recorded project path holding `..`; the Windows runner writes its JSON records in UTF-8; each loop, and every other
+printed line found to be a rule, is listed with a case - the r35 verdicts unchanged. One hundred and twenty-six cases hold the check and
+fourteen the manifest; the harness lists two hundred and one rules, one hundred and seventy-five held by a verdict, twenty-six noted, none unheld or
+contradicted.

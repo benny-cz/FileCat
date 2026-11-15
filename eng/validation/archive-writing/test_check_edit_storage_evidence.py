@@ -11,6 +11,7 @@ import io
 import json
 import os
 from pathlib import Path
+import random
 import sys
 import gzip
 import shutil
@@ -145,6 +146,37 @@ SUMMARY = {"ok": True, "failed": [], "exit_codes": {"FileCat.App.Tests-Edit": 0}
                                                  "counters_total": 7}}}
 
 
+# The test process each fixture runs, as both runners list it - the Unix runner in its record, the Windows runner in
+# tests.txt - beside the log it writes: a run's archive holds a log for each process its runner listed.
+TEST_LINE = 'test FileCat.App.Tests-Edit: (FullyQualifiedName~Edit)'
+
+
+SECOND = 'FileCat.Core.Tests-Edit-NativeEditStorage'
+
+
+def two_process_run(unix, counted=0, exited=0):
+    """An edit lane as the runners seal one: two test processes, each with its own TRX, log, exit code and line in
+    its runner's list, the pins split between them as r35's are - the composition and route pins in the first suite,
+    the dual-root pin in the second. `counted` and `exited` are the second suite's failure counter and exit code."""
+    system = 'Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux' if unix else 'Microsoft Windows 11 Pro 10.0.26220.0'
+    platform = ('FileCat.Core.Tests.UnixEditStorageTests.' if unix else
+                'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.')
+    first = ''.join('<UnitTestResult testName="FileCat.Tests.%s" outcome="Passed" />' % pin for pin in PIN_NAMES[:2])
+    counters = {"total": 5, "passed": 5, "skipped": 0, "failed": counted, "counters_total": 5}
+    summary = dict(SUMMARY, exit_codes={"FileCat.App.Tests-Edit": 0, SECOND: exited},
+                   suites=dict(SUMMARY['suites'], **{SECOND: counters}))
+    contents = files(trx=first, summary=summary, system=system)
+    contents['results/%s.trx' % SECOND] = ('<?xml version="1.0"?><TestRun><Results><UnitTestResult testName="%s%s" '
+                                           'outcome="Passed" /></Results></TestRun>' % (platform, PIN_NAMES[2]))
+    contents['test-%s.log' % SECOND] = '[xUnit.net] everything ran\n'
+    line = 'test %s: (FullyQualifiedName~Edit|FullyQualifiedName~NativeEditStorage)' % SECOND
+    if unix:
+        contents['machine.txt'] += line + '\n'
+    else:
+        contents['tests.txt'] += line + '\r\n'
+    return contents
+
+
 def windows_json(record):
     """A record as the Windows runner writes it: Windows PowerShell 5.1's ConvertTo-Json - a member a line, four spaces
     in, two after the colon, what is not ASCII as written - through Set-Content, which ends every line with CRLF."""
@@ -156,8 +188,8 @@ def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything 
           gate_value=None, system='Microsoft Windows 11 Pro 10.0.26220.0'):
     """The files the runners seal, as a name-to-text map; each argument stands for one way a run can differ. The
     machine record is the one the system's own runner writes: the Windows runner's `machine.json`, its caption in `Os`
-    with what is not ASCII as written; the Unix runner's `machine.txt`, its `uname -a` line first and one `env=` line
-    per entry."""
+    with what is not ASCII as written, and its tests.txt; the Unix runner's `machine.txt`, its `uname -a` line first,
+    one `env=` line per entry and a `test` line for its test process."""
     if gate_value is not None:
         gate_text = checker.GATE_NAME + '=' + gate_value
     else:
@@ -172,14 +204,16 @@ def files(gate=True, trx=PASSING_TRX, summary=None, log='[xUnit.net] everything 
         contents = {'machine.json': windows_json({"RunId": "edit-test", "Os": system,
                                                   "Env": 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate_text})}
     else:
-        contents = {'machine.txt': '%s\npacket=abc\nfilter=*\nenv=FILECAT_ARCHIVE_TXF_NATIVE=1\nenv=%s\n'
-                                   % (system, gate_text)}
+        contents = {'machine.txt': '%s\npacket=abc\nfilter=*\nenv=FILECAT_ARCHIVE_TXF_NATIVE=1\nenv=%s\n%s\n'
+                                   % (system, gate_text, TEST_LINE)}
     contents.update({
         'summary.json': json.dumps(SUMMARY if summary is None else summary),
         'status.txt': status,
         'results/FileCat.App.Tests-Edit.trx': '<?xml version="1.0"?><TestRun><Results>' + trx + '</Results></TestRun>',
         'test-FileCat.App.Tests-Edit.log': log,
     })
+    if windows:
+        contents['tests.txt'] = TEST_LINE + '\r\n'
     return contents
 
 
@@ -208,9 +242,13 @@ def with_child_cmd(contents):
     if 'machine.json' not in contents or 'child.cmd' in contents:
         return contents
     record = contents['machine.json']
+    if isinstance(record, bytes):
+        # A record a case gives as bytes: UTF-8 with a mark, as the runner writes it now, or an ANSI code page, in which
+        # its Env is ASCII whichever page it is.
+        mark = bytes((0xEF, 0xBB, 0xBF))
+        record = record[3:].decode('utf-8') if record.startswith(mark) else record.decode('latin-1')
     try:
-        # A record a case gives as bytes is in some ANSI code page, and its Env is ASCII whichever one it is.
-        env = json.loads(record.decode('latin-1') if isinstance(record, bytes) else record).get('Env')
+        env = json.loads(record).get('Env')
     except (ValueError, AttributeError):
         return contents
     if not isinstance(env, str):
@@ -316,7 +354,8 @@ class EvidenceChecks(unittest.TestCase):
         """The Unix runner writes one `env=NAME=VALUE` line per variable into machine.txt."""
         contents = files(system='Linux filecat-ubuntu2404 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
         contents['machine.txt'] = ('Linux filecat-ubuntu2404 7.0.0-43-generic #43 SMP x86_64 GNU/Linux\n'
-                                   'packet=abc\nfilter=*\nenv=FILECAT_ARCHIVE_TXF_NATIVE=1\nenv=%s\n' % checker.GATE)
+                                   'packet=abc\nfilter=*\nenv=FILECAT_ARCHIVE_TXF_NATIVE=1\nenv=%s\n%s\n'
+                                   % (checker.GATE, TEST_LINE))
         # Its results name neither class, so the record is all that says the system - as it is between Linux and macOS.
         problems, _ = self.check(contents, unix=True)
         self.assertEqual([], problems)
@@ -397,11 +436,16 @@ class EvidenceChecks(unittest.TestCase):
         self.assertIn('it does not hold the pin ' + pin, problems)
 
     def test_refuses_a_run_whose_test_output_is_absent(self):
-        """The step-aside scan reads those logs: without them it is not a check that passed."""
+        """The step-aside scan reads those logs: without them it is not a check that passed - and a process its
+        runner listed without its log is refused for that too."""
         contents = files()
         del contents['test-FileCat.App.Tests-Edit.log']
         problems, _ = self.check(contents)
-        self.assertEqual(['it carries no test output to read'], problems)
+        self.assertIn('it carries no test output to read', problems)
+        self.assertTrue(any('its runner listed 1 test processes where the archive holds the logs of 0' in problem
+                            for problem in problems), problems)
+        del contents['tests.txt']
+        self.assertEqual(['it carries no test output to read'], self.check(contents)[0])
 
     def test_refuses_a_run_where_a_test_stepped_aside_for_native_storage(self):
         """Each reason, written out here rather than taken from the check: a reason dropped there is then a run
@@ -429,7 +473,7 @@ class EvidenceChecks(unittest.TestCase):
         for first, system in (('Linux filecat-ubuntu2404 7.0.0-43-generic #43 SMP x86_64 GNU/Linux', 'linux'),
                               ('Darwin Mareks-MacBook-Pro.local 27.0.0 Darwin Kernel Version 27.0.0 arm64', 'macos')):
             contents = files(system=first)
-            contents['machine.txt'] = first + '\nenv=%s\n' % checker.GATE
+            contents['machine.txt'] = first + '\nenv=%s\n%s\n' % (checker.GATE, TEST_LINE)
             problems, facts = self.check(contents, unix=True)
             self.assertEqual([], problems)
             self.assertEqual(system, facts['system'])
@@ -870,7 +914,7 @@ class EvidenceChecks(unittest.TestCase):
         under a Darwin kernel - must not decide the route this binds to."""
         contents = files(system='Darwin host 27.0.0 arm64')
         contents['machine.txt'] = ('Darwin host 27.0.0 Darwin Kernel Version 27.0.0 arm64\n'
-                                   'Linux-compat layer: off\nenv=%s\n' % checker.GATE)
+                                   'Linux-compat layer: off\nenv=%s\n%s\n' % (checker.GATE, TEST_LINE))
         problems, facts = self.check(contents, unix=True)
         self.assertEqual([], problems)
         self.assertEqual('macos', facts['system'])
@@ -916,6 +960,8 @@ class EvidenceChecks(unittest.TestCase):
     def unix_record(self, *lines):
         """A machine record as the Unix runner seals it: uname first, then its own lines, one `env=` per entry."""
         contents = files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
+        if not any(line.startswith('test ') for line in lines):
+            lines += (TEST_LINE,)
         contents['machine.txt'] = 'Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux\n' + '\n'.join(lines) + '\n'
         return contents
 
@@ -1656,6 +1702,7 @@ class EvidenceChecks(unittest.TestCase):
         step = STEP_ASIDE_WORDS[0]
         contents = files(log='[xUnit.net] ' + step + '\n')
         contents['test-FileCat.Core.Tests-Edit.log'] = '[xUnit.net] everything ran\n'
+        contents['tests.txt'] += 'test FileCat.Core.Tests-Edit: (FullyQualifiedName~Edit)\r\n'  # its runner lists both
         with tempfile.TemporaryDirectory() as directory:
             path = archive(directory, 'edit-shadowed-evidence.tar.gz', contents, unix=True)
             self.assertTrue(any(step in problem for problem in checker.check(path)[0]))
@@ -1833,7 +1880,7 @@ class EvidenceChecks(unittest.TestCase):
         windows = PASSING_TRX.replace('FileCat.Tests.' + pin,
                                       'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pin)
         contents = files(trx=windows, system='Linux host 6.0.0 x86_64 GNU/Linux')
-        contents['machine.txt'] = 'Windows host 10.0.26100 x86_64\nenv=%s\n' % checker.GATE
+        contents['machine.txt'] = 'Windows host 10.0.26100 x86_64\nenv=%s\n%s\n' % (checker.GATE, TEST_LINE)
         self.assertIn(said, self.check(contents, unix=True)[0])
 
     def test_reads_a_tar_member_s_name_with_its_backslashes(self):
@@ -1957,6 +2004,142 @@ class EvidenceChecks(unittest.TestCase):
         """A Unix record's entries are its `env=` lines, and a filter holding `env=` further along is a filter."""
         record = self.unix_record('filter=FullyQualifiedName~Xenv=Y', 'env=FILECAT_EDIT_NATIVE_REQUIRED=1')
         self.assertEqual([], self.check(record, unix=True)[0])
+
+    def test_refuses_a_run_whose_test_processes_are_named_alike(self):
+        """Each test process writes its TRX, log and exit code under its name, and two named alike - an entry given
+        twice, `#~X` beside `#not+X`, names that differ only in case, which NTFS and APFS do not tell apart - wrote over
+        each other, so a failure in the first went unread (the forty-ninth review): its runner listed two processes
+        where the archive holds one log."""
+        said = 'its runner listed 2 test processes where the archive holds the logs of 1'
+        contents = files()
+        contents['tests.txt'] = (TEST_LINE + '\r\n') * 2
+        problems, _ = self.check(contents)
+        self.assertTrue(any(said in problem for problem in problems), problems)
+        problems, _ = self.check(self.unix_record('env=FILECAT_EDIT_NATIVE_REQUIRED=1', TEST_LINE, TEST_LINE), unix=True)
+        self.assertTrue(any(said in problem for problem in problems), problems)
+        # Two logs in an archive made where case tells names apart, and one file where the runner wrote them.
+        contents = self.unix_record('env=FILECAT_EDIT_NATIVE_REQUIRED=1', TEST_LINE, TEST_LINE.replace('Edit:', 'edit:'))
+        contents['test-FileCat.App.Tests-edit.log'] = '[xUnit.net] everything ran\n'
+        problems, _ = self.check(contents, unix=True)
+        self.assertTrue(any(said in problem for problem in problems), problems)
+
+    def test_reads_every_process_of_a_run_as_its_runners_seal_one(self):
+        """An edit lane runs more than one test process - r35's split their pins over two or three - and every one of
+        them is read: the results of each, the failure counter and exit code of each suite, and the counts of all in the
+        report (the forty-ninth review found each of these loops held by no case, the fixtures carrying one process)."""
+        for unix in (False, True):
+            with self.subTest(unix=unix):
+                problems, facts = self.check(two_process_run(unix), unix)
+                self.assertEqual([], problems)
+                self.assertEqual(set(checker.PINS), set(facts['pins']))
+                self.assertIn('suite %s has 1 failures' % SECOND, self.check(two_process_run(unix, counted=1), unix)[0])
+                self.assertIn('suite %s exited 1' % SECOND, self.check(two_process_run(unix, exited=1), unix)[0])
+        with tempfile.TemporaryDirectory() as directory:
+            path = archive(directory, 'edit-two-evidence.zip', two_process_run(False))
+            report = Path(directory) / 'report.txt'
+            with contextlib.redirect_stdout(io.StringIO()):
+                with unittest.mock.patch.object(sys, 'argv', ['check', str(path), '--out', str(report)]):
+                    self.assertEqual(0, checker.main())
+            self.assertIn('edit-two-evidence.zip: edit-storage evidence, 12 passed, 0 skipped, no failure,',
+                          report.read_text(encoding='utf-8').splitlines()[0])
+
+    def test_refuses_a_run_whose_dual_root_pin_failed_in_one_row(self):
+        """Every pin is read, the dual-root one too: a row of it that failed beside one that passed is a pin that failed
+        somewhere, which the family read from the passing row does not refuse (the forty-ninth review)."""
+        pin = PIN_NAMES[2]
+        rows = (PASSING_TRX.replace('<UnitTestResult executionId="2" testName="FileCat.Tests.%s" outcome="Passed" />'
+                                    % pin, '') +
+                '<UnitTestResult testName="FileCat.Tests.%s(root: 1)" outcome="Passed" />' % pin +
+                '<UnitTestResult testName="FileCat.Tests.%s(root: 2)" outcome="Failed" />' % pin)
+        problems, _ = self.check(files(trx=rows))
+        self.assertTrue(any(problem.startswith('the pin %s did not pass' % pin) for problem in problems), problems)
+
+    def test_names_an_archive_larger_than_a_block_by_the_digest_of_all_of_it(self):
+        """The digest is read a block of 1 MiB at a time, and the full lanes r35 accepted are six times that: it is the
+        digest of every block, not of the first (the forty-ninth review)."""
+        contents = files()
+        contents['zz-ballast.bin'] = random.Random(49).randbytes(1536 * 1024)
+        with tempfile.TemporaryDirectory() as directory:
+            path = archive(directory, 'edit-large-evidence.zip', contents)
+            self.assertGreater(path.stat().st_size, 1 << 20)
+            report = Path(directory) / 'report.txt'
+            with contextlib.redirect_stdout(io.StringIO()):
+                with unittest.mock.patch.object(sys, 'argv', ['check', str(path), '--out', str(report)]):
+                    self.assertEqual(0, checker.main())
+            self.assertTrue(report.read_text(encoding='utf-8').splitlines()[0].endswith(
+                ', windows, sha256 ' + hashlib.sha256(path.read_bytes()).hexdigest()))
+
+    def test_refuses_a_project_path_that_leaves_the_packet(self):
+        """A project path holding `..` reached another run's sources beside the packet, with the packet's hash still in
+        the record (the forty-ninth review): refused in a Windows launcher's projects, and in the Unix record's entry
+        lines, which its runner writes since then. A variable's value and a shard name no path."""
+        said = 'reaches out of the hash-pinned packet'
+        recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;FILECAT_EDIT_NATIVE_REQUIRED=1'
+        for projects, refused in (('..\\..\\edit-r35-win\\src\\tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit', True),
+                                  ('build:..\\other\\A.csproj,tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit', True),
+                                  ('tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit,..\\x\\B.csproj', True),
+                                  ('tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit..Native', False)):
+            with self.subTest(projects=projects):
+                contents = self.windows_record(recorded)
+                contents['child.cmd'] = launcher(recorded, projects=projects)
+                problems, _ = self.check(contents)
+                self.assertEqual(refused, any(said in problem for problem in problems), problems)
+        for entry, refused in (('../../edit-r34-ubuntu/src/tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit', True),
+                               ('publish:../x/src/FileCat.App/FileCat.App.csproj', True),
+                               ('tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit..Native', False),
+                               ('env:FILECAT_ARCHIVE_SMALL_VOLUME=/srv/../small', False)):
+            with self.subTest(entry=entry):
+                record = self.unix_record('entry=' + entry, 'env=FILECAT_EDIT_NATIVE_REQUIRED=1')
+                problems, _ = self.check(record, unix=True)
+                self.assertEqual(refused, any(said in problem for problem in problems), problems)
+
+    def test_refuses_a_unix_entry_line_holding_what_dotnet_changes(self):
+        """The Unix record names each entry since the forty-ninth review, and an entry holding `"`, `@`, `%` or a
+        backslash is refused there as in a test line - its runner refuses one in every entry before a run."""
+        for entry, said in (('tests/A@B.csproj#Edit', "holding '@'"), ('env:FILECAT_X=a%25b', "holding '%'")):
+            with self.subTest(entry=entry):
+                record = self.unix_record('entry=' + entry, 'env=FILECAT_EDIT_NATIVE_REQUIRED=1')
+                problems, _ = self.check(record, unix=True)
+                self.assertTrue(any(said in problem for problem in problems), problems)
+
+    def test_reads_a_windows_record_its_runner_writes_in_utf8(self):
+        """The Windows runner writes its JSON records in UTF-8 with a mark since the forty-ninth review: in a double-byte
+        ANSI code page a character's second byte can be a backslash (表 is 0x95 0x5C in cp932), and such a record did not
+        read as JSON at all."""
+        mark = bytes((0xEF, 0xBB, 0xBF))
+        record = windows_json({"RunId": "edit-test", "Os": "Microsoft Windows 11 Pro 10.0.26100.0",
+                               "Defender": {"Exclusions": ["C:\\" + chr(0x8868) + chr(0x793A)]},
+                               "Env": 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + checker.GATE})
+        contents = files()
+        contents['machine.json'] = mark + record.encode('utf-8')
+        contents['summary.json'] = mark + contents['summary.json'].encode('utf-8')
+        problems, facts = self.check(contents)
+        self.assertEqual([], problems)
+        self.assertEqual('windows', facts['system'])
+
+    def test_reads_a_mark_only_where_a_member_begins(self):
+        """A byte-order mark is read where a member begins: a log holding U+FEFF further along is UTF-8 from its first
+        byte, and a reason it opens with is read whole."""
+        log = (STEP_ASIDE_WORDS[0] + ' here, then ' + chr(0xFEFF) + '\n').encode('utf-8')
+        contents = files(log=log, system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
+        problems, _ = self.check(contents, unix=True)
+        self.assertTrue(any('stepped aside' in problem for problem in problems), problems)
+
+    def test_accepts_a_zip_that_lists_a_folder_twice(self):
+        """A zip's folder entries hold nothing a rule reads and are left out of its members, so a folder listed twice is
+        not a member named twice."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'edit-folders-evidence.zip'
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')  # zipfile warns of the name it is given twice
+                with zipfile.ZipFile(path, 'w') as held:
+                    for name, text in with_child_cmd(files()).items():
+                        held.writestr(name.replace('/', '\\'), sealed(name, text, False))
+                    held.writestr('results/', b'')
+                    held.writestr('results/', b'')
+            with zipfile.ZipFile(path) as held:
+                self.assertEqual(2, sum(item.is_dir() for item in held.infolist()))
+            self.assertEqual([], checker.check(path)[0])
 
 
 if __name__ == '__main__':

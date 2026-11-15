@@ -10,7 +10,9 @@ It reads a run's evidence archive (`<run>-evidence.zip` from the Windows runner,
 one) and requires all of:
 
   * the machine record gives `FILECAT_EDIT_NATIVE_REQUIRED` exactly the value `1`, once, sets nothing outside
-    `FILECAT_`, and hands its tests a filter dotnet and MSBuild pass on as written, read as its runner applies it as
+    `FILECAT_`, hands its tests a filter dotnet and MSBuild pass on as written, and names no project path that holds
+    `..` and so reaches out of the hash-pinned packet (where it names them: the Windows launcher always, the Unix record
+    since the forty-ninth review), read as its runner applies it as
     far as reviews have found how (see `gate_assignments`), and a record that cannot say what reached the tests is
     refused. That a native edit test could not skip rests on this reading
     and on the machine's own environment, which no record holds; the tests recording the gate as they read it would
@@ -23,9 +25,12 @@ one) and requires all of:
     class that passed this run's own dual-root pin - which has to be one of the two real ones, so a record rewritten
     to another system, a second record put before the real one, and a pin whose class was renamed or nested are each
     refused rather than read (Windows is named by the word in its runner's `machine.json` caption, whatever
-    language the rest is in, and Linux and macOS by how the Unix runner's `uname -a` line begins, which alone tells
+    language the rest is in - in UTF-8, as the runner writes it now, or in a single-byte ANSI code page, as it wrote
+    the r35 lanes' records - and Linux and macOS by how the Unix runner's `uname -a` line begins, which alone tells
     them apart);
-  * every suite in the summary passed, with no failure anywhere in the run;
+  * every suite in the summary passed, with no failure anywhere in the run, and each test process its runner listed
+    left a log of its own - two that a file system names alike write over each other's results, log and exit code, so
+    a failure among them went unread;
   * the pins of the listing are in its results, each with the outcome Passed - the application's composition pin, the
     route list's own pin, and the dual-root case, which is what a renamed, re-filtered or dropped pin would fail;
   * no test stepped aside because this process or folder could not hold native storage.
@@ -101,7 +106,9 @@ PINS = (
 )
 
 # What a native edit test says when it steps aside because this process or folder cannot hold native storage. With the
-# gate in force these become failures, so in sealed edit-storage evidence none of them may appear at all.
+# gate in force a test that consults it fails instead; two do not consult it - `NativeEditStorageTests` skips its Unix
+# symbolic-link and Unix storage cases as root whatever the gate says (the forty-ninth review) - and this scan is what
+# refuses those. In sealed edit-storage evidence none of these may appear at all.
 STEP_ASIDE = (
     'Native edit storage cannot be held for this test folder',
     'Native edit storage refuses an elevated or root process',
@@ -357,9 +364,11 @@ class Archive:
         runner's console logs in UTF-16 with a mark, and read as UTF-8 they could neither hold a reason nor be empty,
         so on every Windows archive the log half of the step-aside scan and the empty-output rule were inert (the
         forty-seventh review). Where it has none, a byte that is not UTF-8 is read as a replacement character: the
-        Windows runner writes machine.json in the ANSI code page (`Set-Content`), so a caption in another language -
+        Windows runner wrote machine.json in the ANSI code page (`Set-Content`), so a caption in another language -
         `für` on a German system, Cyrillic on a Russian one - holds such bytes, and no rule reads them (the
-        forty-eighth review)."""
+        forty-eighth review). That holds for a single-byte code page alone: in a double-byte one (Japanese, Chinese) a
+        character's second byte can be a backslash, which no reading of the bytes undoes, and the record does not read
+        as JSON at all - so the runner writes its JSON records in UTF-8 with a mark now (the forty-ninth review)."""
         item = self._members[name]
         if self._zip is not None:
             data = self._zip.read(item)  # type: ignore[arg-type]
@@ -532,7 +541,9 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     as it is in a Windows one, and `"`, `@` and `%` alike in a project entry, whose name reaches MSBuild in the
     logger's property. The forty-eighth found trailing backslashes halved on their way (two arriving as one) and a
     leading `/` read as a switch, so a Unix filter or project entry holds no backslash and neither runner's filter
-    begins with `/`.
+    begins with `/`. The forty-ninth found a project path holding `..` reaching out of the packet the record names - to
+    another run's sources - which is refused in a Windows launcher's projects and in the Unix record's entry lines, its
+    runner writing them since then.
 
     Returns the values in order, or a reason the record cannot say what the tests were given.
     """
@@ -577,6 +588,10 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
             return [], ("its child.cmd passes a filter or a project entry holding '@', which dotnet reads as a response "
                         'file where it begins and MSBuild expands as an item list inside it, so the record cannot say '
                         'what the tests were given')
+        outside = [entry for entry in launched.group(5).split(',') if leaves_packet(entry)]
+        if outside:
+            return [], ('its child.cmd names the project %r, whose path holds .. and so reaches out of the hash-pinned '
+                        'packet its record names, so the record cannot say what was tested' % outside[0])
         if launched.group(7) != recorded:
             return [], ('its child.cmd passed %r where its machine record holds Env %r, so the record cannot say what '
                         'the tests were given' % (launched.group(7), recorded))
@@ -585,14 +600,18 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
         lines = text.split('\n')
         for line in lines:
             held = [character for character in '"@%\\' if character in line]
-            if line.startswith(('filter=', 'test ')) and held:
-                return [], ("its machine record hands its tests a filter or a project name holding %r, which dotnet "
+            if line.startswith(('filter=', 'test ', 'entry=')) and held:
+                return [], ("its machine record hands its tests a filter or a project entry holding %r, which dotnet "
                             'and MSBuild do not always pass on as written, so the record cannot say what the tests '
                             'were given'
                             % held[0])
             if line.startswith(('filter=-', 'filter=/')):
                 return [], ('its machine record hands its tests a filter beginning with %s, which dotnet reads as an '
                             'option of its own, so the record cannot say what the tests were given' % line[7])
+            if line.startswith('entry=') and leaves_packet(line[len('entry='):]):
+                return [], ('its machine record names the project %r, whose path holds .. and so reaches out of the '
+                            'hash-pinned packet it names, so the record cannot say what was tested'
+                            % line[len('entry='):])
         pairs = [line[len('env='):] for line in lines if line.startswith('env=')]
     values = []
     for pair in pairs:
@@ -607,6 +626,26 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
         if (key.isascii() and key.upper() == GATE_NAME) if windows else key == GATE_NAME:
             values.append(value)
     return values, None
+
+
+def leaves_packet(entry: str) -> bool:
+    """Whether a runner's project entry names a path holding `..`, which reaches out of the hash-pinned packet the
+    record names - the forty-ninth review ran another run's sources so, with the packet's hash still in the record. A
+    variable, a hang guard, the parallel switch and a package to expand name no project; what follows a `#` is a shard
+    of the tests, not a path."""
+    if entry.startswith(('env:', 'hang:', 'parallel:', 'expand:')):
+        return False
+    return '..' in entry.split('#', 1)[0]
+
+
+def listed_tests(archive: Archive, record: str) -> list[str]:
+    """The test processes the run's runner listed, a `test NAME: FILTER` line each: the Unix runner in its machine
+    record, the Windows runner in its tests.txt."""
+    if record.replace('\\', '/').endswith('machine.json'):
+        lists = archive.find('tests.txt')
+    else:
+        lists = [record]
+    return [line for name in lists for line in archive.read(name).split('\n') if line.startswith('test ')]
 
 
 def outcomes(archive: Archive) -> dict[str, set[str]]:
@@ -658,6 +697,17 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
             facts['system'] = system = machine_system(archive, records[0])
             if system is None:
                 problems.append('its machine record does not say which system ran it, so nothing in it binds it to a route')
+            # Each test process its runner listed writes its TRX, log and exit code under its own name, and two named
+            # alike - an entry given twice, `#~X` beside `#not+X`, names that differ only in case, which NTFS and APFS
+            # do not tell apart - wrote over each other: one TRX, one log and one exit code where two processes ran,
+            # so a failure in the first went unread (the forty-ninth review). A run's archive holds a log for each.
+            listed = listed_tests(archive, records[0])
+            written = {archive._leaf(log).lower() for log in archive.leaves(prefix='test-', suffix='.log')}
+            if len(listed) != len(written):
+                problems.append('its runner listed %d test processes where the archive holds the logs of %d (names '
+                                'compared without case, as NTFS and APFS compare them): processes named alike write '
+                                "over each other's results, log and exit code, so a failure among them goes unread"
+                                % (len(listed), len(written)))
         summaries = archive.find('summary.json')
         if not summaries:
             return problems + ['it carries no summary.json'], facts

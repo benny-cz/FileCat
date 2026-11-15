@@ -25,7 +25,8 @@ param(
     # `/`, which dotnet reads as a switch.
     [Parameter(Mandatory)][ValidateLength(1, 1024)][ValidatePattern('^(?![-/])[ #$&-?A-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Filter,
     [Parameter(Mandatory)][ValidateLength(1, 2048)][ValidatePattern('^(?!-)[ #$&-?A-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Projects,
-    # Recorded in machine.json, which is written in the ANSI code page with best-fit (a fullwidth quote becomes `"`).
+    # Recorded in machine.json: in UTF-8 since the forty-ninth review, and in the ANSI code page with best-fit before
+    # (a fullwidth quote became `"`), which is how the sealed r35 lanes' records were written.
     [ValidatePattern('^[A-Za-z0-9._\\ -]{1,64}\z', Options = 'None')][string]$User = 'Admin',
     [ValidateLength(1, 260)][ValidatePattern('^(?!-)[ #$&-\]_-~]+(?<!\\)\z', Options = 'None')][string]$Dotnet = 'C:\FileCatValidation\dotnet\dotnet.exe',
     [ValidateRange(1, 1440)][int]$TimeoutMinutes = 240,
@@ -35,9 +36,9 @@ param(
     # a variable inside the test host), and the environment matches names without case, which the default pattern
     # options let through as a second gate. A value is printable ASCII without `"`, `%`, `;`, `!` or `^`, and the whole
     # string does not end in `\`: cmd.exe re-reads it through child.cmd (expanding %...%, and !...! under delayed
-    # expansion), PowerShell reads a final `\"` as a quote, and machine.json is written in the ANSI code page with
-    # best-fit. The evidence check refuses such a record; this refuses it before a run starts (`\z`, since `$` also
-    # matches before a final line feed).
+    # expansion), PowerShell reads a final `\"` as a quote, and the sealed r35 lanes' machine.json was written in the
+    # ANSI code page with best-fit. The evidence check refuses such a record; this refuses it before a run starts (`\z`,
+    # since `$` also matches before a final line feed).
     [ValidateLength(0, 2048)][ValidatePattern('^(FILECAT_[A-Z0-9_]{1,56}=[ #$&-:<-\]_-~]*)?(;FILECAT_[A-Z0-9_]{1,56}=[ #$&-:<-\]_-~]*)*(?<!\\)\z', Options = 'None')][string]$Env = ''
 
 )
@@ -47,6 +48,27 @@ $run = Join-Path $root $RunId
 $evidence = "$run-evidence.zip"
 $status = "$run-status.txt"
 $task = "FcRun-$RunId"
+# Each test process writes its TRX, log and exit code under its name, so two named alike - an entry given twice, a #~X
+# beside a #not+X, or names that differ only in case, which NTFS and the child's own table do not tell apart - wrote over
+# each other and hid a failure; and a project path holding `..` reached out of the hash-pinned packet (the forty-ninth
+# review). Both are refused before a run starts, as the evidence check refuses them in a sealed run.
+$names = @{}
+foreach ($entry in $Projects.Split(',')) {
+    if ($entry -eq 'parallel:on' -or $entry.StartsWith('expand:')) { continue }
+    $project = $entry
+    foreach ($prefix in @('build:', 'publish:')) { if ($project.StartsWith($prefix)) { $project = $project.Substring($prefix.Length) } }
+    $spec = ''
+    if ($project.Contains('#')) { $spec = $project.Substring($project.IndexOf('#') + 1); $project = $project.Substring(0, $project.IndexOf('#')) }
+    if ($project.Contains('..')) { throw "A project path leaves the packet: $entry" }
+    if ($entry.StartsWith('build:') -or $entry.StartsWith('publish:')) { continue }
+    $name = [IO.Path]::GetFileNameWithoutExtension($project)
+    if ($spec) {
+        $negated = $spec.StartsWith('~') -or $spec.StartsWith('!'); if ($negated) { $spec = $spec.Substring(1) }
+        $name = if ($negated) { "$name-not-" + ($spec.Split('+') -join '-') } else { "$name-" + ($spec.Split('+') -join '-') }
+    }
+    if ($names.ContainsKey($name)) { throw "Two test processes are named $name." }
+    $names[$name] = $true
+}
 New-Item -ItemType Directory -Force -Path $root | Out-Null
 if ((Test-Path -LiteralPath $run) -or (Test-Path -LiteralPath $evidence)) { throw 'Fresh run id required.' }
 $busy = Get-Process -Name 'FileCat*', 'testhost*', 'vstest*', 'dotnet' -ErrorAction SilentlyContinue
@@ -71,7 +93,7 @@ try {
        # Timings depend on on-access scanning; the state is recorded (read only), never changed by this runner.
        Defender = $(try { $m = Get-MpComputerStatus; @{ RealTime = $m.RealTimeProtectionEnabled; OnAccess = $m.OnAccessProtectionEnabled;
            Behavior = $m.BehaviorMonitorEnabled; Exclusions = @((Get-MpPreference).ExclusionPath) } } catch { 'unavailable' }) } |
-        ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $run 'machine.json')
+        ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $run 'machine.json') -Encoding UTF8
     $child = @'
 param([string]$Run, [string]$Packet, [string]$Filter, [string]$Projects, [string]$Dotnet, [string]$Env, [int]$HangMinutes = 20)
 $ErrorActionPreference = 'Stop'
@@ -161,7 +183,12 @@ try {
             $jobs[$t[0]] = Start-Job -ArgumentList $Dotnet, $t[1], (Join-Path $Run "test-$($t[0]).log") -ScriptBlock {
                 param($dotnet, $arguments, $log) $list = [string[]]@($arguments); & $dotnet @list *> $log; $LASTEXITCODE }
         }
-        foreach ($name in @($jobs.Keys)) { $exits[$name] = [int](@(Receive-Job -Job $jobs[$name] -Wait -AutoRemoveJob)[-1]) }
+        foreach ($name in @($jobs.Keys)) {
+            # A job that returned nothing - its process never started, or ended with no exit code - failed; read as an
+            # integer, its empty result was 0 (the forty-ninth review).
+            $out = @(Receive-Job -Job $jobs[$name] -Wait -AutoRemoveJob)
+            $exits[$name] = if ($out.Count -and $out[-1] -is [int]) { $out[-1] } else { -1 }
+        }
     } else {
         foreach ($t in $tests) { $arguments = $t[1]; & $Dotnet @arguments *> (Join-Path $Run "test-$($t[0]).log"); $exits[$t[0]] = $LASTEXITCODE }
     }
@@ -179,7 +206,7 @@ try {
     }
     if ($suites.Count -eq 0 -or @($exits.Values | Where-Object { $_ -ne 0 }).Count -ne 0) { $ok = $false }
     @{ suites = $suites; failed = @($failed | Select-Object -First 200); exit_codes = $exits; ok = $ok } |
-        ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $Run 'summary.json')
+        ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $Run 'summary.json') -Encoding UTF8
     $(if ($ok) { 'PASS' } else { 'FAIL' }) | Set-Content -LiteralPath (Join-Path $Run 'status.txt')
 } catch {
     $_ | Out-String | Set-Content -LiteralPath (Join-Path $Run 'error.txt')
@@ -201,7 +228,9 @@ try {
     }
     Start-Sleep -Seconds 5
     @{ Finished = (Get-Date).ToUniversalTime().ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $run 'launch.json')
-    $leftover = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($run) }
+    # Only processes running from inside the run folder, and not this wrapper, whose own command line can name a path
+    # there (the forty-ninth review found the Unix runner killing itself so).
+    $leftover = Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.Contains("$run\") }
     if ($leftover) {
         'leftover: ' + (($leftover | ForEach-Object { $_.ProcessId }) -join ',') | Add-Content -LiteralPath (Join-Path $run 'status.txt')
         $leftover | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
