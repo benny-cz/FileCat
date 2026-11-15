@@ -28,9 +28,9 @@ one) and requires all of:
     language the rest is in - in UTF-8, as the runner writes it now, or in a single-byte ANSI code page, as it wrote
     the r35 lanes' records - and Linux and macOS by how the Unix runner's `uname -a` line begins, which alone tells
     them apart);
-  * every suite in the summary passed, with no failure anywhere in the run, and each test process its runner listed
-    left a log of its own - two that a file system names alike write over each other's results, log and exit code, so
-    a failure among them went unread;
+  * every suite in the summary passed, with no failure anywhere in the run, and the archive holds as many test logs
+    as its runner listed test processes, their names compared without case - two that a file system names alike write
+    over each other's results, log and exit code, so a failure among them went unread;
   * the pins of the listing are in its results, each with the outcome Passed - the application's composition pin, the
     route list's own pin, and the dual-root case, which is what a renamed, re-filtered or dropped pin would fail;
   * no test stepped aside because this process or folder could not hold native storage.
@@ -192,6 +192,11 @@ class Archive:
             # A reader that does not say where the directory begins cannot be asked this question, and the answer
             # then is not "nothing is wrong" - every rule of this layout reading rests on it.
             return 'this reader does not say where its directory begins, so the file cannot be accounted for'
+        # Where each listed member begins, and where the directory does: what follows a descriptor is one of them,
+        # which decides the descriptor's width where more than one fits - read from the listing, not from bytes there
+        # that may spell a header's signature (the fifty-sixth and fifty-seventh reviews spelled one inside the
+        # directory, after a wider reading of the last descriptor).
+        starts = {entry.header_offset for entry in self._zip.infolist()} | {directory}
         with open(self.path, 'rb') as handle:
             for item in self._zip.infolist():
                 handle.seek(item.header_offset)
@@ -221,12 +226,13 @@ class Archive:
                     trailer = handle.read(24)
                     # Both sizes, not the compressed one alone: read as narrow, a wide descriptor's low half states
                     # the compressed size correctly for any member under 4 GiB, and only its second field tells them
-                    # apart. An empty member states nought in both widths, so there what follows decides: the next
-                    # member's header, or the directory's own place - which two ordinary writers' archives (an empty
-                    # file under bsdtar's zip64, and zipfile writing wide to a stream) needed. Not a directory header
-                    # wherever one is read: a wider reading of the last member's descriptor can end inside the
-                    # directory, at bytes that spell one, and taking it refused an archive whose descriptor ended where
-                    # the directory begins (the fifty-sixth review built one).
+                    # apart. An empty member states nought in both widths, so there what follows decides: where the
+                    # next listed member begins, or where the directory does - which two ordinary writers' archives (an
+                    # empty file under bsdtar's zip64, and zipfile writing wide to a stream) needed. Read from the
+                    # listing, not from the bytes there: a wider reading of the last member's descriptor can end inside
+                    # the directory at bytes that spell a header's signature, either one, and taking it refused an
+                    # archive whose descriptor ended where the directory begins (the fifty-sixth and fifty-seventh
+                    # reviews built them).
                     data_end = item.header_offset + 30 + name + extra + item.compress_size
                     fits = []
                     # Every shape is tried, signed or not: an unsigned descriptor whose CRC happens to be 0x08074b50
@@ -240,13 +246,7 @@ class Archive:
                         if compressed == item.compress_size and plain == item.file_size:
                             fits.append(size_of)
                     if len(fits) > 1:
-                        followed = []
-                        for size_of in fits:
-                            handle.seek(data_end + size_of)
-                            after = handle.read(4)
-                            if data_end + size_of == directory or after == b'PK' + bytes((3, 4)):
-                                followed.append(size_of)
-                        fits = followed[:1] or fits[:1]
+                        fits = [size_of for size_of in fits if data_end + size_of in starts][:1] or fits[:1]
                     if not fits:
                         return ('the descriptor after %r does not state the %d bytes its directory does'
                                 % (item.orig_filename, item.compress_size))
@@ -739,7 +739,9 @@ def check(path: Path) -> tuple[list[str], dict[str, object]]:
             # Each test process its runner listed writes its TRX, log and exit code under its own name, and two named
             # alike - an entry given twice, `#~X` beside `#not+X`, names that differ only in case, which NTFS and APFS
             # do not tell apart - wrote over each other: one TRX, one log and one exit code where two processes ran,
-            # so a failure in the first went unread (the forty-ninth review). A run's archive holds a log for each.
+            # so a failure in the first went unread (the forty-ninth review). A run's archive holds a log for each, so
+            # the two counts - names compared without case - are compared; a log renamed to a name no process has is
+            # not, and takes bytes changed in a sealed archive (the fifty-seventh review).
             listed = listed_tests(archive, records[0])
             written = {archive._leaf(log).lower() for log in archive.leaves(prefix='test-', suffix='.log')}
             if len(listed) != len(written):
@@ -846,6 +848,20 @@ def accepted_digest(path: Path) -> str:
     return hashed.hexdigest()
 
 
+def one_line(text: str) -> str:
+    """A report line as one line: what is not printable written as its escape. An archive's name comes from the
+    command line, and a suite's or a pin's from the archive itself; a line break in one wrote a line of the report's
+    own - an accepting verdict among them, which the release manifest reads by how a line begins and ends, with no
+    archive read at all (the fifty-seventh review)."""
+    return ''.join(map(shown, text))
+
+
+def shown(character: str) -> str:
+    """A character as a report line shows it: itself where it is printable, its escape where it is not - a line break
+    of any kind, which one reader or another ends a line at, among them."""
+    return character if character.isprintable() else character.encode('unicode_escape').decode('ascii')
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('archives', nargs='+', type=Path)
@@ -889,7 +905,7 @@ def main() -> int:
         assert isinstance(pins, dict)
         for pin, tests in sorted(pins.items()):
             lines.append('    pin %s: %s' % (pin, ', '.join(tests)))
-    report = '\n'.join(lines) + '\n'
+    report = '\n'.join(one_line(line) for line in lines) + '\n'
     sys.stdout.write(report)
     if arguments.out is not None:
         arguments.out.write_text(report, encoding='utf-8', newline='\n')

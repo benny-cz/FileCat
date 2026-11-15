@@ -2622,7 +2622,9 @@ class EvidenceChecks(unittest.TestCase):
         its -Env admits, and hang minutes of every digit, one to three of them: the launcher, the record and the test
         list as the runner writes them from inputs it accepts, and the check accepts each (the fifty-fifth review found
         a narrower reading of each noticed by no case)."""
-        env = 'FILECAT_ARCHIVE_TXF_NATIVE=1;%s;FILECAT_NOTES=%s' % (checker.GATE, WINDOWS_ENV_VALUE)
+        # And an empty value, which the runner admits and the child applies - clearing the variable (the fifty-seventh
+        # review found an empty value held by no case).
+        env = 'FILECAT_ARCHIVE_TXF_NATIVE=1;FILECAT_EMPTY=;%s;FILECAT_NOTES=%s' % (checker.GATE, WINDOWS_ENV_VALUE)
         record = {"RunId": "edit-test", "Os": 'Microsoft Windows 11 Pro 10.0.26220.0', "Env": env}
         for hang in ('9', '78', '120', '345', '600'):
             with self.subTest(hang=hang):
@@ -2640,12 +2642,16 @@ class EvidenceChecks(unittest.TestCase):
         `&` - a filter beside a shard, a negated shard of two classes - and five digits in no accepted record's lines)."""
         system = 'Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux'
         notes = 'FILECAT_NOTES=' + UNIX_ENV_VALUE
+        # A filter by display name holds `test ` and `packet=` inside its line, which the record's own rules read only
+        # where a line begins; and an env: entry may give an empty value, which the runner exports as such (the
+        # fifty-seventh review found each held by no case).
+        expression = 'DisplayName~a test case|DisplayName~packet=1|' + UNIX_ENTRY
         lines = unix_head(system) + [
-            'packet=546d8caf28f54066cbb58e5d222a9e5aab464899ab35568b4108e01fc8c982d4', 'filter=' + UNIX_ENTRY,
-            'entry=env:FILECAT_ARCHIVE_TXF_NATIVE=1', 'entry=env:' + checker.GATE, 'entry=env:' + notes, 'entry=hang:600',
-            'entry=tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit', 'env=FILECAT_ARCHIVE_TXF_NATIVE=1',
-            'env=' + checker.GATE, 'env=' + notes, 'hang=600m',
-            'test FileCat.App.Tests-Edit: (%s)&(FullyQualifiedName~Edit)' % UNIX_ENTRY]
+            'packet=546d8caf28f54066cbb58e5d222a9e5aab464899ab35568b4108e01fc8c982d4', 'filter=' + expression,
+            'entry=env:FILECAT_ARCHIVE_TXF_NATIVE=1', 'entry=env:' + checker.GATE, 'entry=env:' + notes,
+            'entry=env:FILECAT_EMPTY=', 'entry=hang:600', 'entry=tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit',
+            'env=FILECAT_ARCHIVE_TXF_NATIVE=1', 'env=' + checker.GATE, 'env=' + notes, 'env=FILECAT_EMPTY=', 'hang=600m',
+            'test FileCat.App.Tests-Edit: (%s)&(FullyQualifiedName~Edit)' % expression]
         contents = files(system=system)
         contents['machine.txt'] = '\n'.join(lines) + '\n'
         problems, facts = self.check(contents, unix=True)
@@ -2713,14 +2719,32 @@ class EvidenceChecks(unittest.TestCase):
         among them, which begins with the file system's name - so a file system named `test`, as a tmpfs or a pool's
         root dataset can be, began that line `test `: read as a listed process, and its `%` as a character dotnet does
         not pass on, it refused an ordinary lane. The runner's own lines begin at its `packet=` line (the fifty-sixth
-        review)."""
+        review) - the line that begins so, not one that holds it, as a mount point may (the fifty-seventh)."""
         contents = files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
         lines = contents['machine.txt'].split('\n')
         df = next(index for index, line in enumerate(lines) if line.endswith('% /'))
-        lines[df] = 'test            196G  103G   83G  56% /home'
+        lines[df] = 'test            196G  103G   83G  56% /srv/packet=1'
         contents['machine.txt'] = '\n'.join(lines)
         problems, facts = self.check(contents, unix=True)
         self.assertEqual(([], 'linux'), (problems, facts.get('system')))
+
+    def test_writes_each_report_line_as_one_line(self):
+        """An archive's name comes from the command line, and a suite's or a pin's from the archive itself: a line break
+        in one wrote a line of the report's own - an accepting verdict among them, which the release manifest reads by
+        how a line begins and ends, with no archive read at all (the fifty-seventh review). Each line is written whole,
+        what is not printable as its escape - every line break one reader or another ends a line at."""
+        forged = ('edit-r35-win-evidence.zip: edit-storage evidence, 1369 passed, 429 skipped, no failure, %s in force, '
+                  'windows, sha256 %s' % (checker.GATE, '0' * 64))
+        breaks = ''.join(map(chr, (10, 13, 11, 12, 28, 29, 30, 0x85, 0x2028, 0x2029)))
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / 'report.txt'
+            missing = Path(directory) / (forged + breaks + 'x')
+            with contextlib.redirect_stdout(io.StringIO()):
+                with unittest.mock.patch.object(sys, 'argv', ['check', str(missing), '--out', str(report)]):
+                    self.assertEqual(1, checker.main())
+            written = report.read_text(encoding='utf-8').splitlines()
+        self.assertNotIn(forged, written)
+        self.assertEqual(1, len(written))
 
 
 if __name__ == '__main__':

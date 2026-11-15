@@ -1,5 +1,35 @@
 # Archive writing implementation status
 
+**15 November, where a line begins, and what a listing says (round fifty-seven).** Asked again whether anything
+was left that the mechanism did not report, the reviewer found four things at High - all by the grading's letter - and
+two at Low; the gate is wrong about no archive a runner seals:
+
+- **High, by the grading's letter: two rules read where a line begins were held by no case.** A listed process is a
+  line that begins `test `, and a Unix record's own lines begin at the line that begins `packet=`: read anywhere in a
+  line instead, no case changed, while lanes built from inputs the Unix runner accepts were refused - a filter by
+  display name, `a test case`; a built entry under `Edit test fixtures/`; and, contrived, a file system mounted where
+  its path holds `packet=`. The Unix every-character case's filter holds `test ` and `packet=` now, and the own-lines
+  case's `df` line a mount point holding `packet=`; an entry holds each reading.
+- **High, by the grading's letter: an empty env value was accepted, and held by no case.** Both runners admit `NAME=`
+  (the Windows child clears an inherited variable so), and read as no value, the narrowing refused such lanes while
+  no case changed. Each runner's every-character case gives one now, with an entry.
+- **High, by the grading's letter: the round-fifty-six entry below said the 0x02014b50-byte member's narrow descriptor
+  fits the wide signed reading** - it fits the signed sixteen-byte one, and the wide one not; corrected where it stands.
+- **High, by the grading's letter: "a log of its own" overstated the check.** Its docstring and a record said the check
+  refuses an archive that does not hold a log of its own for each listed process; it compares the counts, names without
+  case, and a log renamed to a name no process has - bytes changed in a sealed archive - passes. The words say "as many
+  test logs as listed processes" now, the harness entry's name too, and the record is corrected where it stands.
+- Low, closed: round fifty-six's descriptor shape still refused with the other signature spelled inside the directory
+  (`PK\x03\x04`). What follows a descriptor is read from the listing now - where a listed member begins, or where the
+  directory does - not from bytes that may spell a header, and both shapes read whole; the entries on that reading are
+  re-anchored, each held by an ordinary writer's archive. And the report echoed names as given: a path argument holding
+  a line break wrote an accepting line of the report's own, with no archive read. Every report line is written as one
+  line now, what is not printable as its escape, with a case giving every kind of line break and entries.
+
+The fourteen r35 archives read exactly as before (five accepted, nine refused), and all 23 manifest digests match.
+One hundred and forty-six cases for the check and fourteen for the manifest; the harness lists two hundred and sixty-nine rules, two hundred and forty-one held by a verdict,
+twenty-eight noted as redundant, caseless or raising, and none unheld or contradicted; the audit prints forty-five lines.
+
 **15 November, notes that were arguments (round fifty-six).** Asked again whether anything was left that the
 mechanism did not report, the reviewer found two things at High - both by the grading's letter - and four at Low:
 
@@ -11,7 +41,8 @@ mechanism did not report, the reviewer found two things at High - both by the gr
   below is corrected where it stands.
 - **High, by the grading's letter: a third `redundant` note was false** - the next-header test's directory signature,
   said to be read only where the directory begins. A stored member of 0x02014b50 bytes with a narrow unsigned
-  descriptor fits the wide signed reading too, and that reading is followed by bytes spelling the signature four bytes
+  descriptor fits the signed sixteen-byte reading too (not the wide one this said - the fifty-seventh review), and
+  that reading is followed by bytes spelling the signature four bytes
   inside the directory, where its first entry's version bytes were made to spell it: the check took the wrong width
   and refused. No writer makes one, and a wrong width can only refuse - but the half read nothing the directory's own
   place does not, so it is gone. A descriptor ending at the directory is read by where the directory begins, which an

@@ -376,8 +376,9 @@ that a failed process went unread and the check said the run had no failure; a p
 another run's sources under the packet's own hash, where the Unix runner's text said every entry was recorded; a
 comment claiming every step-aside became a failure under the gate; double-byte code pages, in which the Windows record
 did not read as JSON; and five loops no case held. Both runners refuse names alike and `..` paths before a run, the Unix
-runner records each entry, and the check refuses an archive that does not hold a log of its own for each process its
-runner listed, and a recorded project path holding `..` (but not, until the fiftieth review, where it followed a `#`
+runner records each entry, and the check refuses an archive that does not hold as many test logs as processes its
+runner listed (the counts, names without case - not each log against its process's name, the fifty-seventh review
+found), and a recorded project path holding `..` (but not, until the fiftieth review, where it followed a `#`
 in a built or published entry); the Windows runner writes machine.json and summary.json in UTF-8 (its account.json and launch.json from the
 fifty-second review); each loop, and every other
 printed line found to be a rule, is listed with a case - the r35 verdicts unchanged. One hundred and twenty-six cases hold the check and
@@ -453,3 +454,11 @@ by an ordinary writer's archive; a summary's `ok`, a step-aside reason in a run'
 past what the machine says before them, and a manifest suite whose tool does not build are each held or closed - the
 r35 verdicts unchanged. One hundred and forty-five cases hold the check and fourteen the manifest; the harness lists two hundred and sixty-three rules, two hundred and thirty-six
 held by a verdict, twenty-seven noted, none unheld or contradicted.
+
+The fifty-seventh review found two rules read where a line begins - a listed process's `test `, a Unix record's own
+`packet=` - and an empty env value held by no case, each of which, narrowed, refused a lane built from inputs its runner
+accepts; the round-fifty-six entry naming a descriptor reading wrongly; and "a log of its own" said where the check
+compares counts. Cases carry each reading and value, the words are corrected, what follows a descriptor is read from the
+listing rather than from bytes, and every report line is written as one line - the r35 verdicts unchanged. One hundred and forty-six
+cases hold the check and fourteen the manifest; the harness lists two hundred and sixty-nine rules, two hundred and forty-one held by a verdict, twenty-eight
+noted, none unheld or contradicted.
