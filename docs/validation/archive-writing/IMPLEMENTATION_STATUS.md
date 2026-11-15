@@ -1,5 +1,45 @@
 # Archive writing implementation status
 
+**15 November, r35's reach, a fixed order, and both sides (round fifty-four).** Asked again whether anything was
+left that the mechanism did not report, the reviewer found seven things at High - six of them by the grading's letter -
+and two at Low:
+
+- **High: the sealed Unix lanes rest on the gzip reader's full window, and no case held it.** Read with a 16 KiB
+  window instead of gzip's own 32 KiB, all four accepted r35 Unix archives are refused - their streams refer back
+  further than that - while no accepted case's stream reached back further than 512 bytes. The case built as r35's
+  full Unix lane carries a thousand result rows now (a full lane's results hold thousands) and asserts that its own
+  stream reaches back past 16 KiB; an entry holds the window.
+- **High, by the grading's letter: the skipped count's sum was held by no case.** Every fixture suite skipped none, so
+  a report counting the first suite's skips alone changed no case, where r35's five accepted lanes would report 3, 13,
+  13, 206 and 204 skipped instead of 429, 46, 44, 512 and 546 - the first three are counts the records quote. The
+  two-process fixture's second suite skips a test now, and an entry holds each sum, the passed one too.
+- **High, by the grading's letter: two loops were held only by the string-hash seed.** The family is read from the
+  names that passed the dual-root pin, a set: weakened to read its first name alone, a case changed or not with the seed
+  a run drew, and the harness runs the suite with `-I`, which ignores PYTHONHASHSEED, so every run draws its own. The
+  names are read sorted now - which changes nothing the check decides - each loop has an entry, and a case puts a third
+  class before the Unix class, as one already put it before the Windows class.
+- **High, by the grading's letter: the Windows caption's own test was held by no case** - every `machine.json` naming
+  no Windows stood beside the Unix class, whose family refused it anyway. A case puts one naming Linux, and one naming
+  nothing, beside a Windows run's results, with an entry.
+- **High, by the grading's letter: two more comparisons were held on one side only** - a launcher passing the record's
+  Env with the gate set again after it (`;FILECAT_EDIT_NATIVE_REQUIRED=0`, the child's last word on it), and a
+  directory naming a member with a name that sorts after its own. A case and an entry hold each side of both now.
+- **High, by the grading's letter: the tar floor's rounding was held on its other side only.** A last member of 512k+1
+  bytes - an ordinary log can be one - ends one byte into its last block, and a floor rounded one byte short refused the
+  lane, while no case had such a member. One holds it now, with an entry; the round-fifty-three entry below filed the
+  floor's tolerances under boundary 1, true of a block more and not of this, and is corrected where it stands.
+- **High: a record understated which lanes rest on a rule.** Weakened, the result pattern refuses all five accepted r35
+  lanes, not only the three edit lanes the round-fifty-three entry below named; corrected where it stands.
+- Low, closed: the Unix runner matched its run folder without its slash, so a process of `edit-r36-mac` passed for
+  `edit-r36`'s own and the runner went on beside another tester - it matches the folder with its slash now (probed on
+  the Mac and on Ubuntu beside such a run); and the harness gave a suite run no time limit, so a weakening that looped
+  for ever would have hung the measurement without a word - a run that does not end within ten minutes is reported now.
+
+The fourteen r35 archives read exactly as before (five accepted, nine refused), all 23 manifest digests match, and the
+Unix runner parses under bash 3.2 and 5.2. One hundred and thirty-nine cases for the check and fourteen for the manifest; the harness lists
+two hundred and forty-five rules, two hundred and eighteen held by a verdict, twenty-seven noted as redundant, caseless or raising, and none unheld or
+contradicted; the audit prints forty-seven lines.
+
 **15 November, lanes built as r35's own (round fifty-three).** Asked again whether anything was left that the
 mechanism did not report, the reviewer found three things at High - one of them by the grading's letter - and one at
 Medium:
@@ -10,8 +50,9 @@ Medium:
   the suite held `..`; a launcher argument may hold `+`, as a shard of two classes does, and no fixture launcher had
   one; a member's name is compared as its directory wrote it, and Compress-Archive splits r35's names with a
   backslash, which zipfile cannot write on Windows; and a Unix test line's `!` is passed, as a negated shard's is, and
-  no fixture line held one. Weakened, each refuses sealed r35 lanes - the three edit lanes for the first, the Windows
-  edit lane for the next three, the two full Unix lanes for the last - while no case changed. Two cases are built as
+  no fixture line held one. Weakened, each refuses sealed r35 lanes - all five accepted lanes for the first (the
+  three edit lanes, this said, until the fifty-fourth review counted the two full Unix lanes too), the Windows edit lane
+  for the next three, the two full Unix lanes for the last - while no case changed. Two cases are built as
   r35's own lanes now: the Windows edit lane (its launcher's publish entry and `+` shard, its members deflated and
   named with backslashes, the logger's rows across three results files, the Unix class's row stepped aside with its
   reason before the Windows class's passed, its records in the ANSI code page) and a full Unix lane (a build and a
@@ -29,7 +70,9 @@ Medium:
   a folder); the suite's bsdtar half ran only where bsdtar was found, out of sight of the harness's stop on a skipped
   case - it skips where it cannot run now. Forged-only precision - the result pattern's laziness, the launcher's
   excluded control characters and fixed words, the odd-argument rule on the hang minutes, the zip half of a leaf's
-  split (a no-op on Windows), the floor's and the overlap test's one-block and one-byte tolerances - is boundary 1.
+  split (a no-op on Windows), the floor's tolerance of a block more than a member fills and the overlap test's
+  one-byte tolerance - is boundary 1 (a floor rounded short of a member's last block is not: an ordinary lane's last
+  member can end one byte into a block, the fifty-fourth review found, and a case holds it now).
   And the reports the `048bf334` manifest carries predate the system-and-digest tail, as ledger row 13 says: the next
   manifest carries fresh ones.
 

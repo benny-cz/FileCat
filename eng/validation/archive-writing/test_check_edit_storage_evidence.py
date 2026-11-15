@@ -53,8 +53,8 @@ def measuring(log_path):
         if name == 'repeated':
             return 'none repeated' if not result else 'repeated'
         # main(): its exit code and its report's verdict lines - the system and digest a verdict names are what the
-        # release manifest binds a route by - with each archive's own digest written as such, since a fixture's bytes
-        # differ from run to run.
+        # release manifest binds a route by, and the counts it reports what the records quote of a lane - with each
+        # archive's own digest written as such, since a fixture's bytes differ from run to run.
         out = sys.argv[sys.argv.index('--out') + 1] if '--out' in sys.argv[:-1] else None
         text = Path(out).read_text(encoding='utf-8') if out and Path(out).is_file() else ''
         for argument in sys.argv[1:]:
@@ -207,12 +207,14 @@ SECOND = 'FileCat.Core.Tests-Edit-NativeEditStorage'
 def two_process_run(unix, counted=0, exited=0):
     """An edit lane as the runners seal one: two test processes, each with its own TRX, log, exit code and line in
     its runner's list, the pins split between them as r35's are - the composition and route pins in the first suite,
-    the dual-root pin in the second. `counted` and `exited` are the second suite's failure counter and exit code."""
+    the dual-root pin in the second, which skips a test as r35's suites skip some (the fifty-fourth review found the
+    skipped count's sum held by no case, no fixture suite skipping one). `counted` and `exited` are the second suite's
+    failure counter and exit code."""
     system = 'Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux' if unix else 'Microsoft Windows 11 Pro 10.0.26220.0'
     platform = ('FileCat.Core.Tests.UnixEditStorageTests.' if unix else
                 'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.')
     first = ''.join('<UnitTestResult testName="FileCat.Tests.%s" outcome="Passed" />' % pin for pin in PIN_NAMES[:2])
-    counters = {"total": 5, "passed": 5, "skipped": 0, "failed": counted, "counters_total": 5}
+    counters = {"total": 5, "passed": 4, "skipped": 1, "failed": counted, "counters_total": 5}
     summary = dict(SUMMARY, exit_codes={"FileCat.App.Tests-Edit": 0, SECOND: exited},
                    suites=dict(SUMMARY['suites'], **{SECOND: counters}))
     contents = files(trx=first, summary=summary, system=system)
@@ -627,14 +629,22 @@ class EvidenceChecks(unittest.TestCase):
     def test_reads_the_family_past_a_third_class_that_also_passed_the_pin(self):
         """Read as a set of labels, a third class passing the dual-root pin silenced the agreement rule altogether:
         one added row had this check accept the real Windows archive as Linux evidence. Each class is asked for on its
-        own now, so a third one is ignored and the two known ones are read as they were."""
+        own now, so a third one is ignored and the two known ones are read as they were - on either system, the third
+        class sorting before the platform class, as a shared one in the Core suite does (the fifty-fourth review found
+        both classes' reading of every name held or not by the string-hash seed each run drew)."""
         pin = checker.PINS[2]
         windows = PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pin)
+        unix = PASSING_TRX.replace('FileCat.Tests.' + pin, 'FileCat.Core.Tests.UnixEditStorageTests.' + pin)
         shared = '<UnitTestResult testName="FileCat.Core.Tests.EditStorageSharedTests.%s" outcome="Passed" />' % pin
         self.assertEqual([], self.check(files(trx=windows + shared))[0])
         problems, _ = self.check(files(trx=windows + shared, system='Linux host 6.0.0 x86_64 GNU/Linux'), unix=True)
         self.assertIn('its machine record says linux while its own dual-root pin passed in the Windows platform '
                       "suite's class, so the record and the run disagree about which system ran it", problems)
+        problems, facts = self.check(files(trx=unix + shared, system='Linux host 6.0.0 x86_64 GNU/Linux'), unix=True)
+        self.assertEqual(([], 'linux'), (problems, facts.get('system')))
+        problems, _ = self.check(files(trx=unix + shared))
+        self.assertIn("its machine record says windows while its own dual-root pin passed in the Core suite's Unix "
+                      'class, so the record and the run disagree about which system ran it', problems)
 
     def test_refuses_a_run_whose_pin_passed_in_both_platforms_classes(self):
         """No one run passes both: the Unix class is not executed on Windows and the Windows class does not exist
@@ -868,13 +878,17 @@ class EvidenceChecks(unittest.TestCase):
         reason = checker.STEP_ASIDE[0]
         contents = files()
         contents['test-FileCat.Core.Tests-Edit.log'] = '[xUnit.net] %s\n' % reason
-        with tempfile.TemporaryDirectory() as directory:
-            path, order, start = self.laid_out(directory, contents)
-            renamed = {index: 'notes.bin' for index, (item, _) in enumerate(order)
-                       if item.filename.endswith('Core.Tests-Edit.log')}
-            self.rewritten_directory(path, [(item, item.compress_size) for item, _ in order], at=start, names=renamed)
-            problems, _ = checker.check(path)
-            self.assertTrue(any('where it points' in problem for problem in problems), problems)
+        # A name sorting before the member's own and one sorting after it: the two are compared for being the same, not
+        # for an order (the fifty-fourth review found a name sorting after held by no case).
+        for name in ('notes.bin', 'zzzz-hidden.log'):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                path, order, start = self.laid_out(directory, contents)
+                renamed = {index: name for index, (item, _) in enumerate(order)
+                           if item.filename.endswith('Core.Tests-Edit.log')}
+                self.rewritten_directory(path, [(item, item.compress_size) for item, _ in order], at=start,
+                                         names=renamed)
+                problems, _ = checker.check(path)
+                self.assertTrue(any('where it points' in problem for problem in problems), problems)
 
     def test_refuses_a_gzip_stream_that_does_not_read(self):
         """A reader stops at the first tar's end-of-archive blocks and never reaches the trailer, so a second member
@@ -1239,9 +1253,13 @@ class EvidenceChecks(unittest.TestCase):
                 problems, _ = self.check(self.windows_record(env))
                 self.assertTrue(any(said in problem for problem in problems), problems)
         recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + gate + '=1'
+        # Less than the record's Env, or more: a gate set again after the record's ends is the child's last word on it
+        # (the fifty-fourth review found the longer side held by no case).
+        longer = recorded + ';' + gate + '=0'
         for script, said in ((launcher(recorded.replace(';', chr(0xFF1B))), 'is not the launcher its runner writes'),
                              (launcher('FILECAT_ARCHIVE_TXF_NATIVE=1'),
                               "its child.cmd passed 'FILECAT_ARCHIVE_TXF_NATIVE=1' where its machine record holds Env"),
+                             (launcher(longer), 'its child.cmd passed %r where its machine record holds Env' % longer),
                              (None, 'it carries 0 child.cmd where its runner seals one')):
             with self.subTest(script):
                 contents = self.windows_record(recorded)
@@ -2003,8 +2021,16 @@ class EvidenceChecks(unittest.TestCase):
         contents['machine.json'] = json.dumps({"RunId": "edit-test", "Os": 'Linux host 6.0.0 x86_64 GNU/Linux',
                                                "Env": 'FILECAT_ARCHIVE_TXF_NATIVE=1;' + checker.GATE})
         self.assertIn(said, self.check(contents)[0])
+        # Beside a Windows run's own results too: a caption that does not name Windows - Linux's, or none at all - names
+        # no system, whatever the results say (the fifty-fourth review found the caption's own test held by no case,
+        # every such record here standing beside the Unix class).
         windows = PASSING_TRX.replace('FileCat.Tests.' + pin,
                                       'FileCat.Platform.Windows.Tests.WindowsEditStorageTests.' + pin)
+        for caption in ('Linux host 6.0.0 x86_64 GNU/Linux', ''):
+            with self.subTest(caption=caption):
+                contents = files(trx=windows)
+                contents['machine.json'] = windows_json(dict(json.loads(contents['machine.json']), Os=caption))
+                self.assertIn(said, self.check(contents)[0])
         contents = files(trx=windows, system='Linux host 6.0.0 x86_64 GNU/Linux')
         contents['machine.txt'] = 'Windows host 10.0.26100 x86_64\nenv=%s\n%s\n' % (checker.GATE, TEST_LINE)
         self.assertIn(said, self.check(contents, unix=True)[0])
@@ -2166,7 +2192,7 @@ class EvidenceChecks(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 with unittest.mock.patch.object(sys, 'argv', ['check', str(path), '--out', str(report)]):
                     self.assertEqual(0, checker.main())
-            self.assertIn('edit-two-evidence.zip: edit-storage evidence, 12 passed, 0 skipped, no failure,',
+            self.assertIn('edit-two-evidence.zip: edit-storage evidence, 11 passed, 1 skipped, no failure,',
                           report.read_text(encoding='utf-8').splitlines()[0])
 
     def test_refuses_a_run_whose_dual_root_pin_failed_in_one_row(self):
@@ -2488,6 +2514,12 @@ class EvidenceChecks(unittest.TestCase):
                 names[1]: [logger_row('FileCat.Core.Tests.NativeEditStorageTests.' + pins[1], 'Passed', number=2),
                            logger_row('FileCat.Core.Tests.UnixEditStorageTests.' + pins[2], 'Passed', number=3)],
                 names[2]: [logger_row('FileCat.App.Tests.EditStoreCompositionTests.' + pins[0], 'Passed', number=4)]}
+        # The App suite's other rows, a thousand of them (a full lane's results hold thousands): a stream of that size
+        # refers back further than 16 KiB - to a class's name a few dozen rows back - as every r35 Unix lane's does,
+        # which a reader with less than gzip's own window refuses (the fifty-fourth review found no accepted case's
+        # stream reaching back further than 512 bytes).
+        rows[names[2]] += [logger_row('FileCat.App.Tests.Some%dTests.A_case_%d' % (number % 37, number), 'Passed',
+                                      number=number) for number in range(5, 1005)]
         suites = {name: {"total": len(rows[name]), "passed": len(rows[name]), "skipped": 0, "failed": 0,
                          "counters_total": len(rows[name])} for name in names}
         contents = {'build-FileCat.App.Tests.log': '  Determining projects to restore...\n',
@@ -2501,7 +2533,12 @@ class EvidenceChecks(unittest.TestCase):
                          'status.txt': 'PASS\n'})
         contents.update({'exit-%s.txt' % name: '0\n' for name in names})
         contents.update({'test-%s.log' % name: '[xUnit.net] everything ran\n' for name in names})
-        problems, facts = self.check(contents, unix=True)
+        with tempfile.TemporaryDirectory() as directory:
+            path = archive(directory, 'edit-run-evidence.tar.gz', contents, unix=True)
+            # The fixture's own shape, asserted: read with a 16 KiB window, its stream does not read.
+            with self.assertRaises(zlib.error):
+                zlib.decompressobj(30).decompress(path.read_bytes())
+            problems, facts = checker.check(path)
         self.assertEqual([], problems)
         self.assertEqual('linux', facts['system'])
 
@@ -2524,6 +2561,24 @@ class EvidenceChecks(unittest.TestCase):
         counters = dict(SUMMARY['suites'][name], failed=-1)
         counted = dict(SUMMARY, suites={name: counters})
         self.assertIn('suite %s has -1 failures' % name, self.check(files(summary=counted))[0])
+
+    def test_accepts_a_tar_whose_last_member_ends_one_byte_into_a_block(self):
+        """A member's data fills its last block only in part, and the floor rounds it up to that block's end: a last
+        member of 513 bytes - 512 and one, as any log can be - ends one byte into its second block, and a floor rounded
+        short of it read that byte as something past the members (the fifty-fourth review found this side of the
+        rounding held by no case; a block more is boundary 1)."""
+        contents = files(system='Linux host 6.0.0 x86_64 GNU/Linux')
+        log = ''.join('  Passed FileCat.App.Tests.EditTests.A_case_%d [1 ms]\n' % number for number in range(20))
+        del contents['test-FileCat.App.Tests-Edit.log']
+        contents['test-FileCat.App.Tests-Edit.log'] = log[:512] + '\n'
+        with tempfile.TemporaryDirectory() as directory:
+            path = archive(directory, 'edit-run-evidence.tar.gz', contents, unix=True)
+            with tarfile.open(path) as held:
+                last = max(held.getmembers(), key=lambda item: item.offset_data + item.size)
+                self.assertEqual(('edit-test/test-FileCat.App.Tests-Edit.log', 513), (last.name, last.size))
+            problems, facts = checker.check(path)
+        self.assertEqual([], problems)
+        self.assertEqual('linux', facts['system'])
 
 
 if __name__ == '__main__':

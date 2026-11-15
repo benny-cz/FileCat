@@ -315,6 +315,9 @@ class Archive:
                 # a plain tar would carry whatever follows it unread and unasked about.
                 return 'it is not gzipped, as a sealed run is'
             handle.seek(0)
+            # 31 is gzip's framing (16) around a deflate stream with the widest window (15 bits, 32 KiB), as gzip writes
+            # one: every r35 Unix lane's stream refers back further than 16 KiB, and a narrower window refused them all
+            # while no case changed (the fifty-fourth review; a case holds it now).
             stream = zlib.decompressobj(31)
             at = 0
             try:
@@ -479,9 +482,12 @@ def pinned_family(results: dict[str, set[str]]) -> str | None:
               if test.split('(')[0].endswith('.' + PINS[2]) and 'Passed' in outcome}
     # Each class is asked for on its own. Read as a set of labels, any third class that also passed this pin - a
     # shared base, a helper, a platform class added later - left the set with two members and silenced the whole rule,
-    # which is how a Windows lane was accepted as Linux evidence with one added row.
-    windows = any(name.endswith('.WindowsEditStorageTests.' + PINS[2]) for name in passed)
-    unix = any(name.endswith('.UnixEditStorageTests.' + PINS[2]) for name in passed)
+    # which is how a Windows lane was accepted as Linux evidence with one added row. The names are read in sorted
+    # order, which changes nothing here - every one is asked - but a set's own order changes from process to process
+    # with the string-hash seed each draws, so a weakening that read only some of them was measured one way in one run
+    # and the other way in the next (the fifty-fourth review).
+    windows = any(name.endswith('.WindowsEditStorageTests.' + PINS[2]) for name in sorted(passed))
+    unix = any(name.endswith('.UnixEditStorageTests.' + PINS[2]) for name in sorted(passed))
     return 'both' if windows and unix else 'windows' if windows else 'unix' if unix else None
 
 

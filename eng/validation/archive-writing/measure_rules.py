@@ -48,6 +48,11 @@ it runs the suite with `-B` and no `__pycache__`, because the suite loads the ch
 mutant written within the second would otherwise run the previous one's bytecode (which labelled four measurements one
 mutant behind when this was first done by hand).
 
+It runs the suite with `-I`, which ignores PYTHONHASHSEED, so every run draws a string-hash seed of its own: a rule read
+in a set's own order would be measured one way in one run and another in the next, so the check reads its sets sorted
+(the fifty-fourth review found two loops held or not by the seed). A suite run that does not end within `TIMEOUT` seconds
+is reported, not waited for.
+
 Each entry is (what the rule is, the committed text, the weakened text, a note or None). The committed text must appear
 exactly once in the check.
 """
@@ -90,11 +95,11 @@ RULES: list[tuple[str, str, str, str | None]] = [
      '            if system is None:',
      '            if False and system is None:', None),
     ('the family read from each platform class on its own',
-     "    windows = any(name.endswith('.WindowsEditStorageTests.' + PINS[2]) for name in passed)",
-     "    windows = any('WindowsEditStorageTests' in name for name in passed)", None),
+     "    windows = any(name.endswith('.WindowsEditStorageTests.' + PINS[2]) for name in sorted(passed))",
+     "    windows = any('WindowsEditStorageTests' in name for name in sorted(passed))", None),
     ('the Unix platform class asked for by its whole name',
-     "    unix = any(name.endswith('.UnixEditStorageTests.' + PINS[2]) for name in passed)",
-     "    unix = any('UnixEditStorageTests' in name for name in passed)", None),
+     "    unix = any(name.endswith('.UnixEditStorageTests.' + PINS[2]) for name in sorted(passed))",
+     "    unix = any('UnixEditStorageTests' in name for name in sorted(passed))", None),
     ('the record and the run agreeing about the system',
      "        elif system is not None and family != ('windows' if system == 'windows' else 'unix'):",
      "        elif False and system is not None and family != ('windows' if system == 'windows' else 'unix'):", None),
@@ -768,21 +773,63 @@ RULES: list[tuple[str, str, str, str | None]] = [
      "                if int(counters.get('failed', 0)) != 0:",
      "                if int(counters.get('failed', 0)) > 0:", None),
     ('the Unix class told by its own leading dot',
-     "    unix = any(name.endswith('.UnixEditStorageTests.' + PINS[2]) for name in passed)",
-     "    unix = any(name.endswith('UnixEditStorageTests.' + PINS[2]) for name in passed)", None),
+     "    unix = any(name.endswith('.UnixEditStorageTests.' + PINS[2]) for name in sorted(passed))",
+     "    unix = any(name.endswith('UnixEditStorageTests.' + PINS[2]) for name in sorted(passed))", None),
+    ('every passing name read for the Windows class',
+     "    windows = any(name.endswith('.WindowsEditStorageTests.' + PINS[2]) for name in sorted(passed))",
+     "    windows = any(name.endswith('.WindowsEditStorageTests.' + PINS[2]) for name in sorted(passed)[:1])", None),
+    ('every passing name read for the Unix class',
+     "    unix = any(name.endswith('.UnixEditStorageTests.' + PINS[2]) for name in sorted(passed))",
+     "    unix = any(name.endswith('.UnixEditStorageTests.' + PINS[2]) for name in sorted(passed)[:1])", None),
+    ("a gzip stream read with gzip's own 32 KiB window, as every r35 Unix lane's needs",
+     '            stream = zlib.decompressobj(31)',
+     '            stream = zlib.decompressobj(30)', None),
+    ("every suite's passed tests counted in the report",
+     "                passed = sum(int(counters.get('passed', 0)) for counters in suites.values())",
+     "                passed = sum(int(counters.get('passed', 0)) for counters in list(suites.values())[:1])", None),
+    ("every suite's skipped tests counted in the report",
+     "                skipped = sum(int(counters.get('skipped', 0)) for counters in suites.values())",
+     "                skipped = sum(int(counters.get('skipped', 0)) for counters in list(suites.values())[:1])", None),
+    ('a machine.json read as Windows only where its caption names Windows',
+     "        return 'windows' if 'Windows' in first else None",
+     "        return 'windows' if True else None", None),
+    ("a launcher's Env sorting after the record's, refused",
+     '        if launched.group(7) != recorded:',
+     '        if launched.group(7) < recorded:', None),
+    ("a launcher's Env sorting before the record's, refused",
+     '        if launched.group(7) != recorded:',
+     '        if launched.group(7) > recorded:', None),
+    ("a directory's name sorting after the member's own, refused",
+     '                if written != item.orig_filename:',
+     '                if written > item.orig_filename:', None),
+    ("a directory's name sorting before the member's own, refused",
+     '                if written != item.orig_filename:',
+     '                if written < item.orig_filename:', None),
+    ("a member's last block counted whole where its data fills it in part",
+     '            end = max(end, item.offset_data + (stored + 511) // 512 * 512)',
+     '            end = max(end, item.offset_data + (stored + 510) // 512 * 512)', None),
 ]
+
+# A suite run that has not ended in this many seconds is reported rather than waited for: a weakening can loop for
+# ever - a reader's offset that stops advancing - and the measurement would have hung on it without a word (the
+# fifty-fourth review). The whole suite runs in seconds.
+TIMEOUT = 600
+
 
 def run(folder: Path) -> tuple[str, int, set[str], dict[str, list[str]], dict[str, list[str]]]:
     """The suite in `folder`, run to the end of every case: how many cases ran and how many were skipped, the cases
     that noticed (an assertion that did not hold, or an error), each case's verdicts from the check in order, and its
-    refusals' first reasons."""
+    refusals' first reasons - or 'timeout' for how many ran, and nothing else, where the suite did not end."""
     shutil.rmtree(folder / '__pycache__', ignore_errors=True)
     log = folder / 'verdicts.log'
     if log.exists():
         log.unlink()
-    done = subprocess.run([sys.executable, '-I', '-B', '-X', 'utf8', '-m', 'unittest', 'discover',
-                           '-s', str(folder), '-p', SUITE.name, '-v'], capture_output=True, text=True, cwd=folder,
-                          env=dict(os.environ, MEASURE_VERDICTS=str(log)))
+    try:
+        done = subprocess.run([sys.executable, '-I', '-B', '-X', 'utf8', '-m', 'unittest', 'discover',
+                               '-s', str(folder), '-p', SUITE.name, '-v'], capture_output=True, text=True, cwd=folder,
+                              env=dict(os.environ, MEASURE_VERDICTS=str(log)), timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return 'timeout', 0, set(), {}, {}
     text = done.stdout + done.stderr
     ran = re.search(r'Ran (\d+) tests', text)
     skipped = re.search(r'skipped=(\d+)', text)
@@ -904,7 +951,7 @@ def main() -> int:
     for _, _, _, note in RULES:
         expected(note)
     committed = CHECK.read_text(encoding='utf-8')
-    held, noted, unmeasured, contradicted, stale = [], [], [], [], []
+    held, noted, unmeasured, contradicted, stale, hung = [], [], [], [], [], []
     # Two entries that weaken the check alike measure one rule twice and count it twice, and leave whatever each
     # was meant to measure apart unmeasured (one shape of four went so, the forty-sixth review found).
     mutants: dict[str, str] = {}
@@ -919,6 +966,9 @@ def main() -> int:
         shutil.copy(SUITE, folder / SUITE.name)
         shutil.copy(CHECK, folder / CHECK.name)
         ran, skipped, failed, baseline, base_reasons = run(folder)
+        if ran == 'timeout':
+            print('as committed: the suite did not end within %d seconds' % TIMEOUT)
+            return 2
         print('as committed: %s cases, %s; %d verdicts' % (
             ran, 'all passing' if not failed else 'FAILING: ' + ', '.join(sorted(failed)),
             sum(len(values) for values in baseline.values())))
@@ -940,6 +990,10 @@ def main() -> int:
             (folder / CHECK.name).write_text(committed.replace(old, new), encoding='utf-8', newline='')
             ran, _, noticed, verdicts, reasons = run(folder)
             (folder / CHECK.name).write_text(committed, encoding='utf-8', newline='')
+            if ran == 'timeout':
+                hung.append(what)
+                print('%-62s THE SUITE DID NOT END within %d seconds' % (what, TIMEOUT))
+                continue
             if ran == '?':
                 stale.append(what)
                 print('%-62s the suite did not run' % what)
@@ -985,13 +1039,16 @@ def main() -> int:
     measured = len(held) + len(noted) + len(unmeasured) + len(contradicted)
     print('%s: %d held by a verdict, %d noted as redundant, caseless or raising, %d expected to be held and are not, '
           '%d whose note or expectation the measurement contradicts%s'
-          % ('%d rules listed' % len(RULES) if measured + len(stale) == len(RULES)
+          % ('%d rules listed' % len(RULES) if measured + len(stale) + len(hung) == len(RULES)
              else '%d of the %d rules listed measured' % (measured, len(RULES)),
              len(held), len(noted), len(unmeasured), len(contradicted),
              ': ' + '; '.join(unmeasured + contradicted) if unmeasured or contradicted else ''))
     if stale:
         print('%d entries no longer match the check and have to be rewritten: %s' % (len(stale), '; '.join(stale)))
-    return 1 if stale or unmeasured or contradicted else 0
+    if hung:
+        print('%d entries whose weakening kept the suite from ending, each to be weakened another way: %s'
+              % (len(hung), '; '.join(hung)))
+    return 1 if stale or unmeasured or contradicted or hung else 0
 
 
 if __name__ == '__main__':

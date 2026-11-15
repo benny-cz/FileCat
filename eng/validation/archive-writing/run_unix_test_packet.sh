@@ -76,9 +76,10 @@ others() {
   for pid in $(pgrep -f 'FileCat\.(App|Core\.Tests|Remote\.Tests|App\.Tests|Rendering\.Tests)|testhost|vstest\.console|ArchiveFuzzHarness|FileCat\.ArchiveWorker' || true); do
     args=$(ps -o args= -p "$pid" 2>/dev/null || true)
     case "$args" in *run_unix_test_packet.sh*|"") continue ;; esac
-    # The run folder matched as text: read as a pattern, a `.` in RUN_ID matched any character, so another run's folder
-    # differing there passed for this one's (the fifty-third review).
-    case "$args" in *"$D"*) continue ;; esac
+    # The run folder matched as text, and as a folder: read as a pattern, a `.` in RUN_ID matched any character, so
+    # another run's folder differing there passed for this one's (the fifty-third review); and without its slash, a run
+    # whose name begins with RUN_ID - edit-r36-mac beside edit-r36 - passed for this one's too (the fifty-fourth).
+    case "$args" in *"$D/"*) continue ;; esac
     echo "$pid $args"
   done
 }

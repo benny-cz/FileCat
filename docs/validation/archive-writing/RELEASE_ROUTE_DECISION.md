@@ -425,3 +425,13 @@ r35's own lanes, each rule and each comparison's other side has an entry and a c
 hold, and the Unix runner matches its run folder as text - the r35 verdicts unchanged. One hundred and thirty-eight cases hold the check
 and fourteen the manifest; the harness lists two hundred and thirty-four rules, two hundred and seven held by a verdict, twenty-seven noted, none unheld or
 contradicted.
+
+The fifty-fourth review found the sealed Unix lanes resting on the gzip reader's full window with no case holding it
+(no accepted case's stream reached back further than 512 bytes, r35's further than 16 KiB), the skipped count's sum held by no
+case, two loops held only by the string-hash seed each run drew, the Windows caption's own test held by no case, two
+comparisons and the tar floor's rounding held on one side only, and a record naming three of the five lanes a rule
+protects. The case built as r35's full Unix lane carries a thousand result rows, the two-process fixture
+skips a test, the family's names are read sorted, each rule and side has an entry and a case, and the record is
+corrected where it stands; the Unix runner matches its run folder with its slash, and the harness reports a suite run
+that does not end - the r35 verdicts unchanged. One hundred and thirty-nine cases hold the check and fourteen the manifest; the harness lists
+two hundred and forty-five rules, two hundred and eighteen held by a verdict, twenty-seven noted, none unheld or contradicted.
