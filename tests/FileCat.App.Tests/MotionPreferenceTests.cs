@@ -4,6 +4,16 @@ using FileCat.App.Services;
 
 namespace FileCat.App.Tests;
 
+// The theme and its effect clock are one per process. Every Avalonia test runs on the one headless UI thread, and tests
+// interleave wherever one awaits, so another class's test could change the theme between this one's Apply and its
+// assertion: ApplySettings applies the configured theme, and opening or closing a main window changes which windows are
+// active. On 15 November 2026 the macOS full lane failed Viewer_activation_keeps_effects_running_after_main_window_
+// deactivates that way, across its await of the motion preference. Classes that apply a theme and judge it across an
+// await run in this collection, after the parallel ones, one at a time.
+[CollectionDefinition("Shared theme state", DisableParallelization = true)]
+public sealed class SharedThemeStateCollection;
+
+[Collection("Shared theme state")]
 public sealed class MotionPreferenceTests
 {
     [AvaloniaFact]

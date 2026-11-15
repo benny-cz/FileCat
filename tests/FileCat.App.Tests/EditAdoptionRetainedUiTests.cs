@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
@@ -26,7 +28,12 @@ public sealed class EditAdoptionRetainedUiTests
         if(OperatingSystem.IsMacOS()&&parent.StartsWith("/var/",StringComparison.Ordinal))parent="/private"+parent;
         EditTestStores.RequireListedRoute(parent);
         string fixture=Directory.CreateDirectory(Path.Combine(parent,"filecat-adoption-ui-"+Guid.NewGuid().ToString("N"))).FullName;
-        if(!OperatingSystem.IsWindows())File.SetUnixFileMode(fixture,
+        // Private on every system: the old store's folders take the fixture's access rules, and FileCat adopts an old edit
+        // only while those reach no one but its owner, SYSTEM and Administrators. A temporary folder is not that private
+        // everywhere: C:\Windows\Temp, the TEMP of a process started outside the user's own session, lets local users in,
+        // and there all three cases failed as "grants access beyond its owner" (15 November 2026).
+        if(OperatingSystem.IsWindows())MakePrivate(fixture);
+        else File.SetUnixFileMode(fixture,
             UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
         var paths=AppPaths.Resolve(overrideRoot:fixture);
         if(!OperatingSystem.IsWindows())File.SetUnixFileMode(Path.GetDirectoryName(paths.EditSessionsDirectory)!,
@@ -95,5 +102,17 @@ public sealed class EditAdoptionRetainedUiTests
             button.Content as string==title&&button.GetVisualAncestors().OfType<Border>().Any(border=>border.Classes.Contains("backdrop")));
         async Task Wait(Func<bool> done)
         {var watch=Stopwatch.StartNew();while(!done()){if(watch.Elapsed>TimeSpan.FromSeconds(10))Assert.Fail("Adoption UI did not reach its review dialog.");await Task.Delay(10,ct);}}
+    }
+
+    // The fixture's own rules, protected from its parent's: its owner, SYSTEM and Administrators, inherited by all within.
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static void MakePrivate(string path)
+    {
+        var security=new DirectorySecurity();security.SetAccessRuleProtection(isProtected:true,preserveInheritance:false);
+        foreach(var sid in new[]{WindowsIdentity.GetCurrent().User!,new SecurityIdentifier(WellKnownSidType.LocalSystemSid,null),
+            new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid,null)})
+            security.AddAccessRule(new FileSystemAccessRule(sid,FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit|InheritanceFlags.ObjectInherit,PropagationFlags.None,AccessControlType.Allow));
+        new DirectoryInfo(path).SetAccessControl(security);
     }
 }
