@@ -444,3 +444,12 @@ window, true of the four accepted lanes only. A case per runner carries every ch
 entry holds each rule, a Unix case holds the gate's name, and the words say "accepted" - the r35 verdicts unchanged.
 One hundred and forty-one cases hold the check and fourteen the manifest; the harness lists two hundred and fifty-seven rules, two hundred and twenty-six held by a verdict,
 thirty-one noted, none unheld or contradicted.
+
+The fifty-sixth review found three notes whose arguments were false: a directory understating a member's size, plain or
+zip64, is refused by the size rule alone where a member listed inside the short span covers its bytes, and the
+next-header test's directory signature took a wrong width where a wider reading ended inside the directory at bytes
+spelling one. A case holds the size rule in both forms, the signature half is gone and the directory's own place is held
+by an ordinary writer's archive; a summary's `ok`, a step-aside reason in a run's last file, a Unix record's own lines
+past what the machine says before them, and a manifest suite whose tool does not build are each held or closed - the
+r35 verdicts unchanged. One hundred and forty-five cases hold the check and fourteen the manifest; the harness lists two hundred and sixty-three rules, two hundred and thirty-six
+held by a verdict, twenty-seven noted, none unheld or contradicted.

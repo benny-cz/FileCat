@@ -74,11 +74,13 @@ class ManifestEditBinding(unittest.TestCase):
     def setUpClass(cls):
         built = subprocess.run(['dotnet', 'build', str(PROJECT), '-c', 'Release', '--nologo', '-v', 'q'],
                                capture_output=True, text=True)
+        # A tool that does not build fails every case rather than skipping them: fourteen skips read as a pass with
+        # nothing run (the fifty-sixth review). A machine without the SDK skips, above, as it cannot run them at all.
         if built.returncode != 0:
-            raise unittest.SkipTest('the manifest tool does not build here: ' + (built.stdout or built.stderr)[-400:])
+            raise RuntimeError('the manifest tool does not build here: ' + (built.stdout or built.stderr)[-400:])
         cls.tool = PROJECT.parent / 'bin' / 'Release' / 'net10.0' / 'FileCat.ArchiveReleaseManifest.dll'
         if not cls.tool.is_file():
-            raise unittest.SkipTest('the built tool is not where it was looked for: %s' % cls.tool)
+            raise RuntimeError('the built tool is not where it was looked for: %s' % cls.tool)
 
     # ---------------------------------------------------------------- the evidence these cases are made of
 

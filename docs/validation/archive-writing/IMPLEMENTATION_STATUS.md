@@ -1,5 +1,34 @@
 # Archive writing implementation status
 
+**15 November, notes that were arguments (round fifty-six).** Asked again whether anything was left that the
+mechanism did not report, the reviewer found two things at High - both by the grading's letter - and four at Low:
+
+- **High, by the grading's letter: two `redundant` notes were false.** A directory understating a member's size, plain
+  or zip64, was said to leave bytes no member covers. But a member listed inside the short span's own bytes covers them
+  exactly, with no gap and no overlap, and where no rule reads either member nothing reads the short one: the size the
+  file states for it is all that refuses it. It takes bytes changed in a sealed archive - a boundary-1 shape - but the
+  notes' argument was false. A case builds it, plain and zip64, and holds both entries now; the round-fifty-five entry
+  below is corrected where it stands.
+- **High, by the grading's letter: a third `redundant` note was false** - the next-header test's directory signature,
+  said to be read only where the directory begins. A stored member of 0x02014b50 bytes with a narrow unsigned
+  descriptor fits the wide signed reading too, and that reading is followed by bytes spelling the signature four bytes
+  inside the directory, where its first entry's version bytes were made to spell it: the check took the wrong width
+  and refused. No writer makes one, and a wrong width can only refuse - but the half read nothing the directory's own
+  place does not, so it is gone. A descriptor ending at the directory is read by where the directory begins, which an
+  ordinary writer's archive now holds (zipfile writing an empty member wide and last); the entries on the line are
+  re-anchored, the directory's own place a rule a case holds.
+- Low, closed: a summary's `ok` was held on its false side only - one with no `ok`, a null, `1` or `"true"` is refused,
+  and no case had one; a case and an entry for each side hold it. A step-aside reason was read in every log and results
+  file, but held for no file past a run's second; a case puts one in a run's last, with an entry. The Unix runner writes
+  the `df -h` line of its run's folder before its own lines, and that line begins with the file system's name: one named
+  `test` (a tmpfs, a pool's root dataset) began it `test `, read as a listed process and its `%` refused - the record is
+  read from its `packet=` line on now, with a case and entries. And the manifest suite turned a tool that does not build
+  into fourteen skips that read as a pass; it fails then now.
+
+The fourteen r35 archives read exactly as before (five accepted, nine refused), and all 23 manifest digests match.
+One hundred and forty-five cases for the check and fourteen for the manifest; the harness lists two hundred and sixty-three rules, two hundred and thirty-six held by a verdict,
+twenty-seven noted as redundant, caseless or raising, and none unheld or contradicted; the audit prints forty-five lines.
+
 **15 November, every character a runner admits (round fifty-five).** Asked again whether anything was left that
 the mechanism did not report, the reviewer found two things at High - both by the grading's letter - one at Medium, and
 two at Low:
@@ -24,10 +53,14 @@ two at Low:
   fifty-four records' words that could be read otherwise are corrected where they stand.
 - Low, recorded and noted: a zip directory's sizes against the file's are held by cases where the directory overstates
   one, and where it understates one by the listing's coverage (bytes no member covers, refused) or by the reader (a
-  member read short) - those two sides are entries noted as redundant now; a descriptor stating fewer compressed or more
+  member read short) - those two sides are entries noted as redundant now (wrongly: a member listed inside the short
+  span's bytes covers them, the fifty-sixth review found, and the size rule alone refuses that - a case holds it now); a
+  descriptor stating fewer compressed or more
   plain bytes than its directory is refused by its own rule alone, but no writer makes one - it takes bytes changed in a
   sealed archive, boundary 1 - and it hides nothing, the member's span being the directory's. And the next-header
-  test's directory signature is redundant with the directory's own offset, which an entry notes now.
+  test's directory signature is redundant with the directory's own offset, which an entry notes now (it was not: a
+  wider reading ending inside the directory at bytes spelling a signature took a wrong width, the fifty-sixth review
+  found, and the half is gone).
 
 The fourteen r35 archives read exactly as before (five accepted, nine refused), and all 23 manifest digests match.
 One hundred and forty-one cases for the check and fourteen for the manifest; the harness lists two hundred and fifty-seven rules, two hundred and twenty-six held by a verdict,

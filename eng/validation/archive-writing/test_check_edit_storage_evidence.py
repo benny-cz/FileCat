@@ -1221,6 +1221,17 @@ class EvidenceChecks(unittest.TestCase):
                         member.write(b'{}' * 48)
             with checker.Archive(path) as held:
                 self.assertIsNone(held.listing_gap())
+            # The empty member last, its descriptor followed by the directory itself, which decides its width there
+            # (the fifty-sixth review dropped a directory header read wherever one stands).
+            path = Path(directory) / 'empty-wide-last.zip'
+            with open(path, 'wb') as raw:
+                with zipfile.ZipFile(Unseekable(raw), 'w', zipfile.ZIP_DEFLATED) as held:
+                    with held.open(zipfile.ZipInfo('summary.json'), 'w', force_zip64=True) as member:
+                        member.write(b'{}' * 48)
+                    with held.open(zipfile.ZipInfo('empty.txt'), 'w', force_zip64=True):
+                        pass
+            with checker.Archive(path) as held:
+                self.assertIsNone(held.listing_gap())
             # bsdtar's half: where it is not found the case says so as a skip, which measure_rules.py stops on, rather
             # than passing with half of it unrun (the fifty-third review).
             found = self.tar_called('bsdtar')
@@ -2637,6 +2648,77 @@ class EvidenceChecks(unittest.TestCase):
             'test FileCat.App.Tests-Edit: (%s)&(FullyQualifiedName~Edit)' % UNIX_ENTRY]
         contents = files(system=system)
         contents['machine.txt'] = '\n'.join(lines) + '\n'
+        problems, facts = self.check(contents, unix=True)
+        self.assertEqual(([], 'linux'), (problems, facts.get('system')))
+
+    def test_refuses_a_directory_that_understates_a_member_another_entry_covers(self):
+        """A directory that understates a member's size ends that member's span short of its own bytes - and where those
+        bytes are a member of their own, listed as well, nothing is left uncovered and nothing overlaps: the size the
+        file states for the member is all that tells the short entry from it, plain or zip64 (the fifty-sixth review
+        built it, against two notes that called the size rule redundant there)."""
+        name = b'inner.txt'
+        data = b'bytes no rule reads, inside another member. ' * 4
+        crc = zlib.crc32(data)
+        inner = struct.pack('<4sHHHHHIIIHH', b'PK' + bytes((3, 4)), 20, 0, 0, 0, 0, crc, len(data), len(data), len(name),
+                            0) + name + data
+        for zip64 in (False, True):
+            with self.subTest(zip64=zip64), tempfile.TemporaryDirectory() as directory:
+                path = archive(directory, 'edit-understated-evidence.zip', files())
+                with zipfile.ZipFile(path, 'a') as zipped:
+                    with zipped.open('zz-outer.bin', 'w', force_zip64=zip64) as handle:
+                        handle.write(inner)
+                entries = []
+                with zipfile.ZipFile(path) as held, open(path, 'rb') as raw:
+                    start = held.start_dir
+                    for item in held.infolist():
+                        if item.filename != 'zz-outer.bin':
+                            entries.append((item, item.compress_size))
+                            continue
+                        raw.seek(item.header_offset + 26)
+                        length, extra = struct.unpack('<HH', raw.read(4))
+                        entries.append((item, 0))  # the outer member listed as holding nothing
+                        inside = zipfile.ZipInfo('inner.txt')
+                        inside.header_offset = item.header_offset + 30 + length + extra
+                        inside.CRC, inside.file_size = crc, len(data)
+                        entries.append((inside, len(data)))
+                self.rewritten_directory(path, entries, at=start)
+                problems, _ = checker.check(path)
+                self.assertTrue(any("the entry 'zz-outer.bin' is 0 bytes long where the file says" in problem
+                                    for problem in problems), problems)
+
+    def test_refuses_a_summary_whose_ok_is_not_json_s_true(self):
+        """Both runners write a summary's `ok` as JSON's true or false: one with no `ok`, a null one, or one saying 1
+        or "true" was not written by them, and is not read as ok (the fifty-sixth review found only `false` in any
+        case)."""
+        missing = {key: value for key, value in SUMMARY.items() if key != 'ok'}
+        for summary in (missing, dict(SUMMARY, ok=None), dict(SUMMARY, ok=1), dict(SUMMARY, ok='true')):
+            with self.subTest(ok=summary.get('ok', 'missing')):
+                self.assertIn('the runner did not call this run ok', self.check(files(summary=summary))[0])
+
+    def test_reads_a_step_aside_reason_in_every_file_of_a_run(self):
+        """Every log and results file of every test process is read for a reason a test stepped aside, the last of them
+        too: a run of two processes holds four, and a reason in the second process's log - the last of them by name -
+        is as much a step aside as one in the first (the fifty-sixth review found no case past the second file)."""
+        reason = checker.STEP_ASIDE[0]
+        for unix in (False, True):
+            with self.subTest(unix=unix):
+                contents = two_process_run(unix)
+                contents['test-%s.log' % SECOND] = '[xUnit.net] %s\n' % reason
+                problems, _ = self.check(contents, unix)
+                self.assertTrue(any(problem.startswith('a test stepped aside in') and SECOND in problem
+                                    for problem in problems), problems)
+
+    def test_reads_a_unix_record_s_own_lines_past_what_the_machine_says(self):
+        """The Unix runner writes what the machine says before its own lines - the `df -h` line of the run's folder
+        among them, which begins with the file system's name - so a file system named `test`, as a tmpfs or a pool's
+        root dataset can be, began that line `test `: read as a listed process, and its `%` as a character dotnet does
+        not pass on, it refused an ordinary lane. The runner's own lines begin at its `packet=` line (the fifty-sixth
+        review)."""
+        contents = files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux')
+        lines = contents['machine.txt'].split('\n')
+        df = next(index for index, line in enumerate(lines) if line.endswith('% /'))
+        lines[df] = 'test            196G  103G   83G  56% /home'
+        contents['machine.txt'] = '\n'.join(lines)
         problems, facts = self.check(contents, unix=True)
         self.assertEqual(([], 'linux'), (problems, facts.get('system')))
 

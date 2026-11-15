@@ -222,8 +222,11 @@ class Archive:
                     # Both sizes, not the compressed one alone: read as narrow, a wide descriptor's low half states
                     # the compressed size correctly for any member under 4 GiB, and only its second field tells them
                     # apart. An empty member states nought in both widths, so there what follows decides: the next
-                    # member's header, the directory's, or the directory's own place - which two ordinary writers'
-                    # archives (an empty file under bsdtar's zip64, and zipfile writing wide to a stream) needed.
+                    # member's header, or the directory's own place - which two ordinary writers' archives (an empty
+                    # file under bsdtar's zip64, and zipfile writing wide to a stream) needed. Not a directory header
+                    # wherever one is read: a wider reading of the last member's descriptor can end inside the
+                    # directory, at bytes that spell one, and taking it refused an archive whose descriptor ended where
+                    # the directory begins (the fifty-sixth review built one).
                     data_end = item.header_offset + 30 + name + extra + item.compress_size
                     fits = []
                     # Every shape is tried, signed or not: an unsigned descriptor whose CRC happens to be 0x08074b50
@@ -241,7 +244,7 @@ class Archive:
                         for size_of in fits:
                             handle.seek(data_end + size_of)
                             after = handle.read(4)
-                            if data_end + size_of == directory or after in (b'PK' + bytes((3, 4)), b'PK' + bytes((1, 2))):
+                            if data_end + size_of == directory or after == b'PK' + bytes((3, 4)):
                                 followed.append(size_of)
                         fits = followed[:1] or fits[:1]
                     if not fits:
@@ -613,7 +616,7 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
                         'the tests were given' % (launched.group(7), recorded))
         pairs = [item for item in recorded.split(';') if item]
     else:
-        lines = text.split('\n')
+        lines = own_lines(text.split('\n'))
         for line in lines:
             held = [character for character in '"@%\\' if character in line]
             if line.startswith(('filter=', 'test ', 'entry=')) and held:
@@ -659,14 +662,29 @@ def leaves_packet(entry: str) -> bool:
     return '..' in entry.split('#', 1)[0]
 
 
+def own_lines(lines: list[str]) -> list[str]:
+    """A Unix record's own lines: those from its `packet=` line on, which its runner writes itself.
+
+    Before that line the runner writes what the machine says - `uname -a`, the system's description, its CPUs, the
+    SDK and the `df -h` line of the run's folder - and that last line begins with the file system's own name: one named
+    `test`, as a tmpfs or a pool's root dataset can be, began it `test `, which was read as a listed test process and
+    its `%` as a character dotnet does not pass on - an ordinary lane refused twice (the fifty-sixth review). A list
+    with no `packet=` line, as a Windows test list is, is read whole.
+    """
+    for index, line in enumerate(lines):
+        if line.startswith('packet='):
+            return lines[index:]
+    return lines
+
+
 def listed_tests(archive: Archive, record: str) -> list[str]:
     """The test processes the run's runner listed, a `test NAME: FILTER` line each: the Unix runner in its machine
-    record, the Windows runner in its tests.txt."""
+    record's own lines, the Windows runner in its tests.txt."""
     if record.replace('\\', '/').endswith('machine.json'):
         lists = archive.find('tests.txt')
     else:
         lists = [record]
-    return [line for name in lists for line in archive.read(name).split('\n') if line.startswith('test ')]
+    return [line for name in lists for line in own_lines(archive.read(name).split('\n')) if line.startswith('test ')]
 
 
 def outcomes(archive: Archive) -> dict[str, set[str]]:
