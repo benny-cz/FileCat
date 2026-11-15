@@ -69,6 +69,26 @@ $Receipt = [ordered]@{
     Inputs=@($Inputs); ExpectedFrameworks=$Frameworks; ProjectCount=$Projects.Count; Projects=@(); Complete=$false
     ExtractedPackageFilesQualified=$false; NativeRuntimeAndLicenseProvenanceQualified=$false; CandidateQualified=$false
 }
+# What one project's lock must hold, read from the project as MSBuild evaluates it rather than assumed for all: its target
+# framework, one runtime-specific graph for each runtime it restores for, and the lock version its package management
+# writes (2 under central package management, 1 outside it). Directory.Build.props gives every project the release
+# runtimes above, so a project that adds or clears runtimes says so in its own file, where review sees it: the archive
+# worker restores for linux-musl-arm64 alone and the libraries it references add that runtime, while the archive-writing
+# validation tools, which nothing in the release references, restore for none. The receipt records each expectation.
+function Expectation([string]$ProjectPath, [string]$ProjectEvidence) {
+    $Arguments = @('msbuild',$ProjectPath,'-nologo','-getProperty:TargetFramework','-getProperty:TargetFrameworks','-getProperty:RuntimeIdentifiers','-getProperty:ManagePackageVersionsCentrally')
+    $Result = Capture 'dotnet' $Arguments (Join-Path $ProjectEvidence 'evaluation.json') (Join-Path $ProjectEvidence 'evaluation-stderr.txt')
+    if ($Result.ExitCode -ne 0) { throw "Cannot evaluate the project's dependency inputs: $ProjectPath" }
+    $Properties = ($Result.Stdout | ConvertFrom-Json -AsHashtable).Properties
+    $Framework = [string]$Properties['TargetFramework']
+    if (-not $Framework -or $Framework.Contains(';') -or [string]$Properties['TargetFrameworks']) { throw "Expected exactly one target framework: $ProjectPath" }
+    $ProjectRIDs = @(([string]$Properties['RuntimeIdentifiers']).Split(';') | ForEach-Object { $_.Trim() } | Where-Object { $_ } | Sort-Object -Unique)
+    return [ordered]@{
+        Frameworks=@(@($Framework) + @($ProjectRIDs | ForEach-Object { "$Framework/$_" }) | Sort-Object)
+        LockVersion=$(if ([string]$Properties['ManagePackageVersionsCentrally'] -eq 'true') { 2 } else { 1 })
+        RuntimeIdentifiers=$ProjectRIDs
+    }
+}
 function SaveReceipt {
     $Receipt.Projects = @($Records.ToArray())
     [IO.File]::WriteAllText($ReceiptPath, ($Receipt | ConvertTo-Json -Depth 12), [Text.UTF8Encoding]::new($false))
@@ -78,22 +98,27 @@ foreach ($Project in $Projects) {
     $ProjectPath = Join-Path $Repo $Project
     $Directory = Split-Path -Parent $ProjectPath
     $LockPath = Join-Path $Directory 'packages.lock.json'
-    $LockPin = Pin $LockPath
-    $Lock = Get-Content -LiteralPath $LockPath -Raw | ConvertFrom-Json -AsHashtable
-    if ($Lock.version -ne 2 -or (($Lock.dependencies.Keys | Sort-Object) -join "`n") -cne $ExpectedFrameworks) { throw "Unexpected dependency lock frameworks: $Project" }
     $ProjectEvidence = Join-Path $Evidence ($Project -replace '\.csproj$', '')
     [void][IO.Directory]::CreateDirectory($ProjectEvidence)
+    $Expected = Expectation $ProjectPath $ProjectEvidence
+    if (-not (Test-Path -LiteralPath $LockPath -PathType Leaf)) { throw "Missing dependency lock: $Project" }
+    $LockPin = Pin $LockPath
+    $Lock = Get-Content -LiteralPath $LockPath -Raw | ConvertFrom-Json -AsHashtable
+    $LockFrameworks = ($Lock.dependencies.Keys | Sort-Object) -join ', '
+    if ($Lock.version -ne $Expected.LockVersion -or $LockFrameworks -cne ($Expected.Frameworks -join ', ')) {
+        throw "Unexpected dependency lock frameworks: $Project (lock version $($Lock.version): $LockFrameworks; the project restores version $($Expected.LockVersion): $($Expected.Frameworks -join ', '))"
+    }
     [IO.File]::Copy($LockPath, (Join-Path $ProjectEvidence 'packages.lock.json'))
     $Arguments = @('restore',$ProjectPath,'--force','-p:RestoreLockedMode=true','-p:FileCatUpdateDependencyLocks=false')
     $Result = Capture 'dotnet' $Arguments (Join-Path $ProjectEvidence 'stdout.txt') (Join-Path $ProjectEvidence 'stderr.txt')
-    $Entry = [ordered]@{Project=$Project; ProjectSHA256=(Pin $ProjectPath).SHA256; LockSHA256=$LockPin.SHA256; Arguments=$Arguments; RestoreExitCode=$Result.ExitCode; StdoutSHA256=(Pin (Join-Path $ProjectEvidence 'stdout.txt')).SHA256; StderrSHA256=(Pin (Join-Path $ProjectEvidence 'stderr.txt')).SHA256; GraphVerified=$false}
+    $Entry = [ordered]@{Project=$Project; ProjectSHA256=(Pin $ProjectPath).SHA256; LockSHA256=$LockPin.SHA256; LockVersion=$Expected.LockVersion; ExpectedFrameworks=$Expected.Frameworks; Arguments=$Arguments; RestoreExitCode=$Result.ExitCode; StdoutSHA256=(Pin (Join-Path $ProjectEvidence 'stdout.txt')).SHA256; StderrSHA256=(Pin (Join-Path $ProjectEvidence 'stderr.txt')).SHA256; GraphVerified=$false}
     $Records.Add($Entry)
     SaveReceipt
     if ($Result.ExitCode -ne 0) { throw "Locked restore failed for $Project; retained evidence: $ProjectEvidence" }
     if ((Pin $LockPath).SHA256 -cne $LockPin.SHA256) { throw "Restore changed a dependency lock: $Project" }
     $AssetsPath = Join-Path $Directory 'obj/project.assets.json'
     $Assets = Get-Content -LiteralPath $AssetsPath -Raw | ConvertFrom-Json -AsHashtable
-    foreach ($Framework in $Frameworks) {
+    foreach ($Framework in $Expected.Frameworks) {
         foreach ($Package in $Lock.dependencies[$Framework].GetEnumerator()) {
             if ($Package.Value.type -eq 'Project') { continue }
             $Key = "$($Package.Key)/$($Package.Value.resolved)"
