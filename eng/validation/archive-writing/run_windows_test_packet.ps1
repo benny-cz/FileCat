@@ -51,14 +51,15 @@ $task = "FcRun-$RunId"
 # Each test process writes its TRX, log and exit code under its name, so two named alike - an entry given twice, a #~X
 # beside a #not+X, or names that differ only in case, which NTFS and the child's own table do not tell apart - wrote over
 # each other and hid a failure; and a project path holding `..` reached out of the hash-pinned packet (the forty-ninth
-# review). Both are refused before a run starts, as the evidence check refuses them in a sealed run.
+# review) - a test entry's path ends at its shard's `#`, a build: or publish: entry's at its own end, as the child takes
+# them (the fiftieth). Both are refused before a run starts, as the evidence check refuses them in a sealed run.
 $names = @{}
 foreach ($entry in $Projects.Split(',')) {
     if ($entry -eq 'parallel:on' -or $entry.StartsWith('expand:')) { continue }
-    $project = $entry
-    foreach ($prefix in @('build:', 'publish:')) { if ($project.StartsWith($prefix)) { $project = $project.Substring($prefix.Length) } }
-    $spec = ''
-    if ($project.Contains('#')) { $spec = $project.Substring($project.IndexOf('#') + 1); $project = $project.Substring(0, $project.IndexOf('#')) }
+    $project = $entry; $spec = ''
+    if ($entry.StartsWith('build:')) { $project = $entry.Substring(6) }
+    elseif ($entry.StartsWith('publish:')) { $project = $entry.Substring(8) }
+    elseif ($entry.Contains('#')) { $spec = $entry.Substring($entry.IndexOf('#') + 1); $project = $entry.Substring(0, $entry.IndexOf('#')) }
     if ($project.Contains('..')) { throw "A project path leaves the packet: $entry" }
     if ($entry.StartsWith('build:') -or $entry.StartsWith('publish:')) { continue }
     $name = [IO.Path]::GetFileNameWithoutExtension($project)

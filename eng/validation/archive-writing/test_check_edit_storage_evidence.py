@@ -135,6 +135,8 @@ STEP_ASIDE_WORDS = (
     'Native edit storage requires an unelevated process.',
     'Native edit storage refuses root; run as an ordinary user.',
     'Edit sessions refuse an elevated token; run unelevated.',
+    'Edit sessions refuse an elevated process.',
+    'Run legacy admission unelevated.',
     "The fixture's filesystem cannot be established here.",
     'is not a listed native edit storage route for',
 )
@@ -2072,12 +2074,15 @@ class EvidenceChecks(unittest.TestCase):
     def test_refuses_a_project_path_that_leaves_the_packet(self):
         """A project path holding `..` reached another run's sources beside the packet, with the packet's hash still in
         the record (the forty-ninth review): refused in a Windows launcher's projects, and in the Unix record's entry
-        lines, which its runner writes since then. A variable's value and a shard name no path."""
+        lines, which its runner writes since then. A variable's value and a test entry's shard name no path; a built or
+        published entry is a path to its end, `#` and all, as its runner takes it (the fiftieth review)."""
         said = 'reaches out of the hash-pinned packet'
         recorded = 'FILECAT_ARCHIVE_TXF_NATIVE=1;FILECAT_EDIT_NATIVE_REQUIRED=1'
         for projects, refused in (('..\\..\\edit-r35-win\\src\\tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit', True),
                                   ('build:..\\other\\A.csproj,tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit', True),
                                   ('tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit,..\\x\\B.csproj', True),
+                                  ('publish:#\\..\\..\\..\\edit-r34-win\\src\\src\\FileCat.App\\FileCat.App.csproj', True),
+                                  ('build:x#\\..\\other\\A.csproj', True),
                                   ('tests\\FileCat.App.Tests\\FileCat.App.Tests.csproj#Edit..Native', False)):
             with self.subTest(projects=projects):
                 contents = self.windows_record(recorded)
@@ -2086,6 +2091,8 @@ class EvidenceChecks(unittest.TestCase):
                 self.assertEqual(refused, any(said in problem for problem in problems), problems)
         for entry, refused in (('../../edit-r34-ubuntu/src/tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit', True),
                                ('publish:../x/src/FileCat.App/FileCat.App.csproj', True),
+                               ('publish:#/../../../edit-r34-ubuntu/src/src/FileCat.App/FileCat.App.csproj', True),
+                               ('build:x#/../../../other/A.csproj', True),
                                ('tests/FileCat.App.Tests/FileCat.App.Tests.csproj#Edit..Native', False),
                                ('env:FILECAT_ARCHIVE_SMALL_VOLUME=/srv/../small', False)):
             with self.subTest(entry=entry):
@@ -2140,6 +2147,103 @@ class EvidenceChecks(unittest.TestCase):
             with zipfile.ZipFile(path) as held:
                 self.assertEqual(2, sum(item.is_dir() for item in held.infolist()))
             self.assertEqual([], checker.check(path)[0])
+
+    def test_refuses_a_tar_whose_earlier_member_claims_data_past_the_stream(self):
+        """The floor is the furthest any member's data reaches, not the last member's: a leading folder header claiming
+        8 MiB - which tarfile does not skip for a folder - reaches past what was compressed (the fiftieth review; no
+        runner writes such a header)."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'edit-floor-evidence.tar.gz'
+            with tarfile.open(path, 'w:gz') as tar:
+                top = tarfile.TarInfo('edit-test')
+                top.type = tarfile.DIRTYPE
+                top.mode = 0o755
+                top.size = 8 << 20
+                tar.addfile(top)
+                for leaf, text in files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux').items():
+                    blob = sealed(leaf, text, True)
+                    item = tarfile.TarInfo('edit-test/' + leaf)
+                    item.size = len(blob)
+                    tar.addfile(item, io.BytesIO(blob))
+            problems, _ = checker.check(path)
+            self.assertTrue(any('past what was compressed' in problem for problem in problems), problems)
+
+    def test_refuses_bytes_at_the_start_of_a_later_block_past_the_tar(self):
+        """Past the tar's own end every byte of each later block read is read, not only that block's last few: a gzip
+        whose header is padded so the first 1 MiB read ends where a second deflate block begins holds a run, 2 MiB of
+        zeros, then 512 bytes of something else (the fiftieth review; no runner writes such a stream)."""
+        raw = io.BytesIO()
+        with tarfile.open(fileobj=raw, mode='w') as tar:
+            for leaf, text in files(system='Linux host 7.0.0-43-generic #43 SMP x86_64 GNU/Linux').items():
+                blob = sealed(leaf, text, True)
+                item = tarfile.TarInfo('edit-test/' + leaf)
+                item.size = len(blob)
+                tar.addfile(item, io.BytesIO(blob))
+        first = raw.getvalue() + bytes(2 << 20)
+        second = b'JUNK' * 128 + bytes(3 << 20)
+        packer = zlib.compressobj(6, zlib.DEFLATED, -15)
+        head = packer.compress(first) + packer.flush(zlib.Z_FULL_FLUSH)
+        rest = packer.compress(second) + packer.flush()
+        comment = b'c' * ((1 << 20) - 10 - 1 - len(head))
+        header = bytes((0x1F, 0x8B, 8, 0x10)) + bytes(4) + bytes((0, 255)) + comment + bytes(1)
+        self.assertEqual(1 << 20, len(header) + len(head))
+        plain = first + second
+        trailer = struct.pack('<II', zlib.crc32(plain), len(plain) & 0xFFFFFFFF)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'edit-tail-evidence.tar.gz'
+            path.write_bytes(header + head + rest + trailer)
+            problems, _ = checker.check(path)
+            self.assertTrue(any('what it holds past its members is not padding but 512 bytes of something' in problem
+                                for problem in problems), problems)
+
+    def test_reads_a_member_s_descriptor_by_its_own_header_s_flag(self):
+        """Whether a descriptor follows a member's data is its own local header's to say: a zip written to a stream,
+        whose directory entries were then rewritten to clear that flag, is still read whole (the fiftieth review)."""
+        class Stream(io.RawIOBase):
+            def __init__(self):
+                self.data = bytearray()
+
+            def writable(self):
+                return True
+
+            def write(self, block):
+                self.data += block
+                return len(block)
+
+        sink = Stream()
+        with zipfile.ZipFile(sink, 'w', zipfile.ZIP_DEFLATED) as held:
+            for leaf, text in with_child_cmd(files()).items():
+                held.writestr(leaf.replace('/', '\\'), sealed(leaf, text, False))
+        data = bytearray(sink.data)
+        at = data.find(b'PK\x01\x02')
+        while at >= 0:
+            flag, = struct.unpack('<H', data[at + 8:at + 10])
+            data[at + 8:at + 10] = struct.pack('<H', flag & ~8)
+            at = data.find(b'PK\x01\x02', at + 4)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'edit-flags-evidence.zip'
+            path.write_bytes(bytes(data))
+            with zipfile.ZipFile(path) as held:
+                self.assertFalse(any(item.flag_bits & 8 for item in held.infolist()))
+            self.assertEqual([], checker.check(path)[0])
+
+    def test_counts_the_processes_every_test_list_names(self):
+        """Every tests.txt in the archive is read: a second list, in a folder of its own, names a process no log was
+        written for, and is refused as a line too many in the first would be (the fiftieth review)."""
+        contents = two_process_run(False)
+        contents['notes/tests.txt'] = TEST_LINE + '\r\n'
+        problems, _ = self.check(contents)
+        self.assertTrue(any('its runner listed 3 test processes where the archive holds the logs of 2' in problem
+                            for problem in problems), problems)
+
+    def test_refuses_a_unix_name_outside_filecat_in_lower_case(self):
+        """A Unix name is matched with case, as the Unix environment keeps it: `filecat_archive_txf_native` is not a
+        FILECAT_ name, and the test platform may read a name outside them (the fiftieth review; the Unix runner refuses
+        one before a run)."""
+        record = self.unix_record('env=filecat_archive_txf_native=1', 'env=FILECAT_EDIT_NATIVE_REQUIRED=1')
+        problems, _ = self.check(record, unix=True)
+        self.assertTrue(any("sets 'filecat_archive_txf_native', outside FILECAT_" in problem for problem in problems),
+                        problems)
 
 
 if __name__ == '__main__':

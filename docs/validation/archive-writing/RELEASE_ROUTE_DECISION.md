@@ -377,7 +377,17 @@ another run's sources under the packet's own hash, where the Unix runner's text 
 comment claiming every step-aside became a failure under the gate; double-byte code pages, in which the Windows record
 did not read as JSON; and five loops no case held. Both runners refuse names alike and `..` paths before a run, the Unix
 runner records each entry, and the check refuses an archive that does not hold a log of its own for each process its
-runner listed, and a recorded project path holding `..`; the Windows runner writes its JSON records in UTF-8; each loop, and every other
+runner listed, and a recorded project path holding `..` (but not, until the fiftieth review, where it followed a `#`
+in a built or published entry); the Windows runner writes its JSON records in UTF-8; each loop, and every other
 printed line found to be a rule, is listed with a case - the r35 verdicts unchanged. One hundred and twenty-six cases hold the check and
 fourteen the manifest; the harness lists two hundred and one rules, one hundred and seventy-five held by a verdict, twenty-six noted, none unheld or
 contradicted.
+
+The fiftieth review found a `..` after a `#` in a built or published entry let through by both runners and the check,
+which cut every entry at its `#` where the runners take a built or published entry whole; two rules held in plain
+expressions - the tar's floor over every member, and every byte past it - that no entry, audit line or case reported;
+the step-aside comment counting two gate-free tests where the edit lanes run six, two of whose reasons the scan lacked;
+and three printed lines no case held. A built or published entry is read to its end now, each rule is listed with a
+case, the scan holds every reason the six give, and the texts say what the audit cannot see - the r35 verdicts
+unchanged. One hundred and thirty-one cases hold the check and fourteen the manifest; the harness lists two hundred and fifteen rules, one hundred and eighty-eight held by a
+verdict, twenty-seven noted, none unheld or contradicted.

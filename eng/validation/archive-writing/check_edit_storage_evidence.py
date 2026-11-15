@@ -54,7 +54,8 @@ past that needs the evidence folder rewritten is the boundary, not a defect.
 Which case fails without a rule here is measured, not argued: `measure_rules.py` beside this file weakens the rules it
 lists, one at a time, and names the cases that notice; the ones it reports with no case are marked as such where they
 are, and `measure_rules.py --audit` points at lines here holding a condition, a parse or a loop that no entry
-names - a pointer, not a proof, since a rule held in a constant's contents is beyond it. Three reviews found a false
+names - a pointer, not a proof, since a rule held in a constant's contents, or in a plain expression (a bound, a sum,
+a slice), is beyond it: the fiftieth review found two of the latter held by no case. Three reviews found a false
 claim written beside a rule - two of them beside rules here, one of them that harness's own "every rule" - which is why
 the claims are gone and the command is cited instead.
 
@@ -106,15 +107,20 @@ PINS = (
 )
 
 # What a native edit test says when it steps aside because this process or folder cannot hold native storage. With the
-# gate in force a test that consults it fails instead; two do not consult it - `NativeEditStorageTests` skips its Unix
-# symbolic-link and Unix storage cases as root whatever the gate says (the forty-ninth review) - and this scan is what
-# refuses those. In sealed edit-storage evidence none of these may appear at all.
+# gate in force a test that consults it fails instead; six in the edit lanes do not consult it, skipping as root or
+# elevated whatever the gate says - two cases of `NativeEditStorageTests`, one of `ArchiveZipWorkerRouteTests`, the one
+# of `WindowsEditSaveCopyStageCleanupTests` and the two of `WindowsLegacyEditSourceTests`, whose legacy admission
+# refuses the same process (the forty-ninth and fiftieth reviews) - and this scan is what refuses those, so it holds
+# each of their reasons; two were missing until the fiftieth review. In sealed edit-storage evidence none of these may
+# appear at all.
 STEP_ASIDE = (
     'Native edit storage cannot be held for this test folder',
     'Native edit storage refuses an elevated or root process',
     'Native edit storage requires an unelevated process.',
     'Native edit storage refuses root; run as an ordinary user.',
     'Edit sessions refuse an elevated token; run unelevated.',
+    'Edit sessions refuse an elevated process.',
+    'Run legacy admission unelevated.',
     "The fixture's filesystem cannot be established here.",
     'is not a listed native edit storage route for',
 )
@@ -321,7 +327,7 @@ class Archive:
                     # zeros. Anything else there is another tar, which the reader above would never reach.
                     tail = plain[max(0, end - at):]
                     if tail.strip(b'\x00'):
-                        return 'what it holds after its own last member is not padding but %d bytes of something' \
+                        return 'what it holds past its members is not padding but %d bytes of something' \
                                % len(tail.strip(b'\x00'))
                     at += len(plain)
             except zlib.error as error:
@@ -333,7 +339,7 @@ class Archive:
         # past that member's data to read what follows - but it skips no data for a folder or a link whose size field
         # claims some, nor more than its header's size for an old-GNU sparse member, and lists those: this refuses
         # them, and has a case (the forty-fifth review).
-        return None if at >= end else 'its last member runs %d bytes past what was compressed' % (end - at)
+        return None if at >= end else 'a member of it reaches %d bytes past what was compressed' % (end - at)
 
     def repeated(self) -> list[str]:
         """Names this archive holds more than once.
@@ -543,7 +549,8 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
     leading `/` read as a switch, so a Unix filter or project entry holds no backslash and neither runner's filter
     begins with `/`. The forty-ninth found a project path holding `..` reaching out of the packet the record names - to
     another run's sources - which is refused in a Windows launcher's projects and in the Unix record's entry lines, its
-    runner writing them since then.
+    runner writing them since then. The fiftieth found that rule cutting a `build:` or `publish:` entry at its `#`, where
+    the runner takes the whole of such an entry for its path.
 
     Returns the values in order, or a reason the record cannot say what the tests were given.
     """
@@ -631,10 +638,13 @@ def gate_assignments(archive: Archive, name: str) -> tuple[list[str], str | None
 def leaves_packet(entry: str) -> bool:
     """Whether a runner's project entry names a path holding `..`, which reaches out of the hash-pinned packet the
     record names - the forty-ninth review ran another run's sources so, with the packet's hash still in the record. A
-    variable, a hang guard, the parallel switch and a package to expand name no project; what follows a `#` is a shard
-    of the tests, not a path."""
+    variable, a hang guard, the parallel switch and a package to expand name no project. In a test entry what follows a
+    `#` is a shard of its tests, not a path; a `build:` or `publish:` entry is a path to its end, `#` and all, as its
+    runner takes it - cut at its `#`, `publish:#/../..` reached out of the packet (the fiftieth review)."""
     if entry.startswith(('env:', 'hang:', 'parallel:', 'expand:')):
         return False
+    if entry.startswith(('build:', 'publish:')):
+        return '..' in entry
     return '..' in entry.split('#', 1)[0]
 
 

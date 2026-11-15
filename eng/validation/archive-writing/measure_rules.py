@@ -16,7 +16,9 @@ call (split, strip, partition, a prefix or suffix test, a regular expression, `j
 or the iterable of a loop, which no entry names. It cannot see a rule held in a constant's contents - a list of reasons,
 pins, descriptor shapes, byte-order marks or system words - which is why the reasons and the pins have cases asserting
 their own words, and each descriptor shape, mark and system word an entry of its own (the forty-eighth review found a
-mark and a system word that none measured). Nor does it print a line an entry already names, though a line may hold
+mark and a system word that none measured). Nor can it see a rule held in a plain expression - a bound, a sum, a slice:
+the fiftieth review found two held by no case (the tar's floor taken over every member, and every byte of a later
+block read past it), each an entry with a case now. Nor does it print a line an entry already names, though a line may hold
 more than one rule: it prints such a line where the checks on it outnumber the entries naming it, and that, too, is
 a pointer - the forty-seventh review found three rules sharing lines with others, held by no case. And it found nothing of
 the rule the fortieth review did find, because the line-prefix filter it replaced could not see a `for` over a split.
@@ -179,8 +181,8 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ('a compressed stream that cannot be read',
      '            except zlib.error as error:',
      '            except KeyError as error:', "the weakening raises where the rule refuses, which main() refuses as it would the rule's own finding"),
-    ('a tar whose last member claims more than was compressed',
-     "        return None if at >= end else 'its last member runs %d bytes past what was compressed' % (end - at)",
+    ('a tar a member of which claims more than was compressed',
+     "        return None if at >= end else 'a member of it reaches %d bytes past what was compressed' % (end - at)",
      '        return None', None),
     ('the verdict naming the system it read',
      "                     % (path.name, passed, skipped, GATE, facts['system'], accepted_digest(path)))",
@@ -668,6 +670,48 @@ RULES: list[tuple[str, str, str, str | None]] = [
     ('a listed process read line by line',
      "    return [line for name in lists for line in archive.read(name).split('\\n') if line.startswith('test ')]",
      "    return [line for name in lists for line in archive.read(name).split('\\r\\n') if line.startswith('test ')]", None),
+    ('a built or published entry read as a path to its end',
+     "    if entry.startswith(('build:', 'publish:')):",
+     "    if False and entry.startswith(('build:', 'publish:')):", None),
+    ("the tar's floor taken over every member",
+     '            end = max(end, item.offset_data + (stored + 511) // 512 * 512)',
+     '            end = (item.offset_data + (stored + 511) // 512 * 512)', None),
+    ('every byte of a later block past the floor read',
+     '                    tail = plain[max(0, end - at):]',
+     '                    tail = plain[end - at:]', None),
+    ('the reach of every member before',
+     '            reach = max(reach, end)',
+     '            reach = end', 'redundant: members read in order whose spans do not overlap each end at or past the reach before them, and one that overlaps is refused before the reach is taken'),
+    ('a member spanning its header, name, extra and data',
+     '                spans.append((item.header_offset, item.header_offset + 30 + name + extra + length))',
+     '                spans.append((item.header_offset, item.header_offset + 30 + name + length))', None),
+    ('what follows the stream, read and unread',
+     '            after = len(stream.unused_data) + len(handle.read())',
+     '            after = len(handle.read())', None),
+    ("a descriptor's flag read from the member's own header",
+     "                flag, = struct.unpack('<H', header[6:8])",
+     '                flag = item.flag_bits', None),
+    ('every test list read',
+     "    return [line for name in lists for line in archive.read(name).split('\\n') if line.startswith('test ')]",
+     "    return [line for name in lists[:1] for line in archive.read(name).split('\\n') if line.startswith('test ')]", None),
+    ('a Unix name matched with case',
+     "        if not (key.upper() if windows else key).startswith('FILECAT_'):",
+     "        if not key.upper().startswith('FILECAT_'):", None),
+    ('every width a descriptor may have',
+     '                        for size_of in fits:',
+     '                        for size_of in fits[:1]:', None),
+    ('every launcher argument read for what PowerShell changes',
+     "        odd = [argument for argument in launched.groups() if argument.startswith('-') or argument.endswith('\\\\')]",
+     "        odd = [argument for argument in launched.groups()[:1] if argument.startswith('-') or argument.endswith('\\\\')]", None),
+    ('every result row read',
+     '            for match in pattern.finditer(text):',
+     '            for match in list(pattern.finditer(text))[:1]:', None),
+    ('every result read for a pin',
+     "            matching = {test: outcome for test, outcome in results.items() if test.split('(')[0].endswith('.' + pin)}",
+     "            matching = {test: outcome for test, outcome in list(results.items())[:1] if test.split('(')[0].endswith('.' + pin)}", None),
+    ('every result read for the family',
+     "    passed = {test.split('(')[0] for test, outcome in results.items()",
+     "    passed = {test.split('(')[0] for test, outcome in list(results.items())[:1]", None),
 ]
 
 def run(folder: Path) -> tuple[str, int, set[str], dict[str, list[str]], dict[str, list[str]]]:
@@ -737,8 +781,8 @@ PARSING = {'split', 'rsplit', 'partition', 'rpartition', 'strip', 'lstrip', 'rst
 def audit() -> int:
     """Every line of the check that holds a condition, a parsing call or a loop's iterable and that no entry names.
 
-    A pointer, not a proof: a rule held in a constant's contents is out of its reach, and a line it prints may be a
-    message or plumbing. The exit code is 0 whatever it prints; reading the list is the point.
+    A pointer, not a proof: a rule held in a constant's contents or in a plain expression is out of its reach, and a
+    line it prints may be a message or plumbing. The exit code is 0 whatever it prints; reading the list is the point.
     """
     source = CHECK.read_text(encoding='utf-8')
     lines = source.splitlines()

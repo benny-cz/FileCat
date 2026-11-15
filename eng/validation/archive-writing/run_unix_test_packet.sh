@@ -42,11 +42,13 @@ for P in "${PROJECTS[@]}"; do ( LC_ALL=C; [[ "$P" =~ $PRINTABLE ]] ) || { echo "
 # Each test process writes its trx, log and exit code under its name, so two named alike - an entry given twice, a #~X
 # beside a #not+X, or names that differ only in case, which macOS and Windows file systems do not tell apart - wrote
 # over each other and hid a failure; and a project path holding `..` reached out of the hash-pinned packet (the
-# forty-ninth review). Both are refused before a run starts, as the evidence check refuses them in a sealed run.
+# forty-ninth review) - a test entry's path ends at its shard's `#`, a build: or publish: entry's at its own end, as
+# the steps below take them (the fiftieth). Both are refused before a run starts, as the evidence check refuses them in
+# a sealed run.
 NL=$'\n'; NAMES=$NL
 for P in "${PROJECTS[@]}"; do
   case "$P" in env:*|hang:*|parallel:*) continue ;; esac
-  path=${P#build:}; path=${path#publish:}; path=${path%%#*}
+  case "$P" in build:*|publish:*) path=${P#build:}; path=${path#publish:} ;; *) path=${P%%#*} ;; esac
   case "$path" in *..*) echo "bad project entry" >&2; exit 2 ;; esac
   case "$P" in build:*|publish:*) continue ;; esac
   csproj=${P%%#*}; spec=""; [ "$csproj" = "$P" ] || spec=${P#*#}

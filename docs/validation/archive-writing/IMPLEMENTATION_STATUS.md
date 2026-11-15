@@ -1,5 +1,45 @@
 # Archive writing implementation status
 
+**15 November, a built path read to its end, and rules held in expressions (round fifty).** Asked again whether
+anything was left that the mechanism did not report, the reviewer found three things at High and one at Medium:
+
+- **High: a `build:` or `publish:` entry whose `..` came after a `#` reached out of the packet.** Both runners and the
+  check cut every entry at its first `#` before looking for `..`, while the runners take the whole of a built or
+  published entry for its path. Replaying the Windows child's own steps, the reviewer had a project from beside the
+  packet published into the run's own publish folder - the r35 Windows edit lane publishes FileCat.App there, and its
+  native edit UI tests run that app - and the check accepted the sealed r35 Windows edit lane with only that entry
+  changed. A test entry's path still ends at its shard's `#`; a built or published entry's runs to its end, in both
+  runners before a run and in the check. The round below's word that both runners refuse a `..` path is corrected
+  where it stands.
+- **High: two rules held in plain expressions changed verdicts, and no entry, audit line or case reported them** - the
+  tar's floor taken over every member, and every byte of a later block read past it. Each is an entry with a case now
+  (a leading folder header claiming 8 MiB; bytes at the start of a later block, in a stream built for it); the three
+  neighbouring expressions the reviewer weighed are listed too, one noted redundant; and the check's and the harness's
+  text say what the audit cannot see - a rule in a constant's contents or in a plain expression. The two refusals'
+  own words named the last member where the floor is any member's; they say what they mean now.
+- **High: the step-aside comment counted two tests that skip whatever the gate says, and there are six in the edit
+  lanes** - two of `NativeEditStorageTests`, one of `ArchiveZipWorkerRouteTests`, the one of
+  `WindowsEditSaveCopyStageCleanupTests` and the two of `WindowsLegacyEditSourceTests` - and two of their reasons were
+  not in the list the scan reads: "Edit sessions refuse an elevated process." (the reviewer's) and "Run legacy
+  admission unelevated." (found reading every privileged skip among the tests the r35 edit lanes ran). Both are in the
+  list and the comment counts the six; no r35 archive holds either reason, and the r35 verdicts are unchanged.
+- **Medium: three printed lines were real rules that no case held** - a descriptor's flag read from the member's own
+  header, every `tests.txt` read, and a Unix name matched with case. Each is an entry with a case now, and five more
+  printed lines the reviewer found held by cases are listed.
+- Low, recorded: a FIFO or device member of a tar reads as empty (round forty-five's forgery, boundary 1 - r35's tars
+  hold folders and regular files alone); an `Os` that is not a string is read as its text; two `build:` or `publish:`
+  entries of one name are not refused (both from the packet; the second publish replaces the first's folder); the log
+  count compares counts, not names (boundary 1); and a main() that raised after writing its report would leave an
+  accepting stdout where `--out` is unwritten - the release reads `--out` and the exit code.
+
+The runners' corrected refusal was probed against r35's own lists - nine Unix entry lists under bash 5.3, 3.2 and 5.2,
+and six Windows `-Projects` values under Windows PowerShell 5.1, pass, and fourteen shapes each read as expected, the
+two new ones refused - and the whole Unix runner parses under bash 3.2 and 5.2. The fourteen r35 archives read exactly
+as before (five accepted, nine refused) and all 23 manifest digests match. One hundred and thirty-one cases for the
+check and fourteen for the manifest; the harness lists two hundred and fifteen rules, one hundred and eighty-eight held
+by a verdict, twenty-seven noted as redundant, caseless or raising, and none unheld or contradicted; the audit prints
+fifty-one lines.
+
 **15 November, one log for each test process, and every loop held (round forty-nine).** Asked again whether anything
 was left that the mechanism did not report, the reviewer found three things at High and two at Medium:
 
@@ -19,10 +59,11 @@ was left that the mechanism did not report, the reviewer found three things at H
   runners refuse a project path holding `..` before a run now; the Unix runner writes each entry into its record (an
   `entry=` line); and the check refuses such a path in a Windows launcher's projects and in the Unix record's entry
   lines, and the characters dotnet changes in those lines as in its test lines. The r35 lanes' entries hold none (each
-  list probed).
+  list probed). (Not a `build:` or `publish:` entry whose `..` follows a `#`, the round above found: every entry was cut
+  at its `#`, though the runners take a built or published one whole.)
 - **High: the check said that with the gate in force every step-aside becomes a failure.** Two of
   `NativeEditStorageTests`' cases skip as root whatever the gate says, so for those the scan is what refuses them; the
-  comment says so now.
+  comment says so now. (Six in the edit lanes, the round above found, and two of their reasons the scan lacked.)
 - **Medium: a `machine.json` written in a double-byte ANSI code page did not read as JSON** - in Japanese or Chinese a
   character's second byte can be a backslash, which no reading of the bytes undoes - so a lane on such a system was
   refused, and "whatever language the rest is in" held for single-byte code pages alone. The Windows runner writes
