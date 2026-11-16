@@ -50,8 +50,14 @@ public sealed class ClippedCellInspectionTests
     {
         string longName = new string('a', 95) + "." + new string('z', 65);
         using var f = new FileListFixture("short.txt", longName);
+        // Isolate pointer inspection from legitimate paint demand for the Unix Details Permissions column,
+        // including its horizontally hidden focused cell. The zero-reference assertion covers these two cells.
+        f.Services.Columns.Replace([("Split name", [
+            new ColumnSpec(ColumnField.Name, "Name", 200, Star: true),
+            new ColumnSpec(ColumnField.Extension, "Ext", 56),
+        ])]);
+        f.Tab.ColumnProfile = 0;
         await f.Load();
-        f.Tab.ColumnProfile = 0; // Details: Name and Ext are separate cells.
         Dispatcher.UIThread.RunJobs();
 
         int shortRow = Row(f, "short.txt");

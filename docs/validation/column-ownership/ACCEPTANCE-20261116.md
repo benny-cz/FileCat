@@ -51,7 +51,14 @@ accessibility, dialog-layout or focus re-audit. Dated package evidence records f
 
 ## Remaining validation while this record is in progress
 
-PF1/PF3 final controlled drawing/sort pair and final integration matrix are still running. Earlier screenshot-driver
-tail and sort misses remain diagnostic evidence, and are not counted as passing gates. The actual full analysis
-fixture passed its declared elapsed and reservation limits; PF2 passed its declared Owner-on band. Final results
-and exact run references will be attached before O7 is marked complete.
+PF1/PF3 passed the predeclared four-process ABBA set: all ten-sample pooled timing/allocation medians and every
+reservation check passed. See O5-20261116.md and 20261116-o5-affinity-summary.json. Earlier screenshot-driver and
+uncontrolled timing misses remain diagnostic evidence, never relabeled passes. The final twenty-sample actual
+analysis fixture passed its declared elapsed and reservation limits; PF2 passed its Owner-on band in O4. PF4's
+independently shrunken row/character/shared-byte and final-owner lifetime fixtures passed.
+
+The full integration matrix is pending. Initial run 43914012464 at production 41188513 passed Core on Ubuntu,
+macOS and Windows ARM64, but Ubuntu App found the existing hover test's zero-reference assertion included legitimate
+Unix Details Permissions paint demand. The fixture now explicitly uses only Name/Extension, retaining its strict
+zero-reference pointer assertion. Windows ClippedCellInspectionTests passed 6/6 after correction. A corrected full
+matrix and exact run references will be attached before O7 is marked complete.

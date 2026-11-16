@@ -1,13 +1,13 @@
 # FileCat: Owner column and useful panel columns — implementation plan
 
-**Status:** implementation in progress on `codex/column-ownership`. O1–O6 code is implemented; O5 performance closure
-and O7 final documentation/integration validation remain open. See the [finite acceptance record](../validation/column-ownership/ACCEPTANCE-20261116.md)
+**Status:** O1–O6 implemented on `codex/column-ownership`, including the passing bounded O5 performance gates.
+O7 documentation is implemented; final integration CI remains open. See the [finite acceptance record](../validation/column-ownership/ACCEPTANCE-20261116.md)
 and dated [O1](../validation/column-ownership/O1-20261116.md), [O2](../validation/column-ownership/O2-20261116.md),
 [O3](../validation/column-ownership/O3-20261116.md), [O4](../validation/column-ownership/O4-20261116.md),
 [O5](../validation/column-ownership/O5-20261116.md), [O6](../validation/column-ownership/O6-20261116.md) evidence.
 GW1/GW2 Windows x64 core, GL1 Ubuntu x64 core and [GA1 native NVDA](../validation/column-ownership/GA1-20261116.md) have evidence.
 Windows/Linux ARM64 and the new guarded macOS ownership route remain conservatively unavailable. Historical PF1/PF3
-misses are preserved; the remaining timing excess is under bounded diagnostic profiling, without widening pass bands.
+misses are preserved; the predeclared controlled comparison passes without widening acceptance bands.
 **Revised:** 2026-11-16 to address AR-001–AR-013 in the independent review; implementation progress is recorded above.
 **Written:** 2026-11-15 and 2026-11-16. **Baseline:** `main` at `1131471595025d13767ae4078d1ad0edc82ccc7d`
 (2026-11-16 09:13:27 +0100). Drafted on branch `codex/archive-writing` at `04bbd2b52f1d7cb306cc529445c7e718d7a38f88`
