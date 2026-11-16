@@ -68,7 +68,7 @@ public sealed partial class DiskSpaceWindow
         }
     }
 
-    private sealed class IndexedComparisonView : StackPanel, IAnalysisSessionView
+    private sealed partial class IndexedComparisonView : StackPanel, IAnalysisSessionView
     {
         private const int PageSize = 32;
         private readonly DiskSpaceWindow _window;
@@ -146,6 +146,7 @@ public sealed partial class DiskSpaceWindow
             Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { _queryText, _querySide, _cohort, _order, _case, _uncertain, _applyView, _resetView } });
             Children.Add(_appliedDescription);
             Children.Add(_summary); Children.Add(_compatibility); Children.Add(_status);
+            AddCharts();
             AutomationProperties.SetName(_summary, "Comparison totals"); AutomationProperties.SetName(_status, "Comparison status");
             AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
             AutomationProperties.SetName(_rows, "Captured comparison rows");
@@ -255,6 +256,7 @@ public sealed partial class DiskSpaceWindow
                 side.Back.IsEnabled = usable && _result is not null && side.Offsets.Count != 0;
                 side.Next.IsEnabled = usable && _result is not null && side.Page?.HasMore == true;
             }
+            RefreshCharts(usable);
         }
         private async Task RunAsync(string activity, Func<CancellationToken, Task> run)
         {
@@ -297,6 +299,7 @@ public sealed partial class DiskSpaceWindow
             var metric = (AnalysisMetric)_metric.SelectedIndex;
             if (_result is not null && metric == _publishedMetric) return;
             // The comparison places cover the real lifetime, so retire the old owner before admission.
+            await CloseChartAsync();
             var old = _result; var oldQuery = _queryResult; _result = null; _queryResult = null;
             await AnalysisIndexedComparison.CloseAsync(oldQuery, old);
             AnalysisIndexedComparison? replacement = null;
@@ -365,18 +368,23 @@ public sealed partial class DiskSpaceWindow
         private Task InspectAsync() => RunAsync("Reading recorded comparison details…", async token =>
         {
             if (_result is null || _rows.SelectedItem is not DisplayRow selected) return;
-            var before = await ReadSideAsync(_before, selected.Row.Previous, token);
-            var after = await ReadSideAsync(_after, selected.Row.Current, token);
-            token.ThrowIfCancellationRequested(); _selected = selected.Row;
+            await InspectRowAsync(selected.Row, token);
+        });
+        private async Task InspectRowAsync(AnalysisIndexedComparisonRow row, CancellationToken token)
+        {
+            var before = await ReadSideAsync(_before, row.Previous, token);
+            var after = await ReadSideAsync(_after, row.Current, token);
+            token.ThrowIfCancellationRequested(); _selected = row;
             _publishing = true;
             try
             {
                 ApplySide(_before, before); ApplySide(_after, after);
-                _before.Details.Text = selected.Row.Explanation + "\n" + _before.Details.Text;
-                _after.Details.Text = selected.Row.Explanation + "\n" + _after.Details.Text;
+                _before.Details.Text = row.Explanation + "\n" + _before.Details.Text;
+                _after.Details.Text = row.Explanation + "\n" + _after.Details.Text;
+                FocusChart(row, before.Page, after.Page);
             }
             finally { _publishing = false; }
-        });
+        }
         private sealed record SideRead(AnalysisComparisonAccountingEntity? Entity, AnalysisDatasetPage<AnalysisPathMetadata>? Page, string Details);
         private async Task<SideRead> ReadSideAsync(Side side, AnalysisComparisonAccountingEntity? entity, CancellationToken token)
         {
@@ -424,6 +432,7 @@ public sealed partial class DiskSpaceWindow
         public void Dispose()
         {
             if (_disposed) return; _disposed = true; _lifetime.Cancel(); _reviewCloser?.Close(false);
+            _chartTreemap.Clear(); _chartSunburst.Clear(); _chartProjection = null;
             _rows.ItemsSource = null; ClearSide(_before); ClearSide(_after); _selected = null;
             var drained = _work.CloseAsync(); _window.TrackIndexedClose(CloseAsync(drained), _admission);
         }
@@ -432,7 +441,7 @@ public sealed partial class DiskSpaceWindow
             try { await drained; }
             finally
             {
-                try { await AnalysisIndexedComparison.CloseAsync(_queryResult, _result, _currentSource, _previousSource); }
+                try { await AnalysisIndexedComparison.CloseAsync(_chartOwner, _queryResult, _result, _currentSource, _previousSource); }
                 finally { _result = null; _queryResult = null; _lifetime.Dispose(); }
             }
         }

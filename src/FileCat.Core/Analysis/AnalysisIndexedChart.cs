@@ -135,4 +135,7 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
             ModifiedUtc = row.ModifiedUtc, ModifiedPrecisionTicks = row.ModifiedPrecisionTicks, NameEvidence = AnalysisNames.NameEvidence(path),
             IsFilterContext = row.IsFilterContext };
     }
+    internal AnalysisIndexedChart WithItems(ImmutableDictionary<string, AnalysisTreeItem> items) =>
+        new(Metric, ObservedUtc, Scope, items.ToDictionary(), _children.ToDictionary(pair => pair.Key,
+            pair => pair.Value.Select(item => items[item.Key]).ToImmutableArray()), Remainders.ToDictionary(), DetailLimited);
 }

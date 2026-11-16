@@ -7,7 +7,7 @@ namespace FileCat.Core.Analysis;
 /// side's accounting projection; a signed difference is only comparison evidence.
 /// Owns its input/result readers until the displayed geometry is retired.
 /// </summary>
-public sealed class AnalysisComparisonChart : IAnalysisChartData, IDisposable
+public sealed class AnalysisComparisonChart : IAnalysisComparisonChartData, IDisposable
 {
     private static int s_active;
     private AnalysisTree? _tree;

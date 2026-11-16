@@ -1,6 +1,6 @@
 # Pause checkpoint — 2026-11-16
 
-Resumed by the user after this pause. The goal is active. The current [indexed comparison query checkpoint](INDEXED_COMPARISON_QUERY_QUALIFICATION.md) and `progress.json` nextWork supersede the historical stop/resume instructions below.
+Resumed by the user after this pause. The goal is active. The current [indexed comparison chart checkpoint](INDEXED_COMPARISON_CHART_QUALIFICATION.md) and `progress.json` nextWork supersede the historical stop/resume instructions below.
 
 The current slice is complete and the goal is paused at the user's request, after synchronizing the isolated feature branch with main `f745279c18fed923cbc98440957774976517ab7c` in merge `56469a86ea0f06f2b4fdb4c34087500d8e791478`. This latest merge has no conflicts and changes release documentation only. Product source, tests, build configuration and dependency inputs are identical to the tested feature parent `2f4bf33ed2080a47384847e9ff65e159b73931f9`; no additional build or guest run was needed for this documentation merge. The shared main checkout was not changed.
 

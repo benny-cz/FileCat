@@ -34,9 +34,9 @@ public abstract partial class AnalysisChartControl : Control
     protected abstract ImmutableArray<Part> Layout(ImmutableArray<AnalysisTreeItem> rows, Rect bounds, UInt128 total);
     protected abstract bool Contains(Part part, Point point);
     protected abstract void DrawPart(DrawingContext context, Part part, IBrush fill, IPen border);
-    private double ComparisonHeaderHeight => Tree is AnalysisComparisonChart ? _labelLineHeight + 6 : 0;
+    private double ComparisonHeaderHeight => Tree is IAnalysisComparisonChartData ? _labelLineHeight + 6 : 0;
     protected virtual Rect PlotBounds => new(8, 8 + ComparisonHeaderHeight, Math.Max(0, Bounds.Width - 16), Math.Max(0, Bounds.Height - 16 - ComparisonHeaderHeight));
-    private static string ComparisonHeading(AnalysisComparisonChart chart) => (chart.Previous ? "Previous" : "Current") + " · " + (chart.Metric switch
+    private static string ComparisonHeading(IAnalysisComparisonChartData chart) => (chart.Previous ? "Previous" : "Current") + " · " + (chart.Metric switch
     { AnalysisMetric.FileSize => "File size", AnalysisMetric.UniqueFileSize => "Unique file size", AnalysisMetric.OnDisk => "On disk — reported", _ => "Files" });
     protected double TileLabelHeight => 2 * _labelLineHeight + 12;
     static AnalysisChartControl() => AffectsRender<AnalysisChartControl>(Avalonia.Controls.Documents.TextElement.FontSizeProperty);
@@ -55,7 +55,7 @@ public abstract partial class AnalysisChartControl : Control
         if (_pressed) { _pending = next; return; }
         if (_view?.Tree != tree || _view.Scope != scope) { _layoutSize = default; _parts = []; _displayItems.Clear(); }
         _view = next;
-        AutomationProperties.SetName(this, $"{ViewName}: {(tree is AnalysisComparisonChart comparison ? ComparisonHeading(comparison) + ". " : "")}{AnalysisNames.Display(tree.NameOf(scope))}, {tree.ScopeValue(scope)} reported units. Colors: {AnalysisChartColors.Title(color)}. Use the table for every entry and its measurement and identity states.");
+        AutomationProperties.SetName(this, $"{ViewName}: {(tree is IAnalysisComparisonChartData comparison ? ComparisonHeading(comparison) + ". " : "")}{AnalysisNames.Display(tree.NameOf(scope))}, {tree.ScopeValue(scope)} reported units. Colors: {AnalysisChartColors.Title(color)}. Use the table for every entry and its measurement and identity states.");
         if (IsFocused) ShowTip(focus); else if (_hover is not null) ShowTip(_hover);
         InvalidateVisual();
     }
@@ -74,7 +74,9 @@ public abstract partial class AnalysisChartControl : Control
         foreach (var item in all.Skip(take)) { sum = checked(sum + item.Value); unverified = checked(unverified + item.IdentityUnverified); logical = checked(logical + item.LogicalSize); files = checked(files + item.Files); unknown |= item.Unknown; logicalUnknown |= item.LogicalUnknown; }
         if (sum == 0) return result;
         string key = AnalysisTree.OtherKey(parent, take);
-        var other = new AnalysisTreeItem(key, parent, "Other small items", null, AnalysisKind.Special, true, true, sum, logical, files, unknown, false, "other", [], []) { IdentityUnverified = unverified, LogicalUnknown = logicalUnknown };
+        var changes = all.Skip(take).Select(item => item.ComparisonChange).Distinct().Take(2).ToArray();
+        var other = new AnalysisTreeItem(key, parent, "Other small items", null, AnalysisKind.Special, true, true, sum, logical, files, unknown, false, "other", [], [])
+            { IdentityUnverified = unverified, LogicalUnknown = logicalUnknown, ComparisonChange = changes.Length == 1 ? changes[0] : AnalysisChange.Unknown };
         _displayItems[key] = other; return result.Add(other);
     }
     public override void Render(DrawingContext context)
@@ -108,7 +110,7 @@ public abstract partial class AnalysisChartControl : Control
             _parts = Layout(rows.Where(r => r.Value > 0).ToImmutableArray(), PlotBounds, total);
             _layoutSize = Bounds.Size;
         }
-        if (tree is AnalysisComparisonChart comparisonChart)
+        if (tree is IAnalysisComparisonChartData comparisonChart)
             Text(context, ComparisonHeading(comparisonChart), new(8, 6), p.Text, Bounds.Width - 16);
         foreach (var part in _parts)
         {
@@ -151,7 +153,7 @@ public abstract partial class AnalysisChartControl : Control
             }
         }
     }
-    private string CenterAmount(IAnalysisChartData tree) => tree is AnalysisComparisonChart ? tree.Metric == AnalysisMetric.Files
+    private string CenterAmount(IAnalysisChartData tree) => tree is IAnalysisComparisonChartData ? tree.Metric == AnalysisMetric.Files
         ? tree.ScopeValue(Scope).ToString("N0", CultureInfo.CurrentCulture) + " paths" : FileCat.App.ViewModels.DiskSpaceViewModel.Bytes(tree.ScopeValue(Scope))
         : tree.ScopeValue(Scope).ToString(CultureInfo.InvariantCulture);
     private AnalysisTreeItem? Item(string key)
@@ -229,7 +231,7 @@ public abstract partial class AnalysisChartControl : Control
         if (e.Key == Key.Escape && ToolTip.GetIsOpen(this)) { ToolTip.SetIsOpen(this, false); e.Handled = true; return; }
         if (_view is null || e.Handled) return;
         var rows = _view.Tree.ChildrenOf(Scope);
-        var keys = _view.Tree is AnalysisIndexedChart or AnalysisGroupedChart { GeometryProjection: true } ? _parts.Where(part => part.Depth == 0).Select(part => part.Key).Distinct().ToArray() : rows.Select(row => row.Key).ToArray();
+        var keys = _view.Tree is AnalysisIndexedChart or AnalysisIndexedComparisonChartProjection or AnalysisGroupedChart { GeometryProjection: true } ? _parts.Where(part => part.Depth == 0).Select(part => part.Key).Distinct().ToArray() : rows.Select(row => row.Key).ToArray();
         if (e.Key == Key.Enter)
         {
             string? key = _view.Focus ?? keys.FirstOrDefault();

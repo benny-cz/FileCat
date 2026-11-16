@@ -13,3 +13,9 @@ public interface IAnalysisChartData
     UInt128 ScopeValue(string key);
     ImmutableArray<AnalysisTreeItem> ChildrenOf(string key);
 }
+
+/// <summary>Area is one captured side, never a signed difference.</summary>
+public interface IAnalysisComparisonChartData : IAnalysisChartData
+{
+    bool Previous { get; }
+}
