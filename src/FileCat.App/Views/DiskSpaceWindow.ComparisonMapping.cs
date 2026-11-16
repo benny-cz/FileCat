@@ -12,16 +12,21 @@ public sealed partial class DiskSpaceWindow
 {
     private sealed partial class SessionView
     {
+        private Task<ImmutableDictionary<string, string>?> ReviewRootMappingAsync(DiskSpaceViewModel.ComparisonInputs inputs) =>
+            _window.ReviewRootMappingAsync(inputs.PreviousRoots, inputs.CurrentRoots);
+    }
+
         private sealed record RootMappingChoice(RootBinding? Root)
         {
             public override string ToString() => Root is null ? "Leave unmapped" : "[" + AnalysisNames.Display(Root.Id, 256) + "] " +
                 AnalysisNames.Display(Root.Label, 256) + " · " + AnalysisNames.Display(Root.CanonicalLocator, 1024);
         }
 
-        private async Task<ImmutableDictionary<string, string>?> ReviewRootMappingAsync(DiskSpaceViewModel.ComparisonInputs inputs)
+        private async Task<ImmutableDictionary<string, string>?> ReviewRootMappingAsync(ImmutableArray<RootBinding> previousRoots,
+            ImmutableArray<RootBinding> currentRoots, DialogCloser? closer = null)
         {
-            var previous = inputs.PreviousRoots.Where(r => r.Disposition == AnalysisRootDisposition.Active).ToArray();
-            var current = inputs.CurrentRoots.Where(r => r.Disposition == AnalysisRootDisposition.Active).ToArray();
+            var previous = previousRoots.Where(r => r.Disposition == AnalysisRootDisposition.Active).ToArray();
+            var current = currentRoots.Where(r => r.Disposition == AnalysisRootDisposition.Active).ToArray();
             var body = new StackPanel { Spacing = 10 };
             body.Children.Add(new TextBlock { Text = "Map recorded roots", FontWeight = FontWeight.SemiBold });
             body.Children.Add(new TextBlock { Text = "Choose the Previous root corresponding to each Current root. This is an explicit structural comparison of recorded paths. Identity continuity is not inferred, and neither source is opened. Compatible policies, measurement bases and coverage still qualify every difference.", TextWrapping = TextWrapping.Wrap });
@@ -59,10 +64,9 @@ public sealed partial class DiskSpaceWindow
             }
             foreach (var choice in choices) choice.Previous.SelectionChanged += (_, _) => Validate();
             body.Children.Add(status); Validate();
-            var answer = await _window._dialogs.ShowCustomAsync("Review structural comparison", body,
+            var answer = await _dialogs.ShowCustomAsync("Review structural comparison", body,
                 [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Compare mapped observations", true) { IsAvailable = () => Selected() is { Count: > 0 } }],
-                choices.FirstOrDefault().Previous);
+                choices.FirstOrDefault().Previous, closer: closer);
             return answer is true ? Selected() : null;
         }
-    }
 }

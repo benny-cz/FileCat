@@ -222,7 +222,8 @@ public sealed partial class AnalysisRenderingTests
         internal byte[] Payload { get; } = [1, 2, 3];
         internal AnalysisDatasetLease? Lease;
         private IndexedFixture() { Root = Path.Combine(_parent, "indexed-window-" + Guid.NewGuid().ToString("N")); }
-        internal static async Task<IndexedFixture> CreateAsync(bool unverified = false, bool namespaceEntry = false, bool sharedAlias = false, int extraExtensions = 0)
+        internal static async Task<IndexedFixture> CreateAsync(bool unverified = false, bool namespaceEntry = false, bool sharedAlias = false, int extraExtensions = 0, int extraAliases = 0,
+            AnalysisComponentPreset components = AnalysisComponentPreset.Standard)
         {
             var fixture = new IndexedFixture(); Directory.CreateDirectory(Path.Combine(fixture.Root, "source", "folder"));
             File.WriteAllBytes(fixture.PayloadPath, fixture.Payload); File.WriteAllBytes(Path.Combine(fixture.Root, "source", "folder", "second.bin"), [9]);
@@ -230,17 +231,18 @@ public sealed partial class AnalysisRenderingTests
             File.WriteAllBytes(Path.Combine(fixture.Root, "source", "bidi\u202E.bin"), [8]);
             for (int index = 0; index < extraExtensions; index++) File.WriteAllBytes(Path.Combine(fixture.Root, "source", $"category-{index:D4}.ext{index:D4}"), [6]);
             if (sharedAlias) CreateGroupedNativeAlias(fixture.PayloadPath, Path.Combine(fixture.Root, "source", "alias.jpg"));
+            for (int index = 0; index < extraAliases; index++) CreateGroupedNativeAlias(fixture.PayloadPath, Path.Combine(fixture.Root, "source", $"extra-alias-{index:D4}.bin"));
             string device = PathUtil.GetDeviceKey(fixture.Root); AnalysisPrivateDirectory? storage = null; IAnalysisBackend? source = null; AnalysisSession? session = null;
             bool completed = false;
             try
             {
                 storage = await AnalysisIo.Run(fixture._io, device, _ => OperatingSystem.IsWindows() ? (AnalysisPrivateDirectory)new WindowsAnalysisPrivateDirectory(fixture.Root, "private") : new UnixAnalysisPrivateDirectory(fixture.Root, "private"), TestContext.Current.CancellationToken);
                 source = await AnalysisIo.Run(fixture._io, device, _ => unverified || namespaceEntry ? new UnverifiedFiles(Prepare(Path.Combine(fixture.Root, "source")), unverified, namespaceEntry) : Prepare(Path.Combine(fixture.Root, "source")), TestContext.Current.CancellationToken);
-                session = new AnalysisCoordinator(fixture._io, "indexed-window-fixture").Start([source], storage: new(device,
+                session = new AnalysisCoordinator(fixture._io, "indexed-window-fixture").Start([source], components: components, storage: new(device,
                     () => Interlocked.Exchange(ref storage, null) ?? throw new InvalidOperationException("Private owner transferred."), [new(device, () => unverified || namespaceEntry ? new UnverifiedFiles(Prepare(fixture.PrivatePath), unverified) : Prepare(fixture.PrivatePath))], PreviewPaths: 2)); source = null;
                 await session.Completion.WaitAsync(TimeSpan.FromSeconds(45), TestContext.Current.CancellationToken);
                 Assert.Equal(AnalysisPhase.Finished, session.Snapshot().Phase); Assert.Equal(0UL, session.SourceCloseFailures);
-                fixture.Lease = await session.AcquireDatasetAsync(TestContext.Current.CancellationToken); Assert.NotNull(fixture.Lease); Assert.Equal(305UL + (namespaceEntry ? 1UL : 0UL) + (sharedAlias ? 1UL : 0UL) + (ulong)extraExtensions, fixture.Lease.Descriptor.Paths); completed = true; return fixture;
+                fixture.Lease = await session.AcquireDatasetAsync(TestContext.Current.CancellationToken); Assert.NotNull(fixture.Lease); Assert.Equal(305UL + (namespaceEntry ? 1UL : 0UL) + (sharedAlias ? 1UL : 0UL) + (ulong)extraExtensions + (ulong)extraAliases, fixture.Lease.Descriptor.Paths); completed = true; return fixture;
             }
             finally
             {

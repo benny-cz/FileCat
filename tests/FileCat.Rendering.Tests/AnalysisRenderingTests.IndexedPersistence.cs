@@ -90,7 +90,7 @@ public sealed partial class AnalysisRenderingTests
         await window.AddIndexedSessionAsync(source.Lease!, cancellation: TestContext.Current.CancellationToken); window.Show(); Frame(window);
         try
         {
-            foreach (string label in new[] { "Save named analysis", "Open saved analysis" })
+            foreach (string label in new[] { "Save named analysis", "Open saved analysis", "Compare…" })
             {
                 var button = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, label)); Assert.False(button.IsEnabled);
                 Assert.Contains("no available private inventory store", AutomationProperties.GetHelpText(button));

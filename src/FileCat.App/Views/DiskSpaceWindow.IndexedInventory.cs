@@ -29,6 +29,19 @@ public sealed partial class DiskSpaceWindow
         }
     }
 
+    private static async Task<AnalysisDatasetLease> LoadIndexedComparisonInputAsync(AppServices services, string name,
+        AnalysisSavedEntry? reviewedEntry, CancellationToken cancellation)
+    {
+        AnalysisDatasetLease? result = null;
+        try
+        {
+            await using var prepared = await AnalysisIndexedAcquisition.PrepareAsync(services, cancellation);
+            await using var inventory = await prepared.LoadInventoryAsync(name, reviewedEntry, cancellation);
+            result = await inventory.AcquireAsync(cancellation); return result;
+        }
+        catch { if (result is not null) await result.DisposeAsync(); throw; }
+    }
+
     private static AnalysisHierarchySort SavedIndexedSort(AnalysisTableSort sort) => sort switch
     {
         AnalysisTableSort.ActiveMetric => AnalysisHierarchySort.Metric,

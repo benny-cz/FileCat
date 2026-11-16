@@ -16,6 +16,7 @@ public sealed partial class DiskSpaceWindow
     {
         private readonly AppServices? _services;
         private readonly Button _saveInventory = new() { Content = "Save named analysis" }, _openInventory = new() { Content = "Open saved analysis" };
+        private readonly Button _compareInventory = new() { Content = "Compare…" };
         private bool _persistenceBusy, _revisionSaved;
         private string? _savedInventoryName;
         private Guid? _savedInventoryId;
@@ -30,7 +31,9 @@ public sealed partial class DiskSpaceWindow
         private void AddIndexedPersistenceControls(WrapPanel bar)
         {
             _services?.AnalysisSavedReferences.Track(this);
-            bar.Children.Add(_saveInventory); bar.Children.Add(_openInventory);
+            bar.Children.Add(_saveInventory); bar.Children.Add(_openInventory); bar.Children.Add(_compareInventory);
+            _compareInventory.Click += async (_, _) => await OpenInventoryAsync(comparing: true);
+            ToolTip.SetTip(_compareInventory, new RichTip("Compare captured observations", detail: "Choose a saved analysis as Previous. The entire current captured inventory is Current; the display filter does not restrict either input. Recorded paths remain offline."));
             _importExternal.IsVisible = _services is not null; bar.Children.Add(_importExternal);
             _importExternal.Click += async (_, _) => await ImportExternalAsync();
             ToolTip.SetTip(_importExternal, new RichTip("Import offline observations", detail: "Choose a local .fcdsa inventory or .fcdsc comparison. Imported paths stay offline and cannot grant current-source or file-action authority."));
@@ -50,11 +53,13 @@ public sealed partial class DiskSpaceWindow
             if (_disposed) return;
             _saveInventory.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _openInventory.IsEnabled = HasInventoryStore && !_persistenceBusy;
+            _compareInventory.IsEnabled = HasInventoryStore && !_persistenceBusy && _window.CanAddSession;
             _importExternal.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _exportExternal.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _exportReport.IsEnabled = HasInventoryStore && !_persistenceBusy;
             string reason = HasInventoryStore ? "" : "This view has no available private inventory store. Open it from a FileCat profile to save named analyses.";
             AutomationProperties.SetHelpText(_saveInventory, reason); AutomationProperties.SetHelpText(_openInventory, reason);
+            AutomationProperties.SetHelpText(_compareInventory, HasInventoryStore && !_window.CanAddSession ? "Close an analysis tab to make room for a comparison." : reason);
         }
         void IAnalysisSavedReferenceTarget.ForgetSavedReference(Guid id, string name, bool comparison)
         {
@@ -152,7 +157,7 @@ public sealed partial class DiskSpaceWindow
             }
             catch { result?.Dispose(); throw; }
         }
-        private async Task OpenInventoryAsync()
+        private async Task OpenInventoryAsync(bool comparing = false)
         {
             if (_disposed || _persistenceBusy || !HasInventoryStore) return;
             _persistenceNotice = null;
@@ -167,6 +172,8 @@ public sealed partial class DiskSpaceWindow
                 var choices = new ComboBox { IsVisible = false, HorizontalAlignment = HorizontalAlignment.Stretch, MaxWidth = 600 };
                 AutomationProperties.SetName(choices, "Saved analyses"); var message = new TextBlock { TextWrapping = TextWrapping.Wrap };
                 var browse = new Button { Content = "Browse saved analyses" }; var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
+                var mapRoots = new CheckBox { Content = "Review structural root mapping", IsVisible = comparing };
+                AnalysisMetric comparisonMetric = _grouping?.Metric ?? _explorer.Metric;
                 inspection = new(_services!.Paths.AnalysisSnapshotsDirectory, () => choices.SelectedItem is InventoryChoice selected && selected.Name == name.Text && selected.Replacement is null ? selected.Entry : null,
                     (id, token) => AnalysisOwnedStoreAccess.InspectAsync(_services!, id, token), cancel.Token, RememberViewCloseFailure);
                 choices.SelectionChanged += (_, _) => { if (choices.SelectedItem is InventoryChoice choice) name.Text = choice.Name; inspection.SelectionChanged(); };
@@ -191,13 +198,15 @@ public sealed partial class DiskSpaceWindow
                 name.TextChanged += (_, _) => { error.Text = string.IsNullOrEmpty(name.Text) ? "" : InventoryFilenameError(name.Text); inspection.SelectionChanged(); };
                 var body = new StackPanel { Spacing = 8, Children =
                 {
-                    new TextBlock { Text = "Select an analysis from the private catalog to restore its display settings. Entering a filename alone uses the default view. Recorded locations are not reconnected and no file actions are granted.", TextWrapping = TextWrapping.Wrap },
-                    browse, message, choices, name, inspection, error
+                    new TextBlock { Text = comparing
+                        ? "Choose Previous from the private saved analyses. Current is this entire captured inventory; filters and the displayed page do not restrict the comparison. Both inputs remain offline. Measurement, coverage and identity differences may require a limited or structural comparison."
+                        : "Select an analysis from the private catalog to restore its display settings. Entering a filename alone uses the default view. Recorded locations are not reconnected and no file actions are granted.", TextWrapping = TextWrapping.Wrap },
+                    browse, message, choices, name, inspection, mapRoots, error
                 } };
                 var closer = new DialogCloser(); _inventoryCloser = closer;
                 InventoryChoice? SelectedChoice() => choices.SelectedItem is InventoryChoice selected && selected.Name == name.Text ? selected : null;
-                var result = await _window._dialogs.ShowCustomAsync("Open saved analysis", body,
-                    [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Open inventory", true) { IsAvailable = () => InventoryFilenameError(name.Text) is null && !loading && SelectedChoice()?.Replacement is null && _window.CanAddSession },
+                var result = await _window._dialogs.ShowCustomAsync(comparing ? "Choose previous analysis" : "Open saved analysis", body,
+                    [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton(comparing ? "Compare captured inventories" : "Open inventory", true) { IsAvailable = () => InventoryFilenameError(name.Text) is null && !loading && SelectedChoice()?.Replacement is null && _window.CanAddSession },
                     new DialogButton("Delete selected analysis…", SavedAnalysisMaintenanceAction.Delete) { IsAvailable = () => !loading && SelectedChoice()?.Entry is not null },
                     new DialogButton("Restore pending analysis…", SavedAnalysisMaintenanceAction.Restore) { IsAvailable = () => !loading && SelectedChoice()?.Pending?.PayloadPresent == true },
                     new DialogButton("Review pending replacement…", SavedAnalysisMaintenanceAction.Replacement) { IsAvailable = () => !loading && SelectedChoice()?.Replacement is not null }], name, closer: closer);
@@ -216,10 +225,39 @@ public sealed partial class DiskSpaceWindow
                 }
                 if (result is not true) return;
                 string filename = name.Text!; var entry = choices.SelectedItem is InventoryChoice selected && selected.Name == filename ? selected.Entry : null;
-                await InventoryProgressAsync("Opening inventory", token => _window.AddSavedIndexedSessionAsync(_services!, filename, entry, token), cancel);
+                if (!comparing) await InventoryProgressAsync("Opening inventory", token => _window.AddSavedIndexedSessionAsync(_services!, filename, entry, token), cancel);
+                else
+                {
+                    await using var previous = await InventoryProgressAsync("Reading previous inventory", token => LoadIndexedComparisonInputAsync(_services!, filename, entry, token), cancel);
+                    if (_disposed) return;
+                    System.Collections.Immutable.ImmutableDictionary<string, string>? mapping = null;
+                    bool automatic;
+                    try { automatic = AnalysisComparison.MapRoots(previous.Descriptor.Roots, previous.Descriptor.Identity, _source.Descriptor.Roots, _source.Descriptor.Identity, null).Count != 0; }
+                    catch (InvalidOperationException) { automatic = false; }
+                    if (mapRoots.IsChecked == true || !automatic)
+                    {
+                        var mappingCloser = new DialogCloser(); _inventoryCloser = mappingCloser;
+                        mapping = await _window.ReviewRootMappingAsync(previous.Descriptor.Roots, _source.Descriptor.Roots, mappingCloser);
+                        if (mapping is null || _disposed) return;
+                    }
+                    bool added = await InventoryProgressAsync("Comparing captured inventories", token => _window.AddIndexedComparisonSessionAsync(previous, _source, comparisonMetric, mapping, filename, token, ReviewLimitedAsync), cancel);
+                    if (!added && !_disposed) _status.Text = "Comparison canceled. The original analysis is retained.";
+                    async Task<bool> ReviewLimitedAsync(AnalysisComparisonCompatibility compatibility)
+                    {
+                        // Dismiss only our progress overlay, without requesting cancellation of its actual work.
+                        _inventoryCloser?.Close(null);
+                        var reviewCloser = new DialogCloser(); _inventoryCloser = reviewCloser;
+                        var accepted = await _window._dialogs.ShowCustomAsync("Review limited comparison", new TextBlock
+                        {
+                            Text = "The captured inputs do not support a qualified combined difference. Known side observations remain available; affected differences and missing coverage stay unknown.\n\n" + string.Join("\n", compatibility.Explanations),
+                            TextWrapping = TextWrapping.Wrap
+                        }, [new DialogButton("Cancel comparison", false, IsDefault: true, IsCancel: true), new DialogButton("Open limited comparison", true)], closer: reviewCloser);
+                        cancel.Token.ThrowIfCancellationRequested(); return accepted is true && !_disposed;
+                    }
+                }
             }
-            catch (OperationCanceledException) { if (!_disposed) _status.Text = "Inventory open canceled."; }
-            catch (Exception error) when (Expected(error)) { RememberViewCloseFailure(error); if (!_disposed) _status.Text = "Inventory was not opened: " + AnalysisNames.Display(error.Message, 400); }
+            catch (OperationCanceledException) { if (!_disposed) _status.Text = comparing ? "Comparison canceled. No partial comparison was published." : "Inventory open canceled."; }
+            catch (Exception error) when (Expected(error)) { RememberViewCloseFailure(error); if (!_disposed) _status.Text = (comparing ? "Comparison unavailable: " : "Inventory was not opened: ") + AnalysisNames.Display(error.Message, 400); }
             finally
             {
                 closed = true; cancel.Cancel(); catalog?.Dispose(); _persistenceBusy = false; _inventoryCloser = null;
@@ -234,7 +272,7 @@ public sealed partial class DiskSpaceWindow
             var dismissed = _window._dialogs.ShowCustomAsync(title, new TextBlock
                 { Text = "Working in the private inventory store. Cancel requests a stop; outstanding native work remains owned until it returns.", TextWrapping = TextWrapping.Wrap },
                 [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true)], closer: closer);
-            try { if (await Task.WhenAny(work, dismissed) == dismissed) cancel.Cancel(); return await work; }
+            try { if (await Task.WhenAny(work, dismissed) == dismissed && await dismissed is false) cancel.Cancel(); return await work; }
             finally { closer.Close(null); }
         }
     }

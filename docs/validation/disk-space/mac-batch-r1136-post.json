@@ -1,0 +1,7 @@
+{
+  "observedUtc": "2026-11-16T17:29:27.535205+00:00",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    "23794 23754 /Users/benny/.dotnet/dotnet FileCat.Rendering.Tests.dll -method *NativeIndexedComparison* -method *NativeComparisonEntitiesLimitedBasis* -noLogo -noColor -maxThreads 2 -xml /Users/benny/FileCatValidation/dsa-batch-20261107-r1137/preview-r1137.xml"
+  ]
+}

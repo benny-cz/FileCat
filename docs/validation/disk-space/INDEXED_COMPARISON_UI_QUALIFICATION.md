@@ -1,0 +1,26 @@
+# Indexed comparison catalog and paged view — 2026-11-16
+
+The indexed explorer now offers Compare through its private saved-analysis catalog and filename route. Previous is the entire saved inventory; Current is the entire retained captured revision, independently of the originating display filter, grouping or page. Both remain inert observations. The tab retains both input datasets after their originating owners close and shows imported/privileged taint, recorded intervals, qualified totals, unknown differences and compatibility explanations.
+
+Automatic captured-root correspondence and explicitly reviewed structural mapping use the existing exact comparison rules. Structural mapping does not grant identity continuity. Incompatible policy, basis, scope or coverage requires an explicit limited-comparison review with Cancel as default. A later limited metric also requires review; declining it closes the unpublished result, rebuilds the previous metric and retains its displayed page.
+
+The default table pages 32 accounting rows at a time in absolute-difference order. It distinguishes all change/evidence labels, exact side amounts, signed UInt128 deltas, percentages and zero/missing baselines. Previous and Current inspectors independently page observed paths, including a native 71-alias cohort. Selected paths resolve recorded ancestry through the existing bounded lineage reader. No live source or file-action capability is acquired. Four metric changes wait for the old result's actual close before reclaiming its index places. Pending opening and accepted view work retain window admission until actual cleanup. Comparison close retains the existing Keep open default.
+
+Nine new controls exercise native filesystem captures and the headless Avalonia view on the actual Windows VM, Mac and Ubuntu VM. They cover the catalog route across all metrics, full-input behavior despite an empty display filter, automatic/structural roots, pagination, both-side inspection, input-owner closure, alias paging, cancel, bounded-reader refusal and successful retry, limited-review acceptance/cancellation and metric rollback. These are functional/native-filesystem controls, not physical pointer, keyboard or assistive-technology qualification.
+
+| Phase | Windows VM | Mac | Ubuntu VM |
+| --- | --- | --- | --- |
+| Core preflight | 119/119 | 119/119 | 119/119 |
+| Comparison/report preflight | 21/21 | 21/21 | 21/21 |
+| Core | 1,722 pass, 48 existing skips | 1,747 pass, 5 declared platform skips | 1,747 pass, 5 declared platform skips |
+| Analysis rendering | 700 pass, 1 existing skip | 701/701 | 701/701 |
+| Settings | 35 pass, 1 existing skip | 36/36 | 36/36 |
+| Windows native | 75/75 | — | — |
+
+The final r1138 change only adds a new-tab attachment/frame wait to one rendering control. Every product input is byte-identical to r1136/r1137. Windows and Ubuntu complete the pending broad suites with that control; Mac reuses its successful r1137 broad suites and passes a focused r1138 21-case rerun. Final affected builds have zero warnings/errors. All original deployment handles are terminal, the Windows Interactive/Limited task is removed, and all three final post-run inventories report zero FileCat/dotnet processes. No host test, app or desktop interaction was used.
+
+The failed r1134 18/19 preflights remain recorded. The fixture retained a live explorer plus both inputs on one graph beyond its eight-reader cap; it now verifies that preserving refusal and retries through an independently loaded Previous graph. Windows r1136 and Ubuntu r1137 passed 20/21 before the attachment-wait correction. Unix r1136 stopped before tests because its cache verifier rejected the explicitly declared coverage-metadata option; r1137 corrects that verifier with unchanged compiled inputs. Its old collection inventories contain this task's separately recorded later r1137 jobs, not surviving r1136 tests. Those jobs also reached terminal outcomes.
+
+Strict cached deltas reduce the intermediate app/test transfer to about 3.2 MB per platform and the final Unix test-only transfer to about 661 KB. An optional generated-coverage-metadata declaration is bounded to one exact filename; all other input hashes and complete binary pairs remain enforced. A fresh Windows payload was used for the final rerun. [The immutable evidence manifest](source-manifest-r1138-indexed-comparison-ui.json) retains exact sources, original failures, cache plans, passing receipts and process provenance. Its completed finalizer must not be rerun.
+
+The goal remains active and the public command stays unregistered. Predicates/cohorts/alternate orders, charts, reports and indexed comparison persistence/import still need integration. Large comparison parity, full resource/fault/physical/package qualification and the remaining W0–W8 work stay open. Source inspection also identified two failure paths for the next implementation batch: aggregated unconfirmed-close errors need to reach the view error/latching path, and a failed metric rebuild must restore the selector to the metric of the retained displayed page. These are open findings, not passing fault qualifications. The final independent UX/UI/functional/security review has not been performed.

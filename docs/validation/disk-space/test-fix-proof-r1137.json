@@ -1,0 +1,51 @@
+{
+  "revision": "r1137",
+  "baseline": "r1134",
+  "scope": "AppUi",
+  "testPhases": [
+    "render"
+  ],
+  "productSourceBaseline": null,
+  "elapsedSeconds": 6.441608,
+  "platforms": [
+    {
+      "sha256": "338e89c8285aaea9aeb8bfc417800131c721ed95ade015b9831948f821038ad6",
+      "platform": "windows",
+      "changed": [
+        "render/FileCat.dll",
+        "render/FileCat.pdb",
+        "render/FileCat.Rendering.Tests.dll",
+        "render/FileCat.Rendering.Tests.pdb"
+      ],
+      "archiveBytes": 3173256,
+      "guestReuse": true,
+      "verifiedInputs": 270
+    },
+    {
+      "sha256": "2ddaa78226bc97c6a6b725c3799013bb9ec7da7039adcbbed4027148ee24cbca",
+      "platform": "mac",
+      "changed": [
+        "render/FileCat.dll",
+        "render/FileCat.pdb",
+        "render/FileCat.Rendering.Tests.dll",
+        "render/FileCat.Rendering.Tests.pdb"
+      ],
+      "archiveBytes": 3173119,
+      "guestReuse": true,
+      "verifiedInputs": 192
+    },
+    {
+      "sha256": "f7fc19382602f2a5047710a5e2e1a7853578d9f725ea77c14b37702fc40f4d56",
+      "platform": "linux",
+      "changed": [
+        "render/FileCat.dll",
+        "render/FileCat.pdb",
+        "render/FileCat.Rendering.Tests.dll",
+        "render/FileCat.Rendering.Tests.pdb"
+      ],
+      "archiveBytes": 3173070,
+      "guestReuse": true,
+      "verifiedInputs": 191
+    }
+  ]
+}

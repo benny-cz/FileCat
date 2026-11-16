@@ -23,8 +23,10 @@ if scope == 'RunnerOnly':
     if allowed:
         raise RuntimeError('Runner-only reuse cannot patch any input')
 elif scope == 'AppUi':
-    if allowed != {'render/FileCat.dll', 'render/FileCat.pdb', 'render/FileCat.Rendering.Tests.dll', 'render/FileCat.Rendering.Tests.pdb'}:
-        raise RuntimeError('Only the declared App and rendering-test DLL/PDB pairs may be patched')
+    binaries = {'render/FileCat.dll', 'render/FileCat.pdb', 'render/FileCat.Rendering.Tests.dll', 'render/FileCat.Rendering.Tests.pdb'}
+    metadata = {'render/.msCoverageSourceRootsMapping_FileCat.Rendering.Tests'}
+    if allowed not in (binaries, binaries | metadata):
+        raise RuntimeError('Only App/rendering-test DLL/PDB pairs and explicitly declared coverage metadata may be patched')
 elif scope in ('TestOnly', 'OldProductControl'):
     core = {'core/FileCat.Core.Tests.dll', 'core/FileCat.Core.Tests.pdb'}
     checkout_core = {'tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll', 'tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.pdb'}

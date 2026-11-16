@@ -6,6 +6,7 @@ param(
  [Parameter(Mandatory=$true)][string]$SourceManifest,
  [ValidateSet('windows','mac','linux')][string[]]$ReusePlatforms=@('windows'),
  [ValidateSet('TestOnly','AppUi','OldProductControl','RunnerOnly')][string]$InputScope='TestOnly',
+ [switch]$IncludeCoverageMapping,
  [ValidateSet('core','render')][string[]]$AdditionalTestPhases=@(),
  [string]$WindowsTemplate='.tmp/batch-windows-grouping-template.ps1',
  [string]$UnixTemplate='.tmp/batch-unix-grouping-template.sh'
@@ -24,8 +25,11 @@ $corePrefix=if(Test-Path -LiteralPath (Join-Path $PWD ('.tmp/batch-'+$BaselineRe
 $allowed=@($testPhases|ForEach-Object{$prefix=if($_-eq'core'){$corePrefix}else{$_};($prefix+'/'+$assemblies[$_]+'.dll');($prefix+'/'+$assemblies[$_]+'.pdb')})
 if($InputScope-eq'RunnerOnly'){$allowed=@()}
 $appFiles=@('render/FileCat.dll','render/FileCat.pdb')
+$coverageMapping='render/.msCoverageSourceRootsMapping_FileCat.Rendering.Tests'
+if($IncludeCoverageMapping-and$InputScope-ne'AppUi'){throw 'Coverage metadata patches require AppUi inputs'}
 if($InputScope-in@('AppUi','OldProductControl')-and$Phase-ne'render'){throw 'App UI changes and old-product controls require rendering inputs'}
 if($InputScope-eq'AppUi'){$allowed+=$appFiles}
+if($IncludeCoverageMapping){$allowed+=$coverageMapping}
 $proof=@()
 foreach($platform in 'windows','mac','linux'){
  $old=Join-Path $PWD ('.tmp/batch-'+$BaselineRevision+'-'+$platform)
@@ -50,7 +54,8 @@ foreach($platform in 'windows','mac','linux'){
   [ordered]@{path=$relative;baselineSha256=$before;sha256=$after;patch=$patch}
  })
  if($InputScope-eq'AppUi'){
-  if(@($appFiles|Where-Object{$_-notin$changed}).Count-or$changed.Count-notin2,4){throw 'Expected the App DLL/PDB and optionally one test DLL/PDB pair'}
+  $binaryChanges=@($changed|Where-Object{$_-ne$coverageMapping})
+  if(@($appFiles|Where-Object{$_-notin$changed}).Count-or$binaryChanges.Count-notin2,4){throw 'Expected the App DLL/PDB and optionally one test DLL/PDB pair, plus explicitly declared coverage metadata'}
  }elseif($changed.Count-ne$allowed.Count-or@($allowed|Where-Object{$_-notin$changed}).Count){throw 'Expected exactly the declared test DLL/PDB pairs'}
  $archive=Join-Path $PWD ('.tmp/dsa-batch-'+$platform+'-'+$Revision+'.tgz')
  if(Test-Path -LiteralPath $archive){throw 'A fresh archive is required'}

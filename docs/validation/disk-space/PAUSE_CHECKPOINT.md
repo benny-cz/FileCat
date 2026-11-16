@@ -1,5 +1,7 @@
 # Pause checkpoint — 2026-11-16
 
+Resumed by the user after this pause. The goal is active. The current [indexed comparison UI checkpoint](INDEXED_COMPARISON_UI_QUALIFICATION.md) and `progress.json` nextWork supersede the historical stop/resume instructions below.
+
 The current slice is complete and the goal is paused at the user's request, after synchronizing the isolated feature branch with main `f745279c18fed923cbc98440957774976517ab7c` in merge `56469a86ea0f06f2b4fdb4c34087500d8e791478`. This latest merge has no conflicts and changes release documentation only. Product source, tests, build configuration and dependency inputs are identical to the tested feature parent `2f4bf33ed2080a47384847e9ff65e159b73931f9`; no additional build or guest run was needed for this documentation merge. The shared main checkout was not changed.
 
 The completed indexed two-input comparison slice has passing r1130 Core, analysis rendering, settings and applicable native suites on Windows VM, Mac and Ubuntu VM. Exact counts, failures corrected in fixtures, retained source/input hashes and terminal process receipts remain in [the qualification checkpoint](INDEXED_COMPARISON_QUALIFICATION.md). All task-owned processes exited. No live test or compiler handle remains to resume, and this pause involved no guest desktop interaction.
