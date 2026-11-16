@@ -6,10 +6,10 @@ FileCat puts local disks, removable storage, archives and remote servers in a mu
 multi-tab workspace on Windows, Ubuntu and macOS. See the destination before an operation and
 its result afterward; inspect unfamiliar files or recover deleted data when the work goes deeper.
 
-**Release status:** The [unsigned 1.0.0-preview.9](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.9)
+**Release status:** The [unsigned 1.0.0-preview.11](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.11)
 is available for Windows, Ubuntu and macOS. Stable 1.0.0 is still in validation. Read the
-[preview notes](docs/release/1.0.0/PREVIEW9_RELEASE_NOTES.md) and
-[asset hashes](docs/release/1.0.0/evidence/E-PREVIEW9-TAG-20261103.md) before installing.
+[preview notes](docs/release/1.0.0/PREVIEW11_RELEASE_NOTES.md) and
+[asset hashes](docs/release/1.0.0/evidence/E-PREVIEW11-TAG-20261116.md) before installing.
 
 **Start here:** [**Download the preview**](docs/DOWNLOAD.md) · [Build from source](#try-a-local-build) · [Recovery](#recover-deleted-files) · [Safety](#work-with-visible-outcomes) · [Screenshots](#make-it-yours) · [Capabilities](docs/CAPABILITIES.md) · [Code signing policy](docs/DOWNLOAD.md#code-signing-policy) · [Privacy](docs/PRIVACY.md)
 
@@ -147,6 +147,9 @@ make every parser a full sandbox.
   checks it before replacing it. An archive FileCat cannot write back exactly stays read-only and
   says why. So does one in a place FileCat cannot write safely (such as a cloud-synced folder, or
   a file with another hard link), except a ZIP, which keeps the old ZIP route there.
+  The new worker needs a supported package: Windows x64 setup or self-contained portable,
+  Linux `.deb` or an extracted portable payload, or the macOS app. See the
+  [package restrictions](docs/DOWNLOAD.md#which-package-fits-your-workflow).
 - Work with **SMB shares, SFTP, FTPS and FTP** from panels, including explicit remote edit
   sessions. Remote uploads use temporary names where supported; FileCat reports providers that
   cannot replace atomically. An SSH terminal opens from an SFTP panel.

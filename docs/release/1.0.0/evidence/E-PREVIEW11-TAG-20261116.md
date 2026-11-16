@@ -167,10 +167,44 @@ at SHA-256 `eda773235e090363dd627d7353682b0083772b6c1d129fd0b0eab077f4fc4c78` (9
 The retained final private API snapshot SHA-256 is
 `762881f718103bc3824688db3287e4b5fed7ce1c0c5e74291c8726a6e9b4601a`.
 
-## Publication decisions
+## Public preview publication
 
-DEC-09 private review and upload are complete. **DEC-07 remains pending**:
-a separate owner decision on this exact hosted unsigned tag/assets/hashes and
-committed notes is required before public publication.
-The intended public flags are `prerelease: true` and `make_latest: false`.
-Stable 1.0.0 remains **NO-GO**.
+The owner separately approved DEC-07 public publication of the exact
+[24-asset inventory](https://github.com/benny-cz/FileCat/blob/23eb96664980854b06ec6bbc15d0133f25094a5b/docs/release/1.0.0/evidence/E-PREVIEW11-TAG-20261116.md#exact-hosted-inventory)
+and committed notes above. A fresh private read confirmed the same
+release ID, exact tag/source, notes and 24 unchanged asset identities.
+A full REST update retained tag, exact source, name and committed UTF-8
+body, and explicitly requested `draft: false`, `prerelease: true` and
+`make_latest: false`. GitHub published the same release **447303206** at
+**2026-11-16T16:39:37Z**:
+[FileCat v1.0.0-preview.11](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.11).
+
+An unauthenticated release-by-tag API request returned HTTP 200 with
+`draft: false`, `prerelease: true`, `immutable: true`, the expected
+tag/source, byte-exact committed notes and all 24 unchanged uploaded
+asset IDs, names, byte sizes, SHA-256 digests and states. The retained
+public API snapshot SHA-256 is
+`aa3b728169b258d3943aa84fd2c02a5a8ecc07416f56d572a87c252fc0dc6cef`.
+
+GitHub CLI signed release-attestation verification passed. Its verified
+in-toto `release/v0.2` statement binds repository `benny-cz/FileCat`,
+release ID `447303206`, annotated tag object
+`bf9d99aac02706f08252243954ad1b4f8e93aef2` and all 24 asset SHA-256
+subjects. The retained verification JSON SHA-256 is
+`a7213c45df76db13d2154a799d96f9720dbe229ccc217aaac64727db703feb0e`.
+
+The official public `FileCat-1.0.0-preview.11-win-x64-portable.zip` was
+downloaded again without authentication. Its **108,628,324 bytes**
+and locally computed SHA-256
+`4599155a8206c190e61524f1cf36b8cb257c032d5dbe5aa47579fff80bf5a55f`
+match the producer manifest, GitHub server digest and verified signed
+attestation. `gh release verify-asset` passed. The byte-identical
+producer ZIP had already passed CRC, safe extraction and exact-version
+startup. This is release integrity, not trusted code signing or installed
+stable-candidate qualification.
+
+README and DOWNLOAD links now point to this public preview; all ten
+distinct direct package names match its hosted inventory. The download
+guidance includes the ARM64, shared-runtime and mounted-AppImage
+archive-worker restrictions. Preview.10 remains unpublished with its
+protected tag preserved. Stable 1.0.0 remains **NO-GO**.
