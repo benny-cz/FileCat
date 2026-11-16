@@ -120,8 +120,11 @@ public sealed partial class TabViewModel
                     {
                         if (value.Value is Principal p)
                             name = names?.Answers.GetValueOrDefault(p) ?? new PrincipalName(NameStatus.NotRequested);
-                        else key ??= field?.SortKey?.Invoke(value.Value) ?? value.Value as IComparable;
+                        else key ??= retained?.Values.Key(i) ?? field?.SortKey?.Invoke(value.Value) ?? value.Value as IComparable;
                     }
+                    // Verification reports contain arbitrary detail/check graphs. Ordering retains only the
+                    // existing scalar rank and observation state, never that report graph.
+                    if (value.Value is Core.Verification.VerificationResult) value = value with { Value = null };
                     if (!snapshot.TryAdd(i, value, key, name, comparison) && snapshot.Capacity != MetadataCapacity.None) break;
                 }
             }
@@ -300,7 +303,9 @@ public sealed partial class TabViewModel
                     if (value.State is MetadataState.NotRequested or MetadataState.Pending) throw new OperationCanceledException();
                     if (!claim.IsCurrent) { metadataChanged = true; throw new OperationCanceledException(); }
                     counts.Add(value, e.Has(EntryFlags.Offline));
-                    values.TryAdd(i, value);
+                    if (value.Value is Core.Verification.VerificationResult)
+                        values.TryAdd(i, value with { Value = null }, field.SortKey?.Invoke(value.Value));
+                    else values.TryAdd(i, value);
                     if (Environment.TickCount64 - last >= 200)
                     {
                         last = Environment.TickCount64;

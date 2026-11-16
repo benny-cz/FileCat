@@ -72,14 +72,16 @@ public sealed class UnixOwnershipTests
         };
         var source = new UnixOwnership(true, native);
         using var io = new DeviceIoScheduler(threadsPerDevice: 1, maxThreadsPerDevice: 1);
-        int firstThread = 0;
+        Thread? firstThread = null;
         var read = await io.Run("owned-mac-policy", IoPriority.Background, _ =>
-        { firstThread = Environment.CurrentManagedThreadId; return source.ReadOwner("owned"); }, TestContext.Current.CancellationToken);
+        { firstThread = Thread.CurrentThread; return source.ReadOwner("owned"); }, TestContext.Current.CancellationToken);
         Assert.Equal(outcome == "ok" ? OwnerReadStatus.Ok : OwnerReadStatus.Unsupported, read.Status);
         if (outcome is "get-failed" or "set-failed") Assert.Equal(0, native.Stats);
         else Assert.Equal(new[] { 1, 2 }, native.Sets);
-        int secondThread = await io.Run("owned-mac-policy", IoPriority.Background, _ => Environment.CurrentManagedThreadId, TestContext.Current.CancellationToken);
-        Assert.Equal(outcome == "restore-failed", firstThread != secondThread);
+        var secondThread = await io.Run("owned-mac-policy", IoPriority.Background, _ => Thread.CurrentThread, TestContext.Current.CancellationToken);
+        // Runtime thread IDs can be recycled after termination; compare the actual worker objects.
+        if (outcome == "restore-failed") Assert.NotSame(firstThread, secondThread);
+        else Assert.Same(firstThread, secondThread);
         if (outcome == "restore-failed") Assert.Contains("worker was retired", read.Reason);
     }
 
