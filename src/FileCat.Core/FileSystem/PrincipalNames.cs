@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using FileCat.Core.Listing;
 
 namespace FileCat.Core.FileSystem;
 
@@ -103,6 +104,32 @@ public sealed class PrincipalNames : IDisposable
     public IReadOnlyDictionary<Principal, PrincipalName> Capture()
     {
         lock (_gate) return _cache.ToDictionary(pair => pair.Key, pair => pair.Value.Answer);
+    }
+
+    /// <summary>Charges the complete bounded copy before allocating it, while the cache size is stable.</summary>
+    public NameSnapshot? Capture(IndexMemoryBudget budget) => Capture(budget, int.MaxValue, out _);
+    public NameSnapshot? Capture(IndexMemoryBudget budget, int maxCharacters, out bool characterLimit)
+    {
+        lock (_gate)
+        {
+            characterLimit = false;
+            var snapshot = new NameSnapshot(budget);
+            long chars = 0;
+            foreach (var entry in _cache.Values)
+                chars += entry.Principal.Id.Length + (long)entry.Principal.Authority.Length +
+                    (entry.Answer.Name?.Length ?? 0) + (entry.Answer.Type?.Length ?? 0) + (entry.Answer.Reason?.Length ?? 0);
+            if (chars > maxCharacters) { characterLimit = true; return null; }
+            if (!budget.TryReserve(snapshot, 256 + _cache.Count * 256L + chars * 2)) return null;
+            try { snapshot.Characters = (int)chars; snapshot.Answers = _cache.ToDictionary(pair => pair.Key, pair => pair.Value.Answer); return snapshot; }
+            catch { snapshot.Dispose(); throw; }
+        }
+    }
+
+    public sealed class NameSnapshot(IndexMemoryBudget budget) : IDisposable
+    {
+        public int Characters { get; internal set; }
+        public IReadOnlyDictionary<Principal, PrincipalName> Answers { get; internal set; } = null!;
+        public void Dispose() { Answers = null!; budget.Release(this); }
     }
 
     public async Task<bool> WhenIdle(TimeSpan timeout, CancellationToken ct = default)

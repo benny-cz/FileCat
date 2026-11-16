@@ -91,6 +91,7 @@ public sealed class PrincipalOrderKey(Principal principal, PrincipalName name, C
 {
     public Principal Principal { get; } = principal;
     private readonly string? _name = name.Status == NameStatus.Resolved ? name.Name : null;
+    public long RetainedCharacters => Principal.Id.Length + (long)Principal.Authority.Length + (_name?.Length ?? 0);
     public int CompareTo(object? obj)
     {
         if (obj is not PrincipalOrderKey other) throw new ArgumentException("Expected an ownership key.", nameof(obj));

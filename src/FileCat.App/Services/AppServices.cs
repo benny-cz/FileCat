@@ -16,7 +16,8 @@ namespace FileCat.App.Services;
 public sealed class AppServices : IDisposable
 {
     private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null, Core.Archives.ArchiveJobBackends? archiveBackends = null,
-        Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null, IOwnership? ownershipOverride = null)
+        Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null, IOwnership? ownershipOverride = null,
+        int metadataCacheSize = 50_000, Func<long>? metadataClock = null)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
@@ -136,7 +137,8 @@ public sealed class AppServices : IDisposable
             : editSessionFactory(paths,Platform.FileOperations);
         var ownership = ownershipOverride ?? Platform.Ownership;
         PrincipalNames = new PrincipalNames(ownership);
-        Metadata = new Core.Metadata.MetadataService(Io, ownership, PrincipalNames);
+        Metadata = new Core.Metadata.MetadataService(Io, metadataClock ?? (() => Environment.TickCount64),
+            maxCache: metadataCacheSize, ownership: ownership, names: PrincipalNames);
         // Checksums and signatures beside files (D-57): results kept in the cache folder; trusted minisign keys in the keys
         // folder (made now, so the advice that names it points to a folder that is there).
         try { Directory.CreateDirectory(KeyDirectory); }
@@ -236,7 +238,9 @@ public sealed class AppServices : IDisposable
     public StateLoadStatus SettingsStatus { get; }
     public HistoryState History { get; }
     public StateLoadStatus HistoryStatus { get; }
-    public IndexMemoryBudget ListingIndexes { get; } = new();
+    public IndexMemoryBudget ListingIndexes { get; internal set; } = IndexMemoryBudget.Shared;
+    internal int MetadataSnapshotMaxRows { get; set; } = 1_000_000;
+    internal int MetadataSnapshotMaxCharacters { get; set; } = 16_000_000;
     public DeviceIoScheduler Io { get; }
     public IUiDispatcher Ui { get; }
     public CommandRegistry Commands { get; }
@@ -252,7 +256,8 @@ public sealed class AppServices : IDisposable
     /// <param name="sftpConnector">Tests connect to an in-memory server instead of SSH.NET.</param>
     public static AppServices CreateForPaths(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector);
 
-    internal static AppServices CreateForPathsWithOwnership(AppPaths paths, IOwnership ownership) => new(paths, ownershipOverride: ownership);
+    internal static AppServices CreateForPathsWithOwnership(AppPaths paths, IOwnership ownership, int cacheSize = 50_000,
+        Func<long>? clock = null) => new(paths, ownershipOverride: ownership, metadataCacheSize: cacheSize, metadataClock: clock);
 
     // Explicit native-store test composition. Ordinary startup keeps the legacy store until qualification.
     internal static AppServices CreateForPathsWithEditSessions(AppPaths paths,

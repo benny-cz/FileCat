@@ -37,7 +37,7 @@ public static class EntrySorter
     public static Comparison<int> CreateComparison(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata = null)
     {
         if (spec.Field == SortField.Metadata && metadata is not null && spec.MetadataId is { } id)
-            return (x, y) => CompareMetadata(store, spec, metadata, id, x, y);
+            return new EntryComparer(store, spec, metadata, store.Count).Comparison;
         return (x, y) => Compare(store[x], store[y], spec, x, y);
     }
 
@@ -46,8 +46,8 @@ public static class EntrySorter
     /// mappings of its spill files, so a sort costs no system call or name string per comparison (a million-entry
     /// spilled sort drops from about a minute to seconds). Dispose the result when the sort is done.
     /// </summary>
-    public static EntryComparer CreateComparer(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata, int count) =>
-        new(store, spec, metadata, count);
+    public static EntryComparer CreateComparer(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata, int count,
+        bool metadataFrozen = false) => new(store, spec, metadata, count, metadataFrozen);
 
     private static int CompareMetadata(EntryStore store, SortSpec spec, MetadataKeyProvider provider, string id, int x, int y) =>
         CompareMetadata(new EntryView(store[x]), new EntryView(store[y]), store, spec, provider, id, x, y);
@@ -126,15 +126,17 @@ public sealed class EntryComparer : IDisposable
     private readonly string? _metadataId;
     private readonly int _count;
     private EntryStore.SpillReader? _reader;
+    private MetadataOrderSnapshot? _ownedMetadata;
 
-    internal EntryComparer(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata, int count)
+    internal EntryComparer(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata, int count, bool metadataFrozen = false)
     {
         _store = store;
         _spec = spec;
         _count = count;
         if (spec.Field == SortField.Metadata && metadata is not null && spec.MetadataId is { } id)
         {
-            _metadata = metadata;
+            _metadata = metadataFrozen ? metadata :
+                (_ownedMetadata = MetadataOrderSnapshot.Capture(store, count, id, metadata, IndexMemoryBudget.Shared, default)).Keys;
             _metadataId = id;
         }
         Comparison = Compare;
@@ -157,7 +159,13 @@ public sealed class EntryComparer : IDisposable
             : EntrySorter.Compare(new EntryView(_store[x]), new EntryView(_store[y]), _spec, x, y);
     }
 
-    public void Dispose() => Interlocked.Exchange(ref _reader, null)?.Dispose();
+    public void Dispose()
+    {
+        Interlocked.Exchange(ref _reader, null)?.Dispose();
+        Interlocked.Exchange(ref _ownedMetadata, null)?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+    ~EntryComparer() => Dispose();
 }
 
 /// <summary>The fields sorting and filtering read, with the name as a span (spilled names stay in place).</summary>

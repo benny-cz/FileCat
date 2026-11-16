@@ -48,6 +48,16 @@ public sealed class EntryStore : IDisposable
     }
 
     public int Count => Volatile.Read(ref _count);
+    /// <summary>Attaches only memory state while the captured append boundary is still current.</summary>
+    public bool TryAtCount(int count, Action publish)
+    {
+        lock (_gate)
+        {
+            if (_disposed || _count != count) return false;
+            publish();
+            return true;
+        }
+    }
     public (int Directories, int Files, long KnownFileBytes) Totals
     {
         get { lock (_gate) return (_directories, _files, _knownFileBytes); }

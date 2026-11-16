@@ -20,7 +20,7 @@ public sealed class MetadataPeekTests
         try
         {
             Assert.Equal(MetadataState.Pending, service.Get("queued-peek", "test/item", entry, "test", false).State);
-            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
             Assert.Equal(MetadataState.Pending, service.Peek("queued-peek", "test/item", entry, false).State);
             Assert.Equal(1, calls);
         }

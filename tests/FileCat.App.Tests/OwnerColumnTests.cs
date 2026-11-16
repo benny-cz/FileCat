@@ -69,11 +69,13 @@ public sealed partial class OwnerColumnTests
         public FileListControl List { get; }
         public Window Window { get; }
 
-        public OwnerFixture(OwnerSource? source = null)
+        public OwnerFixture(OwnerSource? source = null, int cacheSize = 50_000, Func<long>? clock = null,
+            IndexMemoryBudget? budget = null)
         {
             Source = source ?? new();
             Directory.CreateDirectory(Root);
-            Services = AppServices.CreateForPathsWithOwnership(AppPaths.Resolve(overrideRoot: Path.Combine(Root, "state")), Source);
+            Services = AppServices.CreateForPathsWithOwnership(AppPaths.Resolve(overrideRoot: Path.Combine(Root, "state")), Source, cacheSize, clock);
+            if (budget is not null) Services.ListingIndexes = budget;
             Names = Services.PrincipalNames;
             var inner = Services.Providers.Get(Schemes.FileSystem);
             Provider = new CountingOwnerProvider(new SyntheticListingProvider(inner, Root, 120));
@@ -122,9 +124,10 @@ public sealed partial class OwnerColumnTests
         public int NameCalls;
         public Func<string, OwnerRead>? ReadOverride { get; set; }
         public PrincipalName NameAnswer { get; set; } = new(NameStatus.Resolved, "fixture\u202Euser", "User");
+        public Func<Principal, PrincipalName>? NameOverride { get; set; }
         public OwnerRead ReadOwner(string path) { ReadPaths.Enqueue(path); return ReadOverride?.Invoke(path) ?? new(OwnerReadStatus.Ok, new Principal(PrincipalKind.UnixUser, "42")); }
         public OwnerRead ReadGroup(string path) => new(OwnerReadStatus.Unsupported);
-        public PrincipalName LookUp(Principal principal) { Interlocked.Increment(ref NameCalls); return NameAnswer; }
+        public PrincipalName LookUp(Principal principal) { Interlocked.Increment(ref NameCalls); return NameOverride?.Invoke(principal) ?? NameAnswer; }
     }
 
     private sealed class CountingOwnerProvider(ResourceProvider inner) : ResourceProvider

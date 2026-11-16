@@ -10,14 +10,14 @@ internal static class ExternalViewBuilder
     private const int ChunkSize = 262_144;
 
     public static DiskIntIndex Sort(EntryStore store, int count, SortSpec sort,
-        MetadataKeyProvider? metadataKeys, string scratchDirectory, CancellationToken ct)
+        MetadataKeyProvider? metadataKeys, string scratchDirectory, CancellationToken ct, bool metadataFrozen = false)
     {
         var runs = new List<Run>();
         DiskIntIndex? order = null;
         try
         {
             int first = HasParent(store, count) ? 1 : 0;
-            using var comparer = EntrySorter.CreateComparer(store, sort, metadataKeys, count);
+            using var comparer = EntrySorter.CreateComparer(store, sort, metadataKeys, count, metadataFrozen);
             var cmp = comparer.Comparison;
             for (int from = first; from < count; from += ChunkSize)
             {

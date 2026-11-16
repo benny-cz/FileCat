@@ -1,0 +1,380 @@
+using System.Globalization;
+using FileCat.App.Controls;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Listing;
+using FileCat.Core.Metadata;
+using FileCat.Core.Resources;
+using FileCat.Core.Threading;
+
+namespace FileCat.App.ViewModels;
+
+public sealed partial class TabViewModel
+{
+    private readonly object _analysisGate = new();
+    private RetainedAnalysis? _retainedAnalysis;
+    private AnalysisCompletion? _analysisCompletion;
+    private CancellationTokenSource? _nameWait;
+
+    private sealed record RetainedAnalysis(EntryStore Store, int Count, string FieldId,
+        MetadataOrderSnapshot Values, MetadataService.SnapshotClaim Claim) : IDisposable
+    {
+        public void Dispose() { Claim.Dispose(); Values.Dispose(); }
+    }
+    private sealed record AnalysisCompletion(RetainedAnalysis Retained, AnalysisCounts Counts, int Version,
+        TaskCompletionSource<bool> Accepted);
+
+    private sealed class AnalysisCounts
+    {
+        public int Completed, Considered, Current, LastKnown, Absent, Gone, Denied, Placeholder, Unsupported, Failed;
+        public bool Prepared;
+        public void Add(MetadataValue value, bool placeholder)
+        {
+            Completed++;
+            if (value.State == MetadataState.Available)
+            { if (value.Observation == MetadataObservation.LastKnown) LastKnown++; else Current++; }
+            else if (value.State == MetadataState.Absent)
+            { if (value.Observation == MetadataObservation.Gone) Gone++; else Absent++; }
+            else if (value.State == MetadataState.Denied) Denied++;
+            else if (value.State == MetadataState.Unsupported)
+            { if (placeholder) Placeholder++; else Unsupported++; }
+            else if (value.State == MetadataState.Failed) Failed++;
+        }
+    }
+
+    private static string PartialMetadataOrder(string title) =>
+        $"Sorted by {title} using the results read so far; unavailable values sort last within their folder/file partition. Choose View → Analyze folder to read the whole folder.";
+
+    private MetadataOrderSnapshot NewMetadataSnapshot(int? characters = null) => new(Services.ListingIndexes,
+        Services.MetadataSnapshotMaxRows, characters ?? Services.MetadataSnapshotMaxCharacters);
+
+    private MetadataOrderSnapshot CaptureMetadataOrder(EntryStore store, int count, string fieldId, CancellationToken ct)
+    {
+        if (Listing.MetadataKeys is { } input)
+            return MetadataOrderSnapshot.Capture(store, count, fieldId, input, Services.ListingIndexes, ct);
+        RetainedAnalysis? retained;
+        IDisposable? lease = null;
+        lock (_analysisGate)
+        {
+            retained = _retainedAnalysis;
+            if (retained is not null && ReferenceEquals(retained.Store, store) && retained.FieldId == fieldId && retained.Claim.IsCurrent)
+                lease = retained.Values.Lease();
+            else retained = null;
+        }
+        try
+        {
+            var result = CaptureMetadataOrderCore(store, count, fieldId, retained, ct);
+            if (retained is null || retained.Claim.TryPublish(() => { })) return result;
+            result.Dispose(); // A fresh publication won the race; old retained owners cannot override it.
+            return CaptureMetadataOrderCore(store, count, fieldId, null, ct);
+        }
+        finally { lease?.Dispose(); }
+    }
+
+    private MetadataOrderSnapshot CaptureMetadataOrderCore(EntryStore store, int count, string fieldId,
+        RetainedAnalysis? retained, CancellationToken ct)
+    {
+        var field = Services.Metadata.Field(fieldId);
+        var location = Location;
+        var comparison = CultureInfo.CurrentCulture.CompareInfo;
+        int remainingChars = Math.Max(0, Services.MetadataSnapshotMaxCharacters - (retained?.Values.RetainedCharacters ?? 0));
+        bool principalField = fieldId is "owner" or "group", nameCharacterLimit = false;
+        using var names = principalField ? Services.PrincipalNames.Capture(Services.ListingIndexes, remainingChars, out nameCharacterLimit) : null;
+        var snapshot = NewMetadataSnapshot(remainingChars - (names?.Characters ?? 0));
+        try
+        {
+            if (principalField && names is null)
+            {
+                snapshot.Limit(nameCharacterLimit ? MetadataCapacity.Characters : MetadataCapacity.SharedMemory);
+                snapshot.Seal();
+                return snapshot;
+            }
+            if (location is not null)
+            {
+                var provider = Services.Providers.For(location);
+                bool slow = IsSlowLocation;
+                for (int i = 0; i < count; i++)
+                {
+                    if ((i & 255) == 0) ct.ThrowIfCancellationRequested();
+                    var entry = store[i];
+                    if (entry.Kind == EntryKind.Parent) continue;
+                    MetadataValue value;
+                    IComparable? key = null;
+                    if (fieldId == ColumnSpec.FolderSortKey)
+                        value = new(MetadataState.Available, key = GetFolderText(entry));
+                    else if (retained is not null)
+                    {
+                        if (!retained.Values.TryValue(i, out value)) continue;
+                        if (!MetadataApplies(entry, fieldId) || entry.Has(EntryFlags.Offline))
+                            value = Services.Metadata.Peek(fieldId, "", entry, slow);
+                    }
+                    else
+                    {
+                        if (field is null || !MetadataApplies(entry, fieldId) ||
+                            provider.GetItemRef(location, entry).FileSystemPath is not { } path) continue;
+                        value = Services.Metadata.Peek(fieldId, path, entry, slow);
+                        if (value.State is MetadataState.NotRequested or MetadataState.Pending) continue;
+                    }
+                    PrincipalName? name = null;
+                    if (value.State == MetadataState.Available)
+                    {
+                        if (value.Value is Principal p)
+                            name = names?.Answers.GetValueOrDefault(p) ?? new PrincipalName(NameStatus.NotRequested);
+                        else key ??= field?.SortKey?.Invoke(value.Value) ?? value.Value as IComparable;
+                    }
+                    if (!snapshot.TryAdd(i, value, key, name, comparison) && snapshot.Capacity != MetadataCapacity.None) break;
+                }
+            }
+            snapshot.NameSummary = DescribeNames(snapshot.PrincipalNames);
+            snapshot.Seal();
+            return snapshot;
+        }
+        catch { snapshot.Dispose(); throw; }
+    }
+
+    private static string? DescribeNames(IReadOnlyDictionary<Principal, NameStatus>? names)
+    {
+        if (names is null) return null;
+        var counts = new int[5];
+        foreach (var status in names.Values) counts[(int)status]++;
+        var parts = new List<string>();
+        if (counts[(int)NameStatus.NotFound] > 0) parts.Add($"{counts[(int)NameStatus.NotFound]:N0} owners have no name here");
+        if (counts[(int)NameStatus.Unavailable] > 0) parts.Add($"{counts[(int)NameStatus.Unavailable]:N0} name lookups are unavailable");
+        if (counts[(int)NameStatus.Pending] > 0) parts.Add($"{counts[(int)NameStatus.Pending]:N0} name lookups are pending");
+        if (counts[(int)NameStatus.NotRequested] > 0) parts.Add($"{counts[(int)NameStatus.NotRequested]:N0} owners have no cached name");
+        return parts.Count == 0 ? null : string.Join("; ", parts) + ". These owners are ordered by ID until you sort again.";
+    }
+
+    private void RetireMetadataAnalysis()
+    {
+        _analysis?.Cancel();
+        _analysis = null;
+        _nameWait?.Cancel();
+        AnalysisStatus = null;
+        RetainedAnalysis? retained;
+        lock (_analysisGate)
+        {
+            retained = _retainedAnalysis;
+            _retainedAnalysis = null;
+        }
+        _analysisCompletion?.Accepted.TrySetResult(false);
+        _analysisCompletion = null;
+        retained?.Dispose();
+    }
+
+    private void CheckMetadataAnalysis()
+    {
+        RetainedAnalysis? retained;
+        lock (_analysisGate) retained = _retainedAnalysis;
+        if (retained is null) return;
+        if (!ReferenceEquals(retained.Store, Listing.Store) || !retained.Claim.IsCurrent ||
+            Listing.Sort.Field != SortField.Metadata || Listing.Sort.MetadataId != retained.FieldId)
+        {
+            bool changed = !retained.Claim.IsCurrent;
+            RetireMetadataAnalysis();
+            if (changed) Banner = PartialMetadataOrder(Services.Metadata.Field(retained.FieldId)?.Title ?? retained.FieldId);
+            return;
+        }
+        var completion = _analysisCompletion;
+        if (retained.Store.Count != retained.Count)
+        {
+            _analysisCompletion = null;
+            completion?.Accepted.TrySetResult(false);
+            Banner = PartialMetadataOrder(Services.Metadata.Field(retained.FieldId)?.Title ?? retained.FieldId);
+            return; // Previously retained observations remain usable; appended rows have fixed unknown keys.
+        }
+        if (completion is null) return;
+        if (Listing.ViewSpecVersion != completion.Version)
+        {
+            _analysisCompletion = null;
+            completion.Accepted.TrySetResult(false);
+            Banner = PartialMetadataOrder(Services.Metadata.Field(retained.FieldId)?.Title ?? retained.FieldId);
+            return;
+        }
+        if (Listing.AppliedViewSpecVersion != completion.Version) return;
+        bool accepted = false;
+        retained.Claim.TryPublish(() => retained.Store.TryAtCount(retained.Count, () =>
+        {
+            Banner = DescribeAnalysis(retained.FieldId, completion.Counts, Listing.AppliedMetadataCoverage);
+            _analysisCompletion = null;
+            accepted = true;
+        }));
+        completion.Accepted.TrySetResult(accepted);
+        if (!accepted) CheckMetadataAnalysis();
+    }
+
+    private string DescribeAnalysis(string id, AnalysisCounts counts, MetadataOrderCoverage? coverage)
+    {
+        string title = Services.Metadata.Field(id)?.Title ?? id;
+        string text = $"Read {title} for {counts.Completed:N0} items: {counts.Current:N0} current values" +
+            (counts.LastKnown > 0 ? $", {counts.LastKnown:N0} last-known values." : ".");
+        var outcomes = new List<string>();
+        if (counts.Absent > 0) outcomes.Add($"{counts.Absent:N0} without a value");
+        if (counts.Gone > 0) outcomes.Add($"{counts.Gone:N0} gone");
+        if (counts.Denied > 0) outcomes.Add($"{counts.Denied:N0} with no access");
+        if (counts.Placeholder > 0) outcomes.Add($"{counts.Placeholder:N0} placeholders not read");
+        if (counts.Unsupported > 0) outcomes.Add($"{counts.Unsupported:N0} unsupported");
+        if (counts.Failed > 0) outcomes.Add($"{counts.Failed:N0} failed");
+        if (outcomes.Count > 0) text += " " + string.Join("; ", outcomes) + ".";
+        int r = coverage?.Count ?? 0;
+        text += r == counts.Completed ? $" The order retains all {r:N0} items' results." : $" The order retains {r:N0} of {counts.Completed:N0} items' results.";
+        MetadataCapacity capacity = coverage?.Capacity ?? MetadataCapacity.SharedMemory;
+        lock (_analysisGate)
+            if (_retainedAnalysis is { } retained) capacity |= retained.Values.Capacity;
+        if (capacity != MetadataCapacity.None)
+        {
+            var limits = new List<string>();
+            if (capacity.HasFlag(MetadataCapacity.Rows)) limits.Add("Row");
+            if (capacity.HasFlag(MetadataCapacity.Characters)) limits.Add("Character");
+            if (capacity.HasFlag(MetadataCapacity.SharedMemory)) limits.Add("Shared-memory");
+            text += " " + string.Join("/", limits) + " limit reached; unretained items have unknown keys and sort last within their folder/file partition.";
+        }
+        else if (r < counts.Completed) text += " Unretained items have unknown keys and sort last within their folder/file partition.";
+        else if (outcomes.Count > 0) text += " Unavailable values sort last within their folder/file partition.";
+        if (coverage?.Names is { } names) text += " " + names;
+        if (!Columns.Any(c => c.MetadataId == id)) text += " Add this column in Settings → Columns to see its values.";
+        return text;
+    }
+
+    public async Task AnalyzeAsync(string fieldId)
+    {
+        if (Location is not { } location || !CanAnalyzeMetadata(fieldId) || Services.Metadata.Field(fieldId) is not { } field) return;
+        RetireMetadataAnalysis();
+        if (Listing.Sort.Field != SortField.Metadata || Listing.Sort.MetadataId != fieldId)
+            ApplyExplicitSort(Listing.Sort with { Field = SortField.Metadata, MetadataId = fieldId, Descending = false });
+        using var cts = new CancellationTokenSource();
+        _analysis = cts;
+        var provider = Services.Providers.For(location);
+        var store = Listing.Store;
+        int count = store.Count;
+        bool slow = IsSlowLocation, left = false, metadataChanged = false, transferred = false;
+        var origin = new object();
+        var claim = Services.Metadata.TrackSnapshot(fieldId, origin, location.IsFileSystem ? location.Path : null);
+        var values = NewMetadataSnapshot();
+        var retained = new RetainedAnalysis(store, count, fieldId, values, claim);
+        var counts = new AnalysisCounts();
+        AnalysisStatus = $"Analyzing {field.Title}: preparing… (Esc cancels)";
+        void Moved(object? sender, ListingChange change)
+        {
+            if (ReferenceEquals(store, Listing.Store) && Equals(location, Location) &&
+                Listing.Sort.Field == SortField.Metadata && Listing.Sort.MetadataId == fieldId) return;
+            left = true;
+            cts.Cancel();
+        }
+        void ClosedTab() { left = true; cts.Cancel(); }
+        Listing.Changed += Moved;
+        Closed += ClosedTab;
+        IDisposable? storeLease = null, workerLease = null;
+        Task? work = null;
+        try
+        {
+            storeLease = store.Lease();
+            workerLease = values.Lease();
+            work = Services.Io.RunOwned(provider.GetDeviceKey(location), IoPriority.Background, ct =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var e = store[i];
+                    if ((e.Kind == EntryKind.File || e.Kind == EntryKind.Directory && field.Folders) &&
+                        provider.GetItemRef(location, e).FileSystemPath is not null) counts.Considered++;
+                }
+                counts.Prepared = true;
+                long last = Environment.TickCount64;
+                for (int i = 0; i < count; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (!claim.IsCurrent) { metadataChanged = true; throw new OperationCanceledException(); }
+                    var e = store[i];
+                    if (!(e.Kind == EntryKind.File || e.Kind == EntryKind.Directory && field.Folders) ||
+                        provider.GetItemRef(location, e).FileSystemPath is not { } path) continue;
+                    var value = Services.Metadata.Compute(fieldId, path, e, ct, slow, origin);
+                    ct.ThrowIfCancellationRequested();
+                    if (value.State is MetadataState.NotRequested or MetadataState.Pending) throw new OperationCanceledException();
+                    if (!claim.IsCurrent) { metadataChanged = true; throw new OperationCanceledException(); }
+                    counts.Add(value, e.Has(EntryFlags.Offline));
+                    values.TryAdd(i, value);
+                    if (Environment.TickCount64 - last >= 200)
+                    {
+                        last = Environment.TickCount64;
+                        int completed = counts.Completed, considered = counts.Considered;
+                        Services.Ui.Post(() =>
+                        {
+                            if (!left && ReferenceEquals(_analysis, cts)) AnalysisStatus = $"Analyzing {field.Title}: {completed:N0} of {considered:N0}… (Esc cancels)";
+                        });
+                    }
+                }
+                values.Seal();
+                return true;
+            }, cts.Token);
+            var ownedStore = storeLease;
+            var ownedValues = workerLease;
+            storeLease = workerLease = null;
+            _ = work.ContinueWith(_ => { ownedValues.Dispose(); ownedStore.Dispose(); }, CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            await work.WaitAsync(cts.Token);
+            if (fieldId is "owner" or "group")
+            {
+                AnalysisStatus = $"Analyzing {field.Title}: looking up names… (Esc sorts now)";
+                using var wait = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
+                _nameWait = wait;
+                try
+                {
+                    long started = Environment.TickCount64;
+                    while (Environment.TickCount64 - started < 10_000 &&
+                        !await Services.PrincipalNames.WhenIdle(TimeSpan.FromMilliseconds(100), wait.Token))
+                    {
+                        if (!claim.IsCurrent) { metadataChanged = true; throw new OperationCanceledException(); }
+                    }
+                }
+                catch (OperationCanceledException) when (!cts.IsCancellationRequested) { }
+                finally { if (ReferenceEquals(_nameWait, wait)) _nameWait = null; }
+            }
+            cts.Token.ThrowIfCancellationRequested();
+            var accepted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool attached = false;
+            claim.TryPublish(() => store.TryAtCount(count, () =>
+            {
+                if (left || !ReferenceEquals(_analysis, cts) || !ReferenceEquals(store, Listing.Store) ||
+                    Listing.Sort.Field != SortField.Metadata || Listing.Sort.MetadataId != fieldId) return;
+                lock (_analysisGate) _retainedAnalysis = retained;
+                _analysisCompletion = new(retained, counts, Listing.ViewSpecVersion + 1, accepted);
+                transferred = attached = true;
+                ExplicitSortRequested?.Invoke(Listing.ViewSpecVersion + 1);
+                Listing.Resort();
+            }));
+            if (!attached)
+            {
+                metadataChanged = !claim.IsCurrent;
+                throw new OperationCanceledException();
+            }
+            AnalysisStatus = $"Analyzing {field.Title}: sorting… (Esc cancels)";
+            await accepted.Task.WaitAsync(cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            if (!left && ReferenceEquals(_analysis, cts))
+            {
+                Banner = metadataChanged || !claim.IsCurrent ? "Analysis stopped because metadata changed; the order remains partial." :
+                    store.Count != count ? "Analysis stopped because the listing changed; the order remains partial." :
+                    counts.Prepared ? $"Analysis canceled after {counts.Completed:N0} of {counts.Considered:N0} considered items; the order remains partial. No retained success snapshot is published." :
+                    $"Analysis canceled after {counts.Completed:N0} of {Math.Max(0, count - (count > 0 && store[0].Kind == EntryKind.Parent ? 1 : 0)):N0} listed rows; the considered-item count was not ready. The order remains partial. No retained success snapshot is published.";
+                if (transferred) RetireMetadataAnalysis();
+            }
+        }
+        finally
+        {
+            Listing.Changed -= Moved;
+            Closed -= ClosedTab;
+            storeLease?.Dispose(); workerLease?.Dispose();
+            if (!transferred) retained.Dispose();
+            if (ReferenceEquals(_analysis, cts)) { _analysis = null; AnalysisStatus = null; }
+        }
+    }
+
+    public bool CancelAnalysis()
+    {
+        if (_analysis is null || AnalysisStatus is null) return false;
+        if (_nameWait is { } wait) wait.Cancel(); else _analysis.Cancel();
+        return true;
+    }
+}

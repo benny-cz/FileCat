@@ -6,6 +6,21 @@ namespace FileCat.Core.Tests;
 
 public sealed class MetadataSnapshotRetirementTests
 {
+    [Fact]
+    public void Folder_scoped_claims_ignore_other_folders_but_track_their_own_publications()
+    {
+        using var io = new DeviceIoScheduler();
+        using var metadata = new MetadataService(io);
+        metadata.Register(new("scope", "Scope", MetadataCost.Cheap, _ => true, (_, _) => 1, _ => ""));
+        using var first = metadata.TrackSnapshot("scope", folder: Path.Combine("root", "one"));
+        using var second = metadata.TrackSnapshot("scope", folder: Path.Combine("root", "two"));
+        metadata.Compute("scope", Path.Combine("root", "two", "item"), Entry, TestContext.Current.CancellationToken);
+        Assert.True(first.IsCurrent);
+        Assert.False(second.IsCurrent);
+        metadata.Compute("scope", Path.Combine("root", "one", "item"), Entry, TestContext.Current.CancellationToken);
+        Assert.False(first.IsCurrent);
+    }
+
     private static readonly EntryData Entry = new("item", EntryKind.File, 1, 1);
 
     [Theory]

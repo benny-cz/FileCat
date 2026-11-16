@@ -14,11 +14,11 @@ public sealed partial class MetadataService
     /// Explicit analysis can identify its own productions with the same non-null origin. A capacity refusal
     /// returns an already retired claim; consumers must then refrain from publishing a retained snapshot.
     /// </summary>
-    public SnapshotClaim TrackSnapshot(string fieldId, object? origin = null)
+    public SnapshotClaim TrackSnapshot(string fieldId, object? origin = null, string? folder = null)
     {
         lock (_publicationLock)
         {
-            var claim = new SnapshotClaim(this, fieldId, origin, _publicationRevision);
+            var claim = new SnapshotClaim(this, fieldId, origin, _publicationRevision, folder);
             if (!_disposed && _snapshots.Count < _maxSnapshots) _snapshots.Add(claim);
             else claim.Retire(new MetadataPublication(fieldId, null, _publicationRevision, null));
             return claim;
@@ -32,7 +32,7 @@ public sealed partial class MetadataService
     {
         var publication = new MetadataPublication(fieldId, key, ++_publicationRevision, origin);
         foreach (var claim in _snapshots)
-            if ((fieldId is null || fieldId == claim.FieldId) &&
+            if ((fieldId is null || fieldId == claim.FieldId) && claim.Contains(key) &&
                 (origin is null || !ReferenceEquals(origin, claim.Origin))) claim.Retire(publication);
         _snapshots.RemoveWhere(claim => !claim.IsCurrent);
     }
@@ -44,17 +44,34 @@ public sealed partial class MetadataService
         private bool _current = true;
         private MetadataPublication? _retiredBy;
 
-        internal SnapshotClaim(MetadataService owner, string fieldId, object? origin, long revision)
+        internal SnapshotClaim(MetadataService owner, string fieldId, object? origin, long revision, string? folder)
         {
             _owner = owner;
             FieldId = fieldId;
             Origin = origin;
             Revision = revision;
+            Folder = folder?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
 
         public string FieldId { get; }
         internal object? Origin { get; }
         public long Revision { get; }
+        public string? Folder { get; }
+        internal bool Contains(string? key)
+        {
+            if (Folder is null || key is null) return true;
+            int start = 0;
+            for (int i = 0; i < 3; i++)
+            {
+                int separator = key.IndexOf('|', start);
+                if (separator < 0) return true; // Unknown key layout: retire conservatively.
+                start = separator + 1;
+            }
+            var path = key.AsSpan(start);
+            int last = path.LastIndexOfAny(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return last >= 0 && path[..last].Equals(Folder,
+                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        }
         public bool IsCurrent => Volatile.Read(ref _current);
         public MetadataPublication? RetiredBy { get { lock (_owner._publicationLock) return _retiredBy; } }
 

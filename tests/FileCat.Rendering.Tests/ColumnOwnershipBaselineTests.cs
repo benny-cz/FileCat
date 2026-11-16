@@ -103,6 +103,8 @@ public sealed class ColumnOwnershipBaselineTests
                         if (diagnostic && (count != 100_000 || panels == 1 && supersede || panels == 2 && !supersede)) continue;
                         for (int run = -1; run < 5; run++)
                         {
+                            long capturedBefore = tabs.Take(panels).Sum(t => Counter(t.Listing, "MetadataCapturedRows"));
+                            long capturesBefore = tabs.Take(panels).Sum(t => Counter(t.Listing, "MetadataCaptures"));
                             long before = GC.GetTotalAllocatedBytes();
                             var clock = Stopwatch.StartNew();
                             using var process = Process.GetCurrentProcess();
@@ -125,7 +127,11 @@ public sealed class ColumnOwnershipBaselineTests
                                 cpuMs = (process.TotalProcessorTime - cpu).TotalMilliseconds,
                                 gcPauseMs = (GC.GetTotalPauseDuration() - pause).TotalMilliseconds });
                             if (run >= 0) samples.Add(new { check = "PF3", count, panels, supersede, run,
-                                elapsedMs = clock.Elapsed.TotalMilliseconds, allocatedBytes, memory = Memory() });
+                                elapsedMs = clock.Elapsed.TotalMilliseconds, allocatedBytes,
+                                capturedRows = tabs.Take(panels).Sum(t => Counter(t.Listing, "MetadataCapturedRows")) - capturedBefore,
+                                captures = tabs.Take(panels).Sum(t => Counter(t.Listing, "MetadataCaptures")) - capturesBefore,
+                                reservedBytes = services.ListingIndexes.ReservedBytes, reservationLimitBytes = services.ListingIndexes.LimitBytes,
+                                memory = Memory() });
                         }
                     }
                 }
@@ -148,6 +154,10 @@ public sealed class ColumnOwnershipBaselineTests
         values.Sort();
         return values.Count == 0 ? 0 : values[(int)Math.Min(values.Count - 1, Math.Floor(values.Count * p))];
     }
+
+    // This identical source also builds on the O4 control, before snapshot diagnostics existed.
+    private static long Counter(ListingModel listing, string property) =>
+        typeof(ListingModel).GetProperty(property)?.GetValue(listing) is long value ? value : 0;
 
     private static object Memory()
     {
