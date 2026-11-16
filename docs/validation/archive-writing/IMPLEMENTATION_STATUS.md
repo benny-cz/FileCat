@@ -1,5 +1,15 @@
 # Archive writing implementation status
 
+**16 November, where the raw evidence is kept now.** The archive-writing worktree's ignored `.tmp` folder - what these
+documents call the private worktree's or checkout's `.tmp`, and cite as `.tmp/<path>` - was moved unchanged to
+`V:\FileCat\artifacts\release-evidence\archive-writing`, which the main checkout reaches as
+`artifacts/release-evidence/archive-writing`, so that the worktree could be removed. Each of its 120,070 files
+(36,953,337,014 bytes) was first compared by SHA-256 with its source; the folder's `SHA256SUMS.txt` lists them
+(SHA-256 `14229dca04ae297a692c7b0f14b705619c3831c89b7300c57c4c82c729032e31`). Every evidence path these documents and the scripts in
+`eng/validation/archive-writing` name is in it; the README's `.tmp/archive-worker-app` and `.tmp/unix-metadata-observer`
+are build outputs, not evidence. The checkpoint verifiers still read `<checkout>/.tmp/<path>`: to re-run one, copy the
+files it names into a checkout's `.tmp` under the same paths.
+
 **15 November, how far a scan, a header and a Windows record reach (round sixty-two).** Asked again whether anything
 was left that the mechanism did not report, the reviewer found two things at High - both by the grading's letter - one
 at Medium and two at Low; the gate is wrong about no archive a runner seals:

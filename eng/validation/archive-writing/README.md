@@ -141,3 +141,10 @@ checks the held snapshot again. Without the explicit observer path this one case
 run on their applicable platform. Record compiler/runtime/source hashes and actual native results. Raw birth time
 must not be replaced with a managed creation-time fallback. See the
 [metadata checkpoint](../../../docs/validation/archive-writing/UNIX_OUTER_METADATA.md) for scope and measured failures.
+
+## Retained evidence
+
+The raw evidence of the archive-writing checkpoints is kept in `V:\FileCat\artifacts\release-evidence\archive-writing`
+(from the main checkout, `artifacts/release-evidence/archive-writing`), moved there unchanged from the worktree's
+ignored `.tmp` on 16 November 2026; its `SHA256SUMS.txt` lists every file. The `verify_*.py` scripts here read
+`<checkout>/.tmp/<path>`: to re-run one, copy the files it names into a checkout's `.tmp` under the same paths.
