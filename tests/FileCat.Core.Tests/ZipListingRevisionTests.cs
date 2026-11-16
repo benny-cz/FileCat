@@ -5,11 +5,19 @@ using FileCat.Core.Resources;
 
 namespace FileCat.Core.Tests;
 
+// These cases keep the production background I/O priority. The full Core suite runs sixteen tests in parallel;
+// its unrelated archive I/O can starve a background read past the 120-second wait on hosted Windows ARM64
+// (preview.10 run 43860532506, attempts 1 and 2). Judge listing/revision behavior without that competing test load,
+// while keeping the real background read, the finite wait and every content/change assertion.
+[CollectionDefinition("ZIP listing revision I/O", DisableParallelization = true)]
+public sealed class ZipListingRevisionCollection;
+
 // Independent reviews of 12 November 2026: where a ZIP route is composed, a ZIP listing carries only a revision token
 // and shows its rows at once. Where writing is available the archive is read in the background as soon as the listing is
 // shown, outside the provider's lock; a command waits for that read, or reads the archive itself (the first command for
 // an archive above the background limit), cancellable, through the listing's own handle and only while the listing's
 // change token holds. A revision once read survives its index.
+[Collection("ZIP listing revision I/O")]
 public sealed class ZipListingRevisionTests
 {
     [Fact]

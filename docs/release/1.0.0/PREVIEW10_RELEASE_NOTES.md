@@ -1,5 +1,7 @@
 # FileCat 1.0.0-preview.10
 
+**Unpublished draft:** both tagged ARM64 CI attempts failed a ZIP revision-read wait. No packages or release were produced. These notes record the intended changes; corrected CI needs a new immutable tag.
+
 An unsigned preview for Windows, Ubuntu and macOS. This is a prerelease for evaluation; stable 1.0.0 remains in validation.
 
 ## What changed since preview.9
@@ -25,7 +27,7 @@ The new archive routes cover **Windows x64 on NTFS, Linux x64 on ext4 and macOS 
 | Ubuntu x64 `.deb` and portable payload on ext4 | Confined worker using cgroup, seccomp and Landlock, subject to the host's required facilities. A mounted AppImage cannot run it; install the `.deb` or extract the AppImage onto ext4. |
 | macOS ARM64 application | App Sandbox helper. Memory is sampled and the worker is terminated above budget; a fast allocation can exceed that budget between samples. This is not a hard memory ceiling. |
 
-Windows refuses the new route in cloud-synced and linked folders; updating an existing archive also requires NTFS transactions. Unix targets must satisfy the ownership, permissions and metadata checks. Read-only files, additional hard links and running as administrator/root can prevent the route. The app gives the location's specific reason. See the [capability matrix](https://github.com/benny-cz/FileCat/blob/main/docs/CAPABILITIES.md) and [route decision](https://github.com/benny-cz/FileCat/blob/main/docs/validation/archive-writing/RELEASE_ROUTE_DECISION.md) for details.
+Windows refuses the new route in cloud-synced and linked folders; updating an existing archive also requires NTFS transactions. Unix targets must satisfy the ownership, permissions and metadata checks. An existing archive with read-only attributes or additional hard links is refused. The new worker is disabled while FileCat runs as administrator or root. The app gives the location's specific reason. See the [capability matrix](https://github.com/benny-cz/FileCat/blob/main/docs/CAPABILITIES.md) and [route decision](https://github.com/benny-cz/FileCat/blob/main/docs/validation/archive-writing/RELEASE_ROUTE_DECISION.md) for details.
 
 Changing an archive needs space for another complete copy and has no undo. The profile limits are 100,000 members, 8 GiB per member, 64 GiB logical content and an 80 GiB archive. Keep a separate backup before evaluating archive changes on important data.
 
