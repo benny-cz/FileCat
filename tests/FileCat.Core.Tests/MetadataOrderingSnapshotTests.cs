@@ -8,6 +8,40 @@ namespace FileCat.Core.Tests;
 
 public sealed class MetadataOrderingSnapshotTests
 {
+    [Fact]
+    public void Canonical_principal_comparison_does_not_allocate_for_each_comparison()
+    {
+        var left = new Principal(PrincipalKind.WindowsSid, "S-1-5-21-1-2-3-10");
+        var right = new Principal(PrincipalKind.WindowsSid, "S-1-5-21-1-2-3-11");
+        for (int i = 0; i < 1000; i++) left.CompareTo(right);
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        int sum = 0;
+        for (int i = 0; i < 10_000; i++) sum += left.CompareTo(right);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.True(sum < 0);
+        Assert.InRange(allocated, 0, 128);
+    }
+
+    [Fact]
+    public void Repeated_numbers_and_principals_share_snapshot_local_keys_without_an_unbounded_interner()
+    {
+        var budget = new IndexMemoryBudget(10_000_000);
+        using var snapshot = new MetadataOrderSnapshot(budget);
+        for (int i = 0; i < 1000; i++) Assert.True(snapshot.TryAdd(i, default, (long)(i % 300)));
+        Assert.Equal(256, snapshot.CanonicalNumberCount);
+        Assert.Same(snapshot.Key(0), snapshot.Key(300));
+        Assert.Equal(299L, snapshot.Key(899)); // Outside the canonicalization cap, the key remains valid.
+        var p = new Principal(PrincipalKind.UnixUser, "42");
+        snapshot.TryAdd(1000, new(MetadataState.Available, p), principalName: new(NameStatus.Resolved, "first name"));
+        snapshot.TryAdd(1001, new(MetadataState.Available, p), principalName: new(NameStatus.NotFound));
+        snapshot.Seal();
+        Assert.Same(snapshot.Key(1000), snapshot.Key(1001));
+        Assert.Equal(NameStatus.Resolved, snapshot.PrincipalNames![p].Status);
+        Assert.InRange(budget.ReservedBytes, 1, budget.LimitBytes);
+        snapshot.Dispose();
+        Assert.Equal(0, budget.ReservedBytes);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -54,7 +88,7 @@ public sealed class MetadataOrderingSnapshotTests
     [InlineData("bytes")]
     public void Each_capacity_stops_admission_and_unknown_tail_cannot_be_filled_later(string limit)
     {
-        var budget = new IndexMemoryBudget(limit == "bytes" ? 13400 : 1_000_000);
+        var budget = new IndexMemoryBudget(limit == "bytes" ? 14000 : 1_000_000);
         using var snapshot = new MetadataOrderSnapshot(budget, limit == "row" ? 3 : 100,
             limit == "characters" ? 12 : 10_000);
         for (int i = 0; i < 100; i++) snapshot.TryAdd(i, new(MetadataState.Available, "abcd"), i);
@@ -71,7 +105,7 @@ public sealed class MetadataOrderingSnapshotTests
     [Fact]
     public void Detached_snapshots_keep_shared_reservations_until_the_last_actual_worker_releases()
     {
-        var budget = new IndexMemoryBudget(27000);
+        var budget = new IndexMemoryBudget(28000);
         var first = new MetadataOrderSnapshot(budget);
         Assert.True(first.TryAdd(0, new(MetadataState.Available, "first"), 1));
         var oldWorker = first.Lease();

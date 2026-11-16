@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Avalonia.Controls;
+using Avalonia;
+using Avalonia.Media.Imaging;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using FileCat.App.Controls;
@@ -22,6 +24,7 @@ public sealed class ColumnOwnershipBaselineTests
         string? output = Environment.GetEnvironmentVariable("FILECAT_COLUMN_BASELINE_OUT");
         if (string.IsNullOrEmpty(output)) Assert.Skip("Set FILECAT_COLUMN_BASELINE_OUT to capture the bounded performance run.");
         bool diagnostic = Environment.GetEnvironmentVariable("FILECAT_COLUMN_BASELINE_MODE") == "diagnostic";
+        bool reuseTarget = Environment.GetEnvironmentVariable("FILECAT_COLUMN_REUSE_TARGET") == "1";
         string root = Path.Combine(Path.GetTempPath(), "filecat-column-baseline-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         var samples = new List<object>();
@@ -56,6 +59,7 @@ public sealed class ColumnOwnershipBaselineTests
                     window.CaptureRenderedFrame()?.Dispose();
                     if (count == 1_000_000)
                     {
+                        using var target = reuseTarget ? new RenderTargetBitmap(new PixelSize(1920, 900)) : null;
                         for (int run = -1; run < 5; run++)
                         {
                             var times = new List<double>();
@@ -77,7 +81,8 @@ public sealed class ColumnOwnershipBaselineTests
                                         list.EnsureFocusVisible();
                                         list.InvalidateVisual();
                                     }
-                                    window.CaptureRenderedFrame()?.Dispose();
+                                    if (target is not null) target.Render(grid);
+                                    else window.CaptureRenderedFrame()?.Dispose();
                                 }
                             }
                             finally { FileListControl.RenderTimed = null; }
@@ -90,7 +95,7 @@ public sealed class ColumnOwnershipBaselineTests
                             if (run >= 0) samples.Add(new { check = "PF1", count, panels = 4, run, elapsedMs = clock.Elapsed.TotalMilliseconds,
                                 renderCount = times.Count, renderMedianMs = Percentile(times, .5), renderP95Ms = Percentile(times, .95),
                                 renderAllocatedBytes = allocated, allocatedBytes, memory = Memory() });
-                            Assert.NotEmpty(times);
+                            Assert.Equal(960, times.Count);
                         }
                     }
                     // Immutable fake cached keys isolate the actual listing pipeline/comparer cost. O5 adds
@@ -143,7 +148,7 @@ public sealed class ColumnOwnershipBaselineTests
             }
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output!))!);
             File.WriteAllText(output!, JsonSerializer.Serialize(new { utc = DateTime.UtcNow, runtime = Environment.Version.ToString(),
-                os = Environment.OSVersion.ToString(), processors = Environment.ProcessorCount, diagnostic,
+                os = Environment.OSVersion.ToString(), processors = Environment.ProcessorCount, diagnostic, reuseTarget,
                 label = Environment.GetEnvironmentVariable("FILECAT_COLUMN_BASELINE_LABEL"), samples }, new JsonSerializerOptions { WriteIndented = true }));
         }
         finally { Directory.Delete(root, recursive: true); }

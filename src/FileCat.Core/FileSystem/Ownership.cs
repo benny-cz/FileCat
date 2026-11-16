@@ -37,7 +37,7 @@ public readonly record struct Principal : IComparable<Principal>, IComparable
 
     public int CompareTo(Principal other)
     {
-        int order = Kind.CompareTo(other.Kind);
+        int order = ((int)Kind).CompareTo((int)other.Kind);
         if (order != 0) return order;
         if (Kind == PrincipalKind.WindowsSid)
         {

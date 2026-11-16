@@ -19,7 +19,8 @@ public sealed class MetadataOrderSnapshot : IDisposable
     private Dictionary<int, KeyChunk>? _chunks;
     private List<KeyChunk>? _denseChunks;
     private KeyChunk[] _dense = [];
-    private Dictionary<Principal, NameStatus>? _principals;
+    private Dictionary<Principal, (NameStatus Status, PrincipalOrderKey Key)>? _principals;
+    private Dictionary<IComparable, IComparable>? _numbers;
     private long _bytes;
     private int _references = 1, _chars;
     private bool _sealed, _stopped, _ownerDisposed;
@@ -44,7 +45,8 @@ public sealed class MetadataOrderSnapshot : IDisposable
     public int RetainedCharacters => _chars;
     public void Limit(MetadataCapacity capacity) => Stop(capacity);
     public string? NameSummary { get; set; }
-    public IReadOnlyDictionary<Principal, NameStatus>? PrincipalNames => _principals;
+    public IReadOnlyDictionary<Principal, (NameStatus Status, PrincipalOrderKey Key)>? PrincipalNames => _principals;
+    internal int CanonicalNumberCount => _numbers?.Count ?? 0;
     public MetadataOrderCoverage Coverage => new(Count, Capacity, NameSummary);
     public MetadataKeyProvider Keys => (_, index, _) => Key(index);
 
@@ -59,16 +61,26 @@ public sealed class MetadataOrderSnapshot : IDisposable
         if (!Payload(value.Value, out long valueBytes, out long valueChars) ||
             !Payload(key, out long keyBytes, out long keyChars)) return false;
         if (key is string) keyBytes += 64;
+        PrincipalOrderKey? capturedPrincipal = null;
+        bool newPrincipal = false;
         if (value.Value is Principal principal && principalName is { } name)
         {
-            keyChars = principal.Id.Length + (long)principal.Authority.Length + (name.Status == NameStatus.Resolved ? name.Name?.Length ?? 0 : 0);
+            if (_principals is not null && _principals.TryGetValue(principal, out var prior)) capturedPrincipal = prior.Key;
+            else newPrincipal = true;
+            keyChars = capturedPrincipal?.RetainedCharacters ??
+                principal.Id.Length + (long)principal.Authority.Length + (name.Status == NameStatus.Resolved ? name.Name?.Length ?? 0 : 0);
             keyBytes = 128 + 2 * keyChars;
         }
-        bool newPrincipal = value.Value is Principal pp && principalName is not null &&
-            (_principals is null || !_principals.ContainsKey(pp));
+        bool number = key is bool or byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal or DateTime or TimeSpan;
+        bool newNumber = false;
+        if (number)
+        {
+            if (_numbers is not null && _numbers.TryGetValue(key!, out var canonical)) key = canonical;
+            else newNumber = (_numbers?.Count ?? 0) < 256;
+        }
         long principalChars = newPrincipal && value.Value is Principal pc ? pc.Id.Length + (long)pc.Authority.Length : 0;
         long chars = valueChars + keyChars + (value.Detail?.Length ?? 0L);
-        chars += principalChars;
+        chars += principalChars + (newPrincipal ? keyChars : 0);
         if (chars > _maxChars - (long)_chars) return Stop(MetadataCapacity.Characters);
         var entries = Chunk(index / ChunkSize);
         bool chunk = entries is null;
@@ -77,7 +89,8 @@ public sealed class MetadataOrderSnapshot : IDisposable
         long bytes = 16 + valueBytes + keyBytes + (value.Detail is null ? 0 : 32 + 2L * value.Detail.Length)
             + (chunk ? ChunkSize * 8L + 512 : 0) + (_chunks is null && _denseChunks is null ? 256 : 0)
             + (valuesBuffer ? ChunkSize * 40L + 64 : 0)
-            + (newPrincipal ? 256 + 2 * principalChars + (_principals is null ? 256 : 0) : 0);
+            + (newPrincipal ? 384 + 2 * (principalChars + keyChars) + (_principals is null ? 256 : 0) : 0)
+            + (newNumber ? 128 + (_numbers is null ? 256 : 0) : 0);
         if (!_budget.TryReserve(this, _bytes + bytes)) return Stop(MetadataCapacity.SharedMemory);
         _bytes += bytes;
         _chars += (int)chars;
@@ -91,10 +104,11 @@ public sealed class MetadataOrderSnapshot : IDisposable
         if (entries.Contains(slot)) throw new InvalidOperationException("Duplicate snapshot index.");
         if (value.Value is Principal p && principalName is { } n)
         {
-            key = new PrincipalOrderKey(p, n, comparison ?? CultureInfo.CurrentCulture.CompareInfo);
-            if (newPrincipal) (_principals ??= []).Add(p, n.Status);
+            key = capturedPrincipal ?? new PrincipalOrderKey(p, n, comparison ?? CultureInfo.CurrentCulture.CompareInfo);
+            if (newPrincipal) (_principals ??= []).Add(p, (n.Status, (PrincipalOrderKey)key));
         }
         else if (key is string text) key = new MetadataTextKey(text, comparison ?? CultureInfo.CurrentCulture.CompareInfo);
+        if (newNumber) (_numbers ??= []).Add(key!, key!);
         if (valuesBuffer) entries.Values = new MetadataValue[ChunkSize];
         if (hasValue) entries.Values![slot] = value;
         entries.Keys[slot] = key;
@@ -158,6 +172,7 @@ public sealed class MetadataOrderSnapshot : IDisposable
             _denseChunks = null;
             _dense = [];
             _principals = null;
+            _numbers = null;
             _budget.Release(this);
             _bytes = 0;
         }

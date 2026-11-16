@@ -26,3 +26,29 @@ must return to the pre-analysis baseline after retirement and the actual workers
 capacity/lifetime tests remain the mandatory proof for each independently shrunk cap; large fake fixtures supplement it.
 
 Repeat only after a concrete fix or to diagnose a failed metric; do not widen bands after observing results.
+
+## Second diagnosis and final bounded set (declared before its measurement)
+
+The packed d62b8f24 pair passed six of eight PF3 timing cases; 1M normal one/two-tab cases still missed (+22.1/+20.4%).
+The full actual-analysis fixture completed all twenty samples, within its declared elapsed and reservation limits.
+PF1 capture-driver elapsed/allocation passed, but per-run render p95 was 6.2815/7.2901 ms, exceeding +0.5 ms.
+Both sides performed 162–170 full Gen2 collections in only 240 captured frames, with about 233–258 ms GC pauses;
+median individual list render remained 0.45–0.52 ms. The screenshot-producing observer allocates a new full-window
+bitmap per frame. Its native memory pressure is a source-derived explanation for the large collection/tail variance,
+not a demonstrated production paint regression. The original capture-driver misses are retained, never relabeled passes.
+
+The final pair adds two concrete corrections: snapshot-local reuse of immutable primitive keys (at most 256 entries)
+and one key per principal, with all auxiliary storage reserved and released with the snapshot; and a controlled PF1
+driver that reuses one RenderTargetBitmap to draw the same four-list Grid through Skia. It still executes every actual
+FileListControl.Render and RenderTimed callback, asserting exactly 960 list renders per run, with the same focus/
+scroll sequence, layout, warm-up and five samples. It avoids creating a new screenshot bitmap for every frame.
+The identical test source/driver is built on O4 and the candidate. The existing +15% elapsed, +0.5 ms p95 and +5%
+feature-off allocation bands apply unchanged to this controlled paint comparison. PF3 retains all eight cases and its
+existing +15%/+50 ms timing and +160 B/admitted-row allocation allowances. No comparison reads an interner/cache.
+This isolates actual control drawing; it still does not establish native compositor or input latency.
+
+Principal kind comparison also now compares its underlying integers, avoiding enum boxing in every comparison;
+a current-thread allocation test covers 10,000 canonical SID comparisons. To leave room for final key/name copies,
+the observation pass uses a quarter of the shared character ceiling, while final ordering charges copied references
+and the bounded name map against the remaining total. This is a conservative allocation share, not a promised row
+count. A shrunken long-SID test proves that filling observation retention cannot strand the order with no key space.

@@ -9,6 +9,20 @@ namespace FileCat.App.Tests;
 
 public sealed partial class OwnerColumnTests
 {
+    [AvaloniaFact]
+    public async Task Long_SID_retention_leaves_character_capacity_for_actual_ordering_keys()
+    {
+        var principal = new Principal(PrincipalKind.WindowsSid, "S-1-5-21-1234567890-1234567890-1234567890-1234");
+        using var f = new OwnerFixture(new OwnerSource { ReadOverride = _ => new(OwnerReadStatus.Ok, principal) }, cacheSize: 8);
+        f.Services.MetadataSnapshotMaxCharacters = 2400;
+        await f.Load();
+        await f.Tab.AnalyzeAsync("owner");
+        Assert.InRange(f.Tab.Listing.AppliedMetadataCoverage!.Count, 1, 30);
+        Assert.Contains("Character limit", f.Tab.Banner);
+        Assert.Contains("120 current values", f.Tab.Banner);
+        Assert.DoesNotContain("retains all 120", f.Tab.Banner);
+    }
+
     private static int Sequence(string path) => int.Parse(Path.GetFileName(path).AsSpan(5, 7), CultureInfo.InvariantCulture);
     private static OwnerRead OrderedOwner(string path) => new(OwnerReadStatus.Ok,
         new Principal(PrincipalKind.UnixUser, (121 - Sequence(path)).ToString(CultureInfo.InvariantCulture)));

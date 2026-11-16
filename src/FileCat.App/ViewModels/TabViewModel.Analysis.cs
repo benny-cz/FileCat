@@ -132,11 +132,11 @@ public sealed partial class TabViewModel
         catch { snapshot.Dispose(); throw; }
     }
 
-    private static string? DescribeNames(IReadOnlyDictionary<Principal, NameStatus>? names, string noun)
+    private static string? DescribeNames(IReadOnlyDictionary<Principal, (NameStatus Status, PrincipalOrderKey Key)>? names, string noun)
     {
         if (names is null) return null;
         var counts = new int[5];
-        foreach (var status in names.Values) counts[(int)status]++;
+        foreach (var answer in names.Values) counts[(int)answer.Status]++;
         var parts = new List<string>();
         if (counts[(int)NameStatus.NotFound] > 0) parts.Add($"{counts[(int)NameStatus.NotFound]:N0} {noun} have no name here");
         if (counts[(int)NameStatus.Unavailable] > 0) parts.Add($"{counts[(int)NameStatus.Unavailable]:N0} name lookups are unavailable");
@@ -254,7 +254,9 @@ public sealed partial class TabViewModel
         bool slow = IsSlowLocation, left = false, metadataChanged = false, transferred = false;
         var origin = new object();
         var claim = Services.Metadata.TrackSnapshot(fieldId, origin, location.IsFileSystem ? location.Path : null);
-        var values = NewMetadataSnapshot();
+        // Observations must leave room for copied key/name references in the final ordering snapshot.
+        // Both shares remain below the same total character ceiling; neither is an allocation target.
+        var values = NewMetadataSnapshot(Services.MetadataSnapshotMaxCharacters / 4);
         var retained = new RetainedAnalysis(store, count, fieldId, values, claim);
         var counts = new AnalysisCounts();
         AnalysisStatus = $"Analyzing {field.Title}: preparing… (Esc cancels)";
