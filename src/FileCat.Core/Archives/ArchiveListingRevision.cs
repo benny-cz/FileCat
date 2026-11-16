@@ -36,6 +36,8 @@ internal sealed class ArchiveListingRevision
     private readonly Action<string, string>? resolved;
     private readonly Action? stale;
     private readonly object gate = new();
+    // Orders a read's publication (see Read); held only while it tells the provider and sets the known revision.
+    private readonly object publication = new();
     private readonly SemaphoreSlim commands = new(1, 1);
     private string? known, seenChange;
     private int shown, reading, backgroundReads, graceGeneration;
@@ -237,9 +239,17 @@ internal sealed class ArchiveListingRevision
         catch (ObjectDisposedException error) { throw new IOException(Closed, error); }
         catch (IOException error) { throw new IOException(Unreadable, error); }
         Check();
-        string kept = Interlocked.CompareExchange(ref known, value, null) ?? value;
-        resolved?.Invoke(Token, kept);
-        return kept;
+        // The provider is told before anyone can see the revision as known: a caller that saw it (a command right after the
+        // background read) may find the listing's index gone - closed, or out of the provider's cache - and must then find
+        // it remembered there, not be refused as if the listing had closed. Hosted Windows ARM64 showed that window open for
+        // seconds on a starved background thread (run 43785510208). Serialized, so two reads still keep the first value.
+        lock (publication)
+        {
+            string kept = Volatile.Read(ref known) ?? value;
+            resolved?.Invoke(Token, kept);
+            Volatile.Write(ref known, kept);
+            return kept;
+        }
     }
 
     // The listing's change token must still hold. One that cannot be read at the moment (a network share's hiccup) is an
