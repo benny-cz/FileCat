@@ -115,8 +115,7 @@ public sealed partial class ArchiveListingRevisionTests
         var first = probe.Revision.Show(long.MaxValue);
         Assert.True(SpinWait.SpinUntil(() => probe.Taking == 1, Patience), "The read should be waiting for the index.");
         // As a panel's tab closing and another opening on the UI thread, while a viewer holds the index's lock. Each step
-        // is timed, so a panel that does not return says which call it is in: on 15 November 2026 hosted Windows ARM64
-        // runners twice failed this case after the full patience, a case Windows x64, macOS and Linux pass.
+        // is timed, so a panel that does not return says which call it is in.
         var steps = new System.Collections.Concurrent.ConcurrentQueue<string>(); var clock = System.Diagnostics.Stopwatch.StartNew();
         var panel = Task.Factory.StartNew(() =>
         {
@@ -313,8 +312,12 @@ public sealed partial class ArchiveListingRevisionTests
         internal Probe(FileStream file, bool hold = false, bool holdLease = false)
         {
             this.hold = hold; this.holdLease = holdLease;
+            // At normal priority: these cases judge the revision's grace, cancellation and showing, and the time a loaded
+            // machine leaves a background-mode thread waiting is not theirs to judge (hosted Windows ARM64 runners left the
+            // read of a 64 KiB file unfinished after a minute, in four of six runs on 15 November 2026).
             Revision = new ArchiveListingRevision(file.SafeFileHandle, Unchanged, Take, null,
-                resolved: (_, _) => Interlocked.Increment(ref Resolved), stale: () => Interlocked.Increment(ref Stale));
+                resolved: (_, _) => Interlocked.Increment(ref Resolved), stale: () => Interlocked.Increment(ref Stale))
+            { LowersBackgroundReads = false };
         }
         internal void Release() => held.Set();
         // The index's lock, busy (a viewer decompressing a member) until this.

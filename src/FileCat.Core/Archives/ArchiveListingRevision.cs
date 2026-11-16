@@ -81,6 +81,13 @@ internal sealed class ArchiveListingRevision
     /// for a panel that left the archive.
     /// </summary>
     internal TimeSpan HiddenGrace { get; set; } = TimeSpan.FromSeconds(10);
+    /// <summary>
+    /// Whether a background read lowers its own thread (Windows background mode, macOS I/O throttling, Linux's idle I/O class)
+    /// so that it never competes with what the user is doing; a command needing the revision reads it at normal priority.
+    /// Tests of this class's own logic turn it off: a loaded runner may hold such a thread back for minutes (hosted Windows
+    /// ARM64 runners did, several times, on 15 November 2026), which decides nothing about that logic.
+    /// </summary>
+    internal bool LowersBackgroundReads { get; set; } = true;
     /// <summary>The clock that ends the grace (tests drive their own).</summary>
     internal TimeProvider Clock { get; set; } = TimeProvider.System;
 
@@ -199,7 +206,7 @@ internal sealed class ArchiveListingRevision
             // Read meanwhile (by an earlier read that ended as this one began, or a command), or seen changed: nothing to do.
             if (held is null || cancel.IsCancellationRequested || Volatile.Read(ref known) is not null ||
                 Volatile.Read(ref seenChange) is not null) return;
-            BackgroundIo.LowerThisThread();
+            if (LowersBackgroundReads) BackgroundIo.LowerThisThread();
             Read(cancel.Token);
         }
         catch (Exception error) when (error is IOException or OperationCanceledException) { } // A command reads again.
