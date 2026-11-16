@@ -195,11 +195,21 @@ public sealed partial class OwnerColumnTests
         using var f = new OwnerFixture(new OwnerSource { ReadOverride = _ => new(OwnerReadStatus.Failed, Reason: reason) });
         await f.Load();
         await f.ShowOwner();
-        int refs = f.Provider.References, reads = f.Source.ReadPaths.Count;
-        HoverOwner(f);
-        var tip = Assert.IsType<string>(ToolTip.GetTip(f.List));
+        // Metadata completion retires a tip through a queued UI callback. Wait for the
+        // observable hover result before measuring inspection: the UI wait can repaint
+        // other visible rows. Unavailable-value tests cover hover's memory-only path.
+        string? shownTip = null;
+        await FileListFixture.Wait(() =>
+        {
+            shownTip = ToolTip.GetTip(f.List) as string;
+            if (shownTip is not null) return true;
+            HoverOwner(f);
+            return false;
+        });
+        var tip = Assert.IsType<string>(shownTip);
         Assert.Contains("Ctrl+Shift+I", tip);
         Assert.InRange(tip.Length, 8192, 8300);
+        int refs = f.Provider.References, reads = f.Source.ReadPaths.Count;
         string report = f.List.FocusedInspectionText()!;
         Assert.Equal(inspectionLimited, report.Contains("inspection display is limited to 1 MiB", StringComparison.Ordinal));
         Assert.True(report.Length <= 1_048_576 + 128);
