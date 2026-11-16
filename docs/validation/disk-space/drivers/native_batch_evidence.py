@@ -46,7 +46,7 @@ def assert_clean_build(path, projects):
         assert len(re.findall(pattern, text, re.M)) == projects
 
 
-def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, phase_revisions=None, expected_states=None, source_snapshot=None, foreign_post_processes=None):
+def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, phase_revisions=None, expected_states=None, source_snapshot=None, foreign_post_processes=None, additional_skips=None):
     assert re.fullmatch(r'r[0-9]+[a-z]?', revision)
     temp = root / '.tmp'
     out = root / 'docs/validation/disk-space'
@@ -85,6 +85,7 @@ def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, pha
     phase_revisions = phase_revisions or {}
     expected_states = expected_states or {}
     foreign_post_processes = foreign_post_processes or {}
+    additional_skips = additional_skips or {}
     def check_processes(inventory, key):
         # A later foreign tester need not delay receipt verification for a
         # completed cohort. Any exception is an exact previously inspected
@@ -122,8 +123,12 @@ def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, pha
             assert (int(a.get('total')), int(a.get('passed')), int(a.get('skipped'))) == (total, total - skip, skip)
             skipped = lambda node: sorted(test.get('name') for test in node.findall('.//test') if test.get('result') == 'Skip')
             old = ET.parse(out / f'{platform}-batch-r1036-{phase}-r1036.xml').getroot().find('assembly')
-            assert skipped(a) == skipped(old)
+            extra_skips = additional_skips.get(f'{platform}/{phase}', [])
+            assert len(extra_skips) == len(set(extra_skips)) and not set(extra_skips).intersection(skipped(old))
+            assert skipped(a) == sorted(skipped(old) + extra_skips)
             row = {'revision': actual_revision, **{key: a.get(key) for key in ('total', 'passed', 'failed', 'skipped', 'errors', 'time')}, 'skippedNames': skipped(a)}
+            if extra_skips:
+                row['additionalDeclaredPlatformSkips'] = extra_skips
             if phase in ('preview', 'render'):
                 cases = [test for test in a.findall('.//test') if (test.get('method') or '').startswith(prefixes)]
                 assert len(cases) == new_cases and all(case.get('result') == 'Pass' for case in cases)

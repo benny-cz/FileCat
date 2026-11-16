@@ -1,4 +1,4 @@
-"""Copy a verified immutable baseline; patch only explicitly declared test or App DLL/PDB pairs."""
+"""Copy a verified immutable baseline; runner-only reruns refuse every binary patch."""
 import hashlib
 import json
 import pathlib
@@ -19,13 +19,17 @@ if str(baseline) != plan['baseline']:
     raise RuntimeError('Unexpected cached baseline')
 allowed = set(plan['allowed'])
 scope = plan.get('scope', 'TestOnly')
-if scope == 'AppUi':
+if scope == 'RunnerOnly':
+    if allowed:
+        raise RuntimeError('Runner-only reuse cannot patch any input')
+elif scope == 'AppUi':
     if allowed != {'render/FileCat.dll', 'render/FileCat.pdb', 'render/FileCat.Rendering.Tests.dll', 'render/FileCat.Rendering.Tests.pdb'}:
         raise RuntimeError('Only the declared App and rendering-test DLL/PDB pairs may be patched')
 elif scope in ('TestOnly', 'OldProductControl'):
     core = {'core/FileCat.Core.Tests.dll', 'core/FileCat.Core.Tests.pdb'}
+    checkout_core = {'tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll', 'tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.pdb'}
     render = {'render/FileCat.Rendering.Tests.dll', 'render/FileCat.Rendering.Tests.pdb'}
-    if allowed != core and allowed != render and not (scope == 'TestOnly' and allowed == core | render):
+    if allowed not in (core, checkout_core, render) and not (scope == 'TestOnly' and allowed in (core | render, checkout_core | render)):
         raise RuntimeError('Only complete declared Core/render test DLL/PDB pairs may be patched')
 else:
     raise RuntimeError('Unknown cached input scope')

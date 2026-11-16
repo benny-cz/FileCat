@@ -5,7 +5,7 @@ param(
  [Parameter(Mandatory=$true)][string]$BuildLog,
  [Parameter(Mandatory=$true)][string]$SourceManifest,
  [ValidateSet('windows','mac','linux')][string[]]$ReusePlatforms=@('windows'),
- [ValidateSet('TestOnly','AppUi','OldProductControl')][string]$InputScope='TestOnly',
+ [ValidateSet('TestOnly','AppUi','OldProductControl','RunnerOnly')][string]$InputScope='TestOnly',
  [ValidateSet('core','render')][string[]]$AdditionalTestPhases=@(),
  [string]$WindowsTemplate='.tmp/batch-windows-grouping-template.ps1',
  [string]$UnixTemplate='.tmp/batch-unix-grouping-template.sh'
@@ -20,9 +20,11 @@ foreach($item in (Get-Content -Raw -LiteralPath $SourceManifest|ConvertFrom-Json
 $assemblies=@{core='FileCat.Core.Tests';native='FileCat.Platform.Windows.Tests';render='FileCat.Rendering.Tests'}
 $testPhases=@(@($Phase)+$AdditionalTestPhases|Sort-Object -Unique)
 if($AdditionalTestPhases.Count-and$InputScope-ne'TestOnly'){throw 'Additional test assemblies are only permitted for TestOnly inputs'}
-$allowed=@($testPhases|ForEach-Object{($_+'/'+$assemblies[$_]+'.dll');($_+'/'+$assemblies[$_]+'.pdb')})
+$corePrefix=if(Test-Path -LiteralPath (Join-Path $PWD ('.tmp/batch-'+$BaselineRevision+'-windows/tests/FileCat.Core.Tests/bin/Debug/net10.0'))){'tests/FileCat.Core.Tests/bin/Debug/net10.0'}else{'core'}
+$allowed=@($testPhases|ForEach-Object{$prefix=if($_-eq'core'){$corePrefix}else{$_};($prefix+'/'+$assemblies[$_]+'.dll');($prefix+'/'+$assemblies[$_]+'.pdb')})
+if($InputScope-eq'RunnerOnly'){$allowed=@()}
 $appFiles=@('render/FileCat.dll','render/FileCat.pdb')
-if($InputScope-ne'TestOnly'-and$Phase-ne'render'){throw 'App UI changes and old-product controls require rendering inputs'}
+if($InputScope-in@('AppUi','OldProductControl')-and$Phase-ne'render'){throw 'App UI changes and old-product controls require rendering inputs'}
 if($InputScope-eq'AppUi'){$allowed+=$appFiles}
 $proof=@()
 foreach($platform in 'windows','mac','linux'){

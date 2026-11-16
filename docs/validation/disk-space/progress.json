@@ -198,7 +198,8 @@
     "Production File-size CSV export over inert indexed fixtures completed 1M-wide/deep datasets with both privacy modes on all three platforms, exact declared row counts and output hashes, bounded scratch, actual cleanup and preserved neighbors. The 10M-wide/deep report captures reached the independent 4GiB scratch ceiling; targeted native checks prove the complete captured source remains readable, no destination opens and derived/source quota returns to zero. This is safe-refusal evidence, not complete 10M CSV export support. Windows output-space refusal was preserved and its focused 1M-deep rerun passed after removing only hash-verified retired task payloads. Mac .NET private bytes remain unavailable; working set is not substituted. Full traversal/physical/private-memory qualification and final independent review remain open.",
     "The comparison footer can export both complete immutable inputs and applied comparison settings as a self-contained .fcdsc machine bundle through the protected reviewed create-new route. Default Cancel and Keep existing remain in force; exact names/IDs are explicitly disclosed, and a path-omission claim is rejected before opening output. Both owners survive original-view closure/offline sources and actual blocked-output cancellation. Five new native/review cases plus affected broad suites pass Windows/Mac/Ubuntu (r1104). External comparison import UI and human/comparison-chart reports remain separate open work; this is not full interoperability or full-plan qualification.",
     "Reviewed external .fcdsc import restores strict offline comparison observations and applied view; captured comparison Markdown/HTML/CSV reports share table selection/ranking, preserve both owners and enforce redaction/guarded output. The 44-case preflight and affected broad suites pass all three platforms (r1112).",
-    "Comparison PNG/SVG export uses the captured Previous/Current Treemap/Sunburst hierarchy, validates side/scope identities, displays both intervals and combined partial/privacy evidence, and retains both inputs through actual output. Failed source release no longer leaks image buffers/reservation. Thirty-three additional cases and broad native suites pass all three platforms (r1117)."
+    "Comparison PNG/SVG export uses the captured Previous/Current Treemap/Sunburst hierarchy, validates side/scope identities, displays both intervals and combined partial/privacy evidence, and retains both inputs through actual output. Failed source release no longer leaks image buffers/reservation. Thirty-three additional cases and broad native suites pass all three platforms (r1117).",
+    "Internal indexed comparison path correspondence now uses exact tagged raw child keys under matched parents, authenticated bounded scratch and retained two-source ownership. Fourteen Core cases plus one native 306-observation two-store case pass on Windows/Mac/Ubuntu, including 14,000-entry paging, deep prefixes and actual-read cancellation. This is not metric/entity/coverage or full large indexed comparison parity; public registration remains off."
   ],
   "validation": {
     "windowsCore": {
@@ -12963,7 +12964,7 @@
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu normal native resize at480/1100 now passes (r978); maximize/restore and display changes remain unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: complete full native pointer/key qualification (runtime deferred materialization/review, memory scoped/hidden-mark review and matching-file capture now pass all3) (indexed captured-folder/scoped marks/cross-page range controls now pass all3), folder and grouped exact Other explorer/chart/history/selection/SaveOpen controls pass all3; complete the remaining geometry, raw-name, interaction and resource parity matrix; qualify full indexed Other-subset persistence parity, full native indexed Save/Open qualification and remaining dimensions (memory grouping/captured selection and schema4 saved grouping restoration now pass all3) (indexed selector/chart/table/navigation/inspection now pass all3) (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
-    "W3: external .fcdsc import, comparison Markdown/HTML/CSV (r1112) and bounded comparison PNG/SVG chart exports (r1117) have all-three native evidence. Complete large indexed comparison parity and remaining replacement behavior or evidenced prescribed unavailable routes; full physical/resource/package gates remain. The 1M CSV successes and 10M independent scratch-cap refusals remain distinct.",
+    "W3: external .fcdsc import, comparison Markdown/HTML/CSV (r1112) and bounded comparison PNG/SVG (r1117) have all-three native evidence. The internal exact indexed path-correspondence stage now has r1121 all-three evidence (14 Core + one native case, bounded 14K/deep prefixes and actual ownership/cancellation). Integrate metric/entity/hard-link matching, compatibility/freshness/coverage classification, query/chart/report/persistence for complete large indexed comparison parity. Remaining replacement behavior or evidenced prescribed unavailable routes and full physical/resource/package gates remain. The 1M CSV successes and 10M independent scratch-cap refusals remain distinct.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
     "W1: epoch refresh, native unresponsive-device and shared-memory/indexed private-store budget qualification remain. Shared eight-request actual-I/O ownership and worker cleanup now have regressions; this is not full resource qualification.",
@@ -13012,7 +13013,16 @@
     "windowsRecycleSession0Qualified": false,
     "taskOwnedProcessesExited": true,
     "fullGoalComplete": false,
-    "finalIndependentReviewPerformed": false
+    "finalIndependentReviewPerformed": false,
+    "subsequentUpdates": [
+      {
+        "upstreamMain": "7eb4766f9398e095673b5cb1f92849dd07a4edde",
+        "merge": "3ed8df31",
+        "conflicts": 0,
+        "verification": "r1121 affected builds and native Core/analysis/rendering/settings suites; six ZIP revision cases, with one declared Windows-only Unix skip",
+        "evidence": "source-manifest-r1121-comparison-paths.json"
+      }
+    ]
   },
   "comparisonInterchange": {
     "checkpoint": "COMPARISON_INTERCHANGE_QUALIFICATION.md",
@@ -13928,6 +13938,123 @@
         "errors": "0",
         "time": "19.913",
         "skippedNames": []
+      }
+    }
+  },
+  "indexedComparisonPaths": {
+    "checkpoint": "INDEXED_COMPARISON_PATH_QUALIFICATION.md",
+    "evidence": "source-manifest-r1121-comparison-paths.json",
+    "qualification": {
+      "exactIndexedPathCorrespondenceInternalStageQualified": true,
+      "fourteenCoreAndOneNativeCasesPassedAllThree": true,
+      "fourteenThousandRowsAndDeepPrefixBounds": true,
+      "rawNameTagsAndBytesPreserved": true,
+      "retainedBothSourcesAndActualCancellationCleanup": true,
+      "allApplicableNewMainZipListingCasesPassedAllThree": true,
+      "broadSuitesPassedAllThree": true,
+      "taskOwnedProcessesExited": true,
+      "metricEntityAndCoverageComparisonIntegrated": false,
+      "largeIndexedComparisonQualified": false,
+      "fullPhysicalAndResourceQualificationComplete": false,
+      "publicFeatureRegistered": false,
+      "finalIndependentReviewPerformed": false
+    },
+    "matrix": {
+      "windows/preview": {
+        "total": "1",
+        "passed": "1",
+        "failed": "0",
+        "skipped": "0"
+      },
+      "windows/core": {
+        "total": "1665",
+        "passed": "1617",
+        "failed": "0",
+        "skipped": "48"
+      },
+      "windows/native": {
+        "total": "75",
+        "passed": "75",
+        "failed": "0",
+        "skipped": "0"
+      },
+      "windows/render": {
+        "total": "681",
+        "passed": "680",
+        "failed": "0",
+        "skipped": "1"
+      },
+      "windows/appsettings": {
+        "total": "36",
+        "passed": "35",
+        "failed": "0",
+        "skipped": "1"
+      },
+      "mac/preview": {
+        "total": "1",
+        "passed": "1",
+        "failed": "0",
+        "skipped": "0"
+      },
+      "mac/core": {
+        "total": "1647",
+        "passed": "1642",
+        "failed": "0",
+        "skipped": "5"
+      },
+      "mac/render": {
+        "total": "681",
+        "passed": "681",
+        "failed": "0",
+        "skipped": "0"
+      },
+      "mac/appsettings": {
+        "total": "36",
+        "passed": "36",
+        "failed": "0",
+        "skipped": "0"
+      },
+      "ubuntu/preview": {
+        "total": "1",
+        "passed": "1",
+        "failed": "0",
+        "skipped": "0"
+      },
+      "ubuntu/core": {
+        "total": "1647",
+        "passed": "1642",
+        "failed": "0",
+        "skipped": "5"
+      },
+      "ubuntu/render": {
+        "total": "681",
+        "passed": "681",
+        "failed": "0",
+        "skipped": "0"
+      },
+      "ubuntu/appsettings": {
+        "total": "36",
+        "passed": "36",
+        "failed": "0",
+        "skipped": "0"
+      },
+      "windows/smoke": {
+        "total": "14",
+        "passed": "14",
+        "failed": "0",
+        "skipped": "0"
+      },
+      "mac/smoke": {
+        "total": "14",
+        "passed": "14",
+        "failed": "0",
+        "skipped": "0"
+      },
+      "ubuntu/smoke": {
+        "total": "14",
+        "passed": "14",
+        "failed": "0",
+        "skipped": "0"
       }
     }
   }

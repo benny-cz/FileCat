@@ -204,6 +204,10 @@ public static class AnalysisComparison
     }
 
     private static ImmutableDictionary<string, string> MapRoots(AnalysisSnapshot old, AnalysisSnapshot current, IReadOnlyDictionary<string, string>? supplied)
+        => MapRoots(old.Roots, old.Identity, current.Roots, current.Identity, supplied);
+
+    internal static ImmutableDictionary<string, string> MapRoots(ImmutableArray<RootBinding> previousRoots, SessionIdentity previousIdentity,
+        ImmutableArray<RootBinding> currentRoots, SessionIdentity currentIdentity, IReadOnlyDictionary<string, string>? supplied)
     {
         var map = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal); var used = new HashSet<string>(StringComparer.Ordinal);
         if (supplied is not null)
@@ -211,7 +215,7 @@ public static class AnalysisComparison
             if (supplied.Count is < 1 or > AnalysisLimits.Roots) throw new ArgumentException("Choose explicit previous/current roots for structural comparison.", nameof(supplied));
             foreach (var pair in supplied)
             {
-                var before = old.Roots.SingleOrDefault(r => r.Id == pair.Key); var after = current.Roots.SingleOrDefault(r => r.Id == pair.Value);
+                var before = previousRoots.SingleOrDefault(r => r.Id == pair.Key); var after = currentRoots.SingleOrDefault(r => r.Id == pair.Value);
                 if (before is null || after is null || before.Kind != after.Kind || before.NameRules != after.NameRules ||
                     before.Disposition != AnalysisRootDisposition.Active || after.Disposition != AnalysisRootDisposition.Active || !used.Add(after.Id))
                     throw new ArgumentException("Structural root mappings must be unique compatible active roots.", nameof(supplied));
@@ -220,13 +224,13 @@ public static class AnalysisComparison
         }
         else
         {
-            bool sameHost = old.Identity.HostProfileIdentity is { HasHostContext: true } host && host == current.Identity.HostProfileIdentity;
-            foreach (var before in old.Roots.Where(r => r.Disposition == AnalysisRootDisposition.Active))
+            bool sameHost = previousIdentity.HostProfileIdentity is { HasHostContext: true } host && host == currentIdentity.HostProfileIdentity;
+            foreach (var before in previousRoots.Where(r => r.Disposition == AnalysisRootDisposition.Active))
             {
-                var matches = current.Roots.Where(r => r.Disposition == AnalysisRootDisposition.Active && r.Scheme == before.Scheme && r.Kind == before.Kind &&
+                var matches = currentRoots.Where(r => r.Disposition == AnalysisRootDisposition.Active && r.Scheme == before.Scheme && r.Kind == before.Kind &&
                     r.NameRules == before.NameRules && r.CanonicalLocator == before.CanonicalLocator && r.SourceIdentity == before.SourceIdentity &&
-                    (old.Identity.SessionId == current.Identity.SessionId && old.Identity.Epoch == current.Identity.Epoch &&
-                        old.Identity.HostProfile == current.Identity.HostProfile && before.ConnectionIdentityReference == r.ConnectionIdentityReference ||
+                    (previousIdentity.SessionId == currentIdentity.SessionId && previousIdentity.Epoch == currentIdentity.Epoch &&
+                        previousIdentity.HostProfile == currentIdentity.HostProfile && before.ConnectionIdentityReference == r.ConnectionIdentityReference ||
                         sameHost && SameCapturedBinding(before, r))).Take(2).ToArray();
                 if (matches.Length == 1 && used.Add(matches[0].Id)) map.Add(before.Id, matches[0].Id);
             }
