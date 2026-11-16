@@ -1131,12 +1131,14 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         switch (value.State)
         {
             case Core.Metadata.MetadataState.Available:
-                return field.Format(value.Value);
+                return field.Format(value.Value) + (value.Observation == Core.Metadata.MetadataObservation.LastKnown ? " (last known)" : "");
             case Core.Metadata.MetadataState.Pending:
                 pending = true;
                 return "…";
             case Core.Metadata.MetadataState.Failed:
                 return "error";
+            case Core.Metadata.MetadataState.Denied:
+                return "no access";
             case Core.Metadata.MetadataState.Unsupported:
                 return "—";
             default:
@@ -1178,6 +1180,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         _analysis?.Cancel();
         var cts = _analysis = new CancellationTokenSource();
         var loc = Location;
+        bool slowLocation = IsSlowLocation;
         var provider = Services.Providers.For(loc);
         var store = Listing.Store;
         int count = store.Count;
@@ -1212,7 +1215,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                     EntryData e;
                     try { e = store[i]; }
                     catch (ObjectDisposedException) { throw new OperationCanceledException(); } // the folder was let go meanwhile
-                    if (!e.IsContainer && provider.GetItemRef(loc, e).FileSystemPath is { } path) Services.Metadata.Compute(fieldId, path, e, linked.Token);
+                    if (!e.IsContainer && provider.GetItemRef(loc, e).FileSystemPath is { } path) Services.Metadata.Compute(fieldId, path, e, linked.Token, slowLocation);
                     done = i + 1;
                     if (DateTime.UtcNow - last > TimeSpan.FromMilliseconds(200))
                     {
