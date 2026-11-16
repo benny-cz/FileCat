@@ -211,6 +211,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             // A popup or another top-level window can receive the modifier's release instead of this window.
             _vm.ReconcileKeyBar(KeyMods.None);
             ThemeAnimation.SetWindowActive(this, true);
+            _vm.Services.Metadata.ExpireRefreshable();
             if (!WindowsContextMenu.IsOpenOrRecentlyClosed)
                 foreach (var panel in _panelViews.Values) panel.List.RefreshGitStatuses();
         };

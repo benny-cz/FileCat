@@ -38,6 +38,11 @@ public sealed class InlineDispatcher : IUiDispatcher
 /// </summary>
 public sealed class DeviceIoScheduler : IDisposable
 {
+    [ThreadStatic] private static bool _isDeviceWorker;
+    [ThreadStatic] private static bool _retireCurrentWorker;
+    internal static bool IsDeviceWorker => _isDeviceWorker;
+    /// <summary>A native thread-policy restoration failed; this thread must execute no further job.</summary>
+    internal static void RetireCurrentWorker() => _retireCurrentWorker = true;
     private readonly ConcurrentDictionary<string, DeviceQueue> _devices = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _watchdog;
     private readonly CancellationTokenSource _stopping = new();
@@ -252,6 +257,7 @@ public sealed class DeviceIoScheduler : IDisposable
 
         private void Loop(Worker self)
         {
+            _isDeviceWorker = true;
             while (true)
             {
                 WorkItem item;
@@ -296,6 +302,19 @@ public sealed class DeviceIoScheduler : IDisposable
                 lock (_lock)
                 {
                     self.Current = null;
+                    if (_retireCurrentWorker)
+                    {
+                        _workers.Remove(self);
+                        if (_queue.Count > 0 && !_shutdown && _workers.Count < owner.MaxThreadsPerDevice) StartWorker();
+                        else if (_workers.Count == 0 && _queue.Count == 0)
+                        {
+                            _shutdown = true;
+                            owner.Forget(key, this);
+                        }
+                        Debug.WriteLine("FileCat retired an ownership worker after native thread-policy restoration failed.");
+                        UpdateHealthLocked();
+                        return;
+                    }
                     if (self.Quarantined)
                     {
                         // The hung call eventually returned; the thread may rejoin if the pool is short.

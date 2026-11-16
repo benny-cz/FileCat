@@ -1,0 +1,14 @@
+{
+  "run": 43921292825,
+  "head": "988c1727c288a9ebe364866cfc142527f969c53b",
+  "job": 133489145698,
+  "jobName": "macos-26 (build, portable tests)",
+  "startedAt": "2026-11-16T17:43:25Z",
+  "completedAt": "2026-11-16T17:58:26Z",
+  "conclusion": "cancelled",
+  "runnerName": "",
+  "stepsExecuted": 0,
+  "annotation": "The job was not acquired by Runner of type hosted even after multiple attempts",
+  "capacityNotice": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+  "immediateJobRetry": "HTTP 403: The workflow run containing this job is already running"
+}

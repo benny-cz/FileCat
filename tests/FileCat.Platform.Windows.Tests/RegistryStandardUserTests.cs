@@ -61,7 +61,7 @@ public sealed partial class RegistryStandardUserTests
     }
 
     /// <summary>Runs <paramref name="action"/> as this user with the Administrators group deny-only.</summary>
-    private static void AsStandardUser(Action action)
+    internal static void AsStandardUser(Action action)
     {
         using var self = WindowsIdentity.GetCurrent(TokenAccessLevels.Duplicate | TokenAccessLevels.Query | TokenAccessLevels.Impersonate | TokenAccessLevels.AssignPrimary);
         var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);

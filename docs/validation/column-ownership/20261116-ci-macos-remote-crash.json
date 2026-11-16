@@ -1,0 +1,18 @@
+{
+  "run": 43936482729,
+  "attempt": 1,
+  "source": "dc22579ad923a39db1f881be4dafba93aae1116e",
+  "job": 133542476661,
+  "core": "Passed",
+  "remote": "Failed - process crash",
+  "exitCode": 134,
+  "recordedPassed": 2625,
+  "recordedSkipped": 31,
+  "reportedAssertionFailures": 0,
+  "unfinished": "FtpJobTests.Canceling_or_skipping_after_an_FTP_connection_drops_reports_the_retained_unpublished_stage(protocol: ftpes, skip: True)",
+  "artifactId": 14263108000,
+  "artifactName": "app-test-results-macos-26",
+  "cause": "Unproven; no native stack/dump uploaded",
+  "remoteBranchDiff": "None from 20899295",
+  "next": "One same-source macOS-only retry after active matrix ends; unchanged selection/deadlines"
+}

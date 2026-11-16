@@ -54,6 +54,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             Sort = new SortSpec(SortField.Name, false, !services.Settings.DirectoriesFirst, !services.Settings.NaturalSort),
         };
         Listing.Changed += OnListingChanged;
+        Listing.CaptureMetadataOrder = CaptureMetadataOrder;
+        Listing.PreparingStore += PreparingMetadataStore;
         services.Columns.Changed += OnProfilesChanged;
         services.Metadata.ValuesChanged += OnMetadataValuesChanged;
         RefreshSortDescription();
@@ -62,6 +64,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// <summary>New values (a pool thread): the folder's checksum sum may have moved.</summary>
     private void OnMetadataValuesChanged()
     {
+        Services.Ui.Post(() => { if (!_disposed) CheckMetadataAnalysis(); });
         if (_hasSidecars) Services.Ui.Post(() => { if (!_disposed) RefreshVerificationSummary(); });
     }
 
@@ -142,7 +145,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var column = Columns.FirstOrDefault(c => c.SortField == sort.Field &&
             (sort.Field != SortField.Metadata || c.MetadataId == sort.MetadataId));
         string field = sort.Field == SortField.None ? "Unsorted" :
-            column is not null ? Formatters.SafeName(column.Header) : sort.Field.ToString();
+            column is not null ? Formatters.SafeName(column.Header) : sort.Field == SortField.Metadata && sort.MetadataId is { } id
+                ? Formatters.SafeName(Services.Metadata.Field(id)?.Title ?? id) : sort.Field.ToString();
         string next = sort.Field == SortField.None ? "Sort files: Unsorted" :
             $"Sort files: {field}, {(sort.Descending ? "descending" : "ascending")}";
         if (_sortDescription == next) return;
@@ -285,6 +289,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         if (value)
         {
+            Services.Metadata.ExpireRefreshable();
             StartWatching();
             RefreshIfFolderChanged();
             _freeSpaceTimer.Start();
@@ -542,6 +547,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private long BeginNavigationIntent()
     {
+        RetireMetadataAnalysis();
         NavigationGeneration++;
         var old = _pendingNavigation;
         _pendingNavigation = null;
@@ -841,6 +847,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private void ApplyExplicitSort(SortSpec sort)
     {
         if (Listing.Sort == sort) return;
+        if (sort.Field != SortField.Metadata || Listing.Sort.MetadataId != sort.MetadataId) RetireMetadataAnalysis(reportPartial: false);
         ExplicitSortRequested?.Invoke(Listing.ViewSpecVersion + 1);
         Listing.Sort = sort;
         RefreshSortDescription();
@@ -884,6 +891,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void OnListingChanged(object? sender, ListingChange change)
     {
+        if (!Listing.IsRefreshing && Listing.State != ListingState.Loading && !ReferenceEquals(_ownershipDemandStore, Listing.Store))
+            _ownershipDemandStore = Listing.Store; // A failed/canceled refresh kept its old store.
+        CheckMetadataAnalysis();
         RefreshSortDescription();
         if ((change & ListingChange.State) != 0 || (change & ListingChange.Reset) != 0)
         {
@@ -1114,145 +1124,21 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public string GetMetadataText(in EntryData e, int storeIndex, string fieldId, out bool pending)
     {
-        pending = false;
-        var field = Services.Metadata.Field(fieldId);
-        if (field is null || Location is null) return string.Empty;
-        // A folder without checksum files or signatures has nothing to verify (search results are asked file by file).
-        if (fieldId == Core.Metadata.BuiltInFields.Verified.Id && Location.IsFileSystem && !_hasSidecars) return string.Empty;
-        // Elevated, FileCat checks no file by itself: a file its folder's checksums or signatures may cover says so.
-        if (fieldId == Core.Metadata.BuiltInFields.Verified.Id && Location.IsFileSystem && e.Kind == EntryKind.File &&
-            Core.State.WindowsTokenAuthority.IsHighIntegrity)
-            return Elevated.Text;
-        var item = Services.Providers.For(Location).GetItemRef(Location, e);
-        if (item.FileSystemPath is not { } path) return string.Empty;
-        var store = Listing.Store;
-        var device = Services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
-        var value = Services.Metadata.Get(fieldId, path, e, device, IsSlowLocation, () => ReferenceEquals(store, Listing.Store) && VisibleStoreIndices.Contains(storeIndex));
-        switch (value.State)
-        {
-            case Core.Metadata.MetadataState.Available:
-                return field.Format(value.Value);
-            case Core.Metadata.MetadataState.Pending:
-                pending = true;
-                return "…";
-            case Core.Metadata.MetadataState.Failed:
-                return "error";
-            case Core.Metadata.MetadataState.Unsupported:
-                return "—";
-            default:
-                return string.Empty;
-        }
+        var cell = MetadataPresentation(e, storeIndex, fieldId, null, demand: true);
+        pending = cell.State == Core.Metadata.MetadataState.Pending;
+        return cell.Text;
     }
 
     /// <param name="analyzing">Every value is about to be computed (Analyze folder): no note that the order is partial.</param>
     public void SortByMetadata(string fieldId, bool analyzing = false)
     {
+        if (analyzing && !CanAnalyzeMetadata(fieldId)) return;
         var s = Listing.Sort;
         bool same = s.Field == SortField.Metadata && s.MetadataId == fieldId;
-        Listing.MetadataKeys ??= MetadataKey;
         ApplyExplicitSort(s with { Field = SortField.Metadata, MetadataId = fieldId, Descending = same && !s.Descending });
         if (fieldId == ColumnSpec.FolderSortKey || analyzing) return; // every item's folder is known at once
         var field = Services.Metadata.Field(fieldId);
-        Banner = $"Sorted by {field?.Title ?? fieldId} using the values computed so far; items without a value are listed last. Choose View → Analyze folder to compute every value.";
-    }
-
-    private IComparable? MetadataKey(EntryStore store, int storeIndex, string fieldId)
-    {
-        var loc = Location;
-        if (loc is null || storeIndex >= store.Count) return null;
-        var e = store[storeIndex];
-        if (fieldId == ColumnSpec.FolderSortKey) return GetFolderText(e);
-        var field = Services.Metadata.Field(fieldId);
-        if (field is null || Services.Providers.For(loc).GetItemRef(loc, e).FileSystemPath is not { } path) return null;
-        var v = Services.Metadata.Get(fieldId, path, e, Services.Providers.For(loc).GetDeviceKey(loc), IsSlowLocation, () => false);
-        return v.State == Core.Metadata.MetadataState.Available ? field.SortKey?.Invoke(v.Value) ?? v.Value as IComparable : null;
-    }
-
-    /// <summary>
-    /// Explicit analysis (plan §10): computes a metadata field for every item with visible progress and
-    /// cancellation, then re-sorts. Until it completes the order is labeled partial.
-    /// </summary>
-    public async Task AnalyzeAsync(string fieldId)
-    {
-        if (Location is null) return;
-        _analysis?.Cancel();
-        var cts = _analysis = new CancellationTokenSource();
-        var loc = Location;
-        var provider = Services.Providers.For(loc);
-        var store = Listing.Store;
-        int count = store.Count;
-        var field = Services.Metadata.Field(fieldId);
-        AnalysisStatus = $"Analyzing {field?.Title}: 0 of {count:N0}…";
-        int done = 0;
-        // The analysis is of this folder: leaving it or closing the tab stops it, and nothing it finds, says or sorts lands
-        // on the next folder (V12; it read the folder's listing after the tab had let it go, release issue I91).
-        bool left = false;
-        void Moved(object? sender, ListingChange change)
-        {
-            if (Equals(Listing.Location, loc)) return;
-            left = true;
-            cts.Cancel();
-        }
-        void Gone()
-        {
-            left = true;
-            cts.Cancel();
-        }
-        Listing.Changed += Moved;
-        Closed += Gone;
-        try
-        {
-            await Services.Io.Run(provider.GetDeviceKey(loc), Core.Threading.IoPriority.Background, ct =>
-            {
-                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, cts.Token);
-                var last = DateTime.UtcNow;
-                for (int i = 0; i < count; i++)
-                {
-                    linked.Token.ThrowIfCancellationRequested();
-                    EntryData e;
-                    try { e = store[i]; }
-                    catch (ObjectDisposedException) { throw new OperationCanceledException(); } // the folder was let go meanwhile
-                    if (!e.IsContainer && provider.GetItemRef(loc, e).FileSystemPath is { } path) Services.Metadata.Compute(fieldId, path, e, linked.Token);
-                    done = i + 1;
-                    if (DateTime.UtcNow - last > TimeSpan.FromMilliseconds(200))
-                    {
-                        last = DateTime.UtcNow;
-                        int d = done;
-                        Services.Ui.Post(() =>
-                        {
-                            if (!left && ReferenceEquals(_analysis, cts)) AnalysisStatus = $"Analyzing {field?.Title}: {d:N0} of {count:N0}… (Esc cancels)";
-                        });
-                    }
-                }
-            }, cts.Token);
-            if (!left && ReferenceEquals(_analysis, cts))
-            {
-                AnalysisStatus = null;
-                Banner = $"Sorted by {field?.Title} with every value computed ({count:N0} items).";
-                ExplicitSortRequested?.Invoke(Listing.ViewSpecVersion + 1);
-                Listing.Resort();
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            if (ReferenceEquals(_analysis, cts))
-            {
-                AnalysisStatus = null;
-                if (!left) Banner = $"Analysis canceled after {done:N0} of {count:N0} items; the order remains partial.";
-            }
-        }
-        finally
-        {
-            Listing.Changed -= Moved;
-            Closed -= Gone;
-        }
-    }
-
-    public bool CancelAnalysis()
-    {
-        if (_analysis is null || AnalysisStatus is null) return false;
-        _analysis.Cancel();
-        return true;
+        Banner = PartialMetadataOrder(field?.Title ?? fieldId);
     }
 
     public string GetDetailsText(in EntryData e) => e.Tag is IDisplayDetails d ? d.DetailsText : string.Empty;
@@ -1311,9 +1197,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         _pendingNavigation = null;
         _bannerBeforePendingNavigation = null;
         Closed?.Invoke();
+        RetireMetadataAnalysis();
         Closed = null;
         StopWatching();
         Listing.Changed -= OnListingChanged;
+        Listing.PreparingStore -= PreparingMetadataStore;
         Services.Columns.Changed -= OnProfilesChanged;
         Services.Metadata.ValuesChanged -= OnMetadataValuesChanged;
         Listing.Dispose();

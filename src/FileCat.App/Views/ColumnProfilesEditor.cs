@@ -27,6 +27,7 @@ internal sealed class ColumnProfilesEditor
     private readonly TextBox _name = new();
     private readonly NumericUpDown _width = new() { Minimum = 0, Maximum = 2000, Increment = 10, FormatString = "0", MinWidth = 140 };
     private readonly ComboBox _add = new() { MinWidth = 180, ItemsSource = ColumnProfileSet.Choices.Select(c => c.Title).ToList(), SelectedIndex = 0 };
+    private readonly TextBlock _addDescription = new() { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
     private readonly Dictionary<string, Button> _profileActions = [];
     private readonly Dictionary<string, Button> _columnActions = [];
     private readonly Button _addButton = new() { Content = "Add" };
@@ -52,7 +53,9 @@ internal sealed class ColumnProfilesEditor
 
         _profileList.SelectionChanged += (_, _) => { if (!_updating) ShowProfile(); };
         _columnList.SelectionChanged += (_, _) => { if (!_updating) ShowColumn(); };
-        _add.SelectionChanged += (_, _) => UpdateActions();
+        _add.SelectionChanged += (_, _) => { UpdateAddDescription(); UpdateActions(); };
+        AutomationProperties.SetAutomationId(_addDescription, "Column description");
+        UpdateAddDescription();
         _name.TextChanged += (_, _) =>
         {
             if (_updating || Selected is not { } p) return;
@@ -99,6 +102,7 @@ internal sealed class ColumnProfilesEditor
             {
                 Label("Columns"), _columnList,
                 DialogLayout.Actions(_add, _addButton),
+                _addDescription,
                 columnButtons,
                 DialogLayout.Actions(Label("Width"), _width, Note("pixels; 0 fills the remaining space")),
                 Note("Dragging a column border in a panel also stores its width here. The Name column is always kept."),
@@ -110,6 +114,15 @@ internal sealed class ColumnProfilesEditor
     }
 
     public Control View { get; }
+
+    private void UpdateAddDescription()
+    {
+        string? description = _add.SelectedIndex >= 0 && _add.SelectedIndex < ColumnProfileSet.Choices.Count
+            ? ColumnProfileSet.Choices[_add.SelectedIndex].Description : null;
+        _addDescription.Text = description;
+        _addDescription.IsVisible = !string.IsNullOrEmpty(description);
+        AutomationProperties.SetHelpText(_add, description ?? "");
+    }
 
     /// <summary>Where the keyboard starts when Settings opens on this page: the list of profiles.</summary>
     internal Control InitialFocus => _profileList;

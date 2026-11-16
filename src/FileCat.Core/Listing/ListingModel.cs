@@ -67,6 +67,8 @@ public sealed class ListingModel : IDisposable
     private Pipeline? _refreshing;
     private int _generation;
     private int _specVersion;
+    private int _orderingVersion;
+    private long _metadataCaptures, _metadataCapturedRows;
     private SortSpec _sort = new();
     private Mask? _filter;
     private bool _showHidden = true;
@@ -99,10 +101,12 @@ public sealed class ListingModel : IDisposable
         _ui = ui;
         _scratchDirectory = scratchDirectory;
         _listingMemoryBudgetBytes = listingMemoryBudgetBytes;
-        _indexBudget = indexBudget ?? new IndexMemoryBudget();
+        _indexBudget = indexBudget ?? IndexMemoryBudget.Shared;
     }
 
     public event EventHandler<ListingChange>? Changed;
+    /// <summary>UI-thread transition before enumeration or ordering of a new store starts, including refreshes.</summary>
+    public event Action<Location, EntryStore>? PreparingStore;
 
     public Location? Location { get; private set; }
     public ResourceProvider? Provider { get; private set; }
@@ -130,6 +134,9 @@ public sealed class ListingModel : IDisposable
     public int ViewSpecVersion => _specVersion;
     /// <summary>The view revision whose rows are currently shown.</summary>
     public int AppliedViewSpecVersion { get; private set; }
+    public MetadataOrderCoverage? AppliedMetadataCoverage { get; private set; }
+    public long MetadataCaptures => Interlocked.Read(ref _metadataCaptures);
+    public long MetadataCapturedRows => Interlocked.Read(ref _metadataCapturedRows);
     public EntryStore Store => _store;
     public int VisibleCount => _diskView?.Count ?? _visible.Length;
     public bool HasExternalIndex => _diskView is not null;
@@ -147,9 +154,10 @@ public sealed class ListingModel : IDisposable
 
     /// <summary>Metadata sort keys (set by the view layer); used only when sorting by a metadata field.</summary>
     public MetadataKeyProvider? MetadataKeys { get; set; }
+    public Func<EntryStore, int, string, CancellationToken, MetadataOrderSnapshot>? CaptureMetadataOrder { get; set; }
 
     /// <summary>Re-sorts with current keys, e.g. after an explicit metadata analysis completed.</summary>
-    public void Resort() => PushSpec();
+    public void Resort() { _orderingVersion++; PushSpec(); }
 
     /// <summary>Selections with more items than this are captured as a <see cref="SelectionSnapshot"/>.</summary>
     public int SnapshotThreshold { get; set; } = 4096;
@@ -168,6 +176,7 @@ public sealed class ListingModel : IDisposable
         {
             if (_sort == value) return;
             _sort = value;
+            _orderingVersion++;
             PushSpec();
         }
     }
@@ -486,6 +495,7 @@ public sealed class ListingModel : IDisposable
 
     private Pipeline StartPipeline(Location location, ResourceProvider provider, EntryStore store, bool isRefresh)
     {
+        PreparingStore?.Invoke(location, store);
         var p = new Pipeline(++_generation, location, provider, store, isRefresh, CurrentSpec(), _ui, this);
         var device = provider.GetDeviceKey(location);
         p.LoadTask = _io.Run(device, IoPriority.Interactive, ct =>
@@ -517,7 +527,7 @@ public sealed class ListingModel : IDisposable
         _refreshAgain = false;
     }
 
-    private ViewSpec CurrentSpec() => new(_sort, _filter, _showHidden, _specVersion);
+    private ViewSpec CurrentSpec() => new(_sort, _filter, _showHidden, _specVersion, _orderingVersion);
 
     private void PushSpec()
     {
@@ -532,6 +542,8 @@ public sealed class ListingModel : IDisposable
     private void OnPipelineResult(Pipeline p, PipelineResult r)
     {
         if (_disposed) { r.External?.Dispose(); return; }
+        if (!r.ProgressOnly && !r.PreserveCurrent && r.SpecVersion != _specVersion)
+        { r.External?.Dispose(); return; }
         if (r.ProgressOnly)
         {
             if (ReferenceEquals(p, _pipeline) || ReferenceEquals(p, _pendingRefresh)) Raise(ListingChange.State);
@@ -634,6 +646,7 @@ public sealed class ListingModel : IDisposable
         _visible = r.Visible;
         _appliedCount = r.Count;
         AppliedViewSpecVersion = r.SpecVersion;
+        AppliedMetadataCoverage = r.MetadataCoverage;
         _positions = r.External is null && _visible.Length > 0 ? BuildPositions(_visible, r.Count) : [];
         if (r.External is not null) p.ReleaseIndexReservation();
         var change = ListingChange.Rows;
@@ -711,6 +724,7 @@ public sealed class ListingModel : IDisposable
 
         if (r.Completion)
         {
+            p.CompletionApplied = true;
             _pendingMarks = null;
             _pendingSizes = null;
             _awaitingEntries = false;
@@ -1167,10 +1181,10 @@ public sealed class ListingModel : IDisposable
 
     // ---- Background pipeline -------------------------------------------------------------------------------
 
-    private sealed record ViewSpec(SortSpec Sort, Mask? Filter, bool ShowHidden, int Version);
+    private sealed record ViewSpec(SortSpec Sort, Mask? Filter, bool ShowHidden, int Version, int OrderingVersion);
 
     /// <param name="Completion">True exactly once per pipeline: the first result after enumeration ended.</param>
-    private sealed record PipelineResult(int[] Visible, int Count, bool Done, Exception? Error, bool Canceled, bool Completion = false, DiskView? External = null, bool PreserveCurrent = false, bool ProgressOnly = false, int SpecVersion = 0);
+    private sealed record PipelineResult(int[] Visible, int Count, bool Done, Exception? Error, bool Canceled, bool Completion = false, DiskView? External = null, bool PreserveCurrent = false, bool ProgressOnly = false, int SpecVersion = 0, MetadataOrderCoverage? MetadataCoverage = null);
 
     private sealed class Pipeline
     {
@@ -1212,6 +1226,7 @@ public sealed class ListingModel : IDisposable
         public Task? WorkTask { get; private set; }
         public volatile bool LoadDone;
         public volatile bool LoadCanceled;
+        public volatile bool CompletionApplied;
         public Exception? LoadError;
         public long ExternalSortBytes => Interlocked.Read(ref _externalSortBytes);
 
@@ -1283,6 +1298,8 @@ public sealed class ListingModel : IDisposable
             bool externalMode = false;
             DiskIntIndex? externalSorted = null;
             SortSpec? externalSort = null;
+            MetadataOrderSnapshot? metadataOrder = null;
+            int metadataVersion = -1;
             int lastProgressCount = sortedCount;
             try
             {
@@ -1301,6 +1318,21 @@ public sealed class ListingModel : IDisposable
                     var spec = _spec;
                     bool done = LoadDone;
                     int n = Store.Count;
+                    bool newOrder = metadataVersion != spec.OrderingVersion;
+                    if (newOrder)
+                    {
+                        metadataOrder?.Dispose();
+                        metadataOrder = null;
+                        if (spec.Sort.Field == SortField.Metadata && spec.Sort.MetadataId is { } id)
+                        {
+                            metadataOrder = _owner.CaptureMetadataOrder?.Invoke(Store, n, id, ct)
+                                ?? MetadataOrderSnapshot.Capture(Store, n, id, _owner.MetadataKeys, _owner._indexBudget, ct);
+                            Interlocked.Increment(ref _owner._metadataCaptures);
+                            Interlocked.Add(ref _owner._metadataCapturedRows, metadataOrder.Count);
+                        }
+                        metadataVersion = spec.OrderingVersion;
+                    }
+                    var metadataKeys = metadataOrder?.Keys;
                     if (!externalMode && !_owner._indexBudget.TryReserve(this, 40L * n))
                     {
                         if (_owner._scratchDirectory is null)
@@ -1326,12 +1358,12 @@ public sealed class ListingModel : IDisposable
                             Publish(new PipelineResult([], n, false, null, false, ProgressOnly: true));
                         }
                         if (externalSorted is null || externalSort != spec.Sort ||
-                            (spec.Sort.Field is SortField.Size or SortField.Metadata) && applied?.Version != spec.Version)
+                            (spec.Sort.Field == SortField.Size && applied?.Version != spec.Version) || newOrder)
                         {
                             externalSorted?.Dispose();
                             Interlocked.Exchange(ref _externalSortBytes, 0);
                             externalSorted = ExternalViewBuilder.Sort(Store, n, spec.Sort,
-                                _owner.MetadataKeys, _owner._scratchDirectory!, ct);
+                                metadataKeys, _owner._scratchDirectory!, ct, metadataFrozen: true);
                             externalSort = spec.Sort;
                             Interlocked.Exchange(ref _externalSortBytes, externalSorted.Bytes);
                         }
@@ -1342,21 +1374,21 @@ public sealed class ListingModel : IDisposable
                             external.Dispose();
                             continue;
                         }
-                        bool completion = !doneAnnounced;
+                        bool completion = !CompletionApplied;
                         sortedCount = n;
                         applied = spec;
                         doneAnnounced = true;
-                        Publish(new PipelineResult([], n, true, LoadError, LoadCanceled, completion, external, SpecVersion: spec.Version));
+                        Publish(new PipelineResult([], n, true, LoadError, LoadCanceled, completion, external, SpecVersion: spec.Version, MetadataCoverage: metadataOrder?.Coverage));
                         continue;
                     }
                     // Geometric batches keep streaming merges and position rebuilds near O(n log n). The first
                     // real rows must appear even when an empty/parent-only view was published before they arrived.
                     if (!done && applied is not null && applied.Version == spec.Version &&
                         (n == sortedCount || sortedCount > firstIndex && n - sortedCount < Math.Max(64, sortedCount / 2))) continue;
-                    using var comparer = EntrySorter.CreateComparer(Store, spec.Sort, _owner.MetadataKeys, n);
+                    using var comparer = EntrySorter.CreateComparer(Store, spec.Sort, metadataKeys, n, metadataFrozen: true);
                     var cmp = comparer.Comparison;
                     bool changed = false;
-                    if (applied is null || applied.Sort != spec.Sort)
+                    if (applied is null || applied.Sort != spec.Sort || newOrder)
                     {
                         sorted = Range(firstIndex, n);
                         if (spec.Sort.Field != SortField.None) StableSort.Sort(sorted, cmp);
@@ -1380,18 +1412,19 @@ public sealed class ListingModel : IDisposable
                     {
                         changed = true;
                         // A size re-sort request arrives as a version bump with the same sort.
-                        if (spec.Sort.Field is SortField.Size or SortField.Metadata)
+                        if (spec.Sort.Field == SortField.Size)
                         {
                             sorted = (int[])sorted.Clone(); // UI may still hold the previous array.
                             StableSort.Sort(sorted, cmp);
                         }
                     }
                     sortedCount = n;
-                    bool announceDone = done && !doneAnnounced;
+                    bool announceDone = done && !CompletionApplied;
                     if (!changed && !announceDone) continue;
 
+                    if (_spec.Version != spec.Version) { applied = spec; continue; }
                     var visible = BuildVisible(sorted, spec, firstIndex == 1);
-                    var result = new PipelineResult(visible, n, done, done ? LoadError : null, done && LoadCanceled, announceDone, SpecVersion: spec.Version);
+                    var result = new PipelineResult(visible, n, done, done ? LoadError : null, done && LoadCanceled, announceDone, SpecVersion: spec.Version, MetadataCoverage: metadataOrder?.Coverage);
                     applied = spec;
                     if (announceDone) doneAnnounced = true;
                     Publish(result);
@@ -1402,12 +1435,13 @@ public sealed class ListingModel : IDisposable
             }
             catch (Exception ex)
             {
-                Publish(new PipelineResult([], sortedCount, true, ex, false, !doneAnnounced,
-                    PreserveCurrent: doneAnnounced));
+                Publish(new PipelineResult([], sortedCount, true, ex, false, !CompletionApplied,
+                    PreserveCurrent: doneAnnounced, SpecVersion: _spec.Version));
             }
             finally
             {
                 externalSorted?.Dispose();
+                metadataOrder?.Dispose();
                 Interlocked.Exchange(ref _externalSortBytes, 0);
             }
         }

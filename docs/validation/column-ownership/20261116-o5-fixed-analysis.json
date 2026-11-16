@@ -1,0 +1,578 @@
+{
+  "utc": "2026-11-16T16:17:36.1855118Z",
+  "complete": true,
+  "runtime": "10.0.15",
+  "os": "Microsoft Windows NT 10.0.26320.0",
+  "samples": [
+    {
+      "count": 100000,
+      "panels": 1,
+      "run": 0,
+      "elapsedMs": 921.5755,
+      "allocatedBytes": 276183288,
+      "cpuMs": 1453.125,
+      "gcPauseMs": 150.418,
+      "ownerReads": 100000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 59261472,
+      "peakReservedBytes": 59262928,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 8000000,
+      "managedBytes": 73030816,
+      "retainedManagedBytes": 68285248,
+      "privateBytes": 187420672,
+      "peakWorkingSetBytes": 250540032
+    },
+    {
+      "count": 100000,
+      "panels": 1,
+      "run": 1,
+      "elapsedMs": 717.604,
+      "allocatedBytes": 270328016,
+      "cpuMs": 984.375,
+      "gcPauseMs": 150.402,
+      "ownerReads": 100000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 59261472,
+      "peakReservedBytes": 59262928,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 8000000,
+      "managedBytes": 79197280,
+      "retainedManagedBytes": 68440888,
+      "privateBytes": 145842176,
+      "peakWorkingSetBytes": 250540032
+    },
+    {
+      "count": 100000,
+      "panels": 1,
+      "run": 2,
+      "elapsedMs": 714.6832,
+      "allocatedBytes": 266865296,
+      "cpuMs": 906.25,
+      "gcPauseMs": 135.328,
+      "ownerReads": 100000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 59261472,
+      "peakReservedBytes": 59262928,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 8000000,
+      "managedBytes": 85552064,
+      "retainedManagedBytes": 68449336,
+      "privateBytes": 138121216,
+      "peakWorkingSetBytes": 250540032
+    },
+    {
+      "count": 100000,
+      "panels": 1,
+      "run": 3,
+      "elapsedMs": 736.3761,
+      "allocatedBytes": 275050656,
+      "cpuMs": 1000,
+      "gcPauseMs": 160.69,
+      "ownerReads": 100000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 59261472,
+      "peakReservedBytes": 59262928,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 8000000,
+      "managedBytes": 82530864,
+      "retainedManagedBytes": 68449776,
+      "privateBytes": 163000320,
+      "peakWorkingSetBytes": 250540032
+    },
+    {
+      "count": 100000,
+      "panels": 1,
+      "run": 4,
+      "elapsedMs": 713.6027,
+      "allocatedBytes": 274817840,
+      "cpuMs": 953.125,
+      "gcPauseMs": 150.895,
+      "ownerReads": 100000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 59261472,
+      "peakReservedBytes": 59262928,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 8000000,
+      "managedBytes": 82147848,
+      "retainedManagedBytes": 68451208,
+      "privateBytes": 155627520,
+      "peakWorkingSetBytes": 250540032
+    },
+    {
+      "count": 100000,
+      "panels": 2,
+      "run": 0,
+      "elapsedMs": 1097.7321,
+      "allocatedBytes": 526870456,
+      "cpuMs": 2187.5,
+      "gcPauseMs": 359.656,
+      "ownerReads": 200000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        },
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 110522944,
+      "peakReservedBytes": 110524400,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 8000000,
+      "managedBytes": 97704896,
+      "retainedManagedBytes": 84579488,
+      "privateBytes": 168292352,
+      "peakWorkingSetBytes": 280551424
+    },
+    {
+      "count": 100000,
+      "panels": 2,
+      "run": 1,
+      "elapsedMs": 1019.0177,
+      "allocatedBytes": 526195296,
+      "cpuMs": 2296.875,
+      "gcPauseMs": 293.417,
+      "ownerReads": 200000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        },
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 110522944,
+      "peakReservedBytes": 110524400,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 8000000,
+      "managedBytes": 98343184,
+      "retainedManagedBytes": 84579736,
+      "privateBytes": 185966592,
+      "peakWorkingSetBytes": 280551424
+    },
+    {
+      "count": 100000,
+      "panels": 2,
+      "run": 2,
+      "elapsedMs": 1030.9009,
+      "allocatedBytes": 526540464,
+      "cpuMs": 2281.25,
+      "gcPauseMs": 291.77,
+      "ownerReads": 200000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        },
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 110522944,
+      "peakReservedBytes": 110524400,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 8000000,
+      "managedBytes": 98507168,
+      "retainedManagedBytes": 84579984,
+      "privateBytes": 165007360,
+      "peakWorkingSetBytes": 280551424
+    },
+    {
+      "count": 100000,
+      "panels": 2,
+      "run": 3,
+      "elapsedMs": 1014.3333,
+      "allocatedBytes": 526514504,
+      "cpuMs": 2140.625,
+      "gcPauseMs": 285.079,
+      "ownerReads": 200000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        },
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 110522944,
+      "peakReservedBytes": 110524400,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 8000000,
+      "managedBytes": 98543936,
+      "retainedManagedBytes": 84613024,
+      "privateBytes": 179634176,
+      "peakWorkingSetBytes": 280551424
+    },
+    {
+      "count": 100000,
+      "panels": 2,
+      "run": 4,
+      "elapsedMs": 1032.8712,
+      "allocatedBytes": 522754760,
+      "cpuMs": 2031.25,
+      "gcPauseMs": 346.993,
+      "ownerReads": 200000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        },
+        {
+          "Count": 100000,
+          "Capacity": 0,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 110522944,
+      "peakReservedBytes": 110524400,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 8000000,
+      "managedBytes": 94138728,
+      "retainedManagedBytes": 84614360,
+      "privateBytes": 169328640,
+      "peakWorkingSetBytes": 280551424
+    },
+    {
+      "count": 1000000,
+      "panels": 1,
+      "run": 0,
+      "elapsedMs": 5540.6978,
+      "allocatedBytes": 2534767384,
+      "cpuMs": 7281.25,
+      "gcPauseMs": 1595.322,
+      "ownerReads": 1000000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 461534,
+          "Capacity": 2,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 408223192,
+      "peakReservedBytes": 408224648,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 80000000,
+      "managedBytes": 175002320,
+      "retainedManagedBytes": 155982008,
+      "privateBytes": 253865984,
+      "peakWorkingSetBytes": 647651328
+    },
+    {
+      "count": 1000000,
+      "panels": 1,
+      "run": 1,
+      "elapsedMs": 5213.3102,
+      "allocatedBytes": 2534764504,
+      "cpuMs": 6812.5,
+      "gcPauseMs": 1465.117,
+      "ownerReads": 1000000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 461534,
+          "Capacity": 2,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 408223192,
+      "peakReservedBytes": 408224648,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 80000000,
+      "managedBytes": 174387888,
+      "retainedManagedBytes": 156031104,
+      "privateBytes": 259256320,
+      "peakWorkingSetBytes": 647651328
+    },
+    {
+      "count": 1000000,
+      "panels": 1,
+      "run": 2,
+      "elapsedMs": 5266.4927,
+      "allocatedBytes": 2534787064,
+      "cpuMs": 7015.625,
+      "gcPauseMs": 1469.919,
+      "ownerReads": 1000000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 461534,
+          "Capacity": 2,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 408223192,
+      "peakReservedBytes": 408224648,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 80000000,
+      "managedBytes": 190110296,
+      "retainedManagedBytes": 156030088,
+      "privateBytes": 253726720,
+      "peakWorkingSetBytes": 647651328
+    },
+    {
+      "count": 1000000,
+      "panels": 1,
+      "run": 3,
+      "elapsedMs": 5173.9591,
+      "allocatedBytes": 2534772912,
+      "cpuMs": 6812.5,
+      "gcPauseMs": 1436.555,
+      "ownerReads": 1000000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 461534,
+          "Capacity": 2,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 408223192,
+      "peakReservedBytes": 408224648,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 80000000,
+      "managedBytes": 196839136,
+      "retainedManagedBytes": 156030376,
+      "privateBytes": 263909376,
+      "peakWorkingSetBytes": 647651328
+    },
+    {
+      "count": 1000000,
+      "panels": 1,
+      "run": 4,
+      "elapsedMs": 5382.4388,
+      "allocatedBytes": 2534736936,
+      "cpuMs": 7031.25,
+      "gcPauseMs": 1538.469,
+      "ownerReads": 1000000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 461534,
+          "Capacity": 2,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 408223192,
+      "peakReservedBytes": 408224648,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 80000000,
+      "managedBytes": 189769208,
+      "retainedManagedBytes": 156031080,
+      "privateBytes": 251068416,
+      "peakWorkingSetBytes": 647651328
+    },
+    {
+      "count": 1000000,
+      "panels": 2,
+      "run": 0,
+      "elapsedMs": 8740.4879,
+      "allocatedBytes": 4675082960,
+      "cpuMs": 16000,
+      "gcPauseMs": 2814.717,
+      "ownerReads": 2000000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 169893,
+          "Capacity": 4,
+          "Names": null
+        },
+        {
+          "Count": 170000,
+          "Capacity": 4,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 536867956,
+      "peakReservedBytes": 536870868,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 80000000,
+      "managedBytes": 252279320,
+      "retainedManagedBytes": 217850288,
+      "privateBytes": 516907008,
+      "peakWorkingSetBytes": 939929600
+    },
+    {
+      "count": 1000000,
+      "panels": 2,
+      "run": 1,
+      "elapsedMs": 8965.7215,
+      "allocatedBytes": 4675477784,
+      "cpuMs": 16828.125,
+      "gcPauseMs": 2914.532,
+      "ownerReads": 2000000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 155136,
+          "Capacity": 4,
+          "Names": null
+        },
+        {
+          "Count": 184806,
+          "Capacity": 4,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 536869400,
+      "peakReservedBytes": 536870868,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 80000000,
+      "managedBytes": 256212704,
+      "retainedManagedBytes": 217895016,
+      "privateBytes": 482566144,
+      "peakWorkingSetBytes": 939929600
+    },
+    {
+      "count": 1000000,
+      "panels": 2,
+      "run": 2,
+      "elapsedMs": 9594.0127,
+      "allocatedBytes": 4680209024,
+      "cpuMs": 17921.875,
+      "gcPauseMs": 3342.617,
+      "ownerReads": 2000000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 309930,
+          "Capacity": 4,
+          "Names": null
+        },
+        {
+          "Count": 29963,
+          "Capacity": 4,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 536867956,
+      "peakReservedBytes": 536870868,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 80000000,
+      "managedBytes": 244274368,
+      "retainedManagedBytes": 217902840,
+      "privateBytes": 424816640,
+      "peakWorkingSetBytes": 939929600
+    },
+    {
+      "count": 1000000,
+      "panels": 2,
+      "run": 3,
+      "elapsedMs": 9192.9392,
+      "allocatedBytes": 4676835344,
+      "cpuMs": 17359.375,
+      "gcPauseMs": 3164.133,
+      "ownerReads": 2000000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 129597,
+          "Capacity": 4,
+          "Names": null
+        },
+        {
+          "Count": 210296,
+          "Capacity": 4,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 536867956,
+      "peakReservedBytes": 536870868,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 80000000,
+      "managedBytes": 270959488,
+      "retainedManagedBytes": 217898176,
+      "privateBytes": 360267776,
+      "peakWorkingSetBytes": 939929600
+    },
+    {
+      "count": 1000000,
+      "panels": 2,
+      "run": 4,
+      "elapsedMs": 9268.8833,
+      "allocatedBytes": 4676664336,
+      "cpuMs": 17093.75,
+      "gcPauseMs": 3226.378,
+      "ownerReads": 2000000,
+      "nameLookups": 4,
+      "coverage": [
+        {
+          "Count": 205094,
+          "Capacity": 4,
+          "Names": null
+        },
+        {
+          "Count": 134799,
+          "Capacity": 4,
+          "Names": null
+        }
+      ],
+      "reservedBytes": 536867956,
+      "peakReservedBytes": 536870868,
+      "reservationLimitBytes": 536870912,
+      "baselineReservedBytes": 80000000,
+      "managedBytes": 256283616,
+      "retainedManagedBytes": 217902632,
+      "privateBytes": 379670528,
+      "peakWorkingSetBytes": 939929600
+    }
+  ]
+}

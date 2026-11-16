@@ -119,6 +119,7 @@ public sealed partial class MainViewModel
                     await MakeDirectoryAsync(tab);
                     break;
                 case CommandIds.Refresh:
+                    Services.PrincipalNames.Invalidate();
                     Services.Metadata.Invalidate();
                     if (location.Scheme == Schemes.Recovery) Services.Recovery.Forget(location);
                     tab.Refresh();

@@ -126,7 +126,7 @@ public static unsafe partial class UnixPermissions
         const int AtFdCwd = -100, AtSymlinkNoFollow = 0x100;
         const uint Wanted = 0x1 | 0x2 | 0x8 | 0x10; // STATX_TYPE | STATX_MODE | STATX_UID | STATX_GID
         byte* buffer = stackalloc byte[256];
-        if (Statx(AtFdCwd, path, AtSymlinkNoFollow, Wanted, buffer) != 0) return null;
+        if (Statx(AtFdCwd, path, AtSymlinkNoFollow | 0x800, Wanted, buffer) != 0) return null; // AT_NO_AUTOMOUNT
         return ((UnixFileMode)(*(ushort*)(buffer + 28) & 0xFFF), *(uint*)(buffer + 20), *(uint*)(buffer + 24));
     }
 
