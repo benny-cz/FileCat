@@ -80,6 +80,7 @@ public sealed partial class MetadataService : IDisposable
     private bool _disposed;
     public PrincipalNames? Names { get; }
     private readonly ConcurrentDictionary<string, MetadataValue> _cache = new(StringComparer.Ordinal);
+    private int _cacheCount; // All writes already hold _publicationLock; avoid acquiring every dictionary stripe per row.
     private readonly ConcurrentDictionary<string, long> _producedAt = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<string> _order = new();
     private readonly ConcurrentDictionary<string, byte> _inFlight = new(StringComparer.Ordinal);
@@ -352,14 +353,14 @@ public sealed partial class MetadataService : IDisposable
                     Sentence(value.Detail ?? "Could not be read just now.") + " Showing the last value read.", MetadataObservation.LastKnown);
             changed = !hadValue || !before.Equals(value);
             if (changed) RetireSnapshots(production.FieldId, key, production.Origin);
-            if (_cache.TryAdd(key, value)) _order.Enqueue(key); // a value read again keeps its place
+            if (_cache.TryAdd(key, value)) { _cacheCount++; _order.Enqueue(key); } // a value read again keeps its place
             else _cache[key] = value;
             if (refreshing && value.State is not (MetadataState.Denied or MetadataState.Unsupported)) _producedAt[key] = _milliseconds();
             else _producedAt.TryRemove(key, out _);
             stored = value;
-            while (_cache.Count > _maxCache && _order.TryDequeue(out var old))
+            while (_cacheCount > _maxCache && _order.TryDequeue(out var old))
             {
-                _cache.TryRemove(old, out _);
+                if (_cache.TryRemove(old, out _)) _cacheCount--;
                 _producedAt.TryRemove(old, out _);
             }
             return true;
@@ -412,8 +413,9 @@ public sealed partial class MetadataService : IDisposable
     {
         string prefix = fieldId + "|";
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        string normalized = folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         Forget(fieldId, key => key.StartsWith(prefix, StringComparison.Ordinal) &&
-            KeyPath(key) is { } path && string.Equals(Path.GetDirectoryName(path), folder, comparison));
+            KeyPath(key) is { } path && string.Equals(Path.GetDirectoryName(path)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), normalized, comparison), folder);
     }
 
     /// <summary>Show the result of an explicit completed check on a row until its next listing refresh.</summary>
@@ -426,12 +428,12 @@ public sealed partial class MetadataService : IDisposable
             if (!_cache.TryGetValue(key, out var before) || before != value) RetireSnapshots("verified", key, null);
             foreach (var production in _productions)
                 if (production.Key == key) production.Current = false;
-            if (_cache.TryAdd(key, value)) _order.Enqueue(key);
+            if (_cache.TryAdd(key, value)) { _cacheCount++; _order.Enqueue(key); }
             else _cache[key] = value;
             _producedAt.TryRemove(key, out _);
-            while (_cache.Count > _maxCache && _order.TryDequeue(out var old))
+            while (_cacheCount > _maxCache && _order.TryDequeue(out var old))
             {
-                _cache.TryRemove(old, out _);
+                if (_cache.TryRemove(old, out _)) _cacheCount--;
                 _producedAt.TryRemove(old, out _);
             }
         }
@@ -446,17 +448,17 @@ public sealed partial class MetadataService : IDisposable
         return key[(at + 1)..];
     }
 
-    private void Forget(string fieldId, Func<string, bool> matches)
+    private void Forget(string fieldId, Func<string, bool> matches, string? folder = null)
     {
         lock (_publicationLock)
         {
-            RetireSnapshots(fieldId, null, null);
+            RetireSnapshots(fieldId, null, null, folder);
             foreach (var production in _productions)
                 if (matches(production.Key)) production.Current = false;
             foreach (string key in _cache.Keys)
                 if (matches(key))
                 {
-                    _cache.TryRemove(key, out _);
+                    if (_cache.TryRemove(key, out _)) _cacheCount--;
                     _producedAt.TryRemove(key, out _);
                 }
             // Retire the ordering slots too: repeatedly forgetting one field must not accumulate old path keys.
@@ -476,6 +478,7 @@ public sealed partial class MetadataService : IDisposable
             RetireSnapshots(null, null, null);
             foreach (var production in _productions) production.Current = false;
             _cache.Clear();
+            _cacheCount = 0;
             _producedAt.Clear();
             _order.Clear();
         }
@@ -492,6 +495,7 @@ public sealed partial class MetadataService : IDisposable
             RetireSnapshots(null, null, null);
             foreach (var production in _productions) production.Current = false;
             _cache.Clear();
+            _cacheCount = 0;
             _producedAt.Clear();
             _order.Clear();
         }

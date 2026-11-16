@@ -28,12 +28,12 @@ public sealed partial class MetadataService
     // Called only under the same lock as cache publication/invalidation. Retirement merely flips a claim;
     // it never calls user code, waits on the UI, sorts, or reads providers. Whole-field retirement is conservative
     // when a targeted Forget affects a field whose retained values may already have left the ordinary cache.
-    private void RetireSnapshots(string? fieldId, string? key, object? origin)
+    private void RetireSnapshots(string? fieldId, string? key, object? origin, string? folder = null)
     {
         var publication = new MetadataPublication(fieldId, key, ++_publicationRevision, origin);
         foreach (var claim in _snapshots)
-            if ((fieldId is null || fieldId == claim.FieldId) && claim.Contains(key) &&
-                (origin is null || !ReferenceEquals(origin, claim.Origin))) claim.Retire(publication);
+            if ((fieldId is null || fieldId == claim.FieldId) &&
+                (origin is null || !ReferenceEquals(origin, claim.Origin)) && claim.Contains(key, folder)) claim.Retire(publication);
         _snapshots.RemoveWhere(claim => !claim.IsCurrent);
     }
 
@@ -57,8 +57,11 @@ public sealed partial class MetadataService
         internal object? Origin { get; }
         public long Revision { get; }
         public string? Folder { get; }
-        internal bool Contains(string? key)
+        internal bool Contains(string? key, string? folder = null)
         {
+            if (Folder is not null && folder is not null)
+                return string.Equals(Folder, folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
             if (Folder is null || key is null) return true;
             int start = 0;
             for (int i = 0; i < 3; i++)

@@ -19,6 +19,21 @@ internal readonly record struct MetadataCellPresentation(MetadataState State, st
 
 public sealed partial class TabViewModel
 {
+    private EntryStore? _ownershipDemandStore;
+    private Location? _ownershipLocation;
+    private void PreparingMetadataStore(Location location, EntryStore store)
+    {
+        RetireMetadataAnalysis();
+        if (_ownershipLocation is { IsFileSystem: true } old && old != location) RetireOwnershipFolder(old.Path);
+        if (location.IsFileSystem) RetireOwnershipFolder(location.Path);
+        _ownershipLocation = location;
+        _ownershipDemandStore = store;
+    }
+    private void RetireOwnershipFolder(string path)
+    {
+        Services.Metadata.ForgetFolder("owner", path);
+        Services.Metadata.ForgetFolder("group", path);
+    }
     internal bool CanAnalyzeMetadata(string fieldId) => Location is not null &&
         !(OperatingSystem.IsWindows() && fieldId == "owner" && !Location.IsFileSystem);
 
@@ -41,6 +56,8 @@ public sealed partial class TabViewModel
         MetadataRowContext? context, bool demand, out MetadataRowContext? capturedContext)
     {
         capturedContext = null;
+        bool ownership = fieldId is "owner" or "group";
+        if (ownership && !ReferenceEquals(_ownershipDemandStore, Listing.Store)) demand = false;
         var field = Services.Metadata.Field(fieldId);
         if (field is null || Location is null || !MetadataApplies(entry, fieldId)) return MetadataCellPresentation.Inapplicable;
         if (fieldId == BuiltInFields.Verified.Id && Location.IsFileSystem && !_hasSidecars) return MetadataCellPresentation.Inapplicable;
@@ -60,7 +77,8 @@ public sealed partial class TabViewModel
             return new(MetadataState.Unsupported, "", "", InspectionOverride: "(not available for items in this location)");
         var captured = context;
         var value = demand ? Services.Metadata.Get(fieldId, path, entry, context.DeviceKey, context.SlowLocation,
-            () => ReferenceEquals(captured.Store, Listing.Store) && VisibleStoreIndices.Contains(storeIndex))
+            () => ReferenceEquals(captured.Store, Listing.Store) && VisibleStoreIndices.Contains(storeIndex) &&
+                (!ownership || ReferenceEquals(captured.Store, _ownershipDemandStore)))
             : Services.Metadata.Peek(fieldId, path, entry, context.SlowLocation);
         string text = value.State switch
         {

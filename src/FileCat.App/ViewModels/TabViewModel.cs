@@ -55,6 +55,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         };
         Listing.Changed += OnListingChanged;
         Listing.CaptureMetadataOrder = CaptureMetadataOrder;
+        Listing.PreparingStore += PreparingMetadataStore;
         services.Columns.Changed += OnProfilesChanged;
         services.Metadata.ValuesChanged += OnMetadataValuesChanged;
         RefreshSortDescription();
@@ -288,6 +289,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         if (value)
         {
+            Services.Metadata.ExpireRefreshable();
             StartWatching();
             RefreshIfFolderChanged();
             _freeSpaceTimer.Start();
@@ -545,6 +547,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private long BeginNavigationIntent()
     {
+        RetireMetadataAnalysis();
         NavigationGeneration++;
         var old = _pendingNavigation;
         _pendingNavigation = null;
@@ -844,7 +847,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private void ApplyExplicitSort(SortSpec sort)
     {
         if (Listing.Sort == sort) return;
-        if (sort.Field != SortField.Metadata || Listing.Sort.MetadataId != sort.MetadataId) RetireMetadataAnalysis();
+        if (sort.Field != SortField.Metadata || Listing.Sort.MetadataId != sort.MetadataId) RetireMetadataAnalysis(reportPartial: false);
         ExplicitSortRequested?.Invoke(Listing.ViewSpecVersion + 1);
         Listing.Sort = sort;
         RefreshSortDescription();
@@ -888,6 +891,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void OnListingChanged(object? sender, ListingChange change)
     {
+        if (!Listing.IsRefreshing && Listing.State != ListingState.Loading && !ReferenceEquals(_ownershipDemandStore, Listing.Store))
+            _ownershipDemandStore = Listing.Store; // A failed/canceled refresh kept its old store.
         CheckMetadataAnalysis();
         RefreshSortDescription();
         if ((change & ListingChange.State) != 0 || (change & ListingChange.Reset) != 0)
@@ -1196,6 +1201,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Closed = null;
         StopWatching();
         Listing.Changed -= OnListingChanged;
+        Listing.PreparingStore -= PreparingMetadataStore;
         Services.Columns.Changed -= OnProfilesChanged;
         Services.Metadata.ValuesChanged -= OnMetadataValuesChanged;
         Listing.Dispose();

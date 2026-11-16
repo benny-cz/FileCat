@@ -37,8 +37,21 @@ public static class EntrySorter
     public static Comparison<int> CreateComparison(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata = null)
     {
         if (spec.Field == SortField.Metadata && metadata is not null && spec.MetadataId is { } id)
-            return new EntryComparer(store, spec, metadata, store.Count).Comparison;
+        {
+            var comparer = new EntryComparer(store, spec, metadata, store.Count);
+            var lifetime = new ComparisonLifetime(comparer);
+            return (x, y) =>
+            {
+                int result = comparer.Comparison(x, y);
+                GC.KeepAlive(lifetime);
+                return result;
+            };
+        }
         return (x, y) => Compare(store[x], store[y], spec, x, y);
+    }
+    private sealed class ComparisonLifetime(EntryComparer comparer)
+    {
+        ~ComparisonLifetime() => comparer.Dispose();
     }
 
     /// <summary>
@@ -165,7 +178,6 @@ public sealed class EntryComparer : IDisposable
         Interlocked.Exchange(ref _ownedMetadata, null)?.Dispose();
         GC.SuppressFinalize(this);
     }
-    ~EntryComparer() => Dispose();
 }
 
 /// <summary>The fields sorting and filtering read, with the name as a span (spilled names stay in place).</summary>

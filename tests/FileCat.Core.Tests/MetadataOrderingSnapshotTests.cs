@@ -11,6 +11,22 @@ public sealed class MetadataOrderingSnapshotTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void Bulk_scan_materialization_preserves_fixed_fields_and_in_memory_provider_payloads(bool spilled)
+    {
+        using var scratch = new TempDir();
+        using var store = new EntryStore(scratch.Path, spilled ? 1 : long.MaxValue);
+        object payload = new();
+        var entry = new EntryData("scan-name", EntryKind.File, 123, 456)
+        { Created = 789, Attributes = 42, Flags = EntryFlags.Offline, Tag = spilled ? null : payload };
+        store.Append(Enumerable.Repeat(entry, 300).ToArray());
+        Assert.Equal(spilled, store.IsSpilled);
+        using var scan = new EntryStore.Scan(store, store.Count);
+        Assert.Equal(entry, scan.Materialize(299));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void Comparisons_freeze_every_key_before_sorting_and_keep_unknowns_last(bool descending)
     {
         using var store = new EntryStore();
@@ -38,7 +54,7 @@ public sealed class MetadataOrderingSnapshotTests
     [InlineData("bytes")]
     public void Each_capacity_stops_admission_and_unknown_tail_cannot_be_filled_later(string limit)
     {
-        var budget = new IndexMemoryBudget(limit == "bytes" ? 3000 : 1_000_000);
+        var budget = new IndexMemoryBudget(limit == "bytes" ? 13400 : 1_000_000);
         using var snapshot = new MetadataOrderSnapshot(budget, limit == "row" ? 3 : 100,
             limit == "characters" ? 12 : 10_000);
         for (int i = 0; i < 100; i++) snapshot.TryAdd(i, new(MetadataState.Available, "abcd"), i);
@@ -55,7 +71,7 @@ public sealed class MetadataOrderingSnapshotTests
     [Fact]
     public void Detached_snapshots_keep_shared_reservations_until_the_last_actual_worker_releases()
     {
-        var budget = new IndexMemoryBudget(6000);
+        var budget = new IndexMemoryBudget(27000);
         var first = new MetadataOrderSnapshot(budget);
         Assert.True(first.TryAdd(0, new(MetadataState.Available, "first"), 1));
         var oldWorker = first.Lease();

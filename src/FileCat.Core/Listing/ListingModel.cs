@@ -105,6 +105,8 @@ public sealed class ListingModel : IDisposable
     }
 
     public event EventHandler<ListingChange>? Changed;
+    /// <summary>UI-thread transition before enumeration or ordering of a new store starts, including refreshes.</summary>
+    public event Action<Location, EntryStore>? PreparingStore;
 
     public Location? Location { get; private set; }
     public ResourceProvider? Provider { get; private set; }
@@ -493,6 +495,7 @@ public sealed class ListingModel : IDisposable
 
     private Pipeline StartPipeline(Location location, ResourceProvider provider, EntryStore store, bool isRefresh)
     {
+        PreparingStore?.Invoke(location, store);
         var p = new Pipeline(++_generation, location, provider, store, isRefresh, CurrentSpec(), _ui, this);
         var device = provider.GetDeviceKey(location);
         p.LoadTask = _io.Run(device, IoPriority.Interactive, ct =>

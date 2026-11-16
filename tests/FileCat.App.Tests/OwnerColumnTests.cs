@@ -133,6 +133,7 @@ public sealed partial class OwnerColumnTests
     private sealed class CountingOwnerProvider(ResourceProvider inner) : ResourceProvider
     {
         public int References;
+        public Func<Location, IEnumerationSink, CancellationToken, Task>? EnumerateOverride { get; set; }
         public override string Scheme => inner.Scheme;
         public override string GetDisplayPath(Location location) => inner.GetDisplayPath(location);
         public override Location? GetParent(Location location) => inner.GetParent(location);
@@ -140,6 +141,8 @@ public sealed partial class OwnerColumnTests
         public override Location? GetChildLocation(Location parent, in EntryData entry) => inner.GetChildLocation(parent, entry);
         public override string GetDeviceKey(Location location) => inner.GetDeviceKey(location);
         public override ItemRef GetItemRef(Location location, in EntryData entry) { References++; return inner.GetItemRef(location, entry); }
-        public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct) => inner.EnumerateAsync(location, sink, ct);
+        public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct) =>
+            EnumerateOverride?.Invoke(location, sink, ct) ?? inner.EnumerateAsync(location, sink, ct);
+        public Task EnumerateInner(Location location, IEnumerationSink sink, CancellationToken ct) => inner.EnumerateAsync(location, sink, ct);
     }
 }

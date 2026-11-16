@@ -7,6 +7,18 @@ namespace FileCat.Core.Tests;
 public sealed class MetadataSnapshotRetirementTests
 {
     [Fact]
+    public void Forget_folder_retires_only_that_folders_scoped_claim_and_accepts_a_trailing_separator()
+    {
+        using var io = new DeviceIoScheduler();
+        using var metadata = new MetadataService(io);
+        using var first = metadata.TrackSnapshot("owner", folder: Path.Combine("root", "one"));
+        using var second = metadata.TrackSnapshot("owner", folder: Path.Combine("root", "two"));
+        metadata.ForgetFolder("owner", Path.Combine("root", "one") + Path.DirectorySeparatorChar);
+        Assert.False(first.IsCurrent);
+        Assert.True(second.IsCurrent);
+    }
+
+    [Fact]
     public void Folder_scoped_claims_ignore_other_folders_but_track_their_own_publications()
     {
         using var io = new DeviceIoScheduler();

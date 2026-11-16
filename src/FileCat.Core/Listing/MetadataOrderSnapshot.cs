@@ -16,13 +16,20 @@ public sealed class MetadataOrderSnapshot : IDisposable
     private readonly object _gate = new();
     private readonly IndexMemoryBudget _budget;
     private readonly int _maxRows, _maxChars;
-    private Dictionary<int, Item?[]>? _chunks;
-    private List<Item?[]>? _denseChunks;
+    private Dictionary<int, KeyChunk>? _chunks;
+    private List<KeyChunk>? _denseChunks;
+    private KeyChunk[] _dense = [];
     private Dictionary<Principal, NameStatus>? _principals;
     private long _bytes;
     private int _references = 1, _chars;
     private bool _sealed, _stopped, _ownerDisposed;
-    private sealed record Item(MetadataValue Value, IComparable? Key);
+    private sealed class KeyChunk
+    {
+        public readonly IComparable?[] Keys = new IComparable?[ChunkSize];
+        public readonly ulong[] Present = new ulong[4];
+        public MetadataValue[]? Values;
+        public bool Contains(int slot) => (Present[slot >> 6] & (1UL << (slot & 63))) != 0;
+    }
 
     public MetadataOrderSnapshot(IndexMemoryBudget budget, int maxRows = 1_000_000, int maxChars = 16_000_000)
     {
@@ -44,6 +51,8 @@ public sealed class MetadataOrderSnapshot : IDisposable
     public bool TryAdd(int index, MetadataValue value, IComparable? key = null,
         PrincipalName? principalName = null, CompareInfo? comparison = null)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _references) == 0, this);
         if (_sealed) throw new InvalidOperationException("An ordering snapshot is immutable after capture.");
         if (_stopped) return false;
         if (Count >= _maxRows) return Stop(MetadataCapacity.Rows);
@@ -63,42 +72,59 @@ public sealed class MetadataOrderSnapshot : IDisposable
         if (chars > _maxChars - (long)_chars) return Stop(MetadataCapacity.Characters);
         var entries = Chunk(index / ChunkSize);
         bool chunk = entries is null;
-        long bytes = 160 + valueBytes + keyBytes + (value.Detail is null ? 0 : 32 + 2L * value.Detail.Length)
-            + (chunk ? ChunkSize * 8L + 256 : 0) + (_chunks is null && _denseChunks is null ? 256 : 0)
+        bool hasValue = value != default;
+        bool valuesBuffer = hasValue && entries?.Values is null;
+        long bytes = 16 + valueBytes + keyBytes + (value.Detail is null ? 0 : 32 + 2L * value.Detail.Length)
+            + (chunk ? ChunkSize * 8L + 512 : 0) + (_chunks is null && _denseChunks is null ? 256 : 0)
+            + (valuesBuffer ? ChunkSize * 40L + 64 : 0)
             + (newPrincipal ? 256 + 2 * principalChars + (_principals is null ? 256 : 0) : 0);
         if (!_budget.TryReserve(this, _bytes + bytes)) return Stop(MetadataCapacity.SharedMemory);
         _bytes += bytes;
         _chars += (int)chars;
         if (entries is null)
         {
-            entries = new Item?[ChunkSize];
+            entries = new KeyChunk();
             if (index / ChunkSize == (_denseChunks?.Count ?? 0)) (_denseChunks ??= []).Add(entries);
             else (_chunks ??= []).Add(index / ChunkSize, entries);
         }
-        if (entries[index % ChunkSize] is not null) throw new InvalidOperationException("Duplicate snapshot index.");
+        int slot = index % ChunkSize;
+        if (entries.Contains(slot)) throw new InvalidOperationException("Duplicate snapshot index.");
         if (value.Value is Principal p && principalName is { } n)
         {
             key = new PrincipalOrderKey(p, n, comparison ?? CultureInfo.CurrentCulture.CompareInfo);
             if (newPrincipal) (_principals ??= []).Add(p, n.Status);
         }
         else if (key is string text) key = new MetadataTextKey(text, comparison ?? CultureInfo.CurrentCulture.CompareInfo);
-        entries[index % ChunkSize] = new(value, key);
+        if (valuesBuffer) entries.Values = new MetadataValue[ChunkSize];
+        if (hasValue) entries.Values![slot] = value;
+        entries.Keys[slot] = key;
+        entries.Present[slot >> 6] |= 1UL << (slot & 63);
         Count++;
         return true;
     }
 
     private bool Stop(MetadataCapacity capacity) { Capacity |= capacity; _stopped = true; return false; }
-    public void Seal() => _sealed = true;
-    public IComparable? Key(int index) => Find(index)?.Key;
+    public void Seal()
+    {
+        // The compact prefix is built under the already charged per-chunk overhead, before comparisons.
+        _dense = _denseChunks?.ToArray() ?? [];
+        _sealed = true;
+    }
+    public IComparable? Key(int index)
+    {
+        if (index < 0) return null;
+        int chunk = index >> 8;
+        return chunk < _dense.Length ? _dense[chunk].Keys[index & 255] : Chunk(chunk)?.Keys[index & 255];
+    }
     public bool TryValue(int index, out MetadataValue value)
     {
-        var item = Find(index);
-        value = item?.Value ?? default;
-        return item is not null;
+        var chunk = index < 0 ? null : Chunk(index / ChunkSize);
+        int slot = index & 255;
+        value = chunk?.Values is { } values ? values[slot] : default;
+        return chunk?.Contains(slot) == true;
     }
-    private Item?[]? Chunk(int chunk) => chunk < (_denseChunks?.Count ?? 0) ? _denseChunks![chunk] :
+    private KeyChunk? Chunk(int chunk) => chunk < (_denseChunks?.Count ?? 0) ? _denseChunks![chunk] :
         _chunks is not null && _chunks.TryGetValue(chunk, out var entries) ? entries : null;
-    private Item? Find(int index) => index >= 0 ? Chunk(index / ChunkSize)?[index % ChunkSize] : null;
 
     public IDisposable Lease()
     {
@@ -130,6 +156,7 @@ public sealed class MetadataOrderSnapshot : IDisposable
             if (--_references != 0) return;
             _chunks = null;
             _denseChunks = null;
+            _dense = [];
             _principals = null;
             _budget.Release(this);
             _bytes = 0;

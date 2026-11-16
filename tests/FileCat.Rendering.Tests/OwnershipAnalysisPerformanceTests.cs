@@ -23,6 +23,9 @@ public sealed class OwnershipAnalysisPerformanceTests
         var samples = new List<object>();
         long clock = 0;
         var source = new FixedOwners();
+        void Save(bool complete) => File.WriteAllText(output!, JsonSerializer.Serialize(new { utc = DateTime.UtcNow,
+            complete, runtime = Environment.Version.ToString(), os = Environment.OSVersion.ToString(), samples },
+            new JsonSerializerOptions { WriteIndented = true }));
         try
         {
             using var services = AppServices.CreateForPathsWithOwnership(AppPaths.Resolve(overrideRoot: root), source,
@@ -72,6 +75,7 @@ public sealed class OwnershipAnalysisPerformanceTests
                             reservationLimitBytes = services.ListingIndexes.LimitBytes, baselineReservedBytes = baseline,
                             managedBytes = GC.GetTotalMemory(false), retainedManagedBytes = GC.GetTotalMemory(true),
                             privateBytes = process.PrivateMemorySize64, peakWorkingSetBytes = process.PeakWorkingSet64 });
+                        if (run >= 0) Save(complete: false);
                     }
                     foreach (var tab in tabs) tab.SortBy(SortField.Name);
                     await Until(() => tabs.All(t => t.Listing.AppliedViewSpecVersion == t.Listing.ViewSpecVersion));
@@ -80,8 +84,7 @@ public sealed class OwnershipAnalysisPerformanceTests
                 finally { foreach (var tab in tabs) tab.Dispose(); }
                 await Until(() => services.ListingIndexes.ReservedBytes == 0);
             }
-            File.WriteAllText(output!, JsonSerializer.Serialize(new { utc = DateTime.UtcNow, runtime = Environment.Version.ToString(),
-                os = Environment.OSVersion.ToString(), samples }, new JsonSerializerOptions { WriteIndented = true }));
+            Save(complete: true);
         }
         finally { Directory.Delete(root, recursive: true); }
     }

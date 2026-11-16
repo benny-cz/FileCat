@@ -1,0 +1,11 @@
+{
+  "status": "Incomplete - stopped for diagnosis before full sample output",
+  "utc": "2026-11-16T15:55:55.1238078Z",
+  "revision": "3d0ff285",
+  "started": "2026-11-16T16:43:20.565769+01:00",
+  "elapsedSeconds": 754.5588666,
+  "cpuSeconds": 1163.984375,
+  "workingSetBytes": 516993024,
+  "reason": "Full set too slow to complete promptly; apply packed snapshot storage and publication-lock cache count fixes before repeating",
+  "executable": "E:\\FileCat\\.tmp\\worktrees\\column-ownership\\tests\\FileCat.Rendering.Tests\\bin\\Release\\net10.0\\FileCat.Rendering.Tests.exe"
+}

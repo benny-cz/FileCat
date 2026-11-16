@@ -92,18 +92,19 @@ public sealed partial class TabViewModel
             {
                 var provider = Services.Providers.For(location);
                 bool slow = IsSlowLocation;
+                using var scan = new EntryStore.Scan(store, count);
                 for (int i = 0; i < count; i++)
                 {
                     if ((i & 255) == 0) ct.ThrowIfCancellationRequested();
-                    var entry = store[i];
+                    MetadataValue value = default;
+                    if (retained is not null && !retained.Values.TryValue(i, out value)) continue;
+                    var entry = scan.Materialize(i);
                     if (entry.Kind == EntryKind.Parent) continue;
-                    MetadataValue value;
                     IComparable? key = null;
                     if (fieldId == ColumnSpec.FolderSortKey)
                         value = new(MetadataState.Available, key = GetFolderText(entry));
                     else if (retained is not null)
                     {
-                        if (!retained.Values.TryValue(i, out value)) continue;
                         if (!MetadataApplies(entry, fieldId) || entry.Has(EntryFlags.Offline))
                             value = Services.Metadata.Peek(fieldId, "", entry, slow);
                     }
@@ -124,28 +125,29 @@ public sealed partial class TabViewModel
                     if (!snapshot.TryAdd(i, value, key, name, comparison) && snapshot.Capacity != MetadataCapacity.None) break;
                 }
             }
-            snapshot.NameSummary = DescribeNames(snapshot.PrincipalNames);
+            snapshot.NameSummary = DescribeNames(snapshot.PrincipalNames, fieldId == "group" ? "groups" : "owners");
             snapshot.Seal();
             return snapshot;
         }
         catch { snapshot.Dispose(); throw; }
     }
 
-    private static string? DescribeNames(IReadOnlyDictionary<Principal, NameStatus>? names)
+    private static string? DescribeNames(IReadOnlyDictionary<Principal, NameStatus>? names, string noun)
     {
         if (names is null) return null;
         var counts = new int[5];
         foreach (var status in names.Values) counts[(int)status]++;
         var parts = new List<string>();
-        if (counts[(int)NameStatus.NotFound] > 0) parts.Add($"{counts[(int)NameStatus.NotFound]:N0} owners have no name here");
+        if (counts[(int)NameStatus.NotFound] > 0) parts.Add($"{counts[(int)NameStatus.NotFound]:N0} {noun} have no name here");
         if (counts[(int)NameStatus.Unavailable] > 0) parts.Add($"{counts[(int)NameStatus.Unavailable]:N0} name lookups are unavailable");
         if (counts[(int)NameStatus.Pending] > 0) parts.Add($"{counts[(int)NameStatus.Pending]:N0} name lookups are pending");
-        if (counts[(int)NameStatus.NotRequested] > 0) parts.Add($"{counts[(int)NameStatus.NotRequested]:N0} owners have no cached name");
-        return parts.Count == 0 ? null : string.Join("; ", parts) + ". These owners are ordered by ID until you sort again.";
+        if (counts[(int)NameStatus.NotRequested] > 0) parts.Add($"{counts[(int)NameStatus.NotRequested]:N0} {noun} have no cached name");
+        return parts.Count == 0 ? null : string.Join("; ", parts) + $". These {noun} are ordered by ID until you sort again.";
     }
 
-    private void RetireMetadataAnalysis()
+    private void RetireMetadataAnalysis(bool reportPartial = true)
     {
+        bool active = _analysis is not null;
         _analysis?.Cancel();
         _analysis = null;
         _nameWait?.Cancel();
@@ -159,6 +161,9 @@ public sealed partial class TabViewModel
         _analysisCompletion?.Accepted.TrySetResult(false);
         _analysisCompletion = null;
         retained?.Dispose();
+        if (active || retained is not null)
+            Banner = reportPartial && Listing.Sort is { Field: SortField.Metadata, MetadataId: { } id }
+                ? PartialMetadataOrder(Services.Metadata.Field(id)?.Title ?? id) : null;
     }
 
     private void CheckMetadataAnalysis()
@@ -271,10 +276,11 @@ public sealed partial class TabViewModel
             workerLease = values.Lease();
             work = Services.Io.RunOwned(provider.GetDeviceKey(location), IoPriority.Background, ct =>
             {
+                using var scan = new EntryStore.Scan(store, count);
                 for (int i = 0; i < count; i++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    var e = store[i];
+                    var e = scan.Materialize(i);
                     if ((e.Kind == EntryKind.File || e.Kind == EntryKind.Directory && field.Folders) &&
                         provider.GetItemRef(location, e).FileSystemPath is not null) counts.Considered++;
                 }
@@ -284,7 +290,7 @@ public sealed partial class TabViewModel
                 {
                     ct.ThrowIfCancellationRequested();
                     if (!claim.IsCurrent) { metadataChanged = true; throw new OperationCanceledException(); }
-                    var e = store[i];
+                    var e = scan.Materialize(i);
                     if (!(e.Kind == EntryKind.File || e.Kind == EntryKind.Directory && field.Folders) ||
                         provider.GetItemRef(location, e).FileSystemPath is not { } path) continue;
                     var value = Services.Metadata.Compute(fieldId, path, e, ct, slow, origin);
@@ -354,11 +360,11 @@ public sealed partial class TabViewModel
         {
             if (!left && ReferenceEquals(_analysis, cts))
             {
+                if (transferred) RetireMetadataAnalysis(reportPartial: false);
                 Banner = metadataChanged || !claim.IsCurrent ? "Analysis stopped because metadata changed; the order remains partial." :
                     store.Count != count ? "Analysis stopped because the listing changed; the order remains partial." :
                     counts.Prepared ? $"Analysis canceled after {counts.Completed:N0} of {counts.Considered:N0} considered items; the order remains partial. No retained success snapshot is published." :
                     $"Analysis canceled after {counts.Completed:N0} of {Math.Max(0, count - (count > 0 && store[0].Kind == EntryKind.Parent ? 1 : 0)):N0} listed rows; the considered-item count was not ready. The order remains partial. No retained success snapshot is published.";
-                if (transferred) RetireMetadataAnalysis();
             }
         }
         finally
