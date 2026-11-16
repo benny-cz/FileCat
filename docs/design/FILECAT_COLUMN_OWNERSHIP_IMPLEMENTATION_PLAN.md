@@ -38,7 +38,7 @@ review, so their conclusions are historical claims, not evidence overriding the 
 | Platform correctness | Originally reported 9 merged findings and confirmed quotations. The later independent review corrected the clear-mask, lookup-routing, provenance and side-effect claims; this revision uses those corrections. |
 | Architecture and performance | Unfinished when the original draft was written. The independent review subsequently examined the cache, resolver, sort and retention design and found the corrections recorded below. |
 
-The [independent review](FILECAT_COLUMN_OWNERSHIP_IMPLEMENTATION_PLAN_INDEPENDENT_REVIEW.md) assessed the original
+The independent review referenced by this plan (its separate file is not present in this checkout) assessed the original
 plan with SHA-256 `128545c20e770ddc8856d540f00fec689ff5113de298ed9e59f816ddf82f6406` as **Not ready**.
 This revision addresses its findings as follows; it does not relabel unrun implementation checks as passed.
 
