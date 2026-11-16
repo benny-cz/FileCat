@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$Revision,[Parameter(Mandatory=$true)][ValidateSet('mac','linux','windows')][string]$Platform)
+param([Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$Revision,[Parameter(Mandatory=$true)][ValidateSet('mac','linux','windows')][string]$Platform,[switch]$InteractiveWindows)
 $ErrorActionPreference='Stop'
 function Check([string]$what){if($LASTEXITCODE){throw $what}}
 $archive=Join-Path $PWD ('.tmp/dsa-batch-'+$Platform+'-'+$Revision+'.tgz')
@@ -24,7 +24,37 @@ if($drive.FreeSpace-lt$required){exit 74}
  & $v -T ws -vp a -gu filecatdsa_r2 -gp a runProgramInGuest $vm 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoProfile -WindowStyle Hidden -EncodedCommand $encoded;Check 'Windows free-space preflight failed before transfer; inspect space-preflight.json'
  & $v -T ws -vp a -gu filecatdsa_r2 -gp a copyFileFromHostToGuest $vm $archive ($guest+'\bundle.tgz');Check 'Windows candidate copy failed'
  & $v -T ws -vp a -gu filecatdsa_r2 -gp a copyFileFromHostToGuest $vm (Join-Path $PWD ('.tmp/batch-windows-'+$Revision+'.ps1')) ($guest+'\run.ps1');Check 'Windows runner copy failed'
- & $v -T ws -vp a -gu filecatdsa_r2 -gp a runProgramInGuest $vm 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ($guest+'\run.ps1');Check 'Windows candidate failed or busy'
+ if($InteractiveWindows){
+  $hash=(Get-FileHash -LiteralPath (Join-Path $PWD ('.tmp/batch-windows-'+$Revision+'.ps1')) -Algorithm SHA256).Hash
+  $launch=@'
+$ErrorActionPreference='Stop'
+$base='@BASE@';$taskName='FileCatDsaR2-@REV@';$script=Join-Path $base 'run.ps1'
+if((Get-FileHash -LiteralPath $script -Algorithm SHA256).Hash-ne'@HASH@'){throw 'Runner changed'}
+if(Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue){throw 'A fresh test task is required'}
+if(@(Get-Process -Name 'FileCat*',dotnet -ErrorAction SilentlyContinue).Count){'BUSY phase=verify'|Set-Content (Join-Path $base 'state.txt');exit 75}
+$principal=New-ScheduledTaskPrincipal -UserId ($env:COMPUTERNAME+'\filecatdsa_r2') -LogonType Interactive -RunLevel Limited
+$action=New-ScheduledTaskAction -Execute 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File '+$script)
+$settings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
+Register-ScheduledTask -TaskName $taskName -Principal $principal -Action $action -Settings $settings|Out-Null
+$began=Get-Date;Start-ScheduledTask -TaskName $taskName
+do{
+ Start-Sleep -Milliseconds 500
+ $state=Get-ScheduledTask -TaskName $taskName;$info=Get-ScheduledTaskInfo -TaskName $taskName
+ if($info.LastRunTime-ge$began.AddSeconds(-2)-and$state.State-ne'Running'){
+  $result=$info.LastTaskResult
+  [ordered]@{name=$taskName;lastRunTime=$info.LastRunTime.ToString('o');terminalExit=$result;principal=$principal.UserId;logonType=[string]$principal.LogonType;runLevel=[string]$principal.RunLevel}|ConvertTo-Json|Set-Content (Join-Path $base 'task-outcome.json')
+  Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+  exit $result
+ }
+}while((Get-Date)-lt$began.AddMinutes(31))
+throw 'The actual scheduled test task is still live; inspect its handle without restarting'
+'@
+  $launch=$launch.Replace('@BASE@',$guest).Replace('@REV@',$Revision).Replace('@HASH@',$hash)
+  $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($launch))
+  & $v -T ws -vp a -gu Admin -gp a runProgramInGuest $vm 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoProfile -WindowStyle Hidden -EncodedCommand $encoded;Check 'Windows interactive candidate failed or busy'
+ }else{
+  & $v -T ws -vp a -gu filecatdsa_r2 -gp a runProgramInGuest $vm 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ($guest+'\run.ps1');Check 'Windows candidate failed or busy'
+ }
 }elseif($Platform-eq'mac'){
  $guest='/Users/benny/FileCatValidation/dsa-batch-20261107-'+$Revision;$key='C:\Users\marek\.ssh\windows_claude_ed25519'
  & ssh.exe -i $key -o BatchMode=yes benny@192.168.0.199 ('umask 077; mkdir -p '+$guest);Check 'Mac candidate directory failed'

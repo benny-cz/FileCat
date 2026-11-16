@@ -1,0 +1,32 @@
+{
+  "revision": "r1112",
+  "renderRevision": "r1112",
+  "sourceManifest": ".tmp/source-candidate-r1112.json",
+  "buildLog": ".tmp/comparison-interchange-test-fix-r1112.txt",
+  "initialBuildLog": ".tmp/comparison-interchange-build-r1111.txt",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 7.1295658,
+  "archives": [
+    {
+      "platform": "windows",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r1112.tgz",
+      "bytes": 627047,
+      "sha256": "1668aad78a0330fec43feb58d0e3c53a95d0d3e5a5d0c51f5c80cc78f6068a8e"
+    },
+    {
+      "platform": "mac",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r1112.tgz",
+      "bytes": 626830,
+      "sha256": "1425567f3cac64f1fe0d216f36042dc9de2740974e4a228d2924cd60ccbdabd0"
+    },
+    {
+      "platform": "linux",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r1112.tgz",
+      "bytes": 626772,
+      "sha256": "17e7afbc91d4ae24d7881e83cfbd10c805b639415c52db665162fd2ec68c0faa"
+    }
+  ],
+  "cachedProductBaseline": "r1111",
+  "scope": "TestOnly"
+}

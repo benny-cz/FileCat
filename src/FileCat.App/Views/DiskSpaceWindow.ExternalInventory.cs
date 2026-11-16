@@ -10,6 +10,39 @@ namespace FileCat.App.Views;
 
 public sealed partial class DiskSpaceWindow
 {
+    internal async Task<DiskSpaceViewModel> AddExternalComparisonSessionAsync(AppServices services, string path, CancellationToken cancellation)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
+        AnalysisInventoryInput.ValidateChosenPath(path, comparison: true);
+        AnalysisSessionAdmission.Slot? admission = _admissionPool.Acquire(); DiskSpaceViewModel? model = null; Exception? unconfirmed = null;
+        if (_pendingIndexed++ == 0) _indexedIdle = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _indexedLifetime.Token);
+        try
+        {
+            model = await DiskSpaceViewModel.ImportExternalComparisonAsync(services, path, linked.Token);
+            linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
+            var slot = admission!; admission = null; AddReservedSession(model, [], slot);
+            var success = model; model = null; return success;
+        }
+        catch (Exception error) when (AnalysisCloseUnconfirmedException.IsPresent(error)) { unconfirmed = error; RecordIndexedCloseFailure(error); throw; }
+        finally
+        {
+            try
+            {
+                Task close = CloseImportedAsync();
+                try { if (admission is not null) await admission.CloseAfterAsync(close); else await close; }
+                catch (Exception error) when (AnalysisCloseUnconfirmedException.IsPresent(error)) { RecordIndexedCloseFailure(error); throw; }
+            }
+            finally { if (--_pendingIndexed == 0) { _indexedIdle.TrySetResult(); if (_closed) _indexedLifetime.Dispose(); } }
+        }
+        async Task CloseImportedAsync()
+        {
+            Exception? failure = unconfirmed;
+            try { model?.Dispose(); } catch (Exception error) { failure = failure is null ? error : new AggregateException(failure, error); }
+            try { if (model is not null) await model.CloseCompletion; } catch (Exception error) { failure = failure is null ? error : new AggregateException(failure, error); }
+            if (failure is not null) throw AnalysisCloseUnconfirmedException.From(failure);
+        }
+    }
     internal Task<AnalysisDatasetExplorer> AddExternalIndexedSessionAsync(AppServices services, string path, CancellationToken cancellation)
     {
         AnalysisInventoryInput.ValidateChosenPath(path);
@@ -27,15 +60,16 @@ public sealed partial class DiskSpaceWindow
             catch { if (retained is not null) await retained.DisposeAsync(); throw; }
         }
     }
-    internal static async Task<bool> ConfirmExternalInventoryAsync(IDialogService dialogs, string path, CancellationToken cancellation)
+    internal static async Task<bool> ConfirmExternalInventoryAsync(IDialogService dialogs, string path, CancellationToken cancellation, bool comparison = false)
     {
         var closer = new DialogCloser();
         using var close = cancellation.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => closer.Close(false)));
-        return await dialogs.ShowCustomAsync("Import inventory", new TextBlock
+        return await dialogs.ShowCustomAsync(comparison ? "Import comparison" : "Import inventory", new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text = "Open this inventory as offline observations:\n" + AnalysisNames.Display(path, 4096) +
-                "\nRecorded locations are not opened, and imported claims cannot grant file actions. The complete record graph and accounting must validate before a tab opens. Maximum input size: 8 GiB."
+            Text = (comparison ? "Open both captured inventories and the saved comparison view as offline observations:\n" : "Open this inventory as offline observations:\n") + AnalysisNames.Display(path, 4096) +
+                "\nRecorded locations are not opened, and imported claims cannot grant file actions. The complete record graph and accounting must validate before a tab opens. Maximum input size: 8 GiB." +
+                (comparison ? " Comparison and import-memory limits also apply; an input that exceeds them is refused without opening a partial comparison." : "")
         }, [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Import observations", true)], closer: closer) is true;
     }
     private async Task ImportExternalInventoryAsync(AppServices services, CancellationToken lifetime, Action<Exception> rememberFailure)
@@ -45,20 +79,21 @@ public sealed partial class DiskSpaceWindow
         {
             if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
             var items = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            { Title = "Import inventory", AllowMultiple = false, FileTypeFilter = [new FilePickerFileType("FileCat inventory") { Patterns = ["*.fcdsa"] }] });
+            { Title = "Import offline analysis", AllowMultiple = false, FileTypeFilter = [new FilePickerFileType("FileCat inventory or comparison") { Patterns = ["*.fcdsa", "*.fcdsc"] }] });
             using var picked = new PickedStorageItems(items);
             cancel.Token.ThrowIfCancellationRequested();
             if (items.Count == 0) return;
             string path = items[0].TryGetLocalPath() ?? throw new NotSupportedException("Choose an inventory on a directly accessible local drive.");
-            AnalysisInventoryInput.ValidateChosenPath(path);
-            if (!await ConfirmExternalInventoryAsync(_dialogs, path, cancel.Token)) return;
+            bool comparison = path.EndsWith(".fcdsc", StringComparison.Ordinal);
+            AnalysisInventoryInput.ValidateChosenPath(path, comparison);
+            if (!await ConfirmExternalInventoryAsync(_dialogs, path, cancel.Token, comparison)) return;
             cancel.Token.ThrowIfCancellationRequested();
-            var task = AddExternalIndexedSessionAsync(services, path, cancel.Token);
+            Task task = comparison ? AddExternalComparisonSessionAsync(services, path, cancel.Token) : AddExternalIndexedSessionAsync(services, path, cancel.Token);
             if (task.IsCompleted) { await task; return; }
             var closer = new DialogCloser();
             using var close = cancel.Token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => closer.Close(false)));
             var dismissed = _dialogs.ShowCustomAsync("Opening imported observations", new TextBlock
-                { Text = "Validating the inventory. Cancel requests a stop and waits for outstanding work to finish.", TextWrapping = TextWrapping.Wrap },
+                { Text = "Validating the captured observations. Cancel requests a stop and waits for outstanding work to finish.", TextWrapping = TextWrapping.Wrap },
                 [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true)], closer: closer);
             try { if (await Task.WhenAny(task, dismissed) == dismissed) cancel.Cancel(); await task; }
             finally { closer.Close(null); }
@@ -72,7 +107,7 @@ public sealed partial class DiskSpaceWindow
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException or FormatException or OverflowException)
         {
             rememberFailure(error);
-            if (!cancel.IsCancellationRequested) await _dialogs.AlertAsync("Inventory was not imported", AnalysisNames.Display(error.Message, 600));
+            if (!cancel.IsCancellationRequested) await _dialogs.AlertAsync("Analysis was not imported", AnalysisNames.Display(error.Message, 600));
         }
     }
     internal sealed class PickedStorageItems(IReadOnlyList<IDisposable> items) : IDisposable
@@ -87,7 +122,7 @@ public sealed partial class DiskSpaceWindow
     }
     private sealed partial class SessionView
     {
-        private readonly Button _importExternal = new() { Content = "Import inventory…" };
+        private readonly Button _importExternal = new() { Content = "Import analysis…" };
         private async Task ImportExternalAsync()
         {
             if (_disposed || _persistenceBusy || Model.HistoryServices is not { } services) return;
@@ -98,7 +133,7 @@ public sealed partial class DiskSpaceWindow
     }
     private sealed partial class IndexedSessionView
     {
-        private readonly Button _importExternal = new() { Content = "Import inventory…" };
+        private readonly Button _importExternal = new() { Content = "Import analysis…" };
         private async Task ImportExternalAsync()
         {
             if (_disposed || _persistenceBusy || !HasInventoryStore) return;

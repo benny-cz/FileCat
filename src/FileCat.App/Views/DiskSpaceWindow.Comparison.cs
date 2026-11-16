@@ -73,7 +73,7 @@ public sealed partial class DiskSpaceWindow
             foreach (var child in Children) child.IsVisible = false;
             var heading = _comparisonHeading = new StackPanel { Spacing = 7, Margin = new Thickness(10, 5) };
             heading.Children.Add(SessionText("Compare observations · " + ComparisonMetric(comparison.Metric), 20));
-            heading.Children.Add(SessionText("Report and chart exports currently require an individual analysis; comparison export is unavailable."));
+            heading.Children.Add(SessionText("Export the captured comparison as a report or a complete machine bundle. Chart-image export currently requires an individual analysis."));
             heading.Children.Add(SessionText("Saved previous: " + AnalysisNames.Display(Model.ComparisonPreviousName ?? "", 240)));
             AddComparisonMetric(heading, comparison.Metric);
             var details = new StackPanel { Spacing = 7 };
@@ -180,27 +180,7 @@ public sealed partial class DiskSpaceWindow
                 Model.SetComparisonView(Model.ComparisonView with { Cohort = (AnalysisComparisonCohort)Math.Max(0, status.SelectedIndex), Order = (AnalysisComparisonOrder)Math.Max(0, sort.SelectedIndex), ShowUnknown = unknown.IsChecked == true });
                 IEnumerable<AnalysisComparisonRow> rows = _comparisonQueryResult is { } applied
                     ? unknown.IsChecked == true ? applied.Unknown : applied.Matches : comparison.Rows;
-                rows = status.SelectedIndex switch
-                {
-                    1 => rows.Where(r => r.Change == AnalysisChange.Growing),
-                    2 => rows.Where(r => r.Change == AnalysisChange.Shrinking),
-                    3 => rows.Where(r => r.Change == AnalysisChange.Added),
-                    4 => rows.Where(r => r.Change == AnalysisChange.Removed),
-                    5 => rows.Where(r => r.Change == AnalysisChange.Moved),
-                    6 => rows.Where(r => r.Change == AnalysisChange.Attribution),
-                    7 => rows.Where(r => r.Change == AnalysisChange.Replaced),
-                    8 => rows.Where(r => r.Change == AnalysisChange.MetadataChanged),
-                    9 => rows.Where(r => r.Change == AnalysisChange.NoObservedMetadataChange),
-                    10 => rows.Where(r => r.Change is AnalysisChange.Unknown or AnalysisChange.PreviouslyUnknown),
-                    _ => rows
-                };
-                rows = sort.SelectedIndex switch
-                {
-                    1 => rows.OrderByDescending(r => r.RelativePercent.HasValue).ThenByDescending(r => Math.Abs(r.RelativePercent ?? 0)),
-                    2 => rows.OrderByDescending(r => r.Current?.Value.IsKnown == true).ThenByDescending(r => r.Current?.Value.Value ?? 0),
-                    3 => rows.OrderBy(r => r.Current?.Paths[0] ?? r.Previous!.Paths[0], StringComparer.Ordinal),
-                    _ => rows.OrderByDescending(r => r.Delta?.Magnitude ?? 0)
-                };
+                rows = AnalysisComparisonProjection.Apply(rows, Model.ComparisonView.Cohort, Model.ComparisonView.Order);
                 var selected = list.SelectedItem as AnalysisComparisonRow;
                 var anchor = Model.ComparisonView; var shown = rows.ToArray();
                 selected ??= shown.SingleOrDefault(row => anchor.FocusNode != 0 && (anchor.PreviousFocus ? row.Previous : row.Current)?.NodeIds.Contains(anchor.FocusNode) == true);

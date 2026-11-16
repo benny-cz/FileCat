@@ -6,6 +6,13 @@ namespace FileCat.App.Services;
 
 internal sealed partial class AnalysisIndexedAcquisition
 {
+    internal static Task<AnalysisSavedComparison> ReadExternalComparisonAsync(AppServices services, string path, CancellationToken cancellation)
+    {
+        AnalysisInventoryInput.ValidateChosenPath(path, comparison: true);
+        return AnalysisComparisonFormat.ReadExternalAsync(services.Io, PathUtil.GetDeviceKey(path),
+            () => OperatingSystem.IsWindows() ? WindowsAnalysisPrivateDirectory.OpenChosenComparison(path)
+                : UnixAnalysisPrivateDirectory.OpenChosenComparison(path), cancellation);
+    }
     internal async Task<AnalysisIndexedInventory> LoadExternalInventoryAsync(string path, CancellationToken cancellation)
     {
         AnalysisInventoryInput.ValidateChosenPath(path);

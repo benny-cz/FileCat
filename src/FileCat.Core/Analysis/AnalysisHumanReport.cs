@@ -165,9 +165,9 @@ public static partial class AnalysisHumanReport
         "; known file-size bytes: " + Number(header.Logical.KnownBytes) + "; file paths: " + header.Logical.Files.ToString(CultureInfo.InvariantCulture) + "; missing logical: " + Evidence(header.Logical.Missing, header.HasUnmeasuredLogicalEvidence);
     private static string ScopeName(AnalysisReportScope scope) => scope switch
     { AnalysisReportScope.FilteredView => "Captured filtered view", AnalysisReportScope.SelectedRows => "Captured selected rows", _ => "Entire unfiltered result" };
-    private static string MetricName(AnalysisMetric metric) => metric switch
+    internal static string MetricName(AnalysisMetric metric) => metric switch
     { AnalysisMetric.FileSize => "File size", AnalysisMetric.UniqueFileSize => "Unique file size", AnalysisMetric.OnDisk => "On disk — reported", _ => "Files" };
-    private static string MetricDefinition(AnalysisMetric metric) => metric switch
+    internal static string MetricDefinition(AnalysisMetric metric) => metric switch
     {
         AnalysisMetric.FileSize => "Logical bytes per observed file path; aliases can count repeatedly.",
         AnalysisMetric.UniqueFileSize => "Verified file identity is counted once within scope; unverified identity is separate.",

@@ -15,6 +15,7 @@ public sealed partial class DiskSpaceWindow
         private readonly Button _openComparison;
         private Button? _comparisonSave;
         private Button? _comparisonExport;
+        private Button? _comparisonReportExport;
         private TextBlock? _comparisonPersistenceStatus;
         private sealed record ComparisonChoice(string Name)
         { public override string ToString() => AnalysisNames.Display(Name, 240); }
@@ -29,12 +30,16 @@ public sealed partial class DiskSpaceWindow
             _comparisonExport = ActionButton("Export comparison bundle…", () => _ = ExportComparisonBundleAsync(),
                 "Export both complete captured inventories and applied comparison settings to a reviewed local folder. Exact raw names and locations are included; source files are not opened.");
             _comparisonExport.IsVisible = Model.HistoryServices is not null;
-            footer.Children.Add(_comparisonSave); footer.Children.Add(_comparisonExport); footer.Children.Add(_comparisonPersistenceStatus); RefreshComparisonPersistence();
+            _comparisonReportExport = ActionButton("Export comparison report…", () => _ = ExportComparisonReportAsync(),
+                "Export the captured comparison as Markdown, inert HTML or spreadsheet-safe CSV. Review its scope and path omission before choosing a destination.");
+            _comparisonReportExport.IsVisible = Model.HistoryServices is not null;
+            footer.Children.Add(_comparisonSave); footer.Children.Add(_comparisonExport); footer.Children.Add(_comparisonReportExport); footer.Children.Add(_comparisonPersistenceStatus); RefreshComparisonPersistence();
         }
         private void RefreshComparisonPersistence()
         {
             _openComparison.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
             if (_comparisonExport is not null) _comparisonExport.IsEnabled = Model.CanExportComparison && !_persistenceBusy && !_comparisonChartBusy && !_comparisonChartUnapplied && !_actualWork.HasUnconfirmedClose;
+            if (_comparisonReportExport is not null) _comparisonReportExport.IsEnabled = Model.CanExportComparison && !_persistenceBusy && !_comparisonChartBusy && !_comparisonChartUnapplied && !_actualWork.HasUnconfirmedClose;
             if (_comparisonSave is not null)
             {
                 _comparisonSave.IsEnabled = Model.CanSaveComparison && !_persistenceBusy && !_comparisonChartBusy && !_comparisonChartUnapplied;

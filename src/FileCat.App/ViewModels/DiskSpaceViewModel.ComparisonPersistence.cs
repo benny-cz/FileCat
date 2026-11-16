@@ -103,13 +103,23 @@ public sealed partial class DiskSpaceViewModel
         if (!HasPrivateStorage) throw new InvalidOperationException("Private comparison storage is unavailable.");
         AnalysisPrivateInventoryStore.ValidateComparisonName(name); string path = _services!.Paths.AnalysisSnapshotsDirectory;
         using var saved = await RunPrivateIoAsync(path, token => { using var store = OpenPrivateStore(path); return store.LoadComparison(name, token); }, cancellation);
+        return await RestoreComparisonAsync(_services!, saved, name, cancellation);
+    }
+    internal static async Task<DiskSpaceViewModel> ImportExternalComparisonAsync(Services.AppServices services, string path, CancellationToken cancellation)
+    {
+        using var saved = await Services.AnalysisIndexedAcquisition.ReadExternalComparisonAsync(services, path, cancellation);
+        return await RestoreComparisonAsync(services, saved, null, cancellation);
+    }
+    private static async Task<DiskSpaceViewModel> RestoreComparisonAsync(Services.AppServices services, AnalysisSavedComparison saved,
+        string? name, CancellationToken cancellation)
+    {
         AnalysisSnapshotLease? before = null, now = null; AnalysisComparisonResult? result = null; DiskSpaceViewModel? model = null;
         try
         {
             before = saved.Previous.Retain(); now = saved.Current.Retain(); var previous = before.Snapshot; var current = now.Snapshot;
             result = await Task.Run(() => AnalysisComparison.Build(previous, current, saved.View.Metric, saved.StructuralRoots, cancellation), CancellationToken.None);
             cancellation.ThrowIfCancellationRequested();
-            model = new DiskSpaceViewModel(_services!)
+            model = new DiskSpaceViewModel(services)
             {
                 _comparisonPrevious = before,
                 _comparisonCurrent = now,
@@ -122,11 +132,12 @@ public sealed partial class DiskSpaceViewModel
                 ComparisonView = saved.View,
                 _savedComparisonView = saved.View,
                 SavedComparisonName = name,
-                _savedComparisonId = saved.ComparisonId,
+                _savedComparisonId = name is null ? null : saved.ComparisonId,
                 Metric = saved.View.Metric,
                 Chart = "Table",
                 Phase = AnalysisPhase.Stopped,
-                Status = "Saved offline comparison. Sources are disconnected; differences are metadata observations."
+                Status = name is null ? "Imported comparison · offline observations. Sources are disconnected; differences are unverified metadata observations."
+                    : "Saved offline comparison. Sources are disconnected; differences are metadata observations."
             };
             before = now = null; result = null;
             if (!string.IsNullOrWhiteSpace(saved.View.Query))

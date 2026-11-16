@@ -33,7 +33,7 @@ public sealed partial class DiskSpaceWindow
             bar.Children.Add(_saveInventory); bar.Children.Add(_openInventory);
             _importExternal.IsVisible = _services is not null; bar.Children.Add(_importExternal);
             _importExternal.Click += async (_, _) => await ImportExternalAsync();
-            ToolTip.SetTip(_importExternal, new RichTip("Import offline observations", detail: "Choose a local .fcdsa file. Imported paths stay offline and cannot grant current-source or file-action authority."));
+            ToolTip.SetTip(_importExternal, new RichTip("Import offline observations", detail: "Choose a local .fcdsa inventory or .fcdsc comparison. Imported paths stay offline and cannot grant current-source or file-action authority."));
             _exportExternal.IsVisible = _services is not null; bar.Children.Add(_exportExternal); _exportExternal.Click += async (_, _) => await ExportExternalAsync();
             ToolTip.SetTip(_exportExternal, new RichTip("Export entire captured inventory", detail: "Choose a folder and unused filename. The sensitivity review explains that filters and chart scope do not reduce the complete inventory."));
             _exportReport.IsVisible = _services is not null; bar.Children.Add(_exportReport); _exportReport.Click += async (_, _) => await ExportReportAsync();

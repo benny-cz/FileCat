@@ -2,7 +2,11 @@ param(
  [Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$Revision,
  [Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$RenderRevision,
  [Parameter(Mandatory=$true)][string]$BuildLog,
- [Parameter(Mandatory=$true)][string]$SourceManifest
+ [Parameter(Mandatory=$true)][string]$SourceManifest,
+ [switch]$CheckoutLayout,
+ [switch]$IncludeAppSettings,
+ [string]$WindowsTemplate='.tmp/batch-windows-grouping-template.ps1',
+ [string]$UnixTemplate='.tmp/batch-unix-grouping-template.sh'
 )
 $ErrorActionPreference='Stop'
 $watch=[Diagnostics.Stopwatch]::StartNew()
@@ -26,19 +30,28 @@ foreach($platform in 'mac','linux','windows'){
  if((Test-Path -LiteralPath $render)-or(Test-Path -LiteralPath $batch)){throw 'A fresh platform stage is required'}
  New-Item -ItemType Directory -Path $render|Out-Null
  Get-ChildItem -LiteralPath $renderBin -File|Copy-Item -Destination $render
+ if($IncludeAppSettings){Get-ChildItem -LiteralPath (Join-Path $PWD 'tests/FileCat.App.Tests/bin/Debug/net10.0') -File|Where-Object{$_.Name-like'FileCat.App.Tests.*'}|Copy-Item -Destination $render}
  New-Item -ItemType Directory -Path (Join-Path $render 'runtimes')|Out-Null
  $rids=switch($platform){'mac'{@('osx','osx-arm64')};'linux'{@('linux-x64')};'windows'{@('win','win-x64')}}
  foreach($rid in $rids){Copy-Item -LiteralPath (Join-Path $renderBin ('runtimes/'+$rid)) -Destination (Join-Path $render 'runtimes') -Recurse}
  New-Item -ItemType Directory -Path $batch|Out-Null
- Copy-Item -LiteralPath $stages.core -Destination (Join-Path $batch 'core') -Recurse
+ $core='core'
+ if($CheckoutLayout){
+  $core='tests/FileCat.Core.Tests/bin/Debug/net10.0'
+  $target=Join-Path $batch $core;New-Item -ItemType Directory -Path $target -Force|Out-Null
+  Get-ChildItem -LiteralPath $stages.core -File|Copy-Item -Destination $target
+  Copy-Item -LiteralPath 'FileCat.slnx' -Destination $batch
+  $probe=Join-Path $batch 'tests/FileCat.WorkerProbe/bin/Debug/net10.0';New-Item -ItemType Directory -Path $probe -Force|Out-Null
+  Get-ChildItem -LiteralPath 'tests/FileCat.WorkerProbe/bin/Debug/net10.0' -File|Copy-Item -Destination $probe
+ }else{Copy-Item -LiteralPath $stages.core -Destination (Join-Path $batch 'core') -Recurse}
  Copy-Item -LiteralPath $render -Destination (Join-Path $batch 'render') -Recurse
  if($platform-eq'windows'){Copy-Item -LiteralPath $stages.native -Destination (Join-Path $batch 'native') -Recurse}
  $archive=Join-Path $PWD ('.tmp/dsa-batch-'+$platform+'-'+$Revision+'.tgz')
  & tar.exe -czf $archive -C $batch .
  if($LASTEXITCODE){throw 'Candidate archive failed'}
  $hash=(Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
- $template=if($platform-eq'windows'){'batch-windows-grouping-template.ps1'}else{'batch-unix-grouping-template.sh'}
- $runner=[IO.File]::ReadAllText((Join-Path $PWD ('.tmp/'+$template))).Replace('@HASH@',$hash).Replace('@REV@',$Revision)
+ $template=if($platform-eq'windows'){$WindowsTemplate}else{$UnixTemplate}
+ $runner=[IO.File]::ReadAllText((Join-Path $PWD $template)).Replace('@HASH@',$hash).Replace('@REV@',$Revision).Replace('@CORE@',$core)
  $extension=if($platform-eq'windows'){'ps1'}else{'sh'}
  [IO.File]::WriteAllText((Join-Path $PWD ('.tmp/batch-'+$platform+'-'+$Revision+'.'+$extension)),$runner.Replace("`r`n","`n"),[Text.UTF8Encoding]::new($false))
  $archives+=@{platform=$platform;path=$archive;sha256=$hash;bytes=(Get-Item -LiteralPath $archive).Length}

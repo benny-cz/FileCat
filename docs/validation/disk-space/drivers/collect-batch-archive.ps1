@@ -14,7 +14,7 @@ if($Platform-eq'windows'){
 $ErrorActionPreference='Stop'
 $base='@BASE@'
 Set-Location -LiteralPath $base
-$names=@(Get-ChildItem -LiteralPath $base -File|Where-Object{$_.Name -match '^(state[.]txt|failure[.]txt|cache-proof[.]txt|space-preflight[.]json|(smoke|preview|core|native|render|appsettings)-@REV@[.](xml|log))$'}|ForEach-Object{$_.Name})
+$names=@(Get-ChildItem -LiteralPath $base -File|Where-Object{$_.Name -match '^(state[.]txt|failure[.]txt|cache-proof[.]txt|space-preflight[.]json|environment[.]json|task-outcome[.]json|(smoke|preview|core|native|render|appsettings)-@REV@[.](xml|log))$'}|ForEach-Object{$_.Name})
 if(Test-Path -LiteralPath 'payload/render/comparison-growth-renders'){$names+='payload/render/comparison-growth-renders'}
 else{
  foreach($control in @('cache-input/plan.json','patch-input/plan.json')){

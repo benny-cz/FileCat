@@ -7,6 +7,8 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory
 {
     /// <summary>Opens an explicitly selected local inventory for inert import; public source permissions are allowed.</summary>
     public static AnalysisInventoryInput OpenChosenInventory(string path) => new ChosenInventory(path);
+    /// <summary>Opens an explicitly selected comparison using the same read-only native boundary.</summary>
+    public static AnalysisInventoryInput OpenChosenComparison(string path) => new ChosenInventory(path, comparison: true);
 
     private sealed class ChosenInventory : AnalysisInventoryInput
     {
@@ -21,11 +23,11 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory
         private SafeHandle Parent => _parents[^1].Handle.Handle;
         private int DirFlags => _mac ? 0x100000 | 0x1000000 | 0x100 | 4 : 0x10000 | 0x80000 | 0x20000;
         private int InputFlags => _mac ? 0x1000000 | 0x100 | 4 : 0x80000 | 0x20000 | 0x800;
-        internal ChosenInventory(string path)
+        internal ChosenInventory(string path, bool comparison = false)
         {
             if (!OperatingSystem.IsLinux() && !_mac) throw new PlatformNotSupportedException();
             if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
-            ValidateChosenPath(path);
+            ValidateChosenPath(path, comparison);
             if (path.StartsWith("//", StringComparison.Ordinal)) throw new NotSupportedException("Choose a local inventory path.");
             _name = Path.GetFileName(path);
             try

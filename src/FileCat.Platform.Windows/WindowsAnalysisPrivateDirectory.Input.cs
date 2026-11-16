@@ -8,6 +8,8 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory
 {
     /// <summary>Opens an explicitly selected local inventory for inert import; it does not require a private source ACL.</summary>
     public static AnalysisInventoryInput OpenChosenInventory(string path) => new ChosenInventory(path);
+    /// <summary>Opens an explicitly selected comparison using the same read-only native boundary.</summary>
+    public static AnalysisInventoryInput OpenChosenComparison(string path) => new ChosenInventory(path, comparison: true);
 
     private sealed class ChosenInventory : AnalysisInventoryInput
     {
@@ -18,11 +20,11 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory
         private readonly InputRevision _revision;
         private bool _disposed;
         private readonly record struct InputRevision(string Identity, long Length, long Changed, long Modified);
-        internal ChosenInventory(string path)
+        internal ChosenInventory(string path, bool comparison = false)
         {
             if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
             if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
-            ValidateChosenPath(path);
+            ValidateChosenPath(path, comparison);
             string drive = Path.GetPathRoot(path) ?? "";
             if (drive.Length != 3 || drive[1] != ':' || drive[2] != '\\' || GetDriveType(drive) is not (2 or 3))
                 throw new NotSupportedException("Choose an inventory on a directly accessible local drive.");

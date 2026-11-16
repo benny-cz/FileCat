@@ -53,7 +53,7 @@ public sealed partial class AnalysisRenderingTests
             window.Show(); Frame(window); Assert.Equal(1, window.SessionCount);
             Assert.Equal(AnalysisOrigin.ImportedInventory, explorer.Descriptor.Origin);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text?.StartsWith("Imported inventory · offline observations.", StringComparison.Ordinal) == true);
-            Assert.Contains(window.GetVisualDescendants().OfType<Button>(), button => button.IsEffectivelyVisible && button.Content as string == "Import inventory…" && button.IsEnabled);
+            Assert.Contains(window.GetVisualDescendants().OfType<Button>(), button => button.IsEffectivelyVisible && button.Content as string == "Import analysis…" && button.IsEnabled);
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text?.Contains("Saved as external.fcdsa", StringComparison.Ordinal) == true);
             Assert.Empty(Directory.GetFiles(profile.Services.Paths.AnalysisHistoryDirectory, "*.fcdsa"));
         }
@@ -98,17 +98,19 @@ public sealed partial class AnalysisRenderingTests
     }
 
     [AvaloniaTheory]
-    [InlineData("read-only")] [InlineData("mutation")] [InlineData("replacement")] [InlineData("writer-busy")]
-    [InlineData("empty")] [InlineData("directory")] [InlineData("parent-link")] [InlineData("handle-budget")]
-    public async Task NativeExternalInventoryInputEnforcesReadOnlyStableBindingsAndReleasesHandles(string boundary)
+    [InlineData("read-only", false)] [InlineData("mutation", false)] [InlineData("replacement", false)] [InlineData("writer-busy", false)]
+    [InlineData("empty", false)] [InlineData("directory", false)] [InlineData("parent-link", false)] [InlineData("handle-budget", false)]
+    [InlineData("read-only", true)] [InlineData("mutation", true)] [InlineData("replacement", true)] [InlineData("writer-busy", true)]
+    [InlineData("empty", true)] [InlineData("directory", true)] [InlineData("parent-link", true)] [InlineData("handle-budget", true)]
+    public async Task NativeExternalInventoryInputEnforcesReadOnlyStableBindingsAndReleasesHandles(string boundary, bool comparison)
     {
         OrdinaryPreparation(); using var profile = new PreparationFixture(); var token = TestContext.Current.CancellationToken;
         string folder = Path.Combine(profile.Root, "public"); Directory.CreateDirectory(folder);
-        string path = Path.Combine(folder, "input.fcdsa"); byte[] bytes = ExternalInventoryBytes(Fixture()); File.WriteAllBytes(path, bytes); ExternalPublicRead(path);
+        string path = Path.Combine(folder, comparison ? "input.fcdsc" : "input.fcdsa"); byte[] bytes = comparison ? ExternalComparisonBytes(Fixture()) : ExternalInventoryBytes(Fixture()); File.WriteAllBytes(path, bytes); ExternalPublicRead(path);
         int handles = AnalysisNativeHandles.Count;
         await AnalysisIo.Run(profile.Services.Io, PathUtil.GetDeviceKey(path), _ =>
         {
-            AnalysisInventoryInput Open(string selected) => OperatingSystem.IsWindows() ? WindowsAnalysisPrivateDirectory.OpenChosenInventory(selected) : UnixAnalysisPrivateDirectory.OpenChosenInventory(selected);
+            AnalysisInventoryInput Open(string selected) => comparison ? OpenComparisonInput(selected) : OperatingSystem.IsWindows() ? WindowsAnalysisPrivateDirectory.OpenChosenInventory(selected) : UnixAnalysisPrivateDirectory.OpenChosenInventory(selected);
             if (boundary == "empty") { File.WriteAllBytes(path, []); Assert.Throws<IOException>(() => Open(path)); return true; }
             if (boundary == "directory")
             {
@@ -121,7 +123,7 @@ public sealed partial class AnalysisRenderingTests
             {
                 string link = Path.Combine(profile.Root, "redirect");
                 if (OperatingSystem.IsWindows()) Junction.Create(link, folder); else Directory.CreateSymbolicLink(link, folder);
-                try { Assert.Throws<IOException>(() => Open(Path.Combine(link, "input.fcdsa"))); }
+                try { Assert.Throws<IOException>(() => Open(Path.Combine(link, Path.GetFileName(path)))); }
                 finally { Directory.Delete(link); }
                 return true;
             }
@@ -225,9 +227,10 @@ public sealed partial class AnalysisRenderingTests
 
     private sealed class ExternalFaultInput(AnalysisInventoryInput native, string fault, TaskCompletionSource entered, ManualResetEventSlim release) : AnalysisInventoryInput
     {
+        private readonly Stream? _blocked = fault == "read-cancel" ? new ComparisonBlockedInputStream(native.Stream, entered, release) : null;
         private bool _entered;
         internal bool Closed;
-        internal override Stream Stream => native.Stream;
+        internal override Stream Stream => _blocked ?? native.Stream;
         internal override string Identity => native.Identity;
         internal override void Verify()
         {
@@ -238,6 +241,26 @@ public sealed partial class AnalysisRenderingTests
         }
         public override void Dispose()
         { try { native.Dispose(); } finally { Closed = true; } if (fault == "close") throw new IOException("Injected external input close result."); }
+    }
+
+    private sealed class ComparisonBlockedInputStream(Stream source, TaskCompletionSource entered, ManualResetEventSlim release) : Stream
+    {
+        private bool _entered;
+        public override bool CanRead => true;
+        public override bool CanWrite => false;
+        public override bool CanSeek => false;
+        public override long Length => source.Length;
+        public override long Position { get => source.Position; set => throw new NotSupportedException(); }
+        public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+        public override int Read(Span<byte> buffer)
+        {
+            if (!_entered) { _entered = true; entered.TrySetResult(); if (!release.Wait(TimeSpan.FromSeconds(20))) throw new TimeoutException("Blocked comparison input was not released."); }
+            return source.Read(buffer);
+        }
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     private static byte[] ExternalInventoryBytes(AnalysisSnapshot snapshot)

@@ -41,6 +41,8 @@ internal sealed partial class AnalysisIndexedAcquisition
         ExportCoreAsync(folder, name, (factory, devices) => chart.ExportNewAsync(name, devices, factory, redactPaths, cancellation), cancellation);
     internal Task<AnalysisExportReceipt> ExportComparisonAsync(AnalysisCapturedComparisonBundle bundle, string folder, string name, CancellationToken cancellation) =>
         ExportCoreAsync(folder, name, (factory, devices) => bundle.ExportNewAsync(name, devices, factory, false, cancellation), cancellation);
+    internal Task<AnalysisExportReceipt> ExportComparisonReportAsync(AnalysisCapturedComparisonReport report, string folder, string name, bool redactPaths, CancellationToken cancellation) =>
+        ExportCoreAsync(folder, name, (factory, devices) => report.ExportNewAsync(name, devices, factory, redactPaths, cancellation), cancellation);
 
     private async Task<AnalysisExportReceipt> ExportCoreAsync(string folder, string name,
         Func<Func<AnalysisExportDestination>, AnalysisIoDevices, Task<AnalysisExportReceipt>> export, CancellationToken cancellation)

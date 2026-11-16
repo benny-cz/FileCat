@@ -6,7 +6,9 @@ param(
  [Parameter(Mandatory=$true)][string]$SourceManifest,
  [ValidateSet('windows','mac','linux')][string[]]$ReusePlatforms=@('windows'),
  [ValidateSet('TestOnly','AppUi','OldProductControl')][string]$InputScope='TestOnly',
- [ValidateSet('core','render')][string[]]$AdditionalTestPhases=@()
+ [ValidateSet('core','render')][string[]]$AdditionalTestPhases=@(),
+ [string]$WindowsTemplate='.tmp/batch-windows-grouping-template.ps1',
+ [string]$UnixTemplate='.tmp/batch-unix-grouping-template.sh'
 )
 $ErrorActionPreference='Stop';$watch=[Diagnostics.Stopwatch]::StartNew()
 $build=[IO.File]::ReadAllText((Join-Path $PWD $BuildLog))
@@ -32,7 +34,9 @@ foreach($platform in 'windows','mac','linux'){
  $files=@(Get-ChildItem -LiteralPath $old -File -Recurse|ForEach-Object{
   $relative=[IO.Path]::GetRelativePath($old,$_.FullName).Replace('\','/')
   $parts=$relative.Split('/',2);$bin=Join-Path $PWD ('tests/'+$assemblies[$parts[0]]+'/bin/Debug/net10.0')
-  $current=Join-Path $bin $parts[1]
+  if($relative-eq'FileCat.slnx'-or$relative.StartsWith('tests/',[StringComparison]::Ordinal)){$current=Join-Path $PWD $relative}
+  elseif($relative.StartsWith('render/FileCat.App.Tests.',[StringComparison]::Ordinal)){$current=Join-Path $PWD ('tests/FileCat.App.Tests/bin/Debug/net10.0/'+$parts[1])}
+  else{$current=Join-Path $bin $parts[1]}
   if($InputScope-eq'OldProductControl'-and$relative-notin$allowed){$current=$_.FullName}
   $before=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
   $after=(Get-FileHash -LiteralPath $current -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -49,8 +53,9 @@ foreach($platform in 'windows','mac','linux'){
  $archive=Join-Path $PWD ('.tmp/dsa-batch-'+$platform+'-'+$Revision+'.tgz')
  if(Test-Path -LiteralPath $archive){throw 'A fresh archive is required'}
  $extension=if($platform-eq'windows'){'ps1'}else{'sh'}
- $template=if($platform-eq'windows'){'batch-windows-grouping-template.ps1'}else{'batch-unix-grouping-template.sh'}
- $runner=[IO.File]::ReadAllText((Join-Path $PWD ('.tmp/'+$template)))
+ $template=if($platform-eq'windows'){$WindowsTemplate}else{$UnixTemplate}
+ $core=if(Test-Path -LiteralPath (Join-Path $old 'tests/FileCat.Core.Tests/bin/Debug/net10.0')){'tests/FileCat.Core.Tests/bin/Debug/net10.0'}else{'core'}
+ $runner=[IO.File]::ReadAllText((Join-Path $PWD $template)).Replace('@CORE@',$core)
  if($platform-eq'windows'-and$platform-in$ReusePlatforms){
   $delta=Join-Path $PWD ('.tmp/test-fix-delta-'+$Revision);New-Item -ItemType Directory -Path $delta|Out-Null
   foreach($relative in $changed){$target=Join-Path $delta ('patch/'+$relative);New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($target)) -Force|Out-Null;Copy-Item -LiteralPath (Join-Path $stage $relative) -Destination $target}

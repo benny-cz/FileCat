@@ -319,7 +319,7 @@ public sealed partial class DiskSpaceWindow : Window
             nav.Children.Add(_save); nav.Children.Add(_openSaved);
             _importExternal.IsVisible = Model.HistoryServices is not null;
             _importExternal.Click += async (_, _) => await ImportExternalAsync(); nav.Children.Add(_importExternal);
-            ToolTip.SetTip(_importExternal, new RichTip("Import offline observations", detail: "Choose a local .fcdsa inventory. Validation uses private bounded scratch; imported paths never reconnect sources or authorize file actions."));
+            ToolTip.SetTip(_importExternal, new RichTip("Import offline observations", detail: "Choose a local .fcdsa inventory or .fcdsc comparison. Imported paths never reconnect sources or authorize file actions. Large inputs must fit the applicable private scratch or comparison-memory limits."));
             _exportExternal.IsVisible = Model.HistoryServices is not null; _exportExternal.Click += async (_, _) => await ExportExternalAsync(); nav.Children.Add(_exportExternal);
             ToolTip.SetTip(_exportExternal, new RichTip("Export entire captured inventory", detail: "Choose a folder and new filename, then review sensitive paths and metadata. Display filters do not limit this inventory; existing files are preserved."));
             _exportReport.IsVisible = Model.HistoryServices is not null; _exportReport.Click += async (_, _) => await ExportReportAsync(); nav.Children.Add(_exportReport);
@@ -603,7 +603,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _pause.IsEnabled = Model.Running; _stop.IsEnabled = Model.Running || Model.IsPreparing;
                 _save.IsEnabled = Model.CanSave && !_persistenceBusy;
                 _openSaved.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
-                _importExternal.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
+                _importExternal.IsEnabled = Model.HistoryServices is { Io.IsStopped: false } && !_actualWork.HasUnconfirmedClose && !_persistenceBusy;
                 _exportExternal.IsEnabled = Model.CanExport && !_persistenceBusy && !_actualWork.HasUnconfirmedClose;
                 _exportReport.IsEnabled = !IsComparison && Model.CanExport && !_persistenceBusy && !_actualWork.HasUnconfirmedClose;
                 _compare.IsEnabled = Model.CanCompare && !_persistenceBusy;

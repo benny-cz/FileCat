@@ -9,14 +9,16 @@ public abstract class AnalysisInventoryInput : IAnalysisScratchOwned
     internal abstract void Verify();
     public abstract void Dispose();
 
-    internal static string ValidateChosenPath(string path)
+    internal static string ValidateChosenPath(string path, bool comparison = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         if (!Path.IsPathFullyQualified(path) || path.Contains('\0') || path.Contains('\ufffd') ||
             !AnalysisPrivateInventoryStore.WellFormedText(path) || System.Text.Encoding.UTF8.GetByteCount(path) > AnalysisLimits.LocatorBytes ||
-            path.Split(Path.DirectorySeparatorChar).Any(component => component is "." or ".."))
+            path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(component => component is "." or ".."))
             throw new ArgumentException("Choose an absolute local inventory path whose spelling can be preserved exactly.");
-        AnalysisPrivateInventoryStore.ValidateName(Path.GetFileName(path)); return path;
+        if (comparison) AnalysisPrivateInventoryStore.ValidateComparisonName(Path.GetFileName(path));
+        else AnalysisPrivateInventoryStore.ValidateName(Path.GetFileName(path));
+        return path;
     }
 
     // Native owners, not the stream wrapper, close their handles on admitted cleanup workers.
