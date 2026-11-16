@@ -1,6 +1,15 @@
 using FileCat.Core.Edit;
 using FileCat.Tests;
 namespace FileCat.Core.Tests;
+// Alone: in the full suites on hosted Ubuntu and macOS (runs 43785533121, 43792885074, 43792895663) these cases now and then
+// found their own fresh edit folder or working copy "in use right now" - a lock or lease still standing - which they never
+// do when this class runs by itself (six runs, also with garbage collection made rare) or beside the archive storage
+// tests (four runs). FileCat says "look again in a moment" for that state; these cases judge exact states, so they run
+// with no other test beside them.
+[CollectionDefinition("Unix edit storage", DisableParallelization = true)]
+public sealed class UnixEditStorageCollection;
+
+[Collection("Unix edit storage")]
 public sealed class UnixEditStorageTests
 {
     [Fact]
