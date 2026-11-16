@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia;
@@ -25,6 +26,11 @@ public sealed class ColumnOwnershipBaselineTests
         if (string.IsNullOrEmpty(output)) Assert.Skip("Set FILECAT_COLUMN_BASELINE_OUT to capture the bounded performance run.");
         bool diagnostic = Environment.GetEnvironmentVariable("FILECAT_COLUMN_BASELINE_MODE") == "diagnostic";
         bool reuseTarget = Environment.GetEnvironmentVariable("FILECAT_COLUMN_REUSE_TARGET") == "1";
+        bool paintProfile = Environment.GetEnvironmentVariable("FILECAT_COLUMN_BASELINE_MODE") == "paint-profile";
+        using var currentProcess = Process.GetCurrentProcess();
+        if (OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable("FILECAT_COLUMN_CPU_MASK") is { Length: > 0 } mask)
+            currentProcess.ProcessorAffinity = (nint)Convert.ToInt64(mask, 16);
+        double calibrationBefore = Calibrate();
         string root = Path.Combine(Path.GetTempPath(), "filecat-column-baseline-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         var samples = new List<object>();
@@ -32,7 +38,7 @@ public sealed class ColumnOwnershipBaselineTests
         {
             using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
             var inner = services.Providers.Get(Schemes.FileSystem);
-            foreach (int count in new[] { 100_000, 1_000_000 })
+            foreach (int count in paintProfile ? new[] { 1_000_000 } : new[] { 100_000, 1_000_000 })
             {
                 services.Providers.Register(new SyntheticListingProvider(inner, root, count));
                 var workspace = new WorkspaceViewModel(services);
@@ -59,6 +65,9 @@ public sealed class ColumnOwnershipBaselineTests
                     window.CaptureRenderedFrame()?.Dispose();
                     if (count == 1_000_000)
                     {
+                        samples.Add(new { check = "scene", fonts = lists.Select(l => new { l.FontSize, family = l.FontFamily.Name,
+                            l.VisibleRowCapacity, bounds = l.Bounds.ToString() }).ToArray(),
+                            columns = tabs[0].Columns.Select(c => new { field = c.Field.ToString(), c.MetadataId, c.Width, c.Star }).ToArray() });
                         using var target = reuseTarget ? new RenderTargetBitmap(new PixelSize(1920, 900)) : null;
                         for (int run = -1; run < 5; run++)
                         {
@@ -97,7 +106,10 @@ public sealed class ColumnOwnershipBaselineTests
                                 renderAllocatedBytes = allocated, allocatedBytes, memory = Memory() });
                             Assert.Equal(960, times.Count);
                         }
+                        if (target is not null && Environment.GetEnvironmentVariable("FILECAT_COLUMN_PROFILE_IMAGE") is { Length: > 0 } shot)
+                            target.Save(shot, PngBitmapEncoderOptions.Default);
                     }
+                    if (paintProfile) continue;
                     // Immutable fake cached keys isolate the actual listing pipeline/comparer cost. O5 adds
                     // metadata-service snapshot/retention measurements; this is not a live-cache benchmark.
                     IComparable[] keys = Enumerable.Range(0, count).Select(i => (IComparable)((i * 17L) % 64)).ToArray();
@@ -149,9 +161,24 @@ public sealed class ColumnOwnershipBaselineTests
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output!))!);
             File.WriteAllText(output!, JsonSerializer.Serialize(new { utc = DateTime.UtcNow, runtime = Environment.Version.ToString(),
                 os = Environment.OSVersion.ToString(), processors = Environment.ProcessorCount, diagnostic, reuseTarget,
+                cpuMask = Environment.GetEnvironmentVariable("FILECAT_COLUMN_CPU_MASK"),
+                tieredCompilation = Environment.GetEnvironmentVariable("DOTNET_TieredCompilation"),
+                calibrationBeforeMs = calibrationBefore, calibrationAfterMs = Calibrate(),
                 label = Environment.GetEnvironmentVariable("FILECAT_COLUMN_BASELINE_LABEL"), samples }, new JsonSerializerOptions { WriteIndented = true }));
         }
         finally { Directory.Delete(root, recursive: true); }
+    }
+
+    // Independent, allocation-free work records processor throughput on either side of the workload.
+    // Its result is checked so the JIT cannot discard the loop; it never normalizes acceptance metrics.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static double Calibrate()
+    {
+        var time = Stopwatch.StartNew();
+        ulong value = 1;
+        for (int i = 0; i < 20_000_000; i++) value = unchecked(value * 6364136223846793005UL + 1442695040888963407UL);
+        Assert.NotEqual(0UL, value);
+        return time.Elapsed.TotalMilliseconds;
     }
 
     private static double Percentile(List<double> values, double p)

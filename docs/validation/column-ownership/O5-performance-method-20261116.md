@@ -52,3 +52,19 @@ a current-thread allocation test covers 10,000 canonical SID comparisons. To lea
 the observation pass uses a quarter of the shared character ceiling, while final ordering charges copied references
 and the bounded name map against the remaining total. This is a conservative allocation share, not a promised row
 count. A shrunken long-SID test proves that filling observation retention cannot strand the order with no key space.
+
+## Processor-placement diagnosis (declared before measurement)
+
+The final reusable-target pair still missed PF1 and five PF3 timing cases, despite effectively identical PF1 allocations.
+Both paint-only sampled-thread-time traces show the same drawing stacks and byte-identical PNGs (SHA256
+A1C97E0FDC89E94E7759D57F767378C3BEBC69261559D7AF9026149D442C5581). The candidate/control render source is unchanged
+since O4. These observations do not themselves excuse the timing failures. The host is an AMD Ryzen 9 5900X,
+12 cores/24 logical processors. Uncontrolled process placement and tiered JIT remain possible causes.
+
+One bounded control/candidate/candidate/control set will use the identical full fixture, a fixed process affinity
+0x555555 (the same twelve logical processors on both builds), and DOTNET_TieredCompilation=0, avoiding changing JIT
+tiers during measurement. No system power, affinity of other processes or scheduling priority is changed. A checked,
+allocation-free 20-million-iteration integer calibration before/after each process records throughput; it does not
+normalize or excuse any metric. Each process keeps the original warm-up and five samples. Compare pooled ten-sample
+medians for each case, preserving all four runs and all earlier misses. All timing, allocation and reservation bands
+remain unchanged. This diagnoses reproducibility; no native compositor/input latency claim follows.
