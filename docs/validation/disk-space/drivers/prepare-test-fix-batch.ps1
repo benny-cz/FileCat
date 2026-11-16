@@ -55,7 +55,7 @@ foreach($platform in 'windows','mac','linux'){
  $extension=if($platform-eq'windows'){'ps1'}else{'sh'}
  $template=if($platform-eq'windows'){$WindowsTemplate}else{$UnixTemplate}
  $core=if(Test-Path -LiteralPath (Join-Path $old 'tests/FileCat.Core.Tests/bin/Debug/net10.0')){'tests/FileCat.Core.Tests/bin/Debug/net10.0'}else{'core'}
- $runner=[IO.File]::ReadAllText((Join-Path $PWD $template)).Replace('@CORE@',$core)
+ $runner=[IO.File]::ReadAllText((Join-Path $PWD $template)).Replace("`r`n","`n").Replace('@CORE@',$core)
  if($platform-eq'windows'-and$platform-in$ReusePlatforms){
   $delta=Join-Path $PWD ('.tmp/test-fix-delta-'+$Revision);New-Item -ItemType Directory -Path $delta|Out-Null
   foreach($relative in $changed){$target=Join-Path $delta ('patch/'+$relative);New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($target)) -Force|Out-Null;Copy-Item -LiteralPath (Join-Path $stage $relative) -Destination $target}

@@ -31,7 +31,7 @@ public sealed partial class DiskSpaceWindow
                 "Export both complete captured inventories and applied comparison settings to a reviewed local folder. Exact raw names and locations are included; source files are not opened.");
             _comparisonExport.IsVisible = Model.HistoryServices is not null;
             _comparisonReportExport = ActionButton("Export comparison report…", () => _ = ExportComparisonReportAsync(),
-                "Export the captured comparison as Markdown, inert HTML or spreadsheet-safe CSV. Review its scope and path omission before choosing a destination.");
+                "Export the captured comparison as Markdown, inert HTML, spreadsheet-safe CSV, or the selected chart as PNG/SVG. Review its scope and path omission before choosing a destination.");
             _comparisonReportExport.IsVisible = Model.HistoryServices is not null;
             footer.Children.Add(_comparisonSave); footer.Children.Add(_comparisonExport); footer.Children.Add(_comparisonReportExport); footer.Children.Add(_comparisonPersistenceStatus); RefreshComparisonPersistence();
         }

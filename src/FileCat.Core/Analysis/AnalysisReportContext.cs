@@ -3,6 +3,10 @@ using System.Collections.Immutable;
 namespace FileCat.Core.Analysis;
 
 public sealed record AnalysisReportFilterContext(string Query, bool? CaseSensitive, bool UnknownOnly, bool? RootScoped);
+/// <summary>Captured comparison captions only; identities are checked against the chart and never grant source authority.</summary>
+public sealed record AnalysisComparisonChartContext(SessionIdentity Previous, SessionIdentity Current, bool PreviousSide,
+    NamespaceCoverage PreviousCoverage, NamespaceCoverage CurrentCoverage, AnalysisFreshness PreviousFreshness,
+    AnalysisFreshness CurrentFreshness, AnalysisTaint Taint, AnalysisComparisonCompatibility Compatibility, bool Structural);
 public sealed record AnalysisReportOrder(AnalysisTableSort Sort, bool Descending)
 {
     internal static AnalysisReportOrder Folder(AnalysisHierarchySort sort, bool descending) => new(sort switch

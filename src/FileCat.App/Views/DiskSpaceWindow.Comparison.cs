@@ -73,7 +73,7 @@ public sealed partial class DiskSpaceWindow
             foreach (var child in Children) child.IsVisible = false;
             var heading = _comparisonHeading = new StackPanel { Spacing = 7, Margin = new Thickness(10, 5) };
             heading.Children.Add(SessionText("Compare observations · " + ComparisonMetric(comparison.Metric), 20));
-            heading.Children.Add(SessionText("Export the captured comparison as a report or a complete machine bundle. Chart-image export currently requires an individual analysis."));
+            heading.Children.Add(SessionText("Export captured comparison reports, the selected recorded chart, or a complete machine bundle. Chart areas show one recorded side; growth colors describe observed differences."));
             heading.Children.Add(SessionText("Saved previous: " + AnalysisNames.Display(Model.ComparisonPreviousName ?? "", 240)));
             AddComparisonMetric(heading, comparison.Metric);
             var details = new StackPanel { Spacing = 7 };

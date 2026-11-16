@@ -84,14 +84,14 @@ public sealed class AnalysisCapturedComparisonReport : AnalysisCapturedOutput
             $"Same policy: {compatible.SamePolicy}; same basis: {compatible.SameBasis}; same scope: {compatible.SameScope}; verified identity context: {compatible.VerifiedIdentityContext}. " +
             $"Previous coverage: {previous.Coverage}; freshness: {previous.Freshness}. Current coverage: {current.Coverage}; freshness: {current.Freshness}. " +
             $"Full input totals (not sums of displayed rows): previous {Totals(_summary.PreviousTotals)}; current {Totals(_summary.CurrentTotals)}; net observed change {Delta(_summary.NetChange)}. " +
-            $"Cohort: {View.Cohort}; order: {View.Order}; query side: {View.QuerySide}; uncertain query cohort: {View.ShowUnknown}. " +
+            $"Cohort: {View.Cohort}; order: {View.Order}; query side: {View.QuerySide}; case sensitive: {View.CaseSensitive}; uncertain query cohort: {View.ShowUnknown}. " +
             "Query: " + (redact ? "omitted" : AnalysisHumanReport.Safe(View.Query.Length == 0 ? "none" : View.Query)) + ". " +
             $"Declared item rows: {Rows}; matching accounting rows: {MatchingRows}. " +
             (DetailLimited ? "Detail is limited to the first 5,000 ranked rows; choose full-result CSV for all accounting rows. " : "") +
             (redact ? "Names, paths, source identifiers and query text are omitted throughout. " : "Sensitive displayed paths are included; exact raw values remain in machine inventories. ") +
             (_owner!.Taint.HasFlag(AnalysisTaint.PrivilegedDerived) ? "Contains privileged-derived observations. " : "") +
             (_owner.Taint.HasFlag(AnalysisTaint.ImportedUnverified) ? "Contains imported, unverified observations. " : "") +
-            "Shared aliases stay in one accounting row. Attribution movement is not new consumption or freed storage. Unknown values are not zero; unchanged metadata does not prove unchanged contents. No separate insight results or file contents are included. Reports do not authenticate sources or grant file actions.";
+            "Shared aliases stay in one accounting row. Attribution movement is not new consumption or freed storage. Unknown values are not zero; unchanged metadata does not prove unchanged contents. Paths are escaped display text and may be abbreviated. No separate insight results or file contents are included. Reports do not authenticate sources or grant file actions.";
         string[] headings = ["Change", "Previous paths", "Current paths", "Previous value / state", "Current value / state", "Signed difference", "Relative change", "Evidence", "Notes"];
         if (Format == AnalysisReportFormat.Csv)
         {

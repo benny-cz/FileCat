@@ -15,17 +15,33 @@ internal sealed class AnalysisCapturedChart : AnalysisCapturedOutput
     private const long Budget = AnalysisLimits.MemoryBytes / 4;
     private static long s_reserved;
     private long _reservation;
-    private AnalysisCapturedReport? _source;
+    private IAsyncDisposable? _source;
     private MemoryStream? _encoded;
     private readonly AnalysisChartFormat _format;
     private readonly bool _redacted;
     internal static long ReservedBytes => Interlocked.Read(ref s_reserved);
-    private AnalysisCapturedChart(DeviceIoScheduler io, AnalysisCapturedReport source, AnalysisChartFormat format, bool redacted, long reservation)
+    private AnalysisCapturedChart(DeviceIoScheduler io, IAsyncDisposable source, AnalysisChartFormat format, bool redacted, long reservation)
         : base(io, null) { _source = source; _format = format; _redacted = redacted; _reservation = reservation; }
 
     // Ownership of source transfers on success. On failure the caller still owns it.
-    internal static async Task<AnalysisCapturedChart> CaptureAsync(DeviceIoScheduler io, AnalysisCapturedReport source, AnalysisChartControl chart,
+    internal static Task<AnalysisCapturedChart> CaptureAsync(DeviceIoScheduler io, AnalysisCapturedReport source, AnalysisChartControl chart,
         AnalysisChartFormat format, int width, int height, bool redact, CancellationToken cancellation)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return CaptureCoreAsync(io, source, source.Header, chart, format, width, height, redact, null, cancellation);
+    }
+
+    // Both owners transfer only after the scene is completely encoded. Failure leaves them with the caller.
+    internal static Task<AnalysisCapturedChart> CaptureComparisonAsync(DeviceIoScheduler io, AnalysisCapturedReport source,
+        IAsyncDisposable comparisonOwner, AnalysisChartControl chart, AnalysisComparisonChartContext comparison,
+        AnalysisChartFormat format, int width, int height, bool redact, CancellationToken cancellation)
+    {
+        ArgumentNullException.ThrowIfNull(source); ArgumentNullException.ThrowIfNull(comparisonOwner); ArgumentNullException.ThrowIfNull(comparison);
+        return CaptureCoreAsync(io, new ComparisonOwners(source, comparisonOwner), source.Header, chart, format, width, height, redact, comparison, cancellation);
+    }
+
+    private static async Task<AnalysisCapturedChart> CaptureCoreAsync(DeviceIoScheduler io, IAsyncDisposable source, AnalysisReportHeader header, AnalysisChartControl chart,
+        AnalysisChartFormat format, int width, int height, bool redact, AnalysisComparisonChartContext? comparison, CancellationToken cancellation)
     {
         Dispatcher.UIThread.VerifyAccess(); ArgumentNullException.ThrowIfNull(source); ArgumentNullException.ThrowIfNull(chart);
         AnalysisChartScene.ValidateSize(width, height); if (!Enum.IsDefined(format)) throw new ArgumentOutOfRangeException(nameof(format));
@@ -40,7 +56,7 @@ internal sealed class AnalysisCapturedChart : AnalysisCapturedOutput
         var captured = new AnalysisCapturedChart(io, source, format, redact, reservation);
         try
         {
-            var scene = chart.CaptureExportScene(source.Header, width, height, redact);
+            var scene = chart.CaptureExportScene(header, width, height, redact, comparison);
             int limit = checked((int)(format == AnalysisChartFormat.Png ? (long)width * height * 5 + 65536 : 8L * 1024 * 1024));
             var encoded = captured._encoded = new LimitedImageStream(limit);
             if (format == AnalysisChartFormat.Svg)
@@ -79,10 +95,21 @@ internal sealed class AnalysisCapturedChart : AnalysisCapturedOutput
     }
     protected override async ValueTask ReleaseAsync()
     {
-        var source = _source; _source = null;
-        if (source is not null) await source.DisposeAsync().ConfigureAwait(false);
-        _encoded?.Dispose(); _encoded = null;
-        long reservation = Interlocked.Exchange(ref _reservation, 0); Interlocked.Add(ref s_reserved, -reservation);
+        var source = _source; _source = null; Exception? failure = null;
+        try { if (source is not null) await source.DisposeAsync().ConfigureAwait(false); } catch (Exception error) { failure = error; }
+        try { _encoded?.Dispose(); } catch (Exception error) { failure = failure is null ? error : new AggregateException(failure, error); }
+        finally { _encoded = null; long reservation = Interlocked.Exchange(ref _reservation, 0); Interlocked.Add(ref s_reserved, -reservation); }
+        if (failure is not null) throw AnalysisCloseUnconfirmedException.From(failure);
+    }
+    private sealed class ComparisonOwners(AnalysisCapturedReport report, IAsyncDisposable comparison) : IAsyncDisposable
+    {
+        public async ValueTask DisposeAsync()
+        {
+            Exception? failure = null;
+            try { await report.DisposeAsync().ConfigureAwait(false); } catch (Exception error) { failure = error; }
+            try { await comparison.DisposeAsync().ConfigureAwait(false); } catch (Exception error) { failure = failure is null ? error : new AggregateException(failure, error); }
+            if (failure is not null) throw AnalysisCloseUnconfirmedException.From(failure);
+        }
     }
     private sealed class LimitedImageStream : MemoryStream
     {

@@ -33,7 +33,7 @@ public sealed partial class DiskSpaceViewModel
     internal AnalysisComparisonQueryResult? TakeRestoredComparisonQuery()
     { var result = _restoredComparisonQuery; _restoredComparisonQuery = null; return result; }
 
-    internal sealed class ComparisonCapture : IDisposable
+    internal sealed class ComparisonCapture : IDisposable, IAsyncDisposable
     {
         internal readonly AnalysisSnapshotLease Previous, Current;
         private readonly AnalysisComparisonResult.ReadLease _rows;
@@ -53,6 +53,7 @@ public sealed partial class DiskSpaceViewModel
             catch { rows?.Dispose(); now?.Dispose(); before?.Dispose(); throw; }
         }
         public void Dispose() { try { _rows.Dispose(); } finally { try { Previous.Dispose(); } finally { Current.Dispose(); } } }
+        public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
     }
     internal ComparisonCapture CaptureComparison(bool forExport = false)
     {

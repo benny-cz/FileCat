@@ -122,6 +122,7 @@ public sealed partial class AnalysisRenderingTests
         await report.ExportNewAsync(name, PathUtil.GetDeviceKey(folder), Destination, redact, token);
         string text = File.ReadAllText(Path.Combine(folder, name));
         Assert.Contains("Previous observations UTC", text); Assert.Contains("current observations UTC", text); Assert.Contains("Full input totals", text);
+        Assert.Contains("case sensitive: False", text); Assert.Contains("may be abbreviated", text);
         Assert.Contains("not zero", text); Assert.Contains("131072", text); Assert.Contains("Growing", text); Assert.DoesNotContain("\u202e", text, StringComparison.Ordinal);
         if (redact) { Assert.DoesNotContain("COMPARISONSECRET", text); Assert.DoesNotContain("/fixture", text); Assert.DoesNotContain("render-fixture", text); }
         else Assert.Contains("COMPARISONSECRET", text);

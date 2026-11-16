@@ -17,6 +17,7 @@ public sealed class AnalysisComparisonChart : IAnalysisChartData, IDisposable
     public AnalysisMetric Metric { get; }
     public DateTimeOffset ObservedUtc { get; }
     public bool Previous { get; }
+    internal SessionIdentity Identity => (_snapshot ?? throw new ObjectDisposedException(nameof(AnalysisComparisonChart))).Snapshot.Identity;
     public ImmutableDictionary<string, AnalysisTreeItem> Items { get; private set; }
     private AnalysisComparisonChart(AnalysisSnapshotLease snapshot, AnalysisComparisonResult.ReadLease reader,
         AnalysisTree tree, bool previous, ImmutableDictionary<ulong, int> rowByNode, ImmutableDictionary<string, AnalysisTreeItem> items)
@@ -87,6 +88,9 @@ public sealed class AnalysisComparisonChart : IAnalysisChartData, IDisposable
         finally { reader?.Dispose(); snapshot?.Dispose(); }
     }
     private AnalysisTree Tree => _tree ?? throw new ObjectDisposedException(nameof(AnalysisComparisonChart));
+    internal Task<AnalysisCapturedMemoryReport> CaptureReportAsync(Threading.DeviceIoScheduler io, string scope, CancellationToken cancellation) =>
+        AnalysisCapturedMemoryReport.CaptureAsync(_snapshot ?? throw new ObjectDisposedException(nameof(AnalysisComparisonChart)), Tree, io,
+            AnalysisReportFormat.Csv, AnalysisReportScope.FilteredView, scope, cancellation: cancellation);
     public string ParentOf(string key) => Tree.ParentOf(key);
     public string NameOf(string key) => Tree.NameOf(key);
     public UInt128 ScopeValue(string key) => Tree.ScopeValue(key);
