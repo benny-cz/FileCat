@@ -19,7 +19,7 @@ public sealed partial class MetadataService
         lock (_publicationLock)
         {
             var claim = new SnapshotClaim(this, fieldId, origin, _publicationRevision);
-            if (_snapshots.Count < _maxSnapshots) _snapshots.Add(claim);
+            if (!_disposed && _snapshots.Count < _maxSnapshots) _snapshots.Add(claim);
             else claim.Retire(new MetadataPublication(fieldId, null, _publicationRevision, null));
             return claim;
         }

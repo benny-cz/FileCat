@@ -134,7 +134,8 @@ public sealed class AppServices : IDisposable
             ShellPictures = new FileCat.Platform.Windows.Shell.ShellPreviews(new FileCat.Platform.Windows.Shell.ShellHostClient(shellHelper), () => Settings.ShellPicturesOnNetworkAndRemovable);
         EditSessions = editSessionFactory is null ? ProductionEditSessions(paths, Platform.FileOperations)
             : editSessionFactory(paths,Platform.FileOperations);
-        Metadata = new Core.Metadata.MetadataService(Io);
+        PrincipalNames = new PrincipalNames(Platform.Ownership);
+        Metadata = new Core.Metadata.MetadataService(Io, Platform.Ownership, PrincipalNames);
         // Checksums and signatures beside files (D-57): results kept in the cache folder; trusted minisign keys in the keys
         // folder (made now, so the advice that names it points to a folder that is there).
         try { Directory.CreateDirectory(KeyDirectory); }
@@ -164,6 +165,7 @@ public sealed class AppServices : IDisposable
     public Controls.ColumnProfileSet Columns { get; }
 
     public Core.Metadata.MetadataService Metadata { get; }
+    public PrincipalNames PrincipalNames { get; }
 
     public FileCat.Recovery.RecoveryProvider Recovery { get; }
 
@@ -524,6 +526,8 @@ public sealed class AppServices : IDisposable
         WorkingSets.Dispose();
         ShellPictures?.Dispose();
         Sftp.Dispose();
+        Metadata.Dispose();
+        PrincipalNames.Dispose();
         Io.Dispose();
         Platform.Dispose();
     }

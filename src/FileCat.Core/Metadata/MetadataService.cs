@@ -68,13 +68,16 @@ public sealed record MetadataField(
 /// coalesced, cached by path + revision + field, and requests for rows scrolled away are dropped. Zero or
 /// empty text is a real value; "pending", "absent", and "unsupported" are states, never fabricated values.
 /// </summary>
-public sealed partial class MetadataService
+public sealed partial class MetadataService : IDisposable
 {
     private const int MaxCache = 50_000;
     private const int MaxOutstandingPerDevice = 4;
     private readonly DeviceIoScheduler _io;
     private readonly Func<long> _milliseconds;
     private readonly int _maxCache;
+    private readonly bool _ownsNames;
+    private bool _disposed;
+    public PrincipalNames? Names { get; }
     private readonly ConcurrentDictionary<string, MetadataValue> _cache = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, long> _producedAt = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<string> _order = new();
@@ -97,7 +100,11 @@ public sealed partial class MetadataService
 
     public MetadataService(DeviceIoScheduler io) : this(io, () => Environment.TickCount64) { }
 
-    internal MetadataService(DeviceIoScheduler io, Func<long> milliseconds, int maxCache = MaxCache, int maxSnapshots = 64)
+    public MetadataService(DeviceIoScheduler io, IOwnership ownership, PrincipalNames names)
+        : this(io, () => Environment.TickCount64, ownership: ownership, names: names) { }
+
+    internal MetadataService(DeviceIoScheduler io, Func<long> milliseconds, int maxCache = MaxCache, int maxSnapshots = 64,
+        IOwnership? ownership = null, PrincipalNames? names = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(maxCache, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxSnapshots, 1);
@@ -106,6 +113,15 @@ public sealed partial class MetadataService
         _maxCache = maxCache;
         _maxSnapshots = maxSnapshots;
         foreach (var f in BuiltInFields.All) _fields[f.Id] = f;
+        if (ownership is not null || !OperatingSystem.IsWindows())
+        {
+            ownership ??= OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new UnixOwnership() : new NoOwnership();
+            Names = names ?? new PrincipalNames(ownership);
+            _ownsNames = names is null;
+            if (_fields.ContainsKey("owner")) Register(OwnershipFields.CreateOwner(ownership, Names));
+            if (_fields.ContainsKey("group")) Register(OwnershipFields.CreateGroup(ownership, Names));
+            Names.Changed += NotifyValuesChanged;
+        }
     }
 
     /// <summary>Raised (throttled, on a pool thread) when new values are available.</summary>
@@ -161,6 +177,7 @@ public sealed partial class MetadataService
     private bool TryEligibleField(string fieldId, in EntryData entry, out MetadataField? field, out MetadataValue rejection)
     {
         rejection = MetadataValue.Absent;
+        if (Volatile.Read(ref _disposed)) { field = null; rejection = new(MetadataState.NotRequested); return false; }
         if (!_fields.TryGetValue(fieldId, out field))
             rejection = new MetadataValue(MetadataState.Unsupported, Detail: "Unknown field.");
         else if (!Applies(field, entry)) return false;
@@ -303,6 +320,7 @@ public sealed partial class MetadataService
         lock (_publicationLock)
         {
             production.HadAvailableValue = _cache.TryGetValue(key, out var before) && before.State == MetadataState.Available;
+            production.Current = !_disposed;
             _productions.Add(production);
         }
         return production;
@@ -349,12 +367,14 @@ public sealed partial class MetadataService
 
     private void Notify()
     {
+        if (Volatile.Read(ref _disposed)) return;
         if (Interlocked.Exchange(ref _notifyPending, 1) == 1) return;
         ThreadPool.QueueUserWorkItem(_ =>
         {
             Thread.Sleep(120);
             Interlocked.Exchange(ref _notifyPending, 0);
-            ValuesChanged?.Invoke();
+            lock (_publicationLock)
+                if (!_disposed) ValuesChanged?.Invoke();
         });
     }
 
@@ -460,6 +480,26 @@ public sealed partial class MetadataService
         }
         Notify();
     }
+
+    public void Dispose()
+    {
+        lock (_publicationLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            ValuesChanged = null;
+            RetireSnapshots(null, null, null);
+            foreach (var production in _productions) production.Current = false;
+            _cache.Clear();
+            _producedAt.Clear();
+            _order.Clear();
+        }
+        if (Names is not null)
+        {
+            Names.Changed -= NotifyValuesChanged;
+            if (_ownsNames) Names.Dispose();
+        }
+    }
 }
 
 /// <summary>First-party fields with bounded, managed parsing (no native parsers in-process; plan §6.2).</summary>
@@ -499,18 +539,19 @@ public static class BuiltInFields
         (p, _) => UnixPermissions.Stat(p)?.Mode,
         v => v is UnixFileMode m ? UnixPermissions.Format(m) : string.Empty,
         SortKey: v => v is UnixFileMode m ? (int)m : null,
-        Folders: true, RefreshAfter: TimeSpan.FromSeconds(5));
+        Folders: true, RefreshAfter: TimeSpan.FromSeconds(5),
+        Detail: v => v is UnixFileMode mode ? $"Octal {UnixPermissions.Octal(mode)} · mode bits only; an ACL or the mount can allow or deny more." : string.Empty);
 
     public static readonly MetadataField Owner = new("owner", "Owner", MetadataCost.Cheap,
         _ => true,
-        (p, _) => UnixPermissions.Stat(p) is { } s ? UnixPermissions.UserName(s.Uid) : null,
-        v => v as string ?? string.Empty,
+        (_, _) => new MetadataValue(MetadataState.Unsupported, Detail: "An ownership source is required."),
+        v => v is Principal p ? p.DisplayId : string.Empty,
         Folders: true, RefreshAfter: TimeSpan.FromSeconds(5));
 
     public static readonly MetadataField Group = new("group", "Group", MetadataCost.Cheap,
         _ => true,
-        (p, _) => UnixPermissions.Stat(p) is { } s ? UnixPermissions.GroupName(s.Gid) : null,
-        v => v as string ?? string.Empty,
+        (_, _) => new MetadataValue(MetadataState.Unsupported, Detail: "An ownership source is required."),
+        v => v is Principal p ? p.DisplayId : string.Empty,
         Folders: true, RefreshAfter: TimeSpan.FromSeconds(5));
 
     /// <summary>Where a file came from: Windows zones; the quarantine mark on macOS; a browser's origin URL on Linux.</summary>
