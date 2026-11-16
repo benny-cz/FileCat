@@ -67,7 +67,14 @@ public sealed partial class UnixArchiveStorageTests
         using (var view = binding.File.OpenReadView(binding.Reviewed, ct)) Assert.Equal(1, view.ReadByte());
         if (ancestor)
         { Directory.Move(child, child + "-retired"); Directory.CreateDirectory(child); File.WriteAllBytes(Path.Combine(child, "file"), [1, 2, 3]); }
-        else File.WriteAllBytes(Path.Combine(child, "file"), [9, 9, 9]);
+        else
+        {
+            // The reopen judges identity and metadata, not content: each writer checks the bytes' SHA-256 as it reads them. A
+            // rewrite of the same length inside one tick of the file system's clock can keep every timestamp (hosted Windows
+            // ARM64 failed this case so, run 43785533121); an edit made later carries a later time, as this one now does.
+            string changed = Path.Combine(child, "file"); var before = File.GetLastWriteTimeUtc(changed);
+            File.WriteAllBytes(changed, [9, 9, 9]); File.SetLastWriteTimeUtc(changed, before.AddSeconds(2));
+        }
         Assert.ThrowsAny<IOException>(() => { using var view = binding.File.OpenReadView(binding.Reviewed, ct); _ = view.ReadByte(); });
         if (ancestor) Assert.ThrowsAny<IOException>(() => { foreach (var directory in selection.Inputs.Directories.Values) directory.Review(ct); });
     }
