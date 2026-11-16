@@ -830,6 +830,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             e.Handled = true;
             return;
         }
+        // Menus own their navigation and activation keys before panel shortcuts or quick search see them.
+        if (FocusManager?.GetFocusedElement() is MenuItem) return;
         if (!_dialogs.IsOpen && HandlePanelResizeKey(e)) return;
         if (KeyMapper.IsModifierKey(e.Key))
         {
@@ -1022,7 +1024,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 return;
             }
         }
-        if (_dialogs.IsOpen || FocusManager?.GetFocusedElement() is TextBox) return;
+        if (_dialogs.IsOpen || FocusManager?.GetFocusedElement() is TextBox or MenuItem) return;
         var text = e.Text;
         var tab = _vm.ActiveTab;
         if (tab is null || string.IsNullOrEmpty(text) || text.Any(char.IsControl)) return;
