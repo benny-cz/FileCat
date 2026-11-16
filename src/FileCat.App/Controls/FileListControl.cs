@@ -65,7 +65,11 @@ public sealed partial class FileListControl : Control
     private readonly Dictionary<long, CellText> _textCache = new();
     // Only cells in the most recently drawn viewport. Pointer hover never starts provider or metadata work.
     private readonly Dictionary<(int Row, int Column), RenderedCell> _renderedCells = new();
-    private sealed record RenderedCell(int StoreIndex, string Name, EntryKind Kind, string Text, bool Clipped);
+    private sealed record RenderedCell(int StoreIndex, string Name, EntryKind Kind, string Text, bool Clipped,
+        string? Detail = null, bool NeedsExplanation = false, bool SuppressTooltip = false);
+    private readonly Dictionary<int, MetadataRowContext> _metadataContexts = [];
+    private MetadataRowContext? _focusedMetadataContext;
+    private EntryStore? _inspectionStore;
     private SimpleGlyphs? _glyphs;
     private SimpleGlyphs? _boldGlyphs;
 
@@ -549,6 +553,7 @@ public sealed partial class FileListControl : Control
         if (change.Property == TabProperty)
         {
             ClearPictureThumbnails();
+            ClearMetadataContexts();
             _wheelRows.Reset();
             _sortReveal = null;
             _viewportIntentGeneration++;
@@ -845,6 +850,7 @@ public sealed partial class FileListControl : Control
             // thumbnail key (item, size, modification time). Only navigation resets it.
             if ((change & ListingChange.Reset) != 0) ClearPictureThumbnails();
             _renderedCells.Clear();
+            if (!ReferenceEquals(_inspectionStore, _listing?.Store)) ClearMetadataContexts();
             ClearTip();
         }
         if ((change & ListingChange.Focus) != 0 && (change & ListingChange.Rows) == 0)
@@ -1190,6 +1196,9 @@ public sealed partial class FileListControl : Control
     private void RenderCore(DrawingContext dc)
     {
         _renderedCells.Clear();
+        _metadataContexts.Clear();
+        if (!ReferenceEquals(_inspectionStore, _listing?.Store)) ClearMetadataContexts();
+        _inspectionStore = _listing?.Store;
         // Icons are made for the pixels this display gives a 16-point icon (crisp at 125%, 150%, 200%).
         Tab?.Services.Icons.SetScale(TopLevel.GetTopLevel(this)?.RenderScaling ?? 1);
         var bounds = new Rect(Bounds.Size);
@@ -1221,13 +1230,14 @@ public sealed partial class FileListControl : Control
             int focused = listing.FocusedIndex;
             var visible = new HashSet<int>();
             for (int row = _topRow; row < Math.Min(count, _topRow + cap); row++)
-            {
                 visible.Add(listing.GetStoreIndex(row));
+            if (Tab is { } demandTab) demandTab.VisibleStoreIndices = visible;
+            for (int row = _topRow; row < Math.Min(count, _topRow + cap); row++)
+            {
                 double y = _headerHeight + (row - _topRow) * _rowHeight;
                 RenderRow(dc, listing, row, y, contentWidth, row == focused, active);
             }
             RenderEmptyState(dc, listing, count, contentWidth, bounds.Height);
-            if (Tab is { } tab) tab.VisibleStoreIndices = visible;
         }
     }
 
@@ -1286,6 +1296,18 @@ public sealed partial class FileListControl : Control
             : ReferenceEquals(textBrush, _archive) ? 5 : ReferenceEquals(textBrush, _exec) ? 6
             : ReferenceEquals(textBrush, _compressed) ? 7 : ReferenceEquals(textBrush, _encrypted) ? 8 : 0;
         var typeface = marked ? _boldTypeface : _typeface;
+        MetadataRowContext? metadataContext = null;
+        MetadataCellPresentation MetadataCell(string id)
+        {
+            if (Tab is not { } owner) return MetadataCellPresentation.Inapplicable;
+            var cell = owner.MetadataPresentation(e, storeIndex, id, metadataContext, demand: true, out metadataContext);
+            if (metadataContext is not null)
+            {
+                _metadataContexts[storeIndex] = metadataContext;
+                if (focused) _focusedMetadataContext = metadataContext;
+            }
+            return cell;
+        }
 
         using (dc.PushTransform(Matrix.CreateTranslation(-_horizontalOffset, 0)))
         for (int i = 0; i < _columns.Length; i++)
@@ -1293,7 +1315,12 @@ public sealed partial class FileListControl : Control
             var c = _columns[i];
             double colX = _columnX[i];
             double colW = _columnW[i];
-            if (colX + colW < _horizontalOffset || colX > _horizontalOffset + width) continue;
+            if (colX + colW < _horizontalOffset || colX > _horizontalOffset + width)
+            {
+                // Only the focused row that is being painted has this horizontal demand exception.
+                if (focused && c.Field == ColumnField.Metadata && c.MetadataId is { } hiddenId) _ = MetadataCell(hiddenId);
+                continue;
+            }
             double textX = colX + Padding;
             double avail = colW - 2 * Padding;
             if (i == 0)
@@ -1331,13 +1358,14 @@ public sealed partial class FileListControl : Control
             if (c.Field == ColumnField.Metadata && c.MetadataId is { } metadataId)
             {
                 // Metadata changes state (pending -> value), so it is not cached with the static cells.
-                bool pending = false;
-                var mtext = Tab is { } owner ? Formatters.SafeName(owner.GetMetadataText(e, storeIndex, metadataId, out pending)) : string.Empty;
+                var cell = MetadataCell(metadataId);
+                bool pending = cell.State == Core.Metadata.MetadataState.Pending;
+                var mtext = Formatters.SafeName(cell.Text);
                 if (mtext.Length == 0) continue;
                 using var mft = MakeText(mtext, pending ? _muted : textBrush, typeface, avail);
                 double mx = c.RightAlign ? colX + colW - Padding - mft.Width : textX;
                 mft.Draw(dc, new Point(mx, y + (_rowHeight - mft.Height) / 2));
-                _renderedCells[(row, i)] = new RenderedCell(storeIndex, e.Name, e.Kind, mtext, mft.IsTruncated);
+                _renderedCells[(row, i)] = new RenderedCell(storeIndex, e.Name, e.Kind, mtext, mft.IsTruncated, cell.Detail, cell.NeedsExplanation, pending);
                 continue;
             }
             long key = ((long)storeIndex << 16) | ((long)i << 8) | (uint)style;
@@ -1833,8 +1861,8 @@ public sealed partial class FileListControl : Control
                 tip = tip is null ? gitLabel : tip + "\n" + gitLabel;
             if (tip is null && _renderedCells.TryGetValue((row, col), out var cell) &&
                 cell.StoreIndex == listing.GetStoreIndex(row) && cell.Name == entry.Name && cell.Kind == entry.Kind &&
-                cell.Clipped)
-                tip = CellTip(entry, _columns[col], cell.Text);
+                !cell.SuppressTooltip && cell.Text.Length > 0 && (cell.Clipped || cell.NeedsExplanation))
+                tip = CellTip(entry, _columns[col], cell.Text) + (string.IsNullOrEmpty(cell.Detail) ? "" : "\n" + cell.Detail);
             if (tip is null && _columns[col].Field is ColumnField.Name or ColumnField.Extension)
                 tip = IdentityTip(entry);
         }
@@ -1863,6 +1891,13 @@ public sealed partial class FileListControl : Control
         ToolTip.SetTip(this, null);
     }
 
+    private void ClearMetadataContexts()
+    {
+        _metadataContexts.Clear();
+        _focusedMetadataContext = null;
+        _inspectionStore = null;
+    }
+
     /// <summary>Full values for the focused row, without starting metadata work from a key or pointer event.</summary>
     internal string? FocusedInspectionText()
     {
@@ -1879,13 +1914,23 @@ public sealed partial class FileListControl : Control
         {
             var spec = _columns[col];
             string value;
+            string detail = "";
             if (spec.Field == ColumnField.Name) value = safeName;
+            else if (spec.Field == ColumnField.Metadata && spec.MetadataId is { } fieldId && Tab is { } tab)
+            {
+                var context = _metadataContexts.GetValueOrDefault(storeIndex) ?? _focusedMetadataContext;
+                var cell = tab.MetadataPresentation(entry, storeIndex, fieldId, context, demand: false);
+                if (!cell.Applicable) continue;
+                value = Formatters.SafeName(cell.InspectionValue);
+                detail = cell.Detail;
+            }
             else if (_renderedCells.TryGetValue((row, col), out var rendered) &&
                 rendered.StoreIndex == storeIndex && rendered.Name == entry.Name && rendered.Kind == entry.Kind)
                 value = rendered.Text;
             else if (spec.Field == ColumnField.Metadata) value = "(not yet displayed)";
             else value = CellString(entry, spec);
             if (value.Length == 0) continue;
+            if (detail.Length > 0) value += "\n    " + detail.Replace("\n", "\n    ", StringComparison.Ordinal);
             report.Append(Formatters.SafeName(spec.Header)).Append(": ");
             if (report.Length + value.Length > 1_048_576)
             {

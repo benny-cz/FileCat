@@ -13,6 +13,7 @@ using FileCat.Core.Metadata;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
 using Location = FileCat.Core.Resources.Location;
+using ResourceProvider = FileCat.Core.Resources.ResourceProvider;
 
 namespace FileCat.App.Tests;
 
@@ -61,21 +62,24 @@ public sealed partial class OwnerColumnTests
     {
         public string Root { get; } = Path.Combine(Path.GetTempPath(), "filecat-owner-columns-" + Guid.NewGuid().ToString("N"));
         public AppServices Services { get; }
-        public OwnerSource Source { get; } = new();
+        public OwnerSource Source { get; }
+        public CountingOwnerProvider Provider { get; }
         public PrincipalNames Names { get; }
         public TabViewModel Tab { get; }
         public FileListControl List { get; }
         public Window Window { get; }
 
-        public OwnerFixture()
+        public OwnerFixture(OwnerSource? source = null)
         {
+            Source = source ?? new();
             Directory.CreateDirectory(Root);
             Services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Combine(Root, "state")));
             Names = new PrincipalNames(Source);
             Names.Changed += Services.Metadata.NotifyValuesChanged;
             Services.Metadata.Register(OwnershipFields.CreateOwner(Source, Names));
             var inner = Services.Providers.Get(Schemes.FileSystem);
-            Services.Providers.Register(new SyntheticListingProvider(inner, Root, 120));
+            Provider = new CountingOwnerProvider(new SyntheticListingProvider(inner, Root, 120));
+            Services.Providers.Register(Provider);
             ColumnSpec name = new(ColumnField.Name, "Name", 200, Star: true);
             Services.Columns.Replace(new[]
             {
@@ -93,6 +97,16 @@ public sealed partial class OwnerColumnTests
         }
 
         public Task Load() => FileListFixture.Wait(() => Tab.Listing.State == ListingState.Complete);
+        public EntryData FocusedEntry => Tab.Listing.GetVisible(Tab.Listing.FocusedIndex);
+        public MetadataValue FocusedValue => Services.Metadata.Peek("owner", Path.Combine(Root, "synthetic", FocusedEntry.Name), FocusedEntry, false);
+        public async Task ShowOwner()
+        {
+            Tab.ColumnProfile = 1;
+            Frame();
+            await FileListFixture.Wait(() => FocusedValue.State is not (MetadataState.NotRequested or MetadataState.Pending));
+            await Names.WhenIdle(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            Frame();
+        }
         public void Frame() { List.InvalidateVisual(); Window.CaptureRenderedFrame()?.Dispose(); }
         public void Dispose()
         {
@@ -110,8 +124,23 @@ public sealed partial class OwnerColumnTests
         public bool IsSupported => true;
         public ConcurrentQueue<string> ReadPaths { get; } = new();
         public int NameCalls;
-        public OwnerRead ReadOwner(string path) { ReadPaths.Enqueue(path); return new(OwnerReadStatus.Ok, new Principal(PrincipalKind.UnixUser, "42")); }
+        public Func<string, OwnerRead>? ReadOverride { get; set; }
+        public PrincipalName NameAnswer { get; set; } = new(NameStatus.Resolved, "fixture\u202Euser", "User");
+        public OwnerRead ReadOwner(string path) { ReadPaths.Enqueue(path); return ReadOverride?.Invoke(path) ?? new(OwnerReadStatus.Ok, new Principal(PrincipalKind.UnixUser, "42")); }
         public OwnerRead ReadGroup(string path) => new(OwnerReadStatus.Unsupported);
-        public PrincipalName LookUp(Principal principal) { Interlocked.Increment(ref NameCalls); return new(NameStatus.Resolved, "fixture\u202Euser", "User"); }
+        public PrincipalName LookUp(Principal principal) { Interlocked.Increment(ref NameCalls); return NameAnswer; }
+    }
+
+    private sealed class CountingOwnerProvider(ResourceProvider inner) : ResourceProvider
+    {
+        public int References;
+        public override string Scheme => inner.Scheme;
+        public override string GetDisplayPath(Location location) => inner.GetDisplayPath(location);
+        public override Location? GetParent(Location location) => inner.GetParent(location);
+        public override LocationCapabilities GetCapabilities(Location location) => inner.GetCapabilities(location);
+        public override Location? GetChildLocation(Location parent, in EntryData entry) => inner.GetChildLocation(parent, entry);
+        public override string GetDeviceKey(Location location) => inner.GetDeviceKey(location);
+        public override ItemRef GetItemRef(Location location, in EntryData entry) { References++; return inner.GetItemRef(location, entry); }
+        public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct) => inner.EnumerateAsync(location, sink, ct);
     }
 }

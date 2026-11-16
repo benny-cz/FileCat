@@ -1114,36 +1114,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public string GetMetadataText(in EntryData e, int storeIndex, string fieldId, out bool pending)
     {
-        pending = false;
-        var field = Services.Metadata.Field(fieldId);
-        if (field is null || Location is null) return string.Empty;
-        // A folder without checksum files or signatures has nothing to verify (search results are asked file by file).
-        if (fieldId == Core.Metadata.BuiltInFields.Verified.Id && Location.IsFileSystem && !_hasSidecars) return string.Empty;
-        // Elevated, FileCat checks no file by itself: a file its folder's checksums or signatures may cover says so.
-        if (fieldId == Core.Metadata.BuiltInFields.Verified.Id && Location.IsFileSystem && e.Kind == EntryKind.File &&
-            Core.State.WindowsTokenAuthority.IsHighIntegrity)
-            return Elevated.Text;
-        var item = Services.Providers.For(Location).GetItemRef(Location, e);
-        if (item.FileSystemPath is not { } path) return string.Empty;
-        var store = Listing.Store;
-        var device = Services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
-        var value = Services.Metadata.Get(fieldId, path, e, device, IsSlowLocation, () => ReferenceEquals(store, Listing.Store) && VisibleStoreIndices.Contains(storeIndex));
-        switch (value.State)
-        {
-            case Core.Metadata.MetadataState.Available:
-                return field.Format(value.Value) + (value.Observation == Core.Metadata.MetadataObservation.LastKnown ? " (last known)" : "");
-            case Core.Metadata.MetadataState.Pending:
-                pending = true;
-                return "…";
-            case Core.Metadata.MetadataState.Failed:
-                return "error";
-            case Core.Metadata.MetadataState.Denied:
-                return "no access";
-            case Core.Metadata.MetadataState.Unsupported:
-                return "—";
-            default:
-                return string.Empty;
-        }
+        var cell = MetadataPresentation(e, storeIndex, fieldId, null, demand: true);
+        pending = cell.State == Core.Metadata.MetadataState.Pending;
+        return cell.Text;
     }
 
     /// <param name="analyzing">Every value is about to be computed (Analyze folder): no note that the order is partial.</param>

@@ -1,8 +1,9 @@
 # FileCat: Owner column and useful panel columns — implementation plan
 
 **Status:** implementation in progress on `codex/column-ownership`. O1 service groundwork and O2 identity/resolver/Unix
-source are implemented. See [O1 evidence](../validation/column-ownership/O1-20261116.md) and
-[O2 evidence](../validation/column-ownership/O2-20261116.md). O3–O7 remain pending. GL1 has Ubuntu x64 core evidence;
+source, and O3 cell details/inspection are implemented. See [O1 evidence](../validation/column-ownership/O1-20261116.md),
+[O2 evidence](../validation/column-ownership/O2-20261116.md) and [O3 evidence](../validation/column-ownership/O3-20261116.md).
+O4–O7 remain pending. GL1 has Ubuntu x64 core evidence;
 the new macOS and Linux ARM64 routes remain conservatively unavailable pending native evidence. PF1/PF3 comparison
 misses remain open for the O4/O5 performance gates.
 **Revised:** 2026-11-16 to address AR-001–AR-013 in the independent review; implementation progress is recorded above.

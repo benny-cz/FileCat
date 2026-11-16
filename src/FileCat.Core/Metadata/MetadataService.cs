@@ -61,7 +61,8 @@ public sealed record MetadataField(
     Func<object?, IComparable?>? SortKey = null,
     bool Folders = false,
     TimeSpan? RefreshAfter = null,
-    Func<object?, string>? Detail = null);
+    Func<object?, string>? Detail = null,
+    Func<object?, bool>? NeedsExplanation = null);
 
 /// <summary>
 /// Demand-driven metadata (plan §10): values are produced for rows the user can see, bounded per device,

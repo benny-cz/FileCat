@@ -32,7 +32,8 @@ public static class OwnershipFields
         value => value is Principal p ? Format(p, names.Peek(p)) : string.Empty,
         SortKey: value => value is Principal p ? new PrincipalOrderKey(p, names.Peek(p), CultureInfo.CurrentCulture.CompareInfo) : null,
         Folders: true, RefreshAfter: TimeSpan.FromSeconds(5),
-        Detail: value => value is Principal p ? Detail(p, names.Peek(p)) : string.Empty);
+        Detail: value => value is Principal p ? Detail(p, names.Peek(p)) : string.Empty,
+        NeedsExplanation: value => value is Principal p && names.Peek(p).Status != NameStatus.Resolved);
 
     public static string Format(Principal principal, PrincipalName name) =>
         name.Status == NameStatus.Resolved && !string.IsNullOrEmpty(name.Name) ? name.Name : principal.DisplayId;
