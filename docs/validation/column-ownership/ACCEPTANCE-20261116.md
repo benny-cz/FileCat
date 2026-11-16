@@ -3,6 +3,9 @@
 This matrix records the O1–O7 feature scope. Existing UX ledger cases remain closed; this feature added no general
 accessibility, dialog-layout or focus re-audit. Dated package evidence records failed/initial attempts separately.
 
+**Final outcome: O1–O7 complete.** The [full CI/package workflow](https://github.com/benny-cz/FileCat/actions/runs/43936482729)
+passed at dc22579ad923a39db1f881be4dafba93aae1116e, attempt 2. Native qualifications below remain explicit.
+
 | ID | Evidence | Outcome |
 |---|---|---|
 | OWN-01 | OwnerColumnChooserTests / ColumnProfileTests; Windows Owner available, Unix choices retained | Passed |
@@ -49,7 +52,7 @@ accessibility, dialog-layout or focus re-audit. Dated package evidence records f
 | GM1 | Apple silicon/APFS/dataless/materialization policy Not run. New guarded macOS Owner/Group remains Unsupported; wrapper/retirement has fake coverage only. Existing Permissions route is unchanged. |
 | GA1 | Passed in the coordinated disposable Windows guest, ordinary filecatdsa_r2 token, signed NVDA 2026.3.1, d62b8f24. Actual speech contains full Owner identity/detail and controlled Offline unavailable reason. Fixtures unchanged; app/reader closed, temporary task removed and sessions preserved. See GA1-20261116.md. |
 
-## Remaining validation while this record is in progress
+## Completed performance and integration validation
 
 PF1/PF3 passed the predeclared four-process ABBA set: all ten-sample pooled timing/allocation medians and every
 reservation check passed. See O5-20261116.md and 20261116-o5-affinity-summary.json. Earlier screenshot-driver and
@@ -57,8 +60,26 @@ uncontrolled timing misses remain diagnostic evidence, never relabeled passes. T
 analysis fixture passed its declared elapsed and reservation limits; PF2 passed its Owner-on band in O4. PF4's
 independently shrunken row/character/shared-byte and final-owner lifetime fixtures passed.
 
-The full integration matrix is pending. Initial run 43914012464 at production 41188513 passed Core on Ubuntu,
-macOS and Windows ARM64, but Ubuntu App found the existing hover test's zero-reference assertion included legitimate
-Unix Details Permissions paint demand. The fixture now explicitly uses only Name/Extension, retaining its strict
-zero-reference pointer assertion. Windows ClippedCellInspectionTests passed 6/6 after correction. A corrected full
-matrix and exact run references will be attached before O7 is marked complete.
+The final integration workflow passed Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26, plus Linux/macOS
+package build/start/inventory checks and the ARM64 package start/drawing/installer checks. Twenty TRX receipts
+contain **60794 passed, 5773 NotExecuted**, zero failed test outcomes or runner errors in the accepted receipts.
+The Verified scalar-order regressions passed on all four platforms; the Windows x64 Owner class passed 51/51,
+zero skips. Exact clean-source SDK/compiler fingerprints and per-project/feature counts are in
+[20261116-ci-final.json](20261116-ci-final.json).
+
+| Platform | Passed | NotExecuted |
+|---|---:|---:|
+| Windows x64 | 15212 | 2340 |
+| Windows ARM64 (including high-token refusal control) | 15201 | 2352 |
+| Ubuntu x64 | 15202 | 529 |
+| macOS ARM64 | 15179 | 552 |
+
+Skipped platform, lab and opt-in measurements are not native passes. O7 records the initial hover fixture and
+ordinary-token setup corrections, the Verified compatibility regression, and the numeric-worker-ID fixture fix.
+The first final-source macOS Remote process crashed; its partial failed receipt remains preserved. The same-source,
+unchanged-test/deadline macOS-only retry passed, including Core, Remote, App and Rendering; the crash cause remains
+unproven. See [O7's chronological record](O7-20261116.md). No earlier failure was discarded or relabeled.
+
+The UX ledger checker passed with 149 accepted scenarios and zero open/failed cases. Release-register validation,
+relative documentation targets and whitespace checks passed. Later closing-record edits are documentation/evidence
+only; no application or test source changed after the green dc22579a revision. No tag or release was published.

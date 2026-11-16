@@ -1,10 +1,12 @@
 # FileCat: Owner column and useful panel columns — implementation plan
 
-**Status:** O1–O6 implemented on `codex/column-ownership`, including the passing bounded O5 performance gates.
-O7 documentation is implemented; final integration CI remains open. See the [finite acceptance record](../validation/column-ownership/ACCEPTANCE-20261116.md)
+**Status:** O1–O7 complete on `codex/column-ownership`, including the passing bounded performance gates and
+[green full CI/package workflow](https://github.com/benny-cz/FileCat/actions/runs/43936482729) at dc22579a (attempt 2).
+See the [finite acceptance record](../validation/column-ownership/ACCEPTANCE-20261116.md)
 and dated [O1](../validation/column-ownership/O1-20261116.md), [O2](../validation/column-ownership/O2-20261116.md),
 [O3](../validation/column-ownership/O3-20261116.md), [O4](../validation/column-ownership/O4-20261116.md),
-[O5](../validation/column-ownership/O5-20261116.md), [O6](../validation/column-ownership/O6-20261116.md) evidence.
+[O5](../validation/column-ownership/O5-20261116.md), [O6](../validation/column-ownership/O6-20261116.md),
+[O7](../validation/column-ownership/O7-20261116.md) evidence.
 GW1/GW2 Windows x64 core, GL1 Ubuntu x64 core and [GA1 native NVDA](../validation/column-ownership/GA1-20261116.md) have evidence.
 Windows/Linux ARM64 and the new guarded macOS ownership route remain conservatively unavailable. Historical PF1/PF3
 misses are preserved; the predeclared controlled comparison passes without widening acceptance bands.
