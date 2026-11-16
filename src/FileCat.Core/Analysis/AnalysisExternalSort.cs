@@ -36,7 +36,8 @@ internal static class AnalysisExternalSort
     // A null entry is one consumed input row with no indexed value. Its captured byte cost still
     // counts toward the worker/observation bound; sparse input cannot hide an unbounded MoveNext loop.
     internal static async Task<AnalysisSortedIndex> BuildSparseAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device,
-        IEnumerator<AnalysisSortInput> source, CancellationToken cancellation = default, int runMemoryBytes = RunMemoryBytes, int maximumRecords = AnalysisLimits.Observations)
+        IEnumerator<AnalysisSortInput> source, CancellationToken cancellation = default, int runMemoryBytes = RunMemoryBytes, int maximumRecords = AnalysisLimits.Observations,
+        Func<AnalysisSortEntry, AnalysisSortEntry, CancellationToken, bool>? duplicate = null)
     {
         ArgumentNullException.ThrowIfNull(workspace); ArgumentNullException.ThrowIfNull(io); ArgumentNullException.ThrowIfNull(source);
         if (runMemoryBytes is < 1024 or > RunMemoryBytes) throw new ArgumentOutOfRangeException(nameof(runMemoryBytes));
@@ -119,6 +120,7 @@ internal static class AnalysisExternalSort
             runs.Clear();
             cleanup.Output = await AnalysisIo.Run(io, device, _ => workspace.CreateArena(), cancellation).ConfigureAwait(false);
             cleanup.OutputRows = new(cleanup.Output!, recordLimit: maximumRecords, ownsArena: false);
+            AnalysisSortEntry? lastOutput = null; ulong written = 0, omitted = 0;
             while (queue.Count != 0)
             {
                 await AnalysisIo.Run(io, device, token =>
@@ -127,7 +129,12 @@ internal static class AnalysisExternalSort
                     while (queue.Count != 0 && batch < AnalysisLimits.BatchRecords && batchBytes < AnalysisLimits.BatchBytes)
                     {
                         token.ThrowIfCancellationRequested(); var cursor = queue.Dequeue(); var entry = cursor.Current;
-                        cleanup.OutputRows!.Append(Encode(entry), token); batch++; batchBytes += entry.Key.Length + 12;
+                        // Only a trusted exact-equality predicate can omit an equal-key row. It runs
+                        // on this same captured device worker; hashes alone are never equality proof.
+                        bool skip = duplicate is not null && lastOutput is { } previous && previous.Key.AsSpan().SequenceEqual(entry.Key) && duplicate(previous, entry, token);
+                        if (skip) omitted++;
+                        else { cleanup.OutputRows!.Append(Encode(entry), token); lastOutput = entry; written++; }
+                        batch++; batchBytes += entry.Key.Length + 12;
                         if (cursor.MoveNext(token)) queue.Enqueue(cursor, cursor.Current);
                     }
                     return true;
@@ -136,7 +143,7 @@ internal static class AnalysisExternalSort
             result = await AnalysisIo.Run(io, device, token =>
             {
                 cleanup.OutputRows!.Flush(token); var publication = cleanup.OutputRows.CapturePublication();
-                if (publication.Count != (ulong)total) throw new InvalidDataException("The analysis sort did not preserve every input record.");
+                if (publication.Count != written || written + omitted != (ulong)total) throw new InvalidDataException("The analysis sort did not account for every input record.");
                 return new AnalysisSortedIndex(cleanup.Output!, publication, cleanup.Output!.CommittedEnd);
             }, cancellation).ConfigureAwait(false);
             cleanup.Output = null; return result;

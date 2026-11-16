@@ -3,7 +3,7 @@ namespace FileCat.Core.Analysis;
 internal sealed partial class AnalysisComparisonEntities
 {
     private const byte Fresh = 1, UniformObject = 2, UniformPath = 4, UniformVersion = 8, HasArea = 16, Directory = 32;
-    private sealed partial class State
+    internal sealed partial class State
     {
         private enum Stage { Start, Charges, Members, Emit, Done }
         private Stage _stage;

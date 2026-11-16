@@ -84,8 +84,9 @@ internal sealed class AnalysisComparisonPaths : IAsyncDisposable
     internal Task<AnalysisDatasetPage<AnalysisPathCorrespondence>> ReadPreviousAsync(ulong offset = 0, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((state, token) => state.Page(true, offset, maximum, token), cancellation);
     public ValueTask DisposeAsync() => _owned.DisposeAsync();
+    internal Task<T> UseAsync<T>(Func<State, Task<T>> use) => _owned.UseAsync(use);
 
-    private sealed class State : IAnalysisScratchOwned
+    internal sealed class State : IAnalysisScratchOwned
     {
         private AnalysisIndexedGraphReader? _previous, _current;
         internal AnalysisScratchWorkspace? Workspace;
@@ -93,6 +94,13 @@ internal sealed class AnalysisComparisonPaths : IAsyncDisposable
         private AnalysisScratchVector? _writer;
         private AnalysisScratchVectorCheckpoint? _rows;
         internal AnalysisSortedIndexReader? Reverse;
+        internal AnalysisIndexedGraphReader Graph(bool previous) => (previous ? _previous : _current)!;
+        internal ulong PreviousRow(ulong currentRow, CancellationToken token) => Decode(_rows!.Read(currentRow, token));
+        internal ulong CurrentRow(ulong previousRow, CancellationToken token)
+        {
+            var range = Reverse!.FindRange(AnalysisGraphKeys.PathId(previousRow), token);
+            return range.Count == 0 ? 0 : range.Count == 1 ? Reverse.Read(range.First, token).Value : throw AnalysisIndexedGraph.Invalid();
+        }
         private readonly int[] _previousRoots;
         private readonly ImmutableDictionary<string, string> _mapping;
         private ulong _next = 1;

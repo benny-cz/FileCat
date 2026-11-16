@@ -28,17 +28,36 @@ internal sealed partial class AnalysisComparisonEntities
             throw AnalysisIndexedGraph.Invalid();
         return row;
     }
-    private sealed partial class State
+    internal sealed partial class State
     {
-        internal AnalysisComparisonAccountingEntity Read(ulong entity, CancellationToken token, out long cost)
+        internal ulong EntityForPathRow(ulong pathRow, CancellationToken token)
+        {
+            var range = Assignments!.FindRange(AnalysisGraphKeys.PathId(pathRow), token);
+            return range.Count == 0 ? 0 : range.Count == 1 ? Assignments.Read(range.First, token).Value : throw AnalysisIndexedGraph.Invalid();
+        }
+        internal ulong MemberPathRow(ulong entity, ulong offset, CancellationToken token)
         {
             var row = Decode(_rows!.Read(entity, token));
+            if (offset >= row.Count) throw new ArgumentOutOfRangeException(nameof(offset));
+            return Members!.Read(row.First + offset, token).Value;
+        }
+        internal AnalysisObject? FirstObject(ulong entity, CancellationToken token)
+        { var row = Decode(_rows!.Read(entity, token)); return row.Object == 0 ? null : _graph!.ReadObject(row.Object, token); }
+        internal AnalysisComparisonAccountingEntity Read(ulong entity, CancellationToken token, out long cost)
+        {
+            var row = Decode(_rows!.Read(entity, token)); var evidence = ReadEvidence(entity, token, out cost);
             var path = _graph!.ReadPathRow(Members!.Read(row.First, token).Value, token);
-            var obj = row.Object == 0 ? null : _graph.ReadObject(row.Object, token);
-            cost = PathBytes(path) + 1024L + (obj?.VerifiedIdentity?.Length ?? 0) * 2L + (obj?.VersionEvidence?.Length ?? 0) * 2L;
-            return new(entity, path.Id, row.Count, row.Value, (row.Flags & HasArea) != 0 ? row.Parent : null,
+            cost += PathBytes(path); return evidence with { RepresentativePath = path.Id, ModifiedUtc = row.Object == 0 ? path.Times?.ModifiedUtc : evidence.ModifiedUtc, DetailsLoaded = true };
+        }
+        // Build-time evidence does not expand a representative name; membership is loaded separately.
+        internal AnalysisComparisonAccountingEntity ReadEvidence(ulong entity, CancellationToken token, out long cost)
+        {
+            var row = Decode(_rows!.Read(entity, token));
+            var obj = row.Object == 0 ? null : _graph!.ReadObject(row.Object, token);
+            cost = 1024L + (obj?.VerifiedIdentity?.Length ?? 0) * 2L + (obj?.VersionEvidence?.Length ?? 0) * 2L;
+            return new(entity, null, row.Count, row.Value, (row.Flags & HasArea) != 0 ? row.Parent : null,
                 obj?.VerifiedIdentity, (row.Flags & UniformVersion) != 0 ? obj?.VersionEvidence : null,
-                obj is null ? path.Times?.ModifiedUtc : obj.ModifiedUtc, (row.Flags & Fresh) != 0, row.Roots,
+                obj?.ModifiedUtc, (row.Flags & Fresh) != 0, row.Roots,
                 (row.Flags & Directory) != 0, (row.Flags & UniformObject) != 0, (row.Flags & UniformPath) != 0);
         }
         internal AnalysisComparisonAccountingEntity? FindPath(ulong path, CancellationToken token)

@@ -5,6 +5,35 @@ namespace FileCat.Core.Tests;
 
 public sealed class AnalysisExternalSortTests
 {
+    [Fact]
+    public async Task ExactKeyCompactionPreservesDistinctPayloadsAndDoesNotUseKeysAloneAsEquality()
+    {
+        Ordinary(); var directory = new MemoryDirectory(); using var workspace = new AnalysisScratchWorkspace(directory); using var io = new DeviceIoScheduler();
+        IEnumerable<AnalysisSortInput> Inputs()
+        { for (ulong n = 1200; n > 0; n--) yield return new(new([(byte)(n % 3)], n), 64); }
+        using var entries = Inputs().GetEnumerator();
+        using var index = await AnalysisExternalSort.BuildSparseAsync(workspace, io, "exact-compaction", entries, Cancellation, runMemoryBytes: 2048,
+            duplicate: static (a, b, _) => a.Value / 30 == b.Value / 30);
+        using var reader = index.Acquire(); var expected = Inputs().Select(x => x.Entry!.Value).OrderBy(x => x, AnalysisExternalSort.Order)
+            .GroupBy(x => (x.Key[0], x.Value / 30)).Select(g => g.First()).ToArray();
+        Assert.Equal((ulong)expected.Length, reader.Count);
+        for (ulong row = 1; row <= reader.Count; row++)
+        { Assert.Equal(expected[row - 1].Key, reader.Read(row, Cancellation).Key); Assert.Equal(expected[row - 1].Value, reader.Read(row, Cancellation).Value); }
+    }
+
+    [Fact]
+    public async Task ExactKeyCompactionFailureReleasesActualTemporaryOwnersBeforeRetry()
+    {
+        Ordinary(); var directory = new MemoryDirectory(); using var workspace = new AnalysisScratchWorkspace(directory); using var io = new DeviceIoScheduler();
+        IEnumerable<AnalysisSortInput> Inputs() { for (ulong n = 1; n <= 100; n++) yield return new(new([1], n), 64); }
+        using (var input = Inputs().GetEnumerator())
+            await Assert.ThrowsAsync<IOException>(() => AnalysisExternalSort.BuildSparseAsync(workspace, io, "failed-compaction", input, Cancellation,
+                duplicate: static (_, _, _) => throw new IOException("exact comparator failed")));
+        Assert.Equal(0, workspace.ReservedBytes); Assert.Equal(0, directory.LiveFiles);
+        using var retry = Inputs().GetEnumerator(); using var index = await AnalysisExternalSort.BuildSparseAsync(workspace, io, "failed-compaction", retry, Cancellation,
+            duplicate: static (_, _, _) => true);
+        Assert.Equal(1UL, index.Count);
+    }
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process.");
 

@@ -11,17 +11,7 @@ public sealed partial class AnalysisDatasetLease
     {
         if (!Enum.IsDefined(metric)) throw new ArgumentOutOfRangeException(nameof(metric));
         cancellation.ThrowIfCancellationRequested();
-        return _owned.UseAsync(async source =>
-        {
-            if (metric is AnalysisMetric.FileSize or AnalysisMetric.Files)
-            {
-                var summary = await AnalysisDatasetSummarizer.RunAsync(source, metric, _io, _device, cancellation).ConfigureAwait(false);
-                return await AnalysisComparisonEntities.BuildAsync(source, Descriptor, metric, summary.Totals, null, _io, _device, cancellation).ConfigureAwait(false);
-            }
-            var charges = await AnalysisObjectChargeIndex.BuildAsync(source, Descriptor, metric, _io, _device, cancellation).ConfigureAwait(false);
-            return await AnalysisComparisonEntities.BuildAfterProducerCloseAsync(charges,
-                () => charges.IndexComparisonEntitiesAsync(cancellation)).ConfigureAwait(false);
-        });
+        return _owned.UseAsync(source => AnalysisComparisonEntities.CreateAsync(source, Descriptor, metric, _io, _device, cancellation));
     }
 }
 
@@ -46,9 +36,13 @@ public sealed partial class AnalysisObjectChargeIndex
     }
 }
 
-internal sealed record AnalysisComparisonAccountingEntity(ulong Id, ulong RepresentativePath, ulong ObservedPaths,
+internal sealed record AnalysisComparisonAccountingEntity(ulong Id, ulong? RepresentativePath, ulong ObservedPaths,
     AnalysisMeasurement Value, ulong? AttributionParent, string? ObservedIdentity, string? VersionEvidence,
-    DateTimeOffset? ModifiedUtc, bool Fresh, uint RootMask, bool DirectorySelf, bool UniformObjectMetadata, bool UniformPathMetadata);
+    DateTimeOffset? ModifiedUtc, bool Fresh, uint RootMask, bool DirectorySelf, bool UniformObjectMetadata, bool UniformPathMetadata)
+{
+    // Scalar comparison pages deliberately defer representative-path/directory-time details.
+    internal bool DetailsLoaded { get; init; }
+}
 
 /// <summary>
 /// Bounded metric accounting cohorts over one retained inert revision. Aliases remain in an exact private
@@ -63,9 +57,22 @@ internal sealed partial class AnalysisComparisonEntities : IAsyncDisposable
     internal AnalysisMetric Metric { get; }
     internal AnalysisTotals Totals { get; }
     internal ulong Count { get; }
+    internal Task<T> UseAsync<T>(Func<State, Task<T>> use) => _owned.UseAsync(use);
     private AnalysisComparisonEntities(State state, AnalysisDatasetDescriptor descriptor, AnalysisMetric metric, AnalysisTotals totals,
         DeviceIoScheduler io, AnalysisIoDevices device)
     { _owned = new(state, io, device); Descriptor = descriptor; Metric = metric; Totals = totals; Count = state.Count; }
+
+    internal static async Task<AnalysisComparisonEntities> CreateAsync(AnalysisIndexedGraphReader source, AnalysisDatasetDescriptor descriptor,
+        AnalysisMetric metric, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
+    {
+        if (metric is AnalysisMetric.FileSize or AnalysisMetric.Files)
+        {
+            var summary = await AnalysisDatasetSummarizer.RunAsync(source, metric, io, device, cancellation).ConfigureAwait(false);
+            return await BuildAsync(source, descriptor, metric, summary.Totals, null, io, device, cancellation).ConfigureAwait(false);
+        }
+        var charges = await AnalysisObjectChargeIndex.BuildAsync(source, descriptor, metric, io, device, cancellation).ConfigureAwait(false);
+        return await BuildAfterProducerCloseAsync(charges, () => charges.IndexComparisonEntitiesAsync(cancellation)).ConfigureAwait(false);
+    }
 
     // A return inside await using can lose an already-created result when producer disposal throws.
     // Publication waits for the actual producer close; failed close releases the unpublished result too.
@@ -160,10 +167,11 @@ internal sealed partial class AnalysisComparisonEntities : IAsyncDisposable
         identity.AsSpan(1).CopyTo(key.AsSpan(3)); return key;
     }
 
-    private sealed partial class State(AnalysisDatasetDescriptor descriptor, AnalysisMetric metric) : IAnalysisScratchOwned
+    internal sealed partial class State(AnalysisDatasetDescriptor descriptor, AnalysisMetric metric) : IAnalysisScratchOwned
     {
         internal AnalysisScratchWorkspace? Workspace;
         private AnalysisIndexedGraphReader? _graph;
+        internal AnalysisIndexedGraphReader Graph => _graph!;
         private AnalysisScratchArena? _arena;
         private AnalysisScratchVector? _writer;
         private AnalysisScratchVectorCheckpoint? _rows;

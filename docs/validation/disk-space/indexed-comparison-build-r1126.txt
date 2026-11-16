@@ -1,0 +1,13 @@
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisIndexedComparison.Matching.cs(50,70): error CS0103: The name 'cost' does not exist in the current context [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisIndexedComparison.Matching.cs(51,30): error CS0103: The name 'cost' does not exist in the current context [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+
+Build FAILED.
+
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisIndexedComparison.Matching.cs(50,70): error CS0103: The name 'cost' does not exist in the current context [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisIndexedComparison.Matching.cs(51,30): error CS0103: The name 'cost' does not exist in the current context [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+    0 Warning(s)
+    2 Error(s)
+
+Time Elapsed 00:00:18.94

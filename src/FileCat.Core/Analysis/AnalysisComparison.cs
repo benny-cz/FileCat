@@ -239,7 +239,7 @@ public static class AnalysisComparison
         return map.ToImmutable();
     }
 
-    private static bool SameCapturedBinding(RootBinding a, RootBinding b) =>
+    internal static bool SameCapturedBinding(RootBinding a, RootBinding b) =>
         a.Assurance == IdentityAssurance.Verified && b.Assurance == IdentityAssurance.Verified && a.SourceIdentity is not null && a.SourceIdentity == b.SourceIdentity &&
         a.ObservedObjectIdentity is not null && a.ObservedObjectIdentity == b.ObservedObjectIdentity &&
         Guid.TryParseExact(a.ConnectionIdentityReference, "N", out var binding) && binding != Guid.Empty && a.ConnectionIdentityReference == binding.ToString("N") &&
