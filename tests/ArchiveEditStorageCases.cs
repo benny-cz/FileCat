@@ -96,7 +96,7 @@ internal static class ArchiveEditStorageCases
                     JsonSerializer.SerializeToUtf8Bytes(new{made.Id,Version=int.MaxValue,made.WorkingPath}));
                 Earlier(first);
                 var discarded=store.DiscardReviewed(first,store.ReviewWorking(first,new LocalFileSystemProvider()),ct);
-                Assert.True(discarded.Complete,discarded.Issue);Assert.Empty(store.LoadAll());Assert.False(Directory.Exists(directory));
+                Assert.True(discarded.Complete,discarded.Issue+Holders(first.WorkingPath));Assert.Empty(store.LoadAll());Assert.False(Directory.Exists(directory));
                 // A folder whose record is gone and whose marker is an earlier build's does not say how long its copy was
                 // admitted to be, so FileCat cannot tell an unfinished copy from an edit of the user's: it is kept whole.
                 var older=store.CreateRemote("owned","owned","/owned.txt",source,source.GetRevision()!.Value,null,ct);
@@ -231,5 +231,32 @@ internal static class ArchiveEditStorageCases
                 !Path.GetFileName(full).StartsWith("filecat-edit-store-",StringComparison.Ordinal))throw new IOException("Unexpected storage test cleanup root.");
             Directory.Delete(full,true);
         }
+    }
+
+    // Who holds a file open, for a discard refused because "another program has it open": on Linux the lease is refused while
+    // any other open of the file exists, and hosted Ubuntu once refused this discard (run 43785533121) with nothing in the case
+    // holding the working copy. Each process's descriptors are read from /proc; elsewhere there is no lease to explain.
+    private static string Holders(string path)
+    {
+        if(!OperatingSystem.IsLinux())return string.Empty;
+        var found=new List<string>();
+        try
+        {
+            foreach(string process in Directory.EnumerateDirectories("/proc"))
+            {
+                if(!int.TryParse(Path.GetFileName(process),out int pid))continue;
+                string[] descriptors;
+                try{descriptors=Directory.GetFileSystemEntries(Path.Combine(process,"fd"));}catch(Exception ex)when(ex is IOException or UnauthorizedAccessException){continue;}
+                foreach(string descriptor in descriptors)
+                {
+                    string? target;try{target=new FileInfo(descriptor).LinkTarget;}catch(Exception ex)when(ex is IOException or UnauthorizedAccessException){continue;}
+                    if(target is null||!target.StartsWith(path,StringComparison.Ordinal))continue;
+                    string command;try{command=File.ReadAllText(Path.Combine(process,"cmdline")).Replace(' ',' ').Trim();}catch(Exception ex)when(ex is IOException or UnauthorizedAccessException){command="?";}
+                    found.Add($"pid {pid}{(pid==Environment.ProcessId?" (this test process)":"")} fd {Path.GetFileName(descriptor)} -> {target} [{command}]");
+                }
+            }
+        }
+        catch(Exception ex)when(ex is IOException or UnauthorizedAccessException){found.Add("(/proc could not be read: "+ex.Message+")");}
+        return found.Count==0?" No process holds it now.":" Holding it now: "+string.Join("; ",found);
     }
 }
