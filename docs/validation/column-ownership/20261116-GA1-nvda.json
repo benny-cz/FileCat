@@ -1,0 +1,36 @@
+﻿{
+    "Passed":  true,
+    "Stage":  "done",
+    "Revision":  "d62b8f24",
+    "Computer":  "DESKTOP-A60F1NE",
+    "User":  "filecatdsa_r2",
+    "Session":  2,
+    "Elevated":  false,
+    "AppDllSha256":  "BC8AAC7077F60D7934EC9C2715F4DD70DF5C5929B7C95B9FEAB09285C1557C6F",
+    "NvdaVersion":  "2026.3.1",
+    "OwnerSid":  "S-1-5-21-1278333194-2778939646-3566894036-1002",
+    "Fixture":  "C:\\Users\\filecatdsa_r2\\AppData\\Local\\FileCatValidation\\Owner-20261116\\fixture-d6624bfd1491401ca8077f0528588fc7",
+    "Checks":  [
+                   {
+                       "File":  "a-owned.txt",
+                       "Shown":  "Focused item: a-owned.txt\r\nName: a-owned.txt\r\nOwner: DESKTOP-A60F1NE\\filecatdsa_r2\n    User account · S-1-5-21-1278333194-2778939646-3566894036-1002\r\n",
+                       "Spoken":  [
+                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027Inspect focused item dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027Full values of focused item\u0027, \u0027edit\u0027, \u0027Focused item: a-owned.txt\\r\\nName: a-owned.txt\\r\\nOwner: DESKTOP-A60F1NE\\\\filecatdsa_r2\\n    User account · S-1-5-21-1278333194-2778939646-3566894036-1002\\r\\n\u0027, \u0027read only\u0027, CancellableSpeech (still valid)]"
+                                  ]
+                   },
+                   {
+                       "File":  "b-offline.txt",
+                       "Shown":  "Focused item: b-offline.txt\r\nName: b-offline.txt\r\nOwner: —\n    Not read for a detected cloud placeholder.\r\n",
+                       "Spoken":  [
+                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027Inspect focused item dialog\u0027, \u0027grouping\u0027, CancellableSpeech (still valid)]",
+                                      "[LangChangeCommand (\u0027en_US\u0027), \u0027Full values of focused item\u0027, \u0027edit\u0027, \u0027Focused item: b-offline.txt\\r\\nName: b-offline.txt\\r\\nOwner: —\\n    Not read for a detected cloud placeholder.\\r\\n\u0027, \u0027read only\u0027, CancellableSpeech (still valid)]"
+                                  ]
+                   }
+               ],
+    "Error":  null,
+    "SourceHashes":  [
+                         "966F11B2CE2260D9C53817E57346C157C108C9D6C8C4AD26A6FABA8A27366CAC",
+                         "662D6C886412FE189B9083884BA54BA2892E506BBA4A0C84B460880E7ED536AB"
+                     ]
+}
