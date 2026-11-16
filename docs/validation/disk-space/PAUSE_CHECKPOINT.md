@@ -1,5 +1,7 @@
 # Pause checkpoint — 2026-11-08
 
+Resumed on 2026-11-16. Main was synchronized and the affected native regression batches were rechecked; see [the synchronization checkpoint](MAIN_SYNC_20261116.md). The pause instructions below describe the earlier completed pause, not the current active goal.
+
 The user requested finishing this slice and pausing the full goal. The slice is complete; no further feature work is authorized until the goal is resumed.
 
 - Comparison machine-bundle export: five new native/review cases and affected broad suites pass Windows/macOS/Ubuntu. Corrected r1104 focused counts are 64 Core + 76 rendering; broad Core is 1641 Windows / 1623 Unix with unchanged existing skips, rendering 611, Settings 35 and Windows native 75. The initial missing .fcdsc output suffix was found by the Mac preflight, fixed and fully rerun. All original actual runs ended and task-owned processes exited.

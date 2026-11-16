@@ -69,6 +69,8 @@ public sealed record ReaderOptions : IReaderOptions
     /// Password for encrypted archives.
     /// </summary>
     public string? Password { get; set; }
+    // FileCat's confined read jobs provide a bounded session instead of putting password text in options.
+    internal SharpCompress.Compressors.LZMA.Utilities.SevenZipAesDecryptorFactory? ArchiveDecryptorFactory { get; set; }
 
     /// <summary>
     /// Disable checking for incomplete archives.

@@ -138,6 +138,8 @@ public sealed class TransferOptions
 
 public sealed class JobRequest
 {
+    /// <summary>In-process native edit authority; never reconstructed from a source pathname or persisted request.</summary>
+    internal Edit.IRetainedEditUpload? EditUpload { get; init; }
     /// <summary>The immutable captured inverse; ordinary callers obtain it through a Job Undo reservation.</summary>
     public UndoPlan? UndoPlan { get; init; }
     public required JobKind Kind { get; init; }
@@ -244,6 +246,8 @@ public sealed record JobIssue(IssueSeverity Severity, string Path, string Messag
         : $"{Severity}: {Message} Path: {Path}";
     /// <summary>Error class from <see cref="ErrorText.Classify"/> ("access", "sharing", …) when known.</summary>
     public string? Cause { get; init; }
+    /// <summary>The technical detail behind a plain-language message, when they differ.</summary>
+    public string? Details { get; init; }
     /// <summary>Explicit source and target identities, when the operation can establish them.</summary>
     public string? SourcePath { get; init; }
     public string? TargetPath { get; init; }
@@ -335,6 +339,12 @@ public sealed record ConfirmRequest(string Title, string Message, string Path, s
 
     /// <summary>Button text for <see cref="DecisionAction.Proceed"/> (what proceeding does, in plain words).</summary>
     public string? ProceedLabel { get; init; }
+
+    /// <summary>
+    /// Whether the answer may apply to later questions of the same class in this operation. False for a question that
+    /// covers the whole operation at once, such as an archive review, where "do the same" has nothing to apply to.
+    /// </summary>
+    public bool OffersApplyToAll { get; init; } = true;
 
     public override string ClassKey => "confirm-" + ConfirmClass;
 }

@@ -45,8 +45,12 @@ public static class JobExecutors
 
     /// <summary>Typed dispatch per operation (plan §7.1): no Cartesian product of provider methods.</summary>
     public static IJobExecutor Create(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal)
+        => Create(job, fs, providers, journal, Archives.ArchiveJobBackends.Empty, null);
+
+    internal static IJobExecutor Create(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal,
+        Archives.ArchiveJobBackends archiveBackends, Archives.ArchiveJobOperation? archiveOperation)
     {
-        var executor = CreateFor(job, fs, providers, journal);
+        var executor = CreateFor(job, fs, providers, journal, archiveBackends, archiveOperation);
         bool transfer = job.Request.Kind is JobKind.Copy or JobKind.Move or JobKind.Extract;
         if (transfer && job.Request.Options.Filter is not null && executor is not IHonorsTransferFilter)
             return new RefusedExecutor(job, fs, journal,
@@ -56,9 +60,11 @@ public static class JobExecutors
         return executor;
     }
 
-    private static IJobExecutor CreateFor(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal)
+    private static IJobExecutor CreateFor(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal,
+        Archives.ArchiveJobBackends archiveBackends, Archives.ArchiveJobOperation? archiveOperation)
     {
         var r = job.Request;
+        r.EditUpload?.RequireRequest(r);
         bool fsSources = r.Sources.All(s => s.Parent.IsFileSystem);
         switch (r.Kind)
         {
@@ -73,6 +79,14 @@ public static class JobExecutors
             case JobKind.CreateDirectory or JobKind.CreateFile when r.Destination is { IsFileSystem: true }:
                 return new CreateExecutor(job, fs, journal);
             case JobKind.ArchiveUpdate when r.Archive is not null:
+                if (r.Archive.Profile is not null)
+                    return archiveBackends.Create(job, fs, journal, archiveOperation);
+                // Where a ZIP route is composed, every ZIP change takes the worker profile; only an edit session made before
+                // then keeps committing through the old route (release text, Downgrade).
+                if (!r.Archive.LegacyEditCommit && Path.IsPathFullyQualified(r.Archive.ArchivePath) &&
+                    archiveBackends.CoversNow(new Archives.ArchivePlan(r.Archive.ArchivePath, null, [], Profile: Archives.ZipProvider.WorkerProfile)))
+                    return new RefusedExecutor(job, fs, journal,
+                        "This ZIP is changed through FileCat's archive worker here, but this change was prepared for the old ZIP route. Nothing was changed; make the change again.");
                 return new Archives.ZipUpdateExecutor(job, fs, journal);
             case JobKind.ArchiveTest when fsSources:
                 return new Archives.ZipTestExecutor(job, fs, journal);

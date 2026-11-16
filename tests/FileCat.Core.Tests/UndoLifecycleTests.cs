@@ -337,7 +337,7 @@ public sealed class UndoLifecycleTests : IDisposable
             var journalDirectory = appLayout
                 ? Path.Combine(root, "data", "local", "journal")
                 : Path.Combine(root, "journals");
-            var interrupted = Assert.Single(JournalRecovery.Scan(journalDirectory));
+            var interrupted = Assert.Single(await FileCat.Tests.SettledJournals.ScanAsync(journalDirectory));
             Assert.Equal("Undo", interrupted.Kind);
             Assert.True(JournalRecovery.IsInterrupted(interrupted));
             var records = JobJournal.ReadAll(interrupted.JournalPath);
@@ -358,7 +358,7 @@ public sealed class UndoLifecycleTests : IDisposable
                 .Select(name => File.ReadAllText(Path.Combine(items, name))));
             Assert.Empty(Directory.GetFiles(items, BulkRenameRunner.TempPrefix + "*"));
             Assert.True(JournalRecovery.TryClose(interrupted, "Reviewed dependent inverse rename recovery"));
-            Assert.Empty(JournalRecovery.Scan(journalDirectory));
+            Assert.Empty(await FileCat.Tests.SettledJournals.ScanAsync(journalDirectory));
         }
         finally
         {

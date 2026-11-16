@@ -1,0 +1,651 @@
+{
+  "production_candidate": "630d349154e765b3562236eb0c28ca3e959861a7",
+  "mac_test_fixture_candidate": "99aa2c0e0b247f6c7b1207ff39df96263170be99",
+  "reader_fixture_candidate": "65fa8e2d8eb6a35434d8cb54c6b4dd6ba2ab7df4",
+  "production_backend_qualified": false,
+  "all_required_plan_gates_complete": false,
+  "platforms": [
+    {
+      "platform": "mac",
+      "candidate_source_commit": "99aa2c0e0b247f6c7b1207ff39df96263170be99",
+      "bytes": 48216522,
+      "sha256": "2afd7c88eedbf16c54d77ec518099909a394265b82f86a3d5d5359d7b2d47d6f",
+      "rows": 4025,
+      "core": {
+        "Passed": 8246,
+        "NotExecuted": 207
+      },
+      "tests": {
+        "application-regressions.trx": {
+          "Passed": 113,
+          "NotExecuted": 1
+        },
+        "archive-creation-core.trx": {
+          "Passed": 8246,
+          "NotExecuted": 207
+        },
+        "creation-smoke.trx": {
+          "Passed": 2
+        },
+        "creation-ui.trx": {
+          "Passed": 20
+        },
+        "icons-readiness.trx": {
+          "Passed": 5,
+          "NotExecuted": 1
+        },
+        "member-core.trx": {
+          "Passed": 116
+        },
+        "member-ui.trx": {
+          "Passed": 53
+        },
+        "mutation-preflight.trx": {
+          "Passed": 8
+        },
+        "password-preflight.trx": {
+          "Passed": 21
+        },
+        "target-native-preflight.trx": {
+          "Passed": 10
+        },
+        "target-preflight.trx": {
+          "Passed": 41
+        },
+        "update-smoke.trx": {
+          "Passed": 1
+        },
+        "update-ui.trx": {
+          "Passed": 16
+        }
+      },
+      "CSharp_sources_bound": 40,
+      "DLL_PDB_pairs_bound": 15,
+      "census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "metadata": {
+        "bytes": 3270,
+        "sha256": "61f22384d4b3d9e4a36c89c53f09d273d571a20eb64c3d754cb0cb1b3d3bb2f7",
+        "rows": 5
+      },
+      "reader_followup": null,
+      "production_backend_qualified": false
+    },
+    {
+      "platform": "ubuntu",
+      "candidate_source_commit": "630d349154e765b3562236eb0c28ca3e959861a7",
+      "bytes": 48244474,
+      "sha256": "d0f63a35bccfb5cff381ce64d78b03ddc6f79c4d7e302e94097c9fae87eaf0b3",
+      "rows": 4031,
+      "core": {
+        "Passed": 8268,
+        "NotExecuted": 185
+      },
+      "tests": {
+        "application-regressions.trx": {
+          "Passed": 113,
+          "NotExecuted": 1
+        },
+        "archive-creation-core.trx": {
+          "Passed": 8268,
+          "NotExecuted": 185
+        },
+        "creation-smoke.trx": {
+          "Passed": 2
+        },
+        "creation-ui.trx": {
+          "Passed": 20
+        },
+        "member-core.trx": {
+          "Passed": 116
+        },
+        "member-ui.trx": {
+          "Passed": 53
+        },
+        "mutation-preflight.trx": {
+          "Passed": 8
+        },
+        "password-preflight.trx": {
+          "Passed": 21
+        },
+        "target-native-preflight.trx": {
+          "Passed": 10
+        },
+        "target-preflight.trx": {
+          "Passed": 41
+        },
+        "update-smoke.trx": {
+          "Passed": 1
+        },
+        "update-ui.trx": {
+          "Passed": 16
+        }
+      },
+      "CSharp_sources_bound": 39,
+      "DLL_PDB_pairs_bound": 15,
+      "census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false
+      },
+      "metadata": {
+        "bytes": 3227,
+        "sha256": "ea5aca566a2eded86e1a252b2b8890f928f009acec7c690766b9ae4f6d9242de",
+        "rows": 5
+      },
+      "production_backend_qualified": false
+    },
+    {
+      "platform": "windows",
+      "candidate_source_commit": "630d349154e765b3562236eb0c28ca3e959861a7",
+      "bytes": 187983474,
+      "sha256": "939d1a52228d974a2827e9f1a16898ae53182eee1a3d55c9edeb102adc2024ac",
+      "rows": 5086,
+      "core": {
+        "Passed": 7997,
+        "NotExecuted": 461
+      },
+      "tests": {
+        "app-entry.trx": {
+          "Passed": 14
+        },
+        "application-regressions.trx": {
+          "Passed": 114
+        },
+        "archive-creation-core.trx": {
+          "Passed": 7997,
+          "NotExecuted": 461
+        },
+        "creation-cleanup-crashes.trx": {
+          "Passed": 18
+        },
+        "creation-native-ui.trx": {
+          "Passed": 10
+        },
+        "creation-smoke.trx": {
+          "Passed": 2
+        },
+        "creation-ui.trx": {
+          "Passed": 20
+        },
+        "member-core.trx": {
+          "Passed": 116
+        },
+        "member-native-ui.trx": {
+          "Passed": 10
+        },
+        "member-ui.trx": {
+          "Passed": 53
+        },
+        "mutation-preflight.trx": {
+          "Passed": 8
+        },
+        "native.trx": {
+          "Passed": 217
+        },
+        "password-preflight.trx": {
+          "Passed": 21
+        },
+        "target-preflight.trx": {
+          "Passed": 41
+        },
+        "update-smoke.trx": {
+          "Passed": 1
+        },
+        "update-ui.trx": {
+          "Passed": 16
+        }
+      },
+      "CSharp_sources_bound": 39,
+      "DLL_PDB_pairs_bound": 17,
+      "census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false
+      },
+      "metadata": {
+        "bytes": 3246,
+        "sha256": "4cc3c23c58f330bb0fbcf8a27cc3a885516ae91096a7ffeefff1a6843c9cefc3",
+        "rows": 5
+      },
+      "reader_followup": {
+        "bytes": 35197,
+        "sha256": "b0a297b217d8ec15d1826dc2c2f037164535fdf3172974caf31d907ebc5f0173",
+        "rows": 54
+      },
+      "production_backend_qualified": false
+    }
+  ],
+  "history_verification": {
+    "all_transports_and_manifests_verified": true,
+    "bundles": 23,
+    "bytes": 1359470155,
+    "evidence": [
+      {
+        "platform": "mac",
+        "folder": "awm-ui-v1",
+        "bytes": 16680681,
+        "sha256": "496ae6fc0111a4d510de702050b19a4253a96c9c819ff4a1cef893ead494c5b1",
+        "rows": 2125,
+        "tests": {
+          "member-ui.trx": {
+            "Passed": 39,
+            "Failed": 14
+          }
+        }
+      },
+      {
+        "platform": "mac",
+        "folder": "awm-v1",
+        "bytes": 16985750,
+        "sha256": "c4435f9205e74eb8daa9fd308af7587caba40f714fac57cfa14b3c8afb314d66",
+        "rows": 2161,
+        "tests": {
+          "member-core.trx": {
+            "Passed": 103,
+            "Failed": 1
+          }
+        }
+      },
+      {
+        "platform": "mac",
+        "folder": "awm-v2",
+        "bytes": 328901,
+        "sha256": "e685866fb6ec977da6621487d7c8b9ef8e9a0d27d3eb25605a35f8e2d3e4ab7c",
+        "rows": 16,
+        "tests": {}
+      },
+      {
+        "platform": "mac",
+        "folder": "awm-v3",
+        "bytes": 16737886,
+        "sha256": "8ebf983d13f568312f40a40484bf09f94e23751a3e23b62ed69c60d19068f852",
+        "rows": 2139,
+        "tests": {
+          "member-core.trx": {
+            "Passed": 114
+          },
+          "member-ui.trx": {
+            "Passed": 53
+          }
+        }
+      },
+      {
+        "platform": "mac",
+        "folder": "awm-v4",
+        "bytes": 44765581,
+        "sha256": "aae6c5d5f96a04bfd3a7afabf9d86963662df61562c8bc872f23c6488e5aeedb",
+        "rows": 2982,
+        "tests": {
+          "application-regressions.trx": {
+            "Passed": 113,
+            "NotExecuted": 1
+          },
+          "archive-creation-core.trx": {
+            "Passed": 8245,
+            "NotExecuted": 207,
+            "Failed": 1
+          },
+          "creation-smoke.trx": {
+            "Passed": 2
+          },
+          "creation-ui.trx": {
+            "Passed": 20
+          },
+          "member-core.trx": {
+            "Passed": 116
+          },
+          "member-ui.trx": {
+            "Passed": 53
+          },
+          "mutation-preflight.trx": {
+            "Passed": 8
+          },
+          "password-preflight.trx": {
+            "Passed": 21
+          },
+          "target-native-preflight.trx": {
+            "Passed": 10
+          },
+          "target-preflight.trx": {
+            "Passed": 41
+          },
+          "update-smoke.trx": {
+            "Passed": 1
+          },
+          "update-ui.trx": {
+            "Passed": 16
+          }
+        }
+      },
+      {
+        "platform": "mac",
+        "folder": "awm-v5",
+        "bytes": 48216522,
+        "sha256": "2afd7c88eedbf16c54d77ec518099909a394265b82f86a3d5d5359d7b2d47d6f",
+        "rows": 4025,
+        "tests": {
+          "application-regressions.trx": {
+            "Passed": 113,
+            "NotExecuted": 1
+          },
+          "archive-creation-core.trx": {
+            "Passed": 8246,
+            "NotExecuted": 207
+          },
+          "creation-smoke.trx": {
+            "Passed": 2
+          },
+          "creation-ui.trx": {
+            "Passed": 20
+          },
+          "icons-readiness.trx": {
+            "Passed": 5,
+            "NotExecuted": 1
+          },
+          "member-core.trx": {
+            "Passed": 116
+          },
+          "member-ui.trx": {
+            "Passed": 53
+          },
+          "mutation-preflight.trx": {
+            "Passed": 8
+          },
+          "password-preflight.trx": {
+            "Passed": 21
+          },
+          "target-native-preflight.trx": {
+            "Passed": 10
+          },
+          "target-preflight.trx": {
+            "Passed": 41
+          },
+          "update-smoke.trx": {
+            "Passed": 1
+          },
+          "update-ui.trx": {
+            "Passed": 16
+          }
+        }
+      },
+      {
+        "platform": "mac",
+        "folder": "awm-v5-metadata-v1",
+        "bytes": 3270,
+        "sha256": "61f22384d4b3d9e4a36c89c53f09d273d571a20eb64c3d754cb0cb1b3d3bb2f7",
+        "rows": 5,
+        "tests": {}
+      },
+      {
+        "platform": "ubuntu",
+        "folder": "awm-ui-v1",
+        "bytes": 16664225,
+        "sha256": "7c9477c574ce9097f7e82def8f5cf077f4425e7cbe16e4b7fc0e0ccca7047e24",
+        "rows": 2125,
+        "tests": {
+          "member-ui.trx": {
+            "Failed": 15,
+            "Passed": 38
+          }
+        }
+      },
+      {
+        "platform": "ubuntu",
+        "folder": "awm-v1",
+        "bytes": 16967465,
+        "sha256": "1571a7445ee75ce5640da6d2c5a9e7a911a1574b7564ef8667dfd9177b3691ab",
+        "rows": 2161,
+        "tests": {
+          "member-core.trx": {
+            "Passed": 103,
+            "Failed": 1
+          }
+        }
+      },
+      {
+        "platform": "ubuntu",
+        "folder": "awm-v2",
+        "bytes": 328939,
+        "sha256": "3047218b4d118995af5504550070c35b35397491d3571dc2301ac6d32ae60488",
+        "rows": 16,
+        "tests": {}
+      },
+      {
+        "platform": "ubuntu",
+        "folder": "awm-v3",
+        "bytes": 16721795,
+        "sha256": "d21774b4bc556ded8dbe252c222ee31bd3b33a032563e0faa181f8eddef60526",
+        "rows": 2139,
+        "tests": {
+          "member-core.trx": {
+            "Passed": 114
+          },
+          "member-ui.trx": {
+            "Passed": 53
+          }
+        }
+      },
+      {
+        "platform": "ubuntu",
+        "folder": "awm-v4",
+        "bytes": 48244474,
+        "sha256": "d0f63a35bccfb5cff381ce64d78b03ddc6f79c4d7e302e94097c9fae87eaf0b3",
+        "rows": 4031,
+        "tests": {
+          "application-regressions.trx": {
+            "Passed": 113,
+            "NotExecuted": 1
+          },
+          "archive-creation-core.trx": {
+            "Passed": 8268,
+            "NotExecuted": 185
+          },
+          "creation-smoke.trx": {
+            "Passed": 2
+          },
+          "creation-ui.trx": {
+            "Passed": 20
+          },
+          "member-core.trx": {
+            "Passed": 116
+          },
+          "member-ui.trx": {
+            "Passed": 53
+          },
+          "mutation-preflight.trx": {
+            "Passed": 8
+          },
+          "password-preflight.trx": {
+            "Passed": 21
+          },
+          "target-native-preflight.trx": {
+            "Passed": 10
+          },
+          "target-preflight.trx": {
+            "Passed": 41
+          },
+          "update-smoke.trx": {
+            "Passed": 1
+          },
+          "update-ui.trx": {
+            "Passed": 16
+          }
+        }
+      },
+      {
+        "platform": "ubuntu",
+        "folder": "awm-v4-metadata-v1",
+        "bytes": 3227,
+        "sha256": "ea5aca566a2eded86e1a252b2b8890f928f009acec7c690766b9ae4f6d9242de",
+        "rows": 5,
+        "tests": {}
+      },
+      {
+        "platform": "windows",
+        "folder": "awm-v2",
+        "bytes": 583168,
+        "sha256": "e36e6d7e081a58c00004ccb9fffa8708f7988914680a20c1749570dc580c04a1",
+        "rows": 40,
+        "tests": {}
+      },
+      {
+        "platform": "windows",
+        "folder": "awm-v3",
+        "bytes": 154694301,
+        "sha256": "c1e6ff7d5ff6f0d0f2f43c2cc6632c5937400f2007e9b372d177c1534e9dda94",
+        "rows": 2613,
+        "tests": {}
+      },
+      {
+        "platform": "windows",
+        "folder": "awm-v3d",
+        "bytes": 154695575,
+        "sha256": "c79fedf7fd3e72f95659aa9544a5d54c4542620163052df7f9c1b3bd4192e4eb",
+        "rows": 2608,
+        "tests": {
+          "member-native-ui.trx": {
+            "Failed": 1
+          }
+        }
+      },
+      {
+        "platform": "windows",
+        "folder": "awm-v3e",
+        "bytes": 154699785,
+        "sha256": "79e9b3009de402b3d1dcb2cfa3af74c5a8151ac74732b5e337cc83e737e87c72",
+        "rows": 2623,
+        "tests": {
+          "member-native-ui.trx": {
+            "Passed": 8,
+            "Failed": 2
+          }
+        }
+      },
+      {
+        "platform": "windows",
+        "folder": "awm-v3f",
+        "bytes": 154697451,
+        "sha256": "d0408e23b6b4c4ce43f81f4b555ccd57d07ad4960d388d64fe5b4598e687a860",
+        "rows": 2607,
+        "tests": {
+          "member-native-ui.trx": {
+            "Failed": 2
+          }
+        }
+      },
+      {
+        "platform": "windows",
+        "folder": "awm-v3g",
+        "bytes": 154715228,
+        "sha256": "0416c2a60334b0f7e035b42f59c800bfce8e119e26b04e58466df33f84a56103",
+        "rows": 2612,
+        "tests": {
+          "member-native-ui.trx": {
+            "Passed": 2
+          }
+        }
+      },
+      {
+        "platform": "windows",
+        "folder": "awm-v3t",
+        "bytes": 154714014,
+        "sha256": "ff1811b0a7a2f78c6717accf35d8599c5f564e3ba1018dca1c3300c8691a89e8",
+        "rows": 2605,
+        "tests": {
+          "member-core.trx": {
+            "Passed": 114
+          },
+          "member-native-ui.trx": {
+            "Failed": 4
+          },
+          "member-ui.trx": {
+            "Passed": 53
+          }
+        }
+      },
+      {
+        "platform": "windows",
+        "folder": "awm-v4",
+        "bytes": 187983474,
+        "sha256": "939d1a52228d974a2827e9f1a16898ae53182eee1a3d55c9edeb102adc2024ac",
+        "rows": 5086,
+        "tests": {
+          "app-entry.trx": {
+            "Passed": 14
+          },
+          "application-regressions.trx": {
+            "Passed": 114
+          },
+          "archive-creation-core.trx": {
+            "Passed": 7997,
+            "NotExecuted": 461
+          },
+          "creation-cleanup-crashes.trx": {
+            "Passed": 18
+          },
+          "creation-native-ui.trx": {
+            "Passed": 10
+          },
+          "creation-smoke.trx": {
+            "Passed": 2
+          },
+          "creation-ui.trx": {
+            "Passed": 20
+          },
+          "member-core.trx": {
+            "Passed": 116
+          },
+          "member-native-ui.trx": {
+            "Passed": 10
+          },
+          "member-ui.trx": {
+            "Passed": 53
+          },
+          "mutation-preflight.trx": {
+            "Passed": 8
+          },
+          "native.trx": {
+            "Passed": 217
+          },
+          "password-preflight.trx": {
+            "Passed": 21
+          },
+          "target-preflight.trx": {
+            "Passed": 41
+          },
+          "update-smoke.trx": {
+            "Passed": 1
+          },
+          "update-ui.trx": {
+            "Passed": 16
+          }
+        }
+      },
+      {
+        "platform": "windows",
+        "folder": "awm-v4-metadata-v1",
+        "bytes": 3246,
+        "sha256": "4cc3c23c58f330bb0fbcf8a27cc3a885516ae91096a7ffeefff1a6843c9cefc3",
+        "rows": 5,
+        "tests": {}
+      },
+      {
+        "platform": "windows",
+        "folder": "awm-v4r",
+        "bytes": 35197,
+        "sha256": "b0a297b217d8ec15d1826dc2c2f037164535fdf3172974caf31d907ebc5f0173",
+        "rows": 54,
+        "tests": {}
+      }
+    ]
+  },
+  "remaining": [
+    "member UX edge coverage",
+    "encrypted browse/read/edit sessions",
+    "Unix native mutation and confinement",
+    "production qualification",
+    "final independent review"
+  ]
+}

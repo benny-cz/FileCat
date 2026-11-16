@@ -33,7 +33,7 @@ public sealed partial class MainViewModel
         }
         public void Stop()
         {
-            if (Phase is RecoveryActionPhase.Idle or RecoveryActionPhase.Submitted) return;
+            if (Phase is RecoveryActionPhase.Idle or RecoveryActionPhase.Submitted or RecoveryActionPhase.Completed) return;
             StopSource.Cancel();
             SetPhase(Phase, Phase == RecoveryActionPhase.Applying
                 ? "Stopping after the current safe step; completed changes are kept."
@@ -82,7 +82,9 @@ public sealed partial class MainViewModel
     {
         _recoveryReviews.Remove(scope.JournalPath);
         _interruptedActions.Remove(scope.JournalPath);
-        scope.SetPhase(RecoveryActionPhase.Idle, scope.Phase == RecoveryActionPhase.Submitted
+        scope.SetPhase(RecoveryActionPhase.Idle, scope.Phase == RecoveryActionPhase.Completed
+            ? "Recovery cleanup finished; the report is retained."
+            : scope.Phase == RecoveryActionPhase.Submitted
             ? "Recovery action submitted. Check its operation and tracking status above."
             : scope.Stopped ? "Review stopped. Any completed cleanup is kept; the recovery journal remains available."
             : scope.Phase == RecoveryActionPhase.Applying
@@ -98,8 +100,17 @@ public sealed partial class MainViewModel
     private sealed record InterruptedReview(IReadOnlyList<JournalRecovery.StagedFileReview> Staged, IReadOnlyList<string> Unreviewed, CopyReview Copies, bool Limited);
     private sealed record PartialCleanupResult(int Deleted, IReadOnlyList<string> DeletedPaths, IReadOnlyList<string> Kept);
 
+    private async Task<InterruptedJob> RefreshArchiveRecoveryAsync(InterruptedJob job, RecoveryActionScope scope) =>
+        job with { ArchiveTransactions = await MutationIoAsync(job.JournalPath,
+            () => JournalRecovery.ReadArchiveTransactions(job.JournalPath), scope.Check) };
+
+    private const string ArchiveReviewRequired = "This archive update still needs review. Keep the current archive and retained files. " +
+        "The recovery record will remain; open Review report for the recorded locations.";
+
     private async Task<InterruptedReview> ReviewInterruptedAsync(InterruptedJob job, RecoveryActionScope scope)
     {
+        // Archive paths are evidence only. This generic review is not an object-bound archive cleanup adapter.
+        if (job.ArchiveTransactions.HasRecords) return new([], [], new([], [], false), false);
         var paths = new HashSet<string>(PathUtil.SafetyComparer); bool limited = false;
         foreach (var dir in job.StagingDirectories.Distinct(PathUtil.SafetyComparer))
         {
@@ -176,6 +187,8 @@ public sealed partial class MainViewModel
         {
             scope.Check();
             if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), scope.Check)) return false;
+            job = await RefreshArchiveRecoveryAsync(job, scope);
+            if (job.ArchiveTransactions.HasRecords) { Notify(ArchiveReviewRequired, true); return false; }
             if (job.Kind is not (nameof(JobKind.Copy) or nameof(JobKind.Move))) return false;
             if (!newTransfer && !job.CanContinueTransfer)
             { Notify(job.TransferIntentProblem ?? "The original transfer options are incomplete. Choose Review a new transfer to decide its scope and options again.", true); return false; }
@@ -332,6 +345,8 @@ public sealed partial class MainViewModel
         try
         {
             if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), scope.Check)) return false;
+            job = await RefreshArchiveRecoveryAsync(job, scope);
+            if (job.ArchiveTransactions.HasRecords) return await CleanupArchiveRetainedAsync(job, scope);
             var review = reviewed = await ReviewInterruptedAsync(job, scope);
             var renames = new List<JournalRecovery.RenameReview>(); var unreviewedRenames = new List<string>(); bool renameLimited = false;
             long renameBytes = JournalRecovery.StagedReviewByteLimit; int renameItems = 1000;
@@ -466,6 +481,7 @@ public sealed partial class MainViewModel
         {
             if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), scope.Check))
             { Notify("This recovery journal is no longer available for review.", true); return null; }
+            job = await RefreshArchiveRecoveryAsync(job, scope);
             var review = await ReviewInterruptedAsync(job, scope);
             var recordedSources = await MutationIoAsync(job.JournalPath, () => JournalRecovery.LoadSources(job), scope.Check);
             string report = await Task.Run(() => InterruptedRecoveryReport.Format(job, "Inspection only; no files or recovery tracking changed",
@@ -493,6 +509,8 @@ public sealed partial class MainViewModel
         try
         {
             if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), scope.Check)) return false;
+            job = await RefreshArchiveRecoveryAsync(job, scope);
+            if (job.ArchiveTransactions.RequiresReview) { Notify(ArchiveReviewRequired, true); return false; }
             var review = await ReviewInterruptedAsync(job, scope);
             var recordedSources = await MutationIoAsync(job.JournalPath, () => JournalRecovery.LoadSources(job), scope.Check);
             string report = await Task.Run(() => InterruptedRecoveryReport.Format(job, "Marked reviewed; no files changed by this action",

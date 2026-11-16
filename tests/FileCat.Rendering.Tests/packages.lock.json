@@ -428,6 +428,12 @@
           "BouncyCastle.Cryptography": "[2.7.0, )"
         }
       },
+      "filecat.corecrashharness": {
+        "type": "Project",
+        "dependencies": {
+          "FileCat.Core": "[0.1.0-preview, )"
+        }
+      },
       "filecat.platform.windows": {
         "type": "Project",
         "dependencies": {

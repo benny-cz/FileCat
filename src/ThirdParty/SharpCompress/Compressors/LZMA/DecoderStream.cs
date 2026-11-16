@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -290,27 +291,18 @@ internal static class DecoderStreamHelper
         }
 
         var inStreams = new Stream[folderInfo._packStreams.Count];
-        for (var j = 0; j < folderInfo._packStreams.Count; j++)
-        {
-            inStreams[j] = new BufferedSubStream(inStream, startPos, packSizes[j]);
-            startPos += packSizes[j];
-        }
-
         var outStreams = new Stream[folderInfo._unpackSizes.Count];
-
-        FindPrimaryOutStreamIndex(
-            folderInfo,
-            out var primaryCoderIndex,
-            out var primaryOutStreamIndex
-        );
-        return CreateDecoderStream(
-            inStreams,
-            packSizes,
-            outStreams,
-            folderInfo,
-            primaryCoderIndex,
-            pass
-        );
+        try
+        {
+            for (var j = 0; j < folderInfo._packStreams.Count; j++)
+            {
+                inStreams[j] = new BufferedSubStream(inStream, startPos, packSizes[j]);
+                startPos += packSizes[j];
+            }
+            FindPrimaryOutStreamIndex(folderInfo, out var primaryCoderIndex, out _);
+            return CreateDecoderStream(inStreams, packSizes, outStreams, folderInfo, primaryCoderIndex, pass);
+        }
+        catch { DisposeFailedGraph(inStreams, outStreams); throw; }
     }
 
     internal static async ValueTask<Stream> CreateDecoderStreamAsync(
@@ -328,28 +320,29 @@ internal static class DecoderStreamHelper
         }
 
         var inStreams = new Stream[folderInfo._packStreams.Count];
-        for (var j = 0; j < folderInfo._packStreams.Count; j++)
-        {
-            inStreams[j] = new BufferedSubStream(inStream, startPos, packSizes[j]);
-            startPos += packSizes[j];
-        }
-
         var outStreams = new Stream[folderInfo._unpackSizes.Count];
+        try
+        {
+            for (var j = 0; j < folderInfo._packStreams.Count; j++)
+            {
+                inStreams[j] = new BufferedSubStream(inStream, startPos, packSizes[j]);
+                startPos += packSizes[j];
+            }
+            FindPrimaryOutStreamIndex(folderInfo, out var primaryCoderIndex, out _);
+            return await CreateDecoderStreamAsync(inStreams, packSizes, outStreams, folderInfo, primaryCoderIndex, pass, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch { DisposeFailedGraph(inStreams, outStreams); throw; }
+    }
 
-        FindPrimaryOutStreamIndex(
-            folderInfo,
-            out var primaryCoderIndex,
-            out var primaryOutStreamIndex
-        );
-        return await CreateDecoderStreamAsync(
-                inStreams,
-                packSizes,
-                outStreams,
-                folderInfo,
-                primaryCoderIndex,
-                pass,
-                cancellationToken
-            )
-            .ConfigureAwait(false);
+    // FileCat: a later coder constructor can fail after earlier AES/codec streams were created. The caller never
+    // receives an owner in that case. Close all recorded streams and preserve the original construction failure.
+    private static void DisposeFailedGraph(Stream[] packed, Stream[] outputs)
+    {
+        var closed = new HashSet<Stream>(ReferenceEqualityComparer.Instance);
+        foreach (var group in new[] { outputs, packed })
+            foreach (var stream in group)
+                if (stream != null && closed.Add(stream))
+                    try { stream.Dispose(); } catch { }
     }
 }

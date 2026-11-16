@@ -31,6 +31,12 @@ public sealed class LocalIconFileLease : IDisposable
 {
     private readonly List<SafeFileHandle> _handles = [];
     internal SafeFileHandle LastHandle => _handles[^1];
+    // Caller owns this live lease. All components remain pinned against rename/delete during the check.
+    internal bool ContainsAnyIdentity(IReadOnlySet<string> identities, CancellationToken ct)
+    {
+        foreach (var held in _handles) { ct.ThrowIfCancellationRequested(); if (identities.Contains(ProtectedHexFile.Identity(held).ToString())) return true; }
+        return false;
+    }
 
     /// <summary>
     /// The links icons and thumbnails go through. Junctions and mount points are followed, since they lead only to local
@@ -46,7 +52,8 @@ public sealed class LocalIconFileLease : IDisposable
     /// </summary>
     public static LeaseLinks ForTransfers => WindowsTokenAuthority.IsHighIntegrity ? LeaseLinks.Refuse : LeaseLinks.Follow;
 
-    private LocalIconFileLease(string path, bool directory, LeaseLinks links, bool removable = false, string? chosen = null)
+    private LocalIconFileLease(string path, bool directory, LeaseLinks links, bool removable = false, string? chosen = null,
+        bool readControl = false)
     {
         string full = Path.GetFullPath(path);
         int followable = PortableFileOperations.FollowableComponents(full, chosen, file: !directory);
@@ -70,6 +77,7 @@ public sealed class LocalIconFileLease : IDisposable
                 bool leaf = i == parts.Length - 1;
                 bool file = leaf && !directory;
                 uint access = (file ? GenericRead : Traverse | ReadAttributes) | Synchronize;
+                if (leaf && readControl) access |= 0x20000 /* READ_CONTROL */;
                 // Denying delete sharing keeps each name bound. Writers stay allowed: a live log, a database or a download
                 // another program is writing is still added to an archive, as before the hold (finding F-M6 of f134ba37).
                 uint share = ShareRead | ShareWrite;
@@ -94,6 +102,38 @@ public sealed class LocalIconFileLease : IDisposable
             Dispose();
             throw;
         }
+    }
+
+    private LocalIconFileLease() { }
+
+    /// <summary>
+    /// The folders below an already held anchor folder, each opened relative to the one before it, never through a link,
+    /// and held without delete sharing like the components of a full-path lease. Together with the anchor's lease this
+    /// pins the same names a lease of the full path would, without opening the anchor's path again. Every component is
+    /// given to <paramref name="verify"/> before the next is opened; the caller keeps the anchor alive.
+    /// </summary>
+    internal static LocalIconFileLease Below(SafeFileHandle anchor, IReadOnlyList<string> leaves, Action<int, SafeFileHandle> verify)
+    {
+        var lease = new LocalIconFileLease();
+        try
+        {
+            SafeFileHandle parent = anchor;
+            for (int i = 0; i < leaves.Count; i++)
+            {
+                var next = OpenOrThrow(parent, leaves[i], Traverse | ReadAttributes | Synchronize, ShareRead | ShareWrite, Open,
+                    DirectoryFile | OpenReparsePoint, "Open local path");
+                try
+                {
+                    if (IsLinkTag(GetReparseTag(next))) throw new IOException("The path contains a link.");
+                    verify(i, next);
+                }
+                catch { next.Dispose(); throw; }
+                lease._handles.Add(next);
+                parent = next;
+            }
+            return lease;
+        }
+        catch { lease.Dispose(); throw; }
     }
 
     /// <summary>A file, for its icon or thumbnail (<see cref="ForIcons"/>).</summary>
@@ -127,6 +167,16 @@ public sealed class LocalIconFileLease : IDisposable
         {
             return null;
         }
+    }
+
+    // The final component must carry READ_CONTROL when reviewing an old edit folder's owner and DACL.
+    // Ancestors stay namespace pins; no extra security privilege is requested for them.
+    internal static LocalIconFileLease? TryOpenDirectoryWithSecurity(string path)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try { return new LocalIconFileLease(path, directory: true, LeaseLinks.Refuse, removable: true, readControl: true); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException
+            or System.ComponentModel.Win32Exception) { return null; }
     }
 
     public void Dispose()

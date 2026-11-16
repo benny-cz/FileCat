@@ -73,6 +73,68 @@ public sealed class ListingModelTests : IDisposable
         await _ui.InvokeAsync(model.Dispose);
     }
 
+    /// <summary>
+    /// What a provider keeps going while a panel shows its listing (an archive's revision read, fifth independent review
+    /// of 12 November 2026) ends once that listing is not shown any more: a refresh replaced it, the panel moved to
+    /// another location, or the tab closed.
+    /// </summary>
+    [Fact]
+    public async Task Work_kept_while_a_listing_is_shown_ends_when_a_refresh_a_navigation_or_closing_replaces_it()
+    {
+        var provider = new ShowingProvider();
+        _providers.Register(provider);
+        var model = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui));
+        await _ui.InvokeAsync(() => model.Load(new Location("showtest", "a")));
+        await _ui.WaitUntilAsync(() => model.State == ListingState.Complete);
+        var first = Assert.Single(provider.Kept);
+        Assert.False(first.Ended);
+
+        await _ui.InvokeAsync(model.Refresh);
+        await _ui.WaitUntilAsync(() => !model.IsRefreshing && model.State == ListingState.Complete);
+        Assert.Equal(2, provider.Kept.Length);
+        Assert.True(first.Ended, "The listing a refresh replaced kept its work going.");
+        Assert.False(provider.Kept[1].Ended);
+
+        await _ui.InvokeAsync(() => model.Load(new Location("showtest", "b")));
+        await _ui.WaitUntilAsync(() => model.State == ListingState.Complete);
+        Assert.Equal(3, provider.Kept.Length);
+        Assert.True(provider.Kept[1].Ended, "The listing the panel left kept its work going.");
+        Assert.False(provider.Kept[2].Ended);
+
+        await _ui.InvokeAsync(model.Dispose);
+        Assert.True(provider.Kept[2].Ended, "Closing the tab kept its listing's work going.");
+    }
+
+    private sealed class ShowingProvider : ResourceProvider
+    {
+        private readonly List<Work> _kept = [];
+        internal Work[] Kept { get { lock (_kept) return [.. _kept]; } }
+        public override string Scheme => "showtest";
+        public override string GetDisplayPath(Location location) => location.Path;
+        public override Location? GetParent(Location location) => null;
+        public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate;
+        public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
+        {
+            // As the archive providers do, the work is kept before the rows arrive: a refresh can swap its rows in early.
+            if (sink.Shown)
+            {
+                var work = new Work();
+                lock (_kept) _kept.Add(work);
+                sink.WhileShown(work);
+            }
+            sink.AddBatch([new EntryData("member", EntryKind.File)]);
+            return Task.CompletedTask;
+        }
+        public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
+
+        internal sealed class Work : IDisposable
+        {
+            private int _ended;
+            internal bool Ended => Volatile.Read(ref _ended) != 0;
+            public void Dispose() => Interlocked.Exchange(ref _ended, 1);
+        }
+    }
+
     private sealed class SameNameProvider : ResourceProvider
     {
         public override string Scheme => "regtest";

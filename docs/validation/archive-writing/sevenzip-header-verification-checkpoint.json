@@ -1,0 +1,224 @@
+{
+  "date": "2026-11-07",
+  "source_packet": {
+    "files": 4143,
+    "bytes": 30318694,
+    "sha256": "4a5aecf81f713e997557728e9f87f859ff7d5d24018b8f37371312b04259252f"
+  },
+  "new_profile_registered": false,
+  "strict_encoded_header_component_only": true,
+  "production_backend_qualified": false,
+  "logical_member_catalog_and_publication_qualified": false,
+  "new_cases": 60,
+  "host_scope": "Edits, builds and static frozen-artifact verification only. Application tests and independent readers run on the authorized Mac/VMs.",
+  "platforms": {
+    "mac": {
+      "archive": "mac-sevenzip-header-ending-evidence-v1.tar.gz",
+      "bytes": 39428281,
+      "sha256": "840e4b9f93b8d7abedee49d26a4f2e1a9343cc3c1da22c33df60aabe325fb9ed",
+      "manifest_rows": 1960,
+      "combined_cases": {
+        "Passed": 2617,
+        "NotExecuted": 55
+      },
+      "new_layer_cases": {
+        "Passed": 55
+      },
+      "new_complete_container_cases": {
+        "Passed": 5
+      },
+      "independent": {
+        "official_archives": 36,
+        "official_exact_payloads": 72,
+        "official_unsupported_zstandard": [
+          "codec-5-header-0-protection-0",
+          "codec-5-header-0-protection-1",
+          "codec-5-header-0-protection-2",
+          "codec-5-header-1-protection-0",
+          "codec-5-header-1-protection-1",
+          "codec-5-header-1-protection-2"
+        ],
+        "official_tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+        "independent_aes_layers": 34
+      },
+      "independent_py7zr": {
+        "py7zr_version": "1.1.4",
+        "synthetic_public_vectors_only": true,
+        "production_dependency": false,
+        "archives": 42,
+        "metadata_records": 126,
+        "exact_payloads": 84
+      },
+      "aes_vectors_identical_on_all_three_platforms": true,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/StrictLzmaStream.cs",
+        "src/FileCat.Archives/Writing/StrictSevenZipFraming.cs",
+        "src/FileCat.Archives/Writing/StrictSevenZipHeaderDecoder.cs",
+        "tests/FileCat.Core.Tests/StrictSevenZipFramingTests.cs",
+        "tests/FileCat.Core.Tests/StrictSevenZipHeaderDecoderTests.cs"
+      ],
+      "compiler_source_documents": 1372,
+      "compiler_source_bytes": 13046831,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.12",
+        "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+        "os": "macOS 27.0.1",
+        "architecture": "Arm64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      }
+    },
+    "ubuntu": {
+      "archive": "ubuntu-sevenzip-header-ending-evidence-v1.tar.gz",
+      "bytes": 39439940,
+      "sha256": "7c5cda98ed59cc534ee8be67a7abda6792d788fb20c537532d934ab0abe60b73",
+      "manifest_rows": 1960,
+      "combined_cases": {
+        "Passed": 2630,
+        "NotExecuted": 42
+      },
+      "new_layer_cases": {
+        "Passed": 55
+      },
+      "new_complete_container_cases": {
+        "Passed": 5
+      },
+      "independent": {
+        "official_archives": 36,
+        "official_exact_payloads": 72,
+        "official_unsupported_zstandard": [
+          "codec-5-header-0-protection-0",
+          "codec-5-header-0-protection-1",
+          "codec-5-header-0-protection-2",
+          "codec-5-header-1-protection-0",
+          "codec-5-header-1-protection-1",
+          "codec-5-header-1-protection-2"
+        ],
+        "official_tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+        "independent_aes_layers": 34
+      },
+      "independent_py7zr": {
+        "py7zr_version": "1.1.4",
+        "synthetic_public_vectors_only": true,
+        "production_dependency": false,
+        "archives": 42,
+        "metadata_records": 126,
+        "exact_payloads": 84
+      },
+      "aes_vectors_identical_on_all_three_platforms": true,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/StrictLzmaStream.cs",
+        "src/FileCat.Archives/Writing/StrictSevenZipFraming.cs",
+        "src/FileCat.Archives/Writing/StrictSevenZipHeaderDecoder.cs",
+        "tests/FileCat.Core.Tests/StrictSevenZipFramingTests.cs",
+        "tests/FileCat.Core.Tests/StrictSevenZipHeaderDecoderTests.cs"
+      ],
+      "compiler_source_documents": 1372,
+      "compiler_source_bytes": 13046831,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+        "os": "Ubuntu 24.04.5 LTS",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    "windows": {
+      "archive": "windows-sevenzip-header-ending-evidence-v1.tar.gz",
+      "bytes": 39466073,
+      "sha256": "f7bb60b03dcf58ea545c9e1de86dba23dd3b940ea4d0644577764be9e2aa11ed",
+      "manifest_rows": 1887,
+      "combined_cases": {
+        "Passed": 2452,
+        "NotExecuted": 220
+      },
+      "new_layer_cases": {
+        "Passed": 55
+      },
+      "new_complete_container_cases": {
+        "Passed": 5
+      },
+      "independent": {
+        "official_archives": 36,
+        "official_exact_payloads": 72,
+        "official_unsupported_zstandard": [
+          "codec-5-header-0-protection-0",
+          "codec-5-header-0-protection-1",
+          "codec-5-header-0-protection-2",
+          "codec-5-header-1-protection-0",
+          "codec-5-header-1-protection-1",
+          "codec-5-header-1-protection-2"
+        ],
+        "official_tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+        "independent_aes_layers": 34
+      },
+      "independent_py7zr": {
+        "py7zr_version": "1.1.4",
+        "synthetic_public_vectors_only": true,
+        "production_dependency": false,
+        "archives": 42,
+        "metadata_records": 126,
+        "exact_payloads": 84
+      },
+      "aes_vectors_identical_on_all_three_platforms": true,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/StrictLzmaStream.cs",
+        "src/FileCat.Archives/Writing/StrictSevenZipFraming.cs",
+        "src/FileCat.Archives/Writing/StrictSevenZipHeaderDecoder.cs",
+        "tests/FileCat.Core.Tests/StrictSevenZipFramingTests.cs",
+        "tests/FileCat.Core.Tests/StrictSevenZipHeaderDecoderTests.cs"
+      ],
+      "compiler_source_documents": 1372,
+      "compiler_source_bytes": 13061532,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+        "os": "Microsoft Windows 10.0.26340",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "Rar15_or_DiscUtils_present": false,
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ]
+      },
+      "final_census": {
+        "Processes": [],
+        "CollectedUtc": "2026-11-07T11:18:10.5428441Z"
+      },
+      "standard_test_account": {
+        "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+        "AdministratorsMember": false,
+        "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+        "HiveLoaded": true
+      }
+    }
+  }
+}

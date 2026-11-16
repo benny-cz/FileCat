@@ -1,0 +1,158 @@
+{
+  "date": "2026-11-08",
+  "baseline_commit": "c5d62947",
+  "production_profile_registered": false,
+  "production_backend_qualified": false,
+  "fix": "Preserve case-distinct native source leaves and parent directories before native capture.",
+  "new_core_cases": 2,
+  "new_Windows_native_cases": 20,
+  "changed_csharp": [
+    "src/FileCat.Core/Archives/ArchiveJobPlanning.cs",
+    "src/FileCat.Core/Archives/ArchiveSelectionForest.cs",
+    "tests/ArchiveNativeJobCases.cs",
+    "tests/FileCat.Core.Tests/ArchiveJobPlanningTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerSourceCaseTests.cs"
+  ],
+  "static_verifier_sha256": "47c4d9180c82f5ce2ab038e77acc603c8fbc427bc3d2bb3fa6fb4bc16f2506dc",
+  "limitations": [
+    "Native cleanup/F6, shared UI, Unix update/confinement, full resource/crash/fuzz/RID/package qualification and independent final review remain."
+  ],
+  "platforms": {
+    "mac": {
+      "bytes": 35370086,
+      "sha256": "969df5a869e3f0b547838f513938d30527df66723adee5973500f2bb6380bdbc",
+      "rows": 3357,
+      "tests": {
+        "archive-source-case-core.trx": {
+          "Passed": 3811,
+          "NotExecuted": 55
+        },
+        "job-preflight.trx": {
+          "Passed": 116
+        }
+      },
+      "reused_full_core_cases": 8320,
+      "affected_inventory": {
+        "previous_cases": 3864,
+        "current_cases": 3866,
+        "added_cases": [
+          "FileCat.Core.Tests.ArchiveCapturedInputsTests.Job_planning_keeps_case_distinct_source_leaves_and_parents_separate(parents: False)",
+          "FileCat.Core.Tests.ArchiveCapturedInputsTests.Job_planning_keeps_case_distinct_source_leaves_and_parents_separate(parents: True)"
+        ],
+        "all_previous_passes_still_pass": true
+      },
+      "changed_csharp_matched": [
+        "src/FileCat.Core/Archives/ArchiveJobPlanning.cs",
+        "src/FileCat.Core/Archives/ArchiveSelectionForest.cs",
+        "tests/ArchiveNativeJobCases.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobPlanningTests.cs"
+      ],
+      "assembly_pdb_pairs": 10,
+      "compiler_source_documents": 1442,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "source_case_independent_archives": 0
+    },
+    "ubuntu": {
+      "bytes": 35369180,
+      "sha256": "4045364019cfc54cad65ef47c0a269cd4bf56c16506255c9a43501d3f71260c8",
+      "rows": 3362,
+      "tests": {
+        "archive-source-case-core.trx": {
+          "Passed": 3824,
+          "NotExecuted": 42
+        },
+        "job-preflight.trx": {
+          "Passed": 116
+        }
+      },
+      "reused_full_core_cases": 8320,
+      "affected_inventory": {
+        "previous_cases": 3864,
+        "current_cases": 3866,
+        "added_cases": [
+          "FileCat.Core.Tests.ArchiveCapturedInputsTests.Job_planning_keeps_case_distinct_source_leaves_and_parents_separate(parents: False)",
+          "FileCat.Core.Tests.ArchiveCapturedInputsTests.Job_planning_keeps_case_distinct_source_leaves_and_parents_separate(parents: True)"
+        ],
+        "all_previous_passes_still_pass": true
+      },
+      "changed_csharp_matched": [
+        "src/FileCat.Core/Archives/ArchiveJobPlanning.cs",
+        "src/FileCat.Core/Archives/ArchiveSelectionForest.cs",
+        "tests/ArchiveNativeJobCases.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobPlanningTests.cs"
+      ],
+      "assembly_pdb_pairs": 10,
+      "compiler_source_documents": 1442,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "source_case_independent_archives": 0
+    },
+    "windows": {
+      "bytes": 167877189,
+      "sha256": "b8aa4260721b4352dd03050033b4b40f4c425857e273b5fa6b06551786b571aa",
+      "rows": 4803,
+      "tests": {
+        "app-entry.trx": {
+          "Passed": 10
+        },
+        "archive-source-case-core.trx": {
+          "Passed": 3595,
+          "NotExecuted": 271
+        },
+        "job-preflight.trx": {
+          "Passed": 116
+        },
+        "native.trx": {
+          "Passed": 197
+        },
+        "source-case-preflight.trx": {
+          "Passed": 20
+        }
+      },
+      "reused_full_core_cases": 8325,
+      "affected_inventory": {
+        "previous_cases": 3864,
+        "current_cases": 3866,
+        "added_cases": [
+          "FileCat.Core.Tests.ArchiveCapturedInputsTests.Job_planning_keeps_case_distinct_source_leaves_and_parents_separate(parents: False)",
+          "FileCat.Core.Tests.ArchiveCapturedInputsTests.Job_planning_keeps_case_distinct_source_leaves_and_parents_separate(parents: True)"
+        ],
+        "all_previous_passes_still_pass": true
+      },
+      "changed_csharp_matched": [
+        "src/FileCat.Core/Archives/ArchiveJobPlanning.cs",
+        "src/FileCat.Core/Archives/ArchiveSelectionForest.cs",
+        "tests/ArchiveNativeJobCases.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobPlanningTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerSourceCaseTests.cs"
+      ],
+      "assembly_pdb_pairs": 17,
+      "compiler_source_documents": 2209,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "source_case_independent_archives": 20
+    }
+  },
+  "original_reproduction": {
+    "bytes": 22887,
+    "sha256": "6245adbb4833d4a4998830f6cf256c0824287894ddac3898d23fa4a0efc7f006",
+    "rows": 22,
+    "proof": {
+      "baseline_commit": "c5d62947",
+      "CoreSha256": "9d7742428736d7ac72389da4a1369a855cee9094ff34764e2ec293e164cd6b5e",
+      "source_collapse_reproduced": true,
+      "expected_sources": 2,
+      "actual_sources": 1,
+      "owned_test_process_exited": true,
+      "first_fixture_failure": "Standard user could not pin ancestors under the administrator profile; moved the fixture into the standard user profile."
+    }
+  }
+}

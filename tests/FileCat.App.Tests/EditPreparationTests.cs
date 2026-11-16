@@ -21,7 +21,52 @@ using ResourceProvider = FileCat.Core.Resources.ResourceProvider;
 
 namespace FileCat.App.Tests;
 
-public sealed class EditPreparationTests(ITestOutputHelper output)
+public sealed class EditPreparationTests(ITestOutputHelper output) : EditPreparationCases(output, EditStoreKind.Legacy);
+public sealed class EditPreparationNativeTests(ITestOutputHelper output) : EditPreparationCases(output, EditStoreKind.Native)
+{
+    /// <summary>
+    /// A stopped native F4 whose copy cannot be removed exactly (another program put a file in its working folder) says
+    /// what it kept, though the I/O scheduler completes a stopped call as cancelled with an exception of its own. The rest
+    /// of the copy is removed; the folder stays as an interrupted edit, for review.
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData("zip")]
+    [InlineData("sftp")]
+    public async Task A_stopped_F4_says_what_it_had_to_keep(string scheme)
+    {
+        using var f = new Fixture(EditStoreKind.Native, scheme, "ordinary", "read"); await f.Load(); Task? task = null;
+        // No rescue timer: the checkpoint below fails on its own if the hold is never reached, and a release before the
+        // folder is prepared would let the copy finish instead of being stopped.
+        try
+        {
+            task = f.Vm.ExecuteAsync(CommandIds.Edit); await Wait(() => f.Gate.Active > 0 || task.IsCompleted);
+            Assert.False(task.IsCompleted);
+            // The working file exists before its first byte is read: another program puts a file beside it.
+            string folder = Assert.Single(Directory.GetDirectories(f.Services.EditSessions.NativeRoot));
+            string working = Assert.Single(Directory.GetFiles(Path.Join(folder, "files")));
+            File.WriteAllText(Path.Join(folder, "files", "another.txt"), "another program's file");
+            f.Tab.Navigate(Location.FileSystem(f.Root)); await Wait(() => f.Tab.Listing.State == ListingState.Complete);
+            f.Gate.Release.Set(); await task.WaitAsync(TimeSpan.FromSeconds(30));
+            var rows = f.Services.EditSessions.LoadAll();
+            Emit(f, "kept", new { notification = f.Vm.Notification, rows = rows.Select(r => r.UnsupportedReason).ToArray() });
+            // Its own copy was removed exactly; what is kept is the folder, with the other program's file in it.
+            Assert.StartsWith("FileCat removed the copy it had made of", f.Vm.Notification, StringComparison.Ordinal);
+            Assert.Contains("kept its folder", f.Vm.Notification, StringComparison.Ordinal);
+            Assert.Contains(folder, f.Vm.Notification, StringComparison.Ordinal);
+            Assert.Equal(EditSessionStore.InterruptedCreationReason, Assert.Single(rows).UnsupportedReason);
+            Assert.False(File.Exists(working)); Assert.True(File.Exists(Path.Join(folder, "creation.json")));
+            Assert.Equal("another program's file", File.ReadAllText(Path.Join(folder, "files", "another.txt")));
+            Assert.All(f.Provider.Sources, s => Assert.Equal(1, s.Disposals)); f.AssertUnchanged();
+        }
+        finally { f.Gate.Release.Set(); if (task is not null) await task.WaitAsync(TimeSpan.FromSeconds(10)); }
+    }
+}
+
+/// <summary>
+/// F4 preparation for both edit stores: demand ownership, failures, concurrency and coalescing (a native edit copies its
+/// bytes without holding the storage gate, and a stopped one removes what it made).
+/// </summary>
+public abstract class EditPreparationCases(ITestOutputHelper output, EditStoreKind store)
 {
     public static TheoryData<string, string, string> EndedDemand
     {
@@ -35,10 +80,10 @@ public sealed class EditPreparationTests(ITestOutputHelper output)
         }
     }
     [AvaloniaTheory]
-    [MemberData(nameof(EndedDemand))]
+    [MemberData(nameof(EndedDemand), MemberType = typeof(EditPreparationCases))]
     public async Task Ended_F4_preparation_keeps_its_owner_until_return_and_publishes_no_editor_or_session(string scheme, string held, string action)
     {
-        using var f = new Fixture(scheme, "ordinary", held); await f.Load(); Task? task = null;
+        using var f = new Fixture(store, scheme, "ordinary", held); await f.Load(); Task? task = null;
         using var rescue = new Timer(_ => f.Gate.Release.Set(), null, TimeSpan.FromSeconds(4), Timeout.InfiniteTimeSpan);
         try
         {
@@ -55,7 +100,7 @@ public sealed class EditPreparationTests(ITestOutputHelper output)
             Emit(f, "ended", new { held, action, pending, disposed, sessions = f.Services.EditSessions.LoadAll().Count });
             Assert.True(pending); Assert.Equal(0, disposed); Assert.Equal(notification, f.Vm.Notification);
             Assert.Empty(f.Services.EditSessions.LoadAll());
-            if (Directory.Exists(f.Services.EditSessions.Root)) Assert.Empty(Directory.EnumerateFileSystemEntries(f.Services.EditSessions.Root));
+            Assert.Equal(0, EditStoreEntries.Count(f.Services.EditSessions));
             Assert.All(f.Provider.Sources, s => { Assert.Equal(1, s.Disposals); Assert.False(s.DisposedWhileReading); }); f.AssertUnchanged();
         }
         finally { f.Gate.Release.Set(); if (task is not null) await task.WaitAsync(TimeSpan.FromSeconds(10)); }
@@ -66,7 +111,7 @@ public sealed class EditPreparationTests(ITestOutputHelper output)
     [InlineData("sftp")]
     public async Task A_completed_edit_has_exact_bytes_and_survives_navigation_and_tab_closure(string scheme)
     {
-        using var f = new Fixture(scheme); await f.Load();
+        using var f = new Fixture(store, scheme); await f.Load();
         await f.Vm.ExecuteAsync(CommandIds.Edit).WaitAsync(TimeSpan.FromSeconds(10));
         var session = Assert.Single(f.Services.EditSessions.LoadAll()); AssertWorker(f);
         Assert.Equal("owned editable bytes", File.ReadAllText(session.WorkingPath));
@@ -89,7 +134,7 @@ public sealed class EditPreparationTests(ITestOutputHelper output)
     [InlineData("sftp", "invalid")]
     public async Task Failed_preparation_reports_an_error_and_preserves_the_source(string scheme, string outcome)
     {
-        using var f = new Fixture(scheme, outcome); await f.Load();
+        using var f = new Fixture(store, scheme, outcome); await f.Load();
         await f.Vm.ExecuteAsync(CommandIds.Edit).WaitAsync(TimeSpan.FromSeconds(10));
         Emit(f, "error", new { outcome, notification = f.Vm.Notification }); AssertWorker(f);
         Assert.Contains("Cannot edit", f.Vm.Notification); Assert.Empty(f.Services.EditSessions.LoadAll()); f.AssertUnchanged();
@@ -101,7 +146,7 @@ public sealed class EditPreparationTests(ITestOutputHelper output)
     [InlineData("sftp")]
     public async Task Eight_distinct_edits_share_bounded_device_workers_while_another_device_progresses(string scheme)
     {
-        using var f = new Fixture(scheme, "ordinary", "open"); await f.Load(); var tasks = new List<Task>();
+        using var f = new Fixture(store, scheme, "ordinary", "open"); await f.Load(); var tasks = new List<Task>();
         using var rescue = new Timer(_ => f.Gate.Release.Set(), null, TimeSpan.FromSeconds(4), Timeout.InfiniteTimeSpan);
         try
         {
@@ -122,7 +167,7 @@ public sealed class EditPreparationTests(ITestOutputHelper output)
     [InlineData("sftp")]
     public async Task Repeated_F4_on_one_pending_member_creates_one_private_copy(string scheme)
     {
-        using var f = new Fixture(scheme, "ordinary", "read"); await f.Load(); Task? first = null;
+        using var f = new Fixture(store, scheme, "ordinary", "read"); await f.Load(); Task? first = null;
         using var rescue = new Timer(_ => f.Gate.Release.Set(), null, TimeSpan.FromSeconds(4), Timeout.InfiniteTimeSpan);
         try
         {
@@ -137,23 +182,23 @@ public sealed class EditPreparationTests(ITestOutputHelper output)
         finally { f.Gate.Release.Set(); if (first is not null) await first.WaitAsync(TimeSpan.FromSeconds(15)); }
     }
 
-    private void Emit(Fixture f, string control, object detail) => output.WriteLine("EDIT_PREPARATION " + JsonSerializer.Serialize(new
+    private protected void Emit(Fixture f, string control, object detail) => output.WriteLine("EDIT_PREPARATION " + JsonSerializer.Serialize(new
     {
         f.Scheme, control, detail, f.Before, After = f.Hash(), Calls = f.Gate.Calls.ToArray(),
         SyntheticRemoteProvider = f.Scheme == "sftp", NativeDesktopInteraction = false, EditorProcessStarted = false, PhysicalOrNetworkSource = false,
     }));
-    private static void AssertWorker(Fixture f) { Assert.NotEmpty(f.Gate.Calls); Assert.All(f.Gate.Calls, c => { Assert.False(c.Ui); Assert.StartsWith("FileCat I/O ", c.Thread); }); }
-    private static async Task Wait(Func<bool> done)
+    private protected static void AssertWorker(Fixture f) { Assert.NotEmpty(f.Gate.Calls); Assert.All(f.Gate.Calls, c => { Assert.False(c.Ui); Assert.StartsWith("FileCat I/O ", c.Thread); }); }
+    private protected static async Task Wait(Func<bool> done)
     { var clock = Stopwatch.StartNew(); while (!done()) { Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), "Owned edit preparation checkpoint timed out."); await Task.Delay(10, TestContext.Current.CancellationToken); } }
 
-    private sealed class Fixture : IDisposable
+    private protected sealed class Fixture : IDisposable
     {
         public readonly AppServices Services; public readonly MainViewModel Vm; public readonly MainWindow Window; public readonly string Root, Scheme, Archive, Before;
         public readonly TabViewModel Tab; public readonly Gate Gate; public readonly Provider Provider;
         private readonly Location _location;
-        public Fixture(string scheme, string outcome = "ordinary", string? held = null)
+        public Fixture(EditStoreKind store, string scheme, string outcome = "ordinary", string? held = null)
         {
-            Scheme = scheme; (Services, Vm, Window, Root) = AccessibilityTests.OpenMainWindow(
+            Scheme = scheme; (Services, Vm, Window, Root) = EditTestStores.OpenMainWindow(store,
                 new NoNetworkConnector(), nativeWindowsOriginMarks: scheme == "sftp");
             Services.Settings.Editor = new ToolDefinition { Executable = Path.Join(Root, "owned-editor-does-not-exist.exe") };
             Archive = Path.Join(Root, "owned.zip");
@@ -177,8 +222,8 @@ public sealed class EditPreparationTests(ITestOutputHelper output)
     }
     private sealed class NoNetworkConnector : ISftpConnector
     { public ISftpChannel Connect(RemoteProfile p, ConnectContext c, CancellationToken ct) => throw new IOException("Owned test connector: no network connection is permitted."); }
-    private sealed record Call(string Operation, bool Ui, string Thread);
-    private sealed class Gate(string? held)
+    private protected sealed record Call(string Operation, bool Ui, string Thread);
+    private protected sealed class Gate(string? held)
     {
         public readonly ConcurrentQueue<Call> Calls = new(); public readonly ManualResetEventSlim Release = new(held is null); private int _active;
         public int Active => Volatile.Read(ref _active);
@@ -188,7 +233,7 @@ public sealed class EditPreparationTests(ITestOutputHelper output)
             Interlocked.Increment(ref _active); try { if (!Release.Wait(TimeSpan.FromSeconds(15))) throw new IOException("Owned edit hold expired."); } finally { Interlocked.Decrement(ref _active); }
         }
     }
-    private sealed class Provider(string scheme, ResourceProvider inner, Gate gate, string outcome) : ResourceProvider
+    private protected sealed class Provider(string scheme, ResourceProvider inner, Gate gate, string outcome) : ResourceProvider
     {
         public readonly ConcurrentQueue<Source> Sources = new(); public override string Scheme => scheme;
         public override string GetDeviceKey(Location l) => "owned-edit-preparation";
@@ -208,7 +253,7 @@ public sealed class EditPreparationTests(ITestOutputHelper output)
             Sources.Enqueue(source); return source;
         }
     }
-    private sealed class Source(IContentSource inner, Gate gate, string outcome) : IContentSource
+    private protected sealed class Source(IContentSource inner, Gate gate, string outcome) : IContentSource
     {
         public int Disposals; public bool DisposedWhileReading; private bool _reading;
         public string DisplayName => inner.DisplayName; public long Length => inner.Length; public bool CanSeek => inner.CanSeek; public string? LocalPath => inner.LocalPath;

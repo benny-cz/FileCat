@@ -75,6 +75,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         {
             AnnounceRestoredRowIfCurrent(list);
         });
+        _dialogs.OperationsRegion = OperationsPane;
         vm.Dialogs = _dialogs;
         vm.View = this;
         // The user's first key press or click ends the quiet startup: connections may ask questions from then on.
@@ -785,6 +786,10 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                     // A switch says what choosing it does now: "Hide hidden and system items" while they show.
                     if (CheckedState(cid) is not null && _vm.Services.Commands.Get(cid) is { } switchDef) c.Header = TitleOf(cid, switchDef.Title);
                     ToolTip.SetTip(c, a.Enabled ? null : a.Reason);
+                    // Why a command is unavailable: the tooltip shows on the disabled item, and screen readers get it as
+                    // the item's help text, as the context menus and dependent settings already do (UX audit C).
+                    ToolTip.SetShowOnDisabled(c, !a.Enabled);
+                    Avalonia.Automation.AutomationProperties.SetHelpText(c, a.Enabled ? null : a.Reason);
                     // Column profiles by their names ("Columns: Details"), which Settings can change.
                     if (cid.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal) &&
                         int.TryParse(cid.AsSpan(CommandIds.ColumnProfilePrefix.Length), out int profile))
@@ -825,11 +830,20 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             e.Handled = true;
             return;
         }
+        // Menus own their navigation and activation keys before panel shortcuts or quick search see them.
+        if (FocusManager?.GetFocusedElement() is MenuItem) return;
         if (!_dialogs.IsOpen && HandlePanelResizeKey(e)) return;
         if (KeyMapper.IsModifierKey(e.Key))
         {
             _vm.ReconcileKeyBar(KeyMapper.ToMods(KeyMapper.AfterModifierKey(e.Key, e.KeyModifiers, pressed: true)));
             return;
+        }
+        // Plan §11.5: a dialog that keeps the operation center usable (a format scan) lets its shortcut move between them.
+        if (_dialogs.OperationsUsable && KeyMapper.ToChord(e.Key, e.KeyModifiers) is { } operationsChord &&
+            _vm.Services.Keymap.Resolve(operationsChord, CommandContext.Global) == CommandIds.Operations)
+        {
+            _vm.Operations.IsOpen = true; Dispatcher.UIThread.Post(() => _dialogs.ToggleOperationsFocus(), DispatcherPriority.Input);
+            e.Handled = true; return;
         }
         if (_dialogs.IsOpen || ActivePanelView()?.List.IsRenaming == true) return;
         // The command search keeps its keys: Enter runs, F2 changes a shortcut, Esc returns to the panel.
@@ -837,6 +851,23 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         if (KeyMapper.ToChord(e.Key, e.KeyModifiers) is not { } chord) return;
 
         var focused = FocusManager?.GetFocusedElement();
+        // Operations keeps its own keys: Tab moves between its controls, Esc returns to the panel, and only global
+        // shortcuts act. Panel commands (Enter, Delete, F8, arrows) never reach the panel's file from an operation row.
+        if (OperationsPane.ContainsFocus(focused))
+        {
+            if (chord == new KeyChord("Escape", KeyMods.None)) { FocusActivePanel(); e.Handled = true; return; }
+            var global = _vm.Services.Keymap.Resolve(chord, CommandContext.Global);
+            if (global is null) return;
+            if (global == CommandIds.Operations)
+            {
+                // Ctrl+J there gives the keyboard back to the panel and closes Operations.
+                _vm.Operations.IsOpen = false;
+                FocusActivePanel(); e.Handled = true; return;
+            }
+            AltChords.Handle(this, e);
+            _vm.Execute(global);
+            return;
+        }
         bool inText = focused is TextBox;
         var tab = _vm.ActiveTab;
 
@@ -868,6 +899,16 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         // continue its native focus traversal after we focus the target list,
         // returning to a text field in the old panel.
         if (id is CommandIds.SwitchPanel or CommandIds.SwitchPanelBack) e.Handled = true;
+        if (id == CommandIds.Operations)
+        {
+            // From the keyboard, Ctrl+J opens Operations and takes the keyboard there (a waiting decision's "Review
+            // decision…" first): the decision notice sends keyboard users there, and Tab in the panels switches panels.
+            // The toolbar and menus keep the plain toggle.
+            _vm.Operations.IsOpen = true;
+            Dispatcher.UIThread.Post(() => OperationsPane.FocusForKeyboard(), DispatcherPriority.Loaded);
+            e.Handled = true;
+            return;
+        }
         _vm.Execute(id);
         if (id is CommandIds.SwitchPanel or CommandIds.SwitchPanelBack)
         {
@@ -983,7 +1024,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 return;
             }
         }
-        if (_dialogs.IsOpen || FocusManager?.GetFocusedElement() is TextBox) return;
+        if (_dialogs.IsOpen || FocusManager?.GetFocusedElement() is TextBox or MenuItem) return;
         var text = e.Text;
         var tab = _vm.ActiveTab;
         if (tab is null || string.IsNullOrEmpty(text) || text.Any(char.IsControl)) return;

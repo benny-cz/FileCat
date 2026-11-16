@@ -1,0 +1,467 @@
+{
+  "schema": 1,
+  "component": "native archive edit sessions",
+  "production_backend_qualified": false,
+  "component_complete": false,
+  "current_candidate": "f758c487647fddbc87038d157c65c12f546339c0",
+  "history": [
+    {
+      "platform": "windows",
+      "folder": "awe-v1",
+      "candidate": "14cb2678441ba9da2eca90b603b4ae08dbf09589",
+      "bytes": 159472225,
+      "sha256": "6d624fd83f99e2c68e55050ee15a69a4276ac151d79a2bf88446636b3e1cdc24",
+      "manifest_sha256": "b044ed5fd25c0d186d5c6e518acd756b4a01e29765abc537c9814c427c38e1d7",
+      "binary_sha256": {
+        "FileCat.App.Tests.dll": "191b0667c51409c0cc89eac67255d3e3e93317b2f8a0c073574ad3fbb18b67df",
+        "FileCat.App.Tests.pdb": "35074b8ad547613554a102af011e2d44b896805418e425ef8f02c5180b8c1c69",
+        "FileCat.Archives.Rar15.dll": "df06ce93625663b0d717e1bd73837acd778e0ac1291226fc57c474643a90ad2d",
+        "FileCat.Archives.Rar15.pdb": "7859cc0dafe57f4f9490907f8e8c328faf033b014396a37e0a5f09781b4a8214",
+        "FileCat.Archives.dll": "2c0ef5535de41ccf2f99c303e357bce0f8f16d4ce0ec59916244b0896a2ed620",
+        "FileCat.Archives.pdb": "199cf2acf2443e013bc839b484dba00a4407aef216f3880a417161e381e61738",
+        "FileCat.Core.Tests.dll": "0944e6cde4d39fd47dd1882e6fa700c56a519c74b790f44147522137271a1a68",
+        "FileCat.Core.Tests.pdb": "f2198dca731379cb54106cb6812c3566d419cc143d66d14596c75ed623606e6a",
+        "FileCat.Core.dll": "0f800d40a0c3add093e223ff307ff2017aafd1d006a72762250265fadf25ba1a",
+        "FileCat.Core.pdb": "03d4a4b60a88d0dea61c4dabc26c24aa53a35c61c4c73dc16b7b44e61fa3cff8",
+        "FileCat.CoreCrashHarness.dll": "d8b4942b00275a78970e46bbea70c907ce3c3b47099b05c680e156b58572c766",
+        "FileCat.CoreCrashHarness.pdb": "a9efbdb733a8c786d69be18a4ca23315fe9805ee690aaf234a2a9b35b3ec0653",
+        "FileCat.Platform.Windows.dll": "0ebd0bbc9acfd03997251487b9140124231037fcafd846f22f5fcd09b284b297",
+        "FileCat.Platform.Windows.pdb": "edb0a77a154dc6d818a98811300d9a0ad6fbfddd12011fb5f6924c838a9c2311",
+        "FileCat.Recovery.dll": "ed16606d4ad425d7e99d9ba2f93689639026b2d5f61e689bd23c00f0e937f52f",
+        "FileCat.Recovery.pdb": "ef800e296bb6df1914950b04e50c6a95003455a4c6fe1b649d5c3a0c83739ada",
+        "FileCat.Remote.dll": "197801cc86c58b5fd7ac403b36bb77e2c2c36e1243e62214db40572ec3e85cb6",
+        "FileCat.Remote.pdb": "7f9338428a9ed04888c89078a5880eb6981d2b064be41b6152ffc78af171fc42",
+        "FileCat.SharpCompress.dll": "cd344be3a1c5cfe1e7ddb199847b714ac22cd550f0f333040e82d5183915e70e",
+        "FileCat.SharpCompress.pdb": "54af9c707a9d806a41ba579d52784f5420b6134873ce0773527afe97c7f546a1",
+        "FileCat.ShellHost.dll": "034fd29d27e76b3e22f1dd1df45b123526814a242b2790fce4ee07988477b0a1",
+        "FileCat.ShellHost.pdb": "f684fdc50254dab78b3912dfd784d06ff15ce04e3ddeb41dc8b64db4362d634f",
+        "FileCat.dll": "756b058257a4471f7e403bfcbf14c1f2b1bbe4904a2bf31b38082d7f09f319c3",
+        "FileCat.pdb": "5badbfd44a224007655a91d05b1c4239fbb8defe6f17cdb1cbaa38cb0ac75d6f"
+      },
+      "changed_compiler_inputs": 24,
+      "binaries": 12,
+      "tests": {
+        "edit-core.trx": {
+          "Passed": 134,
+          "NotExecuted": 21
+        },
+        "edit-ui.trx": {
+          "Passed": 259
+        },
+        "native-edit-ui.trx": {
+          "Passed": 1,
+          "Failed": 1
+        }
+      },
+      "full_core_inventory_verified": false,
+      "production_backend_qualified": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false
+      }
+    },
+    {
+      "platform": "mac",
+      "folder": "awe-v1",
+      "candidate": "14cb2678441ba9da2eca90b603b4ae08dbf09589",
+      "bytes": 26012819,
+      "sha256": "34be630f99f6e064cccce59a9a2c3c965021db7763a6dc9220f644d9283b3a11",
+      "manifest_sha256": "966acade7d9301c3ce3b16f1e355cf7b8b5d6a70dfdb7736ef9ceab4961319cf",
+      "binary_sha256": {
+        "FileCat.App.Tests.dll": "323db73782d28d7abf8a9e400a1c7fe55ee38e1e57c6acabafdc7561681c056a",
+        "FileCat.App.Tests.pdb": "b2c1fc1ede4fb91e0eb8ced68d46e3f9f7fa6df68d41512233a0c0ab36c9edae",
+        "FileCat.Archives.Rar15.dll": "e4aa362b2d7703371f338be619d2c4f6f4dc2fdd7f5a6f63f937ed489b3088cd",
+        "FileCat.Archives.Rar15.pdb": "c73384036d0f4c0f247c5cfa347c5988d33cd97eb62a55583584b73fb8010077",
+        "FileCat.Archives.dll": "0b357e78b0bf39bb197126d4eedc338162753f4dc6a2b7c736c291e97bd619b7",
+        "FileCat.Archives.pdb": "e611317b1be50ffbb59ba47e554c55231953712ecc6eb7a5cf80e8b46b6adfd7",
+        "FileCat.Core.Tests.dll": "3bcfeabb1e19ae8bfdd79fe43053f4c8e63cf077b19f7864741c77bbe0f30551",
+        "FileCat.Core.Tests.pdb": "63f2793779ab2323d6b427a547ee7c5fc0a75b3604b77f55458482ca29e0ef13",
+        "FileCat.Core.dll": "3199c44845f94b51ce3ec19c7493397b645ffcb447ca7c5486a06dbf3c757f5f",
+        "FileCat.Core.pdb": "6be3eb127120aa7dfc5f8e19943a144d9b941be6fa86168b8dc60d5377227827",
+        "FileCat.CoreCrashHarness.dll": "74033ec8f1cfa9c0ed86d2aeb3e0a21394c2a8f5c94390b7a84e67a1108d669e",
+        "FileCat.CoreCrashHarness.pdb": "1e7eeaa0ac15a23ed5a4f9c9d603d7ddcc60a3d7e31e0780d36859328a62ed2a",
+        "FileCat.Platform.Windows.dll": "2ed78fe626e58a74141a0178178630bdb50eaf07fa78689c67edfd81d63bdc85",
+        "FileCat.Platform.Windows.pdb": "e71a713b694d4352ca7f29e99864b96345368d5fb01cf54115922d5a40bb94e6",
+        "FileCat.Recovery.dll": "e037cea167a1b0c22235dc88c465974e8613cf877e35fea4e434be95be3a9642",
+        "FileCat.Recovery.pdb": "601cccd1444fe258f763e1085af7eebc242926370464f2a2bd8b9e5fa78f3020",
+        "FileCat.Remote.dll": "95c53a9bdcfb8fa087f60b16fa374330ae94a0157091209a8478f67ca812926d",
+        "FileCat.Remote.pdb": "925d8f10bce6dc9df3695ed8e455b38477079274ce50780831b3b89fb56218f6",
+        "FileCat.SharpCompress.dll": "f8a835981653fe0d65cfb3cdb36de7c7733b04d8b1569344a4aa1c01871d2aec",
+        "FileCat.SharpCompress.pdb": "5a12cf4dc63714fdd1c4ce881bad5ad5584ddf6c8e012c79e89094dbeaea5ffa",
+        "FileCat.ShellHost.dll": "4a298863c43119af1d15e43950e07b4301560f557b0d1bb3ac04690433591d6e",
+        "FileCat.ShellHost.pdb": "0aa5ff27416c5a79a3d95af585ff729a50afdb64b1ae99ecdfed13a3f76908eb",
+        "FileCat.dll": "d83440a11131e92363f502e377eca27c485c008a8ca43b13f4dd78494cdb5bdc",
+        "FileCat.pdb": "712a1524abdf07a36423eb49f6819739d28ca6ee4a5c1b02bd7755a67d259416"
+      },
+      "changed_compiler_inputs": 24,
+      "binaries": 12,
+      "tests": {
+        "core-regressions.trx": {
+          "Passed": 8314,
+          "NotExecuted": 207
+        },
+        "edit-core.trx": {
+          "Passed": 152,
+          "NotExecuted": 3
+        },
+        "edit-ui.trx": {
+          "Passed": 259
+        }
+      },
+      "full_core_inventory_verified": true,
+      "production_backend_qualified": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      }
+    },
+    {
+      "platform": "ubuntu",
+      "folder": "awe-v1",
+      "candidate": "14cb2678441ba9da2eca90b603b4ae08dbf09589",
+      "bytes": 25994970,
+      "sha256": "9329bc2d6d8dc660a3a706d14e0bf344ece2ed8e3cf0a8efc04f0c09f943089c",
+      "manifest_sha256": "7d38596615bc91bdfcb96dc2abace0318ace473efd66da5d296ffba064afddaa",
+      "binary_sha256": {
+        "FileCat.App.Tests.dll": "b06292c48050b46b98627857d22bcd2ed277a7e5717e4952cea5f00cbd55b38b",
+        "FileCat.App.Tests.pdb": "c488c7fe89d7ebde2586b09c77f3b9564ee109a6bcfb3112c2655c561aec1040",
+        "FileCat.Archives.Rar15.dll": "988d3e577154f77119b08d88351cc78c6cd9f7292248cb166de575b89c1aaa45",
+        "FileCat.Archives.Rar15.pdb": "f9f26980acca93e58b37e6db6870138d4631de3e222b7770a5d2ca25a2b895b9",
+        "FileCat.Archives.dll": "2c7c1254552899ddd34705b1679cc2fda75399b7a3b75c31a14e09f767354ce8",
+        "FileCat.Archives.pdb": "9fad6a608d5281999471db6e38b3b427014466d0f580aa5fe157f967e3c94329",
+        "FileCat.Core.Tests.dll": "4b022596764c526b42055a4a333d9daccb935551612892ca8c95266a79a9cbe4",
+        "FileCat.Core.Tests.pdb": "c5fe2fec18ddabe38ac8891cd0f3ef0d1c6087cddb53829b6f2f51c1a30ced7d",
+        "FileCat.Core.dll": "fce344db51e25e90bab285d882f5e8be1d1ef77a506b11d4094060d1d5170d8f",
+        "FileCat.Core.pdb": "ed0d9764623a41cdfc8fff7cbc7d19dcfd1a352e8a64e109f662e7d13269f9cc",
+        "FileCat.CoreCrashHarness.dll": "1051dee7971d6ddb387046b8b152b491f88f0f9089609258debc94d3226b386a",
+        "FileCat.CoreCrashHarness.pdb": "fc34cf9f8e268f427f2508c41694a5ba6fd2a9170919c2767b783f10268c575b",
+        "FileCat.Platform.Windows.dll": "42355fb21d199e9e223a30dc36c787f2d378cedb467ee5c2622910dfdda8344d",
+        "FileCat.Platform.Windows.pdb": "150d5c0cbfd9a5526784da6b127e4ba0e501e26005b487b645c63d4001f69f63",
+        "FileCat.Recovery.dll": "012849f4b8c49a32edb53baf580218d2643707aff6a673c6323178bae584095f",
+        "FileCat.Recovery.pdb": "09568a558f0e60fbe35ec5e058ae0c7742bf28738c4dd0890affd6081d662c24",
+        "FileCat.Remote.dll": "f91825c35e563d58c488bdae7b58ca518bbbfb7653c257f7d120adccc59ce3da",
+        "FileCat.Remote.pdb": "5157b4dc46cdebd971b1c004a9f6770841e4b0b5faa7708f492aad3bd9991812",
+        "FileCat.SharpCompress.dll": "85beeb85fae3dac7680da4e4fd0f34c3cfd369520c11afdb3450de5ae19b5736",
+        "FileCat.SharpCompress.pdb": "05b4485b8ad2e42e68cbc06a683faf48c133a62b43f540414d12bac4ed6b8e07",
+        "FileCat.ShellHost.dll": "b88d14a1ee7036e4b075d128bf38352e0eb4b253623abccc84fd4613c705b0c2",
+        "FileCat.ShellHost.pdb": "b25fb397ba14af2e612311e860e81092cbea7383257151f3a1ed88518ee5492c",
+        "FileCat.dll": "162b30a5723bcd6f92957ce728a2c0afbd2230e69d87fb64ef4f50ee50c908ac",
+        "FileCat.pdb": "af02a2defd2ede544f3509e7cc356638f121cca2bf3115fabb277ad778283e73"
+      },
+      "changed_compiler_inputs": 24,
+      "binaries": 12,
+      "tests": {
+        "core-regressions.trx": {
+          "Passed": 8336,
+          "NotExecuted": 185
+        },
+        "edit-core.trx": {
+          "Passed": 150,
+          "NotExecuted": 5
+        },
+        "edit-ui.trx": {
+          "Passed": 259
+        }
+      },
+      "full_core_inventory_verified": true,
+      "production_backend_qualified": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false
+      }
+    }
+  ],
+  "final": [
+    {
+      "platform": "windows",
+      "folder": "awe-v3",
+      "candidate": "f758c487647fddbc87038d157c65c12f546339c0",
+      "bytes": 163959138,
+      "sha256": "5ab0398ac0472d5ed663013451223ba5bb4f0c399774d245f94815bdee01040b",
+      "manifest_sha256": "c447c69533fbbe76490e440c4ef716c704cf5fd1c7c7ee85c8580f533d3ac822",
+      "binary_sha256": {
+        "FileCat.App.Tests.dll": "6e205fe04cd918715297fdfabc5b2727866baa2ee404093382c8d09fbdd7385e",
+        "FileCat.App.Tests.pdb": "a20084617b35287a3f7f3d9c665734c71fc9c4b7fa60068ebb6c91e2487c7d8f",
+        "FileCat.Archives.Rar15.dll": "df06ce93625663b0d717e1bd73837acd778e0ac1291226fc57c474643a90ad2d",
+        "FileCat.Archives.Rar15.pdb": "7859cc0dafe57f4f9490907f8e8c328faf033b014396a37e0a5f09781b4a8214",
+        "FileCat.Archives.dll": "2c0ef5535de41ccf2f99c303e357bce0f8f16d4ce0ec59916244b0896a2ed620",
+        "FileCat.Archives.pdb": "199cf2acf2443e013bc839b484dba00a4407aef216f3880a417161e381e61738",
+        "FileCat.Core.Tests.dll": "82ef06d297e51e6dd892a2e1059e4b7cd76bda8cc373a86acfb2cd758ae2d7ac",
+        "FileCat.Core.Tests.pdb": "f29e062c6f9f7a0e9b035239685f7b45a532e0b17964486b16eb6a77c32fb7c2",
+        "FileCat.Core.dll": "94f072409fc0eea4a3acb5296e66887fdf396e52d792f83dc08f4d835fd8b9b9",
+        "FileCat.Core.pdb": "7583241e68eaa6a7ebbb6037961a3ee08f417eb553db24d15e2845f83b9158ff",
+        "FileCat.CoreCrashHarness.dll": "d8b4942b00275a78970e46bbea70c907ce3c3b47099b05c680e156b58572c766",
+        "FileCat.CoreCrashHarness.pdb": "a9efbdb733a8c786d69be18a4ca23315fe9805ee690aaf234a2a9b35b3ec0653",
+        "FileCat.Platform.Windows.dll": "0ebd0bbc9acfd03997251487b9140124231037fcafd846f22f5fcd09b284b297",
+        "FileCat.Platform.Windows.pdb": "edb0a77a154dc6d818a98811300d9a0ad6fbfddd12011fb5f6924c838a9c2311",
+        "FileCat.Recovery.dll": "ed16606d4ad425d7e99d9ba2f93689639026b2d5f61e689bd23c00f0e937f52f",
+        "FileCat.Recovery.pdb": "ef800e296bb6df1914950b04e50c6a95003455a4c6fe1b649d5c3a0c83739ada",
+        "FileCat.Remote.dll": "197801cc86c58b5fd7ac403b36bb77e2c2c36e1243e62214db40572ec3e85cb6",
+        "FileCat.Remote.pdb": "7f9338428a9ed04888c89078a5880eb6981d2b064be41b6152ffc78af171fc42",
+        "FileCat.SharpCompress.dll": "cd344be3a1c5cfe1e7ddb199847b714ac22cd550f0f333040e82d5183915e70e",
+        "FileCat.SharpCompress.pdb": "54af9c707a9d806a41ba579d52784f5420b6134873ce0773527afe97c7f546a1",
+        "FileCat.ShellHost.dll": "034fd29d27e76b3e22f1dd1df45b123526814a242b2790fce4ee07988477b0a1",
+        "FileCat.ShellHost.pdb": "f684fdc50254dab78b3912dfd784d06ff15ce04e3ddeb41dc8b64db4362d634f",
+        "FileCat.dll": "f15537b746b69c55bd668e32d525a47092cc3aee5e0c290991528ff44dacf152",
+        "FileCat.pdb": "7d44c9a885922a9424b38f2aca14c9a35c9e47acceaf4baf78f652966e144767"
+      },
+      "changed_compiler_inputs": 24,
+      "binaries": 12,
+      "tests": {
+        "core-regressions.trx": {
+          "Passed": 8065,
+          "NotExecuted": 465
+        },
+        "edit-core.trx": {
+          "Passed": 138,
+          "NotExecuted": 21
+        },
+        "edit-ui.trx": {
+          "Passed": 259
+        },
+        "native-edit-ui.trx": {
+          "Passed": 10
+        }
+      },
+      "full_core_inventory_verified": true,
+      "production_backend_qualified": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false
+      }
+    },
+    {
+      "platform": "mac",
+      "folder": "awe-v3",
+      "candidate": "f758c487647fddbc87038d157c65c12f546339c0",
+      "bytes": 25817494,
+      "sha256": "7df7dafecd92f9aeb9a0986e6d1e33edb245e141a2463f40d42e061d0c56951b",
+      "manifest_sha256": "847485e5e276e71563543bb66f84930652c39b40f44fa95a33a529032fff09bc",
+      "binary_sha256": {
+        "FileCat.App.Tests.dll": "a7f430b9ebc0c0bfa1a7733c3e047809f290dcd5cb76c1fc6f655b275f64d63e",
+        "FileCat.App.Tests.pdb": "de401cf925e9e160169d2acd8577afc63c562f1e420dad6043ac1385be0be8a8",
+        "FileCat.Archives.Rar15.dll": "e4aa362b2d7703371f338be619d2c4f6f4dc2fdd7f5a6f63f937ed489b3088cd",
+        "FileCat.Archives.Rar15.pdb": "c73384036d0f4c0f247c5cfa347c5988d33cd97eb62a55583584b73fb8010077",
+        "FileCat.Archives.dll": "0b357e78b0bf39bb197126d4eedc338162753f4dc6a2b7c736c291e97bd619b7",
+        "FileCat.Archives.pdb": "e611317b1be50ffbb59ba47e554c55231953712ecc6eb7a5cf80e8b46b6adfd7",
+        "FileCat.Core.Tests.dll": "bff9e947f1f0fc2713109d56610944fd6059189cd5cb68820aa0349be7ecdf8d",
+        "FileCat.Core.Tests.pdb": "e232d5fd9a285311b3f1de14458ee69e1b9b1a29e015499248052c7098917e45",
+        "FileCat.Core.dll": "94919e2e5d6293f6d60430b2ecf8f8d6417b31855c95dbc68c2b00c73d923faf",
+        "FileCat.Core.pdb": "54e0a532182a0713a5a450dd1c6cfe0416e176b091df0c15167809c30c2ddf82",
+        "FileCat.CoreCrashHarness.dll": "74033ec8f1cfa9c0ed86d2aeb3e0a21394c2a8f5c94390b7a84e67a1108d669e",
+        "FileCat.CoreCrashHarness.pdb": "1e7eeaa0ac15a23ed5a4f9c9d603d7ddcc60a3d7e31e0780d36859328a62ed2a",
+        "FileCat.Platform.Windows.dll": "2ed78fe626e58a74141a0178178630bdb50eaf07fa78689c67edfd81d63bdc85",
+        "FileCat.Platform.Windows.pdb": "e71a713b694d4352ca7f29e99864b96345368d5fb01cf54115922d5a40bb94e6",
+        "FileCat.Recovery.dll": "e037cea167a1b0c22235dc88c465974e8613cf877e35fea4e434be95be3a9642",
+        "FileCat.Recovery.pdb": "601cccd1444fe258f763e1085af7eebc242926370464f2a2bd8b9e5fa78f3020",
+        "FileCat.Remote.dll": "95c53a9bdcfb8fa087f60b16fa374330ae94a0157091209a8478f67ca812926d",
+        "FileCat.Remote.pdb": "925d8f10bce6dc9df3695ed8e455b38477079274ce50780831b3b89fb56218f6",
+        "FileCat.SharpCompress.dll": "f8a835981653fe0d65cfb3cdb36de7c7733b04d8b1569344a4aa1c01871d2aec",
+        "FileCat.SharpCompress.pdb": "5a12cf4dc63714fdd1c4ce881bad5ad5584ddf6c8e012c79e89094dbeaea5ffa",
+        "FileCat.ShellHost.dll": "4a298863c43119af1d15e43950e07b4301560f557b0d1bb3ac04690433591d6e",
+        "FileCat.ShellHost.pdb": "0aa5ff27416c5a79a3d95af585ff729a50afdb64b1ae99ecdfed13a3f76908eb",
+        "FileCat.dll": "05529ab0ab12c423c986da6232152783f7d50f0aa211bf3efa2fadbe2fe64054",
+        "FileCat.pdb": "442dee4b7aa006ef47afe4ffe388eafd77af22f9e7d1b11de31e3defc703e8c9"
+      },
+      "changed_compiler_inputs": 24,
+      "binaries": 12,
+      "tests": {
+        "core-regressions.trx": {
+          "Passed": 8318,
+          "NotExecuted": 207
+        },
+        "edit-core.trx": {
+          "Passed": 156,
+          "NotExecuted": 3
+        },
+        "edit-ui.trx": {
+          "Passed": 259
+        }
+      },
+      "full_core_inventory_verified": true,
+      "production_backend_qualified": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      }
+    },
+    {
+      "platform": "ubuntu",
+      "folder": "awe-v3",
+      "candidate": "f758c487647fddbc87038d157c65c12f546339c0",
+      "bytes": 25786673,
+      "sha256": "2f264ea14e366feda92ff4fd628ff1ebfde5ecba02bf90eda042fc9784cae18c",
+      "manifest_sha256": "24c4f8cc4164126b22c9388e46faad7ada9ece2774c7709812a49943c9d8326c",
+      "binary_sha256": {
+        "FileCat.App.Tests.dll": "9e31090b08282a1cc2114f5ee8d05c38b8332e6aa2b06586658b5a5e82856cbe",
+        "FileCat.App.Tests.pdb": "e5c4a76284bca1f63c8ba8d28d59f1405da8083a823d695fb735d1134aba7f5e",
+        "FileCat.Archives.Rar15.dll": "988d3e577154f77119b08d88351cc78c6cd9f7292248cb166de575b89c1aaa45",
+        "FileCat.Archives.Rar15.pdb": "f9f26980acca93e58b37e6db6870138d4631de3e222b7770a5d2ca25a2b895b9",
+        "FileCat.Archives.dll": "2c7c1254552899ddd34705b1679cc2fda75399b7a3b75c31a14e09f767354ce8",
+        "FileCat.Archives.pdb": "9fad6a608d5281999471db6e38b3b427014466d0f580aa5fe157f967e3c94329",
+        "FileCat.Core.Tests.dll": "7e74ad2c92152bbb89b716f382dfe1596bd773f36594f1915be65cf3322ee2bb",
+        "FileCat.Core.Tests.pdb": "068078e5beb53d674fdc00866a24241ad4125007804e28caabf30d9aa451a98f",
+        "FileCat.Core.dll": "9e4a1a09b7f36277c3f906e9ef8ed1350f28a7ad70c77520fd5eb6a93cc75c7b",
+        "FileCat.Core.pdb": "31eb51c680ad458a8eede6561d42a0045511ee3187c22fee70e56c0d34c77adb",
+        "FileCat.CoreCrashHarness.dll": "1051dee7971d6ddb387046b8b152b491f88f0f9089609258debc94d3226b386a",
+        "FileCat.CoreCrashHarness.pdb": "fc34cf9f8e268f427f2508c41694a5ba6fd2a9170919c2767b783f10268c575b",
+        "FileCat.Platform.Windows.dll": "42355fb21d199e9e223a30dc36c787f2d378cedb467ee5c2622910dfdda8344d",
+        "FileCat.Platform.Windows.pdb": "150d5c0cbfd9a5526784da6b127e4ba0e501e26005b487b645c63d4001f69f63",
+        "FileCat.Recovery.dll": "012849f4b8c49a32edb53baf580218d2643707aff6a673c6323178bae584095f",
+        "FileCat.Recovery.pdb": "09568a558f0e60fbe35ec5e058ae0c7742bf28738c4dd0890affd6081d662c24",
+        "FileCat.Remote.dll": "f91825c35e563d58c488bdae7b58ca518bbbfb7653c257f7d120adccc59ce3da",
+        "FileCat.Remote.pdb": "5157b4dc46cdebd971b1c004a9f6770841e4b0b5faa7708f492aad3bd9991812",
+        "FileCat.SharpCompress.dll": "85beeb85fae3dac7680da4e4fd0f34c3cfd369520c11afdb3450de5ae19b5736",
+        "FileCat.SharpCompress.pdb": "05b4485b8ad2e42e68cbc06a683faf48c133a62b43f540414d12bac4ed6b8e07",
+        "FileCat.ShellHost.dll": "b88d14a1ee7036e4b075d128bf38352e0eb4b253623abccc84fd4613c705b0c2",
+        "FileCat.ShellHost.pdb": "b25fb397ba14af2e612311e860e81092cbea7383257151f3a1ed88518ee5492c",
+        "FileCat.dll": "17d9dfbe0b8ffc36250249e826ec7662957666475af6ce8bd8572a0acf8eb081",
+        "FileCat.pdb": "6912d50cfe6436b841cc428a9701262bcb0bdaaa817138d56cbdf0004140ebed"
+      },
+      "changed_compiler_inputs": 24,
+      "binaries": 12,
+      "tests": {
+        "core-regressions.trx": {
+          "Passed": 8340,
+          "NotExecuted": 185
+        },
+        "edit-core.trx": {
+          "Passed": 154,
+          "NotExecuted": 5
+        },
+        "edit-ui.trx": {
+          "Passed": 259
+        }
+      },
+      "full_core_inventory_verified": true,
+      "production_backend_qualified": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false
+      }
+    }
+  ],
+  "unapplied_startup_refusals": [
+    {
+      "path": ".tmp/edit-windows-v2-start-error.txt",
+      "bytes": 492,
+      "sha256": "8018ee8ccaa600b905de66af6d21c3bd68da06df8585082ffa7fbbfe4918fc3a"
+    },
+    {
+      "path": ".tmp/awe-other-process-v2.json",
+      "bytes": 479,
+      "sha256": "86cf736976e75626a0cbd177c5a4b8a2aeca2877a8112693643c5f6f4ade7ac9"
+    }
+  ],
+  "windows_awe_v2_applied_or_run": false,
+  "owned_v1_native_abort": {
+    "pid": 9244,
+    "reason": "Stop remaining fixture cases after a stale-navigation wait timeout; collect diagnostics."
+  },
+  "remaining": [
+    "native session namespace and cleanup ownership hardening",
+    "remaining UX/uncertainty/cancellation cases",
+    "Unix native mutation/confinement and recovery",
+    "native desktop/accessibility acceptance",
+    "release/fuzz/RID/package gates",
+    "final independent review"
+  ],
+  "native_addendum": {
+    "platform": "windows",
+    "folder": "awe-v3-native-v2",
+    "candidate": "f758c487647fddbc87038d157c65c12f546339c0",
+    "bytes": 17683536,
+    "sha256": "7fb6a7d53c6192f963935674895cff7e9bfb6ff4f9de6a2dce58600cc34b7b98",
+    "manifest_sha256": "49d43ec8bcebd2aa135e5ee85b967339f96a2f2679f9e1b71d45669c33704a39",
+    "parent_manifest_sha256": "c447c69533fbbe76490e440c4ef716c704cf5fd1c7c7ee85c8580f533d3ac822",
+    "changed_compiler_inputs": 24,
+    "binaries": 15,
+    "binary_sha256": {
+      "FileCat.App.Tests.dll": "6e205fe04cd918715297fdfabc5b2727866baa2ee404093382c8d09fbdd7385e",
+      "FileCat.App.Tests.pdb": "a20084617b35287a3f7f3d9c665734c71fc9c4b7fa60068ebb6c91e2487c7d8f",
+      "FileCat.Archives.Rar15.dll": "df06ce93625663b0d717e1bd73837acd778e0ac1291226fc57c474643a90ad2d",
+      "FileCat.Archives.Rar15.pdb": "7859cc0dafe57f4f9490907f8e8c328faf033b014396a37e0a5f09781b4a8214",
+      "FileCat.Archives.dll": "2c0ef5535de41ccf2f99c303e357bce0f8f16d4ce0ec59916244b0896a2ed620",
+      "FileCat.Archives.pdb": "199cf2acf2443e013bc839b484dba00a4407aef216f3880a417161e381e61738",
+      "FileCat.Core.Tests.dll": "82ef06d297e51e6dd892a2e1059e4b7cd76bda8cc373a86acfb2cd758ae2d7ac",
+      "FileCat.Core.Tests.pdb": "f29e062c6f9f7a0e9b035239685f7b45a532e0b17964486b16eb6a77c32fb7c2",
+      "FileCat.Core.dll": "94f072409fc0eea4a3acb5296e66887fdf396e52d792f83dc08f4d835fd8b9b9",
+      "FileCat.Core.pdb": "7583241e68eaa6a7ebbb6037961a3ee08f417eb553db24d15e2845f83b9158ff",
+      "FileCat.CoreCrashHarness.dll": "d8b4942b00275a78970e46bbea70c907ce3c3b47099b05c680e156b58572c766",
+      "FileCat.CoreCrashHarness.pdb": "a9efbdb733a8c786d69be18a4ca23315fe9805ee690aaf234a2a9b35b3ec0653",
+      "FileCat.Platform.Windows.Tests.dll": "c17695c8494b671bec8ca1810eca3ec3449ca8c93e1732f62340db5ae0d7b603",
+      "FileCat.Platform.Windows.Tests.pdb": "2c9d7605b7d21bafc1b3dd4b5f77c163470024ef219c62fb9e08205897f266e4",
+      "FileCat.Platform.Windows.dll": "0ebd0bbc9acfd03997251487b9140124231037fcafd846f22f5fcd09b284b297",
+      "FileCat.Platform.Windows.pdb": "edb0a77a154dc6d818a98811300d9a0ad6fbfddd12011fb5f6924c838a9c2311",
+      "FileCat.PrivilegedHost.dll": "3820a53ee909b0752b0e050586d3bf24d1c40e6812f92a03559ac46cd1ff3752",
+      "FileCat.PrivilegedHost.pdb": "0dda4a5f511e0db0b00d66af7b51e762f22234b765aaa1c16682033b288450e4",
+      "FileCat.Recovery.dll": "ed16606d4ad425d7e99d9ba2f93689639026b2d5f61e689bd23c00f0e937f52f",
+      "FileCat.Recovery.pdb": "ef800e296bb6df1914950b04e50c6a95003455a4c6fe1b649d5c3a0c83739ada",
+      "FileCat.Remote.dll": "197801cc86c58b5fd7ac403b36bb77e2c2c36e1243e62214db40572ec3e85cb6",
+      "FileCat.Remote.pdb": "7f9338428a9ed04888c89078a5880eb6981d2b064be41b6152ffc78af171fc42",
+      "FileCat.SharpCompress.dll": "cd344be3a1c5cfe1e7ddb199847b714ac22cd550f0f333040e82d5183915e70e",
+      "FileCat.SharpCompress.pdb": "54af9c707a9d806a41ba579d52784f5420b6134873ce0773527afe97c7f546a1",
+      "FileCat.ShellHost.dll": "034fd29d27e76b3e22f1dd1df45b123526814a242b2790fce4ee07988477b0a1",
+      "FileCat.ShellHost.pdb": "f684fdc50254dab78b3912dfd784d06ff15ce04e3ddeb41dc8b64db4362d634f",
+      "FileCat.WorkerProbe.dll": "54152a95a0a265b86e5e2d93f51b0e6ad0c6bed31e850c73326496e43eb55bea",
+      "FileCat.WorkerProbe.pdb": "f7f55359ea4b820f756f1ba4365ab87c350405e973527940adf6c08c47a5da4d",
+      "FileCat.dll": "f15537b746b69c55bd668e32d525a47092cc3aee5e0c290991528ff44dacf152",
+      "FileCat.pdb": "7d44c9a885922a9424b38f2aca14c9a35c9e47acceaf4baf78f652966e144767"
+    },
+    "tests": {
+      "app-entry.trx": {
+        "Passed": 14
+      },
+      "cleanup-crashes.trx": {
+        "Passed": 18
+      },
+      "member-native-ui.trx": {
+        "Passed": 8,
+        "Failed": 2
+      },
+      "native.trx": {
+        "Passed": 217
+      }
+    },
+    "member_fixture_passed": false,
+    "final_census": {
+      "owned_filecat_or_test_processes": 0,
+      "production_backend_qualified": false
+    },
+    "production_backend_qualified": false
+  },
+  "native_startup_failures": [
+    {
+      "folder": "awe-v3-native-v1",
+      "bytes": 17602497,
+      "sha256": "2b1f089b27bda2e259804f0e0b0a6f2341376d5a888c11b5145e2f75efcfb7c4",
+      "tests_started": false,
+      "reason": "Standard test account could not read the bootstrap driver; fixed with an explicit read grant."
+    }
+  ],
+  "member_continuation": {
+    "platform": "windows",
+    "folder": "awe-v3-member-v1",
+    "candidate": "b959b0cb9dff73dbde648807c4ab3e72e5e12084",
+    "bytes": 17628606,
+    "sha256": "aee445fefcf47314b0a814a18de8adf864dfd0d99a8796913cbdfbf747aa5ea1",
+    "manifest_sha256": "1baa913e16313890926d1d5f1cd355020b845c23e9dde7ac1caffb8c04cdc07c",
+    "inherited_native_manifest_sha256": "49d43ec8bcebd2aa135e5ee85b967339f96a2f2679f9e1b71d45669c33704a39",
+    "product_candidate": "f758c487647fddbc87038d157c65c12f546339c0",
+    "unchanged_product_and_native_binaries_verified": true,
+    "changed_compiler_inputs": 25,
+    "binaries": 15,
+    "tests": {
+      "member-native-ui.trx": {
+        "Passed": 10
+      }
+    },
+    "final_census": {
+      "owned_filecat_or_test_processes": 0,
+      "production_backend_qualified": false
+    },
+    "production_backend_qualified": false
+  }
+}

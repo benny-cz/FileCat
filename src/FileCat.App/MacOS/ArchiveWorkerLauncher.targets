@@ -1,0 +1,43 @@
+<Project>
+  <!--
+    macOS archive workers (route decision of 12 November 2026; MACOS_SANDBOX_WORKER_SPIKE.md). FileCatArchiveWorker is a
+    small C launcher carrying only the App Sandbox entitlement and its own embedded Info.plist; it confines the worker
+    roles of the executable beside it. It is compiled and ad hoc signed only on a Mac building for macOS. A package signs
+    it again with the same identifier and entitlement after signing the bundle (eng/package-macos.sh). Imported by the
+    application and by the worker probe that the boundary tests start. The two plists carry no XML comments: codesign's
+    entitlement parser refuses them.
+  -->
+  <PropertyGroup>
+    <FileCatMacArchiveLauncherFolder>$(MSBuildThisFileDirectory)</FileCatMacArchiveLauncherFolder>
+    <FileCatBuildMacArchiveLauncher Condition="'$(FileCatBuildMacArchiveLauncher)' == '' and $([MSBuild]::IsOSPlatform('OSX')) and ('$(RuntimeIdentifier)' == '' or $(RuntimeIdentifier.StartsWith('osx-')))">true</FileCatBuildMacArchiveLauncher>
+  </PropertyGroup>
+
+  <Target Name="FileCatCompileMacArchiveLauncher" Condition="'$(FileCatBuildMacArchiveLauncher)' == 'true'"
+          Inputs="$(FileCatMacArchiveLauncherFolder)archive-worker-launcher.c;$(FileCatMacArchiveLauncherFolder)archive-worker-launcher.plist;$(FileCatMacArchiveLauncherFolder)archive-worker-launcher.entitlements;$(MSBuildThisFileFullPath)"
+          Outputs="$(IntermediateOutputPath)FileCatArchiveWorker">
+    <PropertyGroup>
+      <_FileCatLauncherArch>arm64</_FileCatLauncherArch>
+      <_FileCatLauncherArch Condition="'$(RuntimeIdentifier)' == 'osx-x64' or ('$(RuntimeIdentifier)' == '' and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64')">x86_64</_FileCatLauncherArch>
+      <!-- The Command Line Tools' own compiler and SDK when installed: a selected older Xcode cannot link a newer SDK. -->
+      <_FileCatLauncherClang Condition="Exists('/Library/Developer/CommandLineTools/usr/bin/clang')">/Library/Developer/CommandLineTools/usr/bin/clang</_FileCatLauncherClang>
+      <_FileCatLauncherSdk Condition="'$(_FileCatLauncherClang)' != ''">/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk</_FileCatLauncherSdk>
+      <_FileCatLauncherOutput>$(IntermediateOutputPath)FileCatArchiveWorker</_FileCatLauncherOutput>
+    </PropertyGroup>
+    <Exec Condition="'$(_FileCatLauncherClang)' == ''" Command="xcrun --find clang" ConsoleToMSBuild="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_FileCatLauncherClang" />
+    </Exec>
+    <Exec Condition="'$(_FileCatLauncherSdk)' == ''" Command="xcrun --show-sdk-path" ConsoleToMSBuild="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_FileCatLauncherSdk" />
+    </Exec>
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <Exec Command="&quot;$(_FileCatLauncherClang)&quot; -isysroot &quot;$(_FileCatLauncherSdk)&quot; -arch $(_FileCatLauncherArch) -mmacosx-version-min=26.0 -std=c11 -O2 -Wall -Wextra -Werror -sectcreate __TEXT __info_plist &quot;$(FileCatMacArchiveLauncherFolder)archive-worker-launcher.plist&quot; -o &quot;$(_FileCatLauncherOutput)&quot; &quot;$(FileCatMacArchiveLauncherFolder)archive-worker-launcher.c&quot;" />
+    <Exec Command="codesign --force --sign - --timestamp=none --identifier io.github.benny-cz.filecat.archive-worker --entitlements &quot;$(FileCatMacArchiveLauncherFolder)archive-worker-launcher.entitlements&quot; &quot;$(_FileCatLauncherOutput)&quot;" />
+  </Target>
+
+  <Target Name="FileCatIncludeMacArchiveLauncher" BeforeTargets="AssignTargetPaths" DependsOnTargets="FileCatCompileMacArchiveLauncher"
+          Condition="'$(FileCatBuildMacArchiveLauncher)' == 'true'">
+    <ItemGroup>
+      <None Include="$(IntermediateOutputPath)FileCatArchiveWorker" Link="FileCatArchiveWorker" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+</Project>

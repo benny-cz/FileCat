@@ -23,7 +23,12 @@ namespace FileCat.App.Views;
 /// <summary>Settings grouped by task; every change is applied immediately after OK and saved to settings.json.</summary>
 public static class SettingsDialog
 {
-    public static async Task ShowAsync(MainViewModel vm)
+    /// <summary>The Columns page's name, as its tab shows it (the file list's header menu opens Settings on it).</summary>
+    internal const string ColumnsPage = "Columns";
+
+    /// <param name="startPage">The tab to open on, by its name (<see cref="ColumnsPage"/>); null for the first.</param>
+    /// <param name="columnProfile">The column profile the Columns page selects (a panel's own); null for the first.</param>
+    public static async Task ShowAsync(MainViewModel vm, string? startPage = null, int? columnProfile = null)
     {
         var s = vm.Services.Settings;
         // The shared modal owns vertical scrolling. Tabs wrap with the available client width.
@@ -86,7 +91,7 @@ public static class SettingsDialog
         BindDependentOption(sizeOnSpace, sizeSlow, supported: true,
             "Turn on folder sizing with Space to use this option.");
         var anywhere = new CheckBox { Content = "Quick search matches anywhere in the name (instead of the beginning)", IsChecked = s.QuickSearchMatchAnywhere };
-        var filtersEditor = new SavedFiltersEditor(s.SavedFilters);
+        var filtersEditor = new SavedFiltersEditor(s.SavedFilters, readOnly: vm.Services.SettingsReadOnly);
         var single = new CheckBox { Content = "One FileCat window per profile (a new launch opens its paths in the running window)", IsChecked = s.SingleInstance };
         var awake = new CheckBox { Content = "Keep the computer awake while operations run", IsChecked = s.KeepAwakeDuringJobs };
         // Named as the copy dialog names them (stored as Native and ReadBack).
@@ -233,8 +238,9 @@ public static class SettingsDialog
         };
         // "auto": Windows Terminal when installed, else PowerShell 7, else Windows PowerShell.
         var shell = new ComboBox { ItemsSource = OperatingSystem.IsWindows() ? new[] { "auto", "cmd", "powershell", "pwsh", "wt" } : new[] { "posix" }, SelectedItem = s.Terminal.Shell, MinWidth = 220 };
-        var userCommandsEditor = new UserCommandsEditor(s.UserCommands, previewFolder);
-        var associationsEditor = new AssociationsEditor(s.Associations, filtersEditor.Snapshot, previewFolder);
+        var userCommandsEditor = new UserCommandsEditor(s.UserCommands, previewFolder, readOnly: vm.Services.SettingsReadOnly);
+        var associationsEditor = new AssociationsEditor(s.Associations, filtersEditor.Snapshot, previewFolder,
+            readOnly: vm.Services.SettingsReadOnly);
         tabs.Items.Add(new TabItem
         {
             Header = "Tools",
@@ -250,8 +256,9 @@ public static class SettingsDialog
         });
 
         // ---- Columns
-        var columnsEditor = new ColumnProfilesEditor(vm.Services.Columns);
-        tabs.Items.Add(new TabItem { Header = "Columns", Content = columnsEditor.View });
+        var columnsEditor = new ColumnProfilesEditor(vm.Services.Columns, readOnly: vm.Services.SettingsReadOnly);
+        if (columnProfile is { } profile) columnsEditor.SelectProfile(profile);
+        tabs.Items.Add(new TabItem { Header = ColumnsPage, Content = columnsEditor.View });
 
         // ---- Keyboard
         var bindings = new TextBox
@@ -446,6 +453,14 @@ public static class SettingsDialog
         results.DoubleTapped += (_, _) => GoToSetting();
         goToResult.Click += (_, _) => GoToSetting();
         var body = new StackPanel { Spacing = 6, Children = { search, results, resultHint, goToResult, tabs } };
+        // Opened for one page (the file list's header menu: Columns): that tab, and the keyboard in it.
+        Control initialFocus = search;
+        if (startPage is not null && tabs.Items.OfType<TabItem>().FirstOrDefault(tab =>
+                string.Equals(tab.Header as string, startPage, StringComparison.OrdinalIgnoreCase)) is { } start)
+        {
+            tabs.SelectedItem = start;
+            if (ReferenceEquals(start.Content, columnsEditor.View)) initialFocus = columnsEditor.InitialFocus;
+        }
         if (vm.Services.SettingsReadOnly)
         {
             // Keep tabs, scrolling and text selection usable while preventing edits and preview side effects.
@@ -463,7 +478,7 @@ public static class SettingsDialog
             body.Children.Insert(0, new TextBlock { Text = reason, Classes = { "warning" }, TextWrapping = TextWrapping.Wrap });
             await vm.Dialogs.ShowCustomAsync("Settings — read-only", body,
                 [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)],
-                initialFocus: search,
+                initialFocus: initialFocus,
                 behavior: new DialogBehavior { DismissOnBackdrop = false, AlignTop = true });
             return;
         }
@@ -585,7 +600,7 @@ public static class SettingsDialog
         }
         var r = await vm.Dialogs.ShowCustomAsync("Settings", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true) { Validate = Validate }],
-            initialFocus: search,
+            initialFocus: initialFocus,
             closer: closer, pinnedReview: error, behavior: new DialogBehavior
             {
                 DismissOnBackdrop = false,

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using FileCat.Core.Archives;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
@@ -267,6 +268,21 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     {
         var sources = Job.Request.Sources;
         string destFolder = Sftp.Resolve(Job.Request.Destination!, Channel);
+        if(Job.Request.EditUpload is { } retained)
+        {
+            retained.RequireRequest(Job.Request);
+            var observed=retained.Observe(Job.Token);
+            // SFTP times have whole-second precision; the native snapshot retains its exact original timestamp.
+            var incoming=new FileSystemItemInfo(Job.Request.Sources[0].Name,false,false,observed.Version.Length,
+                observed.MemberModified is {} modified?DateTimeOffset.FromUnixTimeSeconds(modified.Seconds).UtcDateTime:DateTime.MinValue,
+                DateTime.MinValue,FileAttributes.Normal);
+            Job.AddTotals(1,observed.Version.Length);
+            bool copied=UploadFile(()=>new RetainedEditUploadStream(retained.OpenReadView(observed,Job.Token),observed.Version),
+                incoming,Job.Request.Sources[0].FileSystemPath!,destFolder,Job.Request.NewName!,out _,
+                retained:new ArchiveRetainedBinding(retained,observed));
+            if(copied)Job.RootCompleted(0);else Job.RootFailed(0);
+            CompleteUpload();return;
+        }
         CountLocalTotals(sources);
         var movedRoots = Moving ? new List<MovedSource>() : null;
         for (int i = 0; i < sources.Count; i++)
@@ -296,6 +312,11 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             else Job.RootFailed(i);
         }
         if (movedRoots is { Count: > 0 }) RetireMovedSources(movedRoots);
+        CompleteUpload();
+    }
+
+    private void CompleteUpload()
+    {
         if (_timesNotKept > 0)
             Issue(IssueSeverity.Info, _firstTimeNotKept!, _timesNotKept == 1
                 ? "The server did not keep this file's modified time: on the server it shows when the file arrived."
@@ -660,7 +681,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     /// <param name="unchanged">Whether the source is still the file the upload started with; without it, uploads restart after a break.</param>
     /// <param name="published">The name the copy has on the server: another one after Keep both.</param>
     private bool UploadFile(Func<Stream> openSource, FileSystemItemInfo incoming, string sourceDisplay, string destFolder, string name,
-        out string published, Func<bool>? unchanged = null, Func<FileSystemItemInfo>? refreshSource = null)
+        out string published, Func<bool>? unchanged = null, Func<FileSystemItemInfo>? refreshSource = null,ArchiveRetainedBinding? retained=null)
     {
         published = name;
         Job.SetCurrent(sourceDisplay);
@@ -837,6 +858,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 }
                 if (unchanged is not null && !unchanged())
                     throw new IOException("The source changed during uploading, so the copy was not published.");
+                retained?.File.Review(retained.Reviewed,Job.Token);
                 DateTime modified = uploadedRevision is { ModifiedTicks: > 0 } opened && opened.ModifiedTicks <= DateTime.MaxValue.Ticks
                     ? new DateTime(opened.ModifiedTicks, DateTimeKind.Utc) : incoming.ModifiedUtc;
                 bool keepTime = Options.PreserveTimestamps && modified > DateTime.MinValue;
@@ -849,14 +871,15 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 timeKept = !keepTime || s.ModifiedUtc == DateTime.MinValue || Math.Abs((s.ModifiedUtc - modified).TotalSeconds) < 2;
                 // "Read back and compare content": the server's copy, before it takes the name.
                 // Recovered/uncertain bytes would compare equal to the same guesses. Preserve their warning instead.
-                if (Options.Verify == VerifyMode.ReadBack && !partial && !ServerCopyMatches(openSource, temp!, written, sourceDisplay, uploadedRevision))
+                if ((Options.Verify == VerifyMode.ReadBack||retained is not null) && !partial && !ServerCopyMatches(openSource, temp!, written, sourceDisplay, uploadedRevision))
                 {
                     differs = true;
                     return;
                 }
                 if (unchanged is not null && !unchanged())
                     throw new IOException("The source changed during verification, so the copy was not published.");
-                Publish(destFolder, name, temp!, replace, approvedTarget, approvedSha256, publication);
+                retained?.File.Review(retained.Reviewed,Job.Token);
+                Publish(destFolder, name, temp!, replace, approvedTarget, approvedSha256, publication,retained);
                 temp = null;
             });
         }
@@ -953,7 +976,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     }
 
     private void Publish(string folder, string name, string temp, bool replace, TargetSnapshot? approvedTarget,
-        string? approvedSha256, PublicationState publication)
+        string? approvedSha256, PublicationState publication,ArchiveRetainedBinding? retained=null)
     {
         string dst = RemotePath.Combine(folder, name);
         if (!replace)
@@ -999,6 +1022,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             Channel.Rename(temp, dst);
             return;
         }
+        retained?.File.Review(retained.Reviewed,Job.Token);
         if (Channel.TryReplace(temp, dst)) return;
         // A failed atomic replacement is another round trip. A different client may
         // have changed the target since the checks above, so do not delete the
@@ -1017,11 +1041,11 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 (Job.Request.ExpectedTarget is null ? "the incoming copy was not published." : "your edit is kept."));
         if (current is null)
             throw new RefusedOperationException("Not written: the destination disappeared before non-atomic replacement. Review the server before trying again.");
-        PublishWithRecoveryBackup(folder, dst, temp, current, expectedSha256, publication);
+        PublishWithRecoveryBackup(folder, dst, temp, current, expectedSha256, publication,retained);
     }
 
     private void PublishWithRecoveryBackup(string folder, string dst, string temp, IRemoteEntry current,
-        string? expectedSha256, PublicationState publication)
+        string? expectedSha256, PublicationState publication,ArchiveRetainedBinding? retained=null)
     {
         // Keep the approved old version under this journal's hidden prefix
         // until the new stage has taken the public name. Deleting it first
@@ -1039,6 +1063,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             Journal.RequireRecovery();
             Journal.Note($"Remote replacement {phase}: inspect {dst}, backup {backup}, and incoming stage {temp} before resolving this journal.");
         }
+        retained?.File.Review(retained.Reviewed,Job.Token);
         try { current.MoveTo(backup); }
         catch (Exception ex)
         {
@@ -1073,7 +1098,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             throw new RefusedOperationException($"Not written: the saved destination could not be verified ({ErrorText.Describe(ex)}). " +
                 $"Inspect {dst}, backup {backup}, and incoming stage {temp}; FileCat kept recovery tracking open.");
         }
-        try { Channel.Rename(temp, dst); }
+        try { retained?.File.Review(retained.Reviewed,Job.Token);Channel.Rename(temp, dst); }
         catch (Exception ex)
         {
             RequireReview("could not publish the new version");

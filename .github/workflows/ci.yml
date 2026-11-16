@@ -44,8 +44,9 @@ jobs:
     needs: producer-policy
     runs-on: windows-2025-vs2026
     # The full solution test step can consume nearly 30 minutes on a slow hosted runner;
-    # keep the separate four-minute per-test blame-hang bound below.
-    timeout-minutes: 60
+    # keep the separate four-minute per-test blame-hang bound below. Archive writing and
+    # native edit storage added about 15 minutes to every test job (run 43762060868).
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -164,7 +165,8 @@ jobs:
     runs-on: windows-11-arm
     # The full lane reached the installer step after 44 minutes in run 41047031486.
     # Keep the per-test blame-hang bounds; allow the aggregate job to finish cleanup.
-    timeout-minutes: 60
+    # Archive writing and native edit storage added about 15 minutes to every test job.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -302,7 +304,10 @@ jobs:
     # macOS Core, Remote, App and native smoke steps together exceeded 30 minutes
     # in run 38449751526, which cancelled a still-running App suite before qualification.
     # Per-test blame-hang limits remain in place; this is the aggregate job budget.
-    timeout-minutes: 60
+    # Archive writing and native edit storage added about 15 minutes to every test job: in
+    # run 43762060868 macOS was still in its App suite after 50 minutes (45 for the whole
+    # job on main), and Ubuntu took 42 (30 on main).
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

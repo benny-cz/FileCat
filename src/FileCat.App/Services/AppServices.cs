@@ -15,7 +15,8 @@ namespace FileCat.App.Services;
 /// </summary>
 public sealed class AppServices : IDisposable
 {
-    private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null)
+    private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null, Core.Archives.ArchiveJobBackends? archiveBackends = null,
+        Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
@@ -100,7 +101,14 @@ public sealed class AppServices : IDisposable
         Zip.SpoolForeignMember = Archives.Spool;
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = new ContainerDetectors(Zip, Archives);
         Formatters.DateFormat = Settings.DateFormat;
-        Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory);
+        Jobs = archiveBackends is null ? new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory)
+            : new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory, archiveBackends);
+        Archives.MutationAvailability = plan => Jobs.CanReviewArchive(plan) ? Jobs.ArchiveAvailability(plan)
+            : Core.Archives.ArchiveJobAvailability.Unqualified;
+        // A ZIP route composed here moves ZIP changes to the worker profile, available or refused with its reason; without
+        // one, ZIP keeps its existing route.
+        Zip.RouteComposed = Jobs.CoversArchive;
+        Zip.MutationAvailability = Archives.MutationAvailability;
         // SFTP (P6): FileCat's own known_hosts beside its state, seeded read-only by OpenSSH's.
         // FTP and FTPS (P8) share the remote stack; FTPS certificates the OS does not accept are pinned only on request.
         Sftp = new Remote.Sftp.SftpConnections(FindRemoteProfile,
@@ -126,7 +134,8 @@ public sealed class AppServices : IDisposable
         // Shell handlers run only in the restricted helper beside FileCat (plan §8.2, TV-16), started on first use.
         if (FileCat.Platform.Windows.Shell.ShellHostClient.FindExecutable() is { } shellHelper)
             ShellPictures = new FileCat.Platform.Windows.Shell.ShellPreviews(new FileCat.Platform.Windows.Shell.ShellHostClient(shellHelper), () => Settings.ShellPicturesOnNetworkAndRemovable);
-        EditSessions = new Core.Edit.EditSessionStore(paths.EditSessionsDirectory, Platform.FileOperations);
+        EditSessions = editSessionFactory is null ? ProductionEditSessions(paths, Platform.FileOperations)
+            : editSessionFactory(paths,Platform.FileOperations);
         Metadata = new Core.Metadata.MetadataService(Io);
         // Checksums and signatures beside files (D-57): results kept in the cache folder; trusted minisign keys in the keys
         // folder (made now, so the advice that names it points to a folder that is there).
@@ -169,6 +178,20 @@ public sealed class AppServices : IDisposable
     public FileCat.Archives.ArchiveProvider Archives { get; } = null!;
 
     public Core.Jobs.JobManager Jobs { get; }
+
+    // Native authority is retained by the adapter through the complete approval/action lifetime.
+    internal Func<string, Guid, CancellationToken, Core.Archives.IArchiveContentCleanupRecoveryLease>? ArchiveCleanupLease { get; set; }
+        = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveCleanupRecovery.OpenCurrentLease : null;
+    internal Func<string, Guid, CancellationToken, Core.Archives.IArchiveCreationCleanupLease>? ArchiveCreationCleanupLease { get; set; }
+        = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveCreationCleanupRecovery.OpenCurrentLease
+        : OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? Core.Archives.Unix.UnixArchiveCreationCleanupRecovery.OpenCurrentLease : null;
+    // A change that never reached publication: a fresh exclusive journal and folder scope; objects bound by recorded identity.
+    internal Func<string, Guid, CancellationToken, Core.Archives.IArchiveDiscardLease>? ArchiveDiscardLease { get; set; }
+        = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveDiscard.OpenRecovery
+        : OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? Core.Archives.Unix.UnixArchiveDiscard.OpenRecovery : null;
+    // Unix exchange updates: a fresh exclusive journal/folder scope; inspection and cleanup re-observe every object.
+    internal Func<string, Guid, CancellationToken, Core.Archives.Unix.UnixArchiveExchangeRecovery>? ArchiveExchangeRecovery { get; set; }
+        = OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? (path, nonce, ct) => Core.Archives.Unix.UnixArchiveExchangeRecovery.Open(path, nonce, ct) : null;
 
     /// <summary>SFTP connections (leases, host keys, secrets); the main window supplies the prompts.</summary>
     public Remote.Sftp.SftpConnections Sftp { get; }
@@ -230,13 +253,129 @@ public sealed class AppServices : IDisposable
     /// <param name="sftpConnector">Tests connect to an in-memory server instead of SSH.NET.</param>
     public static AppServices CreateForPaths(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector);
 
+    // Explicit native-store test composition. Ordinary startup keeps the legacy store until qualification.
+    internal static AppServices CreateForPathsWithEditSessions(AppPaths paths,
+        Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore> factory,
+        Remote.Sftp.ISftpConnector? sftpConnector = null,Core.Archives.ArchiveJobBackends? archiveBackends = null)
+    {ArgumentNullException.ThrowIfNull(factory);return new(paths,sftpConnector,archiveBackends,factory);}
+
+    // Explicit isolated composition for qualifying the real workflows; ordinary startup never adds these backends.
+    internal static AppServices CreateForPathsWithArchiveBackends(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends,
+        Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector, archiveBackends);
+
     /// <param name="overrideRoot">Isolated state root (the TV-01 benchmark never touches the user's profile).</param>
     /// <param name="dataRoot">--data: everything FileCat writes goes below this folder.</param>
     public static AppServices Initialize(string? profile, string? overrideRoot = null, string? dataRoot = null)
     {
-        Current = new AppServices(AppPaths.Resolve(profile, overrideRoot: overrideRoot, dataRoot: dataRoot));
+        Current = new AppServices(AppPaths.Resolve(profile, overrideRoot: overrideRoot, dataRoot: dataRoot), archiveBackends: ProductionArchiveBackends());
         return Current;
     }
+
+    /// <summary>
+    /// Every native writing format for the qualification host, through each platform's production boundary: AppContainer
+    /// workers on Windows, confined workers on Linux and sandboxed workers on macOS, all from the published application.
+    /// </summary>
+    internal static Core.Archives.ArchiveJobBackends QualificationBackends(string workerExecutable)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(workerExecutable);
+        Core.Archives.ArchiveWriteFormat[] formats = [Core.Archives.ArchiveWriteFormat.Tar, Core.Archives.ArchiveWriteFormat.TarGzip,
+            Core.Archives.ArchiveWriteFormat.TarBzip2, Core.Archives.ArchiveWriteFormat.TarZstd, Core.Archives.ArchiveWriteFormat.Rar5,
+            Core.Archives.ArchiveWriteFormat.SevenZip, Core.Archives.ArchiveWriteFormat.Gzip, Core.Archives.ArchiveWriteFormat.Bzip2,
+            Core.Archives.ArchiveWriteFormat.Zstd];
+        return new(formats.Select(format => PlatformArchiveBackend(format, workerExecutable)));
+    }
+
+    /// <summary>The platform's confined worker backend for one format, with workers from <paramref name="executable"/>.</summary>
+    internal static Core.Archives.IArchiveJobBackend PlatformArchiveBackend(Core.Archives.ArchiveWriteFormat format, string executable) =>
+        OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveJobBackend.Create(format, executable)
+        : OperatingSystem.IsLinux() ? Core.Archives.Linux.LinuxArchiveJobBackend.Create(format, executable)
+        : OperatingSystem.IsMacOS() ? Core.Archives.MacOS.MacArchiveJobBackend.Create(format, executable)
+        : throw new PlatformNotSupportedException("No archive worker launcher exists for this platform.");
+
+    /// <summary>The qualification host's composition: explicit native backends on an isolated data root (never ordinary startup).</summary>
+    internal static AppServices InitializeForQualification(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends)
+    {
+        ArgumentNullException.ThrowIfNull(paths); ArgumentNullException.ThrowIfNull(archiveBackends);
+        Current = new AppServices(paths, archiveBackends: archiveBackends);
+        return Current;
+    }
+
+    /// <summary>
+    /// Plan §16.1: only qualified format/runtime/filesystem routes are registered (see <see cref="Core.Archives.ArchiveWriteRoutes"/>);
+    /// with none qualified this is null and native archive writing stays unavailable, with its reason, while reading continues.
+    /// </summary>
+    internal static Core.Archives.ArchiveJobBackends? ProductionArchiveBackends() =>
+        Core.Archives.ArchiveWriteRoutes.Compose(Core.Archives.ArchiveWriteRoutes.Qualified, RouteRuntime(),
+            format => PlatformArchiveBackend(format, Environment.ProcessPath!), FileSystemOf, PlatformTargetProblem);
+
+    /// <summary>
+    /// The runtime the routes are listed for: this process's own, unless it runs emulated (an x64 build on an Arm64
+    /// machine), where no route was qualified, so nothing is composed.
+    /// </summary>
+    internal static string RouteRuntime() =>
+        System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
+            ? System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier
+            : System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier + "-emulated";
+
+    /// <summary>Why this platform's writer cannot write an archive path at all, or null (see the backends' TargetProblem).</summary>
+    internal static string? PlatformTargetProblem(string archivePath) =>
+        OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveJobBackend.TargetProblem(archivePath)
+        : OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? Core.Archives.Unix.UnixArchiveJobBackend.TargetProblem(archivePath)
+        : null;
+
+    /// <summary>
+    /// Ledger rows 4 and 8: the edit store through its qualification gate (<see cref="Core.Edit.NativeEditStorage"/>). Native
+    /// private storage, in its own root beside the legacy folder, only for a qualified runtime and filesystem; with none
+    /// qualified this is the legacy store and the native-only edit actions keep saying why they are unavailable.
+    /// </summary>
+    internal static Core.Edit.EditSessionStore ProductionEditSessions(AppPaths paths, IFileSystemOperations fileOperations) =>
+        ComposeEditSessions(Core.Edit.NativeEditStorage.Qualified, paths, fileOperations);
+
+    internal static Core.Edit.EditSessionStore ComposeEditSessions(IReadOnlyList<Core.Edit.NativeEditStorage.Route> routes, AppPaths paths,
+        IFileSystemOperations fileOperations)
+    {
+        Func<string, bool, CancellationToken, Core.Edit.EditDirectoryLease>? open = null;
+        Func<string, CancellationToken, Core.Edit.EditSaveCopyDestination>? copyOpen = null;
+        if (OperatingSystem.IsWindows())
+        {
+            open = (path, requirePrivate, ct) => FileCat.Platform.Windows.Archives.WindowsEditDirectoryLease.OpenRoot(path, requirePrivate, ct);
+            copyOpen = FileCat.Platform.Windows.Archives.WindowsEditSaveCopyDestination.Open;
+        }
+        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            open = (path, requirePrivate, ct) => Core.Edit.UnixEditDirectoryLease.OpenRoot(path, requirePrivate, ct);
+            copyOpen = Core.Archives.Unix.UnixEditSaveCopyDestination.Open;
+        }
+        return Core.Edit.NativeEditStorage.Compose(routes, RouteRuntime(),
+            paths.EditSessionsDirectory, paths.NativeEditSessionsDirectory, fileOperations, FileSystemOf, open, copyOpen);
+    }
+
+    /// <summary>The filesystem of the mount that holds <paramref name="folder"/>, or null when it cannot be established.</summary>
+    internal static string? FileSystemOf(string folder)
+    {
+        try
+        {
+            string full = Path.GetFullPath(folder);
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            // A mount point contains the folder only at a separator boundary: /home does not contain /home2.
+            var drive = DriveInfo.GetDrives().Where(candidate =>
+            {
+                string mount = Path.TrimEndingDirectorySeparator(candidate.Name);
+                return string.Equals(full, mount, comparison) || full.StartsWith(mount + Path.DirectorySeparatorChar, comparison) ||
+                    Path.EndsInDirectorySeparator(candidate.Name) && full.StartsWith(candidate.Name, comparison);
+            }).MaxBy(candidate => candidate.Name.Length);
+            // A Windows network drive is excluded before anything is asked of it: an unreachable server would hold up the UI.
+            if (drive is null || OperatingSystem.IsWindows() && drive.DriveType == DriveType.Network) return null;
+            return drive.IsReady ? LocalFileSystem(drive.DriveType, drive.DriveFormat) : null;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
+    }
+
+    /// <summary>
+    /// A mapped network drive reports its server's file system ("NTFS" for a Windows share), but no route or store is
+    /// qualified on a share: it has none here. A ZIP there keeps the old route, as a UNC path does.
+    /// </summary>
+    internal static string? LocalFileSystem(DriveType type, string format) => type == DriveType.Network ? null : format;
 
     public void ReloadKeymap() => Keymap = new Keymap(Commands, Settings.KeyBindings);
 

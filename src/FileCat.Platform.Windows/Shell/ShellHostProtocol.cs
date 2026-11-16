@@ -13,6 +13,12 @@ public enum ShellImageKind : byte
     IconResource = 3,
     /// <summary>The installed Shell overlay, already composed with the item icon (for example TortoiseGit).</summary>
     OverlayIcon = 4,
+    /// <summary>
+    /// A type's icon as Explorer draws it, for a name that does not exist: the request's path is the extension (".txt").
+    /// For the types whose icon is a packaged app's resource (Notepad's for .txt, Photos' for .jpg), which only the Shell
+    /// resolves. No file is read.
+    /// </summary>
+    TypeIcon = 5,
 }
 
 public static class IconResourceRequest

@@ -25,7 +25,7 @@ public partial class SevenZipArchive
                 .OpenAsync(stream, lookForHeader: ReaderOptions.LookForHeader, cancellationToken)
                 .ConfigureAwait(false);
             _database = await reader
-                .ReadDatabaseAsync(new PasswordProvider(ReaderOptions.Password), cancellationToken)
+                .ReadDatabaseAsync(new PasswordProvider(ReaderOptions), cancellationToken)
                 .ConfigureAwait(false);
         }
     }

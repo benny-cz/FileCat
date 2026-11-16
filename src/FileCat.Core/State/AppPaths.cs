@@ -76,6 +76,8 @@ public sealed class AppPaths
     public string KeysDirectory => Path.Combine(SettingsDirectory, "keys");
     /// <summary>Files being edited in other programs (P5).</summary>
     public string EditSessionsDirectory => Path.Combine(LocalDirectory, "edit-sessions");
+    /// <summary>Private, identity-bound edit storage, used only where it is qualified (<c>NativeEditStorage</c>); created on first use.</summary>
+    public string NativeEditSessionsDirectory => Path.Combine(LocalDirectory, "edit-sessions-native");
     /// <summary>Plans and reports exchanged with the administrator helper (Windows).</summary>
     public string ElevationExchangeDirectory => Path.Combine(JournalDirectory, "elevation");
     /// <summary>The page views' own data (WebView2, WebKit's content rules).</summary>
@@ -100,6 +102,7 @@ public sealed class AppPaths
         ("logs, journals, caches and temporary files", TempDirectory),
         ("logs, journals, caches and temporary files", RegistryBackupDirectory),
         ("logs, journals, caches and temporary files", EditSessionsDirectory),
+        ("logs, journals, caches and temporary files", NativeEditSessionsDirectory),
         ("the scratch of large listings", ListingScratchDirectory),
         ("private disk-space analysis scratch", AnalysisScratchDirectory),
         ("private saved disk-space analyses and catalog", AnalysisSnapshotsDirectory),

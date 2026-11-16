@@ -7,6 +7,9 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.Length > 0 && Services.ArchiveWorker.IsArgument(args[0])) return Services.ArchiveWorker.Run(args);
+        if (args.Length > 0 && Services.ArchiveWorker.IsLinuxArgument(args[0])) return Services.ArchiveWorker.RunLinux(args);
+        if (args.Length > 0 && Services.ArchiveWorker.IsMacArgument(args[0])) return Services.ArchiveWorker.RunMac(args);
         // Linux enters a filesystem/network domain here, then replaces this trusted launcher with the worker below.
         if (args.Length > 0 && args[0] == Services.LinuxPictureSandbox.Argument)
             return Services.LinuxPictureSandbox.Run(args);

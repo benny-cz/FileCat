@@ -7,7 +7,7 @@ namespace FileCat.Archives.Rar;
 /// BLAKE2sp-256, the hash RAR 5 stores for a member when it is not CRC32: eight BLAKE2s leaves (RFC 7693) take the
 /// input's 64-byte blocks in turn, and a root BLAKE2s hashes their digests (the BLAKE2 specification's tree mode).
 /// </summary>
-internal sealed class Blake2sp
+internal sealed class Blake2sp : IDisposable
 {
     private const int Leaves = 8;
     private const int BlockBytes = 64;
@@ -16,6 +16,7 @@ internal sealed class Blake2sp
     private readonly Blake2s _root;
     private readonly byte[] _buffer = new byte[Stripe];
     private int _buffered;
+    private bool _disposed;
 
     public Blake2sp()
     {
@@ -25,6 +26,7 @@ internal sealed class Blake2sp
 
     public void Append(ReadOnlySpan<byte> data)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (_buffered > 0)
         {
             int fill = Math.Min(Stripe - _buffered, data.Length);
@@ -48,6 +50,7 @@ internal sealed class Blake2sp
 
     public byte[] Finish()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         Span<byte> digest = stackalloc byte[32];
         for (int i = 0; i < Leaves; i++)
         {
@@ -59,6 +62,14 @@ internal sealed class Blake2sp
         var result = new byte[32];
         _root.Finish(result);
         return result;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true; Array.Clear(_buffer); _buffered = 0;
+        foreach (var leaf in _leaves) leaf.Clear();
+        _root.Clear();
     }
 
     /// <summary>BLAKE2s-256 with the tree parameters BLAKE2sp gives its nodes (fanout 8, depth 2, inner length 32).</summary>
@@ -88,6 +99,8 @@ internal sealed class Blake2sp
         private readonly bool _lastNode;
         private int _blockLength;
         private ulong _counter;
+
+        internal void Clear() { Array.Clear(_h); Array.Clear(_block); _blockLength = 0; _counter = 0; }
 
         public Blake2s(uint nodeOffset, byte nodeDepth, bool lastNode)
         {

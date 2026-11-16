@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using FileCat.Core.Archives;
 using FileCat.Core.Jobs;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
@@ -10,6 +11,38 @@ namespace FileCat.App.Services;
 internal static class InterruptedRecoveryReport
 {
     private const int DetailLimit = 10_000;
+
+    internal static string ArchiveSummary(InterruptedJob job)
+    {
+        var facts = job.ArchiveTransactions;
+        if (facts.Problem is not null)
+            return "Archive recovery records are incomplete or unsupported. Keep the current archive and retained files; Review report lists the recorded locations.";
+        var exchanges = facts.ExchangeUpdates.Where(t => !t.IsResolved).ToArray();
+        if (exchanges.Any(t => t.Phase == ArchiveExchangeUpdatePhase.NeedsReview))
+            return "FileCat could not confirm which version of the archive is current. Both available versions were kept; open Review report for their locations.";
+        if (exchanges.Any(t => t.Phase is ArchiveExchangeUpdatePhase.Reserved or ArchiveExchangeUpdatePhase.MetadataApplied or ArchiveExchangeUpdatePhase.ExchangeIntent))
+            return "An archive update was interrupted before its outcome was recorded. Review checks which version is current, keeps it and removes only that update's private files.";
+        if (exchanges.Length != 0)
+            return exchanges.Any(t => t.WasPublished)
+                ? "The archive was updated. The previous version and this update's private files are still kept; review removes them exactly."
+                : "The archive was not changed. This update's unpublished private files are still kept; review removes them exactly.";
+        if (ArchiveDiscardReview.CanOffer(job))
+            return facts.Discards.Any(t => t.Phase == ArchiveDiscardPhase.NeedsReview)
+                ? "An archive change stopped before it was saved, and removing its unfinished files needs review. The archive was not changed by it; review checks the files again."
+                : "An archive change stopped before it was saved, so the archive was not changed by it. FileCat's unfinished files for it are still kept; review removes them exactly.";
+        var restorations = facts.ContentRestorations.Where(t => !facts.IsContentResolved(t.Nonce)).ToArray();
+        if (restorations.Any(t => t.Phase != ArchiveContentRestorationPhase.Committed))
+            return "An archive restoration was interrupted. Keep the current archive and retained versions; open Review report for the linked restore job and recorded locations.";
+        if (restorations.Length != 0)
+            return "A retained archive version was recorded as restored. Temporary files still need review; open Review report for the linked restore job and retained versions.";
+        if (facts.ContentUpdates.Any(t => !facts.IsContentResolved(t.Nonce) && t.Phase != ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts) ||
+            facts.Transactions.Any(t => !t.IsResolved && !facts.IsContentResolved(t.Nonce) && t.Phase != ArchiveTransactionPhase.CommittedWithRetainedArtifacts &&
+                !facts.ContentUpdates.Any(c => c.Nonce == t.Nonce && c.Phase == ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts)))
+            return "The archive update's final outcome has not been confirmed. Keep the current archive and retained files; open Review report for recorded locations.";
+        if (facts.ContentUpdates.Any(t => !facts.IsContentResolved(t.Nonce)) || facts.Transactions.Any(t => !facts.IsContentResolved(t.Nonce) && t.Phase == ArchiveTransactionPhase.CommittedWithRetainedArtifacts))
+            return "An archive update was recorded as committed, with retained files still needing review. Keep those files and open Review report.";
+        return "No unresolved archive transaction was recorded. Open Review report before closing this recovery record; the files have not been inspected.";
+    }
 
     internal static bool HasUnreviewedRemoteUpload(InterruptedJob job)
     {
@@ -97,6 +130,94 @@ internal static class InterruptedRecoveryReport
         Line("This is a review-time snapshot. Files may change afterward. Closing tracking does not delete or repair files.");
         if (HasUnreviewedRemoteUpload(job))
             Line("Remote upload still requires review: " + RemoteUploadReviewWarning(job));
+        if (job.ArchiveTransactions.HasRecords)
+        {
+            Line();
+            Line("Archive recovery facts (read-only)");
+            Line(ArchiveSummary(job));
+            Line("These are recorded paths and object versions. Their current existence, bytes, identities and security metadata have not been inspected.");
+            Line("Generic cleanup and transfer retry are unavailable for archive artifacts. Keep every needed version until the archive outcome is reconciled.");
+            if (job.ArchiveTransactions.Problem is { } problem) Line("Journal review warning: " + JsonSerializer.Serialize(problem));
+            foreach (var transaction in job.ArchiveTransactions.Transactions)
+            {
+                Line($"Transaction {transaction.Nonce:N}, facts v{transaction.RecordVersion}, sequence {transaction.Sequence}, profile {transaction.Profile.Format} v{transaction.Profile.Version}, recorded phase {transaction.Phase}");
+                Detail("Archive path (not inspected)", transaction.ArchivePath);
+                Detail("Rebuilt archive stage (not inspected)", transaction.StagePath);
+                if (transaction.RetainedPath is { } retained) Detail("Reserved retained-original path (not inspected)", retained);
+                if (transaction.ManifestPath is { } manifest) Detail("Verification manifest (not inspected)", manifest);
+                if (transaction.OriginEvidencePath is { } originEvidence) Detail("Captured provenance evidence (not inspected)", originEvidence);
+                foreach (string artifact in transaction.UnresolvedArtifacts) Detail("Recorded retained artifact (not inspected)", artifact);
+                void Version(string label, ArchiveObjectVersion? version)
+                {
+                    if (version is not null) Line(label + ": identity " + JsonSerializer.Serialize(version.Identity) +
+                        ", length " + version.Length.ToString(CultureInfo.InvariantCulture) + ", SHA-256 " + version.Sha256);
+                }
+                Line("Recorded parent identity: " + JsonSerializer.Serialize(transaction.ParentIdentity));
+                Line(transaction.StageIdentity is { } stageIdentity ? "Recorded stage identity: " + JsonSerializer.Serialize(stageIdentity) :
+                    "Stage creation identity was not recorded; its reserved path is evidence for review only.");
+                if (transaction.RecordVersion >= 3) Line("Reserved stage byte limit: " + transaction.StageMaximumLength.ToString(CultureInfo.InvariantCulture));
+                if (transaction.OriginEvidenceIdentity is { } originIdentity) Line("Recorded provenance-evidence identity: " + JsonSerializer.Serialize(originIdentity));
+                if (transaction.OriginEvidenceSources is { } originSources) Line("Declared captured origin sources: " + originSources.ToString(CultureInfo.InvariantCulture));
+                Version("Original object", transaction.Original);
+                Version("Verified stage object", transaction.VerifiedStage);
+                Version("Finalized stage object", transaction.FinalizedStage);
+                Version("Manifest object", transaction.Manifest);
+                Version("Finalized provenance evidence", transaction.OriginEvidence);
+                foreach (var sidecar in transaction.Sidecars)
+                {
+                    Detail("Reserved sidecar " + sidecar.Role + " (not inspected)", sidecar.Path);
+                    Line("Sidecar byte limit: " + sidecar.MaximumLength.ToString(CultureInfo.InvariantCulture));
+                    Line(sidecar.Identity is { } sidecarIdentity ? "Recorded sidecar identity: " + JsonSerializer.Serialize(sidecarIdentity) :
+                        "Sidecar creation identity was not recorded; its reserved path is evidence for review only.");
+                    Version("Sealed sidecar " + sidecar.Role, sidecar.Version);
+                }
+                Version("Observed publication object", transaction.Published);
+                Version("Observed retired object", transaction.Retired);
+                if (transaction.SecuritySnapshotSha256 is { } digest) Line("Security/provenance snapshot SHA-256: " + digest);
+            }
+        }
+        foreach (var content in job.ArchiveTransactions.ContentUpdates)
+        {
+            Line($"Same-object archive update {content.Nonce:N}, facts v{ArchiveContentUpdateFacts.SchemaVersion}, sequence {content.Sequence}, recorded phase {content.Phase}");
+            Detail("Retained original-byte snapshot (not inspected)", content.SnapshotPath);
+            Line("This recipe updates the existing file's data. Its snapshot is a separate file; no recorded path grants restore or deletion authority.");
+            Line("Snapshot byte limit: " + content.SnapshotMaximumLength.ToString(CultureInfo.InvariantCulture));
+            if (content.SnapshotIdentity is { } identity) Line("Recorded snapshot identity: " + JsonSerializer.Serialize(identity));
+            if (content.Snapshot is { } snapshot) Line("Retained original SHA-256: " + snapshot.Sha256);
+            if (content.NativeTransactionId is { } transactionId) Line("Recorded native transaction: " + transactionId.ToString("D"));
+            if (content.Published is { } published) Line("Recorded committed object: " + JsonSerializer.Serialize(published.Identity) + ", SHA-256 " + published.Sha256);
+        }
+        foreach (var cleanup in job.ArchiveTransactions.ContentCleanups)
+        {
+            Line($"Private archive artifact cleanup {cleanup.Nonce:N}, sequence {cleanup.Sequence}, recorded phase {cleanup.Phase}, confirmed deletions {cleanup.DeletedCount} of {cleanup.Artifacts.Count}");
+            for (int i = 0; i < cleanup.Artifacts.Count; i++)
+            {
+                var artifact = cleanup.Artifacts[i];
+                Detail(i < cleanup.DeletedCount ? "Recorded deleted artifact (not inspected)" : "Recorded remaining artifact (not inspected)", artifact.Path);
+                Line("Recorded artifact identity: " + JsonSerializer.Serialize(artifact.Version.Identity) + ", SHA-256 " + artifact.Version.Sha256);
+                Line("Sealed artifact metadata SHA-256: " + artifact.MetadataSha256);
+            }
+        }
+        foreach (var recovery in job.ArchiveTransactions.ContentRecoveries)
+        {
+            Line($"Archive recovery {recovery.Nonce:N}, sequence {recovery.Sequence}, recorded phase {recovery.Phase}, verified target {recovery.TargetState}");
+            Line("Reviewed archive identity: " + JsonSerializer.Serialize(recovery.Target.Identity) + ", SHA-256 " + recovery.Target.Sha256);
+            var catalog = job.ArchiveTransactions.ContentCleanups.SingleOrDefault(c => c.Nonce == recovery.Nonce);
+            if (catalog is not null)
+                for (int i = recovery.InitialCount; i < recovery.ReviewedCount; i++)
+                    Detail((recovery.AbsentMask & (1u << i)) != 0 ? "Artifact recorded absent during recovery (not inspected)" :
+                        "Artifact recorded deleted during recovery (not inspected)", catalog.Artifacts[i].Path);
+        }
+        foreach (var restoration in job.ArchiveTransactions.ContentRestorations)
+        {
+            Line($"Archive restoration {restoration.Nonce:N}, facts v{ArchiveContentRestorationFacts.SchemaVersion}, sequence {restoration.Sequence}, attempt {restoration.Attempt}, recorded phase {restoration.Phase}");
+            Detail("Linked fresh restore journal (not inspected)", restoration.RestoreJournalPath);
+            Line("Fresh restore transaction: " + restoration.RestoreNonce.ToString("N") + ", native transaction: " + restoration.NativeTransactionId.ToString("D"));
+            Line("Archive before restoration: identity " + JsonSerializer.Serialize(restoration.Before.Identity) + ", SHA-256 " + restoration.Before.Sha256);
+            Line("Expected restored archive: identity " + JsonSerializer.Serialize(restoration.Restored.Identity) + ", SHA-256 " + restoration.Restored.Sha256);
+            Line("Restored origin evidence SHA-256: " + restoration.RestoredOriginSha256);
+            Line("The fresh restore job has its own rollback snapshot of the version being replaced. A restore intent alone does not confirm publication; no recorded path grants replay authority.");
+        }
         Line();
         if (deleted is not null)
             foreach (string path in deleted) Detail("Deleted by cleanup", path);

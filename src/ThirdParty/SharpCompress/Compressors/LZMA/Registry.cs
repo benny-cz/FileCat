@@ -8,6 +8,7 @@ using SharpCompress.Compressors.Filters;
 using SharpCompress.Compressors.LZMA.Utilities;
 using SharpCompress.Compressors.PPMd;
 using SharpCompress.Compressors.ZStandard;
+using SharpCompress.IO;
 
 namespace SharpCompress.Compressors.LZMA;
 
@@ -30,6 +31,8 @@ internal static partial class DecoderRegistry
     private const uint K_DEFLATE = 0x040108;
     private const uint K_B_ZIP2 = 0x040202;
     private const uint K_ZSTD = 0x4F71101;
+    private const uint K_SWAP2 = 0x020302;
+    private const uint K_SWAP4 = 0x020304;
 
     internal static Stream CreateDecoderStream(
         CMethodId id,
@@ -49,6 +52,10 @@ internal static partial class DecoderRegistry
                 return inStreams.Single();
             case K_DELTA:
                 return new DeltaFilter(false, inStreams.Single(), info.NotNull());
+            case K_SWAP2:
+            case K_SWAP4:
+                if (info != null) throw new NotSupportedException();
+                return new SwapFilter(false, inStreams.Single(), id._id == K_SWAP2 ? 2 : 4);
             case K_LZMA:
             case K_LZMA2:
                 return LzmaStream.Create(info.NotNull(), inStreams.Single(), -1, limit);
@@ -69,17 +76,19 @@ internal static partial class DecoderRegistry
             case K_SPARC:
                 return new BCJFilterSPARC(false, inStreams.Single());
             case K_ARM64:
-                return new BCJFilterARM64(false, inStreams.Single());
+                return new BCJFilterARM64(false, inStreams.Single(), BranchFilterProperties.InitialPosition(info, 3));
             case K_RISCV:
-                return new BCJFilterRISCV(false, inStreams.Single());
+                return new BCJFilterRISCV(false, inStreams.Single(), BranchFilterProperties.InitialPosition(info, 1));
             case K_B_ZIP2:
                 return BZip2Stream.Create(inStreams.Single(), CompressionMode.Decompress, true);
             case K_PPMD:
-                return PpmdStream.Create(
+                // FileCat: 7z PPMd has no end marker, so its coder output is exactly the recorded unpack size. A following
+                // filter must see the end there, or it transforms an incomplete final unit with decoder overrun bytes.
+                return BoundCoderOutput(PpmdStream.Create(
                     new PpmdProperties(info.NotNull()),
                     inStreams.Single(),
                     false
-                );
+                ), limit);
             case K_DEFLATE:
                 return new DeflateStream(inStreams.Single(), CompressionMode.Decompress);
             case K_ZSTD:
@@ -88,4 +97,7 @@ internal static partial class DecoderRegistry
                 throw new NotSupportedException();
         }
     }
+
+    internal static Stream BoundCoderOutput(Stream decoder, long limit) =>
+        limit < 0 ? decoder : new ReadOnlySubStream(decoder, limit, leaveOpen: false);
 }

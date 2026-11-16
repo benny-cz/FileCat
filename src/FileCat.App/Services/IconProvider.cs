@@ -60,8 +60,44 @@ public sealed class IconProvider
     private readonly ConcurrentDictionary<(Core.Verification.VerificationState, string), IImage?> _verificationMarks = new();
     private readonly ConcurrentDictionary<(Core.FileSystem.CloudState, string), IImage?> _cloudOverlays = new();
 
+    private INativeIconSource? _native;
+    private Action? _loaded;
+
     /// <summary>Optional native provider (Windows extension icons); returns null to fall back to vectors.</summary>
-    public INativeIconSource? Native { get; set; }
+    public INativeIconSource? Native
+    {
+        get => _native;
+        set
+        {
+            if (ReferenceEquals(_native, value)) return;
+            if (_native is not null && _loaded is not null) _native.IconsLoaded -= OnNativeIconsLoaded;
+            _native = value;
+            if (_native is not null && _loaded is not null) _native.IconsLoaded += OnNativeIconsLoaded;
+        }
+    }
+
+    /// <summary>
+    /// Raised when the platform's icons asked for meanwhile have arrived (on whichever thread they came on): whatever
+    /// shows them draws them again. The platform's source is listened to only while something listens here, so the
+    /// provider leaves no listener of its own behind on it.
+    /// </summary>
+    public event Action? Loaded
+    {
+        add
+        {
+            bool first = _loaded is null;
+            _loaded += value;
+            if (first && _loaded is not null && _native is not null) _native.IconsLoaded += OnNativeIconsLoaded;
+        }
+        remove
+        {
+            if (_loaded is null) return;
+            _loaded -= value;
+            if (_loaded is null && _native is not null) _native.IconsLoaded -= OnNativeIconsLoaded;
+        }
+    }
+
+    private void OnNativeIconsLoaded() => _loaded?.Invoke();
 
     public bool UseNativeIcons { get; set; } = true;
 
@@ -117,6 +153,12 @@ public sealed class IconProvider
         return _vector.GetOrAdd((kind, ThemeManager.Current.Name), k => VectorIcons.Create(k.Item1));
     }
 
+    /// <summary>
+    /// Raised after <see cref="ClearCache"/>: icons may look different now (settings applied, another theme), so whatever
+    /// shows them draws them again.
+    /// </summary>
+    public event Action? Cleared;
+
     public void ClearCache()
     {
         _vector.Clear();
@@ -126,6 +168,7 @@ public sealed class IconProvider
         _cloudOverlays.Clear();
         _vectorOverlay = null;
         _tinted = new();
+        Cleared?.Invoke();
     }
 
     private System.Runtime.CompilerServices.ConditionalWeakTable<IImage, IImage> _tinted = new();

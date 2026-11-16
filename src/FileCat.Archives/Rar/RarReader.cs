@@ -21,13 +21,21 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
     private RarWindow? _window;
     private Rar15Decoder? _rar15;        // RAR 1.5 runs: a decoder with its own window (FileCat.Archives.Rar15, LGPL)
     private bool _disposed;
+    private readonly Rar5ReadPasswordSession? _password;
+    private readonly HashSet<Rar5MemberDecryption> _cryptoStreams = [];
+    private readonly HashSet<RarWindow> _windows = [];
+    private readonly HashSet<RarBitReader> _bitReaders = [];
+    private readonly Dictionary<RarWindow, (RarBitReader Bits, RarMemberStream Member)> _runs = [];
 
-    private RarReader(List<Stream> volumes, IReadOnlyList<string> volumePaths, RarArchive archive, bool numberedVolumeGap)
+    private RarReader(List<Stream> volumes, IReadOnlyList<string> volumePaths, RarArchive archive, bool numberedVolumeGap,
+        Rar5ReadPasswordSession? password = null)
     {
         _volumes = volumes;
         _volumePaths = volumePaths;
         _archive = archive;
         _numberedVolumeGap = numberedVolumeGap;
+        _password = password;
+        _bitReaders.Add(_bits);
     }
 
     public string Format => _volumes.Count > 1 ? $"RAR ({_volumes.Count} volumes)" : "RAR";
@@ -41,7 +49,13 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
     /// Opens the archive at <paramref name="path"/> with every volume of its set ("x.partN.rar" or "x.rar" with "x.r00"…),
     /// each read-shared and checked by <paramref name="verifyOpened"/> before any byte is read.
     /// </summary>
-    public static RarReader Open(string path, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null)
+    public static RarReader Open(string path, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null) => OpenPath(path, verifyOpened, null);
+
+    internal static RarReader OpenWithPassword(string path, Rar5ReadPasswordSession password,
+        Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null) => OpenPath(path, verifyOpened, password);
+
+    private static RarReader OpenPath(string path, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened,
+        Rar5ReadPasswordSession? password)
     {
         var volumes = new List<FileStream>();
         bool numberedVolumeGap;
@@ -63,7 +77,7 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
         }
         try
         {
-            return Open(volumes.Cast<Stream>().ToList(), numberedVolumeGap, default, paths);
+            return Open(volumes.Cast<Stream>().ToList(), numberedVolumeGap, default, paths, password);
         }
         catch (Exception ex) when (ex is not (IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException))
         {
@@ -77,12 +91,12 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
 
     /// <summary>The same over any seekable streams (in-memory volumes for fuzzing).</summary>
     internal static RarReader Open(List<Stream> volumes, bool numberedVolumeGap, CancellationToken ct = default,
-        IReadOnlyList<string>? volumePaths = null)
+        IReadOnlyList<string>? volumePaths = null, Rar5ReadPasswordSession? password = null)
     {
         try
         {
-            var archive = RarArchive.Read(volumes, ct);
-            return new RarReader(volumes, volumePaths ?? [], archive, numberedVolumeGap);
+            var archive = RarArchive.Read(volumes, ct, password);
+            return new RarReader(volumes, volumePaths ?? [], archive, numberedVolumeGap, password);
         }
         catch
         {
@@ -112,12 +126,13 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
         if ((uint)index >= (uint)_archive.Members.Count) throw new FileNotFoundException("The member is no longer in the archive.");
         var member = _archive.Members[index];
         if (member.Kind != MemberKind.File) return Stream.Null;
-        if (member.Encrypted) throw new InvalidDataException("This member is encrypted; FileCat does not ask for archive passwords.");
+        if (member.Encrypted && !CanDecrypt(member)) throw new InvalidDataException(_password is null
+            ? "This member is encrypted; FileCat does not ask for archive passwords." : member.EncryptionError ?? "Password reading for this older RAR encryption format is not implemented.");
         if (!member.Complete) throw new InvalidDataException("This member continues in a volume that is missing.");
         try
         {
             var stream = member.Method == 0
-                ? RarMemberStream.Stored(member, new RarPackedStream(_volumes, member.Segments), ct)
+                ? RarMemberStream.Stored(member, OpenPacked(member), ct)
                 : OpenDecoded(index, ct);
             return new BorrowedStream(stream);
         }
@@ -167,7 +182,7 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
         {
             var earlier = _archive.Members[i];
             if (!IsCompressedFile(earlier)) continue;
-            if (earlier.Encrypted || !earlier.Complete) throw new InvalidDataException("An earlier member of this solid archive cannot be decoded, so this one cannot either.");
+            if (earlier.Encrypted && !CanDecrypt(earlier) || !earlier.Complete) throw new InvalidDataException("An earlier member of this solid archive cannot be decoded, so this one cannot either.");
             if (DecoderFamily(earlier.Version) != DecoderFamily(member.Version)) throw RarData.Unsupported("a solid run that changes compression version");
             Prepare(Start(i, solid: i != runStart || earlier.SolidContinuation, ct), earlier);
         }
@@ -175,9 +190,27 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
     }
 
     private static bool IsCompressedFile(RarMember member) => member.Kind == MemberKind.File && member.Method != 0;
+    private bool CanDecrypt(RarMember member) => _password is not null && member.Encryption is not null;
+    internal bool SupportsPasswordRead(int index) => _archive.Members[index].Encryption is not null;
+    private Stream OpenPacked(RarMember member)
+    {
+        var packed = new RarPackedStream(_volumes, member.Segments);
+        if (!member.Encrypted) return packed;
+        var decrypted = new Rar5MemberDecryption(packed, member.PackedSize, member.Encryption!, _password!, stream => _cryptoStreams.Remove(stream));
+        _cryptoStreams.Add(decrypted); return decrypted;
+    }
 
     private void NewRun(int version, long dictionary, long expectedBytes)
     {
+        // Independent opens can still be borrowed. Reclaim completed runs, including older borrowed streams
+        // that finished since the previous open; unfinished runs stay usable until reader disposal.
+        foreach (var run in _runs.Where(pair => pair.Value.Member.Finished).ToArray())
+        {
+            run.Key.Dispose(); _windows.Remove(run.Key);
+            run.Value.Bits.Dispose(); _bitReaders.Remove(run.Value.Bits); _runs.Remove(run.Key);
+        }
+        if (_decoder is null) { _bits.Dispose(); _bitReaders.Remove(_bits); } // initial/unused RAR 1.5 bit reader
+        _bits = new RarBitReader();
         if (version == 15)
         {
             // RAR 1.5 keeps its own 64 KiB window; the run's members go through RarMemberStream's external mode.
@@ -187,9 +220,10 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
         }
         else
         {
+            _bitReaders.Add(_bits);
             _decoder = CreateDecoder(version);
             _window = new RarWindow(dictionary, expectedBytes);
-            _bits = new RarBitReader();
+            _windows.Add(_window);
             _rar15 = null;
         }
         _decoded = null;
@@ -210,9 +244,11 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
         else
         {
             if (_decoder is null) throw RarData.Unsupported("a solid run that changes compression version");
-            _bits.Reset(new RarPackedStream(_volumes, member.Segments));
+            var packed = OpenPacked(member);
+            _bits.Reset(packed);
             _decoder.StartMember(_bits, solid, member.UnpackedSize);
-            _decoded = RarMemberStream.Decoded(member, _decoder, _window!, ct);
+            _decoded = RarMemberStream.Decoded(member, _decoder, _window!, ct, packed as Rar5MemberDecryption);
+            _runs[_window!] = (_bits, _decoded);
         }
         _decodedIndex = index;
         return _decoded;
@@ -241,9 +277,18 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
         if (_disposed) return;
         _disposed = true;
         _decoder = null;
+        foreach (var bits in _bitReaders) bits.Dispose();
+        _bitReaders.Clear();
+        _bits.Dispose();
+        foreach (var window in _windows) window.Dispose();
+        _windows.Clear();
+        _runs.Clear();
         _window = null;
         _rar15 = null;
         _decoded = null;
+        foreach (var stream in _cryptoStreams.ToArray())
+            try { stream.Dispose(); } catch (Exception ex) { FileCat.Core.Diagnostics.AppLog.Warn("Archive cipher cleanup: " + ex.GetType().Name); }
+        _cryptoStreams.Clear();
         foreach (var volume in _volumes) volume.Dispose();
         _volumes.Clear();
     }

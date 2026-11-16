@@ -6,6 +6,10 @@
 #   FileCat-<ver>-<rid>-appimage-runtime-source.tar.gz   corresponding source of the AppImage runtime (EXT-04)
 # Usage: eng/package-linux.sh [version] [rid]   (rid: linux-x64 or linux-arm64)
 set -euo pipefail
+# Files the script creates get 644 and folders 755 whatever the caller's umask (Ubuntu's default is 002): the confined
+# archive worker refuses a bundle anyone but its owner can change.
+umask 022
+writable_by_others() { [ -n "$(find "$1" -perm /022 ! -type l -print -quit)" ]; }
 
 VERSION="${1:-1.0.0-dev}"
 RID="${2:-linux-x64}"
@@ -69,12 +73,15 @@ echo "9b872a8a070b8ad329c4bd380fb1bf0000f564c75023ec8e1e6803f15364b9e9  $PUB/lic
 # byte for byte: SHA256SUMS has its reviewed hash and lists exactly the folder's other files.
 cp -R "$ROOT/licenses/sharpcompress" "$PUB/licenses/"
 ( cd "$PUB/licenses/sharpcompress" \
-  && echo "da9014fb8d4af0cab6ba4e19e1bd03bd88ea4f649e4dc1ac45cdd105c532ce8b  SHA256SUMS" | sha256sum -c - >/dev/null \
+  && echo "b036603dac3e8d14a520defdb0545da9db8f384808f97cfbdf877e70cb05807c  SHA256SUMS" | sha256sum -c - >/dev/null \
   && sha256sum -c SHA256SUMS >/dev/null \
   && [ "$(find . -type f ! -name SHA256SUMS | sed 's|^\./||' | LC_ALL=C sort)" = "$(cut -c67- SHA256SUMS | LC_ALL=C sort)" ] ) \
   || { echo "licenses/sharpcompress differs from its pinned notice set." >&2; exit 2; }
 install -m 644 "$ROOT/src/FileCat.App/Assets/filecat.png" "$PUB/filecat.png"
 chmod +x "$PUB/FileCat"
+# No package carries group or other write: the confined archive worker refuses a bundle anyone but its owner can change,
+# and the build user's umask may be 002 (Ubuntu's default). Folders and executables 755, other files 644.
+chmod -R u=rwX,go=rX "$PUB"
 # The icon at every size it is drawn for (the 16- and 24-pixel frames by hand), so that menus and panels need not
 # shrink the large artwork, which reads poorly small.
 ICONS="$OUT/icons-$RID"
@@ -107,6 +114,7 @@ rm -f "$TARBALL"
 rm -f "$SBOM_TAR"
 dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
   "$PUB" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" tar "$SOURCE_IDENTITY" "$CREATED_UTC" "$SBOM_TAR"
+if writable_by_others "$PUB"; then echo "The tarball payload is group- or other-writable." >&2; exit 2; fi
 tar -C "$OUT/publish" -czf "$TARBALL" --transform "s,^$RID,FileCat-$VERSION," "$RID"
 
 # 2) Debian package (Ubuntu, Debian): the runtime libraries a self-contained .NET and Avalonia app loads.
@@ -182,6 +190,7 @@ rm -f "$DEB_FILE"
 rm -f "$SBOM_DEB"
 dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
   "$DEB" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" deb "$SOURCE_IDENTITY" "$CREATED_UTC" "$SBOM_DEB"
+if writable_by_others "$DEB/opt/filecat"; then echo "The .deb payload is group- or other-writable." >&2; exit 2; fi
 dpkg-deb --root-owner-group --build "$DEB" "$DEB_FILE"
 
 # 3) AppImage: one file that runs on most distributions (appimagetool 1.9.1, pinned by checksum; build tool only).
@@ -237,6 +246,7 @@ SBOM_APPIMAGE="$OUT/sbom-$VERSION-$RID-appimage.spdx.json"
 rm -f "$APPIMAGE" "$APPIMAGE.rejected"
 rm -f "$SBOM_APPIMAGE"
 # Runs without FUSE (CI containers).
+if writable_by_others "$APPDIR"; then echo "The AppImage payload is group- or other-writable." >&2; exit 2; fi
 APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$TOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$APPIMAGE"
 rm -rf "$APPDIR" "$DEB"
 # The AppImage must start with the reviewed runtime, which its source bundle describes: apart from the digest section,

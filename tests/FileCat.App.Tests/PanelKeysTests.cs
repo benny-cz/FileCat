@@ -183,9 +183,16 @@ public sealed class PanelKeysTests
             services.Settings.ClassicToolbar = true;
             vm.ApplySettings();
             var ct = TestContext.Current.CancellationToken;
-            await Task.Delay(50, ct);
-            var buttons = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.Button>()
-                .Where(b => b.Classes.Contains("toolbar")).ToList();
+            // Each step waits for the state it judges rather than for a fixed 50 ms: on a loaded runner the dispatcher took
+            // longer, and the hidden-files button still showed its old state (hosted Ubuntu, run 43774385768).
+            async Task Until(Func<bool> done)
+            {
+                for (int i = 0; i < 250 && !done(); i++) await Task.Delay(20, ct);
+            }
+            List<Avalonia.Controls.Button> Toolbar() => Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window)
+                .OfType<Avalonia.Controls.Button>().Where(b => b.Classes.Contains("toolbar")).ToList();
+            await Until(() => Toolbar().Count >= 30);
+            var buttons = Toolbar();
             Assert.True(buttons.Count >= 30, $"{buttons.Count} toolbar buttons");
             // Each shows its command's icon, is named for screen readers, and says its key in its tooltip.
             Assert.All(buttons, b => Assert.IsType<Avalonia.Controls.Image>(b.Content));
@@ -203,10 +210,10 @@ public sealed class PanelKeysTests
             bool shown = services.Settings.ShowHidden;
             Assert.Equal(shown, hidden.Classes.Contains("checked"));
             hidden.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
-            await Task.Delay(50, ct);
+            await Until(() => (services.Settings.ShowHidden, hidden.Classes.Contains("checked")) == (!shown, !shown));
             Assert.Equal((!shown, !shown), (services.Settings.ShowHidden, hidden.Classes.Contains("checked")));
             vm.Execute(CommandIds.ToggleHidden);
-            await Task.Delay(50, ct);
+            await Until(() => (services.Settings.ShowHidden, hidden.Classes.Contains("checked")) == (shown, shown));
             Assert.Equal((shown, shown), (services.Settings.ShowHidden, hidden.Classes.Contains("checked")));
 
             // The menus carry the same icons.
@@ -222,8 +229,9 @@ public sealed class PanelKeysTests
 
             // View → Show the toolbar hides it, and the setting keeps that.
             vm.Execute(CommandIds.ToggleToolbar);
-            await Task.Delay(50, ct);
-            Assert.False(Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.Border>().First(x => x.Name == "ToolbarRow").IsVisible);
+            bool ToolbarRowVisible() => Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.Border>().First(x => x.Name == "ToolbarRow").IsVisible;
+            await Until(() => !ToolbarRowVisible());
+            Assert.False(ToolbarRowVisible());
             Assert.False(services.Settings.ShowToolbar);
             vm.Execute(CommandIds.ToggleToolbar);
             Assert.True(services.Settings.ShowToolbar);

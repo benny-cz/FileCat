@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Dedicated non-UI worker; packaging/admission remain gated independently of this entry point. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RuntimeIdentifiers>linux-musl-arm64</RuntimeIdentifiers>
+    <RuntimeFrameworkVersion Condition="'$(RuntimeIdentifier)' == 'linux-musl-arm64'">10.0.12</RuntimeFrameworkVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../FileCat.Archives.Writing/FileCat.Archives.Writing.csproj" />
+  </ItemGroup>
+</Project>

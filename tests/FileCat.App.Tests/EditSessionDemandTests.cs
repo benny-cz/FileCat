@@ -21,17 +21,24 @@ using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Tests;
 
-public sealed class EditSessionDemandTests(ITestOutputHelper output)
+public sealed class EditSessionDemandTests(ITestOutputHelper output) : EditSessionDemandCases(output, EditStoreKind.Legacy);
+public sealed class EditSessionDemandNativeTests(ITestOutputHelper output) : EditSessionDemandCases(output, EditStoreKind.Native);
+
+/// <summary>
+/// Owned demand around a working-file read, for both edit stores: a legacy edit's reads go through the provider, a native
+/// edit's through its held private folder (observed through the store's read seam, with the same holds and faults).
+/// </summary>
+public abstract class EditSessionDemandCases(ITestOutputHelper output, EditStoreKind store)
 {
     public static TheoryData<string, string, string> EndedReads
     {
         get { var rows = new TheoryData<string, string, string>(); foreach (string op in new[] { "restore", "list", "session" }) foreach (string held in new[] { "open", "read" }) foreach (string end in new[] { "shutdown", "close" }) rows.Add(op, held, end); return rows; }
     }
     [AvaloniaTheory]
-    [MemberData(nameof(EndedReads))]
+    [MemberData(nameof(EndedReads), MemberType = typeof(EditSessionDemandCases))]
     public async Task An_ended_session_read_owns_its_active_source_and_publishes_no_late_prompt(string operation, string held, string end)
     {
-        using var f = await Fixture.Create(held); Task? task = null;
+        using var f = await Fixture.Create(store, held); Task? task = null;
         try
         {
             task = f.Start(operation); await Wait(() => f.Gate.Active > 0 || task.IsCompleted || f.HasDialog);
@@ -51,7 +58,7 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
     [InlineData("session")]
     public async Task Live_review_reads_on_the_shared_worker_and_keeps_the_persistent_edit(string operation)
     {
-        using var f = await Fixture.Create(); var task = f.Start(operation);
+        using var f = await Fixture.Create(store); var task = f.Start(operation);
         if (operation != "restore") { await Wait(() => f.HasDialog); if (operation == "list") f.Escape(); else f.Click("Close"); }
         await task.WaitAsync(TimeSpan.FromSeconds(10)); AssertWorkers(f); Emit(f, "live", new { operation }); Assert.Single(f.Services.EditSessions.LoadAll()); Assert.Equal("base", File.ReadAllText(f.Session.WorkingPath));
     }
@@ -65,7 +72,7 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
     [InlineData("read", "unwatch")]
     public async Task Ended_watch_probes_cannot_announce_after_their_source_returns(string held, string end)
     {
-        using var f = await Fixture.Create(held); f.Watch(); await f.WatchReady();
+        using var f = await Fixture.Create(store, held); f.Watch(); await f.WatchReady();
         try
         {
             File.WriteAllText(f.Session.WorkingPath, "modified");
@@ -83,7 +90,7 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
     [InlineData("unwatch")]
     public async Task A_save_event_queued_before_demand_ends_cannot_announce_later(string end)
     {
-        using var f = await Fixture.Create(); f.Watch(); await f.WatchReady(); File.WriteAllText(f.Session.WorkingPath, "modified");
+        using var f = await Fixture.Create(store); f.Watch(); await f.WatchReady(); File.WriteAllText(f.Session.WorkingPath, "modified");
         await Task.Delay(100, TestContext.Current.CancellationToken); f.End(end); string? before = f.Vm.Notification;
         await Task.Delay(1100, TestContext.Current.CancellationToken); Emit(f, "watch-queued-end", new { end, before, after = f.Vm.Notification }); Assert.Equal(before, f.Vm.Notification);
         if (end is "close" or "unwatch") Assert.Equal(0, f.WatcherCount);
@@ -94,7 +101,7 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
     [InlineData("read")]
     public async Task Sixty_four_save_events_coalesce_behind_one_owned_probe(string held)
     {
-        using var f = await Fixture.Create(held); f.Watch(); await f.WatchReady();
+        using var f = await Fixture.Create(store, held); f.Watch(); await f.WatchReady();
         try
         {
             File.WriteAllText(f.Session.WorkingPath, "modified");
@@ -117,7 +124,7 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
     [InlineData("discard", "close")]
     public async Task An_answer_after_shutdown_does_not_launch_or_mutate(string action, string end)
     {
-        using var f = await Fixture.Create(); File.WriteAllText(f.Session.WorkingPath, "modified"); var task = f.Start("session"); await Wait(() => f.Button("Close") is not null);
+        using var f = await Fixture.Create(store); File.WriteAllText(f.Session.WorkingPath, "modified"); var task = f.Start("session"); await Wait(() => f.Button("Close") is not null);
         f.End(end); string? before = f.Vm.Notification; f.Click(action switch { "reopen" => "Reopen editor", "commit" => "Commit", _ => "Discard…" });
         await task.WaitAsync(TimeSpan.FromSeconds(10)); Emit(f, "late-answer", new { action, end, before, after = f.Vm.Notification }); Assert.Equal(before, f.Vm.Notification); Assert.Empty(f.Services.Jobs.Jobs); Assert.Null(f.Button("Discard")); Assert.Single(f.Services.EditSessions.LoadAll());
     }
@@ -136,7 +143,7 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
     [InlineData("oversize")]
     public async Task Unavailable_working_content_is_reported_without_offering_commit_or_editor(string outcome)
     {
-        using var f = await Fixture.Create(outcome: outcome); var task = f.Start("session");
+        using var f = await Fixture.Create(store, outcome: outcome); var task = f.Start("session");
         try
         {
             await Wait(() => f.Button("Close") is not null);
@@ -154,7 +161,7 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
     [InlineData("read")]
     public async Task A_replaced_watcher_cannot_publish_the_old_probe(string held)
     {
-        using var f = await Fixture.Create(held); f.Watch(); await f.WatchReady();
+        using var f = await Fixture.Create(store, held); f.Watch(); await f.WatchReady();
         try
         {
             File.WriteAllText(f.Session.WorkingPath, "modified"); await Wait(() => f.Gate.Active > 0); AssertWorkers(f);
@@ -170,7 +177,7 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
     [AvaloniaFact]
     public async Task A_missing_working_file_keeps_the_record_without_editor_or_commit()
     {
-        using var f = await Fixture.Create(); File.Delete(f.Session.WorkingPath); var task = f.Start("session");
+        using var f = await Fixture.Create(store); File.Delete(f.Session.WorkingPath); var task = f.Start("session");
         try
         {
             await Wait(() => f.Button("Close") is not null); AssertWorkers(f);
@@ -194,7 +201,7 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
     [InlineData("missing-changed")]
     public async Task Standalone_discard_preserves_saves_not_reviewed_by_its_confirmation(string action)
     {
-        using var f = await Fixture.Create(outcome: action == "second-io" ? action : "ordinary");
+        using var f = await Fixture.Create(store, outcome: action == "second-io" ? action : "ordinary");
         File.WriteAllText(f.Session.WorkingPath, "reviewed edit"); f.Watch(); await f.WatchReady();
         if (action == "missing-changed") File.Delete(f.Session.WorkingPath);
         var task = (Task)typeof(MainViewModel).GetMethod("DiscardSessionAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(f.Vm, [f.Session, action == "missing-changed" ? EditState.Missing : EditState.Modified])!;
@@ -227,14 +234,15 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
     private sealed class Fixture : IDisposable
     {
         public required AppServices Services; public required MainViewModel Vm; public required MainWindow Window; public required string Root; public required EditSessionRecord Session; public required Provider Provider; public required Gate Gate;
-        public static async Task<Fixture> Create(string? held = null, string outcome = "ordinary")
+        public static async Task<Fixture> Create(EditStoreKind store, string? held = null, string outcome = "ordinary")
         {
-            var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+            var (services, vm, window, root) = EditTestStores.OpenMainWindow(store);
             var startup = typeof(MainWindow).GetField("_interruptedStartup", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(window) as Task;
             if (startup is not null) await startup; else await (Task)typeof(MainWindow).GetMethod("LoadInterruptedAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(window, null)!;
             using var source = new MemoryContentSource("notes.txt", "base"u8.ToArray()); var session = services.EditSessions.CreateRemote("owned-unused", "owned", "/notes.txt", source, source.GetRevision()!.Value, null);
             services.Settings.Editor = new FileCat.Core.State.ToolDefinition { Executable = Path.Join(root, "owned-editor-does-not-exist.exe") };
             var gate = new Gate(held); var provider = new Provider(services.Providers.Get(Schemes.FileSystem), session.WorkingPath, gate, outcome); services.Providers.Register(provider);
+            if (store == EditStoreKind.Native) services.EditSessions.NativeWorkingReads = open => provider.Observe(open);
             return new Fixture { Services = services, Vm = vm, Window = window, Root = root, Session = session, Gate = gate, Provider = provider };
         }
         public int WatcherCount => ((IDictionary)typeof(MainViewModel).GetField("_sessionWatchers", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(Vm)!).Count;
@@ -267,11 +275,12 @@ public sealed class EditSessionDemandTests(ITestOutputHelper output)
         public override Location? GetChildLocation(Location l, in EntryData e) => inner.GetChildLocation(l, e);
         public override LocationCapabilities GetCapabilities(Location l) => inner.GetCapabilities(l);
         public override Task EnumerateAsync(Location l, IEnumerationSink sink, CancellationToken ct) => inner.EnumerateAsync(l, sink, ct);
-        public override IContentSource? OpenContent(ItemRef item)
+        public override IContentSource? OpenContent(ItemRef item) => item.FileSystemPath != path ? inner.OpenContent(item) : Observe(() => inner.OpenContent(item)!);
+        // A working-file read: the provider's own for a legacy edit, the store's held one for a native edit.
+        public IContentSource Observe(Func<IContentSource> open)
         {
-            if (item.FileSystemPath != path) return inner.OpenContent(item);
             gate.Invoke("open"); if (outcome == "io" || outcome == "second-io" && gate.Calls.Count(c => c.Operation == "open") > 1) throw new IOException("Owned read failure."); if (outcome == "access") throw new UnauthorizedAccessException("Owned read denied.");
-            var source = new Source(inner.OpenContent(item)!, gate, outcome); Sources.Enqueue(source); return source;
+            var source = new Source(open(), gate, outcome); Sources.Enqueue(source); return source;
         }
     }
     private sealed class Source(IContentSource inner, Gate gate, string outcome) : IContentSource, IPartialContent

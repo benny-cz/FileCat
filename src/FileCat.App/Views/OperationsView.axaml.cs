@@ -41,7 +41,8 @@ public partial class OperationsView : UserControl
         // changes: the action starting, a status line wrapping, the window settling around the drawer.
         RecoveryScroll.PropertyChanged += (_, e) =>
         {
-            if (e.Property == ScrollViewer.ExtentProperty || e.Property == ScrollViewer.ViewportProperty) RevealStop(null);
+            if (e.Property == ScrollViewer.ExtentProperty || e.Property == ScrollViewer.ViewportProperty)
+            { RevealStop(null); RevealRecoveryAction(); }
         };
         DetailsDrawer.PropertyChanged += (_, e) =>
         {
@@ -167,7 +168,8 @@ public partial class OperationsView : UserControl
         if (e.PropertyName == nameof(OperationCenterViewModel.Selected))
             ObserveSelected(Center?.Selected);
         if (e.PropertyName is nameof(OperationCenterViewModel.Selected) or nameof(OperationCenterViewModel.IsOpen)
-            or nameof(OperationCenterViewModel.HasInterrupted) or nameof(OperationCenterViewModel.HasReviewedRecovery))
+            or nameof(OperationCenterViewModel.HasInterrupted) or nameof(OperationCenterViewModel.HasReviewedRecovery)
+            or nameof(OperationCenterViewModel.SelectedInterrupted))
             QueueDrawerHeightRefresh();
     }
 
@@ -183,6 +185,7 @@ public partial class OperationsView : UserControl
         {
             _heightRefreshQueued = false;
             RefreshDrawerHeight();
+            Dispatcher.UIThread.Post(RevealRecoveryAction, DispatcherPriority.Loaded);
         }, DispatcherPriority.Background);
     }
 
@@ -232,7 +235,11 @@ public partial class OperationsView : UserControl
     private void ApplyDrawerHeight(double height)
     {
         DetailsDrawer.Height = height;
-        RecoveryScroll.MaxHeight = Math.Clamp(height * .25, 35, 180);
+        // With no history to scan, give archive review/reports the space otherwise spent on an empty list.
+        // Other recovery/history combinations retain their compact allocation.
+        RecoveryScroll.MaxHeight = Center is { Jobs.Count: 0 } center &&
+            (center.SelectedInterrupted?.CanReviewArchiveCleanup == true || center.HasReviewedRecovery)
+            ? Math.Clamp(height - 60, 35, 400) : Math.Clamp(height * .25, 35, 180);
     }
 
     private void SetDrawerHeight(double requested, bool userChoice)
@@ -281,6 +288,30 @@ public partial class OperationsView : UserControl
     }
 
     private OperationCenterViewModel? Center => DataContext as OperationCenterViewModel;
+
+    /// <summary>Whether keyboard focus is on a control of Operations (the strip or the open drawer).</summary>
+    internal bool ContainsFocus(object? focused) => focused is Visual visual && (ReferenceEquals(visual, this) || this.IsVisualAncestorOf(visual));
+
+    /// <summary>
+    /// Ctrl+J from the keyboard (plan §11.5, §11.8): the keyboard goes to "Review decision…" of the first operation that
+    /// waits for a decision (selected first, as the decision notice tells keyboard users to go there), otherwise to the
+    /// selected operation in the list, otherwise to the first control of Operations. False when nothing could take focus.
+    /// </summary>
+    internal bool FocusForKeyboard()
+    {
+        if (Center is not { } center) return false;
+        if (center.Jobs.FirstOrDefault(job => job.NeedsDecision) is { } waiting)
+        {
+            center.Selected = waiting;
+            UpdateLayout();
+            if (DetailsReviewDecision is { IsEffectivelyVisible: true, IsEffectivelyEnabled: true } review && review.Focus(NavigationMethod.Tab))
+                return true;
+        }
+        if (HistoryList is { IsEffectivelyVisible: true, ItemCount: > 0 } list && Controls.ListKeys.Focus(list)) return true;
+        return this.GetVisualDescendants().OfType<InputElement>()
+            .FirstOrDefault(element => element.Focusable && element.IsEffectivelyVisible && element.IsEffectivelyEnabled) is { } first &&
+            first.Focus(NavigationMethod.Tab);
+    }
 
     private MainViewModel? Main => TopLevel.GetTopLevel(this)?.DataContext as MainViewModel;
 
@@ -381,6 +412,11 @@ public partial class OperationsView : UserControl
     private async void OnRetryElevated(object? sender, RoutedEventArgs e)
     {
         if (JobOf(sender) is { } j && Main is { } main) await main.RetryElevatedAsync(j.Job);
+    }
+
+    private async void OnOpenArchive(object? sender, RoutedEventArgs e)
+    {
+        if (JobOf(sender) is { } j && Main is { } main) await main.OpenCreatedArchiveAsync(j.Job);
     }
 
     private async void OnShowResults(object? sender, RoutedEventArgs e)
@@ -592,6 +628,20 @@ public partial class OperationsView : UserControl
         var offset = RecoveryScroll.Offset;
         if (bottom > viewport) RecoveryScroll.Offset = offset.WithY(offset.Y + Math.Min(bottom - viewport, top.Y));
         else if (top.Y < 0) RecoveryScroll.Offset = offset.WithY(offset.Y + top.Y);
+    }
+
+    private void RevealRecoveryAction()
+    {
+        if (Center is not { IsOpen: true, Jobs.Count: 0 } center) return;
+        var buttons = RecoveryScroll.GetVisualDescendants().OfType<Button>();
+        var action = center.SelectedInterrupted is { CanReviewArchiveCleanup: true, IsActionBusy: false } selected
+            ? buttons.FirstOrDefault(button => ReferenceEquals(button.Tag, selected) && button.Content as string == selected.CleanupLabel && button.IsEffectivelyVisible)
+            : center.SelectedInterrupted is null && center.HasReviewedRecovery
+                ? buttons.FirstOrDefault(button => button.Tag is RecoveryReviewRecord && button.IsEffectivelyVisible) : null;
+        if (action?.TranslatePoint(default, RecoveryScroll) is not { } top) return;
+        double bottom = top.Y + action.Bounds.Height, viewport = RecoveryScroll.Viewport.Height;
+        if (bottom > viewport) RecoveryScroll.Offset = RecoveryScroll.Offset.WithY(RecoveryScroll.Offset.Y + Math.Min(bottom - viewport, top.Y));
+        else if (top.Y < 0) RecoveryScroll.Offset = RecoveryScroll.Offset.WithY(RecoveryScroll.Offset.Y + top.Y);
     }
 
     private void OnHideInterrupted(object? sender, RoutedEventArgs e)

@@ -1,0 +1,781 @@
+{
+  "date": "2026-11-08",
+  "source_checkpoint": "03107264",
+  "production_profile_registered": false,
+  "production_backend_qualified": false,
+  "native_manager_execution_implemented": true,
+  "production_UI_integration_complete": false,
+  "new_core_cases": 81,
+  "new_Windows_native_cases": 14,
+  "changed_csharp": [
+    "src/FileCat.Core/Archives/ArchiveCapturedSelection.cs",
+    "src/FileCat.Core/Archives/ArchiveJobBackend.cs",
+    "src/FileCat.Core/Archives/ArchiveJobPlanning.cs",
+    "src/FileCat.Core/Archives/ArchiveJobReviewText.cs",
+    "src/FileCat.Core/Archives/ArchiveNamespaceReview.cs",
+    "src/FileCat.Core/Archives/ArchiveNativeJobBackend.cs",
+    "src/FileCat.Core/Archives/ArchivePlan.cs",
+    "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+    "src/FileCat.Core/Archives/ArchiveSelectionForest.cs",
+    "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+    "src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs",
+    "src/FileCat.Core/Archives/ArchiveWorkflowReview.cs",
+    "src/FileCat.Core/Archives/Unix/UnixArchiveSelectionTree.cs",
+    "src/FileCat.Platform.Windows/Archives/WindowsArchiveJobBackend.cs",
+    "src/FileCat.Platform.Windows/Archives/WindowsArchiveSelectionTree.cs",
+    "tests/ArchiveNativeJobCases.cs",
+    "tests/FileCat.Core.Tests/ArchiveJobBackendTests.cs",
+    "tests/FileCat.Core.Tests/ArchiveJobPlanningTests.cs",
+    "tests/FileCat.Core.Tests/ArchiveJobReviewTextTests.cs",
+    "tests/FileCat.Core.Tests/UnixArchiveNativeJobTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerNativeJobTests.cs"
+  ],
+  "delta_packets": {
+    "v1": {
+      "bytes": 37124,
+      "sha256": "0899de654119b2a6ae62eff26c013a14a2a56ba0953135f7b56298771fa181cc",
+      "files": 20
+    },
+    "v2": {
+      "bytes": 18081,
+      "sha256": "d14aa4b1effcea6bb78e76e7068dd49b7590325a564fd55fa74f77ea0cf853e4",
+      "files": 7
+    },
+    "v3": {
+      "bytes": 7273,
+      "sha256": "414e437617b42c12c874a47d68451add35e522f257d38dcfd20716284a16c600",
+      "files": 2
+    },
+    "v4": {
+      "bytes": 9419,
+      "sha256": "fff8b8da20237ff93670d5c5293159853e0ec38c69bfdce070f2afcab43671a9",
+      "files": 4
+    },
+    "v5": {
+      "bytes": 4189,
+      "sha256": "789cd4ba793379cedd3e33e438602c2117dbd6f4b9ae778431a17f77b9c57754",
+      "files": 1
+    }
+  },
+  "limitations": [
+    "No candidate is composed into the application; all production qualification gates remain open.",
+    "Native source removal/F6, safe new-file cleanup, complete recovery and creation/member/edit/password UI remain.",
+    "Unix update/confinement and resource/crash/fuzz/RID/package and the final independent review remain."
+  ],
+  "platforms": {
+    "mac": {
+      "bytes": 34058248,
+      "sha256": "d78ac9e3d96e0cf0575235daeb22420fa8fe59b4647cef1d6e3c54336b83be60",
+      "rows": 3354,
+      "batch": "archive-native-jobs-v4",
+      "tests": {
+        "archive-native-jobs-core.trx": {
+          "Passed": 8113,
+          "NotExecuted": 207
+        },
+        "job-preflight.trx": {
+          "Passed": 114
+        },
+        "native-job-preflight.trx": {
+          "Passed": 12
+        }
+      },
+      "independent": {
+        "catalog/independent-catalog.json": {
+          "cases": 273,
+          "metadata_records": 819,
+          "payloads": 546,
+          "packed_witnesses": 336,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "py7zr": "1.1.4",
+          "official_archives": 234,
+          "official_payloads": 468,
+          "zstandard_composed_archives": 39,
+          "zstandard_composed_payloads": 78,
+          "branch_offsets": [
+            "Arm64-4",
+            "Arm64-4294967292",
+            "Arm64-65536",
+            "RiscV-4",
+            "RiscV-4294967292",
+            "RiscV-65536"
+          ],
+          "sdk_sha256": "8e76bb2b8673f5e9a9b1a2caab958ef38cece82e54045e29a252732f2260c42f"
+        },
+        "workers/independent-pipeline.json": {
+          "archives": 74,
+          "metadata": 357,
+          "payloads": 256,
+          "official_archives": 62,
+          "composed_zstandard_archives": 12,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "bcj2_sha256": "5656bfae915f4b3216ec15ce2762c8f2eba80c2dceb699aa47257e11c6948af6",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": true,
+          "encoded_header_graphs_observed": true
+        },
+        "native-vectors/independent-pipeline.json": {
+          "archives": 21,
+          "metadata": 42,
+          "payloads": 21,
+          "official_archives": 18,
+          "composed_zstandard_archives": 3,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "bcj2_sha256": "5656bfae915f4b3216ec15ce2762c8f2eba80c2dceb699aa47257e11c6948af6",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-pipeline.json": {
+          "archives": 6,
+          "metadata": 45,
+          "payloads": 39,
+          "official_archives": 6,
+          "composed_zstandard_archives": 0,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "bcj2_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-workflow-rar.json": {
+          "creations": 0,
+          "updates_and_restorations": 0,
+          "official_archives": 6,
+          "exact_payloads": 39,
+          "independent_metadata_records": 45,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+        },
+        "workflows/independent-workflow-tar.json": {
+          "archives": 8,
+          "metadata": 60,
+          "payloads": 52,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+        },
+        "jobs/independent-pipeline.json": {
+          "archives": 3,
+          "metadata": 24,
+          "payloads": 15,
+          "official_archives": 3,
+          "composed_zstandard_archives": 0,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "bcj2_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "jobs/independent-workflow-rar.json": {
+          "creations": 4,
+          "updates_and_restorations": 0,
+          "official_archives": 4,
+          "exact_payloads": 20,
+          "independent_metadata_records": 32,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+        },
+        "jobs/independent-workflow-tar.json": {
+          "archives": 4,
+          "metadata": 32,
+          "payloads": 20,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+        }
+      },
+      "changed_csharp_matched": [
+        "src/FileCat.Core/Archives/ArchiveCapturedSelection.cs",
+        "src/FileCat.Core/Archives/ArchiveJobBackend.cs",
+        "src/FileCat.Core/Archives/ArchiveJobPlanning.cs",
+        "src/FileCat.Core/Archives/ArchiveJobReviewText.cs",
+        "src/FileCat.Core/Archives/ArchiveNamespaceReview.cs",
+        "src/FileCat.Core/Archives/ArchiveNativeJobBackend.cs",
+        "src/FileCat.Core/Archives/ArchivePlan.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveSelectionForest.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveWorkflowReview.cs",
+        "src/FileCat.Core/Archives/Unix/UnixArchiveSelectionTree.cs",
+        "tests/ArchiveNativeJobCases.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobBackendTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobPlanningTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobReviewTextTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveNativeJobTests.cs"
+      ],
+      "compiler_source_documents": 1442,
+      "assembly_pdb_pairs_bound": 10,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "executed_native_job_driver_sha256": "36d6cc6959e78f76b3a93751933e2a20daa0a5c60e811ddc4cd7deeeb58ed3f9",
+      "source_ledger_sha256": "c4fd2733fb39bd96568be86f8d4299764cf2f297fcdba4b34e960bcff929c5c0",
+      "oracle_repair": {
+        "archive_bytes_unchanged": true,
+        "archives": 11,
+        "repaired_helpers": [
+          {
+            "path": "verify-native-job-rar-v1.py",
+            "sha256": "1c80f783d9c8f937cbd192851e2c49ba27ddbfb99c2d71ae21ec92b658f89b41"
+          },
+          {
+            "path": "verify-native-job-tar-v1.py",
+            "sha256": "40d0d688e13f0a0160696455aa14ae000c9f3d7feee672d3796b8c35634d1eca"
+          }
+        ]
+      }
+    },
+    "ubuntu": {
+      "bytes": 34051596,
+      "sha256": "ae67d8b8d2b17f9e54032d2a90f20bdd8b05099bc36599e477a056eaf9022f82",
+      "rows": 3359,
+      "batch": "archive-native-jobs-v4",
+      "tests": {
+        "archive-native-jobs-core.trx": {
+          "Passed": 8135,
+          "NotExecuted": 185
+        },
+        "environment-preflight.trx": {
+          "Passed": 1
+        },
+        "job-preflight.trx": {
+          "Passed": 114
+        },
+        "native-job-preflight.trx": {
+          "Passed": 12
+        }
+      },
+      "independent": {
+        "catalog/independent-catalog.json": {
+          "cases": 273,
+          "metadata_records": 819,
+          "payloads": 546,
+          "packed_witnesses": 336,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "py7zr": "1.1.4",
+          "official_archives": 234,
+          "official_payloads": 468,
+          "zstandard_composed_archives": 39,
+          "zstandard_composed_payloads": 78,
+          "branch_offsets": [
+            "Arm64-4",
+            "Arm64-4294967292",
+            "Arm64-65536",
+            "RiscV-4",
+            "RiscV-4294967292",
+            "RiscV-65536"
+          ],
+          "sdk_sha256": "4a37237a162168414c8effcf857d2536f263bf0d4a30050dd4a8a617a1086c93"
+        },
+        "workers/independent-pipeline.json": {
+          "archives": 74,
+          "metadata": 357,
+          "payloads": 256,
+          "official_archives": 62,
+          "composed_zstandard_archives": 12,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "bcj2_sha256": "50ba524866c94eedcbe368ae14e8fecefc69d12463f534cb33dbaa83e2ea6493",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": true,
+          "encoded_header_graphs_observed": true
+        },
+        "native-vectors/independent-pipeline.json": {
+          "archives": 21,
+          "metadata": 42,
+          "payloads": 21,
+          "official_archives": 18,
+          "composed_zstandard_archives": 3,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "bcj2_sha256": "50ba524866c94eedcbe368ae14e8fecefc69d12463f534cb33dbaa83e2ea6493",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-pipeline.json": {
+          "archives": 6,
+          "metadata": 45,
+          "payloads": 39,
+          "official_archives": 6,
+          "composed_zstandard_archives": 0,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "bcj2_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-workflow-rar.json": {
+          "creations": 0,
+          "updates_and_restorations": 0,
+          "official_archives": 6,
+          "exact_payloads": 39,
+          "independent_metadata_records": 45,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+        },
+        "workflows/independent-workflow-tar.json": {
+          "archives": 8,
+          "metadata": 60,
+          "payloads": 52,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+        },
+        "jobs/independent-pipeline.json": {
+          "archives": 3,
+          "metadata": 24,
+          "payloads": 15,
+          "official_archives": 3,
+          "composed_zstandard_archives": 0,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "bcj2_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "jobs/independent-workflow-rar.json": {
+          "creations": 4,
+          "updates_and_restorations": 0,
+          "official_archives": 4,
+          "exact_payloads": 20,
+          "independent_metadata_records": 32,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+        },
+        "jobs/independent-workflow-tar.json": {
+          "archives": 4,
+          "metadata": 32,
+          "payloads": 20,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+        }
+      },
+      "changed_csharp_matched": [
+        "src/FileCat.Core/Archives/ArchiveCapturedSelection.cs",
+        "src/FileCat.Core/Archives/ArchiveJobBackend.cs",
+        "src/FileCat.Core/Archives/ArchiveJobPlanning.cs",
+        "src/FileCat.Core/Archives/ArchiveJobReviewText.cs",
+        "src/FileCat.Core/Archives/ArchiveNamespaceReview.cs",
+        "src/FileCat.Core/Archives/ArchiveNativeJobBackend.cs",
+        "src/FileCat.Core/Archives/ArchivePlan.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveSelectionForest.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveWorkflowReview.cs",
+        "src/FileCat.Core/Archives/Unix/UnixArchiveSelectionTree.cs",
+        "tests/ArchiveNativeJobCases.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobBackendTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobPlanningTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobReviewTextTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveNativeJobTests.cs"
+      ],
+      "compiler_source_documents": 1442,
+      "assembly_pdb_pairs_bound": 10,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "executed_native_job_driver_sha256": "36d6cc6959e78f76b3a93751933e2a20daa0a5c60e811ddc4cd7deeeb58ed3f9",
+      "source_ledger_sha256": "c4fd2733fb39bd96568be86f8d4299764cf2f297fcdba4b34e960bcff929c5c0",
+      "oracle_repair": {
+        "archive_bytes_unchanged": true,
+        "archives": 11,
+        "repaired_helpers": [
+          {
+            "path": "verify-native-job-rar-v1.py",
+            "sha256": "1c80f783d9c8f937cbd192851e2c49ba27ddbfb99c2d71ae21ec92b658f89b41"
+          },
+          {
+            "path": "verify-native-job-tar-v1.py",
+            "sha256": "40d0d688e13f0a0160696455aa14ae000c9f3d7feee672d3796b8c35634d1eca"
+          }
+        ]
+      }
+    },
+    "windows": {
+      "bytes": 166520755,
+      "sha256": "afb403d4fdf2fa1ea0a10e77fa0f93348727e67eecd502631f01a2ddd6dcc249",
+      "rows": 4690,
+      "batch": "archive-native-jobs-v5",
+      "tests": {
+        "app-entry.trx": {
+          "Passed": 10
+        },
+        "archive-native-jobs-core.trx": {
+          "Passed": 7868,
+          "NotExecuted": 457
+        },
+        "job-preflight.trx": {
+          "Passed": 114
+        },
+        "native-job-preflight.trx": {
+          "Passed": 14
+        },
+        "native.trx": {
+          "Passed": 177
+        }
+      },
+      "independent": {
+        "catalog/independent-catalog.json": {
+          "cases": 273,
+          "metadata_records": 819,
+          "payloads": 546,
+          "packed_witnesses": 336,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "py7zr": "1.1.4",
+          "official_archives": 234,
+          "official_payloads": 468,
+          "zstandard_composed_archives": 39,
+          "zstandard_composed_payloads": 78,
+          "branch_offsets": [
+            "Arm64-4",
+            "Arm64-4294967292",
+            "Arm64-65536",
+            "RiscV-4",
+            "RiscV-4294967292",
+            "RiscV-65536"
+          ],
+          "sdk_sha256": "3a706c406bdf132b3ed4f6fc3b6dc25a54cb23c421d847b266cee13f26ac6a4e"
+        },
+        "workers/independent-pipeline.json": {
+          "archives": 74,
+          "metadata": 357,
+          "payloads": 256,
+          "official_archives": 62,
+          "composed_zstandard_archives": 12,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "bcj2_sha256": "172c4f63495aaadd4f83b3581b614c2367932130d23e7844dbfc5fdab42e3a93",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": true,
+          "encoded_header_graphs_observed": true
+        },
+        "native-vectors/independent-pipeline.json": {
+          "archives": 33,
+          "metadata": 63,
+          "payloads": 36,
+          "official_archives": 30,
+          "composed_zstandard_archives": 3,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "bcj2_sha256": "172c4f63495aaadd4f83b3581b614c2367932130d23e7844dbfc5fdab42e3a93",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-pipeline.json": {
+          "archives": 6,
+          "metadata": 45,
+          "payloads": 39,
+          "official_archives": 6,
+          "composed_zstandard_archives": 0,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "bcj2_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-workflow-rar.json": {
+          "creations": 0,
+          "updates_and_restorations": 0,
+          "official_archives": 6,
+          "exact_payloads": 39,
+          "independent_metadata_records": 45,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+        },
+        "workflows/independent-workflow-tar.json": {
+          "archives": 8,
+          "metadata": 60,
+          "payloads": 52,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+        },
+        "jobs/independent-pipeline.json": {
+          "archives": 6,
+          "metadata": 57,
+          "payloads": 33,
+          "official_archives": 6,
+          "composed_zstandard_archives": 0,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "bcj2_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "jobs/independent-workflow-rar.json": {
+          "creations": 3,
+          "updates_and_restorations": 3,
+          "official_archives": 6,
+          "exact_payloads": 33,
+          "independent_metadata_records": 57,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+        },
+        "jobs/independent-workflow-tar.json": {
+          "archives": 8,
+          "metadata": 76,
+          "payloads": 44,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+        }
+      },
+      "changed_csharp_matched": [
+        "src/FileCat.Core/Archives/ArchiveCapturedSelection.cs",
+        "src/FileCat.Core/Archives/ArchiveJobBackend.cs",
+        "src/FileCat.Core/Archives/ArchiveJobPlanning.cs",
+        "src/FileCat.Core/Archives/ArchiveJobReviewText.cs",
+        "src/FileCat.Core/Archives/ArchiveNamespaceReview.cs",
+        "src/FileCat.Core/Archives/ArchiveNativeJobBackend.cs",
+        "src/FileCat.Core/Archives/ArchivePlan.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveSelectionForest.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveWorkflowReview.cs",
+        "src/FileCat.Core/Archives/Unix/UnixArchiveSelectionTree.cs",
+        "src/FileCat.Platform.Windows/Archives/WindowsArchiveJobBackend.cs",
+        "src/FileCat.Platform.Windows/Archives/WindowsArchiveSelectionTree.cs",
+        "tests/ArchiveNativeJobCases.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobBackendTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobPlanningTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobReviewTextTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveNativeJobTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerNativeJobTests.cs"
+      ],
+      "compiler_source_documents": 2208,
+      "assembly_pdb_pairs_bound": 17,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "executed_native_job_driver_sha256": "d0d6217c576e39e8474afe94e4cbdcedaf99a11dbd7e75f478b6cd9a7e4b2075",
+      "source_ledger_sha256": "b605fd2c97e3de1c7b31dce9edb88554d2b92355381eb689bd98e4cc18cc187c",
+      "oracle_repair": {
+        "archive_bytes_unchanged": true,
+        "archives": 20,
+        "repaired_helpers": [
+          {
+            "path": "verify-native-job-rar-v1.py",
+            "sha256": "1c80f783d9c8f937cbd192851e2c49ba27ddbfb99c2d71ae21ec92b658f89b41"
+          },
+          {
+            "path": "verify-native-job-tar-v1.py",
+            "sha256": "40d0d688e13f0a0160696455aa14ae000c9f3d7feee672d3796b8c35634d1eca"
+          }
+        ]
+      }
+    }
+  },
+  "static_verifier_sha256": "ca1323cac4e4608ba480dfa22be9d879d62e8b1257a47b90604c805e3d0e0752",
+  "current_validation_driver_sha256": "8363bdc48424d0feda53699cd3319e0cd36a7654299f1dfe2e9f651366e6ea52",
+  "retained_original_failures": {
+    "mac-v1": {
+      "bytes": 8143347,
+      "sha256": "0c64ff659e2542f4ff6d9757102b4df7aa74bbb626a99d5c6e9d2030059a1fd5",
+      "rows": 1490,
+      "tests": {
+        "environment-preflight.trx": {
+          "NotExecuted": 1
+        },
+        "job-preflight.trx": {
+          "Passed": 79,
+          "Failed": 13
+        }
+      },
+      "original_result": "failed-focused-preflight",
+      "assembly_pdb_pairs": 10,
+      "compiler_source_documents": 1441,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      }
+    },
+    "mac-v2": {
+      "bytes": 8130654,
+      "sha256": "7c2fa85a9e1c922cf5fc5a840b2e08c5bd86f252335a7b4bb27fcf6a131d300c",
+      "rows": 1488,
+      "tests": {
+        "environment-preflight.trx": {
+          "NotExecuted": 1
+        },
+        "job-preflight.trx": {
+          "Passed": 104,
+          "Failed": 10
+        }
+      },
+      "original_result": "failed-focused-preflight",
+      "assembly_pdb_pairs": 10,
+      "compiler_source_documents": 1442,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      }
+    },
+    "mac-v3": {
+      "bytes": 30608183,
+      "sha256": "a186d36463293986404000a12305110c9c2142e736e5796346b4d23da2d72fe4",
+      "rows": 2296,
+      "tests": {
+        "archive-native-jobs-core.trx": {
+          "Passed": 8113,
+          "NotExecuted": 207
+        },
+        "environment-preflight.trx": {
+          "NotExecuted": 1
+        },
+        "job-preflight.trx": {
+          "Passed": 114
+        },
+        "native-job-preflight.trx": {
+          "Passed": 12
+        }
+      },
+      "original_result": "oracle-refused-optional-environment-skip",
+      "assembly_pdb_pairs": 10,
+      "compiler_source_documents": 1442,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      }
+    },
+    "ubuntu-v1": {
+      "bytes": 8135654,
+      "sha256": "9bf271fd28d05eaf7298f8db812460759961df5f95325ef3dbf8c809e9fdb2ff",
+      "rows": 1495,
+      "tests": {
+        "environment-preflight.trx": {
+          "Passed": 1
+        },
+        "job-preflight.trx": {
+          "Passed": 79,
+          "Failed": 13
+        }
+      },
+      "original_result": "failed-focused-preflight",
+      "assembly_pdb_pairs": 10,
+      "compiler_source_documents": 1441,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    "ubuntu-v2": {
+      "bytes": 8124828,
+      "sha256": "8f62b292373b0eaf7253112ea66c24e650b2fb32cf54e99eb44df0262502554c",
+      "rows": 1493,
+      "tests": {
+        "environment-preflight.trx": {
+          "Passed": 1
+        },
+        "job-preflight.trx": {
+          "Passed": 104,
+          "Failed": 10
+        }
+      },
+      "original_result": "failed-focused-preflight",
+      "assembly_pdb_pairs": 10,
+      "compiler_source_documents": 1442,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    "ubuntu-v3": {
+      "bytes": 34019249,
+      "sha256": "72ed3ab651fb5e3761f109c38f35611f0f00d889e71d0f269cf458e4b222d4de",
+      "rows": 3304,
+      "tests": {
+        "archive-native-jobs-core.trx": {
+          "Passed": 8135,
+          "NotExecuted": 185
+        },
+        "environment-preflight.trx": {
+          "Passed": 1
+        },
+        "job-preflight.trx": {
+          "Passed": 114
+        },
+        "native-job-preflight.trx": {
+          "Passed": 12
+        }
+      },
+      "original_result": "oracle-refused-unused-public-password-marker",
+      "assembly_pdb_pairs": 10,
+      "compiler_source_documents": 1442,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    "windows-v1": {
+      "bytes": 140309315,
+      "sha256": "a74e0ef87c0948c41f36769cc6c22b38b061f60cff551d02f1d798f894e824cd",
+      "rows": 2747,
+      "tests": {
+        "environment-preflight.trx": {
+          "NotExecuted": 1
+        },
+        "job-preflight.trx": {
+          "Passed": 79,
+          "Failed": 13
+        }
+      },
+      "original_result": "failed-focused-preflight",
+      "assembly_pdb_pairs": 17,
+      "compiler_source_documents": 2206,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    "windows-v2": {
+      "bytes": 140281052,
+      "sha256": "db626e7b085ddf303ba72ccaec2ff0f797604364790158a679af3fd1827062fa",
+      "rows": 2745,
+      "tests": {
+        "environment-preflight.trx": {
+          "NotExecuted": 1
+        },
+        "job-preflight.trx": {
+          "Passed": 104,
+          "Failed": 10
+        }
+      },
+      "original_result": "failed-focused-preflight",
+      "assembly_pdb_pairs": 17,
+      "compiler_source_documents": 2207,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    "windows-v3": {
+      "bytes": 140264879,
+      "sha256": "ad65bd82a465f1d6f19a24af3e109e22d1ec063f1af0012e742bdc29f07d8936",
+      "rows": 2748,
+      "tests": {
+        "environment-preflight.trx": {
+          "NotExecuted": 1
+        },
+        "job-preflight.trx": {
+          "Passed": 114
+        }
+      },
+      "original_result": "native-test-caller-stream-leak-and-teardown-failure",
+      "assembly_pdb_pairs": 17,
+      "compiler_source_documents": 2207,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    "windows-v4": {
+      "bytes": 140245372,
+      "sha256": "0ac21d59cb4eaf1ff65ea8ea8653482f5a270a5454baf7f41054f1c44918b743",
+      "rows": 2738,
+      "tests": {
+        "environment-preflight.trx": {
+          "NotExecuted": 1
+        }
+      },
+      "original_result": "harness-refused-expected-optional-Windows-store-skip",
+      "assembly_pdb_pairs": 17,
+      "compiler_source_documents": 2208,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    }
+  }
+}

@@ -30,3 +30,5 @@ eng/validation/fixtures/dependency-notices/*/FileCat.deps.json -whitespace
 # Original VMware/PowerShell diagnostic receipts keep their exact producer bytes.
 docs/validation/disk-space/windows-cleanup-legacy-r1014-error.txt -text -whitespace
 docs/validation/disk-space/windows-cleanup-legacy-r1014-error2.txt -text -whitespace
+# The macOS archive worker launcher's plists are read by codesign and the system as they are: LF only.
+src/FileCat.App/MacOS/** text eol=lf

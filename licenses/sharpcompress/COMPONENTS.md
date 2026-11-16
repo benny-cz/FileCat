@@ -1,12 +1,18 @@
 # Components of FileCat.SharpCompress.dll
 
-`FileCat.SharpCompress.dll` is FileCat's build of SharpCompress 0.50.5: the 477 C# files of
+`FileCat.SharpCompress.dll` is FileCat's build of SharpCompress 0.50.5: the 480 C# files of
 `src/ThirdParty/SharpCompress` in FileCat's source repository, from `src/SharpCompress` of
 github.com/adamhathcock/sharpcompress commit `e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626`. It is cut down to
 what FileCat reads with it: 7z archives (their LZMA, LZMA2, PPMd, BZip2, Deflate, Zstandard, copy, branch,
 delta and AES coders) and bzip2, xz and zstd streams. Upstream's RAR support and PPMd variant H, which it
 ports from UnRAR, are not in it, and neither is anything else listed under "Left out" below.
 `THIRD-PARTY-CHANGES.md` beside that source lists every change FileCat made.
+The archive-writing development worker also uses its permitted LZMA/LZMA2, PPMd7, BZip2 and Zstandard encoders
+and bounded branch/delta/swap transforms. This inventory does not enable or qualify a production write profile.
+The password-aware development reader uses an original FileCat transform-broker delegate to obtain bounded
+job-local AES decryptors without putting immutable password strings in reader options. No third-party crypto
+implementation was imported for this broker.
+The BCJ2 decoder closes all four packed streams, including an encrypted range stream, on folder disposal.
 
 SharpCompress is MIT-licensed (`LICENSE.txt`, its exact upstream bytes). Many of its parts come from other
 projects and keep their own licenses. This inventory was made by reading the leading comment of every file,
@@ -100,8 +106,11 @@ carry; the full texts are listed at the end. File paths are relative to `src/Thi
 - **Branch and delta filters**, from XZ for Java 1.9 (origin, verified: "This file has been put into the
   public domain"): `Compressors/Filters/BCJFilter.cs`, `BCJFilterARM.cs`, `BCJFilterARMT.cs`,
   `BCJFilterIA64.cs`, `BCJFilterPPC.cs`, `BCJFilterSPARC.cs`, `DeltaFilter.cs`. `BCJ2Filter.cs` and
-  `Filter.cs` follow the LZMA SDK (origin, inferred); `BCJFilterARM64.cs` and `BCJFilterRISCV.cs` state
-  no origin.
+  `Filter.cs` follow the LZMA SDK (origin, inferred). FileCat replaced `BCJFilterARM64.cs` and
+  `BCJFilterRISCV.cs` with bounded scalar ports of individually public-domain `C/Bra.c` from LZMA SDK
+  26.05, commit `b88c6bc09339de32f7d18bbab900686b244f42ba`. Their encode/decode directions share the
+  pinned grammar; CPU-specific pointer fast paths are omitted. The exact source ledger is
+  `eng/validation/archive-writing/sevenzip-feasibility/ppmd-filter-sources.json`.
 
 ## BSD-2-Clause and MIT: FileCat's own files
 
@@ -110,6 +119,10 @@ carry; the full texts are listed at the end. File paths are relative to `src/Thi
   (full text in FileCat's `THIRD-PARTY-NOTICES.md` and `licenses/rardecode/LICENSE`). No UnRAR source.
 - `Compressors/PPMd/PpmdModelH7z.cs`, `Compressors/Deflate/CRC32.cs` (a plain table-driven CRC-32 in place
   of DotNetZip's class) and FileCat's other changes: FileCat's MIT license.
+- `Compressors/PPMd/Ppmd7zEncoderStream.cs`: FileCat's encoding interval adapter for the existing
+  BSD-2-Clause model; the range grammar was checked against individually public-domain SDK
+  `C/Ppmd7Enc.c` at the pin above. Encoding symbol-selection hooks do not restore the excluded UnRAR model.
+  `Compressors/Filters/SwapFilter.cs` is FileCat's bounded two/four-byte reversal implementation (MIT).
 
 ## Left out of FileCat's build
 
@@ -158,3 +171,6 @@ FileCat reads ZIP with its own reader, gzip with .NET's `System.IO.Compression`,
 
 `SHA256SUMS` pins every other file in this folder; the packaging scripts check the folder against it before
 they copy it into a package.
+
+FileCat corrects synchronous/asynchronous Deflate small-read end-state handling in `ZlibBaseStream.cs`;
+returned byte counts cannot be interpreted as codec status codes. See the fork change inventory.

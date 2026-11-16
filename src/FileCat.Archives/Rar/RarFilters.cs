@@ -48,7 +48,7 @@ internal static class RarFilters
 
     private static Span<byte> Output(ref byte[] scratch, int length)
     {
-        if (scratch.Length < length) scratch = new byte[length];
+        if (scratch.Length < length) { var grown = new byte[length]; Array.Clear(scratch); scratch = grown; }
         return scratch.AsSpan(0, length);
     }
 

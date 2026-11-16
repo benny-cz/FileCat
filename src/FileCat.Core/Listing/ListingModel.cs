@@ -1472,6 +1472,15 @@ public sealed class ListingModel : IDisposable
 
         private sealed class StoreSink(Pipeline owner) : IEnumerationSink
         {
+            public bool Shown => true;
+
+            // Until this pipeline retires (another location, a refresh that replaced it, the tab closing): retiring cancels it.
+            public void WhileShown(IDisposable work)
+            {
+                try { owner.Cts.Token.Register(work.Dispose); }
+                catch (ObjectDisposedException) { work.Dispose(); }
+            }
+
             public void AddBatch(ReadOnlySpan<EntryData> entries)
             {
                 owner.Cts.Token.ThrowIfCancellationRequested();

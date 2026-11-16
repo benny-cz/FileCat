@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "source_base_commit": "2255f7ee",
+  "source_packet": {
+    "files": 4002,
+    "bytes": 30076254,
+    "sha256": "4b5c4fc23dcb5b0846e7526402b9adfccc6af4a4e61e01040322a835afa14ddd"
+  },
+  "production_profile_registered": false,
+  "password_archive_support_implemented": false,
+  "all_final_bundles_manifest_verified": true,
+  "all_21_archives_identical_across_platforms": true,
+  "all_19_sdk_vectors_identical_across_platforms": true,
+  "secondary_reader_unavailable_filters": [
+    "RiscV",
+    "Swap2",
+    "Swap4"
+  ],
+  "platforms": [
+    {
+      "platform": "mac",
+      "archive": "mac-sevenzip-ppmd-filter-evidence-v2.tar.gz",
+      "bytes": 67197665,
+      "sha256": "a721ca6bdd689fbf16648e2b5a4628a741d16ce2c17e2eef23da1ea8b385bc6f",
+      "manifest_rows": 1485,
+      "tests_total": 562,
+      "passed": 560,
+      "skipped": 2,
+      "failed": 0,
+      "new_test_class_passes": {
+        "SevenZipWritingTests": 28,
+        "ArchivePasswordPrimitiveTests": 19,
+        "SevenZipFilterEncodingTests": 33
+      },
+      "compiler_documents": 1295,
+      "compiler_bytes": 12334962,
+      "compiler_source_checksums_matched": true,
+      "sdk_exact_vectors": 19,
+      "official_archives": 20,
+      "official_exact_payloads": 44,
+      "official_unsupported": [
+        {
+          "fixture": "codec-5",
+          "method_id": "04f71101",
+          "reason": "not registered by official 7-Zip 26.05"
+        }
+      ],
+      "secondary_exact_records": 60,
+      "secondary_reader": "libarchive 3.8.11",
+      "additional_ppmd_reader": null,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    {
+      "platform": "ubuntu",
+      "archive": "ubuntu-sevenzip-ppmd-filter-evidence-v2.tar.gz",
+      "bytes": 67194519,
+      "sha256": "0ba8f9c75dac27932df005790f09dbcb32e4105bc4b728702549612342ef3676",
+      "manifest_rows": 1485,
+      "tests_total": 562,
+      "passed": 559,
+      "skipped": 3,
+      "failed": 0,
+      "new_test_class_passes": {
+        "SevenZipFilterEncodingTests": 33,
+        "SevenZipWritingTests": 28,
+        "ArchivePasswordPrimitiveTests": 19
+      },
+      "compiler_documents": 1295,
+      "compiler_bytes": 12334962,
+      "compiler_source_checksums_matched": true,
+      "sdk_exact_vectors": 19,
+      "official_archives": 20,
+      "official_exact_payloads": 44,
+      "official_unsupported": [
+        {
+          "fixture": "codec-5",
+          "method_id": "04f71101",
+          "reason": "not registered by official 7-Zip 26.05"
+        }
+      ],
+      "secondary_exact_records": 60,
+      "secondary_reader": "libarchive 3.8.11",
+      "additional_ppmd_reader": null,
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    {
+      "platform": "windows",
+      "archive": "windows-sevenzip-ppmd-filter-evidence-v3.tar.gz",
+      "bytes": 74664748,
+      "sha256": "99d73c75fc480864ccf9a1b21e546f81f5da00285c4ba89ac81784c9687106bf",
+      "manifest_rows": 1515,
+      "tests_total": 562,
+      "passed": 441,
+      "skipped": 121,
+      "failed": 0,
+      "new_test_class_passes": {
+        "SevenZipFilterEncodingTests": 33,
+        "ArchivePasswordPrimitiveTests": 19,
+        "SevenZipWritingTests": 28
+      },
+      "compiler_documents": 1295,
+      "compiler_bytes": 12349626,
+      "compiler_source_checksums_matched": true,
+      "sdk_exact_vectors": 19,
+      "official_archives": 20,
+      "official_exact_payloads": 44,
+      "official_unsupported": [
+        {
+          "method_id": "04f71101",
+          "fixture": "codec-5",
+          "reason": "not registered by official 7-Zip 26.05"
+        }
+      ],
+      "secondary_exact_records": 60,
+      "secondary_reader": "libarchive 3.8.9",
+      "additional_ppmd_reader": {
+        "library": "C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\sevenzip-ppmd-filter-v2\\current-native\\archive-3.8.11.dll",
+        "system_3_8_9_failure_retained": true,
+        "library_sha256": "9E561C2EC6E9F3239BB32284208CD97FB3A83E3EB8C8C797BB7BBC52361BF404",
+        "fixture": "codec-6",
+        "reader": "libarchive 3.8.11"
+      },
+      "final_census": {
+        "Processes": [],
+        "CollectedUtc": "2026-11-07T01:49:27.6217819Z"
+      }
+    }
+  ],
+  "archive_sha256": {
+    "codec-0": "013dd2b1c6a0a037ffc0aa29f8c2d164d87fa515c432020a2166111bae2aff81",
+    "codec-1": "17fe6b0f90c1d14d1bba9fbc1bef59d17063bc1ed230e2f84c971d29ed9786f5",
+    "codec-2": "f1a5d046103a713e1d67dfbcd3892100606d30d800e1a639b971fbc14854c171",
+    "codec-3": "2c28418aeacab152875fe18e45861ef95cacc8bd630af82e70e1686679bded5d",
+    "codec-4": "a5b860966c3703c6ef874cfc62f1f42ff24d43241734c0548086a15a70ca9973",
+    "codec-5": "e2ca00978c4546603773e534cf0b4b4c643ef2856d6dfd67b74d102f580c5b3b",
+    "codec-6": "93772db1e30931707e1302f8823db5bf0b406a41f9d4be6251daa2d53dd21061",
+    "filter-Arm-1": "4d5febea98c2b513a2aa09e8b406b00dd8a94dc0aeb2706a5f0dc3b6211e0fea",
+    "filter-Arm64-1": "4a28176efc9ba77618d98cb1459e8924e4f970bca28a5f8317737c187c9a664e",
+    "filter-ArmThumb-1": "a0c26a3621632bd3fb311c2911f7fdc6f890d33cbc26cad1f5103712502fafe9",
+    "filter-Delta-1": "cf868c99334aa75a76a04565641d609fb36a8a87d29603a68af3a674dbc1c9de",
+    "filter-Delta-2": "2829e3fa936db755d8178c4df1dc8bb30ba4828d5785a0e6bfe303971e50e2fa",
+    "filter-Delta-256": "ba8f0aed06f4da788c0283d024c7262109a79afa12c7b59efddbb4ef4dd4dd2e",
+    "filter-Delta-7": "662beee05aa931193d59ef9dc6c0bbffaeebcb735f298f6d92dd30e03674f0e7",
+    "filter-Ia64-1": "52ceb1dcfe07644420cdc68f34f107ff7785efb6a901bf35046e9d8cbb23626d",
+    "filter-Ppc-1": "61db825600d9fd6f2287c115751f36785f27dcecb855623ab716c743e1e25539",
+    "filter-RiscV-1": "a1bea62ab014574833af0ba959c8f938fe6fc05d8f5076320e9f7bf2e1e7de47",
+    "filter-Sparc-1": "84a93ed5048f39051b28bc5a331c1e03a6a25106291cddf60442b3f53cb459ba",
+    "filter-Swap2-1": "674bd1d44d1efd880cacca1d413ed31988dfb4d65f73d782374f9aa1de80a80d",
+    "filter-Swap4-1": "4452f9fdda45917446f6e843740c1657f514c2fa61b327e1ed47bd75d8b87da9",
+    "filter-X86-1": "50723fee0b34acedecca98d2f0c35bc2f22c67b6edd9765aa4f5e62613c49a12"
+  },
+  "sdk_vector_sha256": {
+    "Arm-1": "53f19889638d75cd1543eae8fd5b35f0cfd2e03a9e8682ec5bb43fec8cb14e16",
+    "Arm64-1": "d430b7c18e7de5129f339c40cf4397fdaad3a754707c69848bd70d7a4dccb327",
+    "ArmThumb-1": "2e7f9ae66a682ad7a0b8d06bec66ac38f5c477190d3cb4421f22bb4ae90ab8ff",
+    "Delta-1": "f9f52d2fe7c76e256ccee6d53709db6c7b99f866736a6b8a78967fce05aad7b5",
+    "Delta-2": "f1ca7ea3735b8574b0cba0caa16b3dc7f79c927ef66b07acf5474e217bccd9c9",
+    "Delta-256": "1f4e9e9c126830b955f960bedca4f68368654172fe54861ec6fd0390245617d4",
+    "Delta-7": "a8287c95206cad4a3ab4a91e9ce99da2d225ae075ac15b7b6bca93fccb3be113",
+    "Ia64-1": "9d93282a04b6061212b019776e6616d52b4f383fbbde7adf81978847d3ba7188",
+    "Ppc-1": "aaf468c837826934441b94bfc67031f42e1a5a253b47649490d4fe1befd39b11",
+    "Ppmd7-2-2048": "2e7a2b8e0e413cefb2108e9265271ecd8a40c0c6238ff436d1b1cdaa84f1e202",
+    "Ppmd7-2-65536": "870535cbaab101420704ad99d0d7d23ab77109c90804685a4623bc49f4ecd600",
+    "Ppmd7-4-1048576": "14899d46d8853de7da87616100550f72142496652de039914f2a07e48faca768",
+    "Ppmd7-6-8388608": "41871ba9efda1403e694db2e834b970b9ee3d8c6cc5116ecda116e7a6e54ba7a",
+    "Ppmd7-64-1048576": "14899d46d8853de7da87616100550f72142496652de039914f2a07e48faca768",
+    "RiscV-1": "f05c87db966ecbd53aaf3c29e6a1dc8195903602d0b248dc08f5ef0dcb988e2f",
+    "Sparc-1": "bfb6737ba6eed68dc099b405d89e65db85de17796209bc2b57b9670c4b493761",
+    "Swap2-1": "8822c190d882689c0ca44f7f7c7fb9b78a7e5ddef562b93d8e7918d1bfee3f2f",
+    "Swap4-1": "40621dc84a7cb9b077d32b07761bff7fddfaf2f46213dacaff3acc3f6d74edf5",
+    "X86-1": "25b813ea5dae6a643fb50e5fb42fd5b959c179af66b526c87046cdc13f991e00"
+  }
+}

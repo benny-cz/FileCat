@@ -1,0 +1,26 @@
+{
+  "production_dependency": false,
+  "platform": "Windows x64",
+  "compiler": {
+    "path": "C:/TDM-GCC-64/bin/gcc.exe",
+    "sha256": "f6e504756aed2e7cc339bb0333d161b08965607b51081dec625b5c32d949d7ac"
+  },
+  "arguments": [
+    "-std=c11",
+    "-O2",
+    "-I",
+    ".tmp/sevenzip-sdk-subset-v1/C",
+    "eng/validation/archive-writing/sevenzip-feasibility/sdk_bcj2_decode_oracle.c",
+    ".tmp/sevenzip-sdk-subset-v1/C/Bcj2.c",
+    ".tmp/sevenzip-sdk-subset-v1/C/CpuArch.c",
+    "-o",
+    ".tmp/sdk-bcj2-decode-oracle-v1.exe"
+  ],
+  "sources": {
+    "eng/validation/archive-writing/sevenzip-feasibility/sdk_bcj2_decode_oracle.c": "649666ca039cc4ab46216de084bc2fa1b1607b6514213835d4d34827aa8f6a1b",
+    ".tmp/sevenzip-sdk-subset-v1/C/Bcj2.c": "52f5c6bbaf512f867fe46a378d79888825a5b4e31abbd4c94f007058a890174e",
+    ".tmp/sevenzip-sdk-subset-v1/C/CpuArch.c": "1e0f166e34946fc7da05647a85d8edeb64038282915e73eef676cd067d6a7527"
+  },
+  "binary_sha256": "172c4f63495aaadd4f83b3581b614c2367932130d23e7844dbfc5fdab42e3a93",
+  "host_execution": "compiled only; live oracle execution restricted to disposable guests"
+}

@@ -1,0 +1,1208 @@
+{
+  "date": "2026-11-07",
+  "source_packets": {
+    "1": {
+      "files": 4095,
+      "bytes": 30243402,
+      "sha256": "ee452067e4de2a71aa636f18cb82545da0874fde5dcccae2ff014efa68ecc48d"
+    },
+    "2": {
+      "files": 4099,
+      "bytes": 30247255,
+      "sha256": "ce0596e1e4a7eb67b433e419a33016ed804bff911a420bb6447fb5ad7b419ab4"
+    }
+  },
+  "new_profile_registered": false,
+  "physical_and_metadata_observer_only": true,
+  "complete_payload_and_header_codec_end_verification": false,
+  "preservation_and_production_qualification": false,
+  "new_framing_cleanup_cases": 85,
+  "header_dictionary_policy_bytes": 16777216,
+  "host_scope": "edits, builds and static artifact verification only",
+  "source_relationships": {
+    "v1": "Full combined matrix: 83 new framing/cleanup cases.",
+    "v2": "Padded record-ID correction, two new cases and independent observation/payload/native/pre-fix controls; unchanged decoder-construction cleanup."
+  },
+  "platforms": {
+    "mac": {
+      "1": {
+        "archive": "mac-strict-sevenzip-framing-evidence-v1.tar.gz",
+        "bytes": 37836359,
+        "sha256": "d77223b0ef1826acb3b872c14af3734a4ea841b4692a8f5828af1c8fe0fa9f00",
+        "manifest_rows": 1522,
+        "cases": {
+          "Passed": 1046,
+          "NotExecuted": 2
+        },
+        "new_framing_cleanup_cases": {
+          "Passed": 83
+        },
+        "compiler_source_documents": 1351,
+        "compiler_source_bytes": 12848892,
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "observed_test_runtime": {
+          "runtime": ".NET 10.0.12",
+          "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+          "os": "macOS 27.0.1",
+          "architecture": "Arm64"
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0,
+          "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+        },
+        "current_changed_csharp_inputs_matched": [
+          "src/ThirdParty/SharpCompress/Compressors/LZMA/DecoderStream.cs"
+        ]
+      },
+      "2": {
+        "archive": "mac-strict-sevenzip-framing-evidence-v2.tar.gz",
+        "bytes": 50021287,
+        "sha256": "2697fae70408a00e0b5ed3693ae335980d6091b69e224f0763631c61bb06d0b5",
+        "manifest_rows": 1540,
+        "cases": {
+          "Passed": 85
+        },
+        "new_framing_cleanup_cases": {
+          "Passed": 85
+        },
+        "compiler_source_documents": 1351,
+        "compiler_source_bytes": 12852951,
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "observed_test_runtime": {
+          "runtime": ".NET 10.0.12",
+          "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+          "os": "macOS 27.0.1",
+          "architecture": "Arm64"
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0,
+          "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+        },
+        "current_changed_csharp_inputs_matched": [
+          "src/FileCat.Archives/Writing/SevenZipStrictHeaderReader.cs",
+          "src/FileCat.Archives/Writing/SevenZipStrictMetadata.cs",
+          "src/FileCat.Archives/Writing/StrictSevenZipFraming.cs",
+          "src/ThirdParty/SharpCompress/Compressors/LZMA/DecoderStream.cs",
+          "tests/FileCat.Core.Tests/StrictSevenZipFramingTests.cs"
+        ],
+        "independent_metadata_and_payloads": {
+          "py7zr_version": "1.1.4",
+          "synthetic_public_vectors_only": true,
+          "production_dependency": false,
+          "archives": 42,
+          "metadata_records": 126,
+          "exact_payloads": 84,
+          "verified": [
+            {
+              "fixture": "codec-0-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "4235E3C6724C6F8BBA4F24B4EE516B4DC227C41CBDE6676284C37E6DD68AEB0F"
+            },
+            {
+              "fixture": "codec-0-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "F9ADE3D0C7511CCCF605F759C967ED7556A8BA7BF34DC15EEBF1A88723EA2BA5"
+            },
+            {
+              "fixture": "codec-0-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "FC8521583040F609EB68C222C7795B351040AFE5A9CC27D592C57652FDF00F87"
+            },
+            {
+              "fixture": "codec-0-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "242591546AD33DDAF3C79023A83DE0B47D2233A4450A3F5B8E1527C1664A9AC3"
+            },
+            {
+              "fixture": "codec-0-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "42AD95034650AB452ACF4E16409B1C2DE17F956CB184C35CED64525596B0561F"
+            },
+            {
+              "fixture": "codec-0-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "5EB8A09A577FF66C97D75A7DA7A32616E3829FAC282F21FF85BE70A41CBAE9B9"
+            },
+            {
+              "fixture": "codec-1-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "89B36B6651D3989EE5E47189609EF03AA10F3239E11F6C3C6D1A7EBBCEBE0920"
+            },
+            {
+              "fixture": "codec-1-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "F6ECB9515E72392B21FFC6CA16EBA1B568C6FF29CEE79D9189530DFA8ACFA5A6"
+            },
+            {
+              "fixture": "codec-1-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "2EECF99F57500A99BF0627908F0D2494354850594DF5814618F6E558867373EC"
+            },
+            {
+              "fixture": "codec-1-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "D3B8FDA6B6B29BF7D6CB365414809D8EBBCE5014DB8CAD1539B8A627CD8D23A8"
+            },
+            {
+              "fixture": "codec-1-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C486121B240565EBDC47C88F4F12A8044A01A54051B5A4BFF7FF2C2D2CD6B30F"
+            },
+            {
+              "fixture": "codec-1-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "A8BF09C9426C526431ED40BEA068CCD72455A47650FCB4370E9B3ADF3C673545"
+            },
+            {
+              "fixture": "codec-2-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "1735B003154EA3FADD12B3B66B37F737C65C96DBEC62479C263A5ED49EA3C1FE"
+            },
+            {
+              "fixture": "codec-2-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "F077A037805D55245295B021E42B261FBB567423A2BFA535022BE9BC7981C416"
+            },
+            {
+              "fixture": "codec-2-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "08A966237DC9A3D313A2BE631FF16794B1E66419046B5F029B55BA16E2026351"
+            },
+            {
+              "fixture": "codec-2-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "7945AF3C030EDF284034C3442D05D4122D217547F9A00226C05976D6D98B0F10"
+            },
+            {
+              "fixture": "codec-2-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "A9E54C9A8F8033B68DF857A3788167BF39ABA087A1ACBF0D625C02DDCE778F99"
+            },
+            {
+              "fixture": "codec-2-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "000FD34EC76740C33EFEAE6A5E7E5B10D162198DF00DE362582308BD4E176E02"
+            },
+            {
+              "fixture": "codec-3-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C75D9FAACB909C60ED76F112DE8AB8C5E42BC977CDD7F9C1E750563B95B4DC00"
+            },
+            {
+              "fixture": "codec-3-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "AD825F25911E5D60DBAAF66DC3BC9DE4138730465607B8EAF1932F97F1D5DAB7"
+            },
+            {
+              "fixture": "codec-3-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "114B5BE18C8F96ACDFE3E1E4D38E03F2B0F43C4C1252D936727D532C566D1DC9"
+            },
+            {
+              "fixture": "codec-3-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "7BE8A825A4A477DF0C3445A8BFCE58366DB2D639964ADE7D53DE0E03B532909A"
+            },
+            {
+              "fixture": "codec-3-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "46D9AA79F781A6C19EF5C932086B8BB1C4A0E28F15A4BC4A01411D6E68F0816F"
+            },
+            {
+              "fixture": "codec-3-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "1DC2A03BBF837A368B52279261841B8150C955045171F180500053B571310EF1"
+            },
+            {
+              "fixture": "codec-4-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "ABC1842E8116EC757B2D614C9144E668F97B740239E1FE03087A20C2CCF11948"
+            },
+            {
+              "fixture": "codec-4-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "36B79C5E442C6448CB591B9FCB4DD0A71C250187C2A0A4AFA97E98F9C39BF021"
+            },
+            {
+              "fixture": "codec-4-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "34D82164379D76D829207C3982409257D06094916DB445BD8B9266644B2FD21C"
+            },
+            {
+              "fixture": "codec-4-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C4301730411664CA2D06DD64CACFABC70912F0D59422DE5D43211080C8FB98FD"
+            },
+            {
+              "fixture": "codec-4-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "DD917FFE13EFB60715CFF4DFFC3F5C6A4367FE5CAAA7126435A7B4850281F6D3"
+            },
+            {
+              "fixture": "codec-4-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "545C5B09EDC5AB8F5576D6C4E297A83469575084EB73AB171BCF19D1456503BA"
+            },
+            {
+              "fixture": "codec-5-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "20BBB13FACBC8513D274C61BC439C9A9964D0AC2287FA371F3F0496F61197898"
+            },
+            {
+              "fixture": "codec-5-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "D606D3E4771710B1922467D94F5FA3D219F46498C55EF51699D6EBF9568F1B91"
+            },
+            {
+              "fixture": "codec-5-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "DCF29AB302887929861DF4FC128B98F6B72757504F1062DBB2AF42E0D793A36C"
+            },
+            {
+              "fixture": "codec-5-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "78B1602363462C2607A675125E579DA7B54271FCF61F9A0DC4CDC7E23F2E19AA"
+            },
+            {
+              "fixture": "codec-5-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "B9B587B9ED04E6CA3F143826083DD50DA67F3FD4536CBACD7F7BA6E13CF21D7E"
+            },
+            {
+              "fixture": "codec-5-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "DDC11A45CDAECE462B3ECEF0BEF83338567DBF7A6BE27A58796C4BE401B94577"
+            },
+            {
+              "fixture": "codec-6-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C76F06146E05B59B1D5303A541C7FB98DB66DCF8CFF97FD19605115245D04C26"
+            },
+            {
+              "fixture": "codec-6-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "5A20740E49564E5033ED99F2EF7C4A41662AB586ED8DBDF3A7A34D3A7ED313C0"
+            },
+            {
+              "fixture": "codec-6-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "FC0AE2D80125BB3588D6ABBFDD52CAA114F6C6A20B0103B16123088C245781C9"
+            },
+            {
+              "fixture": "codec-6-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "583784C4B39E2246FCD86EAAE01934AEFAB8BA672A027CFA9C351D2CBB9499B4"
+            },
+            {
+              "fixture": "codec-6-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C0E5AB2177482B8E438C028496E67ABE964AB8561080D1D9B905B87A4FA06B88"
+            },
+            {
+              "fixture": "codec-6-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "2233814301D7621678B271803BCEA9E769B3FA7B65FEE46D49206BD1BF41BECE"
+            }
+          ]
+        },
+        "official_padded_identifiers": {
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "verified": [
+            {
+              "fixture": "padded-encoded",
+              "bytes": 3,
+              "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81"
+            },
+            {
+              "fixture": "padded-raw",
+              "bytes": 0,
+              "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+            }
+          ]
+        },
+        "pre_fix_expected_failure_control": {
+          "counts": {
+            "Failed": 2
+          },
+          "all_expected": true,
+          "current_source_tests_passed_separately": true,
+          "command": [
+            "/Users/benny/.dotnet/dotnet",
+            "vstest",
+            "/Users/benny/FileCatValidation/archive-writing-42829297/strict-sevenzip-framing-v2/baseline-control/bin/FileCat.Core.Tests.dll",
+            "/TestCaseFilter:FullyQualifiedName~StrictSevenZipFramingTests.Failed_decoder_construction_disposes_preceding_AES_transforms",
+            "/Logger:trx;LogFileName=construction-baseline.trx",
+            "/ResultsDirectory:/Users/benny/FileCatValidation/archive-writing-42829297/strict-sevenzip-framing-v2/baseline-control/results"
+          ]
+        },
+        "pre_fix_assembly_origin": {
+          "baseline_commit": "a5eb10bf",
+          "frozen_baseline_sha256": "cac6955eaf2c1667e25629438dfd841f5ba4ac9c5953df3d440bd766f536d97d",
+          "replaced_only": [
+            {
+              "path": "binaries/FileCat.SharpCompress.dll",
+              "bytes": 1108992,
+              "sha256": "2aa561e2fcc6ea62037ed21b6d5fe932c762378a703d67194686903a864bfcd3"
+            },
+            {
+              "path": "binaries/FileCat.SharpCompress.pdb",
+              "bytes": 436032,
+              "sha256": "236dd59ac40222170c2dd297a037ff83416a0891006b688fd450c1e2edbb8d1b"
+            }
+          ],
+          "expected_failed_controls": 2
+        }
+      }
+    },
+    "ubuntu": {
+      "1": {
+        "archive": "ubuntu-strict-sevenzip-framing-evidence-v1.tar.gz",
+        "bytes": 37832949,
+        "sha256": "b7da83978e0db9ec3a41fbd26344e1f60577f4eb0ace4f559da78dbfc52acbda",
+        "manifest_rows": 1522,
+        "cases": {
+          "Passed": 1045,
+          "NotExecuted": 3
+        },
+        "new_framing_cleanup_cases": {
+          "Passed": 83
+        },
+        "compiler_source_documents": 1351,
+        "compiler_source_bytes": 12848892,
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "observed_test_runtime": {
+          "runtime": ".NET 10.0.14",
+          "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+          "os": "Ubuntu 24.04.5 LTS",
+          "architecture": "X64"
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        },
+        "current_changed_csharp_inputs_matched": [
+          "src/ThirdParty/SharpCompress/Compressors/LZMA/DecoderStream.cs"
+        ]
+      },
+      "2": {
+        "archive": "ubuntu-strict-sevenzip-framing-evidence-v2.tar.gz",
+        "bytes": 50024411,
+        "sha256": "2aa25bd65a06e03effbdb1ac7e1608a201e49d07c9acf5b5a9cd0343af7b77b0",
+        "manifest_rows": 1540,
+        "cases": {
+          "Passed": 85
+        },
+        "new_framing_cleanup_cases": {
+          "Passed": 85
+        },
+        "compiler_source_documents": 1351,
+        "compiler_source_bytes": 12852951,
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "observed_test_runtime": {
+          "runtime": ".NET 10.0.14",
+          "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+          "os": "Ubuntu 24.04.5 LTS",
+          "architecture": "X64"
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        },
+        "current_changed_csharp_inputs_matched": [
+          "src/FileCat.Archives/Writing/SevenZipStrictHeaderReader.cs",
+          "src/FileCat.Archives/Writing/SevenZipStrictMetadata.cs",
+          "src/FileCat.Archives/Writing/StrictSevenZipFraming.cs",
+          "src/ThirdParty/SharpCompress/Compressors/LZMA/DecoderStream.cs",
+          "tests/FileCat.Core.Tests/StrictSevenZipFramingTests.cs"
+        ],
+        "independent_metadata_and_payloads": {
+          "py7zr_version": "1.1.4",
+          "synthetic_public_vectors_only": true,
+          "production_dependency": false,
+          "archives": 42,
+          "metadata_records": 126,
+          "exact_payloads": 84,
+          "verified": [
+            {
+              "fixture": "codec-0-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "4235E3C6724C6F8BBA4F24B4EE516B4DC227C41CBDE6676284C37E6DD68AEB0F"
+            },
+            {
+              "fixture": "codec-0-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "AAE6FBE6B496ED2EC61DF91028B8BB6A747476C533188CD7DDCDB1CB93961369"
+            },
+            {
+              "fixture": "codec-0-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "189F43EE94FC2786EA8A1828A51CA50D45DFFD2CF5F7EDD4ACF57E650199C9A8"
+            },
+            {
+              "fixture": "codec-0-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "242591546AD33DDAF3C79023A83DE0B47D2233A4450A3F5B8E1527C1664A9AC3"
+            },
+            {
+              "fixture": "codec-0-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C325CD3E49CF09AD80EDFE2D5DE2FABBEE3C032C53FE056EAB89B53A0017030F"
+            },
+            {
+              "fixture": "codec-0-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "8A0EC44ED4E7FD81E2D3DAB0D0CD92D3B36766022C289135489994080F1511FA"
+            },
+            {
+              "fixture": "codec-1-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "89B36B6651D3989EE5E47189609EF03AA10F3239E11F6C3C6D1A7EBBCEBE0920"
+            },
+            {
+              "fixture": "codec-1-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "AF602BDC996179203636FD85F6579F25634D3B7CC1B2706779DD8ED80C3A560D"
+            },
+            {
+              "fixture": "codec-1-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "DD42C0A6CFC436876EF31CFCC5E6B49485B81625EADFCFF07240F80522A39824"
+            },
+            {
+              "fixture": "codec-1-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "D3B8FDA6B6B29BF7D6CB365414809D8EBBCE5014DB8CAD1539B8A627CD8D23A8"
+            },
+            {
+              "fixture": "codec-1-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "F395B82F7B3024EEAE91A0076B0004BF4CD91183CCDED3437974D2208D1E6A13"
+            },
+            {
+              "fixture": "codec-1-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "DD11DD82A81569181CA7BF6184EC710191DBEDCF5A393FD4AC3CADD955134217"
+            },
+            {
+              "fixture": "codec-2-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "1735B003154EA3FADD12B3B66B37F737C65C96DBEC62479C263A5ED49EA3C1FE"
+            },
+            {
+              "fixture": "codec-2-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "8EBCB345DEC5E09824BD359C314785757C95B63C84402A11876D3C5195F0EA38"
+            },
+            {
+              "fixture": "codec-2-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "2F3AFE9D3D9C985D2398E795719EB14044EDE03A3ADA26EB5C0AD95A152EE455"
+            },
+            {
+              "fixture": "codec-2-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "7945AF3C030EDF284034C3442D05D4122D217547F9A00226C05976D6D98B0F10"
+            },
+            {
+              "fixture": "codec-2-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "4E6461D84198DC1304B27B62D1FC0C21FDD9F3621608519FBDDBF70E09BC2E5F"
+            },
+            {
+              "fixture": "codec-2-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "B15757E0ACC218D2B4D69BC760424EDBAAE80718D798A70420A653072C090135"
+            },
+            {
+              "fixture": "codec-3-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C75D9FAACB909C60ED76F112DE8AB8C5E42BC977CDD7F9C1E750563B95B4DC00"
+            },
+            {
+              "fixture": "codec-3-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "2291001E9AE80D761AE67FD00E19AB92599D4E6D4FB85754FEB07A4EE76C0E35"
+            },
+            {
+              "fixture": "codec-3-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "00D50A10B651E486F3A128D63B91FB7C193ECDC2967375B750679B5F41ED2E45"
+            },
+            {
+              "fixture": "codec-3-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "7BE8A825A4A477DF0C3445A8BFCE58366DB2D639964ADE7D53DE0E03B532909A"
+            },
+            {
+              "fixture": "codec-3-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "3582A748DFB7FE61AD6B7B489E4EAF8284BC29E211A82CED3F26C9F18C4D911B"
+            },
+            {
+              "fixture": "codec-3-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "F584956CBEDCD062DDDF67B5AC51055D970D38F852CC74CA8AAB8DEE743C12D0"
+            },
+            {
+              "fixture": "codec-4-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "ABC1842E8116EC757B2D614C9144E668F97B740239E1FE03087A20C2CCF11948"
+            },
+            {
+              "fixture": "codec-4-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "E47087907E3D4E7EECDC730895779A83DC4AC38A78A03B9194A3D233AA0E42DE"
+            },
+            {
+              "fixture": "codec-4-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "7ADC9E5F28BB56670C8B47B92875E35652EB4E0CB195238D244086CB7F639B2F"
+            },
+            {
+              "fixture": "codec-4-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C4301730411664CA2D06DD64CACFABC70912F0D59422DE5D43211080C8FB98FD"
+            },
+            {
+              "fixture": "codec-4-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "7E07CAA3A923A6FFBFC8979B9A3B97CA383FC7449BC07C7F9F318A028AC98FE5"
+            },
+            {
+              "fixture": "codec-4-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "F2655E9F72E4F95103D06915FE6E47ADE3F06FEE83826C7616356E92D9F224F4"
+            },
+            {
+              "fixture": "codec-5-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "20BBB13FACBC8513D274C61BC439C9A9964D0AC2287FA371F3F0496F61197898"
+            },
+            {
+              "fixture": "codec-5-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "370F68346017859F96F371FC34DEBF79900C8FDF35617337DAEC3140E5065EDE"
+            },
+            {
+              "fixture": "codec-5-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "E4A360AF854CC22EB2C380D140B56B4D999C94816C848C27612E26EE4670A493"
+            },
+            {
+              "fixture": "codec-5-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "78B1602363462C2607A675125E579DA7B54271FCF61F9A0DC4CDC7E23F2E19AA"
+            },
+            {
+              "fixture": "codec-5-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "B730232E6B0B06B166872C46939C602FD7039281F1F5A71F178244DB7B2306A5"
+            },
+            {
+              "fixture": "codec-5-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "4841A6F736D5903126DBDB68482E6EAC5966F1B58F5FF1AED3DAB0EE579D2747"
+            },
+            {
+              "fixture": "codec-6-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C76F06146E05B59B1D5303A541C7FB98DB66DCF8CFF97FD19605115245D04C26"
+            },
+            {
+              "fixture": "codec-6-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "E3B4339529755904150581C50AC273AAE1108A8EB1B9B8D7FCFBD620999B6A41"
+            },
+            {
+              "fixture": "codec-6-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "D6DC85C2183F084199F2B35DD87C9925C9DFFCF6C75B719BDD8910495BD26624"
+            },
+            {
+              "fixture": "codec-6-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "583784C4B39E2246FCD86EAAE01934AEFAB8BA672A027CFA9C351D2CBB9499B4"
+            },
+            {
+              "fixture": "codec-6-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "3E10CD0AF621C4B523F2935AEA5092F1E74E4EDCD6AC94C6CDA6B73699C3B6B8"
+            },
+            {
+              "fixture": "codec-6-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "4A40654E2764623ECD8BFC395638555E3D0271569EE7ABD41593735C8DAB3A34"
+            }
+          ]
+        },
+        "official_padded_identifiers": {
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "verified": [
+            {
+              "fixture": "padded-encoded",
+              "bytes": 3,
+              "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81"
+            },
+            {
+              "fixture": "padded-raw",
+              "bytes": 0,
+              "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+            }
+          ]
+        },
+        "pre_fix_expected_failure_control": {
+          "counts": {
+            "Failed": 2
+          },
+          "all_expected": true,
+          "current_source_tests_passed_separately": true,
+          "command": [
+            "/home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet",
+            "vstest",
+            "/home/benny/FileCatValidation/archive-writing-42829297/strict-sevenzip-framing-v2/baseline-control/bin/FileCat.Core.Tests.dll",
+            "/TestCaseFilter:FullyQualifiedName~StrictSevenZipFramingTests.Failed_decoder_construction_disposes_preceding_AES_transforms",
+            "/Logger:trx;LogFileName=construction-baseline.trx",
+            "/ResultsDirectory:/home/benny/FileCatValidation/archive-writing-42829297/strict-sevenzip-framing-v2/baseline-control/results"
+          ]
+        },
+        "pre_fix_assembly_origin": {
+          "baseline_commit": "a5eb10bf",
+          "frozen_baseline_sha256": "48a99abebe15e88c3b62d83918947bf8859407762133cc759c57d2a478430ed4",
+          "replaced_only": [
+            {
+              "path": "binaries/FileCat.SharpCompress.dll",
+              "bytes": 1108992,
+              "sha256": "8eebb70ac81408f843941a5b9a5fdfbb2437a43c21845be3a0f0ed10c1abf637"
+            },
+            {
+              "path": "binaries/FileCat.SharpCompress.pdb",
+              "bytes": 436028,
+              "sha256": "64a0fa39a6888988789b3c79f81e26161d8951001ec49e97f100c227224a7b1a"
+            }
+          ],
+          "expected_failed_controls": 2
+        }
+      }
+    },
+    "windows": {
+      "1": {
+        "archive": "windows-strict-sevenzip-framing-evidence-v1.tar.gz",
+        "bytes": 37839824,
+        "sha256": "6d0feafd9804a07d144a8cb7e4ac78bc93a7ea6a9037534a0a8763a49c652a5c",
+        "manifest_rows": 1449,
+        "cases": {
+          "Passed": 927,
+          "NotExecuted": 121
+        },
+        "new_framing_cleanup_cases": {
+          "Passed": 83
+        },
+        "compiler_source_documents": 1351,
+        "compiler_source_bytes": 12863593,
+        "writing_closure": {
+          "Rar15_or_DiscUtils_present": false,
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ]
+        },
+        "observed_test_runtime": {
+          "runtime": ".NET 10.0.14",
+          "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+          "os": "Microsoft Windows 10.0.26340",
+          "architecture": "X64"
+        },
+        "final_census": {
+          "Processes": [],
+          "CollectedUtc": "2026-11-07T08:04:56.4386215Z"
+        },
+        "standard_test_account": {
+          "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+          "AdministratorsMember": false,
+          "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+          "HiveLoaded": true
+        },
+        "current_changed_csharp_inputs_matched": [
+          "src/ThirdParty/SharpCompress/Compressors/LZMA/DecoderStream.cs"
+        ]
+      },
+      "2": {
+        "archive": "windows-strict-sevenzip-framing-evidence-v2.tar.gz",
+        "bytes": 50263675,
+        "sha256": "7705d93e8b82ed2da4cc7d02a633d8ef7c7aeeb8926497ba3cced3b298d34b51",
+        "manifest_rows": 1560,
+        "cases": {
+          "Passed": 85
+        },
+        "new_framing_cleanup_cases": {
+          "Passed": 85
+        },
+        "compiler_source_documents": 1351,
+        "compiler_source_bytes": 12867652,
+        "writing_closure": {
+          "Rar15_or_DiscUtils_present": false,
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ]
+        },
+        "observed_test_runtime": {
+          "runtime": ".NET 10.0.14",
+          "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+          "os": "Microsoft Windows 10.0.26340",
+          "architecture": "X64"
+        },
+        "final_census": {
+          "Processes": [],
+          "CollectedUtc": "2026-11-07T08:32:53.0777303Z"
+        },
+        "standard_test_account": {
+          "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+          "AdministratorsMember": false,
+          "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+          "HiveLoaded": true
+        },
+        "current_changed_csharp_inputs_matched": [
+          "src/FileCat.Archives/Writing/SevenZipStrictHeaderReader.cs",
+          "src/FileCat.Archives/Writing/SevenZipStrictMetadata.cs",
+          "src/FileCat.Archives/Writing/StrictSevenZipFraming.cs",
+          "src/ThirdParty/SharpCompress/Compressors/LZMA/DecoderStream.cs",
+          "tests/FileCat.Core.Tests/StrictSevenZipFramingTests.cs"
+        ],
+        "independent_metadata_and_payloads": {
+          "py7zr_version": "1.1.4",
+          "synthetic_public_vectors_only": true,
+          "production_dependency": false,
+          "archives": 42,
+          "metadata_records": 126,
+          "exact_payloads": 84,
+          "verified": [
+            {
+              "fixture": "codec-0-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "4235E3C6724C6F8BBA4F24B4EE516B4DC227C41CBDE6676284C37E6DD68AEB0F"
+            },
+            {
+              "fixture": "codec-0-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "5C04A53C224195EC8FFC0F3F8B52A1D921C60C0C098A9E44A92E10B03715C720"
+            },
+            {
+              "fixture": "codec-0-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "4BAB2E583F0DD70D7497C5E9F83046A35C60FC5B161A5DC84E77E9F4C06FC2BE"
+            },
+            {
+              "fixture": "codec-0-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "242591546AD33DDAF3C79023A83DE0B47D2233A4450A3F5B8E1527C1664A9AC3"
+            },
+            {
+              "fixture": "codec-0-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "0A941B138BEDC65E15CAD2F01F596CC966FF9A0CB57049692270846E77C64735"
+            },
+            {
+              "fixture": "codec-0-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "3040395991C39F0471AA88FEBB7C85D9CF0B0921C3BECE9D5C26E5934944D54D"
+            },
+            {
+              "fixture": "codec-1-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "89B36B6651D3989EE5E47189609EF03AA10F3239E11F6C3C6D1A7EBBCEBE0920"
+            },
+            {
+              "fixture": "codec-1-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "87493C846D15C24841A1C6B1DF290E94D29FAE8A75875A08B767B662FFD5747E"
+            },
+            {
+              "fixture": "codec-1-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "300D56CF1A169D87B74A04C3DF1C83F5DAC30E4061FAA2A6A42D3689B85C188A"
+            },
+            {
+              "fixture": "codec-1-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "D3B8FDA6B6B29BF7D6CB365414809D8EBBCE5014DB8CAD1539B8A627CD8D23A8"
+            },
+            {
+              "fixture": "codec-1-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "590A7DA2A2A8FE47E245DBDF028DC6D15904F74384C2C1E2C7FB243B127C2302"
+            },
+            {
+              "fixture": "codec-1-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "EEED5B103DD0C84CFA2FCE32835DB78F87A479A90DAB096B729AAF5A64A4CFB4"
+            },
+            {
+              "fixture": "codec-2-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "1735B003154EA3FADD12B3B66B37F737C65C96DBEC62479C263A5ED49EA3C1FE"
+            },
+            {
+              "fixture": "codec-2-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "BE297B93AF28792444A8BAA24E5EB58D15494685B7AA98B225C4D2E720F928C4"
+            },
+            {
+              "fixture": "codec-2-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "058C13CB8BFE52A70328DA1C88688AC92C5595EDE2725A58EF6C1526A0826F5A"
+            },
+            {
+              "fixture": "codec-2-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "7945AF3C030EDF284034C3442D05D4122D217547F9A00226C05976D6D98B0F10"
+            },
+            {
+              "fixture": "codec-2-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "29E26DE602A05E128E4230CC3D87CB5933BC11B616C448DF3AA8082F4DD39E2D"
+            },
+            {
+              "fixture": "codec-2-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "333DE3A4F423D3ED540AD8435F21C4682632B1ADE6E44144871D8C7196BD2853"
+            },
+            {
+              "fixture": "codec-3-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C75D9FAACB909C60ED76F112DE8AB8C5E42BC977CDD7F9C1E750563B95B4DC00"
+            },
+            {
+              "fixture": "codec-3-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "18A259773467AB5E94ACA9941475D09CAA0495A965F1EA2C22270406602163F5"
+            },
+            {
+              "fixture": "codec-3-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "6F9725B195F7237C81B7B441154829C11D6B6F8A8D07FE6F9C8EBD1C9307216F"
+            },
+            {
+              "fixture": "codec-3-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "7BE8A825A4A477DF0C3445A8BFCE58366DB2D639964ADE7D53DE0E03B532909A"
+            },
+            {
+              "fixture": "codec-3-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "38AC6F00FD68D25F3BB04C854F27732CEA9C251DACEBAA1591A6083EC87387FF"
+            },
+            {
+              "fixture": "codec-3-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "E5614DE5CE88C9F10EBA1FB77E98B57CD366592B46037AEE4661681601DF4F83"
+            },
+            {
+              "fixture": "codec-4-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "ABC1842E8116EC757B2D614C9144E668F97B740239E1FE03087A20C2CCF11948"
+            },
+            {
+              "fixture": "codec-4-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "23D6F05AD440C9EC8F025A4CE27EF25099C126FA6ED47B06A5D9B8799843685A"
+            },
+            {
+              "fixture": "codec-4-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "6830116BACF10729883A3E2D01A071D4ABAA8CFE2DDB9F37DFE5536F77C5ADDB"
+            },
+            {
+              "fixture": "codec-4-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C4301730411664CA2D06DD64CACFABC70912F0D59422DE5D43211080C8FB98FD"
+            },
+            {
+              "fixture": "codec-4-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "0D9F70722FF897CB9F4FDA9380CFDF4501669C94DF79AA47A45DBD549BC821E1"
+            },
+            {
+              "fixture": "codec-4-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "6A76046D8BEAECADE5257ADAA2015269DBBCADA89AD8A6DE22D5879802FF966A"
+            },
+            {
+              "fixture": "codec-5-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "20BBB13FACBC8513D274C61BC439C9A9964D0AC2287FA371F3F0496F61197898"
+            },
+            {
+              "fixture": "codec-5-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "92FBDC2A466EFFCF1DF04FCFE93A62AA427C8987808F0591ABFFCE128B0BF746"
+            },
+            {
+              "fixture": "codec-5-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "B946826B5013D12471734F65510D14A6914FC888619B50731797196DE46D199C"
+            },
+            {
+              "fixture": "codec-5-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "78B1602363462C2607A675125E579DA7B54271FCF61F9A0DC4CDC7E23F2E19AA"
+            },
+            {
+              "fixture": "codec-5-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "09CD940322684D3458C4770B3AE9319EB7C54336283F0D750A3326184B11EF43"
+            },
+            {
+              "fixture": "codec-5-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C33BE4B6DCC6BEE0583DB39F9FAA9EA8B1CFA5A78BD0D1EF4E1884A2CEC699CD"
+            },
+            {
+              "fixture": "codec-6-header-0-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C76F06146E05B59B1D5303A541C7FB98DB66DCF8CFF97FD19605115245D04C26"
+            },
+            {
+              "fixture": "codec-6-header-0-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "1E70E6D2F2428B4F27350AB064862CA8BBD4E8F2D2490AB1E94C2144FF27DCA8"
+            },
+            {
+              "fixture": "codec-6-header-0-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "C2966580058E5FB796B40C5CBA4E8BF58F3CB8E806CFCE60959000F33C1B85B6"
+            },
+            {
+              "fixture": "codec-6-header-1-protection-0",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "583784C4B39E2246FCD86EAAE01934AEFAB8BA672A027CFA9C351D2CBB9499B4"
+            },
+            {
+              "fixture": "codec-6-header-1-protection-1",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "DF9352EB823806663AFCD16D7F7780128BFDD30F8A9CB558C2839604FF4FAF7E"
+            },
+            {
+              "fixture": "codec-6-header-1-protection-2",
+              "metadata_records": 3,
+              "exact_payloads": 2,
+              "archive_sha256": "146E90C337DE5D4DC44A3896667D686EC6A55B7776AFFF0DDE8E7370589AA6E6"
+            }
+          ]
+        },
+        "official_padded_identifiers": {
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "verified": [
+            {
+              "fixture": "padded-encoded",
+              "bytes": 3,
+              "sha256": "039058C6F2C0CB492C533B0A4D14EF77CC0F78ABCCCED5287D84A1A2011CFB81"
+            },
+            {
+              "fixture": "padded-raw",
+              "bytes": 0,
+              "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+            }
+          ]
+        },
+        "pre_fix_expected_failure_control": {
+          "counts": {
+            "Failed": 2
+          },
+          "all_expected": true,
+          "current_source_tests_passed_separately": true,
+          "command": [
+            "C:\\Program Files\\dotnet\\dotnet.exe",
+            "exec",
+            "C:\\Users\\fcarchive42829297\\FileCatValidation\\Capture-42829297-v7\\tester\\vstest.console.dll",
+            "C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\strict-sevenzip-framing-v2\\baseline-control\\bin\\FileCat.Core.Tests.dll",
+            "/TestCaseFilter:FullyQualifiedName~StrictSevenZipFramingTests.Failed_decoder_construction_disposes_preceding_AES_transforms",
+            "/Logger:trx;LogFileName=construction-baseline.trx",
+            "/ResultsDirectory:C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\strict-sevenzip-framing-v2\\baseline-control\\results"
+          ]
+        },
+        "pre_fix_assembly_origin": {
+          "baseline_commit": "a5eb10bf",
+          "frozen_baseline_sha256": "4e817486e0fa13007eaf510bf16510ed70d732e5036938a58075f702948621f7",
+          "replaced_only": [
+            {
+              "path": "binaries/FileCat.SharpCompress.dll",
+              "sha256": "815B2A74783B9431D1562EBEB2D79BF0C18BA7CCD04539F4E30F5BD0FBE92DA8",
+              "bytes": 1108992
+            },
+            {
+              "path": "binaries/FileCat.SharpCompress.pdb",
+              "sha256": "A7D9A19CEF3BDFA67FD8EE3320E0D624DA5C3C783881248CAAD9FAE2D9E01D76",
+              "bytes": 436012
+            }
+          ],
+          "expected_failed_controls": 2
+        }
+      }
+    }
+  },
+  "windows_helper_resume": "85 application cases and all 42 independent archives passed first. Corrected the cached Windows official-tool identity lookup; resumed only remaining native/control/capture steps, preserving original error records."
+}

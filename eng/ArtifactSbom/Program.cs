@@ -328,17 +328,26 @@ try
         if (name.Equals("FileCat", StringComparison.OrdinalIgnoreCase)) continue;
         string spdxId = SpdxId("Project", name + "/" + projectVersion);
         dependencyIds.Add(spdxId);
-        // FileCat's projects are MIT, except the RAR 1.5 decoder ported from XADMaster (licenses/xadmaster) and FileCat's
-        // build of SharpCompress, whose parts keep their own licenses (licenses/sharpcompress/COMPONENTS.md).
+        // FileCat's archive projects retain BSD rardecode parts and selected public-domain SDK source. The separate
+        // RAR 1.5 decoder has XADMaster terms; SharpCompress's parts retain their component licenses.
         (string license, string copyright, string? comment) = name.ToLowerInvariant() switch
         {
+            "filecat.archives" or "filecat.archives.writing" => ("MIT AND BSD-2-Clause",
+                "Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors; "
+                + "rardecode ports Copyright (c) 2015 Nicholas Waples; selected LZMA SDK source Igor Pavlov: Public domain",
+                "FileCat code with bounded BSD-2-Clause rardecode decoding/password primitives as applicable; "
+                + "the development writing engine also adapts individually public-domain BCJ2 files from LZMA SDK 26.05 "
+                + "(b88c6bc09339de32f7d18bbab900686b244f42ba). Exact source and notice inventories are in the repository; "
+                + "retained terms/attribution: THIRD-PARTY-NOTICES.md and licenses/rardecode/LICENSE. "
+                + "This does not make the separate LGPL RAR 1.5 assembly a writing-worker dependency or qualify a writer profile."),
             "filecat.archives.rar15" => ("LGPL-2.1-or-later",
                 "Copyright (c) 2017-present MacPaw Way Ltd. (XADMaster); C# port Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors", null),
             "filecat.sharpcompress" => ("MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib",
                 "Copyright (c) 2014 Adam Hathcock and SharpCompress contributors; the copyrights of its parts from other projects are in "
                 + "licenses/sharpcompress/COMPONENTS.md; FileCat's changes Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors",
                 "SharpCompress 0.50.5 (github.com/adamhathcock/sharpcompress commit e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626) built from "
-                + "src/ThirdParty/SharpCompress, cut down to its 7z, bzip2, xz and zstd readers: no UnRAR-derived RAR or PPMd variant H "
+                + "src/ThirdParty/SharpCompress, cut down to its 7z reader and bzip2, xz, zstd and raw DEFLATE stream codecs; "
+                + "the archive-writing development worker also uses its LZMA/LZMA2, PPMd7, bzip2/Zstandard encoders, branch/delta/swap transforms and raw DEFLATE decoder. No UnRAR-derived RAR or PPMd variant H "
                 + "code and none of its other formats. Every part's license is OSI-approved. Texts and notices: licenses/sharpcompress."),
             _ => ("MIT", "Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors", null),
         };

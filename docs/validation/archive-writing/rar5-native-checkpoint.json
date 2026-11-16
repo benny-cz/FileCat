@@ -1,0 +1,426 @@
+{
+  "date": "2026-11-07",
+  "source_packets": {
+    "v2": {
+      "files": 4204,
+      "bytes": 30383947,
+      "sha256": "6670c50e74b36ed12e2c096d96fc5aeafd69e695905cbba00d92b6fd4c15efce"
+    },
+    "v3": {
+      "files": 4204,
+      "bytes": 30384151,
+      "sha256": "d763d505d7c4833bdef742cda12f12f085a1a238b3d2e25264f128536647872a"
+    },
+    "v4": {
+      "files": 4205,
+      "bytes": 30384548,
+      "sha256": "86d22b2f41756bde8724820f9feb938fb3f31666695dc572e81388a24f4277fe"
+    },
+    "v5": {
+      "files": 4205,
+      "bytes": 30384566,
+      "sha256": "046ff0126064e4826682a11c7b95923a1c153cdc7f7040aeaafebdf0d771a54a"
+    }
+  },
+  "new_profile_registered": false,
+  "production_backend_qualified": false,
+  "changed_csharp": [
+    "eng/validation/archive-writing/macos-vm-worker/NativeCapturedDirectories.cs",
+    "eng/validation/archive-writing/macos-vm-worker/NativeCapturedInputs.cs",
+    "eng/validation/archive-writing/macos-vm-worker/NativeRecursiveSelection.cs",
+    "src/FileCat.App/Program.cs",
+    "src/FileCat.App/Services/ArchiveWorker.cs",
+    "src/FileCat.Core/Archives/ArchiveAssessmentClient.cs",
+    "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+    "src/FileCat.Core/Archives/ArchiveCapturedSelection.cs",
+    "src/FileCat.Core/Archives/ArchiveContainerTransformPlan.cs",
+    "src/FileCat.Core/Archives/ArchiveContentRestoration.cs",
+    "src/FileCat.Core/Archives/ArchiveContentUpdate.cs",
+    "src/FileCat.Core/Archives/ArchiveJobPassword.cs",
+    "src/FileCat.Core/Archives/ArchiveJournaledSnapshotPreparation.cs",
+    "src/FileCat.Core/Archives/ArchiveJournaledTarPreparation.cs",
+    "src/FileCat.Core/Archives/ArchiveNewFilePublication.cs",
+    "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+    "src/FileCat.Core/Archives/ArchiveRetainedTarPipeline.cs",
+    "src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs",
+    "src/FileCat.Core/Archives/ArchiveTransformClient.cs",
+    "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+    "src/FileCat.Core/Archives/ArchiveVerificationClient.cs",
+    "src/FileCat.Platform.Windows/Archives/WindowsArchiveContentUpdate.cs",
+    "src/FileCat.Platform.Windows/Shell/ArchiveAppContainer.cs",
+    "tests/ArchiveCreationPublicationCases.cs",
+    "tests/ArchiveJournaledTarAssertions.cs",
+    "tests/ArchiveRar5NativeCases.cs",
+    "tests/FileCat.App.Tests/ArchiveWorkerEntryTests.cs",
+    "tests/FileCat.Core.Tests/ArchiveCapturedRar5PlanTests.cs",
+    "tests/FileCat.Core.Tests/ArchiveJobPasswordTests.cs",
+    "tests/FileCat.Core.Tests/ArchivePreparationSpaceTests.cs",
+    "tests/FileCat.Core.Tests/ArchiveRar5PreparationPreflightTests.cs",
+    "tests/FileCat.Core.Tests/LinuxArchiveRetainedStageTests.cs",
+    "tests/FileCat.Core.Tests/UnixArchiveCapturedInputsTests.cs",
+    "tests/FileCat.Core.Tests/UnixArchiveDirectoryWorkflowTests.cs",
+    "tests/FileCat.Core.Tests/UnixArchiveJournaledPreparationTests.cs",
+    "tests/FileCat.Core.Tests/UnixArchiveRar5CreationTests.cs",
+    "tests/FileCat.Core.Tests/UnixArchiveRecursiveSelectionTests.cs",
+    "tests/FileCat.Core.Tests/UnixArchiveRetainedPipelineTests.cs",
+    "tests/FileCat.CoreCrashHarness/ArchiveContentCrash.cs",
+    "tests/FileCat.CoreCrashHarness/ArchiveCreationCrash.cs",
+    "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerCapturedInputsTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerContentTransactionTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerDirectoryWorkflowTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerRar5CreationTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerRar5UpdateTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerRecursiveSelectionTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerRestorationTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerRetainedStageTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/WindowsArchiveJournaledPreparationTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/WindowsArchiveRetainedPipelineTests.cs"
+  ],
+  "scope": "Native RAR input capture/sealing/new-file publication on all three systems; Windows LPAC/application protocol-2 workers, identity-preserving NTFS update and explicit retained-snapshot restoration. Unix production confinement/update and complete UI/resource/crash/fuzz/RID/package gates remain open.",
+  "corrections": [
+    "Initial 2991-case core matrix: one new test used exactly the allowed empty-plan heap ceiling and incorrectly expected refusal. Four corrected cases exceed each capture ceiling or combine capture plus plan costs. Complete 2994-case matrix repeated.",
+    "Windows native 354-case matrix: 21 new creation readback checks used File.ReadAllBytes while publication retained a native DELETE-capable owner. The first helper correction then exposed its live-journal File.ReadAllText default sharing error in all 21 cases. One shared reader now grants FileShare.ReadWrite and FileShare.Delete for both published bytes and the live journal; production write/replace exclusion is unchanged. All 24 RAR native cases repeat, plus all 18 Unix creation cases; passing broad core/native regression is retained."
+  ],
+  "host_scope": "Source edits/compiler builds/static artifact validation only; runtime tests and native readers only on the authorized Mac/VMs.",
+  "mac_vm_validation_bridge": "Three shared type references compile in the private Mac VM probe on the host. Its missing dependency lock now pins the unchanged project/BouncyCastle closure; compile-only, no new VM runtime qualification.",
+  "platforms": {
+    "mac": {
+      "archive": "mac-rar5-native-evidence-v5.tar.gz",
+      "bytes": 39283818,
+      "sha256": "b4dec11908e0aa2f5aec89d944ab0bd6cece694b13c5f967f1aa8bc7fa5cd81b",
+      "frozen_file_rows": 1548,
+      "broad_core_matrix": {
+        "total": 2994,
+        "outcomes": {
+          "Passed": 2939,
+          "NotExecuted": 55
+        },
+        "new_outcomes": {
+          "Passed": 36
+        }
+      },
+      "current_native_cases": 18,
+      "actual_native_test_runtime": [
+        {
+          "archiveRuntime": "10.0.12",
+          "runtimeDirectory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+          "os": "macOS 27.0.1"
+        }
+      ],
+      "matched_current_csharp": [
+        "src/FileCat.Core/Archives/ArchiveAssessmentClient.cs",
+        "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+        "src/FileCat.Core/Archives/ArchiveCapturedSelection.cs",
+        "src/FileCat.Core/Archives/ArchiveContainerTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveContentRestoration.cs",
+        "src/FileCat.Core/Archives/ArchiveContentUpdate.cs",
+        "src/FileCat.Core/Archives/ArchiveJobPassword.cs",
+        "src/FileCat.Core/Archives/ArchiveJournaledSnapshotPreparation.cs",
+        "src/FileCat.Core/Archives/ArchiveJournaledTarPreparation.cs",
+        "src/FileCat.Core/Archives/ArchiveNewFilePublication.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveRetainedTarPipeline.cs",
+        "src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformClient.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+        "src/FileCat.Core/Archives/ArchiveVerificationClient.cs",
+        "tests/ArchiveCreationPublicationCases.cs",
+        "tests/ArchiveJournaledTarAssertions.cs",
+        "tests/ArchiveRar5NativeCases.cs",
+        "tests/FileCat.Core.Tests/ArchiveCapturedRar5PlanTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobPasswordTests.cs",
+        "tests/FileCat.Core.Tests/ArchivePreparationSpaceTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveRar5PreparationPreflightTests.cs",
+        "tests/FileCat.Core.Tests/LinuxArchiveRetainedStageTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveCapturedInputsTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveDirectoryWorkflowTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveJournaledPreparationTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveRar5CreationTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveRecursiveSelectionTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveRetainedPipelineTests.cs",
+        "tests/FileCat.CoreCrashHarness/ArchiveContentCrash.cs",
+        "tests/FileCat.CoreCrashHarness/ArchiveCreationCrash.cs"
+      ],
+      "native_interoperability": {
+        "creations": 18,
+        "updates_and_restorations": 0,
+        "official_archives": 18,
+        "exact_payloads": 18,
+        "independent_metadata_records": 36,
+        "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+      },
+      "worker_interoperability": {
+        "cases": 18,
+        "official_archives": 36,
+        "exact_payloads": 108,
+        "independent_metadata_records": 162,
+        "exact_retained_packed_streams": 18,
+        "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "passing_baseline": {
+        "archive": "mac-rar5-native-evidence-v3.tar.gz",
+        "bytes": 46060149,
+        "sha256": "5d2237305cd99924ac67269b88f4cb9c09077459721f48875baedc85b780b79d",
+        "frozen_file_rows": 2156
+      },
+      "initial_core_failure": {
+        "archive": "mac-rar5-native-initial-evidence-v2.tar.gz",
+        "bytes": 3149236,
+        "sha256": "9b0776804a12f1e55e21677682fc981bf584e00e5d000c6af231a86a753f3703",
+        "frozen_file_rows": 6,
+        "total": 2991,
+        "outcomes": {
+          "Passed": 2935,
+          "NotExecuted": 55,
+          "Failed": 1
+        }
+      }
+    },
+    "ubuntu": {
+      "archive": "ubuntu-rar5-native-evidence-v5.tar.gz",
+      "bytes": 39275161,
+      "sha256": "2b83642781ad33fe029a65f1b8edbc7677047ff808d094c0d2e0970464b5fbf9",
+      "frozen_file_rows": 1548,
+      "broad_core_matrix": {
+        "total": 2994,
+        "outcomes": {
+          "Passed": 2952,
+          "NotExecuted": 42
+        },
+        "new_outcomes": {
+          "Passed": 36
+        }
+      },
+      "current_native_cases": 18,
+      "actual_native_test_runtime": [
+        {
+          "archiveRuntime": "10.0.14",
+          "runtimeDirectory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+          "os": "Ubuntu 24.04.5 LTS"
+        }
+      ],
+      "matched_current_csharp": [
+        "src/FileCat.Core/Archives/ArchiveAssessmentClient.cs",
+        "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+        "src/FileCat.Core/Archives/ArchiveCapturedSelection.cs",
+        "src/FileCat.Core/Archives/ArchiveContainerTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveContentRestoration.cs",
+        "src/FileCat.Core/Archives/ArchiveContentUpdate.cs",
+        "src/FileCat.Core/Archives/ArchiveJobPassword.cs",
+        "src/FileCat.Core/Archives/ArchiveJournaledSnapshotPreparation.cs",
+        "src/FileCat.Core/Archives/ArchiveJournaledTarPreparation.cs",
+        "src/FileCat.Core/Archives/ArchiveNewFilePublication.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveRetainedTarPipeline.cs",
+        "src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformClient.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+        "src/FileCat.Core/Archives/ArchiveVerificationClient.cs",
+        "tests/ArchiveCreationPublicationCases.cs",
+        "tests/ArchiveJournaledTarAssertions.cs",
+        "tests/ArchiveRar5NativeCases.cs",
+        "tests/FileCat.Core.Tests/ArchiveCapturedRar5PlanTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobPasswordTests.cs",
+        "tests/FileCat.Core.Tests/ArchivePreparationSpaceTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveRar5PreparationPreflightTests.cs",
+        "tests/FileCat.Core.Tests/LinuxArchiveRetainedStageTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveCapturedInputsTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveDirectoryWorkflowTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveJournaledPreparationTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveRar5CreationTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveRecursiveSelectionTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveRetainedPipelineTests.cs",
+        "tests/FileCat.CoreCrashHarness/ArchiveContentCrash.cs",
+        "tests/FileCat.CoreCrashHarness/ArchiveCreationCrash.cs"
+      ],
+      "native_interoperability": {
+        "creations": 18,
+        "updates_and_restorations": 0,
+        "official_archives": 18,
+        "exact_payloads": 18,
+        "independent_metadata_records": 36,
+        "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+      },
+      "worker_interoperability": {
+        "cases": 18,
+        "official_archives": 36,
+        "exact_payloads": 108,
+        "independent_metadata_records": 162,
+        "exact_retained_packed_streams": 18,
+        "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "passing_baseline": {
+        "archive": "ubuntu-rar5-native-evidence-v3.tar.gz",
+        "bytes": 46072173,
+        "sha256": "0b9985527deb57fc07e40615963fe96b03fc155875785702c47bfc141bbcfc12",
+        "frozen_file_rows": 2156
+      },
+      "initial_core_failure": {
+        "archive": "ubuntu-rar5-native-initial-evidence-v2.tar.gz",
+        "bytes": 3174252,
+        "sha256": "6b065c02dea653041c9fecab2f2a49576f7f8bd50eb463fb0d45142d7c9cd42d",
+        "frozen_file_rows": 6,
+        "total": 2991,
+        "outcomes": {
+          "Passed": 2948,
+          "NotExecuted": 42,
+          "Failed": 1
+        }
+      }
+    },
+    "windows": {
+      "archive": "windows-rar5-native-evidence-v5.tar.gz",
+      "bytes": 89017139,
+      "sha256": "c74617d9e8c0c190bdd1fce781fb9a013cd78d60386cd05535778d210ada94cb",
+      "frozen_file_rows": 3544,
+      "broad_core_matrix": {
+        "total": 2994,
+        "outcomes": {
+          "Passed": 2756,
+          "NotExecuted": 238
+        },
+        "new_outcomes": {
+          "Passed": 18,
+          "NotExecuted": 18
+        }
+      },
+      "current_native_cases": 24,
+      "actual_native_test_runtime": [
+        {
+          "archiveRuntime": "10.0.14",
+          "runtimeDirectory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+          "os": "Microsoft Windows 10.0.26340"
+        }
+      ],
+      "matched_current_csharp": [
+        "src/FileCat.App/Program.cs",
+        "src/FileCat.App/Services/ArchiveWorker.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentClient.cs",
+        "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+        "src/FileCat.Core/Archives/ArchiveCapturedSelection.cs",
+        "src/FileCat.Core/Archives/ArchiveContainerTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveContentRestoration.cs",
+        "src/FileCat.Core/Archives/ArchiveContentUpdate.cs",
+        "src/FileCat.Core/Archives/ArchiveJobPassword.cs",
+        "src/FileCat.Core/Archives/ArchiveJournaledSnapshotPreparation.cs",
+        "src/FileCat.Core/Archives/ArchiveJournaledTarPreparation.cs",
+        "src/FileCat.Core/Archives/ArchiveNewFilePublication.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveRetainedTarPipeline.cs",
+        "src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformClient.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+        "src/FileCat.Core/Archives/ArchiveVerificationClient.cs",
+        "src/FileCat.Platform.Windows/Archives/WindowsArchiveContentUpdate.cs",
+        "src/FileCat.Platform.Windows/Shell/ArchiveAppContainer.cs",
+        "tests/ArchiveCreationPublicationCases.cs",
+        "tests/ArchiveJournaledTarAssertions.cs",
+        "tests/ArchiveRar5NativeCases.cs",
+        "tests/FileCat.App.Tests/ArchiveWorkerEntryTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveCapturedRar5PlanTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobPasswordTests.cs",
+        "tests/FileCat.Core.Tests/ArchivePreparationSpaceTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveRar5PreparationPreflightTests.cs",
+        "tests/FileCat.Core.Tests/LinuxArchiveRetainedStageTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveCapturedInputsTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveDirectoryWorkflowTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveJournaledPreparationTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveRar5CreationTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveRecursiveSelectionTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveRetainedPipelineTests.cs",
+        "tests/FileCat.CoreCrashHarness/ArchiveContentCrash.cs",
+        "tests/FileCat.CoreCrashHarness/ArchiveCreationCrash.cs",
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerCapturedInputsTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerContentTransactionTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerDirectoryWorkflowTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerRar5CreationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerRar5UpdateTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerRecursiveSelectionTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerRestorationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerRetainedStageTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsArchiveJournaledPreparationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsArchiveRetainedPipelineTests.cs"
+      ],
+      "native_interoperability": {
+        "creations": 21,
+        "updates_and_restorations": 3,
+        "official_archives": 30,
+        "exact_payloads": 33,
+        "independent_metadata_records": 57,
+        "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+      },
+      "worker_interoperability": {
+        "cases": 18,
+        "official_archives": 36,
+        "exact_payloads": 108,
+        "independent_metadata_records": 162,
+        "exact_retained_packed_streams": 18,
+        "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+      },
+      "final_census": {
+        "Processes": [],
+        "CollectedUtc": "2026-11-07T15:29:20.9056159Z"
+      },
+      "baseline_native": {
+        "total": 354,
+        "outcomes": {
+          "Passed": 332,
+          "Failed": 21,
+          "NotExecuted": 1
+        },
+        "all_failures_new_readback_checks": true
+      },
+      "app_entry_tests": 10,
+      "account": {
+        "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+        "AdministratorsMember": false,
+        "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+        "HiveLoaded": true
+      },
+      "initial_core_failure": {
+        "archive": "windows-rar5-native-initial-evidence-v2.tar.gz",
+        "bytes": 3176881,
+        "sha256": "38c7ed0fba743dc6538d96b09ce514836081f2da9c17a6000a6700a0fa568a62",
+        "frozen_file_rows": 12,
+        "total": 2991,
+        "outcomes": {
+          "Passed": 2752,
+          "NotExecuted": 238,
+          "Failed": 1
+        }
+      }
+    }
+  },
+  "compiler_evidence_followup": {
+    "archive": "pdb-app-audit-evidence-v1.tar.gz",
+    "bytes": 7533142,
+    "sha256": "f5a5fe0c4a2e1e04aa6de1902ed9cf00629e6ca519e3e32043a5f1ecd6265b13",
+    "frozen_file_rows": 2111,
+    "controls": {
+      "ApplicationIncluded": true,
+      "MissingAppSymbolsRefused": true,
+      "ArchiveTestsRepeated": false,
+      "SymbolsBoundToAssemblies": true,
+      "MismatchedDllPdbRefused": true
+    },
+    "tool_source_sha256": "6e8101bde63148069ddbd32aa1916b7154cb0546e68ca4dbe496010531f6abb1",
+    "compiler_documents": 2095,
+    "compiler_source_bytes": 22638457,
+    "reason": "The original FileCat.*.pdb glob omitted the application FileCat.pdb. The corrected static auditor includes it, requires symbols for a present application and checks DLL/PDB identity. No archive tests repeated."
+  },
+  "windows_readback_failures": {
+    "archive": "windows-rar5-native-readback-failures-v3v4.tar.gz",
+    "bytes": 1285681,
+    "sha256": "a7d986a9c3beaeb3c4e64a91d18d6464d187035e2f0d7c134d9d85750d627b64",
+    "frozen_file_rows": 14
+  }
+}

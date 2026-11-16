@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Never shipped. Starts the real FileCat interface with explicitly composed native archive backends, so screen-reader,
+       scaling and layout qualification runs (archive-writing plan §16.3 step 1, AT16) can reach the writing dialogs that
+       ordinary startup keeps unavailable until a route is qualified. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FileCat.App\FileCat.App.csproj" />
+  </ItemGroup>
+</Project>

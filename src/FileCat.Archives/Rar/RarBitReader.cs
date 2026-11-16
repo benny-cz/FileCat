@@ -8,7 +8,7 @@ namespace FileCat.Archives.Rar;
 /// or of the current RAR 5 block, yields zero bits so a decoder can look ahead; consuming such a bit throws, so a
 /// short or hostile stream can never make a decoder loop.
 /// </summary>
-internal sealed class RarBitReader
+internal sealed class RarBitReader : IDisposable
 {
     private readonly byte[] _buffer = new byte[64 * 1024];
     private Stream _source = Stream.Null;
@@ -20,10 +20,13 @@ internal sealed class RarBitReader
     private int _realBits;             // of those, bits that came from the data
     private long _limit = long.MaxValue; // data bits still allowed into the cache (the end of a RAR 5 block)
     private long _consumed;            // bits consumed since Reset or the start of the current block
+    private bool _disposed;
 
     /// <summary>Starts reading <paramref name="source"/>, a member's packed data, from its first bit.</summary>
     public void Reset(Stream source)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        Array.Clear(_buffer);
         _source = source;
         _bufferPos = _bufferLength = 0;
         _sourceEnded = false;
@@ -34,6 +37,20 @@ internal sealed class RarBitReader
 
     /// <summary>Data bits left that the reader has already seen; at least <c>count</c> after <see cref="Peek"/>(count) unless the data ends sooner.</summary>
     public int BufferedRealBits => _realBits;
+
+    internal bool BlockComplete => _limit == 0 && _realBits == 0;
+
+    /// <summary>Accounts for prefetched bytes too. RAR AES may pad its final block with at most fifteen bytes.</summary>
+    internal void VerifyPackedEnd(int maximumPadding, CancellationToken ct)
+    {
+        if ((uint)maximumPadding > 15) throw new ArgumentOutOfRangeException(nameof(maximumPadding));
+        for (int count = 0; ; count++)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!TryReadAlignedByte(out _)) return;
+            if (count == maximumPadding) throw RarData.Corrupt("trailing packed member bytes");
+        }
+    }
 
     /// <summary>True when no data bit remains (in the data or, for a RAR 5 block, in that block).</summary>
     public bool AtEnd
@@ -181,11 +198,13 @@ internal sealed class RarBitReader
 
     private bool TryNextByte(out byte value)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (_bufferPos == _bufferLength)
         {
             if (_sourceEnded) { value = 0; return false; }
             _bufferPos = 0;
-            _bufferLength = _source.Read(_buffer, 0, _buffer.Length);
+            // Also fits the archive worker's per-request I/O grant.
+            _bufferLength = _source.Read(_buffer, 0, Math.Min(_buffer.Length, FileCat.Core.Archives.ArchiveIoAuthority.MaximumReadBytes));
             if (_bufferLength <= 0)
             {
                 _bufferLength = 0;
@@ -196,5 +215,13 @@ internal sealed class RarBitReader
         }
         value = _buffer[_bufferPos++];
         return true;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true; Array.Clear(_buffer); DiscardCache();
+        _bufferPos = _bufferLength = 0; _limit = _consumed = 0;
+        _source = Stream.Null; _sourceEnded = true; // source ownership stays with the caller
     }
 }

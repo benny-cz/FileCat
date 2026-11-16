@@ -1,0 +1,347 @@
+{
+  "schema": 1,
+  "component": "retained native edit snapshot capture and queued source views",
+  "product_candidate": "7cf19350",
+  "current_candidate": "fec4d19d592377c1d7a792b63df7a888e3df4341",
+  "production_backend_qualified": false,
+  "application_composition_uses_native_store": false,
+  "platforms": [
+    {
+      "platform": "windows",
+      "history": {
+        "platform": "windows",
+        "folder": "awe-storage-v6",
+        "candidate": "42481a81141eaedc88004794876599f03d394b0a",
+        "bytes": 17808173,
+        "sha256": "1363f9a81050ebdf43916f706e3ede064ba66f0250f19ceaa4d65e2e338ea28b",
+        "manifest_sha256": "3dd2c99f7b73bc047dc0c1c07b4964c159f3936c63a50133da06b2e9cc8f2b61",
+        "changed_CSharp_sources_bound": 32,
+        "DLL_PDB_pairs_bound": 15,
+        "uncompiled_platform_sources": [],
+        "tests": {
+          "native-directory": {
+            "Passed": 16
+          },
+          "native-snapshot": {
+            "Failed": 17,
+            "Passed": 9
+          },
+          "native-storage": {
+            "Passed": 14
+          },
+          "record-recovery": {
+            "Passed": 19
+          }
+        },
+        "focused_gates_complete": false,
+        "final_census": {
+          "owned_filecat_or_test_processes": 0,
+          "production_backend_qualified": false,
+          "storage_integrated": false
+        },
+        "production_backend_qualified": false
+      },
+      "current": {
+        "platform": "windows",
+        "folder": "awe-storage-v7",
+        "candidate": "fec4d19d592377c1d7a792b63df7a888e3df4341",
+        "bytes": 17846413,
+        "sha256": "fc33b9ee04daffb75c08d516c8bc08b0b61387f2ba6c16f19c6cb9bf061b6261",
+        "manifest_sha256": "07a06a2960ec512f1a10f5ae6d8935e690edd3c58ed610e85cca292681efb922",
+        "changed_CSharp_sources_bound": 32,
+        "DLL_PDB_pairs_bound": 15,
+        "uncompiled_platform_sources": [],
+        "tests": {
+          "commit-copy": {
+            "Passed": 10
+          },
+          "edit-core": {
+            "Passed": 100,
+            "NotExecuted": 10
+          },
+          "edit-ui": {
+            "Passed": 190
+          },
+          "native-directory": {
+            "Passed": 16
+          },
+          "native-snapshot": {
+            "Passed": 26
+          },
+          "native-storage": {
+            "Passed": 14
+          },
+          "record-recovery": {
+            "Passed": 19
+          }
+        },
+        "focused_gates_complete": true,
+        "final_census": {
+          "owned_filecat_or_test_processes": 0,
+          "production_backend_qualified": false,
+          "storage_integrated": false
+        },
+        "production_backend_qualified": false
+      },
+      "unchanged_product_binaries": [
+        "binaries/FileCat.Archives.Rar15.dll",
+        "binaries/FileCat.Archives.Rar15.pdb",
+        "binaries/FileCat.Archives.dll",
+        "binaries/FileCat.Archives.pdb",
+        "binaries/FileCat.Core.dll",
+        "binaries/FileCat.Core.pdb",
+        "binaries/FileCat.CoreCrashHarness.dll",
+        "binaries/FileCat.CoreCrashHarness.pdb",
+        "binaries/FileCat.Platform.Windows.dll",
+        "binaries/FileCat.Platform.Windows.pdb",
+        "binaries/FileCat.PrivilegedHost.dll",
+        "binaries/FileCat.PrivilegedHost.pdb",
+        "binaries/FileCat.Recovery.dll",
+        "binaries/FileCat.Recovery.pdb",
+        "binaries/FileCat.Remote.dll",
+        "binaries/FileCat.Remote.pdb",
+        "binaries/FileCat.SharpCompress.dll",
+        "binaries/FileCat.SharpCompress.pdb",
+        "binaries/FileCat.ShellHost.dll",
+        "binaries/FileCat.ShellHost.pdb",
+        "binaries/FileCat.WorkerProbe.dll",
+        "binaries/FileCat.WorkerProbe.pdb",
+        "binaries/FileCat.dll",
+        "binaries/FileCat.pdb"
+      ],
+      "product_bytes_unchanged_after_fixture_corrections": true
+    },
+    {
+      "platform": "mac",
+      "history": {
+        "platform": "mac",
+        "folder": "awe-storage-v6",
+        "candidate": "42481a81141eaedc88004794876599f03d394b0a",
+        "bytes": 16542545,
+        "sha256": "75d1077cef639ffd835309c030d479ae19448d6718e9ad4f91741365e80221a7",
+        "manifest_sha256": "070078ae30b877fab565134886cdffff8fee4416f00ad10d95ea073ced5f0b8b",
+        "changed_CSharp_sources_bound": 29,
+        "DLL_PDB_pairs_bound": 12,
+        "uncompiled_platform_sources": [
+          "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+          "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+          "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+        ],
+        "tests": {
+          "native-directory": {
+            "Passed": 16
+          },
+          "native-snapshot": {
+            "Passed": 10,
+            "Failed": 16
+          },
+          "native-storage": {
+            "Passed": 19
+          },
+          "record-recovery": {
+            "Passed": 19
+          }
+        },
+        "focused_gates_complete": false,
+        "final_census": {
+          "owned_filecat_or_test_processes": 0,
+          "production_backend_qualified": false,
+          "storage_integrated": false,
+          "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+        },
+        "production_backend_qualified": false
+      },
+      "current": {
+        "platform": "mac",
+        "folder": "awe-storage-v7",
+        "candidate": "fec4d19d592377c1d7a792b63df7a888e3df4341",
+        "bytes": 16578624,
+        "sha256": "9259e4c0c3120bebf75aaae947efea2a3c58870c9efdacabd2dd5b5b53e91949",
+        "manifest_sha256": "d7f432501cbaaa3f8721c555cf00e4c15e3f429216def55b8c635fff0bf416fe",
+        "changed_CSharp_sources_bound": 29,
+        "DLL_PDB_pairs_bound": 12,
+        "uncompiled_platform_sources": [
+          "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+          "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+          "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+        ],
+        "tests": {
+          "commit-copy": {
+            "Passed": 10
+          },
+          "edit-core": {
+            "Passed": 110
+          },
+          "edit-ui": {
+            "Passed": 190
+          },
+          "native-directory": {
+            "Passed": 16
+          },
+          "native-snapshot": {
+            "Passed": 26
+          },
+          "native-storage": {
+            "Passed": 19
+          },
+          "record-recovery": {
+            "Passed": 19
+          }
+        },
+        "focused_gates_complete": true,
+        "final_census": {
+          "owned_filecat_or_test_processes": 0,
+          "production_backend_qualified": false,
+          "storage_integrated": false,
+          "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+        },
+        "production_backend_qualified": false
+      },
+      "unchanged_product_binaries": [
+        "binaries/FileCat.Archives.Rar15.dll",
+        "binaries/FileCat.Archives.Rar15.pdb",
+        "binaries/FileCat.Archives.dll",
+        "binaries/FileCat.Archives.pdb",
+        "binaries/FileCat.Core.dll",
+        "binaries/FileCat.Core.pdb",
+        "binaries/FileCat.CoreCrashHarness.dll",
+        "binaries/FileCat.CoreCrashHarness.pdb",
+        "binaries/FileCat.Platform.Windows.dll",
+        "binaries/FileCat.Platform.Windows.pdb",
+        "binaries/FileCat.Recovery.dll",
+        "binaries/FileCat.Recovery.pdb",
+        "binaries/FileCat.Remote.dll",
+        "binaries/FileCat.Remote.pdb",
+        "binaries/FileCat.SharpCompress.dll",
+        "binaries/FileCat.SharpCompress.pdb",
+        "binaries/FileCat.ShellHost.dll",
+        "binaries/FileCat.ShellHost.pdb",
+        "binaries/FileCat.dll",
+        "binaries/FileCat.pdb"
+      ],
+      "product_bytes_unchanged_after_fixture_corrections": true
+    },
+    {
+      "platform": "ubuntu",
+      "history": {
+        "platform": "ubuntu",
+        "folder": "awe-storage-v6",
+        "candidate": "42481a81141eaedc88004794876599f03d394b0a",
+        "bytes": 16523740,
+        "sha256": "38c289d4edd9bd6e3188542241d14946e08d0ce70c1a74573e35c47611dcc54a",
+        "manifest_sha256": "26e585876e162eefc896328d3e63ca272b64602cc75d422c2df815b1ef6687cc",
+        "changed_CSharp_sources_bound": 29,
+        "DLL_PDB_pairs_bound": 12,
+        "uncompiled_platform_sources": [
+          "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+          "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+          "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+        ],
+        "tests": {
+          "native-directory": {
+            "Passed": 16
+          },
+          "native-snapshot": {
+            "Passed": 10,
+            "Failed": 16
+          },
+          "native-storage": {
+            "Passed": 19
+          },
+          "record-recovery": {
+            "Passed": 19
+          }
+        },
+        "focused_gates_complete": false,
+        "final_census": {
+          "owned_filecat_or_test_processes": 0,
+          "production_backend_qualified": false,
+          "storage_integrated": false
+        },
+        "production_backend_qualified": false
+      },
+      "current": {
+        "platform": "ubuntu",
+        "folder": "awe-storage-v7",
+        "candidate": "fec4d19d592377c1d7a792b63df7a888e3df4341",
+        "bytes": 16560362,
+        "sha256": "6ea882d4d456a3cac8636451cc385f901f8eda06b802eab24471a2f4ddd2861d",
+        "manifest_sha256": "a1b6db08965c0ead0b4ad6894fbab5a0c8be461d2104d5592ac569a50c2b5644",
+        "changed_CSharp_sources_bound": 29,
+        "DLL_PDB_pairs_bound": 12,
+        "uncompiled_platform_sources": [
+          "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+          "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+          "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+        ],
+        "tests": {
+          "commit-copy": {
+            "Passed": 10
+          },
+          "edit-core": {
+            "Passed": 110
+          },
+          "edit-ui": {
+            "Passed": 190
+          },
+          "native-directory": {
+            "Passed": 16
+          },
+          "native-snapshot": {
+            "Passed": 26
+          },
+          "native-storage": {
+            "Passed": 19
+          },
+          "record-recovery": {
+            "Passed": 19
+          }
+        },
+        "focused_gates_complete": true,
+        "final_census": {
+          "owned_filecat_or_test_processes": 0,
+          "production_backend_qualified": false,
+          "storage_integrated": false
+        },
+        "production_backend_qualified": false
+      },
+      "unchanged_product_binaries": [
+        "binaries/FileCat.Archives.Rar15.dll",
+        "binaries/FileCat.Archives.Rar15.pdb",
+        "binaries/FileCat.Archives.dll",
+        "binaries/FileCat.Archives.pdb",
+        "binaries/FileCat.Core.dll",
+        "binaries/FileCat.Core.pdb",
+        "binaries/FileCat.CoreCrashHarness.dll",
+        "binaries/FileCat.CoreCrashHarness.pdb",
+        "binaries/FileCat.Platform.Windows.dll",
+        "binaries/FileCat.Platform.Windows.pdb",
+        "binaries/FileCat.Recovery.dll",
+        "binaries/FileCat.Recovery.pdb",
+        "binaries/FileCat.Remote.dll",
+        "binaries/FileCat.Remote.pdb",
+        "binaries/FileCat.SharpCompress.dll",
+        "binaries/FileCat.SharpCompress.pdb",
+        "binaries/FileCat.ShellHost.dll",
+        "binaries/FileCat.ShellHost.pdb",
+        "binaries/FileCat.dll",
+        "binaries/FileCat.pdb"
+      ],
+      "product_bytes_unchanged_after_fixture_corrections": true
+    }
+  ],
+  "inherited_storage_checkpoint": "edit-storage-checkpoint.json",
+  "disposal_followup_live_validated": "cc5ea3a9",
+  "remaining": [
+    "fresh snapshot record/directory cleanup and substituted/new children",
+    "qualified Unix exact-object cleanup",
+    "native save-copy destination publication",
+    "ZIP and remote retained source integration",
+    "native discard and old-record adoption",
+    "bounded queued snapshot resource ownership",
+    "application composition and actual native F4/Commit lifecycle",
+    "complete Core/native/desktop/accessibility regressions",
+    "remaining Unix mutation/confinement and release/fuzz/RID/package gates",
+    "final independent review"
+  ]
+}

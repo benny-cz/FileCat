@@ -33,6 +33,35 @@ public static partial class SourceChangeToken
         return usn is null ? change : "USN:" + usn + ":CT:" + (change ?? "unknown");
     }
 
+    /// <summary>
+    /// Whether a source's change token read now (<paramref name="now"/>) still is the one it had (<paramref name="then"/>):
+    /// true when equal, false when it changed. Tokens of another shape (a Windows change journal's USN, or the change time,
+    /// on one side only: a journal query that failed for the moment) prove neither when the parts both have agree, and a
+    /// token that cannot be read now proves nothing: both throw IOException, for the caller to try again later.
+    /// </summary>
+    public static bool Holds(string? now, string? then)
+    {
+        if (then is null) return false;
+        if (now is null) throw new IOException("The source's change token cannot be read now.");
+        if (string.Equals(now, then, StringComparison.Ordinal)) return true;
+        var (nowUsn, nowChange) = Parts(now);
+        var (thenUsn, thenChange) = Parts(then);
+        if (nowUsn is not null && thenUsn is not null && nowUsn != thenUsn) return false;
+        if (nowChange is not null && thenChange is not null && nowChange != thenChange) return false;
+        throw new IOException("The source's change token cannot be compared now.");
+    }
+
+    // "USN:<usn>:CT:<change time, or unknown>" with a Windows change journal; otherwise the change time alone.
+    private static (string? Usn, string? Change) Parts(string token)
+    {
+        const string usnPrefix = "USN:", changeMark = ":CT:";
+        if (!token.StartsWith(usnPrefix, StringComparison.Ordinal)) return (null, token);
+        int mark = token.IndexOf(changeMark, usnPrefix.Length, StringComparison.Ordinal);
+        if (mark < 0) return (token[usnPrefix.Length..], null);
+        string change = token[(mark + changeMark.Length)..];
+        return (token[usnPrefix.Length..mark], change == "unknown" ? null : change);
+    }
+
     private static unsafe string? WindowsUsn(SafeFileHandle handle)
     {
         const uint readFileUsnData = 0x0009_00EB; // FSCTL_READ_FILE_USN_DATA

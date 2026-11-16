@@ -1,0 +1,150 @@
+# Archive worker qualification probes
+
+These FileCat-owned probes exercise proposed native boundaries. They do not register an archive writer or qualify a
+shipped package. Check for other testers before running; close and reap only this task's processes afterwards.
+
+## Efficient validation batches
+
+Implement coherent changes across planning, workers, native transactions and their tests, then run a short Windows
+preflight covering complete creation and encrypted update/restoration before the broad matrix. This catches native
+handle-sharing and journal-read mistakes before repeating expensive format/platform suites. When Windows is busy,
+continue independent work and retain the guarded queue; never displace another tester.
+
+Reuse task-owned guest build roots and incremental outputs. Rebuild or republish production assets when their actual
+inputs change. Freeze source/binary hashes and compiler-source evidence for each phase before making further edits.
+For test-helper or evidence-tool corrections, retain the passing production regression and rerun affected paths or
+static audits. Broaden testing when production changes, failures or unresolved concerns require it. Every mandatory
+platform, security, crash, fuzz, interoperability and package gate still needs its own passing evidence.
+
+Use one guest-side driver for build, preflight, suites, independent readers and evidence collection, with consolidated
+status and a final process census. Check that compiler evidence covers every changed component, including `FileCat`
+itself and the exact DLL/PDB pairing, before scheduling long suites. Batch related transfers and collect one final
+bundle; do not repeat passing runtime tests to repair an evidence collector.
+
+Derive delta baselines from the actual frozen guest files or compiler-source snapshots. Git blobs can have LF while
+the Windows checkout/guest bytes have CRLF. Check every previous hash before applying any delta, and report the
+specific mismatching path; never weaken the guard to work around a line-ending mismatch.
+
+## Windows x64
+
+Build `tests/FileCat.Platform.Windows.Tests` and `tests/FileCat.CoreCrashHarness` with the pinned SDK. Publish a dedicated
+self-contained bundle (the lane adds a read/execute grant to this bundle, never to the global runtime or input trees):
+
+```powershell
+dotnet publish tests/FileCat.WorkerProbe/FileCat.WorkerProbe.csproj -c Release -r win-x64 --self-contained true -o .tmp/archive-worker-probe
+dotnet publish src/FileCat.App/FileCat.App.csproj -c Release -r win-x64 --self-contained true -o .tmp/archive-worker-app
+eng/validation/archive-writing/run-windows-containment.ps1 -ProbeAssets <absolute-probe-bundle-path> -ApplicationAssets <absolute-app-bundle-path> -VSTestConsole <absolute-sdk-path>/vstest.console.dll -EvidenceDirectory <absolute-owned-evidence-path>
+```
+
+Use the chosen installed `dotnet` host with the SDK's VSTest console. The harness lowers its own integrity before spawning
+the actual test parent and records both levels plus runtime/PIDs/exit status. Integrity is measured rather than inferred
+from the guest username or successful control login; ordinary-user token qualification remains separate. New evidence
+prefixes are exclusive and unique. The archive tests require the explicit opt-in; ordinary test runs skip them.
+
+Asset provisioning also rejects a shared-runtime shape and linked asset trees before changing their ACLs.
+
+The AppContainer requires the exact package identity, zero capabilities, no administrative groups/privileges, low
+integrity, mandatory no-write-up policy and checked LPAC access behavior before resuming the suspended child. LPAC
+verification uses supported `DuplicateTokenEx`/`AccessCheck` calls with exact-package positive and user-only/broad-package
+negative controls. Win32 token query class 46 returned error 87 on the observed Windows 11 build and is not used as proof.
+References: [AppContainer setup](https://learn.microsoft.com/en-us/windows/win32/secauthz/implementing-an-appcontainer),
+[LPAC semantics](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ne-winnt-token_information_class),
+[AccessCheck](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-accesscheck).
+
+The probe covers private file reads/writes, five package-profile locations, registry creation, a live loopback listener,
+child creation, a deliberately inheritable unrelated file handle, 64 MiB proxy copying and readback hashes, native commit
+allocations, CPU termination, capped stderr, repeated disposal and an actual parent kill. The idle worker ignores stdin
+EOF so parent-death success cannot be attributed to voluntary exit on a closed pipe. Native handle-query control succeeds
+before the forbidden handle probe; Windows may terminate that deliberate negative probe with `STATUS_INVALID_HANDLE`.
+LPAC refused Winsock startup with 10107 on the observed guest; this is recorded separately from socket/connect error 10013.
+
+The real profile-write probe defeated a package-specific DACL deny. The adapter now protects the entire package profile
+(including siblings of the API-returned `AC` directory) with medium no-write-up labels, explicitly replacing old child
+labels. Unexpectedly large trees or reparse points refuse setup. See
+[mandatory integrity](https://learn.microsoft.com/en-us/windows/win32/secauthz/mandatory-integrity-control) and
+[security-label propagation](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-setnamedsecurityinfow).
+Installed asset ACLs, profile setup races, private registry/IPC namespaces, alternate network routes, complete engine workloads,
+ARM64 and final package modes still require qualification. No production registration depends on these probes passing.
+
+The lane now also runs real strict TAR assessment through both the probe and the application's early worker entry,
+and rejects forged startup privilege facts before source reads. The parent resolves the sole allowed traverse-check
+privilege and verifies the suspended token; the child repeats the check without an LSA lookup. See the
+[assessment contract](../../../docs/validation/archive-writing/ASSESSMENT_PROTOCOL.md). Assessment does not create or
+publish an archive, and complete write-engine/package qualification remains outstanding.
+
+## macOS ARM64
+
+The C probe is an ad-hoc signed App Sandbox experiment, not the release helper. It attempts its own executable read,
+unrelated file read/write, a loopback connection, `fork` after `RLIMIT_NPROC=0`, and small/large anonymous mappings after an
+attempted 1 GiB `RLIMIT_AS`. No large mapping is touched and both mappings are immediately unmapped. A successfully created
+mapping above the intended allowance is a failed resource gate, even if disk/network denials work.
+
+The separate `macos-footprint-probe.c` and `run-macos-footprint-probe.py` investigate the SDK-declared physical-footprint
+setter with an owned, finite allocation experiment. The ordinary-user request was refused; this does not qualify
+worker memory containment. Reproduction, exact results and evidence are in
+[the footprint report](../../../docs/validation/archive-writing/MACOS_FOOTPRINT_LIMIT_PROBE.md).
+
+The separate [Mac Linux VM tooling](macos-vm/README.md) tests an ordinary-user public-entitlement alternative with
+an owned Linux allocation child. A healthy control completes and the kernel enforces a 1 GiB guest cgroup ceiling.
+It does not yet run archive roles or qualify the full guest/host envelope; production profiles remain disabled.
+
+The follow-up [managed guest harness](macos-vm-worker/README.md) runs the actual production TAR-family assessment,
+transform and fresh verification roles over a separate raw serial stream. Four profiles complete with 16 reaped
+helpers and independent payload extraction. Full guest/host resource/confinement/lifetime and package qualification
+remain open; no production backend is registered.
+
+The managed harness also checks the native host's actual-parent guard with 20 owned-parent SIGKILL/SIGTERM cases
+while its observer keeps both protocol pipes open, plus eight invalid-parent refusals. VM-stop completion and state
+zero are required for active cases. This is development lifetime evidence; direct helper death, cooperative cancellation
+and full release qualification remain open. See the [parent-death report](../../../docs/validation/archive-writing/MACOS_VM_PARENT_DEATH.md).
+
+The [cancellation follow-up](../../../docs/validation/archive-writing/MACOS_VM_CANCELLATION.md) adds a dedicated inherited
+pipe and third guest serial channel, actual session/blocked-IO/CPU cancellation probes, strict descriptor refusals and
+direct helper-death checks against the dedicated virtualization provider. Startup/release and full resource gates remain open.
+
+The [fixed-RAM accounting report](../../../docs/validation/archive-writing/MACOS_VM_MEMORY_ENVELOPE.md) records a 1 GiB
+managed guest, controlled native allocation and entropy-output pressure with SDK-checked helper/provider accounting.
+Provider RSS/footprint exceed the guest's physical RAM, so the full host memory envelope remains unqualified.
+
+The observed Mac's matching compiler is `/Library/Developer/CommandLineTools/usr/bin/clang` (21.0.0) and its sysroot is
+`/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk`. Use these explicitly rather than changing global `xcode-select`.
+In an owned fixture, arrange `probe.app/Contents/MacOS/archive-probe`, copy `mac-probe-info.plist` as `Contents/Info.plist`,
+compile the C source there, and sign with:
+
+```sh
+codesign --force --sign - --identifier io.filecat.archive-probe --entitlements mac-probe-entitlements.plist probe.app
+```
+
+Invoke the executable by its **absolute** path; App Sandbox changes the working directory. Supply absolute paths to an
+owned existing sentinel and an absent output file outside the bundle/container. Verify the sentinel hash and absent
+output after the probe. Preserve the JSON and signing/tool facts. The observed result admitted its own read and refused
+unrelated read/write/network with EPERM and fork with EAGAIN. The absolute 1 GiB address-space limit returned EINVAL, while
+both 64 MiB and 2 GiB mappings succeeded. This does not qualify a hard RSS/commit bound or prove that no supported design
+exists. Signing, supported whole-process resource/lifetime controls, actual engine workloads and the release candidate
+remain open gates. Do not substitute deprecated sandbox APIs or a managed-heap setting.
+
+## Unix outer metadata observer
+
+`unix-metadata-observer.c` is a FileCat-owned, read-only development oracle for the managed held-file metadata reader.
+It is never a shipped helper or runtime dependency. Compile it in an owned validation directory using the native C
+headers. On Linux use the chosen `cc`; on the observed Mac select the matching Command Line Tools compiler/sysroot
+above explicitly. For example, on an idle native Linux validation machine with an existing C toolchain:
+
+```sh
+mkdir -p .tmp
+cc -std=c11 -Wall -Wextra -Werror -O2 eng/validation/archive-writing/unix-metadata-observer.c -o .tmp/unix-metadata-observer
+FILECAT_ARCHIVE_UNIX_METADATA_OBSERVER="$PWD/.tmp/unix-metadata-observer" dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~ArchiveUnixOuterMetadata
+```
+
+The opt-in comparison test supplies its own ordinary regular-file fixture, compares all native stat/flag fields, then
+checks the held snapshot again. Without the explicit observer path this one case skips; other metadata cases still
+run on their applicable platform. Record compiler/runtime/source hashes and actual native results. Raw birth time
+must not be replaced with a managed creation-time fallback. See the
+[metadata checkpoint](../../../docs/validation/archive-writing/UNIX_OUTER_METADATA.md) for scope and measured failures.
+
+## Retained evidence
+
+The raw evidence of the archive-writing checkpoints is kept in `V:\FileCat\artifacts\release-evidence\archive-writing`
+(from the main checkout, `artifacts/release-evidence/archive-writing`), moved there unchanged from the worktree's
+ignored `.tmp` on 16 November 2026; its `SHA256SUMS.txt` lists every file. The `verify_*.py` scripts here read
+`<checkout>/.tmp/<path>`: to re-run one, copy the files it names into a checkout's `.tmp` under the same paths.

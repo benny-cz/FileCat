@@ -34,6 +34,10 @@ internal static partial class DecoderRegistry
                 return inStreams.Single();
             case K_DELTA:
                 return new DeltaFilter(false, inStreams.Single(), info.NotNull());
+            case K_SWAP2:
+            case K_SWAP4:
+                if (info != null) throw new NotSupportedException();
+                return new SwapFilter(false, inStreams.Single(), id._id == K_SWAP2 ? 2 : 4);
             case K_LZMA:
             case K_LZMA2:
                 return await LzmaStream
@@ -64,9 +68,9 @@ internal static partial class DecoderRegistry
             case K_SPARC:
                 return new BCJFilterSPARC(false, inStreams.Single());
             case K_ARM64:
-                return new BCJFilterARM64(false, inStreams.Single());
+                return new BCJFilterARM64(false, inStreams.Single(), BranchFilterProperties.InitialPosition(info, 3));
             case K_RISCV:
-                return new BCJFilterRISCV(false, inStreams.Single());
+                return new BCJFilterRISCV(false, inStreams.Single(), BranchFilterProperties.InitialPosition(info, 1));
             case K_B_ZIP2:
                 return await BZip2Stream
                     .CreateAsync(
@@ -77,14 +81,15 @@ internal static partial class DecoderRegistry
                     )
                     .ConfigureAwait(false);
             case K_PPMD:
-                return await PpmdStream
+                // FileCat: as the synchronous registry, the 7z PPMd coder output ends at its recorded unpack size.
+                return BoundCoderOutput(await PpmdStream
                     .CreateAsync(
                         new PpmdProperties(info.NotNull()),
                         inStreams.Single(),
                         false,
                         cancellationToken
                     )
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false), limit);
             case K_DEFLATE:
                 return new DeflateStream(inStreams.Single(), CompressionMode.Decompress);
             case K_ZSTD:

@@ -1,0 +1,8 @@
+{
+  "revision": "r1108",
+  "platform": "windows",
+  "originalExecChunk": "8bd12d",
+  "terminalExit": -1,
+  "refusal": "VMware Tools rejected the active user before starting the interactive program",
+  "observedUtc": "2026-11-16T12:45:58.1330680Z"
+}

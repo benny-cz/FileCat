@@ -127,7 +127,11 @@ public sealed partial class FileListControl
                     label.Draw(dc, new Point(imageBox.Center.X - label.Width / 2, imageBox.Bottom - label.Height - 4));
                 }
 
-                var nameBrush = marked ? _markedText : focused && active ? _focusText : entry.IsContainer ? _dir : _text;
+                // NTFS-encrypted and compressed names keep their colors here as in the list (green and blue).
+                var nameBrush = marked ? _markedText : focused && active ? _focusText
+                    : entry.Has(EntryFlags.Encrypted) ? _encrypted
+                    : entry.Has(EntryFlags.Compressed) ? _compressed
+                    : entry.IsContainer ? _dir : _text;
                 using var name = MakeText(Formatters.SafeName(entry.Name), nameBrush,
                     marked ? _boldTypeface : _typeface, Math.Max(1, tile.Width - 16));
                 name.Draw(dc, new Point(tile.X + 8, tile.Bottom - 43));

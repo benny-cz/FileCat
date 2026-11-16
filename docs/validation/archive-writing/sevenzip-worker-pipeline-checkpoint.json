@@ -1,0 +1,972 @@
+{
+  "date": "2026-11-07",
+  "production_profile_registered": false,
+  "production_backend_qualified": false,
+  "shared_7z_adapter_implemented": true,
+  "changed_csharp": [
+    "src/FileCat.Archives/Writing/ArchiveAssessmentWorker.cs",
+    "src/FileCat.Archives/Writing/ArchiveTransformWorker.cs",
+    "src/FileCat.Archives/Writing/SevenZipArchiveWriter.Assembly.cs",
+    "src/FileCat.Archives/Writing/SevenZipArchiveWriter.cs",
+    "src/FileCat.Archives/Writing/SevenZipCodecEncoder.cs",
+    "src/FileCat.Archives/Writing/SevenZipEncryptionSession.cs",
+    "src/FileCat.Archives/Writing/SevenZipRewriteEngine.cs",
+    "src/FileCat.Archives/Writing/SevenZipSemanticCatalog.cs",
+    "src/FileCat.Archives/Writing/SevenZipWorkerPassword.cs",
+    "src/FileCat.Archives/Writing/StrictSevenZipFraming.cs",
+    "src/FileCat.Core/Archives/ArchiveAssessmentClient.cs",
+    "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+    "src/FileCat.Core/Archives/ArchiveJournaledSnapshotPreparation.cs",
+    "src/FileCat.Core/Archives/ArchiveProxyStreams.cs",
+    "src/FileCat.Core/Archives/ArchiveSevenZipEncoding.cs",
+    "src/FileCat.Core/Archives/ArchiveSevenZipFeatures.cs",
+    "src/FileCat.Core/Archives/ArchiveSevenZipMetadata.cs",
+    "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+    "src/FileCat.Core/Archives/ArchiveTransformClient.cs",
+    "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+    "src/FileCat.Core/Archives/ArchiveVerificationClient.cs",
+    "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaEncoderProperties.cs",
+    "tests/ArchiveSevenZipNativeCases.cs",
+    "tests/FileCat.Core.Tests/ArchiveCapturedSevenZipPlanTests.cs",
+    "tests/FileCat.Core.Tests/ArchiveSevenZipHeaderPreservationTests.cs",
+    "tests/FileCat.Core.Tests/ArchiveSevenZipMetadataTests.cs",
+    "tests/FileCat.Core.Tests/ArchiveSevenZipRewriteTests.cs",
+    "tests/FileCat.Core.Tests/ArchiveTransformWireTests.cs",
+    "tests/FileCat.Core.Tests/Rar5WorkerPipelineTests.cs",
+    "tests/FileCat.Core.Tests/SevenZipWorkerPipelineTests.cs",
+    "tests/FileCat.Core.Tests/StrictSevenZipCatalogTests.cs",
+    "tests/FileCat.Core.Tests/UnixArchiveSevenZipCreationTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerSevenZipCreationTests.cs",
+    "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerSevenZipUpdateTests.cs"
+  ],
+  "source_checkpoint": "bb5e8209",
+  "host_scope": "Edits, builds and static artifact verification only; runtime tests and independent oracles only on authorized guests/Mac.",
+  "delta_packets": {
+    "1": {
+      "bytes": 72297,
+      "sha256": "910287bf56876d83de2b66e997fba9e16c3b5104b8341fbcc7ffb7b81fb7a7d6",
+      "files": [
+        {
+          "path": "eng/validation/archive-writing/sevenzip-feasibility/run_pipeline_batch.py",
+          "sha256": "355f1ab6a77ee764b69e3f14cf68c02400d5f759527621641a87353ae781cbca",
+          "bytes": 6640,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": null
+          }
+        },
+        {
+          "path": "src/FileCat.Archives/Writing/ArchiveAssessmentWorker.cs",
+          "sha256": "81d45bb732049ae48a4d4720c708b2736a786ac1ff09f0cae9c55378739a6195",
+          "bytes": 12421,
+          "previous": {
+            "mac": "cd4f5595ab263b446a07c667375f84d0887530ada617e723efee55848d83e78d",
+            "ubuntu": "cd4f5595ab263b446a07c667375f84d0887530ada617e723efee55848d83e78d",
+            "windows": "81d45bb732049ae48a4d4720c708b2736a786ac1ff09f0cae9c55378739a6195"
+          }
+        },
+        {
+          "path": "src/FileCat.Archives/Writing/ArchiveTransformWorker.cs",
+          "sha256": "01a13c81bf0fb4a12932a635737db57406d8070ad9470b9520b1a5040abb81fa",
+          "bytes": 5972,
+          "previous": {
+            "mac": "4289b623b4eff030a34aad9e4882443694ef1d1a524f177169b0e0b8847aa2d6",
+            "ubuntu": "4289b623b4eff030a34aad9e4882443694ef1d1a524f177169b0e0b8847aa2d6",
+            "windows": "01a13c81bf0fb4a12932a635737db57406d8070ad9470b9520b1a5040abb81fa"
+          }
+        },
+        {
+          "path": "src/FileCat.Archives/Writing/SevenZipArchiveWriter.Assembly.cs",
+          "sha256": "ae591efad564cdc9f5cbc029972e05c1abc5b4a3231141ce701634edac2b0bca",
+          "bytes": 18213,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": "ae591efad564cdc9f5cbc029972e05c1abc5b4a3231141ce701634edac2b0bca"
+          }
+        },
+        {
+          "path": "src/FileCat.Archives/Writing/SevenZipArchiveWriter.cs",
+          "sha256": "891d9ea56d1c5e91a8651c1bca25e37f1eeb7a25e73fa805bafc736bcb2633fd",
+          "bytes": 20780,
+          "previous": {
+            "mac": "ae90c32ae86ccd6cc02cd0176c92ba5083021f39eeab50d12e05f28a6ee05d97",
+            "ubuntu": "ae90c32ae86ccd6cc02cd0176c92ba5083021f39eeab50d12e05f28a6ee05d97",
+            "windows": "891d9ea56d1c5e91a8651c1bca25e37f1eeb7a25e73fa805bafc736bcb2633fd"
+          }
+        },
+        {
+          "path": "src/FileCat.Archives/Writing/SevenZipCodecEncoder.cs",
+          "sha256": "3781a13cd565c9a5ce6ce9aa582a58aefc92bc9499119ac949fda19fe6a67cfd",
+          "bytes": 16299,
+          "previous": {
+            "mac": "9bee459d26dfe397433b7102db2768d0be8dae7b00291a37035e758c712c4222",
+            "ubuntu": "9bee459d26dfe397433b7102db2768d0be8dae7b00291a37035e758c712c4222",
+            "windows": "3781a13cd565c9a5ce6ce9aa582a58aefc92bc9499119ac949fda19fe6a67cfd"
+          }
+        },
+        {
+          "path": "src/FileCat.Archives/Writing/SevenZipEncryptionSession.cs",
+          "sha256": "10966033a3e9363eb48ac20aa76bc8ea8b2a28bd773795f8ec2ffa6cb5c5a33e",
+          "bytes": 3917,
+          "previous": {
+            "mac": "aa3d1a255dfdb55a132c780a35e38e48d55e1f3c652b7842e1f644031ad5898e",
+            "ubuntu": "aa3d1a255dfdb55a132c780a35e38e48d55e1f3c652b7842e1f644031ad5898e",
+            "windows": "10966033a3e9363eb48ac20aa76bc8ea8b2a28bd773795f8ec2ffa6cb5c5a33e"
+          }
+        },
+        {
+          "path": "src/FileCat.Archives/Writing/SevenZipRewriteEngine.cs",
+          "sha256": "2bfaa1818a3dc13683a561d103bb66158baed7700ba5985df54af25e888e1100",
+          "bytes": 5181,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": "2bfaa1818a3dc13683a561d103bb66158baed7700ba5985df54af25e888e1100"
+          }
+        },
+        {
+          "path": "src/FileCat.Archives/Writing/SevenZipSemanticCatalog.cs",
+          "sha256": "940d64ca57b8cb21f0fdf9632e1e433116b0e468b5632d964e3db2782185f5c2",
+          "bytes": 4431,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": "940d64ca57b8cb21f0fdf9632e1e433116b0e468b5632d964e3db2782185f5c2"
+          }
+        },
+        {
+          "path": "src/FileCat.Archives/Writing/SevenZipWorkerPassword.cs",
+          "sha256": "d43f09155c0056a77d37ff5fd91dfd662187a49b2f2db21b32b54d6e8b8cbb8e",
+          "bytes": 846,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": "d43f09155c0056a77d37ff5fd91dfd662187a49b2f2db21b32b54d6e8b8cbb8e"
+          }
+        },
+        {
+          "path": "src/FileCat.Archives/Writing/StrictSevenZipFraming.cs",
+          "sha256": "2300a11fb4874b3c117bff23be04045d3d058bc502e9bdb7585d7a041148959b",
+          "bytes": 15223,
+          "previous": {
+            "mac": "9b497cf4a46c127aca6722077b159e04decaa1ae050e56b729a93f0646341fd5",
+            "ubuntu": "9b497cf4a46c127aca6722077b159e04decaa1ae050e56b729a93f0646341fd5",
+            "windows": "2300a11fb4874b3c117bff23be04045d3d058bc502e9bdb7585d7a041148959b"
+          }
+        },
+        {
+          "path": "src/FileCat.Core/Archives/ArchiveAssessmentClient.cs",
+          "sha256": "2b40b47a9e7331e07e605a02477ef1c0e49c6e4e09bdbeae2c91a4e99ac7e6f8",
+          "bytes": 9533,
+          "previous": {
+            "mac": "9de10b81ad84c53b65fc0f31c4267f071750b4c4aeb9d9eaa93564da1c835911",
+            "ubuntu": "9de10b81ad84c53b65fc0f31c4267f071750b4c4aeb9d9eaa93564da1c835911",
+            "windows": "2b40b47a9e7331e07e605a02477ef1c0e49c6e4e09bdbeae2c91a4e99ac7e6f8"
+          }
+        },
+        {
+          "path": "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+          "sha256": "9a146c9c30194ebce93899e74c4ca01e1e0aef32fe3b57309caa6f82e32475d1",
+          "bytes": 17987,
+          "previous": {
+            "mac": "d3d165ff4ddfbd4688e2a137e8e0684cdd8473d66af7077eb4c4281c4bbf4ee9",
+            "ubuntu": "d3d165ff4ddfbd4688e2a137e8e0684cdd8473d66af7077eb4c4281c4bbf4ee9",
+            "windows": "9a146c9c30194ebce93899e74c4ca01e1e0aef32fe3b57309caa6f82e32475d1"
+          }
+        },
+        {
+          "path": "src/FileCat.Core/Archives/ArchiveProxyStreams.cs",
+          "sha256": "80f9e1269024c049c25bb8faa3b6410887922f67a71c007ae6aed3a3114c0371",
+          "bytes": 13293,
+          "previous": {
+            "mac": "da93b57891ceff38c785c7702afea384255c2abad98b60635c468a463f45c64f",
+            "ubuntu": "da93b57891ceff38c785c7702afea384255c2abad98b60635c468a463f45c64f",
+            "windows": "80f9e1269024c049c25bb8faa3b6410887922f67a71c007ae6aed3a3114c0371"
+          }
+        },
+        {
+          "path": "src/FileCat.Core/Archives/ArchiveSevenZipEncoding.cs",
+          "sha256": "237ed9300cad47d179f254dc3e8ed4c5d516ab0e79f66c185bcb9a84704fc216",
+          "bytes": 11562,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": "237ed9300cad47d179f254dc3e8ed4c5d516ab0e79f66c185bcb9a84704fc216"
+          }
+        },
+        {
+          "path": "src/FileCat.Core/Archives/ArchiveSevenZipFeatures.cs",
+          "sha256": "394fb3ecc4dc55855e94e157c6eb2252ca6240434fe98f54493228297771841b",
+          "bytes": 4491,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": "394fb3ecc4dc55855e94e157c6eb2252ca6240434fe98f54493228297771841b"
+          }
+        },
+        {
+          "path": "src/FileCat.Core/Archives/ArchiveSevenZipMetadata.cs",
+          "sha256": "6fafb1a121dd2be03e7ebf54c41d5cdf458d3ae252d859eccfd5ae9887dfb807",
+          "bytes": 10793,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": "6fafb1a121dd2be03e7ebf54c41d5cdf458d3ae252d859eccfd5ae9887dfb807"
+          }
+        },
+        {
+          "path": "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+          "sha256": "6a179329d80c317c5ac493bf444e603c47c672fb96f2af54d44d93290a5ed344",
+          "bytes": 13370,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": "6a179329d80c317c5ac493bf444e603c47c672fb96f2af54d44d93290a5ed344"
+          }
+        },
+        {
+          "path": "src/FileCat.Core/Archives/ArchiveTransformClient.cs",
+          "sha256": "7674497a8a32267194dc0895384a9a58f3311df1edfd22fd235518c953bfe2f6",
+          "bytes": 7857,
+          "previous": {
+            "mac": "38e251b703965989859813fcc5e1e2b2baaf1f00f9f3f22865a3d099589aebe8",
+            "ubuntu": "38e251b703965989859813fcc5e1e2b2baaf1f00f9f3f22865a3d099589aebe8",
+            "windows": "7674497a8a32267194dc0895384a9a58f3311df1edfd22fd235518c953bfe2f6"
+          }
+        },
+        {
+          "path": "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+          "sha256": "e5d25b998591e7612500b98e7951aa74cbc6d038a28f47d5e7474989f9fb2646",
+          "bytes": 24445,
+          "previous": {
+            "mac": "34c428b04613c1782a8c468c5e1ce6b4365b6d910a6eb6ae926596bab8126277",
+            "ubuntu": "34c428b04613c1782a8c468c5e1ce6b4365b6d910a6eb6ae926596bab8126277",
+            "windows": "e5d25b998591e7612500b98e7951aa74cbc6d038a28f47d5e7474989f9fb2646"
+          }
+        },
+        {
+          "path": "src/FileCat.Core/Archives/ArchiveVerificationClient.cs",
+          "sha256": "0829814a692c111a25201284718b1d2781fb31b331acd9a8daa24f2318ce41cc",
+          "bytes": 4241,
+          "previous": {
+            "mac": "7565022cc0f71a7a656e03d847ec96e292a2de262d5ac23cdf0ac339a773813b",
+            "ubuntu": "7565022cc0f71a7a656e03d847ec96e292a2de262d5ac23cdf0ac339a773813b",
+            "windows": "0829814a692c111a25201284718b1d2781fb31b331acd9a8daa24f2318ce41cc"
+          }
+        },
+        {
+          "path": "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaEncoderProperties.cs",
+          "sha256": "9b7e528e475959db402c6c50a35eb09464e3695cde5edace6bfe80f60226e928",
+          "bytes": 1949,
+          "previous": {
+            "mac": "209fdc619559b27b473efa255642c796874d51d372e73fe871e06ffaf7336506",
+            "ubuntu": "209fdc619559b27b473efa255642c796874d51d372e73fe871e06ffaf7336506",
+            "windows": "9b7e528e475959db402c6c50a35eb09464e3695cde5edace6bfe80f60226e928"
+          }
+        },
+        {
+          "path": "tests/ArchiveSevenZipNativeCases.cs",
+          "sha256": "ddf2032d7b0f3e8ca5972a872e35c37a0e05323d780a60d4b8ff695f8bb88633",
+          "bytes": 4714,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": null
+          }
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/ArchiveCapturedSevenZipPlanTests.cs",
+          "sha256": "c19dd2eaa7ed2d669c7a47e9c963927ab37cbfd0ff2cd4a8ff5d7711fe1c5a4a",
+          "bytes": 2604,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": null
+          }
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/ArchiveSevenZipMetadataTests.cs",
+          "sha256": "94ed1c7646de32ebc27883119401870e60427c1bfe4d12d3343408a82e85a0e8",
+          "bytes": 6178,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": "94ed1c7646de32ebc27883119401870e60427c1bfe4d12d3343408a82e85a0e8"
+          }
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/ArchiveSevenZipRewriteTests.cs",
+          "sha256": "53b08c6701d6bec8aa1a36f2c32a8dfe46dfe1028e98460db073df98d8ed454a",
+          "bytes": 8389,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": "53b08c6701d6bec8aa1a36f2c32a8dfe46dfe1028e98460db073df98d8ed454a"
+          }
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj",
+          "sha256": "89090e51b4f31c8572e22a296d6a4695ec7b01df7e5d39c63505b7a5a2aa3246",
+          "bytes": 2875,
+          "previous": {
+            "mac": "36d5d1b8b60960abd07be9d7be4357f5817def78470f6cb68fea45e5e6bba5c9",
+            "ubuntu": "36d5d1b8b60960abd07be9d7be4357f5817def78470f6cb68fea45e5e6bba5c9",
+            "windows": "36d5d1b8b60960abd07be9d7be4357f5817def78470f6cb68fea45e5e6bba5c9"
+          }
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/SevenZipWorkerPipelineTests.cs",
+          "sha256": "d089e9c4b17b8d1d7f6ac26013bdf9d68de0a42b4bba937ab2cba76d9f4ed7a3",
+          "bytes": 10184,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": null
+          }
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/StrictSevenZipCatalogTests.cs",
+          "sha256": "07b3866b66da55ff6f911db7136d385873d3efe1ecc7cff83be39a53f2459b17",
+          "bytes": 19238,
+          "previous": {
+            "mac": "8d2bd3aa8bd6a3f12fa09f1b08ca7c11149383d0a1948907c28f2cc28eb043b4",
+            "ubuntu": "8d2bd3aa8bd6a3f12fa09f1b08ca7c11149383d0a1948907c28f2cc28eb043b4",
+            "windows": "ea76e6f1909fe3ab0aceb58e02d9b9d2e9e1021e911320feaed527deb474c7c1"
+          }
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/UnixArchiveSevenZipCreationTests.cs",
+          "sha256": "9bd53672a996ad92ae7cda1147a8204d57d9f2c747df77f8c7c4fd52d7707ac2",
+          "bytes": 2232,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": null
+          }
+        },
+        {
+          "path": "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerSevenZipCreationTests.cs",
+          "sha256": "33c3f4a7734883972675274ff608abdeb503f18ff603ff115c2a055e128cd192",
+          "bytes": 3728,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": null
+          }
+        },
+        {
+          "path": "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerSevenZipUpdateTests.cs",
+          "sha256": "608a4abac584437fc3a7a410bf629391558410d2a3a3112fbe5997c58663bef4",
+          "bytes": 8822,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": null
+          }
+        },
+        {
+          "path": "tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj",
+          "sha256": "39be0da2492f4bef7041b80109aadada5d6c5184ac3aef52832b827194f38c91",
+          "bytes": 2538,
+          "previous": {
+            "mac": "e616abbce79594661c4ef4e72086a0d725d727198b867e292d50839c65ac2dd2",
+            "ubuntu": "e616abbce79594661c4ef4e72086a0d725d727198b867e292d50839c65ac2dd2",
+            "windows": "e616abbce79594661c4ef4e72086a0d725d727198b867e292d50839c65ac2dd2"
+          }
+        }
+      ]
+    },
+    "2": {
+      "bytes": 7559,
+      "sha256": "4c10e9f9950bafef08fdb5f9440a5aac24afa3c21a0904e81de3946342400a6b",
+      "files": [
+        {
+          "path": "src/FileCat.Archives/Writing/StrictSevenZipFraming.cs",
+          "sha256": "069124567c737a73d589037c3aacc14e63996297d7c24b9185fcc9a5064bdffd",
+          "bytes": 14642,
+          "previous": {
+            "mac": "2300a11fb4874b3c117bff23be04045d3d058bc502e9bdb7585d7a041148959b",
+            "ubuntu": "2300a11fb4874b3c117bff23be04045d3d058bc502e9bdb7585d7a041148959b",
+            "windows": "2300a11fb4874b3c117bff23be04045d3d058bc502e9bdb7585d7a041148959b"
+          }
+        },
+        {
+          "path": "eng/validation/archive-writing/sevenzip-feasibility/run_pipeline_batch.py",
+          "sha256": "0c7bb4382c8cd7bf88ec77a8681b0fe21e3b9b3cd97d1f524708dde05083b9e7",
+          "bytes": 7474,
+          "previous": {
+            "mac": "355f1ab6a77ee764b69e3f14cf68c02400d5f759527621641a87353ae781cbca",
+            "ubuntu": "355f1ab6a77ee764b69e3f14cf68c02400d5f759527621641a87353ae781cbca",
+            "windows": "355f1ab6a77ee764b69e3f14cf68c02400d5f759527621641a87353ae781cbca"
+          }
+        }
+      ]
+    },
+    "3": {
+      "bytes": 18192,
+      "sha256": "203ff46ea531a1f1333e07a1d4ee9ecf7c0286e6a23b3e40526cc121b3c771e8",
+      "files": [
+        {
+          "path": "eng/validation/archive-writing/sevenzip-feasibility/finish_pipeline_batch.py",
+          "sha256": "31c6f2eae6dddea6c7f368511b03ddfbbb9d3b04e9c28c026351a2f5bd84f9a9",
+          "bytes": 6960,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": null
+          }
+        },
+        {
+          "path": "eng/validation/archive-writing/sevenzip-feasibility/run_pipeline_batch.py",
+          "sha256": "7137cfd863d96c11c1303b61ac824d26baddcda5d2123b2781a1b56a495cca7b",
+          "bytes": 7778,
+          "previous": {
+            "mac": "0c7bb4382c8cd7bf88ec77a8681b0fe21e3b9b3cd97d1f524708dde05083b9e7",
+            "ubuntu": "0c7bb4382c8cd7bf88ec77a8681b0fe21e3b9b3cd97d1f524708dde05083b9e7",
+            "windows": "0c7bb4382c8cd7bf88ec77a8681b0fe21e3b9b3cd97d1f524708dde05083b9e7"
+          }
+        },
+        {
+          "path": "eng/validation/archive-writing/sevenzip-feasibility/verify_pipeline.py",
+          "sha256": "cdb9b140bc776ae69eb62538a288a43e85bcedbd4a752e92584ec439d0cc7731",
+          "bytes": 8175,
+          "previous": {
+            "mac": null,
+            "ubuntu": null,
+            "windows": null
+          }
+        },
+        {
+          "path": "src/FileCat.Core/Archives/ArchiveJournaledSnapshotPreparation.cs",
+          "sha256": "1cf8565d645666d4a341153d00acdf6bd346de6321afbf7f7bbe042feb5a3376",
+          "bytes": 10713,
+          "previous": {
+            "mac": "3b03ce4c5d3d3938af14f25db6120ee424cc9cec2c41fb77b39fa181017d56c3",
+            "ubuntu": "3b03ce4c5d3d3938af14f25db6120ee424cc9cec2c41fb77b39fa181017d56c3",
+            "windows": "3b03ce4c5d3d3938af14f25db6120ee424cc9cec2c41fb77b39fa181017d56c3"
+          }
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/ArchiveTransformWireTests.cs",
+          "sha256": "6c978d2ad33f87f9589a43db1d584355692089544cceb80a17bf61ae5b9d7c9b",
+          "bytes": 7779,
+          "previous": {
+            "mac": "7edf0a0e443aac3678e3ae5a3f37bc7f6ec0664a0545fd2f805bd52ce91e6547",
+            "ubuntu": "7edf0a0e443aac3678e3ae5a3f37bc7f6ec0664a0545fd2f805bd52ce91e6547",
+            "windows": "7edf0a0e443aac3678e3ae5a3f37bc7f6ec0664a0545fd2f805bd52ce91e6547"
+          }
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/Rar5WorkerPipelineTests.cs",
+          "sha256": "c782dc4035761721cd3ca35e2fb08bbbd72d3b39827d581a7d47b374719fcb1d",
+          "bytes": 25186,
+          "previous": {
+            "mac": "1d2bd2496fe7644a762967aa0ee5b02a214243a459185882f2229c5cd6f178db",
+            "ubuntu": "1d2bd2496fe7644a762967aa0ee5b02a214243a459185882f2229c5cd6f178db",
+            "windows": "1d2bd2496fe7644a762967aa0ee5b02a214243a459185882f2229c5cd6f178db"
+          }
+        }
+      ]
+    }
+  },
+  "oracle_supplement": {
+    "sha256": "e9ed388fc2d271d856d8b49b48205a89ac4933d5da1b0809c5d4778cc4795e76",
+    "bytes": 7700,
+    "files": [
+      {
+        "path": "finish_pipeline_batch.py",
+        "sha256": "da3062e96060f2abda935983768e3e580aad5eef416b90b359686f15ec966734",
+        "bytes": 7109
+      },
+      {
+        "path": "verify_pipeline.py",
+        "sha256": "cdb9b140bc776ae69eb62538a288a43e85bcedbd4a752e92584ec439d0cc7731",
+        "bytes": 8175
+      },
+      {
+        "path": "verify_catalog.py",
+        "sha256": "ebc7736e94c69cf7c91756b841d94b62283c3d9722e4be8445893beebfdb944e",
+        "bytes": 7190
+      },
+      {
+        "path": "verify_oracle_module_reuse.py",
+        "sha256": "c982641708d61dae37aa5c5e4f235ed34199f6effe80c53034a51fd05044b58b",
+        "bytes": 886
+      }
+    ]
+  },
+  "header_packets": {
+    "1": {
+      "bytes": 9143,
+      "sha256": "0c43aa087554837a716fa3936e5739cacc8dfd3cfe4a7e2f905e2d747a95980d",
+      "files": [
+        {
+          "path": "tests/FileCat.Core.Tests/ArchiveSevenZipHeaderPreservationTests.cs",
+          "bytes": 10274,
+          "sha256": "0ce433c524c926e68083c4675aac727f4e9795be12e6f22ca8d17f40aa5ef078"
+        },
+        {
+          "path": "eng/validation/archive-writing/sevenzip-feasibility/verify_pipeline.py",
+          "bytes": 8175,
+          "sha256": "cdb9b140bc776ae69eb62538a288a43e85bcedbd4a752e92584ec439d0cc7731"
+        },
+        {
+          "path": "eng/validation/archive-writing/sevenzip-feasibility/verify_oracle_module_reuse.py",
+          "bytes": 886,
+          "sha256": "c982641708d61dae37aa5c5e4f235ed34199f6effe80c53034a51fd05044b58b"
+        },
+        {
+          "path": "eng/validation/archive-writing/sevenzip-feasibility/run_header_preservation_batch.py",
+          "bytes": 4957,
+          "sha256": "5813531c766b70851e0e78673f4401c0e2ee56d3e315be31f8362b1acec13a5a"
+        }
+      ]
+    },
+    "2": {
+      "bytes": 10539,
+      "sha256": "14c3c0e2b3a55ae7edaf137565ca2e57ce3e5c42b8820cc563c824395b7a70fb",
+      "files": [
+        {
+          "path": "tests/FileCat.Core.Tests/ArchiveSevenZipHeaderPreservationTests.cs",
+          "bytes": 10274,
+          "sha256": "0ce433c524c926e68083c4675aac727f4e9795be12e6f22ca8d17f40aa5ef078"
+        },
+        {
+          "path": "eng/validation/archive-writing/sevenzip-feasibility/verify_pipeline.py",
+          "bytes": 12505,
+          "sha256": "4191de3e203def382d51a1f5bd3f8d73ed5a6a16b3e25ca50dd97b112ee24e92"
+        },
+        {
+          "path": "eng/validation/archive-writing/sevenzip-feasibility/verify_oracle_module_reuse.py",
+          "bytes": 886,
+          "sha256": "c982641708d61dae37aa5c5e4f235ed34199f6effe80c53034a51fd05044b58b"
+        },
+        {
+          "path": "eng/validation/archive-writing/sevenzip-feasibility/run_header_preservation_batch.py",
+          "bytes": 5455,
+          "sha256": "bb6e5a7bf5731052bf50bdcee7f0871398bfb94fa972e2b49d753eb3db49ff8c"
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "No production profile enabled; shared production UI/password/edit/F6 and Unix confinement/update remain open.",
+    "New captures currently refuse timestamps finer than 100 ns or outside unsigned FILETIME range; reviewed format-precision policy remains before UI enablement.",
+    "Header write route: Copy/LZMA1/LZMA2 with optional outer AES, or AES alone; dictionary <=16 MiB; AES power 19..24, salt 0..16 bytes, IV 16 bytes.",
+    "Solid/multipart/SFX/unknown metadata/methods, Deflate64 and arbitrary plugin methods remain unqualified.",
+    "Official 7-Zip refuses the Zstandard method extension; pinned independent AES/Zstd + SDK filter/BCJ2 composition covers it.",
+    "Unix native creation here uses ordinary subprocesses; full production confinement/resources/crash/fuzz/RID/package/final independent review remain."
+  ],
+  "platforms": {
+    "mac": {
+      "primary": {
+        "bytes": 69850235,
+        "sha256": "939a916db09599d73157c085996f49eccaf7a53d1275669f34cc4a6204918318",
+        "rows": 5123,
+        "tests": {
+          "archive-pipeline.trx": {
+            "Passed": 3611,
+            "NotExecuted": 55
+          },
+          "preflight.trx": {
+            "Passed": 32
+          }
+        },
+        "independent": {
+          "catalog": {
+            "cases": 273,
+            "metadata_records": 819,
+            "payloads": 546,
+            "packed_witnesses": 336,
+            "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+            "py7zr": "1.1.4",
+            "official_archives": 234,
+            "official_payloads": 468,
+            "zstandard_composed_archives": 39,
+            "zstandard_composed_payloads": 78,
+            "branch_offsets": [
+              "Arm64-4",
+              "Arm64-4294967292",
+              "Arm64-65536",
+              "RiscV-4",
+              "RiscV-4294967292",
+              "RiscV-65536"
+            ],
+            "sdk_sha256": "8e76bb2b8673f5e9a9b1a2caab958ef38cece82e54045e29a252732f2260c42f"
+          },
+          "workers": {
+            "archives": 54,
+            "metadata": 297,
+            "payloads": 216,
+            "official_archives": 42,
+            "composed_zstandard_archives": 12,
+            "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+            "bcj2_sha256": "5656bfae915f4b3216ec15ce2762c8f2eba80c2dceb699aa47257e11c6948af6",
+            "py7zr": "1.1.4"
+          },
+          "native-vectors": {
+            "archives": 21,
+            "metadata": 42,
+            "payloads": 21,
+            "official_archives": 18,
+            "composed_zstandard_archives": 3,
+            "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+            "bcj2_sha256": "5656bfae915f4b3216ec15ce2762c8f2eba80c2dceb699aa47257e11c6948af6",
+            "py7zr": "1.1.4"
+          }
+        },
+        "compiler_source_documents": 1426,
+        "compiler_source_bytes": 13449299,
+        "assembly_pdb_pairs_bound": 10,
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0,
+          "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+        }
+      },
+      "header_preservation_supplement": {
+        "bytes": 7757175,
+        "sha256": "e5635af6d6d75f3de5e5aa76d259ca5a50d7e41fcead570dbad47ea0caee1002",
+        "rows": 1531,
+        "tests": {
+          "preserved-headers.trx": {
+            "Passed": 10
+          }
+        },
+        "independent": {
+          "preserved_headers": {
+            "archives": 20,
+            "metadata": 60,
+            "payloads": 40,
+            "official_archives": 20,
+            "composed_zstandard_archives": 0,
+            "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+            "bcj2_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+            "py7zr": "1.1.4",
+            "explicit_partial_crc_header_order_adapter": true,
+            "encoded_header_graphs_observed": true
+          }
+        },
+        "compiler_source_documents": 1427,
+        "compiler_source_bytes": 13459573,
+        "assembly_pdb_pairs_bound": 10,
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0,
+          "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+        }
+      },
+      "changed_csharp_matched": [
+        "src/FileCat.Archives/Writing/ArchiveAssessmentWorker.cs",
+        "src/FileCat.Archives/Writing/ArchiveTransformWorker.cs",
+        "src/FileCat.Archives/Writing/SevenZipArchiveWriter.Assembly.cs",
+        "src/FileCat.Archives/Writing/SevenZipArchiveWriter.cs",
+        "src/FileCat.Archives/Writing/SevenZipCodecEncoder.cs",
+        "src/FileCat.Archives/Writing/SevenZipEncryptionSession.cs",
+        "src/FileCat.Archives/Writing/SevenZipRewriteEngine.cs",
+        "src/FileCat.Archives/Writing/SevenZipSemanticCatalog.cs",
+        "src/FileCat.Archives/Writing/SevenZipWorkerPassword.cs",
+        "src/FileCat.Archives/Writing/StrictSevenZipFraming.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentClient.cs",
+        "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+        "src/FileCat.Core/Archives/ArchiveJournaledSnapshotPreparation.cs",
+        "src/FileCat.Core/Archives/ArchiveProxyStreams.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipEncoding.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipFeatures.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipMetadata.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformClient.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+        "src/FileCat.Core/Archives/ArchiveVerificationClient.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaEncoderProperties.cs",
+        "tests/ArchiveSevenZipNativeCases.cs",
+        "tests/FileCat.Core.Tests/ArchiveCapturedSevenZipPlanTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveSevenZipHeaderPreservationTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveSevenZipMetadataTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveSevenZipRewriteTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveTransformWireTests.cs",
+        "tests/FileCat.Core.Tests/Rar5WorkerPipelineTests.cs",
+        "tests/FileCat.Core.Tests/SevenZipWorkerPipelineTests.cs",
+        "tests/FileCat.Core.Tests/StrictSevenZipCatalogTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveSevenZipCreationTests.cs"
+      ]
+    },
+    "ubuntu": {
+      "primary": {
+        "bytes": 69881060,
+        "sha256": "43fccda81838fee35eb77cf6100c6bea3ef229bf4ea5b345bf814388c16abd25",
+        "rows": 5123,
+        "tests": {
+          "archive-pipeline.trx": {
+            "Passed": 3624,
+            "NotExecuted": 42
+          },
+          "preflight.trx": {
+            "Passed": 32
+          }
+        },
+        "independent": {
+          "catalog": {
+            "cases": 273,
+            "metadata_records": 819,
+            "payloads": 546,
+            "packed_witnesses": 336,
+            "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+            "py7zr": "1.1.4",
+            "official_archives": 234,
+            "official_payloads": 468,
+            "zstandard_composed_archives": 39,
+            "zstandard_composed_payloads": 78,
+            "branch_offsets": [
+              "Arm64-4",
+              "Arm64-4294967292",
+              "Arm64-65536",
+              "RiscV-4",
+              "RiscV-4294967292",
+              "RiscV-65536"
+            ],
+            "sdk_sha256": "4a37237a162168414c8effcf857d2536f263bf0d4a30050dd4a8a617a1086c93"
+          },
+          "workers": {
+            "archives": 54,
+            "metadata": 297,
+            "payloads": 216,
+            "official_archives": 42,
+            "composed_zstandard_archives": 12,
+            "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+            "bcj2_sha256": "50ba524866c94eedcbe368ae14e8fecefc69d12463f534cb33dbaa83e2ea6493",
+            "py7zr": "1.1.4"
+          },
+          "native-vectors": {
+            "archives": 21,
+            "metadata": 42,
+            "payloads": 21,
+            "official_archives": 18,
+            "composed_zstandard_archives": 3,
+            "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+            "bcj2_sha256": "50ba524866c94eedcbe368ae14e8fecefc69d12463f534cb33dbaa83e2ea6493",
+            "py7zr": "1.1.4"
+          }
+        },
+        "compiler_source_documents": 1426,
+        "compiler_source_bytes": 13449299,
+        "assembly_pdb_pairs_bound": 10,
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        }
+      },
+      "header_preservation_supplement": {
+        "bytes": 7748644,
+        "sha256": "a888d7796cbc114dd6e6c4ad05a1d7e6e2ecd9a7fc5d2532692d1b21edb4bcf1",
+        "rows": 1527,
+        "tests": {
+          "preserved-headers.trx": {
+            "Passed": 10
+          }
+        },
+        "independent": {
+          "preserved_headers": {
+            "archives": 20,
+            "metadata": 60,
+            "payloads": 40,
+            "official_archives": 20,
+            "composed_zstandard_archives": 0,
+            "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+            "bcj2_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+            "py7zr": "1.1.4",
+            "explicit_partial_crc_header_order_adapter": true,
+            "encoded_header_graphs_observed": true
+          }
+        },
+        "compiler_source_documents": 1427,
+        "compiler_source_bytes": 13459573,
+        "assembly_pdb_pairs_bound": 10,
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        }
+      },
+      "changed_csharp_matched": [
+        "src/FileCat.Archives/Writing/ArchiveAssessmentWorker.cs",
+        "src/FileCat.Archives/Writing/ArchiveTransformWorker.cs",
+        "src/FileCat.Archives/Writing/SevenZipArchiveWriter.Assembly.cs",
+        "src/FileCat.Archives/Writing/SevenZipArchiveWriter.cs",
+        "src/FileCat.Archives/Writing/SevenZipCodecEncoder.cs",
+        "src/FileCat.Archives/Writing/SevenZipEncryptionSession.cs",
+        "src/FileCat.Archives/Writing/SevenZipRewriteEngine.cs",
+        "src/FileCat.Archives/Writing/SevenZipSemanticCatalog.cs",
+        "src/FileCat.Archives/Writing/SevenZipWorkerPassword.cs",
+        "src/FileCat.Archives/Writing/StrictSevenZipFraming.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentClient.cs",
+        "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+        "src/FileCat.Core/Archives/ArchiveJournaledSnapshotPreparation.cs",
+        "src/FileCat.Core/Archives/ArchiveProxyStreams.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipEncoding.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipFeatures.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipMetadata.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformClient.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+        "src/FileCat.Core/Archives/ArchiveVerificationClient.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaEncoderProperties.cs",
+        "tests/ArchiveSevenZipNativeCases.cs",
+        "tests/FileCat.Core.Tests/ArchiveCapturedSevenZipPlanTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveSevenZipHeaderPreservationTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveSevenZipMetadataTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveSevenZipRewriteTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveTransformWireTests.cs",
+        "tests/FileCat.Core.Tests/Rar5WorkerPipelineTests.cs",
+        "tests/FileCat.Core.Tests/SevenZipWorkerPipelineTests.cs",
+        "tests/FileCat.Core.Tests/StrictSevenZipCatalogTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveSevenZipCreationTests.cs"
+      ]
+    },
+    "windows": {
+      "primary": {
+        "bytes": 194108415,
+        "sha256": "d4456f8d6449c4f6cc07ddd87e2681f5a19eddafc51965fd1ce7a39ab694354e",
+        "rows": 5057,
+        "tests": {
+          "app-entry.trx": {
+            "Passed": 10
+          },
+          "archive-pipeline.trx": {
+            "Passed": 3407,
+            "NotExecuted": 259
+          },
+          "native-preflight.trx": {
+            "Passed": 6
+          },
+          "native.trx": {
+            "Passed": 163
+          },
+          "preflight.trx": {
+            "Passed": 32
+          }
+        },
+        "independent": {
+          "catalog": {
+            "cases": 273,
+            "metadata_records": 819,
+            "payloads": 546,
+            "packed_witnesses": 336,
+            "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+            "py7zr": "1.1.4",
+            "official_archives": 234,
+            "official_payloads": 468,
+            "zstandard_composed_archives": 39,
+            "zstandard_composed_payloads": 78,
+            "branch_offsets": [
+              "Arm64-4",
+              "Arm64-4294967292",
+              "Arm64-65536",
+              "RiscV-4",
+              "RiscV-4294967292",
+              "RiscV-65536"
+            ],
+            "sdk_sha256": "3a706c406bdf132b3ed4f6fc3b6dc25a54cb23c421d847b266cee13f26ac6a4e"
+          },
+          "workers": {
+            "archives": 54,
+            "metadata": 297,
+            "payloads": 216,
+            "official_archives": 42,
+            "composed_zstandard_archives": 12,
+            "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+            "bcj2_sha256": "172c4f63495aaadd4f83b3581b614c2367932130d23e7844dbfc5fdab42e3a93",
+            "py7zr": "1.1.4"
+          },
+          "native-vectors": {
+            "archives": 33,
+            "metadata": 63,
+            "payloads": 36,
+            "official_archives": 30,
+            "composed_zstandard_archives": 3,
+            "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+            "bcj2_sha256": "172c4f63495aaadd4f83b3581b614c2367932130d23e7844dbfc5fdab42e3a93",
+            "py7zr": "1.1.4"
+          }
+        },
+        "compiler_source_documents": 2188,
+        "compiler_source_bytes": 23330330,
+        "assembly_pdb_pairs_bound": 17,
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        }
+      },
+      "header_preservation_supplement": {
+        "bytes": 7748855,
+        "sha256": "ee12961079af5a38c113808d9ff0240edec082737e61c061a25f844ebf11992b",
+        "rows": 1523,
+        "tests": {
+          "preserved-headers.trx": {
+            "Passed": 10
+          }
+        },
+        "independent": {
+          "preserved_headers": {
+            "archives": 20,
+            "metadata": 60,
+            "payloads": 40,
+            "official_archives": 20,
+            "composed_zstandard_archives": 0,
+            "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+            "bcj2_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+            "py7zr": "1.1.4",
+            "explicit_partial_crc_header_order_adapter": true,
+            "encoded_header_graphs_observed": true
+          }
+        },
+        "compiler_source_documents": 1427,
+        "compiler_source_bytes": 13474313,
+        "assembly_pdb_pairs_bound": 10,
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        }
+      },
+      "changed_csharp_matched": [
+        "src/FileCat.Archives/Writing/ArchiveAssessmentWorker.cs",
+        "src/FileCat.Archives/Writing/ArchiveTransformWorker.cs",
+        "src/FileCat.Archives/Writing/SevenZipArchiveWriter.Assembly.cs",
+        "src/FileCat.Archives/Writing/SevenZipArchiveWriter.cs",
+        "src/FileCat.Archives/Writing/SevenZipCodecEncoder.cs",
+        "src/FileCat.Archives/Writing/SevenZipEncryptionSession.cs",
+        "src/FileCat.Archives/Writing/SevenZipRewriteEngine.cs",
+        "src/FileCat.Archives/Writing/SevenZipSemanticCatalog.cs",
+        "src/FileCat.Archives/Writing/SevenZipWorkerPassword.cs",
+        "src/FileCat.Archives/Writing/StrictSevenZipFraming.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentClient.cs",
+        "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+        "src/FileCat.Core/Archives/ArchiveJournaledSnapshotPreparation.cs",
+        "src/FileCat.Core/Archives/ArchiveProxyStreams.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipEncoding.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipFeatures.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipMetadata.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformClient.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+        "src/FileCat.Core/Archives/ArchiveVerificationClient.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaEncoderProperties.cs",
+        "tests/ArchiveSevenZipNativeCases.cs",
+        "tests/FileCat.Core.Tests/ArchiveCapturedSevenZipPlanTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveSevenZipHeaderPreservationTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveSevenZipMetadataTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveSevenZipRewriteTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveTransformWireTests.cs",
+        "tests/FileCat.Core.Tests/Rar5WorkerPipelineTests.cs",
+        "tests/FileCat.Core.Tests/SevenZipWorkerPipelineTests.cs",
+        "tests/FileCat.Core.Tests/StrictSevenZipCatalogTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveSevenZipCreationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerSevenZipCreationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerSevenZipUpdateTests.cs"
+      ]
+    }
+  },
+  "new_primary_core_cases": 356,
+  "new_header_preservation_cases": 10
+}

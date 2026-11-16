@@ -2,6 +2,8 @@
   <Folder Name="/src/">
     <Project Path="src/FileCat.App/FileCat.App.csproj" />
     <Project Path="src/FileCat.Archives/FileCat.Archives.csproj" />
+    <Project Path="src/FileCat.Archives.Writing/FileCat.Archives.Writing.csproj" />
+    <Project Path="src/FileCat.ArchiveWorker/FileCat.ArchiveWorker.csproj" />
     <Project Path="src/FileCat.Archives.Rar15/FileCat.Archives.Rar15.csproj" />
     <Project Path="src/FileCat.Core/FileCat.Core.csproj" />
     <Project Path="src/FileCat.Platform.Windows/FileCat.Platform.Windows.csproj" />
@@ -15,6 +17,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FileCat.App.Tests/FileCat.App.Tests.csproj" />
+    <Project Path="tests/FileCat.ArchiveQualificationHost/FileCat.ArchiveQualificationHost.csproj" />
     <Project Path="tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj" />
     <Project Path="tests/FileCat.CoreCrashHarness/FileCat.CoreCrashHarness.csproj" />
     <Project Path="tests/FileCat.NativeAcceptance/FileCat.NativeAcceptance.csproj" />

@@ -1,0 +1,145 @@
+# Decision: exact cleanup of Unix transaction objects
+
+10 November 2026. This record revises the earlier position in
+[UNIX_EDIT_EXACT_REMOVAL_BOUNDARY.md](UNIX_EDIT_EXACT_REMOVAL_BOUNDARY.md) for **archive-update transaction objects in a
+creator-private stage directory**. It does not change the legacy edit-session cleanup (risk R21), which keeps its own
+record.
+
+## Problem
+
+Linux `unlinkat(2)` and macOS `unlinkat(2)` remove a name, not a held object. No supported call makes removal conditional
+on the reviewed inode, and `AT_EMPTY_PATH` is not accepted for unlink. Retaining every Unix artifact forever is safe, but
+it would leave a full copy of every updated archive (the retired original) and its manifests in a hidden folder beside
+the archive after each update. That makes the Unix update route unusable in practice and contradicts §7.1 (Cleaning) and
+§11.7, where retained backups are the exception reported to the user, not the normal result.
+
+## Threat model from the plan
+
+§7.4: "A hostile process with the same OS identity may defeat pathname assumptions; minimize its authority and do not
+claim to isolate equivalent-privilege malicious processes." INV-19: "Cleanup cannot convert failure into data loss;
+unknown, changed, over-budget or unowned artifacts are retained and reported."
+
+## Decision
+
+Cleanup of an archive-update transaction object is allowed only when all of these hold:
+
+1. The object was recorded in the journal by this transaction (stage, sidecar, or the original after a reconciled
+   exchange), and its record names its exact identity and version.
+2. It lives in this transaction's private stage directory, created by `mkdirat` below the reviewed archive folder with
+   mode `0700`, owned by the current user, with no group/other namespace write and no Darwin ACL entries.
+3. FileCat holds the object through a descriptor and observes identity, owner, single link, size and either its recorded
+   metadata digest (which includes modification and change times) or its exact SHA-256 content.
+
+The removal then runs in this order (`UnixArchiveFile.DestroyOwned`):
+
+1. Destroy the **content** through the held descriptor (`ftruncate(fd, 0)`, `fsync`). This is an exact-object operation.
+   No copy of archive data can survive a later name race.
+2. Re-observe that the name binds the held object, call `unlinkat(dirfd, name, 0)`, then require the held object's link
+   count to be zero.
+3. Remove the private directory with `unlinkat(…, AT_REMOVEDIR)`, which refuses a non-empty directory.
+
+Each step is preceded by a durable `CleanupIntent` record and followed by `Cleaned`; the directory removal ends in
+`Completed`. Every refusal or mismatch records `NeedsReview` and keeps the remaining objects and the folder.
+
+## What this does and does not claim
+
+- No archive content that FileCat still needs is removed: only reconciled objects reach cleanup, and their content is
+  destroyed through the held descriptor, never through a name.
+- An equivalent-privilege process that writes into FileCat's random-named private folder between step 2's check and
+  `unlinkat` can have **its own injected object** removed. The held object then keeps its link, which FileCat detects and
+  reports for review. That process already holds the same authority over the user's files, so FileCat grants it nothing
+  new (§7.4). Non-hostile processes do not write into this private folder.
+- A retained or uncertain object is never cleaned by pathname, age or prefix. Recovery must re-observe identities first.
+- This record covers private stage directories only. Since commit `8872044c` new archives are prepared there too, so
+  their sidecars are destroyed by the same rules; nothing is ever removed from the public archive folder.
+
+## Revision: discard of transactions that never reached publication
+
+Plan §7.1 lets a failure in Reserved, Rebuilding, Finalizing or Verifying end in "no publication; safe owned cleanup or
+NeedsReview". Retaining every object after each cancellation or refusal left a partial stage (as large as the archive)
+and its manifests in the private folder and an interrupted entry with no action, on every platform. The discard closes
+that gap under these additional rules:
+
+1. Only facts that durably prove publication never started qualify: a preparation phase or ReadyToPublish (Publishing is
+   recorded before any visible step), or a new archive whose review record was written before its claim (that record
+   lists only FileCat's own objects, never the archive name). A transaction with an exchange, content or cleanup recipe
+   never qualifies. The job only discards live when its journal holds no other unresolved condition.
+2. A durable `archive-discard` catalog freezes the preparation facts it was derived from (no later transaction record is
+   accepted) and lists every object with its recorded identity, plus every reserved name that never received one.
+   Opening a review writes nothing; the catalog is recorded only when the discard runs.
+3. An unrecorded reserved name must be absent, before and after: an occupied one may be an object whose creation was
+   never recorded, so everything is kept for review.
+4. A sealed sidecar is destroyed exactly as above (identity, owner, single link and its recorded SHA-256). A partial
+   stage or unsealed sidecar has no recorded version; inside this transaction's own creator-private folder its recorded
+   identity, this user as owner and a single link bind it (`UnixArchiveFile.DestroyScratch`), and the same order applies:
+   content through the held descriptor, then the re-observed name, then a link count of zero.
+5. `DeleteIntent` precedes each destruction and `Deleted` or `Absent` follows it; `rmdir` of the private folder must
+   succeed (it refuses anything left over, recorded or not) before `Completed`. Any refusal records `NeedsReview` and keeps
+   the rest; recovery reopens the folder and each object by recorded identity and may retry from the catalog.
+
+On Windows the objects live beside the archive; each is reopened by its recorded NTFS identity and deleted through that
+handle (POSIX disposition), so no name is ever removed by path.
+
+## Revision: reviewed discard of native edit sessions (11 November)
+
+The same rule now removes a native edit session that the user explicitly discards (`UnixEditDirectoryLease.Discard.cs`),
+in FileCat's creator-private edit namespace. Only leases opened for that reviewed discard remove anything; ordinary
+snapshot cleanup keeps its artifacts as before. Two differences from transaction cleanup, both because the working copy
+belongs to an editor the user may still have open:
+
+1. Content is not truncated before the name goes. An editor may have the working copy mapped, and truncation under a
+   mapping faults that editor. The name is removed only while it still binds the held, reviewed object (identity, this
+   user, a single link), and afterwards the held object must have no link left; otherwise the result is reported and
+   nothing else is touched. A folder is removed only once empty and while its name still binds the reviewed folder.
+2. An open editor is refused where the system can show it. Windows' file sharing refuses during review. On Linux a write
+   lease (`F_SETLEASE` with `F_WRLCK`) is granted only while no other descriptor or mapping holds the file: every
+   reviewed file is probed during review, before anything is removed, and the lease is taken again right before each
+   name goes ("The working copy is open in another program. Close it, then discard again. Its files are kept."). macOS
+   cannot show it: its `F_SETLEASE` refuses an ordinary process (`EPERM`, measured on macOS 27.0.1 for a file no one
+   else had open), so there the discard proceeds and an editor that still holds the working copy keeps its own
+   unlinked copy until it closes it. Within FileCat, a commit that is still reading a captured copy of the edit is
+   refused on every system ("This edit is being committed. Discard it after that operation finishes.").
+
+The shared matrix of 40 discard cases runs on Unix now, with only the open- and mapped-editor outcomes differing on
+macOS; it passed on macOS (v21a, all 40) and Ubuntu (v21a, all 40).
+
+## Revision: commit captures, retained copies and old edit folders (11 November, later)
+
+Three more removals use the same rule, each only for objects FileCat created and recorded:
+
+1. **A commit capture** (the private snapshot of one commit, `commit-<id>` with its records and payload) is removed once
+   its commit is done, through the leases that created it. Its own cleanup reviews each file's complete content
+   immediately before the name goes, as Windows does for every removal, because nothing else reviewed it since the
+   commit read it. Ordinary snapshot cleanup no longer keeps captures on Unix.
+2. **A retained copy** that a stopped commit or cleanup left is removed only by the user's explicit "Remove retained
+   copy…" after a fresh review of the edit's record chain and of that copy (its records, its payload or an interrupted
+   copy's partial payload). A copy that a saved copy still refers to is kept: it is that copy's recovery evidence.
+3. **The old folder of an adopted edit** is removed only by the user's explicit retirement, after the adoption review
+   and a probe that every recorded object can be removed (on Linux, a write lease proves no other program has the old
+   working file open). A durable revision then makes the adopted copy the edit before anything is removed; the old
+   working file, its folder, the old record and the 0700 session folder follow, each only while its name binds the
+   identity recorded at adoption and, for a file, only with its recorded bytes: an old working copy changed since the
+   copy is kept so no edit is lost. The session folder's own name is removed only from a root no other user can
+   change. A stop resumes from the durable revision; anything unexpected is kept and named.
+
+## Revision: the last moment of a removal (11 November, after an independent review)
+
+An independent review of the code above found that the window between the content review and the removal was open on
+Unix: the content was hashed before the Linux lease was taken, so an editor that saved in place and closed the file in
+that gap would have its save removed; an editor's atomic save (a new file renamed onto the name) between the name check
+and `unlinkat` would have been the file removed; and a lease break signals SIGIO, whose default action ends the process
+(.NET installs no handler for it), so another program opening the file during a lease could have ended FileCat. Every
+Unix file removal here (discard, commit-capture cleanup, retirement) now goes through one sequence
+(`UnixExactRemoval`):
+
+1. On Linux the write lease is taken first; SIGIO is ignored for the process. The complete content is reviewed under
+   the lease, so a save cannot land unseen: another program's open waits and starts a lease break.
+2. The lease must be unbroken and the name must still bind the held object. The name is then set aside by an exclusive
+   rename to a private name, and only if that name binds the held object, with the lease still unbroken, is it unlinked.
+   Otherwise the name is restored, so an atomic save that took it, or an open that arrived meanwhile, keeps its file.
+3. Only a child that is not there (ENOENT) counts as already removed; any other failure to open it keeps everything.
+
+macOS still has no lease for an ordinary process: an editor that keeps the file open can write after the review; the
+confirmations ask to close it first, and macOS writing is not qualified (platform position). A retirement that cannot
+finish because the old working copy was saved again, or its record replaced, can be cancelled while the old record and
+working copy are there: the old edit is the edit again and nothing is removed.

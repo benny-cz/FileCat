@@ -220,8 +220,14 @@ public class ContentAndToolTests
                 {
                     if (File.Exists(recorded))
                     {
-                        got = File.ReadAllText(recorded).Split(separator, StringSplitOptions.RemoveEmptyEntries);
-                        if (OperatingSystem.IsWindows()) got = [.. got.Select(r => r.TrimEnd('\r'))];
+                        string content = File.ReadAllText(recorded);
+                        // The recorder writes into the visible file. A partial final argument already counts as a
+                        // split field, so wait for its trailing separator before comparing the exact names.
+                        if (content.Length > 0 && content[^1] == separator)
+                        {
+                            got = content.Split(separator, StringSplitOptions.RemoveEmptyEntries);
+                            if (OperatingSystem.IsWindows()) got = [.. got.Select(r => r.TrimEnd('\r'))];
+                        }
                     }
                 }
                 catch (IOException) { }

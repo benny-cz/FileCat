@@ -1,0 +1,15 @@
+{
+    "explorer":  [
+                     {
+                         "pid":  6468,
+                         "session":  1,
+                         "owner":  "DESKTOP-A60F1NE\\Admin"
+                     },
+                     {
+                         "pid":  11068,
+                         "session":  2,
+                         "owner":  "DESKTOP-A60F1NE\\filecatdsa_r2"
+                     }
+                 ],
+    "users":  " USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME\r\n admin                                     1  Disc            .  15.11.2026 18:47\r\n filecatdsa_r2         console             2  Active      none   16.11.2026 13:42\r\n"
+}

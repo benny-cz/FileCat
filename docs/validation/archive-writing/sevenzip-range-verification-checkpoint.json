@@ -1,0 +1,291 @@
+{
+  "date": "2026-11-07",
+  "source_packet": {
+    "files": 4159,
+    "bytes": 30334793,
+    "sha256": "fe5d89eb00b152f5f5fab3c26513076e1ed2a81bdfe5a687b84a0d1d963f33a5"
+  },
+  "private_range_tool_packet": {
+    "bytes": 246676,
+    "sha256": "4e10169e87466c057d8b46b4f4195817699528fab5cf18b14bf8380be38f6ee6"
+  },
+  "private_lzma_tool_packet_sha256": "aa7ee1ff6f335e52a8bcee38d04e645112957b83298ca5994e03a1654f76e2ee",
+  "static_collector_correction": {
+    "initial_helper_sha256": "19e30402d52a1b9fd8c02dab9db43afcd4c9104f719b32f91d41787a5cdeade3",
+    "reason": "WindowsPath sorts case-insensitively; compare packet hashes by exact relative-path strings. All 430 packet hashes match across platforms; application suites were not repeated."
+  },
+  "new_profile_registered": false,
+  "strict_PPMd7_BCJ2_component_only": true,
+  "production_backend_qualified": false,
+  "complete_logical_catalog_and_publication_qualified": false,
+  "new_cases": 102,
+  "host_scope": "Edits, builds and static frozen-artifact verification only. Native oracles and application tests run on the authorized Mac/VMs.",
+  "c_harnesses_matched_source_packet": {
+    "eng/validation/archive-writing/sevenzip-feasibility/sdk_ppmd_end_oracle.c": "21fa6df21ae5ad9d1872afb3f0b400b3b098dd6715886ab992ab1b48bffbdbc1",
+    "eng/validation/archive-writing/sevenzip-feasibility/sdk_bcj2_decode_oracle.c": "649666ca039cc4ab46216de084bc2fa1b1607b6514213835d4d34827aa8f6a1b",
+    "eng/validation/archive-writing/sevenzip-feasibility/sdk_lzma_end_oracle.c": "b70c35ae2dcf0bc52c86ec1c5e1fbe04321a3dba6c5569c2943eada432fa08a8"
+  },
+  "platforms": {
+    "mac": {
+      "archive": "mac-range-ending-evidence-v2.tar.gz",
+      "bytes": 44558553,
+      "sha256": "6a8adc67f6fa1c56cfa38f70d05255f7e80327e335fa9f8aa779a7a47069e6e3",
+      "manifest_rows": 3020,
+      "combined_cases": {
+        "Passed": 2719,
+        "NotExecuted": 55
+      },
+      "new_range_cases": {
+        "Passed": 102
+      },
+      "sdk_range_vectors": 206,
+      "sdk_range_counts": {
+        "ppmd": {
+          "accepted": 56,
+          "refused": 123
+        },
+        "bcj2": {
+          "accepted": 18,
+          "refused": 9
+        }
+      },
+      "sdk_lzma_vectors": 224,
+      "sdk_lzma_counts": {
+        "accepted": 63,
+        "refused": 161
+      },
+      "range_oracles": {
+        "ppmd_oracle_sha256": "6acedaf7a82d5b366197210d387e592671acd79d9172c483066f28798b7bd5eb",
+        "bcj2_oracle_sha256": "7ea6d749a6793603cd1d1dc5ca97846291479e0cb8e6b4d57166a93c6fd4e64c"
+      },
+      "lzma_oracle_sha256": "a501e107a7ef411570be5adce0b7a421853c54b68f94046261269f99689150f4",
+      "all_430_vector_packets_identical_on_all_three_platforms": true,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/StrictBcj2Stream.cs",
+        "src/FileCat.Archives/Writing/StrictCoderInput.cs",
+        "src/FileCat.Archives/Writing/StrictLzmaStream.cs",
+        "src/FileCat.Archives/Writing/StrictPpmdStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/Bcj2DecoderStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/PPMd/Ppmd7zEncoderStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdModelH.cs",
+        "src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdModelH7z.cs",
+        "src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdStream.cs",
+        "tests/FileCat.Core.Tests/StrictRangeCoderTests.cs"
+      ],
+      "compiler_source_documents": 1379,
+      "compiler_source_bytes": 13082268,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.12",
+        "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+        "os": "macOS 27.0.1",
+        "architecture": "Arm64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      }
+    },
+    "ubuntu": {
+      "archive": "ubuntu-range-ending-evidence-v2.tar.gz",
+      "bytes": 44563651,
+      "sha256": "d0866b8636b6e23fe92e06e9219fdc78b5ec5d8784e06db16c508104dac508e8",
+      "manifest_rows": 3020,
+      "combined_cases": {
+        "Passed": 2732,
+        "NotExecuted": 42
+      },
+      "new_range_cases": {
+        "Passed": 102
+      },
+      "sdk_range_vectors": 206,
+      "sdk_range_counts": {
+        "ppmd": {
+          "accepted": 56,
+          "refused": 123
+        },
+        "bcj2": {
+          "accepted": 18,
+          "refused": 9
+        }
+      },
+      "sdk_lzma_vectors": 224,
+      "sdk_lzma_counts": {
+        "accepted": 63,
+        "refused": 161
+      },
+      "range_oracles": {
+        "ppmd_oracle_sha256": "54293fe7569c9fa649d86251f108f51c1f676dd92dfd791e4c937c84c87a84b2",
+        "bcj2_oracle_sha256": "50ba524866c94eedcbe368ae14e8fecefc69d12463f534cb33dbaa83e2ea6493"
+      },
+      "lzma_oracle_sha256": "63af6a1ebcb1dae58646d33aceb97fc760136771fc989b9cf53131758fae5935",
+      "all_430_vector_packets_identical_on_all_three_platforms": true,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/StrictBcj2Stream.cs",
+        "src/FileCat.Archives/Writing/StrictCoderInput.cs",
+        "src/FileCat.Archives/Writing/StrictLzmaStream.cs",
+        "src/FileCat.Archives/Writing/StrictPpmdStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/Bcj2DecoderStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/PPMd/Ppmd7zEncoderStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdModelH.cs",
+        "src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdModelH7z.cs",
+        "src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdStream.cs",
+        "tests/FileCat.Core.Tests/StrictRangeCoderTests.cs"
+      ],
+      "compiler_source_documents": 1379,
+      "compiler_source_bytes": 13082268,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+        "os": "Ubuntu 24.04.5 LTS",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    "windows": {
+      "archive": "windows-range-ending-evidence-v2.tar.gz",
+      "bytes": 44597349,
+      "sha256": "4098e54f07bfc00cb610fdb7f58a3cc2221ae5cf96cb6353e82346e9c7a68808",
+      "manifest_rows": 2942,
+      "combined_cases": {
+        "Passed": 2554,
+        "NotExecuted": 220
+      },
+      "new_range_cases": {
+        "Passed": 102
+      },
+      "sdk_range_vectors": 206,
+      "sdk_range_counts": {
+        "ppmd": {
+          "accepted": 56,
+          "refused": 123
+        },
+        "bcj2": {
+          "accepted": 18,
+          "refused": 9
+        }
+      },
+      "sdk_lzma_vectors": 224,
+      "sdk_lzma_counts": {
+        "accepted": 63,
+        "refused": 161
+      },
+      "range_oracles": {
+        "ppmd_oracle_sha256": "3a82806b1681b839731d9acdb44165ae4b1d26b66b4cbaeba8fa29a531abb51b",
+        "bcj2_oracle_sha256": "9743ac9b52473ea76b35dd0e7b5d155fd6a486b949d28107116d372213025ac1"
+      },
+      "lzma_oracle_sha256": "1cbf6c9cbaf11402e4ea096faee9dd94730d8f8ed0a902b27191e4b07efb22c2",
+      "all_430_vector_packets_identical_on_all_three_platforms": true,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/StrictBcj2Stream.cs",
+        "src/FileCat.Archives/Writing/StrictCoderInput.cs",
+        "src/FileCat.Archives/Writing/StrictLzmaStream.cs",
+        "src/FileCat.Archives/Writing/StrictPpmdStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/Bcj2DecoderStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/PPMd/Ppmd7zEncoderStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdModelH.cs",
+        "src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdModelH7z.cs",
+        "src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdStream.cs",
+        "tests/FileCat.Core.Tests/StrictRangeCoderTests.cs"
+      ],
+      "compiler_source_documents": 1379,
+      "compiler_source_bytes": 13096969,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+        "os": "Microsoft Windows 10.0.26340",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "Rar15_or_DiscUtils_present": false,
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ]
+      },
+      "final_census": {
+        "Processes": [],
+        "CollectedUtc": "2026-11-07T12:05:14.7842379Z"
+      },
+      "standard_test_account": {
+        "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+        "AdministratorsMember": false,
+        "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+        "HiveLoaded": true
+      }
+    }
+  },
+  "initial_passing_phase": {
+    "source_packet": {
+      "files": 4155,
+      "bytes": 30329791,
+      "sha256": "1b6bab5673577395ccc7d3653a00c78f0a39c8828aa7fbc4d0389efcc65c179c"
+    },
+    "new_cases": 99,
+    "platforms": {
+      "mac": {
+        "archive": "mac-range-ending-evidence-v1.tar.gz",
+        "bytes": 44548485,
+        "sha256": "f4483c0e452efaa007c0e95d0c90c08bf2b6690ff5d1a4eef27cf1bebdb8fbee",
+        "manifest_rows": 3020,
+        "combined_cases": {
+          "Passed": 2716,
+          "NotExecuted": 55
+        },
+        "new_range_cases": {
+          "Passed": 99
+        }
+      },
+      "ubuntu": {
+        "archive": "ubuntu-range-ending-evidence-v1.tar.gz",
+        "bytes": 44555777,
+        "sha256": "40a60f1e363c6b92eb37c2f807999516728c498cc5106f39f148878610f8be58",
+        "manifest_rows": 3020,
+        "combined_cases": {
+          "Passed": 2729,
+          "NotExecuted": 42
+        },
+        "new_range_cases": {
+          "Passed": 99
+        }
+      },
+      "windows": {
+        "archive": "windows-range-ending-evidence-v1.tar.gz",
+        "bytes": 44581780,
+        "sha256": "a4b14ddd4bb3714f6073d6b65a0aaf58f047391d2d2a95916ce37ea7ba0f625b",
+        "manifest_rows": 2942,
+        "combined_cases": {
+          "Passed": 2551,
+          "NotExecuted": 220
+        },
+        "new_range_cases": {
+          "Passed": 99
+        }
+      }
+    }
+  },
+  "budget_reason_correction": "Subsequent source review separated BCJ2 resource excess from malformed input; three new cases require BudgetExceeded before any input read. The full current matrix includes 102 new cases and 2774 total cases per platform."
+}

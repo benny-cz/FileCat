@@ -85,7 +85,7 @@ public partial class SevenZipArchive : AbstractArchive<SevenZipArchiveEntry, Sev
             stream.Position = 0;
             var reader = new ArchiveReader();
             reader.Open(stream, lookForHeader: ReaderOptions.LookForHeader);
-            _database = reader.ReadDatabase(new PasswordProvider(ReaderOptions.Password));
+            _database = reader.ReadDatabase(new PasswordProvider(ReaderOptions));
         }
     }
 
@@ -308,8 +308,12 @@ public partial class SevenZipArchive : AbstractArchive<SevenZipArchiveEntry, Sev
     private class PasswordProvider : IPasswordProvider
     {
         private readonly string? _password;
+        public SharpCompress.Compressors.LZMA.Utilities.SevenZipAesDecryptorFactory? ArchiveDecryptorFactory { get; }
 
-        public PasswordProvider(string? password) => _password = password;
+        public PasswordProvider(ReaderOptions options)
+        {
+            _password = options.Password; ArchiveDecryptorFactory = options.ArchiveDecryptorFactory;
+        }
 
         public string? CryptoGetTextPassword() => _password;
     }

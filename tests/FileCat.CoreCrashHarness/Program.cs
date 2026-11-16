@@ -7,6 +7,7 @@ using FileCat.Core.Resources;
 using FileCat.Core.Search;
 using FileCat.Core.State;
 using FileCat.Core.Analysis;
+using FileCat.Core.Archives;
 
 if (args is ["--analysis-quota-hold", var quotaProfile, var quotaBytes, var quotaSession])
     return AnalysisQuotaHold.Run(quotaProfile, quotaBytes, quotaSession);
@@ -47,6 +48,91 @@ if (args is ["--analysis-scratch-hold", var scratchParent])
     Console.WriteLine("SCRATCH_READY"); Console.Out.Flush();
     Console.ReadLine(); GC.KeepAlive(checkpoint); GC.KeepAlive(arena);
     return 18; // A normal return cannot establish the crash-cleanup property.
+}
+
+if(args is ["--edit-storage-gate",var editRoot,var editNativeAssembly,var editMode])
+    return EditStorageGateHarness.Run(editRoot,editNativeAssembly,editMode);
+
+if(args is ["--edit-adoption-crash",var adoptionLegacyRoot,var adoptionNativeRoot,var adoptionNativeAssembly,var adoptionPoint,var adoptionMarker])
+    return EditLegacyAdoptionCrashHarness.Run(adoptionLegacyRoot,adoptionNativeRoot,adoptionNativeAssembly,adoptionPoint,adoptionMarker);
+
+if(args is ["--edit-creation-crash",var editCreationRoot,var editCreationAssembly,var editCreationMarker,var editCreationPoint])
+    return EditCreationCrashHarness.Run(editCreationRoot,editCreationAssembly,editCreationMarker,editCreationPoint);
+
+if (args.Length > 0 && args[0] == "--archive-test-medium")
+    return await ArchiveTestMedium.Run(args[1..]);
+
+if (args is ["--archive-test-token-groups", var tokenGroupsOutput])
+    return ArchiveTestMedium.ProbeTokenGroups(tokenGroupsOutput);
+
+if (args is ["--archive-stage-crash", var artifactRoot, var crashPoint, var nativeAssembly])
+    return ArchiveStageCrash.Run(artifactRoot, crashPoint, nativeAssembly);
+
+if (args is ["--archive-sidecar-crash", var sidecarRoot, var sidecarRole, var sidecarPoint, var sidecarAssembly])
+    return ArchiveSidecarCrash.Run(sidecarRoot, sidecarRole, sidecarPoint, sidecarAssembly);
+
+if (args is ["--archive-creation-crash", var creationRoot, var creationPoint, var creationAssembly, var creationProbe])
+    return await ArchiveCreationCrash.Run(creationRoot, creationPoint, creationAssembly, creationProbe);
+
+if (args is ["--archive-unix-exchange-crash", var exchangeRoot, var exchangePoint, var exchangeProbe])
+    return await ArchiveUnixExchangeCrash.Run(exchangeRoot, exchangePoint, exchangeProbe);
+
+if (args is ["--archive-unix-creation-crash", var unixCreationRoot, var unixCreationPoint, var unixCreationProbe])
+    return await ArchiveUnixCreationCrash.Run(unixCreationRoot, unixCreationPoint, unixCreationProbe);
+
+if (args is ["--archive-unix-update-discard-crash", var updateDiscardRoot, var updateDiscardPoint, var updateDiscardProbe])
+    return await ArchiveUnixUpdateDiscardCrash.Run(updateDiscardRoot, updateDiscardPoint, updateDiscardProbe);
+
+if (args is ["--archive-creation-cleanup-crash", var creationCleanupRoot, var creationCleanupPoint, var creationCleanupAssembly])
+    return ArchiveCreationCleanupCrash.Run(creationCleanupRoot, creationCleanupPoint, creationCleanupAssembly);
+
+if (args is ["--archive-content-crash", var contentRoot, var contentPoint, var contentAssembly, var contentProbe])
+    return await ArchiveContentCrash.Run(contentRoot, contentPoint, contentAssembly, contentProbe);
+
+if (args is ["--archive-content-recovery-crash", var recoveryRoot, var recoveryPoint, var recoveryAssembly])
+    return ArchiveContentRecoveryCrash.Run(recoveryRoot, recoveryPoint, recoveryAssembly);
+
+if (args is ["--archive-content-restore-crash", var restoreRoot, var restorePoint, var restoreAssembly])
+    return await ArchiveContentRestorationCrash.Run(restoreRoot, restorePoint, restoreAssembly);
+
+if (args is ["--archive-boundary-parent", var platformAssembly, var archiveProbe] && OperatingSystem.IsWindows())
+{
+    // Test-only crash host: deliberately load the platform adapter supplied by the native test without adding
+    // a Windows dependency to the shared Core harness. This executable is never an application worker.
+    if (!Path.IsPathFullyQualified(platformAssembly) || !Path.IsPathFullyQualified(archiveProbe)) return 64;
+    var assembly = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromAssemblyPath(platformAssembly);
+    var type = assembly.GetType("FileCat.Platform.Windows.Shell.ArchiveAppContainer", throwOnError: true)!;
+    object worker = type.GetMethod("Start")!.Invoke(null, [archiveProbe, "archive-idle", TimeSpan.FromSeconds(30)])!;
+    await using var lifetime = (IAsyncDisposable)worker;
+    using var workerOutput = new StreamReader((Stream)type.GetProperty("Output")!.GetValue(worker)!);
+    string? ready = await workerOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(15));
+    int pid = (int)type.GetProperty("ProcessId")!.GetValue(worker)!;
+    if (ready != pid.ToString(System.Globalization.CultureInfo.InvariantCulture)) return 65;
+    Console.WriteLine(pid);
+    Console.Out.Flush();
+    Console.ReadLine(); // the native test kills this actual parent before normal disposal
+    return 0;
+}
+
+if (args is ["--archive-proxy", var archiveNonceText, var archiveLengthText] &&
+    Guid.TryParse(archiveNonceText, out var archiveNonce) && long.TryParse(archiveLengthText, out long archiveLength) && archiveLength is >= 0 and <= 1 << 20)
+{
+    using var archiveInputPipe = Console.OpenStandardInput();
+    using var archiveOutputPipe = Console.OpenStandardOutput();
+    var archiveReceive = new ArchiveWorkerProtocol(archiveNonce, 16 << 20);
+    var archiveSend = new ArchiveWorkerProtocol(archiveNonce, 16 << 20);
+    var archiveConnection = new ArchiveProxyConnection(request =>
+    {
+        archiveSend.Write(archiveOutputPipe, request.Kind, request.Payload);
+        return archiveReceive.Read(archiveInputPipe);
+    });
+    using var archiveSourceProxy = new ArchiveProxyStream(archiveConnection, 0, archiveLength, archiveLength);
+    using var archiveStageProxy = new ArchiveProxyStream(archiveConnection, ArchiveIoAuthority.StageId, 0, archiveLength, writable: true);
+    archiveSourceProxy.CopyTo(archiveStageProxy, 64 << 10);
+    archiveStageProxy.Position = 0;
+    byte[] archiveVerifiedDigest = System.Security.Cryptography.SHA256.HashData(archiveStageProxy);
+    archiveSend.Write(archiveOutputPipe, ArchiveWorkerMessage.Completed, archiveVerifiedDigest);
+    return 0;
 }
 
 if (args is ["--matroska-depth"])

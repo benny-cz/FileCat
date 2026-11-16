@@ -329,7 +329,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Reveal, OperatingSystem.IsWindows() ? "Reveal in Explorer" : "Reveal in file manager", F, "Reveal", CommandContext.Panel, "Shift+F3");
         Add(CommandIds.Checksum, "Calculate checksums…", F);
         Add(CommandIds.VerifyChecksums, "Verify checksums and signatures", F);
-        Add(CommandIds.Pack, "Pack into ZIP…", F, "Pack", CommandContext.Panel, "Alt+F5");
+        Add(CommandIds.Pack, "Pack into archive…", F, "Pack", CommandContext.Panel, "Alt+F5");
         Add(CommandIds.Unpack, "Unpack…", F, "Unpack", CommandContext.Panel, "Alt+F6", "Alt+F9");
         Add(CommandIds.TestArchive, "Test archive integrity", F);
         Add(CommandIds.EditSessions, "Edit sessions…", F);

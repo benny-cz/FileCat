@@ -181,6 +181,13 @@ public interface IFileSystemOperations
     BoundDeletion? DeleteReviewedFile(string path, string? expectedIdentity, string expectedSha256,
         long expectedLength, CancellationToken ct);
 
+    /// <summary>
+    /// Deletes a file FileCat itself created, whose identity it recorded, through a handle bound to that identity (its
+    /// bytes may be partial). Null means this adapter has no handle-bound deletion; callers must not fall back to a bare
+    /// pathname outside a folder only FileCat can change (risk R21).
+    /// </summary>
+    BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity) => null;
+
     BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct);
 
@@ -219,7 +226,8 @@ public interface IFileSystemOperations
     /// <summary>Writes origin data; returns false when the destination cannot store it (reported as a security loss).</summary>
     bool WriteOriginMark(string path, string mark);
 
-    /// <summary>Names of alternate data streams (without the default stream); empty where the platform has none.</summary>
+    /// <summary>Names of alternate data streams (without the default stream); empty where the platform has none.
+    /// Throws when the platform's stream inventory cannot be completed, including a missing source.</summary>
     IReadOnlyList<string> GetAlternateStreams(string path);
 
     /// <summary>True when <see cref="CopyFile"/> itself keeps attributes, times, and streams (native copy engines).</summary>
@@ -254,6 +262,16 @@ public interface IFileSystemOperations
     string? GetFinalPath(string path);
 
     /// <summary>
+    /// Observe the file reached by a path, following links. Implementations may obtain its identity without
+    /// materializing the final path; a missing identity is never evidence that an existing file is safe to replace.
+    /// </summary>
+    ResolvedFileObservation ObserveResolvedFile(string path)
+    {
+        var final = GetFinalPath(path);
+        return new(final, GetFileIdentity(final ?? path));
+    }
+
+    /// <summary>
     /// Whether another file system is mounted at this folder (a drive, a share, a bind mount). On Linux and macOS such a
     /// folder is an ordinary directory, so a permanent delete of a folder above it stops there rather than reach into
     /// another volume; on Windows a folder a volume is mounted at is a reparse point, never followed anyway.
@@ -269,6 +287,8 @@ public enum LinkKind
     /// <summary>Another name of the same file on the same volume.</summary>
     Hard,
 }
+
+public readonly record struct ResolvedFileObservation(string? FinalPath, string? Identity);
 
 /// <summary>
 /// Portable implementation over System.IO: streamed copy with progress, links via .NET link APIs, and the
@@ -292,6 +312,8 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual BoundDeletion? DeleteReviewedFile(string path, string? expectedIdentity, string expectedSha256,
         long expectedLength, CancellationToken ct) => null;
+
+    public virtual BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity) => null;
 
     public virtual BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct) => null;
@@ -788,6 +810,17 @@ public class PortableFileOperations : IFileSystemOperations
     /// <summary>Linux and macOS: realpath (Windows overrides with the handle's final path).</summary>
     public virtual string? GetFinalPath(string path) =>
         PathUtil.HasAmbiguousUnixName(path) ? null : UnixFiles.RealPath(path);
+
+    public virtual ResolvedFileObservation ObserveResolvedFile(string path)
+    {
+        // Exact built-in Unix implementations can obtain the resolved object's device/inode in one stat call.
+        // Keep virtual GetFinalPath/GetFileIdentity observations for subclasses that model changes or failures.
+        if (!OperatingSystem.IsWindows() &&
+            (GetType() == typeof(PortableFileOperations) || GetType() == typeof(UnixFileOperations)))
+            return new(null, UnixFiles.Stat(path, followLinks: true) is { } s ? s.Identity.ToString() : null);
+        var final = GetFinalPath(path);
+        return new(final, GetFileIdentity(final ?? path));
+    }
 
     /// <summary>Hashes the finite file length observed at opening; growth or truncation refuses the result.</summary>
     public static byte[] HashFile(string path, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null, long? expectedLength = null)

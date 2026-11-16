@@ -9,6 +9,7 @@ using SkiaSharp;
 
 namespace FileCat.App.Tests;
 
+[Collection("Shared theme state")]
 public sealed class PsychedelicSurfaceTests
 {
     [AvaloniaFact]

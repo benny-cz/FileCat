@@ -40,6 +40,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private bool _disposed;
     private CancellationTokenSource? _pendingNavigation;
     private string? _bannerBeforePendingNavigation;
+    private PreparedLocation? _preparedLocation;
 
     public TabViewModel(AppServices services, PanelViewModel panel)
     {
@@ -124,7 +125,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public bool IsQuickSearchActive => QuickSearch is not null;
 
-    public event EventHandler? ColumnsChanged;
+    /// <summary>
+    /// Raised when the columns this tab shows may have changed: another location, another profile, an edited one.
+    /// <see cref="ColumnsChangedEventArgs.WidthsOnly"/> when they are the same columns at other widths.
+    /// </summary>
+    public event EventHandler<ColumnsChangedEventArgs>? ColumnsChanged;
 
     private string _sortDescription = string.Empty;
 
@@ -151,7 +156,10 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         set
         {
             _columnProfile = Math.Clamp(value, 0, Services.Columns.Count - 1);
-            ColumnsChanged?.Invoke(this, EventArgs.Empty);
+            // The columns shown already (the same profile again, or a view with columns of its own, which keeps them until
+            // the tab shows a folder): nothing to announce, so the list stays where it is scrolled, with its widths.
+            if (ReferenceEquals(_shownColumns, Columns)) return;
+            AnnounceColumns();
             RefreshSortDescription();
         }
     }
@@ -162,10 +170,16 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             ? ColumnProfiles.Duplicates
             : Services.Columns.Get(_columnProfile, Location?.Scheme ?? Schemes.FileSystem);
 
+    /// <summary>
+    /// Whether the column profiles (Alt+0–9, Settings → Columns) set this view's columns: not in a view with a dedicated
+    /// layout of its own (results, the Recycle Bin, the registry, recovery, hidden data, the change journal).
+    /// </summary>
+    public bool UsesColumnProfiles => !ColumnProfileSet.HasFixedLayout(Location?.Scheme ?? Schemes.FileSystem);
+
     /// <summary>Stores a dragged column width in the active profile (dedicated layouts keep it for this view only).</summary>
     public bool SetColumnWidth(int column, double width)
     {
-        if (ColumnProfileSet.HasFixedLayout(Location?.Scheme ?? Schemes.FileSystem)) return false;
+        if (!UsesColumnProfiles) return false;
         Services.Columns.SetWidth(_columnProfile, column, width);
         return true;
     }
@@ -173,8 +187,24 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private void OnProfilesChanged()
     {
         _columnProfile = Math.Clamp(_columnProfile, 0, Services.Columns.Count - 1);
-        ColumnsChanged?.Invoke(this, EventArgs.Empty);
+        // Only a view whose own columns changed is told: one with columns of its own is not drawn from the profiles, and
+        // an edit to another profile (or a border dragged in a panel on one) leaves this one where it is scrolled, with
+        // the widths dragged in it.
+        var columns = Columns;
+        if (!UsesColumnProfiles || _shownColumns is { } shown && ColumnProfileSet.SameColumns(shown, columns)) return;
+        // The same columns at other widths (a border dragged in this list or another one on the profile, a width set in
+        // Settings) leave the list where it is scrolled; other columns start it from the first.
+        AnnounceColumns(widthsOnly: _shownColumns is { } before && ColumnProfileSet.SameFields(before, columns));
         RefreshSortDescription();
+    }
+
+    /// <summary>The columns last announced (<see cref="ColumnsChanged"/>): what the list of this tab shows.</summary>
+    private ColumnSpec[]? _shownColumns;
+
+    private void AnnounceColumns(bool widthsOnly = false)
+    {
+        _shownColumns = Columns;
+        ColumnsChanged?.Invoke(this, widthsOnly ? ColumnsChangedEventArgs.Widths : ColumnsChangedEventArgs.Other);
     }
 
     private string _tabQualifier = string.Empty;
@@ -400,11 +430,18 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// Navigates this tab. A locked tab keeps its location: navigating away opens a new tab instead
     /// (Total Commander's locked tabs, plan §4.1).
     /// </summary>
-    public void Navigate(Location location, string? focusName = null, bool record = true)
+    public void Navigate(Location location, string? focusName = null, bool record = true, bool refresh = false)
     {
         if (_disposed) return;
         long intent = BeginNavigationIntent();
         if (!OwnsNavigation(intent)) return;
+        // The destination's new tab must own preparation too (including its one password question).
+        if (IsLocked && Location is not null && !ReturnToRoot && Services.Providers.IsRegistered(location.Scheme) &&
+            !Services.Providers.For(location).IsSameLocation(location, Location))
+        {
+            Panel.OpenTab(location, focusName, activate: true);
+            return;
+        }
         // An SFTP home folder ("~") becomes its absolute path, so the tab, its history, and ".." know where they are.
         if (location.Scheme == Schemes.Sftp && location.Path.StartsWith('~'))
         {
@@ -427,10 +464,17 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (Services.Providers.IsRegistered(location.Scheme))
         {
             var preparation = new CancellationTokenSource();
-            Task<Location>? preparing;
-            try { preparing = Services.Providers.For(location).PrepareAsync(location, preparation.Token); }
+            Task<PreparedLocation>? preparing;
+            NavigationReads? reads = null;
+            try
+            {
+                reads = CaptureContainerReads(location);
+                preparing = Services.Providers.For(location).PrepareNavigationAsync(location, preparation.Token);
+                if (preparing is not null && reads is not null) { preparing = KeepContainerReadsAsync(preparing, reads); reads = null; }
+            }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
+                reads?.Dispose();
                 preparation.Dispose();
                 if (OwnsNavigation(intent))
                     Banner = $"{Formatters.SafeName(Services.Providers.Display(location))} could not be opened: {Formatters.SafeName(ex.Message)}";
@@ -441,16 +485,59 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 if (!OwnsNavigation(intent))
                 {
                     preparation.Cancel();
-                    _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation);
+                    _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation, refresh);
                     return;
                 }
                 BeginPendingNavigation(preparation, $"Opening {Formatters.SafeName(Services.Providers.Display(location))}…");
-                _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation);
+                _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation, refresh);
                 return;
             }
             preparation.Dispose();
+            if (reads is not null)
+            {
+                var ready = new PreparedLocation(location, reads);
+                bool retained = false;
+                try { retained = CommitNavigation(location, focusName, record, intent, ready, refresh); }
+                finally { if (!retained) ready.Dispose(); }
+                return;
+            }
         }
-        CommitNavigation(location, focusName, record, intent);
+        CommitNavigation(location, focusName, record, intent, refresh: refresh);
+    }
+
+    private sealed class NavigationReads : IDisposable
+    {
+        internal List<IDisposable> Leases { get; } = [];
+        public void Dispose()
+        {
+            foreach (var lease in Leases)
+                try { lease.Dispose(); }
+                catch (Exception error) { Core.Diagnostics.AppLog.Warn("Navigation read cleanup failed: " + error.GetType().Name); }
+            Leases.Clear();
+        }
+    }
+
+    private NavigationReads? CaptureContainerReads(Location location)
+    {
+        var reads = new NavigationReads();
+        try
+        {
+            if (location.Container is { IsFileSystem: false } member && ProviderReadLease.Capture(Services.Providers, [member]) is { } lease)
+                reads.Leases.Add(lease);
+            return reads.Leases.Count == 0 ? null : reads;
+        }
+        catch { reads.Dispose(); throw; }
+    }
+
+    private static async Task<PreparedLocation> KeepContainerReadsAsync(Task<PreparedLocation> pending, NavigationReads reads)
+    {
+        try
+        {
+            var prepared = await pending;
+            reads.Leases.Add(prepared);
+            return new(prepared.Location, reads);
+        }
+        catch { reads.Dispose(); throw; }
     }
 
     private long BeginNavigationIntent()
@@ -494,13 +581,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         return true;
     }
 
-    private void CommitNavigation(Location location, string? focusName, bool record, long intent)
+    private bool CommitNavigation(Location location, string? focusName, bool record, long intent, PreparedLocation? prepared = null, bool refresh = false)
     {
-        if (!OwnsNavigation(intent)) return;
+        if (!OwnsNavigation(intent)) return false;
         if (IsLocked && Location is not null && !ReturnToRoot && !Services.Providers.For(location).IsSameLocation(location, Location))
         {
             Panel.OpenTab(location, focusName, activate: true);
-            return;
+            return false;
         }
         if (record && Location is not null && Location != location)
         {
@@ -525,11 +612,16 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             _sortOutsideJournal = null;
         }
         _navigatedFocus = (location, focusName);
-        Listing.Load(location, focusName);
+        if (refresh && Location == location && Listing.State != Core.Listing.ListingState.Failed) Listing.Refresh();
+        else Listing.Load(location, focusName);
+        var previousPreparation = _preparedLocation;
+        _preparedLocation = prepared;
+        previousPreparation?.Dispose();
         if (IsActiveTab) StartWatching();
         Services.RecordFolder(location);
         UpdateTitle();
-        ColumnsChanged?.Invoke(this, EventArgs.Empty);
+        AnnounceColumns();
+        return true;
     }
 
     /// <summary>The name the last navigation was to put the cursor on, and where: a link shown by its target keeps it.</summary>
@@ -556,21 +648,26 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             if (IsActiveTab) StartWatching();
             Services.RecordFolder(refused.Target);
             UpdateTitle();
-            ColumnsChanged?.Invoke(this, EventArgs.Empty);
+            AnnounceColumns();
             string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(refused.Link));
             Banner = $"“{name}” is a link that refuses to be listed itself, as Windows' compatibility junctions do. This is the folder it leads to.";
         });
     }
 
     /// <summary>Connects in the background (the server's key and password prompts appear meanwhile) to learn the home folder.</summary>
-    private async Task PrepareThenNavigateAsync(Location requested, Task<Location> preparing, string? focusName, bool record,
-        long intent, CancellationTokenSource pending)
+    private async Task PrepareThenNavigateAsync(Location requested, Task<PreparedLocation> preparing, string? focusName, bool record,
+        long intent, CancellationTokenSource pending, bool refresh)
     {
         string what = Formatters.SafeName(Services.Providers.Display(requested));
         try
         {
-            Location ready = await preparing;
-            if (OwnsNavigation(intent, pending)) CommitNavigation(ready, focusName, record, intent);
+            var ready = await preparing;
+            bool retained = false;
+            try
+            {
+                if (OwnsNavigation(intent, pending)) retained = CommitNavigation(ready.Location, focusName, record, intent, ready, refresh);
+            }
+            finally { if (!retained) ready.Dispose(); }
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -649,7 +746,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Listing.Load(target);
         if (IsActiveTab) StartWatching();
         UpdateTitle();
-        ColumnsChanged?.Invoke(this, EventArgs.Empty);
+        AnnounceColumns();
     }
 
     /// <summary>What a location is and how its keys differ, for places whose rules are not a folder's.</summary>
@@ -696,6 +793,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public void Refresh()
     {
         if (_disposed) return;
+        if (Location is { Scheme: Schemes.Archive } archive && Services.Archives.HasPasswordPreparation(archive))
+        {
+            Navigate(archive, record: false, refresh: true);
+            return;
+        }
         ComparisonLabel = null;
         if (Location is { IsFileSystem: true }) _forceFreeSpaceOnListingComplete = true;
         if (Listing.State == ListingState.Failed && Location is not null) Listing.Load(Location);
@@ -1185,7 +1287,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         IsLocked = s.Locked;
         ReturnToRoot = s.ReturnToRoot;
         LockedRoot = s.LockedRoot;
-        _columnProfile = s.ColumnProfile;
+        // Through the setter: a profile removed since the state was saved (or a damaged number) becomes the last one there
+        // is, and a list already showing this tab (a reopened or duplicated tab) takes its columns.
+        ColumnProfile = s.ColumnProfile;
         PictureView = s.PictureView;
         Listing.Sort = Listing.Sort with { Field = s.SortField, Descending = s.SortDescending };
         if (!string.IsNullOrEmpty(s.Filter)) SetFilter(s.Filter);
@@ -1213,9 +1317,26 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Services.Columns.Changed -= OnProfilesChanged;
         Services.Metadata.ValuesChanged -= OnMetadataValuesChanged;
         Listing.Dispose();
+        _preparedLocation?.Dispose();
+        _preparedLocation = null;
     }
 
     public override string ToString() => Title;
 
     internal static string Invariant(FormattableString s) => s.ToString(CultureInfo.InvariantCulture);
+}
+
+/// <summary>How the columns a tab shows changed (<see cref="TabViewModel.ColumnsChanged"/>).</summary>
+public sealed class ColumnsChangedEventArgs : EventArgs
+{
+    private ColumnsChangedEventArgs(bool widthsOnly) => WidthsOnly = widthsOnly;
+
+    /// <summary>Other columns: another location or profile, or columns added, removed or moved.</summary>
+    public static ColumnsChangedEventArgs Other { get; } = new(false);
+
+    /// <summary>The same columns at other widths: a border dragged, a width set in Settings.</summary>
+    public static ColumnsChangedEventArgs Widths { get; } = new(true);
+
+    /// <summary>Only widths changed: a list stays where it is scrolled.</summary>
+    public bool WidthsOnly { get; }
 }

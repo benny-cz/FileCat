@@ -16,10 +16,44 @@ public sealed class EditCommitCopyTests(ITestOutputHelper output) : IDisposable
     private object Prepare(EditSessionStore store, EditSessionRecord record, string temp, CancellationToken ct = default)
     {
         var method = typeof(EditSessionStore).GetMethod("PrepareCommit"); Assert.NotNull(method);
-        try { return method.Invoke(store, [record, temp, ct])!; }
+        // Every parameter is passed, the optional check included: this call is by reflection, so a signature with one
+        // more parameter would otherwise fail as a parameter-count mismatch rather than as whatever the test asserts.
+        try { return method.Invoke(store, [record, temp, ct, null])!; }
         catch (TargetInvocationException ex) when (ex.InnerException is not null) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
     }
     private static T Value<T>(object copy, string name) => (T)copy.GetType().GetProperty(name)!.GetValue(copy)!;
+
+    [Fact]
+    public void Repeated_disposal_keeps_a_later_file_at_the_previous_snapshot_path()
+    {
+        var store=new EditSessionStore(Path.Combine(_dir.Path,"sessions"),new PortableFileOperations());
+        string working=_dir.File("working.txt","owned edit");
+        using var copy=store.PrepareCommit(new EditSessionRecord{WorkingPath=working},_dir.Path,TestContext.Current.CancellationToken);
+        string path=copy.Path;copy.Dispose();Assert.False(Directory.Exists(Path.GetDirectoryName(path)));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);File.WriteAllText(path,"unrelated later replacement");
+        copy.Dispose();Assert.Equal("unrelated later replacement",File.ReadAllText(path));
+        Assert.Equal("owned edit",File.ReadAllText(working));
+    }
+
+    // Risk R21: disposal removes only the exact snapshot object it recorded. Another object that took its name is kept,
+    // as is anything outside a folder only FileCat can change. (Windows pins the snapshot against replacement; its
+    // handle-bound removal runs in the platform lane.)
+    [Theory, InlineData("replaced"), InlineData("exposed")]
+    public void A_snapshot_that_is_no_longer_the_recorded_private_object_is_kept(string change)
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Unix name-replacement case.");
+        var store=new EditSessionStore(Path.Combine(_dir.Path,"sessions"),new PortableFileOperations());
+        string working=_dir.File("working.txt","owned edit");
+        var copy=store.PrepareCommit(new EditSessionRecord{WorkingPath=working},_dir.Path,TestContext.Current.CancellationToken);
+        string path=copy.Path, folder=Path.GetDirectoryName(path)!;
+        if(change=="replaced"){string other=path+".other";File.WriteAllText(other,"someone else's file");File.Move(other,path,overwrite:true);}
+        else File.SetUnixFileMode(folder,(UnixFileMode)0x1ff); // 0777: other users can now change its entries.
+        copy.Dispose();
+        Assert.True(File.Exists(path)); Assert.True(Directory.Exists(folder));
+        if(change=="replaced")Assert.Equal("someone else's file",File.ReadAllText(path));
+        else Assert.Equal("owned edit",File.ReadAllText(path));
+        Assert.Equal("owned edit",File.ReadAllText(working));
+    }
 
     [Theory]
     [InlineData(0)]
@@ -85,6 +119,36 @@ public sealed class EditCommitCopyTests(ITestOutputHelper output) : IDisposable
             temp, new LocalFileSystemProvider(), () => { }));
         Assert.Empty(Directory.EnumerateFileSystemEntries(temp));
         Assert.Equal("mine", File.ReadAllText(working));
+    }
+
+    [Theory]
+    [InlineData("unchanged")]
+    [InlineData("later-editor-save")]
+    [InlineData("later-record-revision")]
+    [InlineData("wrong-review")]
+    public void Legacy_discard_requires_the_current_record_and_reviewed_working_bytes(string scenario)
+    {
+        var store = new EditSessionStore(Path.Join(_dir.Path, "legacy-" + scenario), new PortableFileOperations());
+        using var content = new MemoryContentSource("owned.txt", "original edit"u8.ToArray());
+        var record = store.CreateRemote("test", "test", "/owned.txt", content,
+            content.GetRevision()!.Value, null, TestContext.Current.CancellationToken);
+        var reviewed = store.ReviewWorking(record, new LocalFileSystemProvider());
+        Assert.Equal(EditState.Unchanged, reviewed.State);
+        if (scenario == "later-editor-save") File.WriteAllText(record.WorkingPath, "new editor contents");
+        if (scenario == "later-record-revision") store.Save(record with { LastCommitUtc = DateTime.UtcNow });
+        if (scenario == "wrong-review") reviewed = reviewed with { Sha256 = new string('A', 64) };
+        if (scenario == "unchanged")
+        {
+            Assert.True(store.DiscardReviewed(record, reviewed, TestContext.Current.CancellationToken).Complete);
+            Assert.False(Directory.Exists(store.SessionDirectory(record)));
+        }
+        else
+        {
+            Assert.Throws<IOException>(() => store.DiscardReviewed(record, reviewed, TestContext.Current.CancellationToken));
+            Assert.True(Directory.Exists(store.SessionDirectory(record)));
+            Assert.True(File.Exists(record.WorkingPath));
+            if (scenario == "later-editor-save") Assert.Equal("new editor contents", File.ReadAllText(record.WorkingPath));
+        }
     }
 
     [Fact]

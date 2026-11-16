@@ -44,12 +44,14 @@ internal static class RarData
 {
     private const string DamageKey = "FileCat.Rar.Damage";
     private const string ChecksumKey = "FileCat.Rar.Checksum";
+    private const string UnsupportedKey = "FileCat.Rar.Unsupported";
 
     public static InvalidDataException Truncated() => Mark(new("The archive's compressed data ends early."), DamageKey);
 
     public static InvalidDataException Corrupt(string what) => Mark(new("The archive's compressed data is damaged: " + what + "."), DamageKey);
 
-    public static InvalidDataException Unsupported(string what) => Mark(new("FileCat cannot decompress this RAR data: " + what + "."), DamageKey);
+    public static InvalidDataException Unsupported(string what) => Mark(Mark(new("FileCat cannot decompress this RAR data: " + what + "."), DamageKey), UnsupportedKey);
+    public static bool IsUnsupported(Exception ex) => ex.Data.Contains(UnsupportedKey);
 
     public static InvalidDataException ChecksumMismatch(string message) => Mark(new(message), ChecksumKey);
 

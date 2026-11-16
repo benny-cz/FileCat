@@ -5,7 +5,8 @@
              xmlns:services="using:FileCat.App.Services"
              xmlns:controls="using:FileCat.App.Controls"
              x:Class="FileCat.App.Views.OperationsView"
-             x:DataType="vm:OperationCenterViewModel">
+             x:DataType="vm:OperationCenterViewModel"
+             KeyboardNavigation.TabNavigation="Cycle">
   <StackPanel>
     <!-- Compact strip: the most relevant operation -->
     <Border Classes="status" IsVisible="{Binding HasVisibleWork}" BorderBrush="{DynamicResource FcBorder}" BorderThickness="0,1,0,0">
@@ -14,6 +15,9 @@
              bar of its own (release issue I30). -->
         <StackPanel Spacing="3" Margin="0,3">
           <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Classes="small" FontWeight="SemiBold" />
+          <!-- Kept in the AX tree: an archive write's phase changes are spoken once each (plan §11.5). -->
+          <TextBlock Width="1" Height="1" Opacity="0" IsHitTestVisible="False" Text="{Binding PhaseAnnouncement}"
+                     AutomationProperties.Name="{Binding PhaseAnnouncement}" AutomationProperties.LiveSetting="Polite" />
           <TextBlock TextTrimming="CharacterEllipsis" Classes="small">
             <Run Text="{Binding PhaseText}" FontWeight="SemiBold" />
             <Run Text=" · " />
@@ -40,12 +44,15 @@
                   ToolTip.Tip="Review this operation's waiting decision; background work does not interrupt your typing" />
           <Button Classes="flat" Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" ToolTip.Tip="Pause at the next safe point" />
           <Button Classes="flat" Content="{Binding ResumeLabel}" IsVisible="{Binding CanResume}" Click="OnResume" />
-          <Button Classes="flat" Content="{Binding CancelLabel}" IsVisible="{Binding !IsFinished}" Click="OnCancel" ToolTip.Tip="{Binding CancelTooltip}" />
+          <Button Classes="flat" Content="{Binding CancelLabel}" IsVisible="{Binding !IsFinished}" IsEnabled="{Binding CanCancel}" Click="OnCancel"
+                  ToolTip.Tip="{Binding CancelTooltip}" ToolTip.ShowOnDisabled="True" AutomationProperties.HelpText="{Binding CancelTooltip}" />
           <Button Classes="flat" Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
           <Button Classes="flat" Content="Undo report" IsVisible="{Binding CanShowUndoReport}" Click="OnShowUndoReport"
                   ToolTip.Tip="Reopen the complete retained Undo outcomes; Copy all copies the report" />
           <Button Classes="flat" Content="Results" IsVisible="{Binding CanShowResults}" Click="OnShowResults"
                   ToolTip.Tip="What the check found, file by file: each checksum's expected and computed values, and each signature" />
+          <Button Classes="flat" Content="Open archive" IsVisible="{Binding CanOpenArchive}" Click="OnOpenArchive"
+                  ToolTip.Tip="Show the new archive's contents in the active panel" />
           <Button Classes="flat" Content="Retry as administrator…" IsVisible="{Binding CanRetryElevated}" Click="OnRetryElevated"
                   ToolTip.Tip="Windows asks for approval; the FileCat administrator window then shows the exact steps before they run" />
           <TextBlock Text="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).Summary}" VerticalAlignment="Center" Classes="small muted" />
@@ -115,12 +122,12 @@
                         <Button Content="Review a new transfer…" Tag="{Binding}" Click="OnReviewNewInterrupted" IsVisible="{Binding CanReviewNewTransfer}"
                                 IsEnabled="{Binding !IsActionBusy}"
                                 ToolTip.Tip="Original transfer options are incomplete; choose and review a new transfer before anything changes" />
-                        <Button Content="{Binding CleanupLabel}" Tag="{Binding}" Click="OnCleanupInterrupted" IsEnabled="{Binding !IsActionBusy}" />
+                        <Button Content="{Binding CleanupLabel}" Tag="{Binding}" Click="OnCleanupInterrupted" IsEnabled="{Binding !IsActionBusy}" IsVisible="{Binding CanCleanup}" />
                         <Button Content="Review report" Tag="{Binding}" Click="OnInterruptedReport" AutomationProperties.Name="{Binding ReviewReportLabel}"
                                 IsEnabled="{Binding !IsActionBusy}"
                                 ToolTip.Tip="Inspect, copy or save all retained known paths and review limits without changing files" />
                         <Button Content="Mark reviewed…" Tag="{Binding}" Click="OnMarkInterruptedReviewed" AutomationProperties.Name="{Binding MarkReviewedLabel}"
-                                IsEnabled="{Binding !IsActionBusy}"
+                                IsEnabled="{Binding !IsActionBusy}" IsVisible="{Binding CanMarkReviewed}"
                                 ToolTip.Tip="Stop future recovery reminders after review; files remain unchanged and a diagnostic report is retained" />
                         <Button Content="Hide for now" Tag="{Binding}" Click="OnHideInterrupted" AutomationProperties.Name="{Binding HideLabel}"
                                 IsEnabled="{Binding !IsActionBusy}"
@@ -141,6 +148,11 @@
         <TextBlock Text="Reviewed recovery reports" Classes="small muted" Margin="10,0,0,2" IsVisible="{Binding HasReviewedRecovery}" />
         <ListBox ItemsSource="{Binding ReviewedRecovery}" MaxHeight="70" IsVisible="{Binding HasReviewedRecovery}" Margin="8,0,8,4" Classes="choices"
                  AutomationProperties.Name="Reviewed recovery reports">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem" x:DataType="services:RecoveryReviewRecord">
+              <Setter Property="AutomationProperties.Name" Value="{Binding Display}" />
+            </Style>
+          </ListBox.Styles>
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="services:RecoveryReviewRecord">
               <Grid ColumnDefinitions="*,Auto">
@@ -198,12 +210,13 @@
                     ToolTip.Tip="Removes finished reports and unused Undo steps from this session; review is required for useful records" />
             <Button Classes="flat" Content="Fit height" Click="OnFitDrawerHeight"
                     ToolTip.Tip="Size Operations to its visible jobs and report; restores automatic sizing after a manual resize" />
-            <Button Classes="primary" Content="Review decision…" FontWeight="SemiBold" Padding="10,4"
+            <Button x:Name="DetailsReviewDecision" Classes="primary" Content="Review decision…" FontWeight="SemiBold" Padding="10,4"
                     IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision"
                     ToolTip.Tip="Review this operation's waiting decision" />
             <Button Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" />
             <Button Content="{Binding ResumeLabel}" IsVisible="{Binding CanResume}" Click="OnResume" />
-            <Button Content="{Binding CancelLabel}" IsVisible="{Binding !IsFinished}" Click="OnCancel" ToolTip.Tip="{Binding CancelTooltip}" />
+            <Button Content="{Binding CancelLabel}" IsVisible="{Binding !IsFinished}" IsEnabled="{Binding CanCancel}" Click="OnCancel"
+                    ToolTip.Tip="{Binding CancelTooltip}" ToolTip.ShowOnDisabled="True" AutomationProperties.HelpText="{Binding CancelTooltip}" />
             <Button Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
             <TextBlock Text="{Binding UndoStatus}" VerticalAlignment="Center" Classes="small muted" />
             <Button Content="Undo report" IsVisible="{Binding CanShowUndoReport}" Click="OnShowUndoReport"
@@ -284,6 +297,8 @@
                     <Run Text="{Binding Message}" />
                   </TextBlock>
                   <TextBlock Text="{Binding Path}" Classes="small muted" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="{Binding Details}" Classes="small muted" TextWrapping="Wrap" MaxHeight="64"
+                             IsVisible="{Binding Details, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 </StackPanel>
               </DataTemplate>
             </ListBox.ItemTemplate>

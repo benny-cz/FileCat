@@ -34,10 +34,13 @@ internal sealed class ColumnProfilesEditor
     private readonly TextBlock _status = new() { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
     private Button? _statusFor;
     private bool _updating;
+    /// <summary>Settings that cannot be saved (read-only): profiles and columns can be looked through, not changed.</summary>
+    private readonly bool _readOnly;
 
-    public ColumnProfilesEditor(ColumnProfileSet set)
+    public ColumnProfilesEditor(ColumnProfileSet set, bool readOnly = false)
     {
         _set = set;
+        _readOnly = readOnly;
         _profiles = Load(set.Profiles);
         AutomationProperties.SetName(_profileList, "Column profiles");
         AutomationProperties.SetName(_columnList, "Columns of the selected profile");
@@ -107,6 +110,12 @@ internal sealed class ColumnProfilesEditor
     }
 
     public Control View { get; }
+
+    /// <summary>Where the keyboard starts when Settings opens on this page: the list of profiles.</summary>
+    internal Control InitialFocus => _profileList;
+
+    /// <summary>Selects a profile by its Alt+ number (a panel's own, when Settings opens from its column header).</summary>
+    internal void SelectProfile(int profile) => RefreshProfiles(select: Math.Clamp(profile, 0, _profiles.Count - 1));
 
     public bool HasChanges()
     {
@@ -260,7 +269,7 @@ internal sealed class ColumnProfilesEditor
         ActionState(_columnActions["Down"], selectedColumn && ci < profile!.Columns.Count - 1,
             "The last column cannot move down.", _columnList);
         _name.IsEnabled = profile is not null;
-        _width.IsEnabled = selectedColumn;
+        _width.IsEnabled = selectedColumn && !_readOnly;
     }
 
     /// <summary>
@@ -271,6 +280,8 @@ internal sealed class ColumnProfilesEditor
     /// </summary>
     private void ActionState(Button button, bool enabled, string unavailableReason, Control fallback)
     {
+        // Read-only settings: every action stays off however the lists are moved through (Settings says why at the top).
+        if (_readOnly) (enabled, unavailableReason) = (false, "These settings are read-only.");
         if (!enabled && button.IsEnabled && button.IsFocused)
         {
             TakeKeyboard(fallback);

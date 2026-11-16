@@ -19,7 +19,7 @@ internal sealed class RarFilter
 /// dictionary, but never past <see cref="RarLimits.MaxWindowBytes"/>; bytes not yet handed out are never
 /// overwritten. Filters wait in start order and transform their block only once the whole block is decoded.
 /// </summary>
-internal sealed class RarWindow
+internal sealed class RarWindow : IDisposable
 {
     private byte[] _buffer;
     private int _mask;
@@ -34,6 +34,8 @@ internal sealed class RarWindow
     private int _filteredPos;
     private int _filteredLength;
     private long _filterWork;         // every transform in this window's solid run, not just bytes handed out
+    private bool _disposed;
+    internal bool HasPendingFilters => _filters.Count != 0;
 
     public RarWindow(long dictionary, long expectedBytes)
     {
@@ -71,6 +73,7 @@ internal sealed class RarWindow
 
     public void Put(byte value)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (_written - _read >= _buffer.Length || _written >= _buffer.Length && _buffer.Length < _maxCapacity) EnsureRoom(1);
         _buffer[(int)(_written & _mask)] = value;
         _written++;
@@ -79,6 +82,7 @@ internal sealed class RarWindow
     /// <summary>Repeats <paramref name="length"/> bytes from <paramref name="distance"/> bytes back.</summary>
     public void Copy(int length, long distance)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (length <= 0 || length > RarLimits.MaxSymbolOutput) throw RarData.Corrupt("match length");
         if (distance <= 0 || distance > _written) throw RarData.Corrupt("match distance before the start of the data");
         if (distance > _dictionary) throw RarData.Corrupt("match distance beyond the archive's dictionary");
@@ -104,6 +108,7 @@ internal sealed class RarWindow
     /// <summary>Queues a filter for a block at or after the decoder's position.</summary>
     public void AddFilter(RarFilter filter)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (_filters.Count >= RarLimits.MaxPendingFilters) throw RarData.Corrupt("too many filters");
         if (filter.Length < 0 || filter.Length > RarLimits.MaxFilterBlockBytes) throw RarData.Corrupt("filter block size");
         if (filter.Start < _written) throw RarData.Corrupt("filter block before the decoder's position");
@@ -134,6 +139,7 @@ internal sealed class RarWindow
     /// </summary>
     public int ReadOutput(Span<byte> destination, long end, long memberStart, CancellationToken ct = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         int total = 0;
         while (total < destination.Length)
         {
@@ -221,7 +227,11 @@ internal sealed class RarWindow
 
     private static void EnsureScratch(ref byte[] scratch, int length)
     {
-        if (scratch.Length < length) scratch = new byte[Math.Max(length, Math.Min(scratch.Length * 2, RarLimits.MaxFilterBlockBytes))];
+        if (scratch.Length < length)
+        {
+            var grown = new byte[Math.Max(length, Math.Min(scratch.Length * 2, RarLimits.MaxFilterBlockBytes))];
+            Array.Clear(scratch); scratch = grown;
+        }
     }
 
     private void EnsureRoom(int count)
@@ -245,7 +255,7 @@ internal sealed class RarWindow
             _buffer.AsSpan(oldIndex, run).CopyTo(grown.AsSpan(newIndex, run));
             position += run;
         }
-        _buffer = grown;
+        Array.Clear(_buffer); _buffer = grown;
         _mask = newMask;
     }
 
@@ -254,5 +264,14 @@ internal sealed class RarWindow
         long result = 1;
         while (result < value && result < (1L << 62)) result <<= 1;
         return result;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true; Array.Clear(_buffer); Array.Clear(_scratchA); Array.Clear(_scratchB);
+        if (_filtered is not null) Array.Clear(_filtered);
+        _buffer = _scratchA = _scratchB = []; _filtered = null; _filters.Clear();
+        _written = _read = _filterWork = 0; _filteredPos = _filteredLength = 0; _mask = 0;
     }
 }

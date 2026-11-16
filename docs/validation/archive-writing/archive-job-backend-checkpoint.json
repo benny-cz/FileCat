@@ -1,0 +1,366 @@
+{
+  "date": "2026-11-07",
+  "source_checkpoint": "7767a591",
+  "production_profile_registered": false,
+  "production_backend_qualified": false,
+  "typed_job_dispatch_implemented": true,
+  "production_UI_integration_complete": false,
+  "new_cases": 45,
+  "changed_csharp": [
+    "src/FileCat.Core/Archives/ArchiveJobBackend.cs",
+    "src/FileCat.Core/Archives/ArchiveJobPassword.cs",
+    "src/FileCat.Core/Jobs/Executors.cs",
+    "src/FileCat.Core/Jobs/JobManager.Archives.cs",
+    "src/FileCat.Core/Jobs/JobManager.cs",
+    "tests/FileCat.Core.Tests/ArchiveJobBackendTests.cs"
+  ],
+  "delta_packet": {
+    "bytes": 52963,
+    "sha256": "78457fca587d62e679bd723299aa4bb4b6cdce448fb4e084916e43342d535afa",
+    "files": 10
+  },
+  "limitations": [
+    "No format backend is composed into the application; qualification is still incomplete.",
+    "Native shared execution, reviewed exact scopes, captured exclusion decisions and UI/edit/F6 integration remain.",
+    "Unix native update/confinement and resource/crash/fuzz/RID/package gates and the final independent review remain."
+  ],
+  "platforms": {
+    "mac": {
+      "bytes": 33996416,
+      "sha256": "992e7104d37fb0987db31dd8701d34f8242fe9fdd31cef6a81b6ef1d3f0eb272",
+      "rows": 3270,
+      "tests": {
+        "archive-jobs-core.trx": {
+          "Passed": 8032,
+          "NotExecuted": 207
+        },
+        "job-preflight.trx": {
+          "Passed": 45
+        }
+      },
+      "full_core_total": 8239,
+      "independent": {
+        "catalog/independent-catalog.json": {
+          "cases": 273,
+          "metadata_records": 819,
+          "payloads": 546,
+          "packed_witnesses": 336,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "py7zr": "1.1.4",
+          "official_archives": 234,
+          "official_payloads": 468,
+          "zstandard_composed_archives": 39,
+          "zstandard_composed_payloads": 78,
+          "branch_offsets": [
+            "Arm64-4",
+            "Arm64-4294967292",
+            "Arm64-65536",
+            "RiscV-4",
+            "RiscV-4294967292",
+            "RiscV-65536"
+          ],
+          "sdk_sha256": "8e76bb2b8673f5e9a9b1a2caab958ef38cece82e54045e29a252732f2260c42f"
+        },
+        "workers/independent-pipeline.json": {
+          "archives": 74,
+          "metadata": 357,
+          "payloads": 256,
+          "official_archives": 62,
+          "composed_zstandard_archives": 12,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "bcj2_sha256": "5656bfae915f4b3216ec15ce2762c8f2eba80c2dceb699aa47257e11c6948af6",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": true,
+          "encoded_header_graphs_observed": true
+        },
+        "native-vectors/independent-pipeline.json": {
+          "archives": 21,
+          "metadata": 42,
+          "payloads": 21,
+          "official_archives": 18,
+          "composed_zstandard_archives": 3,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "bcj2_sha256": "5656bfae915f4b3216ec15ce2762c8f2eba80c2dceb699aa47257e11c6948af6",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-pipeline.json": {
+          "archives": 6,
+          "metadata": 45,
+          "payloads": 39,
+          "official_archives": 6,
+          "composed_zstandard_archives": 0,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "bcj2_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-workflow-rar.json": {
+          "creations": 0,
+          "updates_and_restorations": 0,
+          "official_archives": 6,
+          "exact_payloads": 39,
+          "independent_metadata_records": 45,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+        },
+        "workflows/independent-workflow-tar.json": {
+          "archives": 8,
+          "metadata": 60,
+          "payloads": 52,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+        }
+      },
+      "compiler_source_documents": 1433,
+      "compiler_source_bytes": 13522646,
+      "assembly_pdb_pairs_bound": 10,
+      "changed_csharp_matched": [
+        "src/FileCat.Core/Archives/ArchiveJobBackend.cs",
+        "src/FileCat.Core/Archives/ArchiveJobPassword.cs",
+        "src/FileCat.Core/Jobs/Executors.cs",
+        "src/FileCat.Core/Jobs/JobManager.Archives.cs",
+        "src/FileCat.Core/Jobs/JobManager.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobBackendTests.cs"
+      ],
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "environment_repair": null
+    },
+    "ubuntu": {
+      "bytes": 37865100,
+      "sha256": "dd7122c049252a01579b63bb80578635d15a85df77ca21b9ef2a0c18d37a9ec1",
+      "rows": 3284,
+      "tests": {
+        "archive-jobs-core.trx": {
+          "Passed": 8054,
+          "NotExecuted": 185
+        },
+        "job-preflight.trx": {
+          "Passed": 45
+        }
+      },
+      "full_core_total": 8239,
+      "independent": {
+        "catalog/independent-catalog.json": {
+          "cases": 273,
+          "metadata_records": 819,
+          "payloads": 546,
+          "packed_witnesses": 336,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "py7zr": "1.1.4",
+          "official_archives": 234,
+          "official_payloads": 468,
+          "zstandard_composed_archives": 39,
+          "zstandard_composed_payloads": 78,
+          "branch_offsets": [
+            "Arm64-4",
+            "Arm64-4294967292",
+            "Arm64-65536",
+            "RiscV-4",
+            "RiscV-4294967292",
+            "RiscV-65536"
+          ],
+          "sdk_sha256": "4a37237a162168414c8effcf857d2536f263bf0d4a30050dd4a8a617a1086c93"
+        },
+        "workers/independent-pipeline.json": {
+          "archives": 74,
+          "metadata": 357,
+          "payloads": 256,
+          "official_archives": 62,
+          "composed_zstandard_archives": 12,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "bcj2_sha256": "50ba524866c94eedcbe368ae14e8fecefc69d12463f534cb33dbaa83e2ea6493",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": true,
+          "encoded_header_graphs_observed": true
+        },
+        "native-vectors/independent-pipeline.json": {
+          "archives": 21,
+          "metadata": 42,
+          "payloads": 21,
+          "official_archives": 18,
+          "composed_zstandard_archives": 3,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "bcj2_sha256": "50ba524866c94eedcbe368ae14e8fecefc69d12463f534cb33dbaa83e2ea6493",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-pipeline.json": {
+          "archives": 6,
+          "metadata": 45,
+          "payloads": 39,
+          "official_archives": 6,
+          "composed_zstandard_archives": 0,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "bcj2_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-workflow-rar.json": {
+          "creations": 0,
+          "updates_and_restorations": 0,
+          "official_archives": 6,
+          "exact_payloads": 39,
+          "independent_metadata_records": 45,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+        },
+        "workflows/independent-workflow-tar.json": {
+          "archives": 8,
+          "metadata": 60,
+          "payloads": 52,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+        }
+      },
+      "compiler_source_documents": 1433,
+      "compiler_source_bytes": 13522646,
+      "assembly_pdb_pairs_bound": 10,
+      "changed_csharp_matched": [
+        "src/FileCat.Core/Archives/ArchiveJobBackend.cs",
+        "src/FileCat.Core/Archives/ArchiveJobPassword.cs",
+        "src/FileCat.Core/Jobs/Executors.cs",
+        "src/FileCat.Core/Jobs/JobManager.Archives.cs",
+        "src/FileCat.Core/Jobs/JobManager.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobBackendTests.cs"
+      ],
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "environment_repair": {
+        "isolated_bus": true,
+        "pid": 501706,
+        "collection": "(objectpath '/org/freedesktop/secrets/collection/login',)",
+        "desktop_keyring_unchanged": true,
+        "owner_proof": {
+          "owned_pid": 501706,
+          "private_bus_service_pid_matches": true,
+          "private_runtime_matches": true,
+          "private_data_home_matches": true,
+          "daemon_arguments_match": true
+        },
+        "retained_initial_failure": [
+          "FileCat.Core.Tests.SecretStoreTests.The_system_store_keeps_replaces_and_removes_a_secret"
+        ]
+      }
+    },
+    "windows": {
+      "bytes": 166445939,
+      "sha256": "d70c25380c5acd82a5eccb367d58e2725ea8c24bc06f2053f5fe865f345fd3e2",
+      "rows": 4566,
+      "tests": {
+        "app-entry.trx": {
+          "Passed": 10
+        },
+        "archive-jobs-core.trx": {
+          "Passed": 7799,
+          "NotExecuted": 445
+        },
+        "job-preflight.trx": {
+          "Passed": 45
+        },
+        "native-preflight.trx": {
+          "Passed": 6
+        },
+        "native.trx": {
+          "Passed": 163
+        }
+      },
+      "full_core_total": 8244,
+      "independent": {
+        "catalog/independent-catalog.json": {
+          "cases": 273,
+          "metadata_records": 819,
+          "payloads": 546,
+          "packed_witnesses": 336,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "py7zr": "1.1.4",
+          "official_archives": 234,
+          "official_payloads": 468,
+          "zstandard_composed_archives": 39,
+          "zstandard_composed_payloads": 78,
+          "branch_offsets": [
+            "Arm64-4",
+            "Arm64-4294967292",
+            "Arm64-65536",
+            "RiscV-4",
+            "RiscV-4294967292",
+            "RiscV-65536"
+          ],
+          "sdk_sha256": "3a706c406bdf132b3ed4f6fc3b6dc25a54cb23c421d847b266cee13f26ac6a4e"
+        },
+        "workers/independent-pipeline.json": {
+          "archives": 74,
+          "metadata": 357,
+          "payloads": 256,
+          "official_archives": 62,
+          "composed_zstandard_archives": 12,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "bcj2_sha256": "172c4f63495aaadd4f83b3581b614c2367932130d23e7844dbfc5fdab42e3a93",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": true,
+          "encoded_header_graphs_observed": true
+        },
+        "native-vectors/independent-pipeline.json": {
+          "archives": 33,
+          "metadata": 63,
+          "payloads": 36,
+          "official_archives": 30,
+          "composed_zstandard_archives": 3,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "bcj2_sha256": "172c4f63495aaadd4f83b3581b614c2367932130d23e7844dbfc5fdab42e3a93",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-pipeline.json": {
+          "archives": 6,
+          "metadata": 45,
+          "payloads": 39,
+          "official_archives": 6,
+          "composed_zstandard_archives": 0,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "bcj2_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-workflow-rar.json": {
+          "creations": 0,
+          "updates_and_restorations": 0,
+          "official_archives": 6,
+          "exact_payloads": 39,
+          "independent_metadata_records": 45,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+        },
+        "workflows/independent-workflow-tar.json": {
+          "archives": 8,
+          "metadata": 60,
+          "payloads": 52,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+        }
+      },
+      "compiler_source_documents": 2195,
+      "compiler_source_bytes": 23403677,
+      "assembly_pdb_pairs_bound": 17,
+      "changed_csharp_matched": [
+        "src/FileCat.Core/Archives/ArchiveJobBackend.cs",
+        "src/FileCat.Core/Archives/ArchiveJobPassword.cs",
+        "src/FileCat.Core/Jobs/Executors.cs",
+        "src/FileCat.Core/Jobs/JobManager.Archives.cs",
+        "src/FileCat.Core/Jobs/JobManager.cs",
+        "tests/FileCat.Core.Tests/ArchiveJobBackendTests.cs"
+      ],
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "environment_repair": null
+    }
+  }
+}

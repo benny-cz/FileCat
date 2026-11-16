@@ -23,39 +23,35 @@ internal sealed partial class AesDecoderStream : DecoderStream2
 
     public AesDecoderStream(Stream input, byte[] info, IPasswordProvider pass, long limit)
     {
-        var password = pass.CryptoGetTextPassword();
-        if (password == null)
-        {
-            throw new SharpCompress.Common.CryptographicException(
-                "Encrypted 7Zip archive has no password specified."
-            );
-        }
-
         mStream = input;
         mLimit = limit;
-
-        if (((uint)input.Length & 15) != 0)
+        long packed = input.Length;
+        if (info.Length is < 1 or > 34 || limit is < 0 or > (80L << 30) || packed < limit || packed - limit > 15 || (packed & 15) != 0)
         {
-            throw new NotSupportedException("AES decoder does not support padding.");
+            throw new InvalidFormatException("The encrypted 7z stream has invalid properties, padding or byte extents.");
         }
-
         Init(info, out var numCyclesPower, out var salt, out var seed);
-
-        var passwordBytes = Encoding.Unicode.GetBytes(password);
-        var key = InitKey(numCyclesPower, salt, passwordBytes);
-        if (key == null)
+        mBuffer = new byte[4 << 10];
+        if (pass.ArchiveDecryptorFactory is { } factory)
         {
-            throw new ArchiveOperationException("Initialized with null key");
+            mDecoder = factory(numCyclesPower, salt, seed);
+            return;
         }
-
-        using (var aes = Aes.Create())
+        var password = pass.CryptoGetTextPassword();
+        if (password == null) throw new SharpCompress.Common.CryptographicException("Encrypted 7Zip archive has no password specified.");
+        byte[] passwordBytes = Encoding.Unicode.GetBytes(password);
+        byte[]? key = null;
+        try
         {
-            aes.Mode = CipherMode.CBC;
-            aes.Padding = PaddingMode.None;
+            key = InitKey(numCyclesPower, salt, passwordBytes) ?? throw new ArchiveOperationException("Initialized with null key");
+            using var aes = Aes.Create(); aes.Mode = CipherMode.CBC; aes.Padding = PaddingMode.None;
             mDecoder = aes.CreateDecryptor(key, seed);
         }
-
-        mBuffer = new byte[4 << 10];
+        finally
+        {
+            CryptographicOperations.ZeroMemory(passwordBytes);
+            if (key is not null) CryptographicOperations.ZeroMemory(key);
+        }
     }
 
     protected override void Dispose(bool disposing)
@@ -69,8 +65,8 @@ internal sealed partial class AesDecoderStream : DecoderStream2
             isDisposed = true;
             if (disposing)
             {
-                mStream.Dispose();
-                mDecoder.Dispose();
+                try { mStream.Dispose(); }
+                finally { try { mDecoder.Dispose(); } finally { CryptographicOperations.ZeroMemory(mBuffer); } }
             }
         }
         finally
@@ -85,6 +81,7 @@ internal sealed partial class AesDecoderStream : DecoderStream2
 
     public override int Read(byte[] buffer, int offset, int count)
     {
+        ObjectDisposedException.ThrowIf(isDisposed, this);
         if (count == 0 || mWritten == mLimit)
         {
             return 0;
@@ -149,11 +146,14 @@ internal sealed partial class AesDecoderStream : DecoderStream2
     {
         var bt = info[0];
         numCyclesPower = bt & 0x3F;
+        if (numCyclesPower > 24 && numCyclesPower != 63)
+            throw new InvalidFormatException("The 7z password derivation exceeds the supported work factor.");
 
         if ((bt & 0xC0) == 0)
         {
             salt = Array.Empty<byte>();
-            iv = Array.Empty<byte>();
+            if (info.Length != 1) throw new InvalidFormatException("The 7z AES coder has unknown trailing properties.");
+            iv = new byte[16];
             return;
         }
 
@@ -167,7 +167,7 @@ internal sealed partial class AesDecoderStream : DecoderStream2
         var bt2 = info[1];
         saltSize += (bt2 >> 4);
         ivSize += (bt2 & 15);
-        if (info.Length < 2 + saltSize + ivSize)
+        if (info.Length != 2 + saltSize + ivSize)
         {
             throw new ArchiveOperationException();
         }
@@ -184,10 +184,6 @@ internal sealed partial class AesDecoderStream : DecoderStream2
             iv[i] = info[i + saltSize + 2];
         }
 
-        if (numCyclesPower > 24)
-        {
-            throw new NotSupportedException();
-        }
     }
 
     private byte[]? InitKey(int mNumCyclesPower, byte[] salt, byte[] pass)

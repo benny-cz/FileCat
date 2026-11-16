@@ -625,8 +625,11 @@ public static class OperationDialogs
         body.Children.Add(Muted(job.Title));
         body.Children.Add(Text(c.Message));
         var applyAll = new CheckBox { Content = "Do the same for similar items in this operation" };
-        body.Children.Add(applyAll);
+        if (c.OffersApplyToAll) body.Children.Add(applyAll);
         var initial = c.Actions.Contains(c.InitialAction) ? c.InitialAction : DecisionAction.CancelJob;
+        // Plan §11.8: the choice focused first also speaks the counts and the first example, which a screen reader
+        // otherwise reads only when the user explores the dialog (it reads the focused button, not the message).
+        string spoken = SpokenSummary(c.Message);
         var buttons = c.Actions.Select(a => new DialogButton(a switch
         {
             DecisionAction.Proceed => c.ProceedLabel ?? "Delete anyway",
@@ -636,9 +639,34 @@ public static class OperationDialogs
             DecisionAction.CreateJunction => "Create a junction",
             DecisionAction.CancelJob => "Cancel operation",
             _ => a.ToString(),
-        }, a, IsDefault: a == initial, IsCancel: a == DecisionAction.CancelJob, IsDanger: a == DecisionAction.Proceed)).ToList();
+        }, a, IsDefault: a == initial, IsCancel: a == DecisionAction.CancelJob, IsDanger: a == DecisionAction.Proceed)
+        { HelpText = a == initial && spoken.Length > 0 ? spoken : null }).ToList();
         var r = await vm.Dialogs.ShowCustomAsync(c.Title, body, buttons, closer: closer);
         return r is DecisionAction act ? new Decision(act, applyAll.IsChecked == true) : new Decision(DecisionAction.CancelJob);
+    }
+
+    /// <summary>
+    /// A question's message as one spoken line: its sentences without list bullets, then the first quoted example name
+    /// (archive reviews list their examples one per line after the counts). Bounded, as screen readers read it whole.
+    /// </summary>
+    internal static string SpokenSummary(string message)
+    {
+        const int Limit = 600;
+        var sentences = new List<string>(); string? example = null;
+        foreach (string raw in message.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
+        {
+            string line = raw.Trim().TrimStart('•').Trim();
+            if (line.Length == 0) continue;
+            if (line.StartsWith('"')) { example ??= line; continue; }
+            if (line.StartsWith('…')) continue;
+            sentences.Add(line);
+        }
+        string summary = string.Join(" ", sentences);
+        if (example is not null) summary += (summary.Length == 0 ? "" : " ") + "Example: " + example;
+        if (summary.Length <= Limit) return summary;
+        int cut = Limit - 1;
+        if (char.IsHighSurrogate(summary[cut - 1])) cut--;
+        return summary[..cut].TrimEnd() + "…";
     }
 
     private static string FormatTime(DateTime utc) => utc <= DateTime.MinValue.AddDays(1) ? "unknown" : Formatters.DateWithSeconds(utc.Ticks);

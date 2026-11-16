@@ -1,0 +1,126 @@
+namespace FileCat.Core.Archives.Unix;
+
+internal sealed partial class UnixArchiveFile
+{
+    string IArchiveRetainedFile.ObjectIdentity => Identity.ToString();
+    ArchiveFileObservation IArchiveRetainedFile.Observe(CancellationToken ct) => ObserveRetained(ct);
+    void IArchiveRetainedFile.Review(ArchiveFileObservation expected, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(expected); var actual = ObserveRetained(ct);
+        if (!actual.Matches(expected)) throw Changed();
+    }
+    void IArchiveRetainedFile.ReviewMetadata(ArchiveFileObservation expected, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(expected);
+        UnixArchiveFile? moved;
+        lock (parent.Gate) { Live(); moved = createdPublic; }
+        if (moved is not null) { ((IArchiveRetainedFile)moved).ReviewMetadata(expected, ct); return; }
+        lock (parent.Gate)
+        {
+            // The outer metadata digest covers device, inode, length, owner, mode, links, mtime, ctime, birth, flags, ACL,
+            // provenance and extended attributes; a write changes ctime, which no unprivileged process can set back.
+            Live(); ct.ThrowIfCancellationRequested(); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
+            var metadata = CaptureOuterMetadata(ct); if (metadata.Native.LinkCount != 1) throw ArchiveWriteMessages.HardLinked(DisplayPath);
+            if (expected.Version.Identity != Identity.ToString() || Length != expected.Version.Length ||
+                !RetainedObservation(expected.Version, metadata).Matches(expected)) throw Changed();
+            parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
+        }
+    }
+    private ArchiveFileObservation ObserveRetained(CancellationToken ct)
+    {
+        UnixArchiveFile? moved;
+        lock (parent.Gate) { Live(); moved = createdPublic; }
+        if (moved is not null) return moved.ObserveRetained(ct); // Moved into the archive folder: observe it there.
+        lock (parent.Gate)
+        {
+            Live(); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
+            var before = CaptureOuterMetadata(ct); if (before.Native.LinkCount != 1) throw ArchiveWriteMessages.HardLinked(DisplayPath);
+            var version = CaptureVersion(ct); var after = CaptureOuterMetadata(ct);
+            parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
+            if (before.Digest != after.Digest) throw Changed();
+            return RetainedObservation(version, after);
+        }
+    }
+    Stream IArchiveRetainedFile.OpenReadView(ArchiveFileObservation expected, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(expected);
+        UnixArchiveFile? moved;
+        lock (parent.Gate) { Live(); moved = createdPublic; }
+        if (moved is not null) return ((IArchiveRetainedFile)moved).OpenReadView(expected, ct);
+        lock (parent.Gate)
+        {
+            Live(); ct.ThrowIfCancellationRequested(); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
+            if (writable || expected.Version.Identity != Identity.ToString() || expected.ParentIdentity != parent.Identity.ToString() ||
+                expected.LeafName != KnownName || Length != expected.Version.Length || !RetainedObservation(expected.Version, CaptureOuterMetadata(ct)).Matches(expected)) throw Changed();
+            return new ArchiveRetainedReadStream(expected.Version.Length, ReadAt, () => CanRead);
+            int ReadAt(long offset, Span<byte> target)
+            {
+                lock (parent.Gate)
+                {
+                    Live(); ct.ThrowIfCancellationRequested();
+                    if (writable || Validate().Size != expected.Version.Length) throw Changed();
+                    return RandomAccess.Read(held, target, offset);
+                }
+            }
+        }
+    }
+    private ArchiveFileObservation RetainedObservation(ArchiveObjectVersion version, ArchiveUnixOuterMetadata metadata)
+    {
+        ArchiveTimestamp? modified = null;
+        try { modified = new(metadata.Native.Modified.Seconds, checked((int)metadata.Native.Modified.Nanoseconds)); }
+        catch (ArchiveWriteException ex) when (ex.Reason == ArchiveWriteReason.UnsupportedFeature) { } // Out of the admitted UTC range.
+        return new(version, parent.Identity.ToString(), KnownName, metadata.Digest, metadata.Origin, modified,
+            (int)(metadata.Native.Mode & 0x1ff)); // New members capture ordinary bits; full native mode remains in the review digest.
+    }
+    string IArchiveRetainedArtifact.ReviewCreation(ArchiveArtifactReservation reservation, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(reservation);
+        lock (parent.Gate)
+        {
+            Writeable(); ct.ThrowIfCancellationRequested();
+            if (!artifact || !createdWritable || createdKind != (UnixArchiveArtifactKind)reservation.Kind || namespaceChanged || rebuildClaimed || evidenceClaimed ||
+                maximum != reservation.MaximumLength || KnownName != reservation.LeafName ||
+                parent.Identity.ToString() != reservation.ParentIdentity || Length != 0 || position != 0)
+                throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The fresh stage differs from its reserved native creation scope.");
+            parent.VerifyNamespace(); parent.RequireName(KnownName, Identity); parent.CheckPrivate(held);
+            return Identity.ToString();
+        }
+    }
+    Stream IArchiveRetainedArtifact.BeginEvidence(ArchiveArtifactReservation reservation, CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            ((IArchiveRetainedArtifact)this).ReviewCreation(reservation, ct);
+            if (createdKind == UnixArchiveArtifactKind.Stage) throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "A manifest or provenance artifact is required.");
+            evidenceClaimed = true; return this;
+        }
+    }
+    ArchiveFileObservation IArchiveRetainedArtifact.SealEvidence(CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            if (!evidenceClaimed || createdKind == UnixArchiveArtifactKind.Stage || namespaceChanged) throw new InvalidOperationException("The native artifact was not claimed for evidence writing.");
+            var version = Seal(ct); var observed = ObserveRetained(ct); if (version != observed.Version) throw Changed(); return observed;
+        }
+    }
+    Stream IArchiveRetainedStage.BeginRebuild(long exactMaximumLength, CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            Writeable(); ct.ThrowIfCancellationRequested();
+            if (!artifact || !createdWritable || createdKind != UnixArchiveArtifactKind.Stage || namespaceChanged || rebuildClaimed || maximum != exactMaximumLength || Length != 0 || position != 0)
+                throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "A fresh empty stage with the exact reviewed output bound is required.");
+            parent.VerifyNamespace(); parent.RequireName(KnownName, Identity); parent.CheckPrivate(held); rebuildClaimed = true; return this;
+        }
+    }
+    ArchiveFileObservation IArchiveRetainedStage.SealForVerification(CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            if (!rebuildClaimed) throw new InvalidOperationException("The native stage was not claimed for rebuilding.");
+            var version = Seal(ct); var observed = ObserveRetained(ct); if (observed.Version != version) throw Changed();
+            verificationSealed = true; return observed;
+        }
+    }
+    void IArchiveRetainedArtifact.StopWrites() { lock (parent.Gate) writable = false; }
+}

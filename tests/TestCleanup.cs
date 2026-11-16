@@ -24,4 +24,21 @@ internal static class TestCleanup
             }
         }
     }
+
+    /// <summary>Deletes the test's own file <paramref name="path"/>, retrying for up to five seconds like <see cref="DeleteTree"/>.</summary>
+    public static void DeleteFile(string path)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            try
+            {
+                File.Delete(path);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && attempt < 20)
+            {
+                Thread.Sleep(250);
+            }
+        }
+    }
 }

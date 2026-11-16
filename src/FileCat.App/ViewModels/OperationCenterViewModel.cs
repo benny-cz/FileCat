@@ -29,9 +29,25 @@ public sealed partial class JobViewModel : ObservableObject
     public override string ToString() => string.IsNullOrEmpty(StateText) ? Title : $"{Title}, {StateText}";
 
     public string CancelLabel => SyncGroup is null ? "Cancel" : "Cancel this step";
-    public string CancelTooltip => SyncGroup is null
+    /// <summary>The plan's publication boundary (§11.5): no Cancel while an archive update is being saved and finished.</summary>
+    public const string FinishingSafelyHelp = "Finishing this archive update safely.";
+    [ObservableProperty] private bool _canCancel = true;
+    [ObservableProperty] private string _cancelTooltip = DefaultCancelTooltip(null);
+    /// <summary>Spoken once per archive phase change (plan §11.5); never per member.</summary>
+    [ObservableProperty] private string _phaseAnnouncement = string.Empty;
+    private ArchiveJobPhase? _announcedPhase;
+    private static string DefaultCancelTooltip(SyncGroup? group) => group is null
         ? "Stops at the next safe step; completed steps are kept"
         : "Cancels only this step. Other synchronization steps stay visible; pending removals wait for review if a transfer stops.";
+    internal static string ArchivePhaseText(ArchiveJobPhase phase) => phase switch
+    {
+        ArchiveJobPhase.Preparing => "Preparing",
+        ArchiveJobPhase.ReadingArchive => "Reading archive",
+        ArchiveJobPhase.Rebuilding => "Rebuilding",
+        ArchiveJobPhase.Checking => "Checking",
+        ArchiveJobPhase.Saving => "Saving",
+        _ => "Finishing safely",
+    };
 
     /// <summary>The progress shown and the time left (release issue I26), on this view's own clock.</summary>
     private readonly ProgressEstimator _progress = new();
@@ -85,6 +101,8 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private bool _canRetryElevated;
     /// <summary>A finished check of checksums and signatures whose results are still kept (D-57): they can be shown again.</summary>
     [ObservableProperty] private bool _canShowResults;
+    /// <summary>Plan §11.2 step 7: opening a newly created archive is an explicit action after it finished.</summary>
+    [ObservableProperty] private bool _canOpenArchive;
     [ObservableProperty] private bool _hasIssues;
     [ObservableProperty] private bool _needsDecision;
     [ObservableProperty] private string _severity = "info";
@@ -138,6 +156,9 @@ public sealed partial class JobViewModel : ObservableObject
         };
         CanRetryElevated = OperatingSystem.IsWindows() && Platform.Windows.Elevation.ElevationPlanBuilder.OffersRetry(j);
         CanShowResults = IsFinished && j.Kind is (JobKind.VerifyChecksums or JobKind.VerifyBeside) && j.VerificationReport is not null;
+        // State only: whether the file is still there is checked when the action runs, never on this refresh path.
+        CanOpenArchive = j.State is JobState.Completed or JobState.CompletedWithIssues && j.Kind == JobKind.ArchiveUpdate &&
+            j.Request.Archive is { Baseline: null, NativeBaseline: null, MoveSources: false };
         int issues = j.IssueCount;
         HasIssues = issues > 0;
         Severity = j.State == JobState.Failed || j.ItemsFailed > 0 ? "error" : j.State == JobState.CompletedWithIssues ? "warning" : j.State == JobState.Completed ? "ok" : "info";
@@ -216,6 +237,15 @@ public sealed partial class JobViewModel : ObservableObject
         bool verifying = currentItem.EndsWith(verifyingSuffix, StringComparison.Ordinal);
         PercentText = IsActive && !IsIndeterminate ? $"{Math.Floor(Percent):0}%"
             : j.State == JobState.Completed ? "100%" : string.Empty;
+        var archivePhase = j.Kind == JobKind.ArchiveUpdate ? j.ArchivePhase : null;
+        bool deferred = j.CancellationDeferred && !j.State.IsFinished();
+        CanCancel = !deferred;
+        CancelTooltip = deferred ? FinishingSafelyHelp : DefaultCancelTooltip(SyncGroup);
+        if (archivePhase != _announcedPhase && j.State == JobState.Running)
+        {
+            _announcedPhase = archivePhase;
+            if (archivePhase is { } announced) PhaseAnnouncement = $"{Title}: {ArchivePhaseText(announced)}";
+        }
         PhaseText = j.State switch
         {
             JobState.Queued => j.WaitReason ?? "Waiting for its turn",
@@ -224,6 +254,7 @@ public sealed partial class JobViewModel : ObservableObject
             JobState.Stopping => "Stopping — waiting for a safe point",
             JobState.AwaitingDecision => "Waiting for your decision",
             JobState.Running when j.IsPaused => "Pausing",
+            JobState.Running when archivePhase is { } phase => ArchivePhaseText(phase),
             JobState.Running when verifying => "Verifying",
             JobState.Running when estimate.Note == ProgressNote.Finishing => "Finishing",
             JobState.Running when !j.TotalsFinal && bd == 0 && id == 0 => "Counting what to do",
@@ -311,13 +342,14 @@ public sealed partial class JobViewModel : ObservableObject
     }
 }
 
-public enum RecoveryActionPhase { Idle, Reviewing, AwaitingApproval, Applying, Submitted }
+public enum RecoveryActionPhase { Idle, Reviewing, AwaitingApproval, Applying, Submitted, Completed }
 
-public sealed partial class InterruptedJobViewModel(InterruptedJob job) : ObservableObject
+public sealed partial class InterruptedJobViewModel(InterruptedJob job, bool archiveCleanupAvailable = false) : ObservableObject
 {
     public InterruptedJob Job { get; } = job;
     public string Title => $"{Formatters.SafeName(Job.Title)} (interrupted {Job.CreatedUtc.ToLocalTime():g})";
-    public string Details => $"{Job.SourceCount:N0} source items · " + (Job.OpenIntents.Count == 0
+    public string Details => Job.ArchiveTransactions.HasRecords ? ArchiveDetails :
+        $"{Job.SourceCount:N0} source items · " + (Job.OpenIntents.Count == 0
         ? $"{Job.CompletedSteps:N0} steps had finished. No step was in progress."
         : $"{Job.CompletedSteps:N0} steps had finished; {Job.OpenIntents.Count} step(s) were in progress and are inspected before anything is changed.") +
         (Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && !CanRunAgain
@@ -326,22 +358,30 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
         (InterruptedRecoveryReport.HasUnreviewedRemoteUpload(Job)
             ? " " + InterruptedRecoveryReport.RemoteUploadReviewWarning(Job) : "");
 
+    private string ArchiveDetails => CanReviewArchiveCleanup
+        ? "Review retained files to check the current archive before choosing cleanup. The archive will be kept."
+        : InterruptedRecoveryReport.ArchiveSummary(Job);
+
     private string RecoveryGuidance => CanReviewNewTransfer
         ? Job.TransferIntentProblem?.Contains("Review a new transfer", StringComparison.OrdinalIgnoreCase) == true
             ? "" : " Review a new transfer to choose its scope and options again."
         : " The recorded scope cannot be prefilled here. Select the sources and destination again; cleanup and the recovery report remain available.";
 
-    public string CleanupLabel => Job.OpenIntents.Any(i => i.Operation == JobJournal.RenameViaOp) ? "Finish renaming…"
+    public string CleanupLabel => Job.ArchiveTransactions.HasRecords ? "Review retained files…"
+        : Job.OpenIntents.Any(i => i.Operation == JobJournal.RenameViaOp) ? "Finish renaming…"
         : InterruptedRecoveryReport.HasUnreviewedRemoteUpload(Job) ? "Review local cleanup…"
         : "Clean up partial files";
     public string ReviewReportLabel => "Review retained recovery report for " + Formatters.SafeName(Job.Title);
     public string MarkReviewedLabel => "Mark interrupted recovery reviewed for " + Formatters.SafeName(Job.Title);
     public string HideLabel => "Hide interrupted recovery notice for " + Formatters.SafeName(Job.Title);
+    public bool CanCleanup => !Job.ArchiveTransactions.HasRecords || archiveCleanupAvailable;
+    public bool CanReviewArchiveCleanup => Job.ArchiveTransactions.HasRecords && archiveCleanupAvailable;
+    public bool CanMarkReviewed => !Job.ArchiveTransactions.RequiresReview;
 
     /// <summary>Continuation requires complete, supported original meaning as well as known source paths.</summary>
-    public bool CanRunAgain => Job.CanContinueTransfer;
+    public bool CanRunAgain => !Job.ArchiveTransactions.HasRecords && Job.CanContinueTransfer;
     public string ContinueLabel => Job.Kind == nameof(JobKind.Move) ? "Continue move…" : "Continue copy…";
-    public bool CanReviewNewTransfer => !CanRunAgain && Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && Job.SourcesKnown &&
+    public bool CanReviewNewTransfer => !Job.ArchiveTransactions.HasRecords && !CanRunAgain && Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && Job.SourcesKnown &&
         Job.Sources.All(RecoverableTransferIntent.ValidPath) && Job.SourceCount <= RecoverableTransferIntent.RootLimit &&
         RecoverableTransferIntent.LocalDestination(Job.Destination) is not null;
 
@@ -696,9 +736,10 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     public void LoadInterrupted(IEnumerable<InterruptedJob> jobs)
     {
         Interrupted.Clear();
-        foreach (var j in jobs) Interrupted.Add(new InterruptedJobViewModel(j));
+        foreach (var j in jobs) Interrupted.Add(new InterruptedJobViewModel(j, CanReviewArchiveCleanup?.Invoke(j) == true));
         UpdateSummary();
     }
+    internal Func<InterruptedJob, bool>? CanReviewArchiveCleanup { get; set; }
 
     public void LoadReviewedRecovery(IEnumerable<RecoveryReviewRecord> records)
     {

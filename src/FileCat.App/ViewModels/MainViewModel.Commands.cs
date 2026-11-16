@@ -121,6 +121,8 @@ public sealed partial class MainViewModel
                 return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.MoveSource) + " Copy items to the clipboard (Ctrl+C) instead.");
             case CommandIds.Edit when loc?.Scheme == Schemes.Recovery:
                 return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.ExternalEdit) + " View it with F3.");
+            case CommandIds.Edit when loc?.Scheme == Schemes.Archive && (caps & LocationCapabilities.ExternalEdit) == 0:
+                return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.ExternalEdit));
             case CommandIds.Rename when loc is not null && (caps & LocationCapabilities.Rename) == 0:
                 return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.Rename));
             case CommandIds.Copy or CommandIds.Move or CommandIds.Delete or CommandIds.DeletePermanent or CommandIds.View or CommandIds.Edit
@@ -201,7 +203,9 @@ public sealed partial class MainViewModel
                 return;
             }
             tab.ColumnProfile = profile;
-            Notify($"Columns: {Services.Columns.NameOf(profile)} (Alt+{profile})");
+            Notify(tab.UsesColumnProfiles
+                ? $"Columns: {Services.Columns.NameOf(profile)} (Alt+{profile})"
+                : $"This view keeps its own columns; {Services.Columns.NameOf(profile)} (Alt+{profile}) applies when this tab shows a folder, an archive or a connection.");
             return;
         }
 

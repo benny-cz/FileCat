@@ -18,6 +18,8 @@ namespace FileCat.App.Services;
 /// icon files with their own icons; and shortcuts, Internet shortcuts, and customized folders with the icon they name.
 /// FileCat reads those files itself, never through the Shell's handlers for them, and takes a named icon only from this
 /// computer's drives, through the restricted helper: a server named there would learn the user's credentials (AI-14).
+/// A type's icon is the one its association assigns: read here from a resource file on this computer, or, for a
+/// packaged app's (Notepad's for .txt, Photos' for .jpg), drawn by the Shell in the restricted helper.
 /// Everything loads off the UI thread at the display's pixel size and appears when ready; rows show a vector icon
 /// meanwhile.
 /// </summary>
@@ -43,6 +45,8 @@ public sealed class NativeIconSource : INativeIconSource
     private readonly Func<ShellPreviews?> _pictures;
     private readonly IconRequestCache _shared = new();
     private readonly AsyncIconRequestCache<Plan> _perItem = new(plan => (plan.Image as IDisposable)?.Dispose());
+    /// <summary>Type keys ("type:.txt") whose icon is a packaged app's: the icon thread found none it may read itself.</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _shellTypes = new(StringComparer.Ordinal);
     private volatile HashSet<string>? _knownNames;
     private readonly Thread _thread;
     private readonly string _systemRoot = Path.GetPathRoot(Environment.SystemDirectory) ?? @"C:\";
@@ -77,6 +81,7 @@ public sealed class NativeIconSource : INativeIconSource
         PixelSize = size;
         _perItem.Clear();
         _shared.Clear();
+        _shellTypes.Clear();
     }
 
     public IImage? GetIcon(in EntryData entry, Location? folder = null)
@@ -178,8 +183,35 @@ public sealed class NativeIconSource : INativeIconSource
 
     private IImage? FromPlan(Plan? plan) => plan is null ? null : plan.Image ?? (plan.SharedKey is { } key ? Shared(key) : null);
 
-    /// <summary>A shared icon at the current size: cached, or queued for the icon thread (null meanwhile).</summary>
-    private IImage? Shared(string key) => _shared.Get((PixelSize, key));
+    /// <summary>
+    /// A shared icon at the current size: cached, or queued for the icon thread (null meanwhile). A type whose icon is a
+    /// packaged app's comes from the Shell in the restricted helper instead, once per type and size.
+    /// </summary>
+    private IImage? Shared(string key)
+    {
+        var image = _shared.Get((PixelSize, key));
+        if (image is not null || !_shellTypes.ContainsKey(key)) return image;
+        // Shell pictures off: the blank page meanwhile, nothing remembered, so turning them on brings the icon back.
+        if (_pictures() is null) return Shared("type:<file>");
+        return FromPlan(ShellTypeIcon(key[5..]));
+    }
+
+    /// <summary>
+    /// A type's icon as the Shell draws it (a packaged app's resource), from the restricted helper; the blank page of a
+    /// file without a program when the helper is off or refuses, and nothing remembered when it did not answer.
+    /// </summary>
+    private Plan? ShellTypeIcon(string extension)
+    {
+        int size = PixelSize;
+        return PerItem("shelltype|" + extension, async () =>
+        {
+            if (_pictures() is not { } pictures) return new Plan(null, "type:<file>", AskAgain: true);
+            var (image, answer) = await pictures.GetWithAnswerAsync(ShellImageKind.TypeIcon, extension, 0, FileAttributes.Normal, size, CancellationToken.None).ConfigureAwait(false);
+            return image is not null
+                ? new Plan(ShellBitmaps.ToImage(image), null)
+                : new Plan(null, "type:<file>", answer == ShellAnswer.Failed);
+        });
+    }
 
     /// <summary>Whether a folder's name is one a known folder has here (checked before building its path).</summary>
     private bool IsKnownFolderName(string name)
@@ -389,8 +421,22 @@ public sealed class NativeIconSource : INativeIconSource
         if (location is { } l && WindowsIcons.TryExtract(l, size, out int w, out int h, out var bgra)) return Icon(w, h, bgra);
         if (key == "sysdrive") return Load("stock:" + WindowsIcons.StockFixedDrive, size);
         if (!key.StartsWith("type:", StringComparison.Ordinal)) return null;
-        // A type handler has no file identity FileCat can hold. Do not let a per-user association resolve an
-        // unverified icon path during automatic browsing; the generic local stock icon is the safe fallback.
+        if (key.StartsWith("type:.", StringComparison.Ordinal))
+        {
+            // Windows 11 names no file for a type's icon above. The association names it: a resource file on this
+            // computer is read here; a packaged app's resource is drawn by the Shell, in the restricted helper (Shared).
+            var (kind, associated) = WindowsIcons.AssociatedIcon(key[5..]);
+            if (associated is { } a && WindowsIcons.TryExtract(a, size, out w, out h, out bgra)) return Icon(w, h, bgra);
+            if (kind == WindowsIcons.AssociatedIconKind.Packaged)
+            {
+                _shellTypes[key] = 0;
+                NotifyLoaded();
+                return null;
+            }
+        }
+        // An association's icon is read only from a resource file on this computer that FileCat can hold (TryExtract's
+        // lease): a path on a share, behind a link, or gone is never handed to the Shell to resolve during automatic
+        // browsing. The generic local stock icon is the safe fallback.
         var generic = WindowsIcons.StockLocation(key == "type:<dir>" ? WindowsIcons.StockFolder : WindowsIcons.StockDocumentNoAssociation);
         return generic is { } stock && WindowsIcons.TryExtract(stock, size, out w, out h, out bgra)
             ? Icon(w, h, bgra) : null;

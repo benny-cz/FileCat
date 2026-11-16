@@ -45,9 +45,13 @@ internal sealed class AssociationsEditor
     private readonly ToolInvocationPreview _invocation;
     private Action? _retirePreview;
     private bool _updating;
+    /// <summary>Settings that cannot be saved (read-only): the associations can be looked through, not changed.</summary>
+    private readonly bool _readOnly;
 
-    public AssociationsEditor(IEnumerable<ToolDefinition> associations, Func<IReadOnlyList<SavedFilter>> savedFilters, string sampleFolder)
+    public AssociationsEditor(IEnumerable<ToolDefinition> associations, Func<IReadOnlyList<SavedFilter>> savedFilters, string sampleFolder,
+        bool readOnly = false)
     {
+        _readOnly = readOnly;
         _savedFilters = savedFilters;
         _draft = Clone(associations).Select(t => new Entry(t)).ToList();
         _invocation = new ToolInvocationPreview("Association", _arguments, SnapshotInvocation, sampleFolder);
@@ -284,15 +288,17 @@ internal sealed class AssociationsEditor
         _directory.Text = tool?.WorkingDirectory ?? string.Empty;
         _hotkey.Text = tool?.Hotkey ?? string.Empty;
         _shell.IsChecked = tool?.ShellMode ?? false;
-        foreach (var control in new Control[] { _name, _mask, _intent, _program, _arguments, _directory, _hotkey, _shell })
+        // Read-only text stays selectable; the action and the shell switch stay off.
+        foreach (var control in new Control[] { _name, _mask, _program, _arguments, _directory, _hotkey })
             control.IsEnabled = entry is not null;
+        _intent.IsEnabled = _shell.IsEnabled = entry is not null && !_readOnly;
         _updating = false;
         RefreshButtons();
     }
 
     private void RefreshButtons()
     {
-        bool selected = Selected is not null;
+        bool selected = Selected is not null && !_readOnly;
         _duplicate.IsEnabled = _remove.IsEnabled = selected;
         _up.IsEnabled = selected && _list.SelectedIndex > 0;
         _down.IsEnabled = selected && _list.SelectedIndex < _draft.Count - 1;

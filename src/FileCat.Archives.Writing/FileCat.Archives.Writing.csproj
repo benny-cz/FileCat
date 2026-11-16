@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Stream-only encoder/strict verifier assembly. Reader-only Rar15 and DiscUtils are not worker dependencies. -->
+  <PropertyGroup>
+    <RootNamespace>FileCat.Archives.Writing</RootNamespace>
+    <RuntimeIdentifiers>$(RuntimeIdentifiers);linux-musl-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- One implementation source, compiled into the existing reader package and the dedicated worker package. -->
+    <Compile Include="../FileCat.Archives/Writing/*.cs" Link="Writing/%(Filename)%(Extension)" />
+    <Compile Include="../FileCat.Archives/TarHeaderGuard.cs" Link="TarHeaderGuard.cs" />
+    <Compile Include="../FileCat.Archives/SevenZipReadPasswordSession.cs" Link="SevenZipReadPasswordSession.cs" />
+    <!-- Bounded RAR5 header/crypto primitives only; no RarReader, volume pathname probing or Rar15 closure. -->
+    <Compile Include="../FileCat.Archives/Rar/RarHeaderReader.cs" Link="Rar/RarHeaderReader.cs" />
+    <Compile Include="../FileCat.Archives/Rar/RarData.cs" Link="Rar/RarData.cs" />
+    <Compile Include="../FileCat.Archives/Rar/Rar5ReadPasswordSession.cs" Link="Rar/Rar5ReadPasswordSession.cs" />
+    <!-- Selected stream-only BSD decoder closure, never the browsing reader or its path/legacy dependencies. -->
+    <Compile Include="../FileCat.Archives/Rar/Rar5MemberDecryption.cs" Link="Rar/Rar5MemberDecryption.cs" />
+    <Compile Include="../FileCat.Archives/Rar/Rar5Decoder.cs" Link="Rar/Rar5Decoder.cs" />
+    <Compile Include="../FileCat.Archives/Rar/RarDecoder.cs" Link="Rar/RarDecoder.cs" />
+    <Compile Include="../FileCat.Archives/Rar/RarBitReader.cs" Link="Rar/RarBitReader.cs" />
+    <Compile Include="../FileCat.Archives/Rar/RarHuffman.cs" Link="Rar/RarHuffman.cs" />
+    <Compile Include="../FileCat.Archives/Rar/RarWindow.cs" Link="Rar/RarWindow.cs" />
+    <Compile Include="../FileCat.Archives/Rar/RarFilters.cs" Link="Rar/RarFilters.cs" />
+    <Compile Include="../FileCat.Archives/Rar/Blake2sp.cs" Link="Rar/Blake2sp.cs" />
+    <ProjectReference Include="../FileCat.Core/FileCat.Core.csproj" />
+    <ProjectReference Include="../ThirdParty/SharpCompress/FileCat.SharpCompress.csproj" />
+    <InternalsVisibleTo Include="FileCat.Core.Tests" />
+  </ItemGroup>
+</Project>
