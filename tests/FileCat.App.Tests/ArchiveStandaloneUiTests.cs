@@ -148,7 +148,7 @@ public sealed class ArchiveStandaloneUiTests
         await HeldEnterCancelsReplacement(f, declined);
         Assert.Single(f.Services.Jobs.Jobs); Assert.Equal("alpha", Read(path, format));
         await Transfer(f, "Replace contents");
-        var replacement = f.Services.Jobs.Jobs.Last(); Assert.NotSame(creation, replacement); await Finished(replacement);
+        var replacement = f.Services.Jobs.Jobs.Last(); Assert.NotSame(creation, replacement); await Finished(replacement, f.Files);
         var replaced = Assert.Single(replacement.Request.Archive!.Changes);
         Assert.Equal((ArchiveChangeKind.Replace, ArchiveStandalone.MemberName), (replaced.Kind, replaced.MemberPath));
         Assert.Equal("beta", Read(path, format)); Assert.Equal("beta", File.ReadAllText(Path.Combine(f.Files, "b.txt")));
@@ -167,7 +167,7 @@ public sealed class ArchiveStandaloneUiTests
         File.WriteAllText(session.WorkingPath, "edited through F4");
         var commit = (Task)typeof(MainViewModel).GetMethod("CommitSessionAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(f.Vm, [session])!;
         await f.Complete(commit);
-        var committed = f.Services.Jobs.Jobs.Last(); Assert.NotSame(replacement, committed); await Finished(committed);
+        var committed = f.Services.Jobs.Jobs.Last(); Assert.NotSame(replacement, committed); await Finished(committed, f.Files);
         await Wait(() => f.Services.EditSessions.LoadAll().Single().LastCommitUtc is not null);
         Assert.Equal("edited through F4", Read(path, format));
         Assert.Empty(JournalRecovery.Scan(f.Services.Paths.JournalDirectory));
@@ -244,12 +244,44 @@ public sealed class ArchiveStandaloneUiTests
         await f.Complete(command);
     }
 
-    private static async Task Finished(Job job)
+    private static async Task Finished(Job job, string? folder = null)
     {
         await Wait(() => job.State.IsFinished());
-        // Each issue's technical detail too: the user's text names the kind of refusal, not which check made it.
-        Assert.True(job.State == JobState.Completed, job.State + ": " + job.Summary + " " + JobIssue.Summarize(job.Issues) + " " +
-            string.Join(" | ", job.Issues.Where(issue => issue.Details is not null).Select(issue => issue.Details)));
+        if (job.State == JobState.Completed) return;
+        // Each issue's technical detail too: the user's text names the kind of refusal, not which check made it. On Unix, the
+        // folder's files as the system has them now: on hosted macOS (runs 43766663607 and 43774376479) a captured input was
+        // refused as changed while nothing in this test touched it, and their times and extended attributes say what did.
+        Assert.Fail(job.State + ": " + job.Summary + " " + JobIssue.Summarize(job.Issues) + " " +
+            string.Join(" | ", job.Issues.Where(issue => issue.Details is not null).Select(issue => issue.Details)) +
+            (folder is not null && !OperatingSystem.IsWindows() ? " Files now: " + DescribeSafely(folder) : ""));
+    }
+
+    // Never in the way of the failure it describes.
+    private static string DescribeSafely(string folder)
+    {
+        try { return Describe(folder); }
+        catch (Exception ex) { return "(could not describe the files: " + ex.Message + ")"; }
+    }
+
+    private static string Describe(string folder)
+    {
+        string[] files = [.. Directory.GetFiles(folder).Order(StringComparer.Ordinal)];
+        string Run(string tool, string[] arguments)
+        {
+            var start = new ProcessStartInfo(tool) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+            foreach (string argument in arguments) start.ArgumentList.Add(argument);
+            try
+            {
+                using var process = Process.Start(start)!;
+                var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
+                if (!process.WaitForExit(10_000)) { process.Kill(); return tool + " did not finish"; }
+                return (output.Result + error.Result).Trim();
+            }
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { return tool + ": " + ex.Message; }
+        }
+        return OperatingSystem.IsMacOS()
+            ? Run("/usr/bin/stat", ["-f", "%N ino=%i mode=%Sp m=%Fm c=%Fc b=%FB flags=%Sf", .. files]) + " xattrs: " + Run("/usr/bin/xattr", ["-l", .. files])
+            : Run("stat", ["-c", "%n ino=%i mode=%A m=%.9Y c=%.9Z", .. files]);
     }
 
     private static async Task Wait(Func<bool> ready)
