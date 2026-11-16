@@ -105,9 +105,8 @@ noninteractive package version: FileCat 1.0.0-preview.11, exit 0
 ```
 
 This is a package-start check, not installed stable-candidate qualification.
-The following exact producer inventory is also the required hosted inventory;
-hosted IDs, digests, manifests and six upload receipts will be reconciled
-after the protected private upload.
+The following exact inventory matches all 24 assets hosted in private draft
+`447303206`; their IDs and digests reconcile with all six upload receipts.
 
 | Hosted asset | Bytes | SHA-256 |
 |---|---:|---|
@@ -137,10 +136,41 @@ after the protected private upload.
 | sbom-1.0.0-preview.11-win-x64-setup-payload.spdx.json | 332767 | 0999361304c3eb533691c3cfa19052699d5657e323a4248c63c7e5e7f7434094 |
 
 
+## Owner-reviewed private draft
+
+The owner approved the protected `release` review as `benny-cz` on
+2026-11-16. The GitHub approval API independently confirms the approved
+review for that environment. Tagged workflow `43884729278` then completed
+successfully, including private upload and server-digest verification.
+
+Draft release **447303206** has `tag_name: v1.0.0-preview.11`, exact
+source `7eb4766f9398e095673b5cb1f92849dd07a4edde`, `draft: true`,
+`prerelease: true` and no publication time. All 24 unique uploaded
+asset names, byte sizes, SHA-256 server digests and states match the
+downloaded producers above. All three hosted manifests were separately
+downloaded through the asset API and are byte-identical to the producers.
+
+Receipt artifact `draft-preview-receipts`, ID `14245289554`, has
+GitHub-reported container SHA-256
+`0958113b6fe3d8a9a4c24b7307380d996b9ddb63d87b01d3381a14e8064ea1cf`.
+All three preflight and three uploaded receipts match source, tag,
+workflow run, manifest hashes, selected names/bytes/hashes, release ID
+and hosted upload IDs. `CandidateQualified` and `StablePromotionAuthorized`
+remain false. The retained six-file raw receipt inventory SHA-256 is
+`f55335a5e713f8855940b67a6d56389462e2c780485d743adf270942a6f757c6`.
+
+A full private REST update explicitly retained the existing tag, exact
+source, name, draft/prerelease flags and committed UTF-8 notes. A fresh
+read confirmed all 24 asset identities unchanged and byte-exact
+[committed preview.11 notes](https://github.com/benny-cz/FileCat/blob/9963fe4da0cff988110afe1cb6fe1d590a34c411/docs/release/1.0.0/PREVIEW11_RELEASE_NOTES.md)
+at SHA-256 `eda773235e090363dd627d7353682b0083772b6c1d129fd0b0eab077f4fc4c78` (9103 bytes).
+The retained final private API snapshot SHA-256 is
+`762881f718103bc3824688db3287e4b5fed7ce1c0c5e74291c8726a6e9b4601a`.
+
 ## Publication decisions
 
-DEC-09 requires the owner's protected `release` environment review before
-private upload. DEC-07 requires a separate decision on the exact hosted
-unsigned tag/assets/hashes and committed notes before public publication.
+DEC-09 private review and upload are complete. **DEC-07 remains pending**:
+a separate owner decision on this exact hosted unsigned tag/assets/hashes and
+committed notes is required before public publication.
 The intended public flags are `prerelease: true` and `make_latest: false`.
 Stable 1.0.0 remains **NO-GO**.
