@@ -148,7 +148,17 @@ public sealed class ArchiveStandaloneUiTests
         await HeldEnterCancelsReplacement(f, declined);
         Assert.Single(f.Services.Jobs.Jobs); Assert.Equal("alpha", Read(path, format));
         await Transfer(f, "Replace contents");
-        var replacement = f.Services.Jobs.Jobs.Last(); Assert.NotSame(creation, replacement); await Finished(replacement, f.Files);
+        var replacement = f.Services.Jobs.Jobs.Last(); Assert.NotSame(creation, replacement);
+        // Hosted macOS stamps a file as used (com.apple.lastuseddate#PS) a few seconds after the test made it; landing while
+        // the replacement reads b.txt, the stamp changes b.txt's metadata and FileCat refuses the update, as it must (runs
+        // 43792885074 and 43792906622). A user then replaces again; so does this test, once, and for that stamp alone.
+        await Wait(() => replacement.State.IsFinished());
+        if (replacement.State != JobState.Completed && OperatingSystem.IsMacOS() && SystemStamped(f.Files))
+        {
+            TestContext.Current.TestOutputHelper?.WriteLine("macOS stamped an input while it was replaced; replacing again.");
+            await Transfer(f, "Replace contents"); replacement = f.Services.Jobs.Jobs.Last();
+        }
+        await Finished(replacement, f.Files);
         var replaced = Assert.Single(replacement.Request.Archive!.Changes);
         Assert.Equal((ArchiveChangeKind.Replace, ArchiveStandalone.MemberName), (replaced.Kind, replaced.MemberPath));
         Assert.Equal("beta", Read(path, format)); Assert.Equal("beta", File.ReadAllText(Path.Combine(f.Files, "b.txt")));
@@ -256,6 +266,24 @@ public sealed class ArchiveStandaloneUiTests
             (folder is not null && !OperatingSystem.IsWindows() ? " Files now: " + DescribeSafely(folder) : ""));
     }
 
+    private static string RunTool(string tool, string[] arguments)
+    {
+        var start = new ProcessStartInfo(tool) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (string argument in arguments) start.ArgumentList.Add(argument);
+        try
+        {
+            using var process = Process.Start(start)!;
+            var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
+            if (!process.WaitForExit(10_000)) { process.Kill(); return tool + " did not finish"; }
+            return (output.Result + error.Result).Trim();
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { return tool + ": " + ex.Message; }
+    }
+
+    // Whether macOS marked a file in the folder as used (com.apple.lastuseddate#PS), which changes the file's metadata.
+    private static bool SystemStamped(string folder) => Directory.GetFiles(folder).Any(file =>
+        RunTool("/usr/bin/xattr", [file]).Split('\n').Any(name => name.Trim() == "com.apple.lastuseddate#PS"));
+
     // Never in the way of the failure it describes.
     private static string DescribeSafely(string folder)
     {
@@ -266,22 +294,9 @@ public sealed class ArchiveStandaloneUiTests
     private static string Describe(string folder)
     {
         string[] files = [.. Directory.GetFiles(folder).Order(StringComparer.Ordinal)];
-        string Run(string tool, string[] arguments)
-        {
-            var start = new ProcessStartInfo(tool) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
-            foreach (string argument in arguments) start.ArgumentList.Add(argument);
-            try
-            {
-                using var process = Process.Start(start)!;
-                var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
-                if (!process.WaitForExit(10_000)) { process.Kill(); return tool + " did not finish"; }
-                return (output.Result + error.Result).Trim();
-            }
-            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { return tool + ": " + ex.Message; }
-        }
         return OperatingSystem.IsMacOS()
-            ? Run("/usr/bin/stat", ["-f", "%N ino=%i mode=%Sp m=%Fm c=%Fc b=%FB flags=%Sf", .. files]) + " xattrs: " + Run("/usr/bin/xattr", ["-l", .. files])
-            : Run("stat", ["-c", "%n ino=%i mode=%A m=%.9Y c=%.9Z", .. files]);
+            ? RunTool("/usr/bin/stat", ["-f", "%N ino=%i mode=%Sp m=%Fm c=%Fc b=%FB flags=%Sf", .. files]) + " xattrs: " + RunTool("/usr/bin/xattr", ["-l", .. files])
+            : RunTool("stat", ["-c", "%n ino=%i mode=%A m=%.9Y c=%.9Z", .. files]);
     }
 
     private static async Task Wait(Func<bool> ready)
