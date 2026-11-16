@@ -1,6 +1,16 @@
-# Pause checkpoint — 2026-11-08
+# Pause checkpoint — 2026-11-16
 
-Resumed on 2026-11-16. Main was synchronized and the affected native regression batches were rechecked; see [the synchronization checkpoint](MAIN_SYNC_20261116.md). The pause instructions below describe the earlier completed pause, not the current active goal.
+The current slice is complete and the goal is paused at the user's request, after synchronizing the isolated feature branch with main `f745279c18fed923cbc98440957774976517ab7c` in merge `56469a86ea0f06f2b4fdb4c34087500d8e791478`. This latest merge has no conflicts and changes release documentation only. Product source, tests, build configuration and dependency inputs are identical to the tested feature parent `2f4bf33ed2080a47384847e9ff65e159b73931f9`; no additional build or guest run was needed for this documentation merge. The shared main checkout was not changed.
+
+The completed indexed two-input comparison slice has passing r1130 Core, analysis rendering, settings and applicable native suites on Windows VM, Mac and Ubuntu VM. Exact counts, failures corrected in fixtures, retained source/input hashes and terminal process receipts remain in [the qualification checkpoint](INDEXED_COMPARISON_QUALIFICATION.md). All task-owned processes exited. No live test or compiler handle remains to resume, and this pause involved no guest desktop interaction.
+
+Resume in `E:/FileCat/.tmp/worktrees/disk-space-analysis` on `codex/disk-space-analysis`. Read `progress.json` nextWork first. The immediate implementation work is indexed comparison catalog/explorer selection, input and metric lifetime, paged UI/inspection, predicates/cohorts/order, charts and persistence/report integration. Remaining W0–W8 gates and the final independent UX/UI/functional/security review are still open. Public feature registration stays off. The full goal is not complete.
+
+Do not start further implementation or testing until the user resumes the goal. Recheck guest occupancy then, preserve other testers' processes and close this task's own instances after testing. Completed evidence finalizers are immutable.
+
+## Earlier pause — 2026-11-08
+
+The earlier pause was resumed on 2026-11-16. The following details are historical; the current pause and next work are recorded above.
 
 The user requested finishing this slice and pausing the full goal. The slice is complete; no further feature work is authorized until the goal is resumed.
 

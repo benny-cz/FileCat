@@ -12995,7 +12995,12 @@
     "resumeDocument": "PAUSE_CHECKPOINT.md",
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false,
-    "resumedOn": "2026-11-16"
+    "resumedOn": "2026-11-16",
+    "pausedOn": "2026-11-16",
+    "currentlyPaused": true,
+    "completedSlice": "Indexed two-input comparison core; r1130 all-three qualification; latest main release-documentation sync",
+    "featureCommit": "2f4bf33ed2080a47384847e9ff65e159b73931f9",
+    "mainSyncMerge": "56469a86ea0f06f2b4fdb4c34087500d8e791478"
   },
   "mainSynchronization": {
     "date": "2026-11-16",
@@ -13023,6 +13028,13 @@
         "conflicts": 0,
         "verification": "r1121 affected builds and native Core/analysis/rendering/settings suites; six ZIP revision cases, with one declared Windows-only Unix skip",
         "evidence": "source-manifest-r1121-comparison-paths.json"
+      },
+      {
+        "upstreamMain": "f745279c18fed923cbc98440957774976517ab7c",
+        "merge": "56469a86ea0f06f2b4fdb4c34087500d8e791478",
+        "conflicts": 0,
+        "verification": "Documentation-only merge; source, tests, build configuration and dependency inputs unchanged from r1130-qualified feature parent 2f4bf33e; no additional guest run",
+        "evidence": "INDEXED_COMPARISON_QUALIFICATION.md"
       }
     ]
   },
