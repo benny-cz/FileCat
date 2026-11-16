@@ -122,10 +122,11 @@ public static class AnalysisAggregate
                 reportBases = AnalysisReportBases.Capture(basesByRoot.Values.SelectMany(values => values));
             }
         }
-        if (!compatible) { known = 0; unverified = 0; charges.Clear(); }
+        var observedCharges = charges.ToImmutable();
+        if (!compatible) { known = 0; unverified = 0; }
         return new(snapshot.Identity.SessionId, snapshot.Identity.Epoch, snapshot.Identity.Revision, metric,
-            charges.ToImmutable(), new(known, unverified, count, missing.ToImmutableDictionary(), compatible), matching.ToImmutable())
-            { UnmeasuredStates = unmeasured.ToImmutable(), MissingCharges = missingCharges.ToImmutable(), UnverifiedCharges = unverifiedCharges.ToImmutable(), MeasurementBases = reportBases, AliasContextNodes = context.ToImmutable(), Taint = AnalysisPrivacy.Join(snapshot.Taint) };
+            compatible ? observedCharges : [], new(known, unverified, count, missing.ToImmutableDictionary(), compatible), matching.ToImmutable())
+            { ComparisonCharges = observedCharges, UnmeasuredStates = unmeasured.ToImmutable(), MissingCharges = missingCharges.ToImmutable(), UnverifiedCharges = unverifiedCharges.ToImmutable(), MeasurementBases = reportBases, AliasContextNodes = context.ToImmutable(), Taint = AnalysisPrivacy.Join(snapshot.Taint) };
 
         void Missing(AnalysisMeasurement measurement, IEnumerable<ulong> ids, ulong? directory = null)
         {

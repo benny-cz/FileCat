@@ -324,7 +324,7 @@ public static class AnalysisComparison
             foreach (var id in s.Facts.Where(f => f.DirectoryId.HasValue).Select(f => f.DirectoryId!.Value).Distinct())
             { var node = nodeIndex[id]; if (node.IncludedByPolicy) groups.Add("directory:" + id, [node]); }
         var amounts = new Dictionary<string, UInt128>(StringComparer.Ordinal); var attribution = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var charge in projection.Charges)
+        foreach (var charge in projection.ComparisonCharges)
         {
             cancellation.ThrowIfCancellationRequested();
             string group = charge.DirectorySelf ? "directory:" + charge.ParentId : nodeGroups[charge.Aliases[0]];

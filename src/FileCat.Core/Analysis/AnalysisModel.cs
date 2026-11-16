@@ -126,6 +126,9 @@ public sealed record AnalysisProjection(Guid SessionId, long Epoch, long Revisio
     // but their canonical attribution is still needed for scoped summaries.
     public ImmutableArray<AnalysisCharge> UnverifiedCharges { get; init; } = [];
     internal AnalysisReportBases? MeasurementBases { get; init; }
+    // Known observations may remain useful side by side when combined area/bases are incompatible.
+    // Only the comparison layer consumes these; public chart charges stay suppressed in that case.
+    internal ImmutableArray<AnalysisCharge> ComparisonCharges { get; init; } = [];
     public ImmutableDictionary<ulong, MeasurementState> UnmeasuredStates { get; init; } = ImmutableDictionary<ulong, MeasurementState>.Empty;
     public AnalysisTaint Taint { get; init; } = AnalysisTaint.OrdinarySensitive;
     public ImmutableHashSet<ulong> UnknownFilterNodes { get; init; } = ImmutableHashSet<ulong>.Empty;

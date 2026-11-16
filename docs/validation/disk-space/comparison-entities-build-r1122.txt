@@ -1,0 +1,30 @@
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.CoreCrashHarness -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.CoreCrashHarness\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+  FileCat.WorkerProbe -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.WorkerProbe\bin\Debug\net10.0\FileCat.WorkerProbe.dll
+  FileCat.Core.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\bin\Debug\net10.0\FileCat.Core.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:43.88
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.CoreCrashHarness -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.CoreCrashHarness\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+  FileCat.WorkerProbe -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.WorkerProbe\bin\Debug\net10.0\FileCat.WorkerProbe.dll
+E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.ComparisonEntities.cs(100,73): error CS1739: The best overload for 'AnalysisNode' does not have a parameter named 'MetadataState' [E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\FileCat.Core.Tests.csproj]
+
+Build FAILED.
+
+E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisDatasetSummaryTests.ComparisonEntities.cs(100,73): error CS1739: The best overload for 'AnalysisNode' does not have a parameter named 'MetadataState' [E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\FileCat.Core.Tests.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:09.98

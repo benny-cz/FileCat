@@ -89,6 +89,7 @@ internal sealed class AnalysisComparisonPaths : IAsyncDisposable
     {
         private AnalysisIndexedGraphReader? _previous, _current;
         internal AnalysisScratchWorkspace? Workspace;
+        private AnalysisScratchArena? _arena;
         private AnalysisScratchVector? _writer;
         private AnalysisScratchVectorCheckpoint? _rows;
         internal AnalysisSortedIndexReader? Reverse;
@@ -102,7 +103,7 @@ internal sealed class AnalysisComparisonPaths : IAsyncDisposable
         internal void Initialize(AnalysisIndexedGraphReader previous, AnalysisIndexedGraphReader current)
         {
             _previous = previous.Retain(); _current = current.Retain();
-            Workspace = current.BorrowWorkspace(); _writer = new(Workspace.CreateArena());
+            Workspace = current.BorrowWorkspace(); _arena = Workspace.CreateArena(); _writer = new(_arena); _arena = null;
             for (int c = 0; c < current.Header.Roots.Length; c++)
                 for (int p = 0; p < previous.Header.Roots.Length; p++)
                     if (_mapping.TryGetValue(previous.Header.Roots[p].Id, out string? id) && id == current.Header.Roots[c].Id)
@@ -186,7 +187,7 @@ internal sealed class AnalysisComparisonPaths : IAsyncDisposable
         public void Dispose()
         {
             if (_disposed) return; _disposed = true; Exception? error = null;
-            foreach (IDisposable? resource in new IDisposable?[] { Reverse, _rows, _writer, Workspace, _current, _previous })
+            foreach (IDisposable? resource in new IDisposable?[] { Reverse, _rows, _writer, _arena, Workspace, _current, _previous })
             { try { resource?.Dispose(); } catch (Exception failure) { error = error is null ? failure : new AggregateException(error, failure); } }
             if (error is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
             Interlocked.Exchange(ref s_active, 0);

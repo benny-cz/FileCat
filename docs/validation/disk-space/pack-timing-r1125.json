@@ -1,0 +1,29 @@
+{
+  "revision": "r1125",
+  "renderRevision": "r1125",
+  "buildLog": ".tmp/comparison-entities-factory-build-r1125.txt",
+  "sourceManifest": ".tmp/source-candidate-r1125.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 28.6518743,
+  "archives": [
+    {
+      "bytes": 55841028,
+      "sha256": "a2b6c942051fad729bc5cf077e39270682bbaf85c280ec0afc877f0e04429b30",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r1125.tgz",
+      "platform": "mac"
+    },
+    {
+      "bytes": 53168257,
+      "sha256": "116300f9db9c6860d9bdef1b1443390798554b1d63ae2e2a46db494bf49ad014",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r1125.tgz",
+      "platform": "linux"
+    },
+    {
+      "bytes": 95064552,
+      "sha256": "b71f5a08106a6dd881e81a036f3e15cdde2f0c91f9f0f0e5518f90dee27908df",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r1125.tgz",
+      "platform": "windows"
+    }
+  ]
+}
