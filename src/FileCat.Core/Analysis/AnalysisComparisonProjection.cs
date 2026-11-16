@@ -8,20 +8,7 @@ public static class AnalysisComparisonProjection
     {
         ArgumentNullException.ThrowIfNull(rows);
         if (!Enum.IsDefined(cohort) || !Enum.IsDefined(order)) throw new ArgumentOutOfRangeException(nameof(cohort));
-        rows = cohort switch
-        {
-            AnalysisComparisonCohort.Growing => rows.Where(r => r.Change == AnalysisChange.Growing),
-            AnalysisComparisonCohort.Shrinking => rows.Where(r => r.Change == AnalysisChange.Shrinking),
-            AnalysisComparisonCohort.Added => rows.Where(r => r.Change == AnalysisChange.Added),
-            AnalysisComparisonCohort.Removed => rows.Where(r => r.Change == AnalysisChange.Removed),
-            AnalysisComparisonCohort.Moved => rows.Where(r => r.Change == AnalysisChange.Moved),
-            AnalysisComparisonCohort.Attribution => rows.Where(r => r.Change == AnalysisChange.Attribution),
-            AnalysisComparisonCohort.Replaced => rows.Where(r => r.Change == AnalysisChange.Replaced),
-            AnalysisComparisonCohort.MetadataChanged => rows.Where(r => r.Change == AnalysisChange.MetadataChanged),
-            AnalysisComparisonCohort.NoObservedMetadataChange => rows.Where(r => r.Change == AnalysisChange.NoObservedMetadataChange),
-            AnalysisComparisonCohort.Unknown => rows.Where(r => r.Change is AnalysisChange.Unknown or AnalysisChange.PreviouslyUnknown),
-            _ => rows
-        };
+        rows = rows.Where(r => InCohort(r.Change, cohort));
         return order switch
         {
             AnalysisComparisonOrder.RelativeChange => rows.OrderByDescending(r => r.RelativePercent.HasValue).ThenByDescending(r => Math.Abs(r.RelativePercent ?? 0)),
@@ -30,4 +17,17 @@ public static class AnalysisComparisonProjection
             _ => rows.OrderByDescending(r => r.Delta?.Magnitude ?? 0)
         };
     }
+    internal static bool InCohort(AnalysisChange change, AnalysisComparisonCohort cohort) => cohort switch
+    {
+        AnalysisComparisonCohort.All => true,
+        AnalysisComparisonCohort.Unknown => change is AnalysisChange.Unknown or AnalysisChange.PreviouslyUnknown,
+        _ => change == (cohort switch
+        {
+            AnalysisComparisonCohort.Growing => AnalysisChange.Growing, AnalysisComparisonCohort.Shrinking => AnalysisChange.Shrinking,
+            AnalysisComparisonCohort.Added => AnalysisChange.Added, AnalysisComparisonCohort.Removed => AnalysisChange.Removed,
+            AnalysisComparisonCohort.Moved => AnalysisChange.Moved, AnalysisComparisonCohort.Attribution => AnalysisChange.Attribution,
+            AnalysisComparisonCohort.Replaced => AnalysisChange.Replaced, AnalysisComparisonCohort.MetadataChanged => AnalysisChange.MetadataChanged,
+            AnalysisComparisonCohort.NoObservedMetadataChange => AnalysisChange.NoObservedMetadataChange, _ => throw new ArgumentOutOfRangeException(nameof(cohort))
+        })
+    };
 }

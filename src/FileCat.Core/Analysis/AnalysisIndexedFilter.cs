@@ -16,6 +16,7 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
     private static long Reserved;
     private readonly long _reservation;
     private readonly AnalysisIndexedGraphReader _source;
+    private readonly bool _comparison;
     private byte[]? _truth, _context;
     private readonly Dictionary<string, Scope> _scopes = new(StringComparer.Ordinal);
     private readonly HashSet<ulong> _ancestors = [];
@@ -34,9 +35,9 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
     internal bool NamespaceOnly => Filter.NamespaceOnly && !Request.UnknownOnly;
     internal bool IsUnfiltered => string.IsNullOrWhiteSpace(Request.Text) && Request.RootId is null;
     private sealed record Scope(string? Root, ulong? Ancestor, bool Known);
-    private AnalysisIndexedFilter(AnalysisFilter filter, AnalysisFilterRequest request, AnalysisIndexedGraphReader source)
+    private AnalysisIndexedFilter(AnalysisFilter filter, AnalysisFilterRequest request, AnalysisIndexedGraphReader source, bool comparison)
     {
-        Filter = filter; Request = request; _source = source; ulong paths = source.Count(AnalysisIndexedGraph.Paths);
+        Filter = filter; Request = request; _source = source; _comparison = comparison; ulong paths = comparison ? 0 : source.Count(AnalysisIndexedGraph.Paths);
         int truths = checked((int)((paths + 3) / 4)), contexts = checked((int)((paths + 7) / 8)); _reservation = truths + contexts;
         lock (BudgetGate)
         {
@@ -46,7 +47,7 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
         try { _truth = new byte[truths]; _context = new byte[contexts]; }
         catch { lock (BudgetGate) Reserved -= _reservation; throw; }
     }
-    internal static async Task<AnalysisIndexedFilter> CreateAsync(AnalysisIndexedGraphReader source, AnalysisFilterRequest request, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
+    internal static async Task<AnalysisIndexedFilter> CreateAsync(AnalysisIndexedGraphReader source, AnalysisFilterRequest request, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation, bool comparison = false)
     {
         ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(request.Text);
         if (request.RootId is not null && !source.Header.Roots.Any(r => r.Id == request.RootId)) throw new FormatException("Choose a captured root ID.");
@@ -57,9 +58,9 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
             try { zone = TimeZoneInfo.FindSystemTimeZoneById(source.Header.Identity.TimeZoneId); }
             catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException) { zone = null; }
             return AnalysisFilter.Parse(request.Text, zone ?? TimeZoneInfo.Utc, request.CaseSensitive, roots: source.Header.Roots, allowDateOnly: zone is not null,
-                rootDisplayIds: request.RootDisplayIds);
+                rootDisplayIds: request.RootDisplayIds, comparison: comparison);
         }, cancellation).ConfigureAwait(false);
-        var result = new AnalysisIndexedFilter(filter, request, source);
+        var result = new AnalysisIndexedFilter(filter, request, source, comparison);
         try
         {
             foreach (var root in source.Header.Roots) result._scopes[root.Id] = new(root.Disposition == AnalysisRootDisposition.Active ? root.Id : null, null,
@@ -134,9 +135,9 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
     {
         var node = source.ReadPath(_walk, token); if (++_depth > AnalysisLimits.Depth + 1) throw new InvalidDataException("Invalid filter ancestry.");
         if (node.ParentId == 0) _walking = false;
-        else
+        else { _ancestors.Add(node.ParentId); _walk = node.ParentId; }
+        if (node.ParentId != 0 || _comparison && node.Kind != AnalysisKind.Directory)
         {
-            _ancestors.Add(node.ParentId); _walk = node.ParentId;
             if (NeedsPath)
             {
                 _textAvailable &= AnalysisRawNames.HasLosslessText(node); _characters = checked(_characters + node.Name.Length + 1);
@@ -153,11 +154,16 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
         return !scope.Ancestor.HasValue || _ancestors.Contains(scope.Ancestor.Value) ? AnalysisTruth.True : AnalysisTruth.False;
     }
     internal AnalysisTruth Evaluate(AnalysisObject? obj, AnalysisMeasurement allocation, MeasurementState active, AnalysisFreshness freshness)
+        => EvaluateCore(obj, allocation, active, freshness != AnalysisFreshness.Observed,
+            _node?.MetadataState == MeasurementState.Failed || active == MeasurementState.Failed, null, null);
+    internal AnalysisTruth EvaluateComparison(AnalysisObject? obj, AnalysisMeasurement allocation, MeasurementState active, bool fresh, string change, AnalysisDelta? delta)
+        => EvaluateCore(obj, allocation, active, !fresh, _node?.MetadataState == MeasurementState.Failed, change, delta);
+    private AnalysisTruth EvaluateCore(AnalysisObject? obj, AnalysisMeasurement allocation, MeasurementState active, bool stale, bool unreadable, string? change, AnalysisDelta? delta)
     {
         if (_walking || _node is null) throw new InvalidOperationException("The filter path is not ready.");
         string path = NeedsPath && _textAvailable ? string.Join('/', _parts.AsEnumerable().Reverse()) : "";
-        var result = Filter.Evaluate(new(_node, obj, path, allocation, Stale: freshness != AnalysisFreshness.Observed,
-            Unreadable: _node.MetadataState == MeasurementState.Failed || active == MeasurementState.Failed, ActiveState: active, RelativePathTextAvailable: _textAvailable) { RootMembership = this });
+        var result = Filter.Evaluate(new(_node, obj, path, allocation, Change: change, Stale: stale,
+            Unreadable: unreadable, ActiveState: active, RelativePathTextAvailable: _textAvailable, ExactDelta: delta) { RootMembership = this });
         return Request.RootId is { } root ? AnalysisFilter.And(result, IsMember(root)) : result;
     }
     internal bool NamespaceMatches(AnalysisNode node, IEnumerable<ulong> ancestors, AnalysisFreshness freshness)

@@ -42,7 +42,12 @@ internal sealed partial class AnalysisIndexedComparison : IAsyncDisposable
     private readonly AnalysisOwnedDatasetIo<State> _owned;
     private readonly AnalysisComparisonEntities _previous, _current;
     private readonly AnalysisComparisonPaths _paths;
-    private readonly object _gate = new(); private Task? _closed;
+    private readonly DeviceIoScheduler _io;
+    private readonly AnalysisIoDevices _devices;
+    private readonly object _gate = new();
+    private readonly TaskCompletionSource _closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _references = 1, _readers;
+    private bool _disposed;
     internal AnalysisComparisonCompatibility Compatibility { get; }
     internal AnalysisTotals PreviousTotals => _previous.Totals;
     internal AnalysisTotals CurrentTotals => _current.Totals;
@@ -54,24 +59,77 @@ internal sealed partial class AnalysisIndexedComparison : IAsyncDisposable
     private AnalysisIndexedComparison(State state, AnalysisComparisonPaths paths, AnalysisComparisonEntities previous, AnalysisComparisonEntities current,
         AnalysisComparisonCompatibility compatibility, DeviceIoScheduler io, AnalysisIoDevices devices)
     {
-        _owned = new(state, io, devices); _paths = paths; _previous = previous; _current = current;
+        _owned = new(state, io, devices); _paths = paths; _previous = previous; _current = current; _io = io; _devices = devices;
         Count = state.Rows!.Count; Compatibility = compatibility; Taint = AnalysisPrivacy.Join(previous.Descriptor.Taint, current.Descriptor.Taint);
         var a = previous.Totals; var b = current.Totals;
         NetChange = compatibility.ComparableTotals && a.CompatibleBasis && b.CompatibleBasis && a.Missing.Count == 0 && b.Missing.Count == 0 &&
             a.IdentityUnverified == 0 && b.IdentityUnverified == 0 ? AnalysisDelta.Between(a.Known, b.Known) : null;
     }
     internal Task<AnalysisDatasetPage<AnalysisIndexedComparisonRow>> ReadAsync(ulong offset = 0, int maximum = 256, CancellationToken cancellation = default) =>
-        _owned.RunAsync((state, token) => state.Page(offset, maximum, token), cancellation);
+        OwnerUse(() => _owned.RunAsync((state, token) => state.Page(offset, maximum, token), cancellation));
     internal Task<AnalysisDatasetPage<AnalysisPathMetadata>> ReadMembersAsync(bool previous, ulong entity, ulong offset = 0, int maximum = 256, CancellationToken cancellation = default) =>
+        OwnerUse(() => ReadMembersCoreAsync(previous, entity, offset, maximum, cancellation));
+    private Task<AnalysisDatasetPage<AnalysisPathMetadata>> ReadMembersCoreAsync(bool previous, ulong entity, ulong offset, int maximum, CancellationToken cancellation) =>
         _owned.UseAsync(_ => (previous ? _previous : _current).ReadMembersAsync(entity, offset, maximum, cancellation));
     internal Task<AnalysisComparisonAccountingEntity> ReadSideAsync(bool previous, ulong entity, CancellationToken cancellation = default) =>
+        OwnerUse(() => ReadSideCoreAsync(previous, entity, cancellation));
+    private Task<AnalysisComparisonAccountingEntity> ReadSideCoreAsync(bool previous, ulong entity, CancellationToken cancellation) =>
         _owned.UseAsync(async _ =>
         {
             if (entity == 0) throw new ArgumentOutOfRangeException(nameof(entity));
             var page = await (previous ? _previous : _current).ReadAsync(entity - 1, 1, cancellation).ConfigureAwait(false);
             return page.Rows.Length == 1 ? page.Rows[0] : throw new ArgumentOutOfRangeException(nameof(entity));
         });
-    public ValueTask DisposeAsync() { lock (_gate) return new(_closed ??= DisposeCoreAsync()); }
+    private Task<T> OwnerUse<T>(Func<Task<T>> use)
+    { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); return use(); } }
+    internal ReadLease Retain()
+    {
+        lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); return RetainCore(); }
+    }
+    private ReadLease RetainCore()
+    {
+        if (_readers >= AnalysisLimits.IoRequests) throw new InvalidOperationException("The eight comparison reader places are in use.");
+        var result = new ReadLease(this); _readers++; _references++; return result;
+    }
+    public ValueTask DisposeAsync()
+    {
+        lock (_gate)
+        {
+            if (!_disposed) { _disposed = true; if (--_references == 0) _ = CompleteCloseAsync(); }
+            return new(_closed.Task);
+        }
+    }
+    private async Task CompleteCloseAsync()
+    {
+        try { await DisposeCoreAsync().ConfigureAwait(false); _closed.TrySetResult(); }
+        catch (Exception error) { _closed.TrySetException(error); }
+    }
+    internal sealed class ReadLease : IAsyncDisposable
+    {
+        private readonly AnalysisIndexedComparison owner;
+        private bool _disposed;
+        internal ReadLease(AnalysisIndexedComparison source) { owner = source; }
+        internal Task<T> UseAsync<T>(Func<State, Task<T>> use)
+        { lock (owner._gate) { ObjectDisposedException.ThrowIf(_disposed, this); return owner._owned.UseAsync(use); } }
+        internal Task<AnalysisDatasetPage<AnalysisIndexedComparisonRow>> ReadAsync(ulong offset = 0, int maximum = 256, CancellationToken cancellation = default) =>
+            UseAsync(state => AnalysisIo.Run(owner._io, owner._devices, token => state.Page(offset, maximum, token), cancellation));
+        internal Task<AnalysisDatasetPage<AnalysisPathMetadata>> ReadMembersAsync(bool previous, ulong entity, ulong offset = 0, int maximum = 256, CancellationToken cancellation = default)
+        { lock (owner._gate) { ObjectDisposedException.ThrowIf(_disposed, this); return owner.ReadMembersCoreAsync(previous, entity, offset, maximum, cancellation); } }
+        internal Task<AnalysisComparisonAccountingEntity> ReadSideAsync(bool previous, ulong entity, CancellationToken cancellation = default)
+        { lock (owner._gate) { ObjectDisposedException.ThrowIf(_disposed, this); return owner.ReadSideCoreAsync(previous, entity, cancellation); } }
+        internal ReadLease Retain()
+        { lock (owner._gate) { ObjectDisposedException.ThrowIf(_disposed, this); return owner.RetainCore(); } }
+        public ValueTask DisposeAsync()
+        {
+            lock (owner._gate)
+            {
+                if (_disposed) return ValueTask.CompletedTask;
+                _disposed = true; owner._readers--;
+                if (--owner._references != 0) return ValueTask.CompletedTask;
+                _ = owner.CompleteCloseAsync(); return new(owner._closed.Task);
+            }
+        }
+    }
     private async Task DisposeCoreAsync()
     {
         Exception? failure = null;

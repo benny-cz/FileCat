@@ -1,0 +1,1162 @@
+{
+  "baseline": "/Users/benny/FileCatValidation/dsa-batch-20261107-r1143/payload",
+  "files": [
+    {
+      "path": "FileCat.slnx",
+      "baselineSha256": "ac46ab49515e0a558db2b06c2973d50a5026e5f221373b6cea6c3d8d076f77d5",
+      "sha256": "ac46ab49515e0a558db2b06c2973d50a5026e5f221373b6cea6c3d8d076f77d5",
+      "patch": false
+    },
+    {
+      "path": "render/.msCoverageSourceRootsMapping_FileCat.Rendering.Tests",
+      "baselineSha256": "ef007487c7d67b7f824a54c127f5b6313dcf464334a4982837ac581a90d2dade",
+      "sha256": "ef007487c7d67b7f824a54c127f5b6313dcf464334a4982837ac581a90d2dade",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Base.dll",
+      "baselineSha256": "99bf47f44f8e6b2c91f96f175dcf7efa8ba64267a1acd17faa05266d7210b72e",
+      "sha256": "99bf47f44f8e6b2c91f96f175dcf7efa8ba64267a1acd17faa05266d7210b72e",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Controls.dll",
+      "baselineSha256": "24d36a48b0033e52313d1f7a2d8b69bcc18e5504d518bf56c23916558c4f1912",
+      "sha256": "24d36a48b0033e52313d1f7a2d8b69bcc18e5504d518bf56c23916558c4f1912",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.DesignerSupport.dll",
+      "baselineSha256": "9605daf1df49f8f6a1b5dd009e5d56cb68d0db4479d1adbdd8abc4a066ec554e",
+      "sha256": "9605daf1df49f8f6a1b5dd009e5d56cb68d0db4479d1adbdd8abc4a066ec554e",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Desktop.dll",
+      "baselineSha256": "c5d2267f29cad93c3aed598083d286262c8fb160c464133b76cd66faefe77e17",
+      "sha256": "c5d2267f29cad93c3aed598083d286262c8fb160c464133b76cd66faefe77e17",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Dialogs.dll",
+      "baselineSha256": "8814546c28ec69c5a9a8874cfbacdfa7fa64ec622a8854231eac51ccf5bbadbb",
+      "sha256": "8814546c28ec69c5a9a8874cfbacdfa7fa64ec622a8854231eac51ccf5bbadbb",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.dll",
+      "baselineSha256": "c74260e117c6964ae9b7c12e203a9ac2edd9b08aecd22d2c298b2ce1f6457b14",
+      "sha256": "c74260e117c6964ae9b7c12e203a9ac2edd9b08aecd22d2c298b2ce1f6457b14",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Fonts.Inter.dll",
+      "baselineSha256": "99c1631309e6b11fe19b8f4b7a668759eb34be9059ab6f12eab821c55ec740b3",
+      "sha256": "99c1631309e6b11fe19b8f4b7a668759eb34be9059ab6f12eab821c55ec740b3",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.FreeDesktop.AtSpi.dll",
+      "baselineSha256": "93fdfb9124dfa3491eb728b99560c659e8dfe8a4d00cfbd429e1c1e0ac93c518",
+      "sha256": "93fdfb9124dfa3491eb728b99560c659e8dfe8a4d00cfbd429e1c1e0ac93c518",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.FreeDesktop.dll",
+      "baselineSha256": "eebbfec2de64ea47f91ba138aa749c586deefcd8040c7f0330be9733d552e752",
+      "sha256": "eebbfec2de64ea47f91ba138aa749c586deefcd8040c7f0330be9733d552e752",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.HarfBuzz.dll",
+      "baselineSha256": "56a922f1dc979f120f2acb569b24ab643346775d74d5eafd1e379a921812574e",
+      "sha256": "56a922f1dc979f120f2acb569b24ab643346775d74d5eafd1e379a921812574e",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Headless.dll",
+      "baselineSha256": "29cbfa10e0a4631ae9c762eb718d72a82419656419fb513a9d77f1741e8f70de",
+      "sha256": "29cbfa10e0a4631ae9c762eb718d72a82419656419fb513a9d77f1741e8f70de",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Headless.XUnit.dll",
+      "baselineSha256": "ec08c0ce7bf2f7c6aee17190f61844a8823384d675da9d74a1df3a178a6063b2",
+      "sha256": "ec08c0ce7bf2f7c6aee17190f61844a8823384d675da9d74a1df3a178a6063b2",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Markup.dll",
+      "baselineSha256": "e5a6d499f23845c1199ef4f53a52432e66947d1dc24f4452853561b970cf7f61",
+      "sha256": "e5a6d499f23845c1199ef4f53a52432e66947d1dc24f4452853561b970cf7f61",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Markup.Xaml.dll",
+      "baselineSha256": "407b2bd896e440e8f2133d55f77f6e83e25603a774a92a1723e7e974f406350d",
+      "sha256": "407b2bd896e440e8f2133d55f77f6e83e25603a774a92a1723e7e974f406350d",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Metal.dll",
+      "baselineSha256": "13ba916946ac2ad77eb4588c2f76727e8090356edf294fafd555649b9e52d77c",
+      "sha256": "13ba916946ac2ad77eb4588c2f76727e8090356edf294fafd555649b9e52d77c",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.MicroCom.dll",
+      "baselineSha256": "fe62d3f49cf4f5a3cb26262d0c1c74057f522deea553c79135b3e3fb5b0d9619",
+      "sha256": "fe62d3f49cf4f5a3cb26262d0c1c74057f522deea553c79135b3e3fb5b0d9619",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Native.dll",
+      "baselineSha256": "47972e538a1d73e56570e8c5c68c30e96615ce76ca0a8717997a9945c064f71a",
+      "sha256": "47972e538a1d73e56570e8c5c68c30e96615ce76ca0a8717997a9945c064f71a",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.OpenGL.dll",
+      "baselineSha256": "c14de1359f1cbaf0a67933d2b062f8d9064f457bef8d49870ea44c278c2866d8",
+      "sha256": "c14de1359f1cbaf0a67933d2b062f8d9064f457bef8d49870ea44c278c2866d8",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Remote.Protocol.dll",
+      "baselineSha256": "9c002eedc2870fbbd5637b2c49181a26050fccc19ed07bcb4a063341e072136e",
+      "sha256": "9c002eedc2870fbbd5637b2c49181a26050fccc19ed07bcb4a063341e072136e",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Skia.dll",
+      "baselineSha256": "ab801e03246f8fd39e0681888fed615cbe818313de5f74cf782154871171b334",
+      "sha256": "ab801e03246f8fd39e0681888fed615cbe818313de5f74cf782154871171b334",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Themes.Fluent.dll",
+      "baselineSha256": "66883c8eed675cdefa9f36b103b209b5351e815f579e1abb0e5a0f1299417e56",
+      "sha256": "66883c8eed675cdefa9f36b103b209b5351e815f579e1abb0e5a0f1299417e56",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Vulkan.dll",
+      "baselineSha256": "c51e72518de1da6af6051b9d39b6aa8e5d70b4003e49b9befeadf6fb0ca494ab",
+      "sha256": "c51e72518de1da6af6051b9d39b6aa8e5d70b4003e49b9befeadf6fb0ca494ab",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Win32.Automation.dll",
+      "baselineSha256": "11a8cab62229e76783d2f730f7d277c7ec04493cdd282c6825027617e60a3bad",
+      "sha256": "11a8cab62229e76783d2f730f7d277c7ec04493cdd282c6825027617e60a3bad",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.Win32.dll",
+      "baselineSha256": "072310bf798d9b19d2b9575c173ad27abe9714808abe8f16c679e643c513c2f5",
+      "sha256": "072310bf798d9b19d2b9575c173ad27abe9714808abe8f16c679e643c513c2f5",
+      "patch": false
+    },
+    {
+      "path": "render/Avalonia.X11.dll",
+      "baselineSha256": "7014e30270a67a7be321f6aa582e4bec07c62302a0d31b3b358351f620f24e23",
+      "sha256": "7014e30270a67a7be321f6aa582e4bec07c62302a0d31b3b358351f620f24e23",
+      "patch": false
+    },
+    {
+      "path": "render/BouncyCastle.Cryptography.dll",
+      "baselineSha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+      "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+      "patch": false
+    },
+    {
+      "path": "render/CommunityToolkit.Mvvm.dll",
+      "baselineSha256": "7d7eb5c066cfe883b439b1200bf5dcb387b1e5319dd2edbdaa9e23adfe416452",
+      "sha256": "7d7eb5c066cfe883b439b1200bf5dcb387b1e5319dd2edbdaa9e23adfe416452",
+      "patch": false
+    },
+    {
+      "path": "render/DiscUtils.Core.dll",
+      "baselineSha256": "6d92db7121a11eab4c72efb3416df752b76e8c40c5aaef2b8f86133caeb85776",
+      "sha256": "6d92db7121a11eab4c72efb3416df752b76e8c40c5aaef2b8f86133caeb85776",
+      "patch": false
+    },
+    {
+      "path": "render/DiscUtils.Iso9660.dll",
+      "baselineSha256": "ff8be4630795e8e6ef0c9ae5ced5d8913eade91bc3a1488590e22a6db263c821",
+      "sha256": "ff8be4630795e8e6ef0c9ae5ced5d8913eade91bc3a1488590e22a6db263c821",
+      "patch": false
+    },
+    {
+      "path": "render/DiscUtils.Streams.dll",
+      "baselineSha256": "eea991f90d8a4e1d32d6d387519a4e703de8b9d083bb2cca19d19128e9a4e2a0",
+      "sha256": "eea991f90d8a4e1d32d6d387519a4e703de8b9d083bb2cca19d19128e9a4e2a0",
+      "patch": false
+    },
+    {
+      "path": "render/DiscUtils.Udf.dll",
+      "baselineSha256": "a12e8b2b1e9147a22c945deae6ce6dafcfa74b6edb8033d3216fb357254756d8",
+      "sha256": "a12e8b2b1e9147a22c945deae6ce6dafcfa74b6edb8033d3216fb357254756d8",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.App.Tests.deps.json",
+      "baselineSha256": "5be2b401e0db40ee3c0b689ae929f1b6137a20fd4292af95141e118de92093db",
+      "sha256": "5be2b401e0db40ee3c0b689ae929f1b6137a20fd4292af95141e118de92093db",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.App.Tests.dll",
+      "baselineSha256": "8e3b980d4d7b8f4b51adc014a2a03e26dfe0eb1696f0f27041297999841e3086",
+      "sha256": "8e3b980d4d7b8f4b51adc014a2a03e26dfe0eb1696f0f27041297999841e3086",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.App.Tests.exe",
+      "baselineSha256": "e68931b3b346ebf2ec3195c293341542145af6c4657c01ff5ec4211babc26d79",
+      "sha256": "e68931b3b346ebf2ec3195c293341542145af6c4657c01ff5ec4211babc26d79",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.App.Tests.pdb",
+      "baselineSha256": "0c9386ea66de547d94507e844dad73a4b262d3245867ce78a4b031cd3c170622",
+      "sha256": "0c9386ea66de547d94507e844dad73a4b262d3245867ce78a4b031cd3c170622",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.App.Tests.runtimeconfig.json",
+      "baselineSha256": "90751b8460971c2289443df1768438644dfc508933067f78211841d2972717f8",
+      "sha256": "90751b8460971c2289443df1768438644dfc508933067f78211841d2972717f8",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Archives.dll",
+      "baselineSha256": "512e720277b8c3e1709f40ae6c8e25f16cd1a026b0c010e43a6a2a97cad69c8d",
+      "sha256": "512e720277b8c3e1709f40ae6c8e25f16cd1a026b0c010e43a6a2a97cad69c8d",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Archives.pdb",
+      "baselineSha256": "20f10089aca6d7b9201ff29bb7ef6a413293b326c95385981090a6fd5134b2ef",
+      "sha256": "20f10089aca6d7b9201ff29bb7ef6a413293b326c95385981090a6fd5134b2ef",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Archives.Rar15.dll",
+      "baselineSha256": "1e8888da2fd139d856a562cb405d3b78972b83470e6e02f93d4ea6357850e6b2",
+      "sha256": "1e8888da2fd139d856a562cb405d3b78972b83470e6e02f93d4ea6357850e6b2",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Archives.Rar15.pdb",
+      "baselineSha256": "3aee2a89e9406d1196757d61e81573ad0494f440edf7dc5e3eb038f43fcb3457",
+      "sha256": "3aee2a89e9406d1196757d61e81573ad0494f440edf7dc5e3eb038f43fcb3457",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Core.dll",
+      "baselineSha256": "33f894ba55e92ccc324d05be421e8c6f10b1c4b121fab70662a5954ac2942550",
+      "sha256": "33f894ba55e92ccc324d05be421e8c6f10b1c4b121fab70662a5954ac2942550",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Core.pdb",
+      "baselineSha256": "7ba2d26f5bf974ad2f67723d36c6041f3aa0b3c5282247e01baed91a66d526ce",
+      "sha256": "7ba2d26f5bf974ad2f67723d36c6041f3aa0b3c5282247e01baed91a66d526ce",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.CoreCrashHarness.deps.json",
+      "baselineSha256": "21a45b65a6ee6c193ccc9255fcca6f0f9f43ca658c91bfed504e0a341bc04eed",
+      "sha256": "21a45b65a6ee6c193ccc9255fcca6f0f9f43ca658c91bfed504e0a341bc04eed",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.CoreCrashHarness.dll",
+      "baselineSha256": "dc7bce55606922bf7d8f4caf51eecf32a8656ef899164e289198408839a2be83",
+      "sha256": "dc7bce55606922bf7d8f4caf51eecf32a8656ef899164e289198408839a2be83",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.CoreCrashHarness.exe",
+      "baselineSha256": "848357768db3d0f815b6f79649ec20c31d141985e029c95da943c0ba6ec911c5",
+      "sha256": "848357768db3d0f815b6f79649ec20c31d141985e029c95da943c0ba6ec911c5",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.CoreCrashHarness.pdb",
+      "baselineSha256": "37892f479319958208f8b92c217230321345dfc478c6d07fa9721b3638211594",
+      "sha256": "37892f479319958208f8b92c217230321345dfc478c6d07fa9721b3638211594",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.CoreCrashHarness.runtimeconfig.json",
+      "baselineSha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.deps.json",
+      "baselineSha256": "a1d0a8bde71eb55062565e446a077697d5adb9709dda64bda82451428de6f105",
+      "sha256": "a1d0a8bde71eb55062565e446a077697d5adb9709dda64bda82451428de6f105",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.dll",
+      "baselineSha256": "e35f05db3f9d6b4306de45c0aa0bd2a8e94f1056222433fcc6656765081bb8b0",
+      "sha256": "e35f05db3f9d6b4306de45c0aa0bd2a8e94f1056222433fcc6656765081bb8b0",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.exe",
+      "baselineSha256": "a728f698293ed61c656b4f37ac9b897c63112080157bb19a42bfda4aceb854d3",
+      "sha256": "a728f698293ed61c656b4f37ac9b897c63112080157bb19a42bfda4aceb854d3",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.pdb",
+      "baselineSha256": "405b569febb5c74de1edbf5b17ebdfd6d9aadc305b99ee784f2ef2d20a9996d3",
+      "sha256": "405b569febb5c74de1edbf5b17ebdfd6d9aadc305b99ee784f2ef2d20a9996d3",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Platform.Windows.dll",
+      "baselineSha256": "5e81839f605f74b0d876110818c5f1d4fa04c3ae12b9c3de30a0619d89301511",
+      "sha256": "5e81839f605f74b0d876110818c5f1d4fa04c3ae12b9c3de30a0619d89301511",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Platform.Windows.pdb",
+      "baselineSha256": "1a416f49f420a4e58b83be3e7bf2831b147c5d212895db780a802da0a80968db",
+      "sha256": "1a416f49f420a4e58b83be3e7bf2831b147c5d212895db780a802da0a80968db",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Recovery.dll",
+      "baselineSha256": "0ead76492cc6921262293f90fb89d778e96f17f947ba2d4949cfaa9ecdc343f7",
+      "sha256": "0ead76492cc6921262293f90fb89d778e96f17f947ba2d4949cfaa9ecdc343f7",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Recovery.pdb",
+      "baselineSha256": "af305724947b786af3163ddcfe1955d9f89ac9c2884fe651fec4e71f82882405",
+      "sha256": "af305724947b786af3163ddcfe1955d9f89ac9c2884fe651fec4e71f82882405",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Remote.dll",
+      "baselineSha256": "94723197f9f20a543977f2aa048aad8e15987d1c2d4a99f13ad447cd4c7f5c96",
+      "sha256": "94723197f9f20a543977f2aa048aad8e15987d1c2d4a99f13ad447cd4c7f5c96",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Remote.pdb",
+      "baselineSha256": "5ac965e1472c3e19cbd576c7a057bac3559f760e22381610e9eec27873c37fe1",
+      "sha256": "5ac965e1472c3e19cbd576c7a057bac3559f760e22381610e9eec27873c37fe1",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Rendering.Tests.deps.json",
+      "baselineSha256": "fb6227511d61015e2670a1d193f74056bc3b08b9a6d7016f2e7f6d1da6fed2c8",
+      "sha256": "fb6227511d61015e2670a1d193f74056bc3b08b9a6d7016f2e7f6d1da6fed2c8",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Rendering.Tests.dll",
+      "baselineSha256": "5ef336fdea91fcac2c6d2103febc94bf57f9572f4e6c3cd61a6e993836cd4223",
+      "sha256": "fafe2f47a93f64429102b5b325b9ba0cf8643a1cca5921c2427212db85ae9bea",
+      "patch": true
+    },
+    {
+      "path": "render/FileCat.Rendering.Tests.exe",
+      "baselineSha256": "8b5aa5fe63b682ae59c09d6772864a84df8c67d7b41a7a9faaeb1e92a5f95dfa",
+      "sha256": "8b5aa5fe63b682ae59c09d6772864a84df8c67d7b41a7a9faaeb1e92a5f95dfa",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.Rendering.Tests.pdb",
+      "baselineSha256": "6b48523ba9db05059571ea86334a7932a74629d84947f499450f08cf7f727a65",
+      "sha256": "45c080631542befa9497f67beb20101182b936ac10cddb610a022614502fed64",
+      "patch": true
+    },
+    {
+      "path": "render/FileCat.Rendering.Tests.runtimeconfig.json",
+      "baselineSha256": "90751b8460971c2289443df1768438644dfc508933067f78211841d2972717f8",
+      "sha256": "90751b8460971c2289443df1768438644dfc508933067f78211841d2972717f8",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.runtimeconfig.json",
+      "baselineSha256": "124767319f0fef3a0fa49eb364d9d391c43817c0e9d91d73d3bac12879f498b6",
+      "sha256": "124767319f0fef3a0fa49eb364d9d391c43817c0e9d91d73d3bac12879f498b6",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.SharpCompress.dll",
+      "baselineSha256": "6b7d32848c2c4ef43c1dd43e5e4ed7c9fad431fe921047a0e5959758f90db601",
+      "sha256": "6b7d32848c2c4ef43c1dd43e5e4ed7c9fad431fe921047a0e5959758f90db601",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.SharpCompress.pdb",
+      "baselineSha256": "56dec5a1e72e08baaaf435cf055dc9a2ca6d57f57730b550c3ca3fa5db619e6d",
+      "sha256": "56dec5a1e72e08baaaf435cf055dc9a2ca6d57f57730b550c3ca3fa5db619e6d",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.ShellHost.deps.json",
+      "baselineSha256": "703e88090b73979906d40e77d0f76773ed50e7ebc2959b8df36b15bcf8bc79e0",
+      "sha256": "703e88090b73979906d40e77d0f76773ed50e7ebc2959b8df36b15bcf8bc79e0",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.ShellHost.dll",
+      "baselineSha256": "85a74c852cdb66ad681a15f874146790d583c1e23ab5fe1f00aeecdaf9e445fc",
+      "sha256": "85a74c852cdb66ad681a15f874146790d583c1e23ab5fe1f00aeecdaf9e445fc",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.ShellHost.exe",
+      "baselineSha256": "04a7fe4875a29315f8db119b809b5a96745d7bafd32def3873333e8144ef5501",
+      "sha256": "04a7fe4875a29315f8db119b809b5a96745d7bafd32def3873333e8144ef5501",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.ShellHost.pdb",
+      "baselineSha256": "a774d35b7c101895459ab1018990ada7aba8cebbff6f979f8fc7b3e99a446489",
+      "sha256": "a774d35b7c101895459ab1018990ada7aba8cebbff6f979f8fc7b3e99a446489",
+      "patch": false
+    },
+    {
+      "path": "render/FileCat.ShellHost.runtimeconfig.json",
+      "baselineSha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "patch": false
+    },
+    {
+      "path": "render/FluentFTP.dll",
+      "baselineSha256": "eb7ed8d9d2016c5e0fce0b4fffbb889f4e1797d4ac156ffb0c19da63ab7f77a8",
+      "sha256": "eb7ed8d9d2016c5e0fce0b4fffbb889f4e1797d4ac156ffb0c19da63ab7f77a8",
+      "patch": false
+    },
+    {
+      "path": "render/HarfBuzzSharp.dll",
+      "baselineSha256": "55e72ac23263f8e12484f3435e02ec22fac9eff6e6d169bb0a8c246be6b99d29",
+      "sha256": "55e72ac23263f8e12484f3435e02ec22fac9eff6e6d169bb0a8c246be6b99d29",
+      "patch": false
+    },
+    {
+      "path": "render/LTRData.Extensions.dll",
+      "baselineSha256": "eef1e1608fce1df712045682703cdd6242b3a4aee48712c81a72c4623fba31e2",
+      "sha256": "eef1e1608fce1df712045682703cdd6242b3a4aee48712c81a72c4623fba31e2",
+      "patch": false
+    },
+    {
+      "path": "render/MicroCom.Runtime.dll",
+      "baselineSha256": "2538ec6f3c24e901a90e33c37788b9a4e4b6ae8158cab7328a00a00bb28eab9e",
+      "sha256": "2538ec6f3c24e901a90e33c37788b9a4e4b6ae8158cab7328a00a00bb28eab9e",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.ApplicationInsights.dll",
+      "baselineSha256": "bf9a4b88c7f94267e1cc7ed0700c575d3eb3266ff25bcb76e4f40f1b0fba022d",
+      "sha256": "bf9a4b88c7f94267e1cc7ed0700c575d3eb3266ff25bcb76e4f40f1b0fba022d",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.Bcl.AsyncInterfaces.dll",
+      "baselineSha256": "5705d245072d3eb78400547b32147dbb6e2c8b02ba8bda76729798f5efdeaecb",
+      "sha256": "5705d245072d3eb78400547b32147dbb6e2c8b02ba8bda76729798f5efdeaecb",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+      "baselineSha256": "67fa4325000db017dc0c35829b416f024f042d24efb868bcf17a895ee6500a93",
+      "sha256": "67fa4325000db017dc0c35829b416f024f042d24efb868bcf17a895ee6500a93",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.Extensions.Logging.Abstractions.dll",
+      "baselineSha256": "bb853130f5afaf335be7858d661f8212ec653835100f5a4e3aa2c66a4d4f685d",
+      "sha256": "bb853130f5afaf335be7858d661f8212ec653835100f5a4e3aa2c66a4d4f685d",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.Testing.Extensions.MSBuild.dll",
+      "baselineSha256": "f6ef5ef03b5c22f7900fb67fe741847e75cf3ce26f652106a27d8cfcc834bb7f",
+      "sha256": "f6ef5ef03b5c22f7900fb67fe741847e75cf3ce26f652106a27d8cfcc834bb7f",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.Testing.Extensions.Telemetry.dll",
+      "baselineSha256": "548751ae749bca1e823f1bc3698ac751a0dc0ca47c396a9d32b432bd828848df",
+      "sha256": "548751ae749bca1e823f1bc3698ac751a0dc0ca47c396a9d32b432bd828848df",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.Testing.Extensions.TrxReport.Abstractions.dll",
+      "baselineSha256": "acae6c525ead26f77ceab1b1d640fe7e8c07fec2acdfc78bf753b220a49ef3e6",
+      "sha256": "acae6c525ead26f77ceab1b1d640fe7e8c07fec2acdfc78bf753b220a49ef3e6",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.Testing.Platform.dll",
+      "baselineSha256": "519744d3b6321320e366495fbed0d8c37f9b0e11207667eb89eb5c0c425a7462",
+      "sha256": "519744d3b6321320e366495fbed0d8c37f9b0e11207667eb89eb5c0c425a7462",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.TestPlatform.CommunicationUtilities.dll",
+      "baselineSha256": "2eba928c1770209f1fd9f515603a0b4ffbfcadf816681ab36d02b9b36417ab33",
+      "sha256": "2eba928c1770209f1fd9f515603a0b4ffbfcadf816681ab36d02b9b36417ab33",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.TestPlatform.CoreUtilities.dll",
+      "baselineSha256": "7837f9df4b11a9844143fc9419e5752bdd50305436adcbf84f82b8a52d5909d7",
+      "sha256": "7837f9df4b11a9844143fc9419e5752bdd50305436adcbf84f82b8a52d5909d7",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.TestPlatform.CrossPlatEngine.dll",
+      "baselineSha256": "2f3b463a227b8f30171f8720164b3c0b90451248e0b2f3e8c3da82c23a3fdfcd",
+      "sha256": "2f3b463a227b8f30171f8720164b3c0b90451248e0b2f3e8c3da82c23a3fdfcd",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.TestPlatform.PlatformAbstractions.dll",
+      "baselineSha256": "668c7f0df2c30feac9cea9dce808ccabb72ff575c1e820404124212b4eae1773",
+      "sha256": "668c7f0df2c30feac9cea9dce808ccabb72ff575c1e820404124212b4eae1773",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.TestPlatform.Utilities.dll",
+      "baselineSha256": "886ef3ab15251e57ca9c124e41de3c43ba0520a036b876bb709ed325438501fe",
+      "sha256": "886ef3ab15251e57ca9c124e41de3c43ba0520a036b876bb709ed325438501fe",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.VisualStudio.CodeCoverage.Shim.dll",
+      "baselineSha256": "e590f0095b103c635c7fd45ad5ff537dd221b0bc2db214717940f59faf4767f0",
+      "sha256": "e590f0095b103c635c7fd45ad5ff537dd221b0bc2db214717940f59faf4767f0",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.VisualStudio.TestPlatform.Common.dll",
+      "baselineSha256": "96d7b2a7e3f79133e17196fdad189486b59852379385198b5cd857e9947164fb",
+      "sha256": "96d7b2a7e3f79133e17196fdad189486b59852379385198b5cd857e9947164fb",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.VisualStudio.TestPlatform.ObjectModel.dll",
+      "baselineSha256": "f6d6bc01a85fd68a0599533fcc0de7357922051bad90012b8ad15de31a4ef5e9",
+      "sha256": "f6d6bc01a85fd68a0599533fcc0de7357922051bad90012b8ad15de31a4ef5e9",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.Web.WebView2.Core.dll",
+      "baselineSha256": "4a4efdf712ceea4050eb2252ec2a9136cdcf32b9bfbb3ad58d79396f36e9665d",
+      "sha256": "4a4efdf712ceea4050eb2252ec2a9136cdcf32b9bfbb3ad58d79396f36e9665d",
+      "patch": false
+    },
+    {
+      "path": "render/Microsoft.Web.WebView2.Core.xml",
+      "baselineSha256": "6f49076302322377f2932e599375aedbd58f17cfc9ab189193de0201d2bedd0a",
+      "sha256": "6f49076302322377f2932e599375aedbd58f17cfc9ab189193de0201d2bedd0a",
+      "patch": false
+    },
+    {
+      "path": "render/Newtonsoft.Json.dll",
+      "baselineSha256": "22c649f75fce5be7c7ccda8880473b634ef69ecf33f5d1ab8ad892caf47d5a07",
+      "sha256": "22c649f75fce5be7c7ccda8880473b634ef69ecf33f5d1ab8ad892caf47d5a07",
+      "patch": false
+    },
+    {
+      "path": "render/PDFtoImage.dll",
+      "baselineSha256": "bebf1ed3ef86674d2eec07b74de88e7bff679f3d4fb00a896b69cd70aa0cb4a3",
+      "sha256": "bebf1ed3ef86674d2eec07b74de88e7bff679f3d4fb00a896b69cd70aa0cb4a3",
+      "patch": false
+    },
+    {
+      "path": "render/Renci.SshNet.dll",
+      "baselineSha256": "1eea433e249e328d60512b72a134961074e059c22cfdf5427d03a893ca46ff1e",
+      "sha256": "1eea433e249e328d60512b72a134961074e059c22cfdf5427d03a893ca46ff1e",
+      "patch": false
+    },
+    {
+      "path": "render/SkiaSharp.dll",
+      "baselineSha256": "aaaaa18c68ba1f3a3408b00dff28b11d5705198e17ba9d3aa59222bfd35407c8",
+      "sha256": "aaaaa18c68ba1f3a3408b00dff28b11d5705198e17ba9d3aa59222bfd35407c8",
+      "patch": false
+    },
+    {
+      "path": "render/System.CodeDom.dll",
+      "baselineSha256": "68c917e53531c6a76e99e89d1bffe62056d9a135f078f26be07f4e3288589773",
+      "sha256": "68c917e53531c6a76e99e89d1bffe62056d9a135f078f26be07f4e3288589773",
+      "patch": false
+    },
+    {
+      "path": "render/System.Management.dll",
+      "baselineSha256": "7515a62492cb215cc7a5a7d7d8351148c2b540102de0925de6eece5b2322941b",
+      "sha256": "7515a62492cb215cc7a5a7d7d8351148c2b540102de0925de6eece5b2322941b",
+      "patch": false
+    },
+    {
+      "path": "render/testhost.dll",
+      "baselineSha256": "f9f95f20f7a99215b50cfd511085b31549b26f87afaeb02c0a3c21f6875817e8",
+      "sha256": "f9f95f20f7a99215b50cfd511085b31549b26f87afaeb02c0a3c21f6875817e8",
+      "patch": false
+    },
+    {
+      "path": "render/testhost.exe",
+      "baselineSha256": "6a3a6cfca1f99e54bc7d6851009df33c4184d2c65663165b5d5de6c0fe6e5420",
+      "sha256": "6a3a6cfca1f99e54bc7d6851009df33c4184d2c65663165b5d5de6c0fe6e5420",
+      "patch": false
+    },
+    {
+      "path": "render/Tmds.DBus.Protocol.dll",
+      "baselineSha256": "60a1c5255731d8ac843cab53108be8ba1ed02759ce3db0da5b49939ebe97bd8a",
+      "sha256": "60a1c5255731d8ac843cab53108be8ba1ed02759ce3db0da5b49939ebe97bd8a",
+      "patch": false
+    },
+    {
+      "path": "render/xunit.abstractions.dll",
+      "baselineSha256": "3166dc70323fb30ccf1cedb0fe86f2ad122c46d254542342d90386efc4c9285c",
+      "sha256": "3166dc70323fb30ccf1cedb0fe86f2ad122c46d254542342d90386efc4c9285c",
+      "patch": false
+    },
+    {
+      "path": "render/xunit.runner.visualstudio.testadapter.dll",
+      "baselineSha256": "384aba4bad96399a7fd2205a5a3517b643a16f4d7e843bd0b92e1e42f81fce2a",
+      "sha256": "384aba4bad96399a7fd2205a5a3517b643a16f4d7e843bd0b92e1e42f81fce2a",
+      "patch": false
+    },
+    {
+      "path": "render/xunit.v3.assert.dll",
+      "baselineSha256": "483aec8a5b7faea0a92d0ae4f11a3479045f8f5e3f551dfc4dac6bedeaafa9ce",
+      "sha256": "483aec8a5b7faea0a92d0ae4f11a3479045f8f5e3f551dfc4dac6bedeaafa9ce",
+      "patch": false
+    },
+    {
+      "path": "render/xunit.v3.common.dll",
+      "baselineSha256": "e4175bc165d01b9828acdc996776370adf4f8d0a5865e75ec9ded17fb70258a9",
+      "sha256": "e4175bc165d01b9828acdc996776370adf4f8d0a5865e75ec9ded17fb70258a9",
+      "patch": false
+    },
+    {
+      "path": "render/xunit.v3.core.dll",
+      "baselineSha256": "b3641e9e80cd8175e2d9995d6fa9750b8fb31740c87ba121e56cfe515f7f06cc",
+      "sha256": "b3641e9e80cd8175e2d9995d6fa9750b8fb31740c87ba121e56cfe515f7f06cc",
+      "patch": false
+    },
+    {
+      "path": "render/xunit.v3.mtp-v1.dll",
+      "baselineSha256": "69903f4e48e5794350154d97bc911909974469780cd1931e23da3af419a1f2e7",
+      "sha256": "69903f4e48e5794350154d97bc911909974469780cd1931e23da3af419a1f2e7",
+      "patch": false
+    },
+    {
+      "path": "render/xunit.v3.runner.common.dll",
+      "baselineSha256": "8d9b157ebd8d9240d292ed922f5f26ba4011de5fd07812ceaac7baccfc5e6bc4",
+      "sha256": "8d9b157ebd8d9240d292ed922f5f26ba4011de5fd07812ceaac7baccfc5e6bc4",
+      "patch": false
+    },
+    {
+      "path": "render/xunit.v3.runner.inproc.console.dll",
+      "baselineSha256": "360ef1613c7d4148a715b8495d9f7ad95e4126f75ed86dda6cf81139c28b1431",
+      "sha256": "360ef1613c7d4148a715b8495d9f7ad95e4126f75ed86dda6cf81139c28b1431",
+      "patch": false
+    },
+    {
+      "path": "render/xunit.v3.runner.utility.netcore.dll",
+      "baselineSha256": "abce062185b0d72b665aae07d76c681aff1cd794525a34cfa1b3b0137af76aff",
+      "sha256": "abce062185b0d72b665aae07d76c681aff1cd794525a34cfa1b3b0137af76aff",
+      "patch": false
+    },
+    {
+      "path": "render/runtimes/osx/native/libAvaloniaNative.dylib",
+      "baselineSha256": "42765b28691538bcfbe6ed3ec39afc5c899b43cc9b7cf0ca550f91a0f1fc6533",
+      "sha256": "42765b28691538bcfbe6ed3ec39afc5c899b43cc9b7cf0ca550f91a0f1fc6533",
+      "patch": false
+    },
+    {
+      "path": "render/runtimes/osx/native/libHarfBuzzSharp.dylib",
+      "baselineSha256": "b2d7d39a46954b3d7310540bdf393f398ac4194ee029b995deeb1db0c161c43d",
+      "sha256": "b2d7d39a46954b3d7310540bdf393f398ac4194ee029b995deeb1db0c161c43d",
+      "patch": false
+    },
+    {
+      "path": "render/runtimes/osx/native/libSkiaSharp.dylib",
+      "baselineSha256": "e09f07ae1df62ded475351f56d8dc8366cd679043f28b65d9dee597a5fd0da6c",
+      "sha256": "e09f07ae1df62ded475351f56d8dc8366cd679043f28b65d9dee597a5fd0da6c",
+      "patch": false
+    },
+    {
+      "path": "render/runtimes/osx-arm64/native/libpdfium.dylib",
+      "baselineSha256": "40720223c09c96b894faa4d6b22fb78a1675b160f10402a25b79d3e31763eba1",
+      "sha256": "40720223c09c96b894faa4d6b22fb78a1675b160f10402a25b79d3e31763eba1",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/.msCoverageSourceRootsMapping_FileCat.Core.Tests",
+      "baselineSha256": "25483661ca883acc1b8f3e5f135e44b5556b1f692ad088f3b9eb24c462c91c58",
+      "sha256": "25483661ca883acc1b8f3e5f135e44b5556b1f692ad088f3b9eb24c462c91c58",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/BouncyCastle.Cryptography.dll",
+      "baselineSha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+      "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/DiscUtils.Core.dll",
+      "baselineSha256": "6d92db7121a11eab4c72efb3416df752b76e8c40c5aaef2b8f86133caeb85776",
+      "sha256": "6d92db7121a11eab4c72efb3416df752b76e8c40c5aaef2b8f86133caeb85776",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/DiscUtils.Iso9660.dll",
+      "baselineSha256": "ff8be4630795e8e6ef0c9ae5ced5d8913eade91bc3a1488590e22a6db263c821",
+      "sha256": "ff8be4630795e8e6ef0c9ae5ced5d8913eade91bc3a1488590e22a6db263c821",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/DiscUtils.Streams.dll",
+      "baselineSha256": "eea991f90d8a4e1d32d6d387519a4e703de8b9d083bb2cca19d19128e9a4e2a0",
+      "sha256": "eea991f90d8a4e1d32d6d387519a4e703de8b9d083bb2cca19d19128e9a4e2a0",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/DiscUtils.Udf.dll",
+      "baselineSha256": "a12e8b2b1e9147a22c945deae6ce6dafcfa74b6edb8033d3216fb357254756d8",
+      "sha256": "a12e8b2b1e9147a22c945deae6ce6dafcfa74b6edb8033d3216fb357254756d8",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Archives.dll",
+      "baselineSha256": "512e720277b8c3e1709f40ae6c8e25f16cd1a026b0c010e43a6a2a97cad69c8d",
+      "sha256": "512e720277b8c3e1709f40ae6c8e25f16cd1a026b0c010e43a6a2a97cad69c8d",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Archives.pdb",
+      "baselineSha256": "20f10089aca6d7b9201ff29bb7ef6a413293b326c95385981090a6fd5134b2ef",
+      "sha256": "20f10089aca6d7b9201ff29bb7ef6a413293b326c95385981090a6fd5134b2ef",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Archives.Rar15.dll",
+      "baselineSha256": "1e8888da2fd139d856a562cb405d3b78972b83470e6e02f93d4ea6357850e6b2",
+      "sha256": "1e8888da2fd139d856a562cb405d3b78972b83470e6e02f93d4ea6357850e6b2",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Archives.Rar15.pdb",
+      "baselineSha256": "3aee2a89e9406d1196757d61e81573ad0494f440edf7dc5e3eb038f43fcb3457",
+      "sha256": "3aee2a89e9406d1196757d61e81573ad0494f440edf7dc5e3eb038f43fcb3457",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.dll",
+      "baselineSha256": "33f894ba55e92ccc324d05be421e8c6f10b1c4b121fab70662a5954ac2942550",
+      "sha256": "33f894ba55e92ccc324d05be421e8c6f10b1c4b121fab70662a5954ac2942550",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.pdb",
+      "baselineSha256": "7ba2d26f5bf974ad2f67723d36c6041f3aa0b3c5282247e01baed91a66d526ce",
+      "sha256": "7ba2d26f5bf974ad2f67723d36c6041f3aa0b3c5282247e01baed91a66d526ce",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.deps.json",
+      "baselineSha256": "7fd379fa994dc31593b41f20e70c60ed0f0022a49174c9ef88371a8878acb905",
+      "sha256": "7fd379fa994dc31593b41f20e70c60ed0f0022a49174c9ef88371a8878acb905",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll",
+      "baselineSha256": "ba619a76314b2c181d0ad9a9d14420dd499419fbd54a16c845cbc70d60366d7d",
+      "sha256": "ba619a76314b2c181d0ad9a9d14420dd499419fbd54a16c845cbc70d60366d7d",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.exe",
+      "baselineSha256": "d258f85ff1eebb7b0ba29bb5f1db487d392aa7c9da8501c42daed9aa60675d7b",
+      "sha256": "d258f85ff1eebb7b0ba29bb5f1db487d392aa7c9da8501c42daed9aa60675d7b",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.pdb",
+      "baselineSha256": "868cec8a464353dffb08396e71d085155dd64b93b253c7027d03692e97f6733d",
+      "sha256": "868cec8a464353dffb08396e71d085155dd64b93b253c7027d03692e97f6733d",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.runtimeconfig.json",
+      "baselineSha256": "f0c3aeb0de8768c419a86c1dc92e79d302ce70a018d1a86de3efb13bd0f00a4c",
+      "sha256": "f0c3aeb0de8768c419a86c1dc92e79d302ce70a018d1a86de3efb13bd0f00a4c",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.CoreCrashHarness.deps.json",
+      "baselineSha256": "21a45b65a6ee6c193ccc9255fcca6f0f9f43ca658c91bfed504e0a341bc04eed",
+      "sha256": "21a45b65a6ee6c193ccc9255fcca6f0f9f43ca658c91bfed504e0a341bc04eed",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.CoreCrashHarness.dll",
+      "baselineSha256": "dc7bce55606922bf7d8f4caf51eecf32a8656ef899164e289198408839a2be83",
+      "sha256": "dc7bce55606922bf7d8f4caf51eecf32a8656ef899164e289198408839a2be83",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.CoreCrashHarness.exe",
+      "baselineSha256": "848357768db3d0f815b6f79649ec20c31d141985e029c95da943c0ba6ec911c5",
+      "sha256": "848357768db3d0f815b6f79649ec20c31d141985e029c95da943c0ba6ec911c5",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.CoreCrashHarness.pdb",
+      "baselineSha256": "37892f479319958208f8b92c217230321345dfc478c6d07fa9721b3638211594",
+      "sha256": "37892f479319958208f8b92c217230321345dfc478c6d07fa9721b3638211594",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.CoreCrashHarness.runtimeconfig.json",
+      "baselineSha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Recovery.dll",
+      "baselineSha256": "0ead76492cc6921262293f90fb89d778e96f17f947ba2d4949cfaa9ecdc343f7",
+      "sha256": "0ead76492cc6921262293f90fb89d778e96f17f947ba2d4949cfaa9ecdc343f7",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Recovery.pdb",
+      "baselineSha256": "af305724947b786af3163ddcfe1955d9f89ac9c2884fe651fec4e71f82882405",
+      "sha256": "af305724947b786af3163ddcfe1955d9f89ac9c2884fe651fec4e71f82882405",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.SharpCompress.dll",
+      "baselineSha256": "6b7d32848c2c4ef43c1dd43e5e4ed7c9fad431fe921047a0e5959758f90db601",
+      "sha256": "6b7d32848c2c4ef43c1dd43e5e4ed7c9fad431fe921047a0e5959758f90db601",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.SharpCompress.pdb",
+      "baselineSha256": "56dec5a1e72e08baaaf435cf055dc9a2ca6d57f57730b550c3ca3fa5db619e6d",
+      "sha256": "56dec5a1e72e08baaaf435cf055dc9a2ca6d57f57730b550c3ca3fa5db619e6d",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.WorkerProbe.deps.json",
+      "baselineSha256": "f23139162848a68927ea1da02a05f83b11f3611b8b5f8fa57524a1cc3d1fb62c",
+      "sha256": "f23139162848a68927ea1da02a05f83b11f3611b8b5f8fa57524a1cc3d1fb62c",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.WorkerProbe.exe",
+      "baselineSha256": "e94f0756fec714e1de8e1e122e324669166adbf8f94d8ae08f6ed31c176bfca9",
+      "sha256": "e94f0756fec714e1de8e1e122e324669166adbf8f94d8ae08f6ed31c176bfca9",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.WorkerProbe.runtimeconfig.json",
+      "baselineSha256": "79d12e54ac614d5fe8cdeb8849ab5f6568250bb7ac1c2647c2bce5876475f20e",
+      "sha256": "79d12e54ac614d5fe8cdeb8849ab5f6568250bb7ac1c2647c2bce5876475f20e",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/LTRData.Extensions.dll",
+      "baselineSha256": "eef1e1608fce1df712045682703cdd6242b3a4aee48712c81a72c4623fba31e2",
+      "sha256": "eef1e1608fce1df712045682703cdd6242b3a4aee48712c81a72c4623fba31e2",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.ApplicationInsights.dll",
+      "baselineSha256": "bf9a4b88c7f94267e1cc7ed0700c575d3eb3266ff25bcb76e4f40f1b0fba022d",
+      "sha256": "bf9a4b88c7f94267e1cc7ed0700c575d3eb3266ff25bcb76e4f40f1b0fba022d",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.Bcl.AsyncInterfaces.dll",
+      "baselineSha256": "5705d245072d3eb78400547b32147dbb6e2c8b02ba8bda76729798f5efdeaecb",
+      "sha256": "5705d245072d3eb78400547b32147dbb6e2c8b02ba8bda76729798f5efdeaecb",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.Testing.Extensions.MSBuild.dll",
+      "baselineSha256": "f6ef5ef03b5c22f7900fb67fe741847e75cf3ce26f652106a27d8cfcc834bb7f",
+      "sha256": "f6ef5ef03b5c22f7900fb67fe741847e75cf3ce26f652106a27d8cfcc834bb7f",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.Testing.Extensions.Telemetry.dll",
+      "baselineSha256": "548751ae749bca1e823f1bc3698ac751a0dc0ca47c396a9d32b432bd828848df",
+      "sha256": "548751ae749bca1e823f1bc3698ac751a0dc0ca47c396a9d32b432bd828848df",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.Testing.Extensions.TrxReport.Abstractions.dll",
+      "baselineSha256": "acae6c525ead26f77ceab1b1d640fe7e8c07fec2acdfc78bf753b220a49ef3e6",
+      "sha256": "acae6c525ead26f77ceab1b1d640fe7e8c07fec2acdfc78bf753b220a49ef3e6",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.Testing.Platform.dll",
+      "baselineSha256": "519744d3b6321320e366495fbed0d8c37f9b0e11207667eb89eb5c0c425a7462",
+      "sha256": "519744d3b6321320e366495fbed0d8c37f9b0e11207667eb89eb5c0c425a7462",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.TestPlatform.CommunicationUtilities.dll",
+      "baselineSha256": "2eba928c1770209f1fd9f515603a0b4ffbfcadf816681ab36d02b9b36417ab33",
+      "sha256": "2eba928c1770209f1fd9f515603a0b4ffbfcadf816681ab36d02b9b36417ab33",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.TestPlatform.CoreUtilities.dll",
+      "baselineSha256": "7837f9df4b11a9844143fc9419e5752bdd50305436adcbf84f82b8a52d5909d7",
+      "sha256": "7837f9df4b11a9844143fc9419e5752bdd50305436adcbf84f82b8a52d5909d7",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.TestPlatform.CrossPlatEngine.dll",
+      "baselineSha256": "2f3b463a227b8f30171f8720164b3c0b90451248e0b2f3e8c3da82c23a3fdfcd",
+      "sha256": "2f3b463a227b8f30171f8720164b3c0b90451248e0b2f3e8c3da82c23a3fdfcd",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.TestPlatform.PlatformAbstractions.dll",
+      "baselineSha256": "668c7f0df2c30feac9cea9dce808ccabb72ff575c1e820404124212b4eae1773",
+      "sha256": "668c7f0df2c30feac9cea9dce808ccabb72ff575c1e820404124212b4eae1773",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.TestPlatform.Utilities.dll",
+      "baselineSha256": "886ef3ab15251e57ca9c124e41de3c43ba0520a036b876bb709ed325438501fe",
+      "sha256": "886ef3ab15251e57ca9c124e41de3c43ba0520a036b876bb709ed325438501fe",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.VisualStudio.CodeCoverage.Shim.dll",
+      "baselineSha256": "e590f0095b103c635c7fd45ad5ff537dd221b0bc2db214717940f59faf4767f0",
+      "sha256": "e590f0095b103c635c7fd45ad5ff537dd221b0bc2db214717940f59faf4767f0",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.VisualStudio.TestPlatform.Common.dll",
+      "baselineSha256": "96d7b2a7e3f79133e17196fdad189486b59852379385198b5cd857e9947164fb",
+      "sha256": "96d7b2a7e3f79133e17196fdad189486b59852379385198b5cd857e9947164fb",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Microsoft.VisualStudio.TestPlatform.ObjectModel.dll",
+      "baselineSha256": "f6d6bc01a85fd68a0599533fcc0de7357922051bad90012b8ad15de31a4ef5e9",
+      "sha256": "f6d6bc01a85fd68a0599533fcc0de7357922051bad90012b8ad15de31a4ef5e9",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/Newtonsoft.Json.dll",
+      "baselineSha256": "22c649f75fce5be7c7ccda8880473b634ef69ecf33f5d1ab8ad892caf47d5a07",
+      "sha256": "22c649f75fce5be7c7ccda8880473b634ef69ecf33f5d1ab8ad892caf47d5a07",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/SharpCompress.dll",
+      "baselineSha256": "fa67b31d7ab99f10336ba4eaf603bc223ce93d2600ffd31522f4855dfe1d5842",
+      "sha256": "fa67b31d7ab99f10336ba4eaf603bc223ce93d2600ffd31522f4855dfe1d5842",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/testhost.dll",
+      "baselineSha256": "f9f95f20f7a99215b50cfd511085b31549b26f87afaeb02c0a3c21f6875817e8",
+      "sha256": "f9f95f20f7a99215b50cfd511085b31549b26f87afaeb02c0a3c21f6875817e8",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/testhost.exe",
+      "baselineSha256": "6a3a6cfca1f99e54bc7d6851009df33c4184d2c65663165b5d5de6c0fe6e5420",
+      "sha256": "6a3a6cfca1f99e54bc7d6851009df33c4184d2c65663165b5d5de6c0fe6e5420",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.abstractions.dll",
+      "baselineSha256": "3166dc70323fb30ccf1cedb0fe86f2ad122c46d254542342d90386efc4c9285c",
+      "sha256": "3166dc70323fb30ccf1cedb0fe86f2ad122c46d254542342d90386efc4c9285c",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.runner.visualstudio.testadapter.dll",
+      "baselineSha256": "384aba4bad96399a7fd2205a5a3517b643a16f4d7e843bd0b92e1e42f81fce2a",
+      "sha256": "384aba4bad96399a7fd2205a5a3517b643a16f4d7e843bd0b92e1e42f81fce2a",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.assert.dll",
+      "baselineSha256": "483aec8a5b7faea0a92d0ae4f11a3479045f8f5e3f551dfc4dac6bedeaafa9ce",
+      "sha256": "483aec8a5b7faea0a92d0ae4f11a3479045f8f5e3f551dfc4dac6bedeaafa9ce",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.common.dll",
+      "baselineSha256": "e4175bc165d01b9828acdc996776370adf4f8d0a5865e75ec9ded17fb70258a9",
+      "sha256": "e4175bc165d01b9828acdc996776370adf4f8d0a5865e75ec9ded17fb70258a9",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.core.dll",
+      "baselineSha256": "b3641e9e80cd8175e2d9995d6fa9750b8fb31740c87ba121e56cfe515f7f06cc",
+      "sha256": "b3641e9e80cd8175e2d9995d6fa9750b8fb31740c87ba121e56cfe515f7f06cc",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.mtp-v1.dll",
+      "baselineSha256": "69903f4e48e5794350154d97bc911909974469780cd1931e23da3af419a1f2e7",
+      "sha256": "69903f4e48e5794350154d97bc911909974469780cd1931e23da3af419a1f2e7",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.runner.common.dll",
+      "baselineSha256": "8d9b157ebd8d9240d292ed922f5f26ba4011de5fd07812ceaac7baccfc5e6bc4",
+      "sha256": "8d9b157ebd8d9240d292ed922f5f26ba4011de5fd07812ceaac7baccfc5e6bc4",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.runner.inproc.console.dll",
+      "baselineSha256": "360ef1613c7d4148a715b8495d9f7ad95e4126f75ed86dda6cf81139c28b1431",
+      "sha256": "360ef1613c7d4148a715b8495d9f7ad95e4126f75ed86dda6cf81139c28b1431",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/xunit.v3.runner.utility.netcore.dll",
+      "baselineSha256": "abce062185b0d72b665aae07d76c681aff1cd794525a34cfa1b3b0137af76aff",
+      "sha256": "abce062185b0d72b665aae07d76c681aff1cd794525a34cfa1b3b0137af76aff",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/BouncyCastle.Cryptography.dll",
+      "baselineSha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+      "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/DiscUtils.Core.dll",
+      "baselineSha256": "6d92db7121a11eab4c72efb3416df752b76e8c40c5aaef2b8f86133caeb85776",
+      "sha256": "6d92db7121a11eab4c72efb3416df752b76e8c40c5aaef2b8f86133caeb85776",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/DiscUtils.Iso9660.dll",
+      "baselineSha256": "ff8be4630795e8e6ef0c9ae5ced5d8913eade91bc3a1488590e22a6db263c821",
+      "sha256": "ff8be4630795e8e6ef0c9ae5ced5d8913eade91bc3a1488590e22a6db263c821",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/DiscUtils.Streams.dll",
+      "baselineSha256": "eea991f90d8a4e1d32d6d387519a4e703de8b9d083bb2cca19d19128e9a4e2a0",
+      "sha256": "eea991f90d8a4e1d32d6d387519a4e703de8b9d083bb2cca19d19128e9a4e2a0",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/DiscUtils.Udf.dll",
+      "baselineSha256": "a12e8b2b1e9147a22c945deae6ce6dafcfa74b6edb8033d3216fb357254756d8",
+      "sha256": "a12e8b2b1e9147a22c945deae6ce6dafcfa74b6edb8033d3216fb357254756d8",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.Archives.dll",
+      "baselineSha256": "512e720277b8c3e1709f40ae6c8e25f16cd1a026b0c010e43a6a2a97cad69c8d",
+      "sha256": "512e720277b8c3e1709f40ae6c8e25f16cd1a026b0c010e43a6a2a97cad69c8d",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.Archives.pdb",
+      "baselineSha256": "20f10089aca6d7b9201ff29bb7ef6a413293b326c95385981090a6fd5134b2ef",
+      "sha256": "20f10089aca6d7b9201ff29bb7ef6a413293b326c95385981090a6fd5134b2ef",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.Archives.Rar15.dll",
+      "baselineSha256": "1e8888da2fd139d856a562cb405d3b78972b83470e6e02f93d4ea6357850e6b2",
+      "sha256": "1e8888da2fd139d856a562cb405d3b78972b83470e6e02f93d4ea6357850e6b2",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.Archives.Rar15.pdb",
+      "baselineSha256": "3aee2a89e9406d1196757d61e81573ad0494f440edf7dc5e3eb038f43fcb3457",
+      "sha256": "3aee2a89e9406d1196757d61e81573ad0494f440edf7dc5e3eb038f43fcb3457",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.Core.dll",
+      "baselineSha256": "33f894ba55e92ccc324d05be421e8c6f10b1c4b121fab70662a5954ac2942550",
+      "sha256": "33f894ba55e92ccc324d05be421e8c6f10b1c4b121fab70662a5954ac2942550",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.Core.pdb",
+      "baselineSha256": "7ba2d26f5bf974ad2f67723d36c6041f3aa0b3c5282247e01baed91a66d526ce",
+      "sha256": "7ba2d26f5bf974ad2f67723d36c6041f3aa0b3c5282247e01baed91a66d526ce",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.SharpCompress.dll",
+      "baselineSha256": "6b7d32848c2c4ef43c1dd43e5e4ed7c9fad431fe921047a0e5959758f90db601",
+      "sha256": "6b7d32848c2c4ef43c1dd43e5e4ed7c9fad431fe921047a0e5959758f90db601",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.SharpCompress.pdb",
+      "baselineSha256": "56dec5a1e72e08baaaf435cf055dc9a2ca6d57f57730b550c3ca3fa5db619e6d",
+      "sha256": "56dec5a1e72e08baaaf435cf055dc9a2ca6d57f57730b550c3ca3fa5db619e6d",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.WorkerProbe.deps.json",
+      "baselineSha256": "f23139162848a68927ea1da02a05f83b11f3611b8b5f8fa57524a1cc3d1fb62c",
+      "sha256": "f23139162848a68927ea1da02a05f83b11f3611b8b5f8fa57524a1cc3d1fb62c",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.WorkerProbe.dll",
+      "baselineSha256": "1e789de2c0473882abb28255ced3eb39868fb24be3465c94850447661d8a15bf",
+      "sha256": "1e789de2c0473882abb28255ced3eb39868fb24be3465c94850447661d8a15bf",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.WorkerProbe.exe",
+      "baselineSha256": "e94f0756fec714e1de8e1e122e324669166adbf8f94d8ae08f6ed31c176bfca9",
+      "sha256": "e94f0756fec714e1de8e1e122e324669166adbf8f94d8ae08f6ed31c176bfca9",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.WorkerProbe.pdb",
+      "baselineSha256": "de6ef58aa6fd05b1194e7ceb86ff832a6f8c3d18d639916077553b8b07c817a0",
+      "sha256": "de6ef58aa6fd05b1194e7ceb86ff832a6f8c3d18d639916077553b8b07c817a0",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/FileCat.WorkerProbe.runtimeconfig.json",
+      "baselineSha256": "79d12e54ac614d5fe8cdeb8849ab5f6568250bb7ac1c2647c2bce5876475f20e",
+      "sha256": "79d12e54ac614d5fe8cdeb8849ab5f6568250bb7ac1c2647c2bce5876475f20e",
+      "patch": false
+    },
+    {
+      "path": "tests/FileCat.WorkerProbe/bin/Debug/net10.0/LTRData.Extensions.dll",
+      "baselineSha256": "eef1e1608fce1df712045682703cdd6242b3a4aee48712c81a72c4623fba31e2",
+      "sha256": "eef1e1608fce1df712045682703cdd6242b3a4aee48712c81a72c4623fba31e2",
+      "patch": false
+    }
+  ],
+  "allowed": [
+    "render/FileCat.Rendering.Tests.dll",
+    "render/FileCat.Rendering.Tests.pdb"
+  ],
+  "scope": "TestOnly"
+}

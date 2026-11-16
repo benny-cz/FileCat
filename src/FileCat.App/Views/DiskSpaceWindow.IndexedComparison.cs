@@ -16,9 +16,13 @@ namespace FileCat.App.Views;
 
 public sealed partial class DiskSpaceWindow
 {
+    internal delegate Task<AnalysisIndexedComparison> IndexedComparisonBuilder(AnalysisDatasetLease previous, AnalysisDatasetLease current,
+        AnalysisMetric metric, IReadOnlyDictionary<string, string>? structuralRoots, CancellationToken cancellation);
+
     internal async Task<bool> AddIndexedComparisonSessionAsync(AnalysisDatasetLease previous, AnalysisDatasetLease current,
         AnalysisMetric metric, IReadOnlyDictionary<string, string>? structuralRoots = null, string? previousName = null,
-        CancellationToken cancellation = default, Func<AnalysisComparisonCompatibility, Task<bool>>? reviewLimited = null)
+        CancellationToken cancellation = default, Func<AnalysisComparisonCompatibility, Task<bool>>? reviewLimited = null,
+        IndexedComparisonBuilder? compare = null)
     {
         Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
         AnalysisSessionAdmission.Slot? admission = _admissionPool.Acquire();
@@ -28,14 +32,15 @@ public sealed partial class DiskSpaceWindow
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _indexedLifetime.Token);
         try
         {
+            compare ??= static (old, now, selected, roots, token) => now.CompareIndexedAsync(old, selected, roots, token);
             // Own the exact revisions independently of both originating tabs and catalog handles.
             var mapping = structuralRoots?.ToImmutableDictionary(StringComparer.Ordinal);
             a = await previous.RetainAsync(linked.Token); b = await current.RetainAsync(linked.Token);
-            result = await b.CompareIndexedAsync(a, metric, mapping, linked.Token);
+            result = await compare(a, b, metric, mapping, linked.Token);
             if (!result.Compatibility.ComparableTotals && reviewLimited is not null && !await reviewLimited(result.Compatibility)) return false;
             var page = await IndexedComparisonView.ReadPageAsync(result, 0, linked.Token);
             linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
-            var view = new IndexedComparisonView(this, admission, a, b, result, mapping, previousName, page);
+            var view = new IndexedComparisonView(this, admission, a, b, result, mapping, previousName, page, compare);
             a = b = null; result = null; admission = null;
             try { AddView(view); } catch { view.Dispose(); throw; }
             return true;
@@ -70,10 +75,20 @@ public sealed partial class DiskSpaceWindow
         private readonly AnalysisSessionAdmission.Slot _admission;
         private readonly AnalysisDatasetLease _previousSource, _currentSource;
         private readonly ImmutableDictionary<string, string>? _mapping;
+        private readonly IndexedComparisonBuilder _compare;
         private readonly AnalysisViewWork _work = new();
         private readonly CancellationTokenSource _lifetime = new();
         private AnalysisIndexedComparison? _result;
+        private AnalysisIndexedComparison.Query? _queryResult;
+        private AnalysisComparisonView _applied;
         private readonly ComboBox _metric = new() { ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" }, MinWidth = 180 };
+        private readonly TextBox _queryText = new() { PlaceholderText = "Filter comparison observations…", MaxLength = AnalysisLimits.QueryBytes, MinWidth = 200 };
+        private readonly ComboBox _querySide = new() { ItemsSource = new[] { "Current, otherwise Previous", "Current", "Previous", "Either side" }, SelectedIndex = 0 };
+        private readonly ComboBox _cohort = new() { ItemsSource = new[] { "All changes", "Growing", "Shrinking", "Added", "Removed", "Moved / renamed", "Attribution movement", "Different observed object", "Metadata changed", "No observed metadata change", "Unknown change" }, SelectedIndex = 0 };
+        private readonly ComboBox _order = new() { ItemsSource = new[] { "Absolute difference", "Relative change", "Current amount", "Recorded path" }, SelectedIndex = 0 };
+        private readonly CheckBox _case = new() { Content = "Case sensitive" }, _uncertain = new() { Content = "Inspect uncertain query results" };
+        private readonly TextBlock _appliedDescription = Text("");
+        private readonly Button _applyView, _resetView;
         private readonly TextBlock _summary = Text(""), _compatibility = Text(""), _status = Text(""), _range = Text("");
         private readonly Button _previousPage, _nextPage, _inspect, _retry;
         private readonly ListBox _rows = new() { MinHeight = 200, MaxHeight = 440, Focusable = true };
@@ -104,10 +119,11 @@ public sealed partial class DiskSpaceWindow
 
         internal IndexedComparisonView(DiskSpaceWindow window, AnalysisSessionAdmission.Slot admission,
             AnalysisDatasetLease previous, AnalysisDatasetLease current, AnalysisIndexedComparison result,
-            ImmutableDictionary<string, string>? mapping, string? previousName, DisplayPage page)
+            ImmutableDictionary<string, string>? mapping, string? previousName, DisplayPage page, IndexedComparisonBuilder compare)
         {
             _window = window; _admission = admission; _previousSource = previous; _currentSource = current;
-            _result = result; _mapping = mapping; _page = page; _publishedMetric = result.Metric;
+            _result = result; _mapping = mapping; _page = page; _publishedMetric = result.Metric; _compare = compare;
+            _applied = new() { Metric = result.Metric };
             Spacing = 10; Margin = new Thickness(10);
             Children.Add(Text("Compare captured observations", true));
             Children.Add(Text("Previous: " + AnalysisNames.Display(previousName ?? "captured inventory", 240) + " · " + Interval(previous.Descriptor) +
@@ -118,6 +134,17 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetName(_metric, "Comparison metric"); _metric.SelectedIndex = (int)result.Metric;
             _retry = Button("Retry metric", () => _ = ChangeMetricAsync(), "Rebuild this metric from the same two captured revisions.");
             Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { _metric, _retry } });
+            AutomationProperties.SetName(_queryText, "Comparison query"); AutomationProperties.SetName(_querySide, "Comparison query side");
+            AutomationProperties.SetName(_cohort, "Comparison change cohort"); AutomationProperties.SetName(_order, "Comparison row order");
+            AutomationProperties.SetName(_appliedDescription, "Applied comparison view");
+            _applyView = Button("Apply comparison view", () => _ = ApplyViewAsync(), "Apply the query, recorded side, change cohort and row order together. The current view remains applied if the request is refused.");
+            _resetView = Button("Reset comparison view", () =>
+            {
+                _queryText.Text = ""; _querySide.SelectedIndex = _cohort.SelectedIndex = _order.SelectedIndex = 0; _case.IsChecked = _uncertain.IsChecked = false;
+                _ = ApplyViewAsync();
+            }, "Clear the query and restore all changes in absolute-difference order.");
+            Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { _queryText, _querySide, _cohort, _order, _case, _uncertain, _applyView, _resetView } });
+            Children.Add(_appliedDescription);
             Children.Add(_summary); Children.Add(_compatibility); Children.Add(_status);
             AutomationProperties.SetName(_summary, "Comparison totals"); AutomationProperties.SetName(_status, "Comparison status");
             AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
@@ -126,7 +153,7 @@ public sealed partial class DiskSpaceWindow
             _previousPage = Button("Previous comparison page", () => _ = PageAsync(false), "Show the preceding captured comparison rows.");
             _nextPage = Button("Next comparison page", () => _ = PageAsync(true), "Show the next captured comparison rows.");
             _inspect = Button("Inspect comparison row", () => _ = InspectAsync(), "Read both captured sides and their independently paged observed paths.");
-            Children.Add(Text("Rows ordered by absolute observed difference; row IDs break ties. Unavailable differences remain unknown."));
+            Children.Add(Text("Each row is a complete accounting entity, including all observed aliases. Unavailable differences remain unknown; row IDs break ordering ties."));
             Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { _previousPage, _nextPage, _range, _inspect } });
             Children.Add(_rows);
             foreach (var side in new[] { _before, _after })
@@ -167,9 +194,9 @@ public sealed partial class DiskSpaceWindow
         private static string Evidence(AnalysisComparisonEvidence evidence) => evidence switch
         { AnalysisComparisonEvidence.CompatibleIdentityAndVersion => "Compatible observed identity and version", AnalysisComparisonEvidence.Structural => "Explicit structural comparison", _ => "Path-based observations" };
 
-        internal static async Task<DisplayPage> ReadPageAsync(AnalysisIndexedComparison result, ulong offset, CancellationToken cancellation)
+        internal static async Task<DisplayPage> ReadPageAsync(AnalysisIndexedComparison result, ulong offset, CancellationToken cancellation, AnalysisIndexedComparison.Query? query = null)
         {
-            var page = await result.ReadAsync(offset, PageSize, cancellation);
+            var page = query is null ? await result.ReadAsync(offset, PageSize, cancellation) : await query.ReadAsync(offset, PageSize, cancellation);
             var items = ImmutableArray.CreateBuilder<DisplayRow>(page.Rows.Length);
             foreach (var row in page.Rows)
             {
@@ -185,7 +212,7 @@ public sealed partial class DiskSpaceWindow
             async Task<string> NameAsync(bool previous, AnalysisComparisonAccountingEntity? entity)
             {
                 if (entity is null) return "No recorded side";
-                var member = await result.ReadMembersAsync(previous, entity.Id, 0, 1, cancellation);
+                var member = query is null ? await result.ReadMembersAsync(previous, entity.Id, 0, 1, cancellation) : await query.ReadMembersAsync(previous, entity.Id, 0, 1, cancellation);
                 var path = member.Rows.FirstOrDefault();
                 return path is null ? "No representative path" : "[" + AnalysisNames.Display(path.RootId, 64) + "] " + AnalysisNames.DisplayName(path, 160);
             }
@@ -206,6 +233,7 @@ public sealed partial class DiskSpaceWindow
             try
             {
                 _page = page; _selected = null; _rows.ItemsSource = page.Rows; _rows.SelectedIndex = -1;
+                DescribeApplied();
                 _range.Text = page.Page.Rows.Length == 0 ? "No comparison rows" : $"{page.Page.Offset + 1:N0}–{page.Page.NextOffset:N0} of {page.Page.Total:N0}";
                 ClearSide(_before); ClearSide(_after);
             }
@@ -217,6 +245,7 @@ public sealed partial class DiskSpaceWindow
         {
             bool usable = !_disposed && !_busy && !_work.HasUnconfirmedClose;
             _metric.IsEnabled = usable; _retry.IsVisible = _result is null; _retry.IsEnabled = usable;
+            foreach (var control in new Control[] { _queryText, _querySide, _cohort, _order, _case, _uncertain, _applyView, _resetView }) control.IsEnabled = usable && _result is not null;
             _rows.IsEnabled = usable && _result is not null; _inspect.IsEnabled = usable && _result is not null && _rows.SelectedItem is DisplayRow;
             _previousPage.IsEnabled = usable && _result is not null && _offsets.Count != 0;
             _nextPage.IsEnabled = usable && _result is not null && _page.Page.HasMore;
@@ -233,19 +262,31 @@ public sealed partial class DiskSpaceWindow
             using var actual = _work.Enter(); _busy = true; _status.Text = activity; Refresh();
             try { await run(_lifetime.Token); if (!_disposed) _status.Text = "Captured observations · offline."; }
             catch (OperationCanceledException) { if (!_disposed) _status.Text = "Canceled. No partial view was applied."; }
-            catch (Exception error) when (error is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException or FormatException or OverflowException or KeyNotFoundException)
+            catch (Exception error) when (IndexedExpectedError(error))
             {
                 _work.RecordUnconfirmedClose(error);
                 if (AnalysisCloseUnconfirmedException.IsPresent(error)) _window.RecordIndexedCloseFailure(error);
                 if (!_disposed) _status.Text = "The requested view is unavailable. " + AnalysisNames.Display(error.Message, 400) +
                     (_result is null ? " The previous displayed page is retained; choose a metric and Retry metric to rebuild its index." : " The previous view is retained.");
             }
-            finally { _busy = false; if (!_disposed) Refresh(); }
+            finally
+            {
+                _busy = false;
+                if (!_disposed)
+                {
+                    if (_result is null)
+                    {
+                        _publishing = true;
+                        try { _metric.SelectedIndex = (int)_publishedMetric; } finally { _publishing = false; }
+                    }
+                    Refresh();
+                }
+            }
         }
         private Task PageAsync(bool next) => RunAsync("Reading comparison rows…", async token =>
         {
             if (_result is null || !next && _offsets.Count == 0 || next && !_page.Page.HasMore) return;
-            ulong offset = next ? _page.Page.NextOffset : _offsets[^1]; var page = await ReadPageAsync(_result, offset, token);
+            ulong offset = next ? _page.Page.NextOffset : _offsets[^1]; var page = await ReadPageAsync(_result, offset, token, _queryResult);
             token.ThrowIfCancellationRequested();
             if (next) _offsets.Add(_page.Page.Offset); else _offsets.RemoveAt(_offsets.Count - 1);
             Publish(page);
@@ -256,12 +297,13 @@ public sealed partial class DiskSpaceWindow
             var metric = (AnalysisMetric)_metric.SelectedIndex;
             if (_result is not null && metric == _publishedMetric) return;
             // The comparison places cover the real lifetime, so retire the old owner before admission.
-            var old = _result; _result = null;
-            if (old is not null) await old.DisposeAsync();
+            var old = _result; var oldQuery = _queryResult; _result = null; _queryResult = null;
+            await AnalysisIndexedComparison.CloseAsync(oldQuery, old);
             AnalysisIndexedComparison? replacement = null;
+            AnalysisIndexedComparison.Query? replacementQuery = null;
             try
             {
-                replacement = await _currentSource.CompareIndexedAsync(_previousSource, metric, _mapping, token);
+                replacement = await _compare(_previousSource, _currentSource, metric, _mapping, token);
                 if (!replacement.Compatibility.ComparableTotals)
                 {
                     _reviewCloser = new DialogCloser();
@@ -275,15 +317,51 @@ public sealed partial class DiskSpaceWindow
                         await replacement.DisposeAsync(); replacement = null;
                         _publishing = true; try { _metric.SelectedIndex = (int)_publishedMetric; } finally { _publishing = false; }
                         // Restore the old metric's query owner before re-enabling its retained page.
-                        _result = await _currentSource.CompareIndexedAsync(_previousSource, _publishedMetric, _mapping, token);
+                        replacement = await _compare(_previousSource, _currentSource, _publishedMetric, _mapping, token);
+                        replacementQuery = await BuildQueryAsync(replacement, _applied, token);
+                        _result = replacement; replacement = null; _queryResult = replacementQuery; replacementQuery = null;
                         return;
                     }
                 }
-                var page = await ReadPageAsync(replacement, 0, token); token.ThrowIfCancellationRequested();
-                _result = replacement; replacement = null; _publishedMetric = metric; _offsets.Clear(); Publish(page); ShowTotals(_result);
+                var applied = _applied with { Metric = metric };
+                replacementQuery = await BuildQueryAsync(replacement, applied, token);
+                bool retry = metric == _publishedMetric;
+                var page = await ReadPageAsync(replacement, retry ? _page.Page.Offset : 0, token, replacementQuery); token.ThrowIfCancellationRequested();
+                _result = replacement; replacement = null; _queryResult = replacementQuery; replacementQuery = null;
+                _publishedMetric = metric; _applied = applied; if (!retry) _offsets.Clear(); Publish(page); ShowTotals(_result);
+            }
+            finally { await AnalysisIndexedComparison.CloseAsync(replacementQuery, replacement); }
+        });
+        private static Task<AnalysisIndexedComparison.Query?> BuildQueryAsync(AnalysisIndexedComparison result, AnalysisComparisonView view, CancellationToken token)
+        {
+            if (string.IsNullOrWhiteSpace(view.Query) && view.Cohort == AnalysisComparisonCohort.All && view.Order == AnalysisComparisonOrder.AbsoluteDifference && view.QuerySide == AnalysisComparisonSide.CurrentOrPrevious)
+                return Task.FromResult<AnalysisIndexedComparison.Query?>(null);
+            return Build();
+            async Task<AnalysisIndexedComparison.Query?> Build() => await result.QueryAsync(view, cancellation: token);
+        }
+        private Task ApplyViewAsync() => RunAsync("Applying comparison view…", async token =>
+        {
+            if (_result is null) return;
+            if (string.IsNullOrWhiteSpace(_queryText.Text)) _uncertain.IsChecked = false;
+            var view = new AnalysisComparisonView { Metric = _publishedMetric, Query = _queryText.Text ?? "", QuerySide = (AnalysisComparisonSide)_querySide.SelectedIndex,
+                Cohort = (AnalysisComparisonCohort)_cohort.SelectedIndex, Order = (AnalysisComparisonOrder)_order.SelectedIndex, CaseSensitive = _case.IsChecked == true, ShowUnknown = _uncertain.IsChecked == true };
+            AnalysisComparisonView.Validate(view); AnalysisIndexedComparison.Query? replacement = null;
+            try
+            {
+                replacement = await BuildQueryAsync(_result, view, token);
+                var page = await ReadPageAsync(_result, 0, token, replacement); token.ThrowIfCancellationRequested();
+                if (_queryResult is not null) await _queryResult.DisposeAsync();
+                _queryResult = replacement; replacement = null; _applied = view; _offsets.Clear(); Publish(page);
             }
             finally { if (replacement is not null) await replacement.DisposeAsync(); }
         });
+        private void DescribeApplied()
+        {
+            _appliedDescription.Text = "Applied view · " + _cohort.Items[(int)_applied.Cohort] + " · " + _order.Items[(int)_applied.Order] +
+                " · " + _querySide.Items[(int)_applied.QuerySide] + (string.IsNullOrWhiteSpace(_applied.Query) ? " · no text query" : " · " + AnalysisNames.Display(_applied.Query, 240)) +
+                (_applied.CaseSensitive ? " · case sensitive" : "") +
+                (_queryResult is null ? "" : $"\n{_queryResult.Definite:N0} definite accounting rows · {_queryResult.Unknown:N0} uncertain accounting rows in this change cohort" + (_applied.ShowUnknown ? " · showing uncertain rows" : " · showing definite rows"));
+        }
         private Task InspectAsync() => RunAsync("Reading recorded comparison details…", async token =>
         {
             if (_result is null || _rows.SelectedItem is not DisplayRow selected) return;
@@ -354,8 +432,8 @@ public sealed partial class DiskSpaceWindow
             try { await drained; }
             finally
             {
-                try { await AnalysisIndexedComparison.CloseAsync(_result, _currentSource, _previousSource); }
-                finally { _result = null; _lifetime.Dispose(); }
+                try { await AnalysisIndexedComparison.CloseAsync(_queryResult, _result, _currentSource, _previousSource); }
+                finally { _result = null; _queryResult = null; _lifetime.Dispose(); }
             }
         }
     }

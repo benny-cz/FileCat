@@ -18,7 +18,9 @@ public sealed partial class AnalysisRenderingTests
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture();
         var source = new PreparedSource(fixture.Root) { CloseAction = () => throw new IOException("injected cleanup failure") };
-        using var model = new DiskSpaceViewModel(fixture.Services, _ => source);
+        var model = new DiskSpaceViewModel(fixture.Services, _ => source);
+        try
+        {
         await model.StartAsync([fixture.Root]); await source.Closed.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var deadline = DateTime.UtcNow.AddSeconds(5);
         while ((model.SourceCloseFailures == 0 || model.Running) && DateTime.UtcNow < deadline) await Task.Delay(10);
@@ -27,6 +29,13 @@ public sealed partial class AnalysisRenderingTests
         // scope and independently failing close still produce finished, partial observations.
         Assert.Equal(AnalysisPhase.Finished, model.Phase); Assert.Equal(1, source.CloseCalls);
         await model.RebuildAsync(true); Assert.Equal(NamespaceCoverage.Partial, model.Tree!.Snapshot.Coverage);
+        }
+        finally
+        {
+            model.Dispose();
+            var closed = await Assert.ThrowsAsync<AnalysisCloseUnconfirmedException>(() => model.CloseCompletion);
+            Assert.Equal("Captured analysis sources reported unconfirmed closure.", closed.InnerException?.Message);
+        }
     }
 
     [AvaloniaFact]

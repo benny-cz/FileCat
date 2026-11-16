@@ -4,7 +4,7 @@ namespace FileCat.Core.Analysis;
 
 internal sealed partial class AnalysisIndexedComparison
 {
-    private sealed record IdentitySearch(AnalysisComparisonAccountingEntity Current, AnalysisIndexRange Candidates);
+    internal sealed record IdentitySearch(AnalysisComparisonAccountingEntity Current, AnalysisIndexRange Candidates);
     private static async Task BuildIdentityLinksAsync(State state, ulong count, DeviceIoScheduler io, AnalysisIoDevices devices, CancellationToken cancellation)
     {
         ulong next = 1;
@@ -33,7 +33,7 @@ internal sealed partial class AnalysisIndexedComparison
                 await AnalysisIo.Run(io, devices, token => { state.AddFallback(matched, search.Current.Id, token); return true; }, cancellation).ConfigureAwait(false);
         }
     }
-    private sealed record MatchPlan(AnalysisComparisonAccountingEntity? Previous, AnalysisComparisonAccountingEntity? Current, bool Ambiguous);
+    internal sealed record MatchPlan(AnalysisComparisonAccountingEntity? Previous, AnalysisComparisonAccountingEntity? Current, bool Ambiguous);
     private static async Task BuildRowsAsync(State state, ulong previousCount, ulong currentCount, AnalysisMetric metric,
         DeviceIoScheduler io, AnalysisIoDevices devices, CancellationToken cancellation)
     {
@@ -70,7 +70,7 @@ internal sealed partial class AnalysisIndexedComparison
             await AnalysisIo.Run(io, devices, token => { state.Emit(pair, metric, metadata, samePaths, token); return true; }, cancellation).ConfigureAwait(false);
         }
     }
-    private sealed partial class State
+    internal sealed partial class State
     {
         internal AnalysisComparisonEntities.State Previous => previous;
         internal AnalysisComparisonEntities.State Current => current;
@@ -147,6 +147,7 @@ internal sealed partial class AnalysisIndexedComparison
                 else change = AnalysisChange.NoObservedMetadataChange;
             }
             _rowWriter!.Append(EncodeRow(new(a?.Id ?? 0, b?.Id ?? 0, change, evidence, delta, reason)), token);
+            HasCurrentRows |= b is not null; HasPreviousOnlyRows |= b is null;
         }
     }
 }

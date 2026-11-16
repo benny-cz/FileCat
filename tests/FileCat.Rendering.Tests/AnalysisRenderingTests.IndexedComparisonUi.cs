@@ -128,6 +128,122 @@ public sealed partial class AnalysisRenderingTests
     private static string ComparisonText(Window window) => string.Join(" | ", window.GetVisualDescendants().OfType<TextBlock>().Where(control => control.IsEffectivelyVisible).Select(control => control.Text));
 
     [AvaloniaTheory]
+    [InlineData(AnalysisMetric.FileSize)]
+    [InlineData(AnalysisMetric.UniqueFileSize)]
+    [InlineData(AnalysisMetric.OnDisk)]
+    [InlineData(AnalysisMetric.Files)]
+    public async Task NativeIndexedComparisonQueryViewAppliesSidesCohortsOrdersAndPreservesAnInvalidRequest(AnalysisMetric metric)
+    {
+        OrdinaryPreparation(); using var styles = new ProductStyles(); await using var source = await IndexedFixture.CreateAsync(sharedAlias: true);
+        var token = TestContext.Current.CancellationToken; var window = new DiskSpaceWindow();
+        await window.AddIndexedComparisonSessionAsync(source.Lease!, source.Lease!, metric, cancellation: token);
+        await source.ReleaseInitialLeaseAsync(); window.Show(); Frame(window);
+        try
+        {
+            var rows = ComparisonControl<ListBox>(window, "Captured comparison rows")!; var text = ComparisonControl<TextBox>(window, "Comparison query")!;
+            var side = ComparisonControl<ComboBox>(window, "Comparison query side")!; var order = ComparisonControl<ComboBox>(window, "Comparison row order")!;
+            var cohort = ComparisonControl<ComboBox>(window, "Comparison change cohort")!;
+            text.Text = "name=match-target.bin AND allocated>=0";
+            for (int selected = 0; selected < 4; selected++)
+            {
+                side.SelectedIndex = selected; order.SelectedIndex = selected; Click(window, "Apply comparison view");
+                await Until(() => rows.IsEnabled && rows.ItemCount == 1 && ComparisonControl<TextBlock>(window, "Applied comparison view")!.Text!.Contains(order.SelectedItem!.ToString()!, StringComparison.Ordinal), () => ComparisonText(window));
+                rows.SelectedIndex = 0;
+                await Until(() => ComparisonControl<TextBox>(window, "Current comparison details")!.Text!.Contains("Recorded location:", StringComparison.Ordinal));
+                Assert.Equal(metric is AnalysisMetric.OnDisk or AnalysisMetric.UniqueFileSize ? 2 : 1, ComparisonControl<ListBox>(window, "Current observed comparison paths")!.ItemCount);
+            }
+            object? first = rows.Items[0]; string applied = ComparisonControl<TextBlock>(window, "Applied comparison view")!.Text!;
+            text.Text = "delta>"; Click(window, "Apply comparison view");
+            await Until(() => rows.IsEnabled && ComparisonControl<TextBlock>(window, "Comparison status")!.Text!.Contains("unavailable", StringComparison.Ordinal));
+            Assert.Equal(first, rows.Items[0]); Assert.Equal(applied, ComparisonControl<TextBlock>(window, "Applied comparison view")!.Text);
+            text.Text = ""; cohort.SelectedIndex = (int)AnalysisComparisonCohort.Growing; Click(window, "Apply comparison view");
+            await Until(() => rows.IsEnabled && rows.ItemCount == 0, () => ComparisonText(window));
+            Click(window, "Reset comparison view"); await Until(() => rows.IsEnabled && rows.ItemCount == 32);
+            Assert.Equal(0, side.SelectedIndex); Assert.Equal(0, order.SelectedIndex); Assert.Equal(0, cohort.SelectedIndex);
+            text.Text = "name:file-"; order.SelectedIndex = (int)AnalysisComparisonOrder.Path; Click(window, "Apply comparison view");
+            await Until(() => rows.IsEnabled && rows.ItemCount == 32 && ComparisonControl<TextBlock>(window, "Applied comparison view")!.Text!.Contains("300 definite", StringComparison.Ordinal));
+            first = rows.Items[0]; Click(window, "Next comparison page"); await Until(() => rows.IsEnabled && !Equals(first, rows.Items[0]));
+            Click(window, "Previous comparison page"); await Until(() => rows.IsEnabled && Equals(first, rows.Items[0]));
+            var metricSelector = ComparisonControl<ComboBox>(window, "Comparison metric")!;
+            metricSelector.SelectedIndex = metric == AnalysisMetric.Files ? (int)AnalysisMetric.OnDisk : (int)AnalysisMetric.Files;
+            await Until(() => metricSelector.IsEnabled && rows.IsEnabled && rows.ItemCount == 32, () => ComparisonText(window));
+            Assert.Equal("name:file-", text.Text); Assert.Equal((int)AnalysisComparisonOrder.Path, order.SelectedIndex);
+            Assert.Contains("300 definite", ComparisonControl<TextBlock>(window, "Applied comparison view")!.Text);
+        }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
+        Assert.Empty(Directory.EnumerateFileSystemEntries(source.PrivatePath)); Assert.Equal(source.Payload, File.ReadAllBytes(source.PayloadPath));
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeIndexedComparisonFailedMetricKeepsDisplayedMetricAndRetriesAfterActualRetirement(bool canceled)
+    {
+        OrdinaryPreparation(); using var styles = new ProductStyles(); await using var source = await IndexedFixture.CreateAsync();
+        var token = TestContext.Current.CancellationToken; var window = new DiskSpaceWindow(); bool failed = false;
+        await window.AddIndexedComparisonSessionAsync(source.Lease!, source.Lease!, AnalysisMetric.FileSize, cancellation: token, compare: Compare);
+        await source.ReleaseInitialLeaseAsync(); window.Show(); Frame(window);
+        try
+        {
+            var metric = ComparisonControl<ComboBox>(window, "Comparison metric")!; var rows = ComparisonControl<ListBox>(window, "Captured comparison rows")!;
+            object? first = rows.Items[0]; string totals = ComparisonControl<TextBlock>(window, "Comparison totals")!.Text!;
+            metric.SelectedIndex = (int)AnalysisMetric.UniqueFileSize;
+            await Until(() => metric.IsEnabled && metric.SelectedIndex == (int)AnalysisMetric.FileSize, () => ComparisonText(window));
+            Assert.Equal(first, rows.Items[0]); Assert.Equal(totals, ComparisonControl<TextBlock>(window, "Comparison totals")!.Text);
+            Assert.False(rows.IsEnabled); Assert.Contains(canceled ? "Canceled" : "unavailable", ComparisonControl<TextBlock>(window, "Comparison status")!.Text!);
+            Click(window, "Retry metric"); await Until(() => rows.IsEnabled, () => ComparisonText(window));
+            metric.SelectedIndex = (int)AnalysisMetric.UniqueFileSize;
+            await Until(() => metric.IsEnabled && rows.IsEnabled, () => ComparisonText(window));
+            Assert.Equal((int)AnalysisMetric.UniqueFileSize, metric.SelectedIndex);
+            rows.SelectedIndex = 0;
+            await Until(() => ComparisonControl<TextBox>(window, "Current comparison details")?.Text?.Contains("Recorded location:", StringComparison.Ordinal) == true);
+        }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
+        Assert.Empty(Directory.EnumerateFileSystemEntries(source.PrivatePath));
+        Task<AnalysisIndexedComparison> Compare(AnalysisDatasetLease old, AnalysisDatasetLease now, AnalysisMetric selected, IReadOnlyDictionary<string, string>? roots, CancellationToken cancellation)
+        {
+            if (!failed && selected == AnalysisMetric.UniqueFileSize)
+            {
+                failed = true;
+                return Task.FromException<AnalysisIndexedComparison>(canceled ? new OperationCanceledException(cancellation) : new IOException("Injected comparison admission refusal"));
+            }
+            return now.CompareIndexedAsync(old, selected, roots, cancellation);
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeIndexedComparisonAggregatedUnconfirmedCloseIsVisibleAndKeepsAdmission(bool wrapped)
+    {
+        OrdinaryPreparation(); using var styles = new ProductStyles(); await using var source = await IndexedFixture.CreateAsync();
+        var token = TestContext.Current.CancellationToken; var pool = new AnalysisSessionAdmission(); var window = new DiskSpaceWindow(null, null, pool);
+        Exception failure = new AggregateException(new IOException("Injected first owner failure"), new AnalysisCloseUnconfirmedException(new IOException("Injected second owner failure")));
+        if (wrapped) failure = new InvalidOperationException("Injected operation wrapper", failure);
+        await window.AddIndexedComparisonSessionAsync(source.Lease!, source.Lease!, AnalysisMetric.FileSize, cancellation: token, compare: Compare);
+        await source.ReleaseInitialLeaseAsync(); window.Show(); Frame(window); var slots = new List<AnalysisSessionAdmission.Slot>();
+        try
+        {
+            for (int n = 0; n < 7; n++) slots.Add(pool.Acquire()); Assert.False(pool.HasCapacity);
+            var metric = ComparisonControl<ComboBox>(window, "Comparison metric")!; metric.SelectedIndex = (int)AnalysisMetric.UniqueFileSize;
+            await Until(() => ComparisonControl<TextBlock>(window, "Comparison status")!.Text!.Contains("unavailable", StringComparison.Ordinal));
+            Assert.Equal((int)AnalysisMetric.FileSize, metric.SelectedIndex); Assert.False(metric.IsEnabled);
+            Assert.False(window.GetVisualDescendants().OfType<Button>().Single(control => control.IsEffectivelyVisible && Equals(control.Content, "Retry metric")).IsEnabled);
+            window.ForceClose(); var error = await Assert.ThrowsAsync<IOException>(() => window.WaitForIndexedCloseAsync());
+            Assert.True(AnalysisCloseUnconfirmedException.IsPresent(error)); Assert.True(pool.HasFailedClose); Assert.False(pool.HasCapacity);
+            Assert.Throws<InvalidOperationException>(() => pool.Acquire());
+        }
+        finally
+        {
+            window.ForceClose(); try { await window.WaitForIndexedCloseAsync(); } catch (IOException) { }
+            foreach (var slot in slots) await slot.CloseAfterAsync(Task.CompletedTask);
+        }
+        Assert.Empty(Directory.EnumerateFileSystemEntries(source.PrivatePath));
+        Task<AnalysisIndexedComparison> Compare(AnalysisDatasetLease old, AnalysisDatasetLease now, AnalysisMetric selected, IReadOnlyDictionary<string, string>? roots, CancellationToken cancellation) =>
+            selected == AnalysisMetric.UniqueFileSize ? Task.FromException<AnalysisIndexedComparison>(failure) : now.CompareIndexedAsync(old, selected, roots, cancellation);
+    }
+
+    [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task NativeIndexedComparisonIncompatiblePoliciesRequireExplicitLimitedReview(bool accept)

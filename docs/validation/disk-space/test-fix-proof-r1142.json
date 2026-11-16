@@ -1,0 +1,45 @@
+{
+  "revision": "r1142",
+  "baseline": "r1141",
+  "scope": "TestOnly",
+  "testPhases": [
+    "core"
+  ],
+  "productSourceBaseline": null,
+  "elapsedSeconds": 8.0425319,
+  "platforms": [
+    {
+      "sha256": "809bd0376f0ee6ce3582cbac0fdc098d6f0b44627b6d126d9127fd93d987f779",
+      "verifiedInputs": 270,
+      "guestReuse": true,
+      "archiveBytes": 3649728,
+      "platform": "windows",
+      "changed": [
+        "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll",
+        "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.pdb"
+      ]
+    },
+    {
+      "sha256": "21b33a6e00dc55b716b6cf543c5b07cdc8b15581436a7d5091def3ac8df8fb70",
+      "verifiedInputs": 192,
+      "guestReuse": true,
+      "archiveBytes": 3649553,
+      "platform": "mac",
+      "changed": [
+        "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll",
+        "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.pdb"
+      ]
+    },
+    {
+      "sha256": "78b0a870090befc92da99be972d4c79316903cb316c178713bcc19b2ca449792",
+      "verifiedInputs": 191,
+      "guestReuse": true,
+      "archiveBytes": 3649436,
+      "platform": "linux",
+      "changed": [
+        "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll",
+        "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.pdb"
+      ]
+    }
+  ]
+}

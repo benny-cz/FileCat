@@ -40,7 +40,7 @@ internal sealed partial class AnalysisIndexedComparison
             _ => "No observed metadata change. File contents were not compared."
         }
     };
-    private sealed partial class State
+    internal sealed partial class State
     {
         internal AnalysisDatasetPage<AnalysisIndexedComparisonRow> Page(ulong offset, int maximum, CancellationToken token)
         {
@@ -49,15 +49,20 @@ internal sealed partial class AnalysisIndexedComparison
             while (offset + (ulong)rows.Count < Rows.Count && rows.Count < maximum)
             {
                 token.ThrowIfCancellationRequested(); ulong id = Order!.Read(offset + (ulong)rows.Count + 1, token).Value;
-                var row = DecodeRow(Rows.Read(id, token)); long ac = 0, bc = 0;
-                var a = row.Previous == 0 ? null : previous.ReadEvidence(row.Previous, token, out ac);
-                var b = row.Current == 0 ? null : current.ReadEvidence(row.Current, token, out bc);
-                long cost = ac + bc + 1024;
+                var row = ReadRow(id, token, out long cost);
                 if (cost > AnalysisLimits.BatchBytes) throw new IOException("A comparison scalar row exceeds the bounded page payload.");
                 if (cost > AnalysisLimits.BatchBytes - bytes) break;
-                rows.Add(new(id, a, b, row.Change, row.Evidence, row.Delta, Explanation(row))); bytes += cost;
+                rows.Add(row); bytes += cost;
             }
             return new(offset, Rows.Count, rows.ToImmutable());
+        }
+        internal AnalysisIndexedComparisonRow ReadRow(ulong id, CancellationToken token, out long cost)
+        {
+            var row = DecodeRow(Rows!.Read(id, token)); long ac = 0, bc = 0;
+            var a = row.Previous == 0 ? null : previous.ReadEvidence(row.Previous, token, out ac);
+            var b = row.Current == 0 ? null : current.ReadEvidence(row.Current, token, out bc);
+            cost = ac + bc + 1024;
+            return new(id, a, b, row.Change, row.Evidence, row.Delta, Explanation(row));
         }
     }
 }

@@ -66,7 +66,7 @@ def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, pha
         assert snapshot_path.resolve().is_relative_to(root.resolve())
         with tarfile.open(snapshot_path) as archive:
             members = archive.getmembers()
-            assert len(members) <= 1000 and sum(member.size for member in members) <= 64 * 1024 * 1024
+            assert len(members) <= 10000 and sum(member.size for member in members) <= 64 * 1024 * 1024
             expected_sources = {source['path']: source['sha256'] for source in sources}
             assert len(expected_sources) == len(sources) == len(members)
             assert {member.name for member in members} == set(expected_sources)
@@ -150,7 +150,7 @@ def retain(root, record, files, runners, helpers):
     for source in files | runners:
         destination = out / ('drivers' if source in runners else '') / source.name
         if destination.exists():
-            assert sha(source) == sha(destination), 'Existing evidence cannot be overwritten'
+            assert sha(source) == sha(destination), f'Existing evidence cannot be overwritten: {destination}'
         else:
             shutil.copy2(source, destination)
     record['artifacts'] = [{'path': (out / path.name).relative_to(root).as_posix(), 'sha256': sha(out / path.name)} for path in sorted(files)]

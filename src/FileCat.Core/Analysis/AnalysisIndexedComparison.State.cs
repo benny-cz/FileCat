@@ -6,7 +6,7 @@ namespace FileCat.Core.Analysis;
 
 internal sealed partial class AnalysisIndexedComparison
 {
-    private sealed partial class State(AnalysisComparisonPaths.State paths, AnalysisComparisonEntities.State previous,
+    internal sealed partial class State(AnalysisComparisonPaths.State paths, AnalysisComparisonEntities.State previous,
         AnalysisComparisonEntities.State current, AnalysisDatasetDescriptor oldDescriptor, AnalysisDatasetDescriptor newDescriptor,
         ImmutableDictionary<string, string> mapping, bool structural) : IAnalysisScratchOwned
     {
@@ -17,6 +17,7 @@ internal sealed partial class AnalysisIndexedComparison
         private AnalysisScratchVectorCheckpoint? _fallback;
         internal AnalysisScratchVectorCheckpoint? Rows;
         internal AnalysisComparisonCompatibility Compatibility = null!;
+        internal bool HasCurrentRows, HasPreviousOnlyRows;
         private uint _mappedPrevious, _mappedCurrent;
         private Exception? _closeFailure;
         private bool _disposed;
