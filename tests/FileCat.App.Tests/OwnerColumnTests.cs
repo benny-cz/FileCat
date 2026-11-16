@@ -73,10 +73,8 @@ public sealed partial class OwnerColumnTests
         {
             Source = source ?? new();
             Directory.CreateDirectory(Root);
-            Services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Combine(Root, "state")));
-            Names = new PrincipalNames(Source);
-            Names.Changed += Services.Metadata.NotifyValuesChanged;
-            Services.Metadata.Register(OwnershipFields.CreateOwner(Source, Names));
+            Services = AppServices.CreateForPathsWithOwnership(AppPaths.Resolve(overrideRoot: Path.Combine(Root, "state")), Source);
+            Names = Services.PrincipalNames;
             var inner = Services.Providers.Get(Schemes.FileSystem);
             Provider = new CountingOwnerProvider(new SyntheticListingProvider(inner, Root, 120));
             Services.Providers.Register(Provider);
@@ -112,8 +110,6 @@ public sealed partial class OwnerColumnTests
         {
             Window.Close();
             Tab.Dispose();
-            Names.Changed -= Services.Metadata.NotifyValuesChanged;
-            Names.Dispose();
             Services.Dispose();
             Directory.Delete(Root, recursive: true);
         }

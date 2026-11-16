@@ -307,35 +307,27 @@ public sealed partial class MainViewModel
         if (ActiveTab is not { Location: not null } tab) return;
         var current = tab.Listing.Sort is { Field: Core.Listing.SortField.Metadata, MetadataId: { } sorted } &&
                       sorted != Controls.ColumnSpec.FolderSortKey ? sorted : null;
-        var fields = Services.Metadata.Fields.Where(f => OperatingSystem.IsWindows() ? f.Id is not ("permissions" or "owner" or "group") : f.Id != "version")
-            .OrderBy(f => f.Title, StringComparer.CurrentCulture).ToList();
+        var fields = AnalysisFields(tab);
         if (fields.Count == 0) return;
         var items = fields.Select(f => new ChoiceItem(f.Title,
             f.Id == current ? "Current sort · " + AnalysisDescription(f.Id) : AnalysisDescription(f.Id))).ToList();
         var r = await Dialogs.ChooseAsync(new ChoiceOptions("Analyze folder", items)
         {
             SelectedIndex = Math.Max(0, fields.FindIndex(f => f.Id == current)),
-            Hint = "Choose a field or rerun the current sort · reads every item · Enter starts · Esc cancels",
+            Hint = "Choose a field or rerun the current sort · reads the whole folder · Enter starts · Esc cancels",
         });
         if (r.Index < 0 || r.Index >= fields.Count) return;
         var selected = fields[r.Index].Id;
+        if (!tab.CanAnalyzeMetadata(selected)) return;
         if (selected != current) tab.SortByMetadata(selected, analyzing: true);
         await tab.AnalyzeAsync(selected);
     }
 
-    private static string AnalysisDescription(string fieldId) => fieldId switch
-    {
-        "version" => "Program and library versions (.exe, .dll, and similar)",
-        "dimensions" => "Picture sizes in pixels",
-        "linkTarget" => "Where links and junctions point",
-        "zone" => "Where files came from (downloaded from the internet, say)",
-        "permissions" => "Who may read, write, and run each item",
-        "owner" => "The user each item belongs to",
-        "group" => "The group each item belongs to",
-        "hidden" => OperatingSystem.IsWindows() ? "Alternate data streams each file carries, counted" : "Extended attributes each item carries, counted",
-        "verified" => "Whether files match the checksums and signatures beside them (large ones wait for File → Verify)",
-        _ => "A column's value for every item",
-    };
+    internal List<Core.Metadata.MetadataField> AnalysisFields(TabViewModel tab) => Services.Metadata.Fields
+        .Where(f => (OperatingSystem.IsWindows() ? f.Id is not ("permissions" or "group") : f.Id != "version") && tab.CanAnalyzeMetadata(f.Id))
+        .OrderBy(f => f.Title, StringComparer.CurrentCulture).ToList();
+
+    private static string AnalysisDescription(string fieldId) => Controls.ColumnDescriptions.For(fieldId);
 
     /// <summary>A previewable diagnostic bundle without secrets or file contents (plan §19.2).</summary>
     private async Task ExportDiagnosticsAsync()

@@ -16,7 +16,7 @@ namespace FileCat.App.Services;
 public sealed class AppServices : IDisposable
 {
     private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null, Core.Archives.ArchiveJobBackends? archiveBackends = null,
-        Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null)
+        Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null, IOwnership? ownershipOverride = null)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
@@ -134,8 +134,9 @@ public sealed class AppServices : IDisposable
             ShellPictures = new FileCat.Platform.Windows.Shell.ShellPreviews(new FileCat.Platform.Windows.Shell.ShellHostClient(shellHelper), () => Settings.ShellPicturesOnNetworkAndRemovable);
         EditSessions = editSessionFactory is null ? ProductionEditSessions(paths, Platform.FileOperations)
             : editSessionFactory(paths,Platform.FileOperations);
-        PrincipalNames = new PrincipalNames(Platform.Ownership);
-        Metadata = new Core.Metadata.MetadataService(Io, Platform.Ownership, PrincipalNames);
+        var ownership = ownershipOverride ?? Platform.Ownership;
+        PrincipalNames = new PrincipalNames(ownership);
+        Metadata = new Core.Metadata.MetadataService(Io, ownership, PrincipalNames);
         // Checksums and signatures beside files (D-57): results kept in the cache folder; trusted minisign keys in the keys
         // folder (made now, so the advice that names it points to a folder that is there).
         try { Directory.CreateDirectory(KeyDirectory); }
@@ -250,6 +251,8 @@ public sealed class AppServices : IDisposable
     /// <summary>Constructs an isolated composition root at explicit paths (including headless UI tests).</summary>
     /// <param name="sftpConnector">Tests connect to an in-memory server instead of SSH.NET.</param>
     public static AppServices CreateForPaths(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector);
+
+    internal static AppServices CreateForPathsWithOwnership(AppPaths paths, IOwnership ownership) => new(paths, ownershipOverride: ownership);
 
     // Explicit native-store test composition. Ordinary startup keeps the legacy store until qualification.
     internal static AppServices CreateForPathsWithEditSessions(AppPaths paths,

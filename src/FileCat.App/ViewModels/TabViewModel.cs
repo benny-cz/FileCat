@@ -1122,6 +1122,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// <param name="analyzing">Every value is about to be computed (Analyze folder): no note that the order is partial.</param>
     public void SortByMetadata(string fieldId, bool analyzing = false)
     {
+        if (analyzing && !CanAnalyzeMetadata(fieldId)) return;
         var s = Listing.Sort;
         bool same = s.Field == SortField.Metadata && s.MetadataId == fieldId;
         Listing.MetadataKeys ??= MetadataKey;
@@ -1149,7 +1150,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// </summary>
     public async Task AnalyzeAsync(string fieldId)
     {
-        if (Location is null) return;
+        if (Location is null || !CanAnalyzeMetadata(fieldId)) return;
         _analysis?.Cancel();
         var cts = _analysis = new CancellationTokenSource();
         var loc = Location;

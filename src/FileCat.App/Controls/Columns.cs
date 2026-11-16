@@ -215,7 +215,27 @@ public static class ColumnProfiles
 /// takes <paramref name="FillShare"/> of it against the other filling columns' shares.
 /// </summary>
 public sealed record ColumnChoice(string Key, string Title, bool RightAlign, double DefaultWidth,
-    double FillShare = ColumnProfiles.DefaultFillShare);
+    double FillShare = ColumnProfiles.DefaultFillShare, string? Description = null);
+
+/// <summary>One field description shared by the add box and the Analyze chooser.</summary>
+public static class ColumnDescriptions
+{
+    public static string For(string fieldId) => fieldId switch
+    {
+        "version" => "Program and library versions (.exe, .dll, and similar)",
+        "dimensions" => "Picture sizes in pixels",
+        "linkTarget" => "Where links and junctions point",
+        "zone" => "Where files came from (downloaded from the internet, say)",
+        "permissions" => "The mode bits: what owner, group, and others may read, write, and run. ACLs, where present, are not shown",
+        "owner" => OperatingSystem.IsWindows()
+            ? "The account each item belongs to (a user, group, or service; not who created or last changed it)"
+            : "The user account each item belongs to (not who created or last changed it)",
+        "group" => "The group each item belongs to",
+        "hidden" => OperatingSystem.IsWindows() ? "Alternate data streams each file carries, counted" : "Extended attributes each item carries, counted",
+        "verified" => "Whether files match the checksums and signatures beside them (large ones wait for File → Verify)",
+        _ => "A column's value for every item",
+    };
+}
 
 /// <summary>
 /// The user's column profiles (Alt+0–9), shared by all tabs and backed by settings. Until customized the built-in
@@ -264,8 +284,10 @@ public sealed class ColumnProfileSet
         new("modified", "Modified", false, 128),
         new("created", "Created", false, 128),
         new("attr", "Attr", false, 44),
-        .. Core.Metadata.BuiltInFields.All.Select(f => new ColumnChoice("meta:" + f.Id, f.Title, f.RightAlign, 110,
-            f.Id == Core.Metadata.BuiltInFields.LinkTarget.Id ? ColumnProfiles.LinkTargetFillShare : ColumnProfiles.DefaultFillShare)),
+        .. Core.Metadata.BuiltInFields.All.Select(f => new ColumnChoice("meta:" + f.Id, f.Title, f.RightAlign,
+            OperatingSystem.IsWindows() && f.Id == "owner" ? 160 : 110,
+            f.Id == Core.Metadata.BuiltInFields.LinkTarget.Id ? ColumnProfiles.LinkTargetFillShare : ColumnProfiles.DefaultFillShare,
+            ColumnDescriptions.For(f.Id))),
     ];
 
     /// <summary>Stores a column width chosen by dragging its border (never turns a fill column fixed).</summary>

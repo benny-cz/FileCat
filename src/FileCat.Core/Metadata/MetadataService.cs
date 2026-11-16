@@ -114,7 +114,7 @@ public sealed partial class MetadataService : IDisposable
         _maxCache = maxCache;
         _maxSnapshots = maxSnapshots;
         foreach (var f in BuiltInFields.All) _fields[f.Id] = f;
-        if (ownership is not null || !OperatingSystem.IsWindows())
+        if (_fields.ContainsKey("owner") || ownership is not null || !OperatingSystem.IsWindows())
         {
             ownership ??= OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new UnixOwnership() : new NoOwnership();
             Names = names ?? new PrincipalNames(ownership);
@@ -172,7 +172,7 @@ public sealed partial class MetadataService : IDisposable
         if (_cache.TryGetValue(key, out var value)) return value;
         return slowLocation && field!.Cost >= MetadataCost.Expensive
             ? new MetadataValue(MetadataState.Unsupported, Detail: "Not computed automatically on slow locations.")
-            : new MetadataValue(MetadataState.NotRequested);
+            : _inFlight.ContainsKey(key) ? MetadataValue.Pending : new MetadataValue(MetadataState.NotRequested);
     }
 
     private bool TryEligibleField(string fieldId, in EntryData entry, out MetadataField? field, out MetadataValue rejection)
@@ -628,7 +628,7 @@ public static class BuiltInFields
 
     /// <summary>The fields this OS can fill: file versions on Windows; permissions and ownership on Linux and macOS.</summary>
     public static IReadOnlyList<MetadataField> All { get; } =
-        OperatingSystem.IsWindows() ? [Version, Dimensions, LinkTarget, Zone, Hidden, Verified] : [Permissions, Owner, Group, Dimensions, LinkTarget, Zone, Hidden, Verified];
+        OperatingSystem.IsWindows() ? [Version, Dimensions, LinkTarget, Zone, Hidden, Verified, Owner] : [Permissions, Owner, Group, Dimensions, LinkTarget, Zone, Hidden, Verified];
 }
 
 /// <summary>Reads image dimensions from bounded headers (never decodes pixels).</summary>

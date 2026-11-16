@@ -19,6 +19,9 @@ internal readonly record struct MetadataCellPresentation(MetadataState State, st
 
 public sealed partial class TabViewModel
 {
+    internal bool CanAnalyzeMetadata(string fieldId) => Location is not null &&
+        !(OperatingSystem.IsWindows() && fieldId == "owner" && !Location.IsFileSystem);
+
     internal bool MetadataApplies(in EntryData entry, string fieldId) => Services.Metadata.Field(fieldId) is { } field &&
         (entry.Kind == EntryKind.File || entry.Kind == EntryKind.Directory && field.Folders) && field.AppliesToName(entry.Name);
 

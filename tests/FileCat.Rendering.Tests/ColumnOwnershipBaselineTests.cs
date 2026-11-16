@@ -21,6 +21,7 @@ public sealed class ColumnOwnershipBaselineTests
     {
         string? output = Environment.GetEnvironmentVariable("FILECAT_COLUMN_BASELINE_OUT");
         if (string.IsNullOrEmpty(output)) Assert.Skip("Set FILECAT_COLUMN_BASELINE_OUT to capture the bounded performance run.");
+        bool diagnostic = Environment.GetEnvironmentVariable("FILECAT_COLUMN_BASELINE_MODE") == "diagnostic";
         string root = Path.Combine(Path.GetTempPath(), "filecat-column-baseline-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         var samples = new List<object>();
@@ -61,6 +62,10 @@ public sealed class ColumnOwnershipBaselineTests
                             long allocated = 0;
                             FileListControl.RenderTimed = (ms, bytes) => { times.Add(ms); allocated += bytes; };
                             var clock = Stopwatch.StartNew();
+                            using var process = Process.GetCurrentProcess();
+                            var cpu = process.TotalProcessorTime;
+                            var pause = GC.GetTotalPauseDuration();
+                            int gen0 = GC.CollectionCount(0), gen1 = GC.CollectionCount(1), gen2 = GC.CollectionCount(2);
                             long before = GC.GetTotalAllocatedBytes();
                             try
                             {
@@ -76,9 +81,15 @@ public sealed class ColumnOwnershipBaselineTests
                                 }
                             }
                             finally { FileListControl.RenderTimed = null; }
+                            clock.Stop();
+                            long allocatedBytes = GC.GetTotalAllocatedBytes() - before;
+                            if (run >= 0) samples.Add(new { check = "PF1-diagnostics", count, panels = 4, run,
+                                cpuMs = (process.TotalProcessorTime - cpu).TotalMilliseconds,
+                                gcPauseMs = (GC.GetTotalPauseDuration() - pause).TotalMilliseconds,
+                                gcGen0 = GC.CollectionCount(0) - gen0, gcGen1 = GC.CollectionCount(1) - gen1, gcGen2 = GC.CollectionCount(2) - gen2 });
                             if (run >= 0) samples.Add(new { check = "PF1", count, panels = 4, run, elapsedMs = clock.Elapsed.TotalMilliseconds,
                                 renderCount = times.Count, renderMedianMs = Percentile(times, .5), renderP95Ms = Percentile(times, .95),
-                                renderAllocatedBytes = allocated, allocatedBytes = GC.GetTotalAllocatedBytes() - before, memory = Memory() });
+                                renderAllocatedBytes = allocated, allocatedBytes, memory = Memory() });
                             Assert.NotEmpty(times);
                         }
                     }
@@ -89,10 +100,14 @@ public sealed class ColumnOwnershipBaselineTests
                     foreach (int panels in new[] { 1, 2 })
                     foreach (bool supersede in new[] { false, true })
                     {
+                        if (diagnostic && (count != 100_000 || panels == 1 && supersede || panels == 2 && !supersede)) continue;
                         for (int run = -1; run < 5; run++)
                         {
                             long before = GC.GetTotalAllocatedBytes();
                             var clock = Stopwatch.StartNew();
+                            using var process = Process.GetCurrentProcess();
+                            var cpu = process.TotalProcessorTime;
+                            var pause = GC.GetTotalPauseDuration();
                             foreach (var tab in tabs.Take(panels))
                             {
                                 var sort = new SortSpec(SortField.Metadata, Descending: run % 2 == 0) { MetadataId = "baseline" };
@@ -104,8 +119,13 @@ public sealed class ColumnOwnershipBaselineTests
                                 }
                             }
                             await Until(() => tabs.Take(panels).All(t => t.Listing.AppliedViewSpecVersion == t.Listing.ViewSpecVersion));
+                            clock.Stop();
+                            long allocatedBytes = GC.GetTotalAllocatedBytes() - before;
+                            if (run >= 0) samples.Add(new { check = "PF3-diagnostics", count, panels, supersede, run,
+                                cpuMs = (process.TotalProcessorTime - cpu).TotalMilliseconds,
+                                gcPauseMs = (GC.GetTotalPauseDuration() - pause).TotalMilliseconds });
                             if (run >= 0) samples.Add(new { check = "PF3", count, panels, supersede, run,
-                                elapsedMs = clock.Elapsed.TotalMilliseconds, allocatedBytes = GC.GetTotalAllocatedBytes() - before, memory = Memory() });
+                                elapsedMs = clock.Elapsed.TotalMilliseconds, allocatedBytes, memory = Memory() });
                         }
                     }
                 }
@@ -117,7 +137,8 @@ public sealed class ColumnOwnershipBaselineTests
             }
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output!))!);
             File.WriteAllText(output!, JsonSerializer.Serialize(new { utc = DateTime.UtcNow, runtime = Environment.Version.ToString(),
-                os = Environment.OSVersion.ToString(), processors = Environment.ProcessorCount, samples }, new JsonSerializerOptions { WriteIndented = true }));
+                os = Environment.OSVersion.ToString(), processors = Environment.ProcessorCount, diagnostic,
+                label = Environment.GetEnvironmentVariable("FILECAT_COLUMN_BASELINE_LABEL"), samples }, new JsonSerializerOptions { WriteIndented = true }));
         }
         finally { Directory.Delete(root, recursive: true); }
     }
