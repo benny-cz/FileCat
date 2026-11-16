@@ -1100,7 +1100,7 @@ a row is run: the test names and the run that executed them, or the dated native
 | OWN-24 | Detected Offline/recall rows invoke no producer in Get/Compute; same-key flag transition suppresses old cached sort/display value. macOS ownership policy set/read/restore and failures are covered separately; no assertion that Unix attributes detect all dataless files. | Flag fake O1; macOS wrapper fake O2 and native GM1 gate | MetadataTests.cs, OwnershipFieldTests.cs, UnixPermissionTests.cs | [Dated finite acceptance](../validation/column-ownership/ACCEPTANCE-20261116.md) and O1–O6 package runs | Passed for enabled routes; native qualifications below |
 | OWN-25 | Slow-location Get, Schedule recheck and Compute use 30 s consistently. Dropped network: visibly LastKnown or error, one retry per interval. Expensive explicit cached results display/sort consistently, without automatic expensive production. | Fake clock/slowLocation, later native GW4 coverage | MetadataTests.cs, OwnerColumnTests.cs | [Dated finite acceptance](../validation/column-ownership/ACCEPTANCE-20261116.md) and O1–O6 package runs | Passed for enabled routes; native qualifications below |
 | OWN-26 | Unix Owner/Group named/raw values retain meaning and reject unavailable mask fields. Permissions formatting, nullable failure semantics and old name-cache tests stay unchanged apart from the stated Linux flag/detail. macOS guard is used or conservative Unsupported is explicit. | Existing and targeted native/fake checks | UnixPermissionTests.cs, OwnershipFieldTests.cs | [Dated finite acceptance](../validation/column-ownership/ACCEPTANCE-20261116.md) and O1–O6 package runs | Passed for enabled routes; native qualifications below |
-| OWN-27 | `docs/CAPABILITIES.md` and ADR-10 say what the source does. | Review | — | [Dated finite acceptance](../validation/column-ownership/ACCEPTANCE-20261116.md) and O1–O6 package runs | Passed for enabled routes; native qualifications below |
+| OWN-27 | `docs/CAPABILITIES.md` and ADR-10 say what the source does. | Review | — | [O7 source/document review, release copy and ledger check](../validation/column-ownership/O7-20261116.md) | Passed |
 | OWN-28 | Expiry is producer-demand-based (10 min/2 min/30 s); old answer may remain during retry. Dropped/evicted requests are not Pending; later valid production retries. Bound entries, all retained characters, buffers and auxiliary state, including oversize answers and Core-only/disposed services. | Fake clock/lookup, small limits and disposal | PrincipalNamesTests.cs | [Dated finite acceptance](../validation/column-ownership/ACCEPTANCE-20261116.md) and O1–O6 package runs | Passed for enabled routes; native qualifications below |
 | OWN-29 | The add box shows the selected field's description and hides the note for a fixed column; the Analyze chooser shows the same text. Owner's default width on Windows is 160 px, and `BUILTIN\Administrators` and `NT AUTHORITY\SYSTEM` are not clipped at the default font (if they are, the default is raised). A long account SID shows in its short form, with the full SID in the detail. | Headless measurement | `ColumnProfileTests.cs`, `AnalyzeFolderChoiceTests.cs`, `OwnerColumnTests.cs` | [Dated finite acceptance](../validation/column-ownership/ACCEPTANCE-20261116.md) and O1–O6 package runs | Passed for enabled routes; native qualifications below |
 
@@ -1141,6 +1141,12 @@ acceptable feature cost; no universal numerical threshold is invented here.
 
 Use one bounded before/after set. Repeat only to diagnose a concrete failure or after a relevant change, not to
 search for a favorable run. Performance criteria apply in O4 (PF1/PF2) and O5 (PF3/PF4), and remain required in DoD.
+
+**Recorded outcome:** PF1/PF3 **Passed** in the predeclared processor-controlled ABBA set, preserving every earlier
+miss and all four raw runs; the final twenty-sample actual analysis also passed elapsed/reservation limits
+([O5](../validation/column-ownership/O5-20261116.md)). PF2 **Passed** its predeclared Owner-on band
+([O4](../validation/column-ownership/O4-20261116.md)). PF4 **Passed** the independently shrunk-cap, competing-tab
+and final-owner lifetime fixtures (O5/O6 records). PF5 was not rerun and remains a historical reference only.
 
 ### 8.5 The UX ledger and repeat rules
 

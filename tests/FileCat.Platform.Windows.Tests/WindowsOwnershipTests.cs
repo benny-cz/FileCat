@@ -130,9 +130,8 @@ public sealed class WindowsOwnershipTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void Native_owned_file_folder_long_and_unusual_names_have_their_actual_owner()
+    public void Native_owned_file_folder_long_and_unusual_names_have_their_actual_owner() => AsOrdinaryNative(() =>
     {
-        RequireWindowsX64();
         using var fixture = new OwnedFixture();
         var source = new WindowsOwnership(new WindowsOwnershipNative()); // explicit GW1 bootstrap probe
         string ordinary = fixture.File("ordinary");
@@ -161,7 +160,7 @@ public sealed class WindowsOwnershipTests(ITestOutputHelper output)
         Assert.Equal(expected, source.ReadOwner(@"\\?\" + longFile).Principal!.Value.Id);
         Assert.Equal(OwnerReadStatus.Gone, source.ReadOwner(Path.Combine(fixture.Root, "gone")).Status);
         output.WriteLine("GW1 core ordinary_user=True architecture=x64 file/folder/exact-name/long-path cases passed; no ownership or privilege changes.");
-    }
+    });
 
     [Theory]
     [InlineData("file-link")]
@@ -170,9 +169,8 @@ public sealed class WindowsOwnershipTests(ITestOutputHelper output)
     [InlineData("broken-directory-link")]
     [InlineData("junction")]
     [InlineData("broken-junction")]
-    public void Native_final_links_and_broken_links_report_their_own_owner(string kind)
+    public void Native_final_links_and_broken_links_report_their_own_owner(string kind) => AsOrdinaryNative(() =>
     {
-        RequireWindowsX64();
         using var fixture = new OwnedFixture();
         string ordinary = fixture.File("reference");
         string expected = new FileInfo(ordinary).GetAccessControl(AccessControlSections.Owner).GetOwner(typeof(SecurityIdentifier))!.Value;
@@ -197,41 +195,46 @@ public sealed class WindowsOwnershipTests(ITestOutputHelper output)
         Assert.Equal(OwnerReadStatus.Ok, read.Status);
         Assert.Equal(expected, read.Principal!.Value.Id);
         output.WriteLine($"GW1/GW2 kind={kind} ordinary_user=True owner-only read passed; no target followed.");
-    }
+    });
 
     [Theory]
     [InlineData("S-1-5-18")]
     [InlineData("S-1-5-32-544")]
     [InlineData("S-1-1-0")]
-    public void Native_well_known_id_naming_retains_a_real_name_and_type(string sid)
+    public void Native_well_known_id_naming_retains_a_real_name_and_type(string sid) => AsOrdinaryNative(() =>
     {
-        RequireWindowsX64();
         var name = new WindowsOwnership(new WindowsOwnershipNative()).LookUp(new Principal(PrincipalKind.WindowsSid, sid));
         Assert.Equal(NameStatus.Resolved, name.Status);
         Assert.False(string.IsNullOrWhiteSpace(name.Name));
         Assert.False(string.IsNullOrWhiteSpace(name.Type));
-    }
+    });
 
     [Fact]
-    public async Task Native_owned_fixture_owner_resolves_through_the_bounded_resolver()
+    public void Native_owned_fixture_owner_resolves_through_the_bounded_resolver() => AsOrdinaryNative(() =>
     {
-        RequireWindowsX64();
         using var fixture = new OwnedFixture();
         var source = new WindowsOwnership(new WindowsOwnershipNative());
         var read = source.ReadOwner(fixture.File("named-owner"));
         Assert.Equal(OwnerReadStatus.Ok, read.Status);
         using var names = new PrincipalNames(source);
         names.Request(read.Principal!.Value);
-        Assert.True(await names.WhenIdle(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+        Assert.True(names.WhenIdle(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken).GetAwaiter().GetResult());
         Assert.Equal(NameStatus.Resolved, names.Peek(read.Principal.Value).Status);
-    }
+    });
 
-    private static void RequireWindowsX64()
+    private static void AsOrdinaryNative(Action action)
     {
         if (!OperatingSystem.IsWindows() || System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture != System.Runtime.InteropServices.Architecture.X64)
             Assert.Skip("Requires the Windows x64 native validation environment.");
-        using var identity = WindowsIdentity.GetCurrent();
-        Assert.False(new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator), "Native owner reads must run with an ordinary token.");
+        // A hosted runner's medium label alone retains an enabled Administrators SID. Reuse the existing
+        // restricted-token fixture so these reads still prove the ordinary-user boundary on that runner.
+        RegistryStandardUserTests.AsStandardUser(() =>
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            Assert.False(new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator), "Native owner reads must run with an ordinary token.");
+            Assert.False(FileCat.Core.State.WindowsTokenAuthority.IsHighIntegrity, "Native owner reads must run below high integrity.");
+            action();
+        });
     }
 
     private sealed class OwnedFixture : IDisposable
