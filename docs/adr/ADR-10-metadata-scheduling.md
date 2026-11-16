@@ -52,6 +52,8 @@
   verification and platform ownership/permissions use their existing managed or bounded native producers; there is
   no blanket claim that every metadata parser is managed. Tooltips/Inspect add sanitized identity/state detail while
   preserving dialog structure and the existing focused spoken row summary. Windows Owner Analyze is filesystem-only.
+  New Windows parses an imported meta:owner key. Older Windows omits it from the parsed layout; editing/resizing
+  profiles there can reserialize without it, whereas an ordinary SaveSettings need not delete the raw key.
 
 ## Consequences
 
@@ -59,3 +61,5 @@ Browsing never starts folder-wide analysis unasked. Complete read counts describ
 filesystem or guaranteed names. Storage provenance and native platform/interoperability limits remain explicit.
 See the [implementation plan](../design/FILECAT_COLUMN_OWNERSHIP_IMPLEMENTATION_PLAN.md) and
 [dated evidence](../validation/column-ownership/O5-20261116.md).
+The [unreleased note](../release/1.0.0/COLUMN_OWNERSHIP_RELEASE_NOTE_DRAFT.md) records user-facing behavior,
+settings compatibility and the validated runtime references without changing an existing published release.

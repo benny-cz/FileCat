@@ -1058,7 +1058,7 @@ take the "before" measurements of PF1 and PF3 (§8.4): they cannot be taken afte
 
 ### 8.1 Rules
 
-- This section plans validation. Nothing in it has been run. The probe of §2.4 is an observation, not a result.
+- This section originally planned validation. Executed results are now linked in §8.2/§8.3 and the dated acceptance record. The probe of §2.4 remains a historical observation, not a test result.
 - Statuses: **Planned**, **Passed**, **Failed**, **Blocked** (names the missing prerequisite), **Not run**. A native
   environment that is not available leaves its row *Not run*; it never becomes *Passed* by inference.
 - Deterministic fakes for refused reads, unresolved and slow names, flipping owners and cancellation. Native fixtures
@@ -1171,7 +1171,7 @@ UX work. This feature adds no finding to them and reopens none.
 Source facts are in §2.2 and §2.3 with their lines. Vendor statements are linked where they are used. The probe of
 §2.4 reports those observations on one elevated Windows machine; its raw material was unavailable, so it is not
 independent ordinary-user/native acceptance evidence. The independent review’s source/API corrections are incorporated;
-all implementation gates remain pending.
+implementation gate outcomes are recorded in the dated acceptance record and §8.
 
 ### 9.2 Source-derived risks (reasoned from code, not measured)
 
