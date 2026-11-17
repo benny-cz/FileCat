@@ -128,13 +128,13 @@ public sealed class AnalysisLogicalHierarchy : IAsyncDisposable
             if (_pending.Count == 0)
             {
                 if (_root == Graph.Header.Roots.Length) { Finished = true; return 1; }
-                int root = _root++; var range = Graph.Children(root, 0, token);
+                int root = _root++; var range = Graph.TraversalChildren(root, 0, token);
                 if (range.Count > 1) throw Invalid();
-                return range.Count == 0 ? 1 : Push(Graph.ReadIndex(AnalysisIndexedGraphRevision.Children, range.First, token).Value, token);
+                return range.Count == 0 ? 1 : Push(Graph.ReadIndex(AnalysisIndexedGraphRevision.TraversalChildren, range.First, token).Value, token);
             }
             var parent = _pending.Peek();
             if (parent.Next < parent.Children.Count)
-            { ulong child = Graph.ReadIndex(AnalysisIndexedGraphRevision.Children, parent.Children.First + parent.Next++, token).Value; return Push(child, token); }
+            { ulong child = Graph.ReadIndex(AnalysisIndexedGraphRevision.TraversalChildren, parent.Children.First + parent.Next++, token).Value; return Push(child, token); }
             _pending.Pop(); _writer!.Append(Encode(parent), token); _visited++;
             if (_pending.Count == 0) Total.Add(parent.Amount); else _pending.Peek().Amount.Add(parent.Amount);
             return 128;
@@ -143,7 +143,7 @@ public sealed class AnalysisLogicalHierarchy : IAsyncDisposable
         {
             var path = Graph.ReadPathRowRecord(row, token); var node = path.Node; ulong id = node.Id;
             if (_pending.Count > AnalysisLimits.Depth) throw Invalid();
-            var children = node.Kind == AnalysisKind.Directory ? Graph.Children(path.RootIndex, id, token) : default;
+            var children = node.Kind == AnalysisKind.Directory ? Graph.TraversalChildren(path.RootIndex, id, token) : default;
             var frame = new Frame(id, node.ParentId, children, node.IncludedByPolicy && node.Kind == AnalysisKind.Directory && Graph.Header.Coverage != NamespaceCoverage.CompleteUnderPolicy);
             long bytes = 512L + node.Name.Length * 2L + node.RawName.Length;
             if (node.Kind == AnalysisKind.File && node.IncludedByPolicy)

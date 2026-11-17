@@ -95,14 +95,14 @@ internal sealed class AnalysisDatasetSummarizer
                 }
                 return 1024L + path.Name.Length * 2L + path.RawName.Length;
             case Stage.Objects:
-                if (_object > _reader.IndexCount(AnalysisIndexedGraphRevision.ObjectIdentities))
+                if (_object > _reader.ObjectCohortCount)
                 {
                     FinishGroup();
                     if (_metric != AnalysisMetric.OnDisk) _stage = Stage.Done;
                     else { _directories = _reader.Find(AnalysisIndexedGraphRevision.FactOwners, [1], prefix: true, cancellation: token); _directoryAt = 0; _stage = Stage.Directories; }
                     return 1;
                 }
-                var entry = _reader.ReadIndex(AnalysisIndexedGraphRevision.ObjectIdentities, _object++, token);
+                var entry = _reader.ReadObjectCohort(_object++, token);
                 if (_identity is null || !_identity.AsSpan().SequenceEqual(entry.Key)) { FinishGroup(); _identity = entry.Key; }
                 _current = _reader.ReadObject(entry.Value, token); _currentPaths = 0; _currentRoots = 0;
                 _aliases = _reader.Aliases(_current.Id, token); _alias = 0; _stage = Stage.Aliases;

@@ -107,7 +107,11 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
                 AnalysisEntry result;
                 try
                 {
-                    child = OpenRelative(relative, directory: false);
+                    // DIR* retains the verified native directory. On Darwin, opening this one
+                    // enumerated component relative to that descriptor avoids reopening the full
+                    // ancestor chain for every sibling. The producer still validates the complete
+                    // captured ancestry before AND after each batch, before publishing any row.
+                    child = _mac ? OpenMacChild(streamFd, raw) : OpenRelative(relative, directory: false);
                     var facts = Stat(child);
                     if (facts.Device != _device || facts.Mount != _mount) throw new AnalysisEntryUnavailableException(MeasurementState.Excluded, "source-mount-boundary");
                     result = Bind(Entry(relative.ToImmutableArray(), raw, facts), directory.Ancestry);
@@ -223,6 +227,22 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
         if (start > 0) result[start++] = (byte)'/';
         name.CopyTo(result.AsSpan(start)); return result;
     }
+    private int OpenMacChild(int parent, ReadOnlySpan<byte> raw)
+    {
+        Guard();
+        // Use exactly the existing Darwin leaf flags: event-only, nonblocking, CLOEXEC and
+        // O_SYMLINK (open a link itself). No decoded path, slash or parent component is accepted.
+        string name = Encoding.UTF8.GetString(raw);
+        if (raw.IsEmpty || raw.Contains((byte)'/') || raw.Contains((byte)0) || name is "." or ".." ||
+            !Encoding.UTF8.GetBytes(name).AsSpan().SequenceEqual(raw))
+            throw new IOException("This raw-name encoding has no qualified macOS traversal route.");
+        var lease = AnalysisNativeHandles.Acquire();
+        int fd = OpenAt(parent, name, 0x1000000 | 0x200000 | 0x8000 | 0x4);
+        if (fd < 0) { int error = Marshal.GetLastPInvokeError(); lease.Dispose(); throw OpenError(error); }
+        _handleLeases.Add(fd, AnalysisNativeHandle.UnixFile(fd, lease, _nativeClose));
+        return fd;
+    }
+
     private int OpenRelative(ReadOnlySpan<byte> relative, bool directory)
     {
         Guard();

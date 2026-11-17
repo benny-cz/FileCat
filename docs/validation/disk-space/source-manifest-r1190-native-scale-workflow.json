@@ -1,0 +1,109 @@
+{
+  "qualification": "source-manifest-r1190-native-scale.json",
+  "qualificationSha256": "9f57ec7af69f421f6b398017cbdf3d58e46027ae2c65ac0807b1c363683f1977",
+  "purpose": "Supplemental workflow provenance only; historical staged validators remain distinct from current corrected files",
+  "entries": [
+    {
+      "path": ".tmp/batch-r1181-mac/render/validate-native-optimization.py",
+      "sha256": "a46ddd8611631e49eebe3027cf905285097b1b68935ea399e4f8b09efcad6a14"
+    },
+    {
+      "path": ".tmp/batch-r1182-mac/render/validate-native-optimization.py",
+      "sha256": "7e086492a43487bd9bf58f03ea8aaab62bb3106bf478e9ef73e19f0ac6a1dcee"
+    },
+    {
+      "path": ".tmp/batch-r1184-mac/render/validate-native-optimization.py",
+      "sha256": "580f7de928b35fca3aba83187ae32dc78eeda22407f46745eb0459dc5685aa7e"
+    },
+    {
+      "path": ".tmp/batch-r1185-mac/render/validate-native-optimization.py",
+      "sha256": "580f7de928b35fca3aba83187ae32dc78eeda22407f46745eb0459dc5685aa7e"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-native-acquisition-r1175.ps1",
+      "sha256": "3b1e89ae5fb4a77c97684163f4096dd085e604eabb7b66a288584f4716c8bad1"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-native-optimization-r1181.ps1",
+      "sha256": "380451b87dab4f848383ce941c96e1342c61c9be3efc93cf448cc0c87ef64915"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/finalize-native-scale-r1190.py",
+      "sha256": "34a5612999acf3012116c8b003676e6989149a86fef8cd4f37610a651f0d1199"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-acquisition-unix-template-r1175.sh",
+      "sha256": "d6df88983f51c6602afae26d8873c330de64c6cda582972361027d70dfd5d785"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-acquisition-windows-template-r1175.ps1",
+      "sha256": "901245de185ae67b72a0853281d08c5ee6b9144554276ad7d4c3182df2b53582"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-deep-reuse-windows-template-r1186.ps1",
+      "sha256": "efdd8371324b09f2e65aaa60c0067c5d3ae40b0e9d683783944140a36e30f6ea"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-optimization-unix-template-r1181.sh",
+      "sha256": "22796dcaba8da5246634983708d9de83a1b9219be01db081deb47f2779e6b227"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-optimization-unix-template-r1184.sh",
+      "sha256": "163b76fdfc5f85f62fb1335d3712b3eca9a757314c9c16af247bba2ef7b1a698"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-optimization-windows-template-r1181.ps1",
+      "sha256": "59a4406e4c0c435b63bc504413aefdd4b487fcb75d576125b9823b437daa9cf4"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native-optimization-windows-template-r1184.ps1",
+      "sha256": "583018901c576ae9c4c2959b894ac0f200d15aae217c80bb39105ce06dc05dee"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-native-acquisition-r1175.py",
+      "sha256": "f2d4efa1ed7d5ec66985e37f96df561dfab3bef105fdd868cae6a0ff1f6875b5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-native-deep-reuse-r1186.py",
+      "sha256": "460048fae36f4d49051d66884df0f3d7a4c76f6bb67fe9cb0928fe0db98e4e7c"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-native-deep-reuse-r1187.py",
+      "sha256": "99b21267df35ae1c385bae332b89af2348c045ca59ab353b678044b45a98cbef"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-native-locality-fixture-r1185.py",
+      "sha256": "50c1fbd38484165c3da2b37be0944efb3d6370320149d58e3161ecf8c45a293f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-native-optimization-r1181.py",
+      "sha256": "233b194a39310c05a17ccb21804f7d0d244cb43f6ec77f0c8e3d7a5461802c87"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-native-optimization-r1184.py",
+      "sha256": "4cbb1788b283839d968fdc9f35294a45f519c0873819168709a9c803a4350b30"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/reshape-native-fixture-windows-r1186.ps1",
+      "sha256": "8d70a351e6cd6772277be2eee69c50e9c4c946592b8f03e908eba0040d6534a0"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/retain-native-workflow-r1190.py",
+      "sha256": "72d1c147e02af79689f507ee9e63b0c1804ea45f05794211e37fdd44eb4b24f5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/validate-native-acquisition-r1175.py",
+      "sha256": "a2a1666c521fd9d542513963629180917db869661bb0e902e63c2dce822dbd3e"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/validate-native-optimization-r1181.py",
+      "sha256": "7e086492a43487bd9bf58f03ea8aaab62bb3106bf478e9ef73e19f0ac6a1dcee"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/validate-native-optimization-r1184.py",
+      "sha256": "580f7de928b35fca3aba83187ae32dc78eeda22407f46745eb0459dc5685aa7e"
+    }
+  ],
+  "archive": "exact-native-workflow-r1190.tgz",
+  "archiveSha256": "fc8791afc52bf2870d8a10d1d16f832a38d867faf2ba52bb5a8e9dbfbb466c15"
+}

@@ -4,7 +4,7 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
-public sealed class AnalysisObservationCaptureTests
+public sealed partial class AnalysisObservationCaptureTests
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
     private static readonly DateTimeOffset Start = DateTimeOffset.Parse("2026-11-06T00:00:00Z");
@@ -166,6 +166,7 @@ public sealed class AnalysisObservationCaptureTests
     private sealed class MemoryDirectory : AnalysisPrivateDirectory
     {
         internal bool Closed, FailNextWrite; internal int LiveFiles, Creates, FailAtCreate = -1;
+        internal long ReadBytes;
         internal override void Verify() => ObjectDisposedException.ThrowIf(Closed, this);
         internal override (UInt128 Capacity, UInt128 Available) Space() => ((UInt128)1024 * 1024 * 1024, (UInt128)1024 * 1024 * 1024);
         internal override AnalysisPrivateScratchFile CreateScratch()
@@ -179,7 +180,8 @@ public sealed class AnalysisObservationCaptureTests
         private readonly MemoryStream _bytes = new(); private bool _closed;
         public override long Length => _bytes.Length;
         public override void Verify() { }
-        public override int ReadAt(Span<byte> buffer, long offset) { _bytes.Position = offset; return _bytes.Read(buffer); }
+        public override int ReadAt(Span<byte> buffer, long offset)
+        { _bytes.Position = offset; int read = _bytes.Read(buffer); directory.ReadBytes += read; return read; }
         public override void WriteAt(ReadOnlySpan<byte> buffer, long offset)
         {
             _bytes.Position = offset;

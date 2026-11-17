@@ -18,6 +18,8 @@ internal sealed record AnalysisIndexedGraphHeader(SessionIdentity Identity, Immu
     internal AnalysisDatasetCoverage? CoverageDetails { get; init; }
     // Computed by the table producer; never restored from inventory data.
     internal bool DensePathIds { get; init; } = true;
+    // Derived from the sealed identity index, never restored from inventory input.
+    internal bool UniqueObjectIdentities { get; init; }
     internal AnalysisCoverageRecord? ImportedCoverage { get; init; }
     internal void Validate()
     {
@@ -151,7 +153,7 @@ internal sealed class AnalysisIndexedGraph : IAnalysisScratchOwned
 /// <summary>Owns one validated immutable prefix and its exact indexes; it has no live filesystem capability.</summary>
 internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
 {
-    internal const int Children = 0, ObjectIds = 1, Aliases = 2, FactOwners = 3, FactIds = 4, IssueOwners = 5, ObjectIdentities = 6, PathIds = 7, IndexCount = 8;
+    internal const int Children = 0, ObjectIds = 1, Aliases = 2, FactOwners = 3, FactIds = 4, IssueOwners = 5, ObjectIdentities = 6, PathIds = 7, TraversalChildren = 8, IndexCount = 9;
     private readonly object _gate = new();
     private readonly AnalysisScratchCompositeRevision _data;
     private readonly AnalysisSortedIndex[] _indexes;
@@ -187,7 +189,7 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
 
     private static IEnumerable<AnalysisSortInput> Entries(int kind, ImmutableArray<RootBinding> roots, AnalysisScratchCompositeRevision data, CancellationToken cancellation)
     {
-        int table = kind switch { Children or Aliases or PathIds => AnalysisIndexedGraph.Paths, ObjectIds or ObjectIdentities => AnalysisIndexedGraph.Objects,
+        int table = kind switch { Children or Aliases or PathIds or TraversalChildren => AnalysisIndexedGraph.Paths, ObjectIds or ObjectIdentities => AnalysisIndexedGraph.Objects,
             FactOwners or FactIds => AnalysisIndexedGraph.Facts, _ => AnalysisIndexedGraph.Issues };
         for (ulong id = 1, count = data.Count(table); id <= count; id++)
         {
@@ -196,6 +198,11 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
             {
                 var path = AnalysisIndexedPathCodec.DecodeRow(bytes, roots);
                 if (kind == Children) yield return new(new(AnalysisGraphKeys.Child(path), id), bytes.Length);
+                else if (kind == TraversalChildren)
+                {
+                    byte[] key = new byte[17]; AnalysisGraphKeys.ChildPrefix(path.RootIndex, path.Node.ParentId).CopyTo(key, 0);
+                    BinaryPrimitives.WriteUInt64BigEndian(key.AsSpan(9), id); yield return new(new(key, id), bytes.Length);
+                }
                 else if (kind == PathIds) yield return new(new(AnalysisGraphKeys.PathId(path.Node.Id), id), bytes.Length);
                 else yield return new(path.Node.ObjectId is { } objectId ? new AnalysisSortEntry(AnalysisGraphKeys.Text(objectId), id) : null, bytes.Length);
             }
@@ -248,6 +255,8 @@ internal sealed class AnalysisIndexedGraphReader : IAnalysisScratchOwned
     private readonly AnalysisSortedIndexReader[] _indexes;
     private readonly AnalysisGraphConsumers.Ticket _consumer;
     private readonly AnalysisScratchWorkspace _workspace;
+    private sealed record CohortObject(ulong Row, AnalysisObject Object);
+    private CohortObject? _cohortObject;
     internal AnalysisIndexedGraphHeader Header { get; }
     private AnalysisIndexedGraphReader(AnalysisIndexedGraphHeader header, AnalysisGraphConsumers.Ticket consumer,
         AnalysisScratchCompositeRevision data, AnalysisSortedIndexReader[] indexes, AnalysisScratchWorkspace workspace)
@@ -289,7 +298,28 @@ internal sealed class AnalysisIndexedGraphReader : IAnalysisScratchOwned
     internal ulong PathRow(ulong id, CancellationToken cancellation = default) => FindPathRow(id, cancellation) ?? throw new ArgumentOutOfRangeException(nameof(id));
     internal void RequireParent(ulong id, CancellationToken cancellation) { if (id != 0) _ = PathRow(id, cancellation); }
     internal AnalysisObject ReadObject(ulong row, CancellationToken cancellation = default)
-    { lock (_gate) { Guard(); return AnalysisIndexedValueCodec.DecodeObject(_data.Read(AnalysisIndexedGraph.Objects, row, cancellation)); } }
+    {
+        lock (_gate)
+        {
+            Guard(); cancellation.ThrowIfCancellationRequested();
+            return _cohortObject is { } cached && cached.Row == row ? cached.Object :
+                AnalysisIndexedValueCodec.DecodeObject(_data.Read(AnalysisIndexedGraph.Objects, row, cancellation));
+        }
+    }
+    internal ulong ObjectCohortCount => IndexCount(Header.UniqueObjectIdentities ? AnalysisIndexedGraphRevision.ObjectIds : AnalysisIndexedGraphRevision.ObjectIdentities);
+    internal AnalysisSortEntry ReadObjectCohort(ulong position, CancellationToken cancellation)
+    {
+        lock (_gate)
+        {
+            Guard();
+            if (!Header.UniqueObjectIdentities) return ReadIndex(AnalysisIndexedGraphRevision.ObjectIdentities, position, cancellation);
+            // Unique physical identities need no cross-object merge. Visiting object IDs instead
+            // keeps native coalesced objects, facts and aliases near their captured path order.
+            var entry = ReadIndex(AnalysisIndexedGraphRevision.ObjectIds, position, cancellation);
+            var obj = ReadObject(entry.Value, cancellation); _cohortObject = new(entry.Value, obj);
+            return new(AnalysisGraphKeys.ObjectIdentity(obj), entry.Value);
+        }
+    }
     internal StorageFact ReadFact(ulong row, CancellationToken cancellation = default)
     { lock (_gate) { Guard(); return AnalysisIndexedValueCodec.DecodeFact(_data.Read(AnalysisIndexedGraph.Facts, row, cancellation)); } }
     internal AnalysisIssue ReadIssue(ulong row, CancellationToken cancellation = default)
@@ -302,6 +332,8 @@ internal sealed class AnalysisIndexedGraphReader : IAnalysisScratchOwned
     // Related values are paged through ReadIndex then ReadObject/ReadFact/ReadIssue; no alias list is materialized.
     internal AnalysisIndexRange Children(int rootOrdinal, ulong parent, CancellationToken cancellation = default) =>
         Find(AnalysisIndexedGraphRevision.Children, AnalysisGraphKeys.ChildPrefix(rootOrdinal, parent), prefix: true, cancellation);
+    internal AnalysisIndexRange TraversalChildren(int rootOrdinal, ulong parent, CancellationToken cancellation = default) =>
+        Find(AnalysisIndexedGraphRevision.TraversalChildren, AnalysisGraphKeys.ChildPrefix(rootOrdinal, parent), prefix: true, cancellation);
     internal AnalysisIndexRange Aliases(string objectId, CancellationToken cancellation = default) =>
         Find(AnalysisIndexedGraphRevision.Aliases, AnalysisGraphKeys.Text(objectId), cancellation: cancellation);
     private AnalysisSortedIndexReader Index(int index)
@@ -311,7 +343,7 @@ internal sealed class AnalysisIndexedGraphReader : IAnalysisScratchOwned
     {
         lock (_gate)
         {
-            if (_disposed) return; _disposed = true;
+            if (_disposed) return; _disposed = true; _cohortObject = null;
             try { foreach (var index in _indexes) index.Dispose(); }
             finally { try { _data.Dispose(); } finally { try { _workspace.Dispose(); } finally { _consumer.Dispose(); } } }
         }

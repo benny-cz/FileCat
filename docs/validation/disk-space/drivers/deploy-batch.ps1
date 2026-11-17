@@ -1,5 +1,5 @@
 param([Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$Revision,[Parameter(Mandatory=$true)][ValidateSet('mac','linux','windows')][string]$Platform,[switch]$InteractiveWindows,
- [ValidateRange(5,90)][int]$WindowsTaskLimitMinutes=30)
+ [ValidateRange(5,240)][int]$WindowsTaskLimitMinutes=30)
 $ErrorActionPreference='Stop'
 function Check([string]$what){if($LASTEXITCODE){throw $what}}
 $archive=Join-Path $PWD ('.tmp/dsa-batch-'+$Platform+'-'+$Revision+'.tgz')

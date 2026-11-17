@@ -1,0 +1,7 @@
+  FileCat.Core.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\bin\Debug\net10.0\FileCat.Core.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:10.43

@@ -4,7 +4,7 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
-public sealed class AnalysisIndexedGraphTests
+public sealed partial class AnalysisIndexedGraphTests
 {
     private const string Device = "indexed-graph-fixture";
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;

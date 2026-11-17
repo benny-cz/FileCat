@@ -37,7 +37,7 @@ public sealed partial class AnalysisObjectChargeIndex
                         else BeginEmission();
                         return 1;
                     }
-                    var entry = _graph.ReadIndex(AnalysisIndexedGraphRevision.ObjectIdentities, _matchObject++, token);
+                    var entry = _graph.ReadObjectCohort(_matchObject++, token);
                     _matchObjRow = entry.Value; _matchObj = _graph.ReadObject(entry.Value, token); _matchAliases = _graph.Aliases(_matchObj.Id, token); _matchAlias = 0;
                     _queryFacts.Clear(); _queryFactBytes = 0; _queryAllocation = AnalysisMeasurement.Missing(MeasurementState.Unsupported);
                     if (!_contextPass && query.NeedsAllocation)

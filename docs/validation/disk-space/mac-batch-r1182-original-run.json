@@ -1,0 +1,9 @@
+{
+  "platform": "mac",
+  "revision": "r1182",
+  "controller": 5675,
+  "terminal": true,
+  "exitCode": 1,
+  "chunk": "36697e",
+  "purpose": "Original native optimization batch, intentionally ended with owned fixture retention and cancellation; no million-file explorer qualification"
+}

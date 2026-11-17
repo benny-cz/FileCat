@@ -234,4 +234,28 @@ internal static class AnalysisCapturedFileCodec
         { byte[] text = new UTF8Encoding(false, true).GetBytes(identity), key = new byte[text.Length + 1]; text.CopyTo(key, 1); return key; }
         var result = new byte[9]; result[0] = 1; BinaryPrimitives.WriteUInt64BigEndian(result.AsSpan(1), file.PathId); return result;
     }
+
+    // Private, authenticated, transient sort data only. Length-prefixed identities remain exact
+    // groups; the big-endian path precedes the payload so the first alias is still the lowest ID.
+    // Existing value-field limits keep even the maximum object/fact payload below the sort-key cap.
+    internal static byte[] SortKey(ReadOnlySpan<byte> record)
+    {
+        var file = Decode(record); byte[] identity = IdentityKey(file);
+        int length = checked(12 + identity.Length + record.Length);
+        if (length > AnalysisExternalSort.MaximumKeyBytes) throw AnalysisIndexedGraph.Invalid();
+        byte[] key = new byte[length]; BinaryPrimitives.WriteInt32BigEndian(key, identity.Length);
+        identity.CopyTo(key, 4); BinaryPrimitives.WriteUInt64BigEndian(key.AsSpan(4 + identity.Length), file.PathId);
+        record.CopyTo(key.AsSpan(12 + identity.Length)); return key;
+    }
+
+    internal static AnalysisCapturedFile DecodeSortKey(ReadOnlySpan<byte> key, out byte[] identity)
+    {
+        if (key.Length is < 14 or > AnalysisExternalSort.MaximumKeyBytes) throw AnalysisIndexedGraph.Invalid();
+        int length = BinaryPrimitives.ReadInt32BigEndian(key);
+        if (length is < 1 or > 4097 || length > key.Length - 12) throw AnalysisIndexedGraph.Invalid();
+        var file = Decode(key[(12 + length)..]);
+        if (file.PathId != BinaryPrimitives.ReadUInt64BigEndian(key[(4 + length)..]) ||
+            !key.Slice(4, length).SequenceEqual(IdentityKey(file))) throw AnalysisIndexedGraph.Invalid();
+        identity = key.Slice(4, length).ToArray(); return file;
+    }
 }

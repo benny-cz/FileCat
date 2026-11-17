@@ -1,0 +1,9 @@
+{
+  "observedUtc": "2026-11-17T10:01:49.417178+00:00",
+  "sessionId": 51581,
+  "terminalExit": 1,
+  "controllerExit": 1,
+  "completionChunk": "60cf1d",
+  "actualOriginalController": true,
+  "reason": "Verifier wrongly demanded small-fixture I/O amplification; actual old-control tests had exactly the expected two layout/churn failures and three passing native controls. Small fixture read only7070710bytes."
+}

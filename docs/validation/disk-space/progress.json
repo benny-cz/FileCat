@@ -12966,7 +12966,7 @@
     }
   },
   "nextWork": [
-    "Main68a435dc integration and analyzer input/capacity UX qualify in r1170. Instrumentation-only r1172/r1173 reused exact qualified product bytes for all-three1Mwide/deepCSV successes and10Mwide/deep guarded4GiBrefusals; Macnativephysicalfootprint now has compiled-C/managed64MiB+ABInegativecontrols, recorded separately from committedprivatebytes. Continue actualnativeacquisition/public-entry lifecycle, globalresource/multisession, remainingW0-W8nativeinteraction/source/action/helper/recipe gates; public registration stays off.",
+    "Native1Mwide/deep acquisition, every-path readback, indexed explorer/sixsortdirections/charts, filtered hard-link accounting, extension groups and actualcleanup now pass on all three platforms (r1190). Continue epoch/public-entry lifecycle,10M/globalresources and remainingW0-W8 gates. Core epoch/App preparation work is isolated in the separate dsa-epoch-refresh-20261117 checkout and is not part of this performance product qualification. Public registration stays off.",
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu normal native resize at480/1100 now passes (r978); maximize/restore and display changes remain unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: complete full native pointer/key qualification (runtime deferred materialization/review, memory scoped/hidden-mark review and matching-file capture now pass all3) (indexed captured-folder/scoped marks/cross-page range controls now pass all3), folder and grouped exact Other explorer/chart/history/selection/SaveOpen controls pass all3; complete the remaining geometry, raw-name, interaction and resource parity matrix; qualify full indexed Other-subset persistence parity, full native indexed Save/Open qualification and remaining dimensions (memory grouping/captured selection and schema4 saved grouping restoration now pass all3) (indexed selector/chart/table/navigation/inspection now pass all3) (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and full comparison-growth interaction/aggregation parity; indexed growth charts now have scoped r1147 all-three evidence (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
@@ -15669,6 +15669,22 @@
     "macCommittedPrivateBytesQualified": false,
     "globalMultiSessionMemoryQualified": false,
     "liveSourceTraversalQualified": false,
+    "publicFeatureRegistered": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
+  },
+  "nativeMillionScale": {
+    "qualification": "NATIVE_MILLION_SCALE_QUALIFICATION.md",
+    "evidence": "source-manifest-r1190-native-scale.json",
+    "productRevision": "r1184",
+    "fixtureRevision": "r1185",
+    "allThreeNativeMillionWideDeepPassed": true,
+    "allSourcePathsVerified": true,
+    "actualOwnerClosureAndZeroQuota": true,
+    "macCommittedPrivateBytesQualified": false,
+    "globalMultiSessionMemoryQualified": false,
+    "completeTenMillionQualified": false,
+    "physicalDesktopMatrixQualified": false,
     "publicFeatureRegistered": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false

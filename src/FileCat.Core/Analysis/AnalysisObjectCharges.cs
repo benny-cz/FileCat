@@ -167,9 +167,9 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
             switch (_stage)
             {
                 case Stage.Objects:
-                    if (_object > _graph.IndexCount(AnalysisIndexedGraphRevision.ObjectIdentities))
+                    if (_object > _graph.ObjectCohortCount)
                     { if (_first is not null) PrepareEmission(); else StartDirectories(token); return 1; }
-                    var entry = _graph.ReadIndex(AnalysisIndexedGraphRevision.ObjectIdentities, _object, token);
+                    var entry = _graph.ReadObjectCohort(_object, token);
                     if (_identity is not null && !_identity.AsSpan().SequenceEqual(entry.Key))
                     { if (_first is not null) { PrepareEmission(); return entry.Key.Length; } Reset(); }
                     if (_identity is null) _groupFirst = _object;

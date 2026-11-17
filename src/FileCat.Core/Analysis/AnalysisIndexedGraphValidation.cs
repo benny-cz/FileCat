@@ -10,6 +10,25 @@ internal static class AnalysisIndexedGraphValidation
     {
         reader.Header.Validate();
         var coverage = new AnalysisIndexedCoverage(reader.Header);
+        bool uniqueIdentities = true; byte[]? previousIdentity = null;
+        ulong identityAt = 1, identityCount = reader.IndexCount(AnalysisIndexedGraphRevision.ObjectIdentities);
+        while (identityAt <= identityCount)
+            await AnalysisIo.Run(io, device, token =>
+            {
+                int records = 0, bytes = 0;
+                while (identityAt <= identityCount && records++ < AnalysisLimits.BatchRecords && bytes < AnalysisLimits.BatchBytes)
+                {
+                    var item = reader.ReadIndex(AnalysisIndexedGraphRevision.ObjectIdentities, identityAt++, token);
+                    if (previousIdentity is not null)
+                    {
+                        int order = previousIdentity.AsSpan().SequenceCompareTo(item.Key);
+                        if (order > 0) throw AnalysisIndexedGraph.Invalid();
+                        if (order == 0) uniqueIdentities = false;
+                    }
+                    previousIdentity = item.Key; bytes += item.Key.Length + 12;
+                }
+                return true;
+            }, cancellation).ConfigureAwait(false);
         foreach (int index in new[] { AnalysisIndexedGraphRevision.Children, AnalysisIndexedGraphRevision.ObjectIds, AnalysisIndexedGraphRevision.FactIds, AnalysisIndexedGraphRevision.PathIds })
         {
             ulong next = 1, count = reader.IndexCount(index); byte[]? previous = null;
@@ -208,6 +227,7 @@ internal static class AnalysisIndexedGraphValidation
         var freshness = coverage.Changed && reader.Header.Freshness == AnalysisFreshness.Observed ? AnalysisFreshness.PossiblyStale : reader.Header.Freshness;
         return reader.Header with
         {
+            UniqueObjectIdentities = uniqueIdentities,
             IssueTotals = issueTotals, BoundaryTotals = boundaryTotals, Freshness = freshness,
             CoverageDetails = coverage.Complete(issueTotals, boundaryTotals, issues, freshness)
         };

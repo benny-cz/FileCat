@@ -44,12 +44,22 @@ internal static class AnalysisObservationCoalescer
                 for (ulong row = 1, count = raw.Count(AnalysisObservationCapture.Files); row <= count; row++)
                 {
                     cancellation.ThrowIfCancellationRequested(); byte[] bytes = raw.Read(AnalysisObservationCapture.Files, row, cancellation);
-                    yield return new(new(AnalysisCapturedFileCodec.IdentityKey(AnalysisCapturedFileCodec.Decode(bytes)), row), bytes.Length);
+                    // Carry the bounded inert observation through the authenticated sort. Looking
+                    // it up again by an identity-sorted row would randomly reread one large raw
+                    // block per file, exceeding the shared block cache at native scale.
+                    byte[] key = AnalysisCapturedFileCodec.SortKey(bytes);
+                    yield return new(new(key, row), key.Length);
                 }
             }
             using (var source = Identities().GetEnumerator())
                 owned.Identities = await AnalysisExternalSort.BuildSparseAsync(workspace, io, device, source, cancellation).ConfigureAwait(false);
             owned.IdentityReader = await AnalysisIo.Run(io, device, _ => owned.Identities.Acquire(), cancellation).ConfigureAwait(false);
+            owned.Canonical = await AnalysisIo.Run(io, device, _ =>
+            {
+                var arena = workspace.CreateArena();
+                try { return new AnalysisScratchVector(arena); }
+                catch { arena.Dispose(); throw; }
+            }, cancellation).ConfigureAwait(false);
 
             IEnumerable<AnalysisSortInput> Mappings()
             {
@@ -58,13 +68,15 @@ internal static class AnalysisObservationCoalescer
                 void Finish()
                 {
                     if (first is null) return;
-                    string canonical = AnalysisObservationCapture.Id('o', first.PathId);
-                    var obj = first.Object with { Id = canonical,
+                    var obj = first.Object with {
                         LogicalLength = logicalChanged ? AnalysisMeasurement.Missing(MeasurementState.Changed) : first.Object.LogicalLength,
                         LinkCount = linksChanged ? AnalysisMeasurement.Missing(MeasurementState.Changed) : first.Object.LinkCount };
-                    var fact = first.Fact with { Id = "f" + canonical, ObjectId = canonical,
+                    var fact = first.Fact with {
                         Measurement = logicalChanged || allocationChanged ? AnalysisMeasurement.Missing(MeasurementState.Changed) : first.Fact.Measurement };
-                    owned.Graph.AppendObject(obj, cancellation); owned.Graph.AppendFact(fact, cancellation);
+                    // Keep the coalesced record inert and provisional until it has been sorted by
+                    // canonical path. Appending graph objects in native identity order would make
+                    // later object-ID joins randomly reread authenticated blocks as well.
+                    owned.Canonical.Append(AnalysisCapturedFileCodec.Encode(first with { Object = obj, Fact = fact }), cancellation);
                     if (logicalChanged) Issue("changed-during-observation", first.PathId, MeasurementState.Changed, cancellation);
                     else if (allocationChanged) Issue("allocation-changed-during-observation", first.PathId, MeasurementState.Changed, cancellation);
                     if (linksChanged) Issue("link-count-changed-during-observation", first.PathId, MeasurementState.Changed, cancellation);
@@ -74,11 +86,11 @@ internal static class AnalysisObservationCoalescer
                 for (ulong row = 1; row <= owned.IdentityReader.Count; row++)
                 {
                     cancellation.ThrowIfCancellationRequested(); var entry = owned.IdentityReader.Read(row, cancellation);
-                    byte[] bytes = raw.Read(AnalysisObservationCapture.Files, entry.Value, cancellation); var current = AnalysisCapturedFileCodec.Decode(bytes);
-                    if (!entry.Key.AsSpan().SequenceEqual(AnalysisCapturedFileCodec.IdentityKey(current))) throw AnalysisIndexedGraph.Invalid();
-                    if (key is null || !key.AsSpan().SequenceEqual(entry.Key))
+                    if (entry.Value > raw.Count(AnalysisObservationCapture.Files)) throw AnalysisIndexedGraph.Invalid();
+                    var current = AnalysisCapturedFileCodec.DecodeSortKey(entry.Key, out byte[] identity);
+                    if (key is null || !key.AsSpan().SequenceEqual(identity))
                     {
-                        Finish(); key = entry.Key; first = current; lastPath = 0;
+                        Finish(); key = identity; first = current; lastPath = 0;
                         logicalChanged = allocationChanged = linksChanged = false;
                     }
                     if (current.PathId <= lastPath || first is null || current.Object.VerifiedIdentity != first.Object.VerifiedIdentity ||
@@ -90,7 +102,7 @@ internal static class AnalysisObservationCoalescer
                     allocationChanged |= current.Fact.Measurement != first.Fact.Measurement;
                     linksChanged |= current.Object.LinkCount != first.Object.LinkCount;
                     byte[] path = new byte[8]; BinaryPrimitives.WriteUInt64BigEndian(path, current.PathId);
-                    yield return new(new(path, first.PathId), bytes.Length + entry.Key.Length);
+                    yield return new(new(path, first.PathId), entry.Key.Length);
                 }
                 Finish();
             }
@@ -100,6 +112,44 @@ internal static class AnalysisObservationCoalescer
             await AnalysisIo.ReleaseScratchAsync(io, device, owned.IdentityReader).ConfigureAwait(false); owned.IdentityReader = null;
             await AnalysisIo.ReleaseScratchAsync(io, device, owned.Identities).ConfigureAwait(false); owned.Identities = null;
             owned.MapReader = await AnalysisIo.Run(io, device, _ => owned.Mapping.Acquire(), cancellation).ConfigureAwait(false);
+
+            owned.CanonicalReader = await AnalysisIo.Run(io, device, token =>
+            { owned.Canonical.Flush(token); return owned.Canonical.CaptureCommitted(); }, cancellation).ConfigureAwait(false);
+            IEnumerable<AnalysisSortInput> CanonicalFiles()
+            {
+                for (ulong row = 1; row <= owned.CanonicalReader.Count; row++)
+                {
+                    byte[] bytes = owned.CanonicalReader.Read(row, cancellation);
+                    var file = AnalysisCapturedFileCodec.Decode(bytes);
+                    byte[] key = new byte[checked(8 + bytes.Length)]; BinaryPrimitives.WriteUInt64BigEndian(key, file.PathId); bytes.CopyTo(key, 8);
+                    yield return new(new(key, row), key.Length);
+                }
+            }
+            using (var source = CanonicalFiles().GetEnumerator())
+                owned.CanonicalIndex = await AnalysisExternalSort.BuildSparseAsync(workspace, io, device, source, cancellation).ConfigureAwait(false);
+            await AnalysisIo.Run(io, device, _ => { owned.CanonicalReader.Dispose(); return true; }, cancellation).ConfigureAwait(false); owned.CanonicalReader = null;
+            await AnalysisIo.Run(io, device, _ => { owned.Canonical.Dispose(); return true; }, cancellation).ConfigureAwait(false); owned.Canonical = null;
+            owned.CanonicalIndexReader = await AnalysisIo.Run(io, device, _ => owned.CanonicalIndex.Acquire(), cancellation).ConfigureAwait(false);
+            ulong nextCanonical = 1, previousCanonical = 0;
+            while (nextCanonical <= owned.CanonicalIndexReader.Count)
+                await AnalysisIo.Run(io, device, token =>
+                {
+                    int records = 0, bytes = 0;
+                    while (nextCanonical <= owned.CanonicalIndexReader.Count && records < AnalysisLimits.BatchRecords && bytes < AnalysisLimits.BatchBytes)
+                    {
+                        var entry = owned.CanonicalIndexReader.Read(nextCanonical++, token);
+                        if (entry.Key.Length <= 8) throw AnalysisIndexedGraph.Invalid();
+                        var file = AnalysisCapturedFileCodec.Decode(entry.Key.AsSpan(8));
+                        if (file.PathId <= previousCanonical || file.PathId != BinaryPrimitives.ReadUInt64BigEndian(entry.Key)) throw AnalysisIndexedGraph.Invalid();
+                        previousCanonical = file.PathId; string id = AnalysisObservationCapture.Id('o', file.PathId);
+                        owned.Graph.AppendObject(file.Object with { Id = id }, token);
+                        owned.Graph.AppendFact(file.Fact with { Id = "f" + id, ObjectId = id }, token);
+                        records++; bytes += entry.Key.Length;
+                    }
+                    return true;
+                }, cancellation).ConfigureAwait(false);
+            await AnalysisIo.ReleaseScratchAsync(io, device, owned.CanonicalIndexReader).ConfigureAwait(false); owned.CanonicalIndexReader = null;
+            await AnalysisIo.ReleaseScratchAsync(io, device, owned.CanonicalIndex).ConfigureAwait(false); owned.CanonicalIndex = null;
 
             ulong map = 1;
             await CopyAsync(AnalysisObservationCapture.Paths, (bytes, token) =>
@@ -160,10 +210,20 @@ internal static class AnalysisObservationCoalescer
         internal AnalysisIndexedGraph? Graph;
         internal AnalysisSortedIndex? Identities, Mapping;
         internal AnalysisSortedIndexReader? IdentityReader, MapReader;
+        internal AnalysisScratchVector? Canonical;
+        internal AnalysisScratchVectorCheckpoint? CanonicalReader;
+        internal AnalysisSortedIndex? CanonicalIndex;
+        internal AnalysisSortedIndexReader? CanonicalIndexReader;
         public void Dispose()
         {
-            try { IdentityReader?.Dispose(); MapReader?.Dispose(); Identities?.Dispose(); Mapping?.Dispose(); }
-            finally { try { Graph?.Dispose(); } finally { raw.Dispose(); } }
+            Exception? failure = null;
+            foreach (var owner in new IDisposable?[] { IdentityReader, MapReader, Identities, Mapping,
+                CanonicalIndexReader, CanonicalIndex, CanonicalReader, Canonical, Graph, raw })
+            {
+                try { owner?.Dispose(); }
+                catch (Exception error) { failure = failure is null ? error : new AggregateException(failure, error); }
+            }
+            if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
 }

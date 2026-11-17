@@ -332,11 +332,11 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
             }
             if (frame.Id == 0 && _root < _graph.Header.Roots.Length)
             {
-                var range = _graph.Children(_root++, 0, token); if (range.Count > 1) throw Invalid();
-                return range.Count == 0 ? 1 : Push(_graph.ReadIndex(AnalysisIndexedGraphRevision.Children, range.First, token).Value, token);
+                var range = _graph.TraversalChildren(_root++, 0, token); if (range.Count > 1) throw Invalid();
+                return range.Count == 0 ? 1 : Push(_graph.ReadIndex(AnalysisIndexedGraphRevision.TraversalChildren, range.First, token).Value, token);
             }
             if (frame.NextChild < frame.Children.Count)
-                return Push(_graph.ReadIndex(AnalysisIndexedGraphRevision.Children, frame.Children.First + frame.NextChild++, token).Value, token);
+                return Push(_graph.ReadIndex(AnalysisIndexedGraphRevision.TraversalChildren, frame.Children.First + frame.NextChild++, token).Value, token);
             _pending.Pop();
             if (frame.File && Metric is (AnalysisMetric.UniqueFileSize or AnalysisMetric.OnDisk) && !frame.OwnCharge) frame.Elsewhere = true;
             if (frame.Shared is { } shared) _bucketWriter!.Append(EncodeBucket(frame.Id, shared), token);
@@ -358,7 +358,7 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
             bool includedFile = node.Kind == AnalysisKind.File && node.IncludedByPolicy;
             bool match = includedFile && (_query?.Matches(id, token) ?? true), context = includedFile && (_query?.IsContext(id, token) ?? false);
             bool namespaceUnknown = node.IncludedByPolicy && node.MetadataState != MeasurementState.Known;
-            var frame = new Frame(id, node.ParentId, node.Kind == AnalysisKind.Directory ? _graph.Children(path.RootIndex, id, token) : default, Charges(id, token),
+            var frame = new Frame(id, node.ParentId, node.Kind == AnalysisKind.Directory ? _graph.TraversalChildren(path.RootIndex, id, token) : default, Charges(id, token),
                 node.Kind == AnalysisKind.Directory && namespaceUnknown, match || context)
             {
                 Unknown = namespaceUnknown, DirectoryNamespace = node.Kind == AnalysisKind.Directory && node.IncludedByPolicy,

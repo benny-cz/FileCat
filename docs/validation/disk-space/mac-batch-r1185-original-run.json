@@ -1,0 +1,11 @@
+{
+  "controller": 8410,
+  "terminal": true,
+  "exitCode": 1,
+  "chunk": "98f07f",
+  "reason": "Owned cooperative cancellation during active grouping merge after310s; inconclusive, not a proven hang",
+  "collectedBytes": 222122,
+  "collectorChunk": "9cdc6d",
+  "postProcesses": 0,
+  "next": "r1189 unchanged-product focused Mac scale rerun"
+}
