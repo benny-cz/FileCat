@@ -1,13 +1,16 @@
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Resources;
 using FileCat.Core.State;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows.Tests;
 
 /// <summary>Disposable NTFS behavior fixtures. These operations do not exercise FileCat release admission.</summary>
+[Collection("Windows storage job evidence")]
 public sealed unsafe partial class WindowsSparseTransformTests
 {
     private const int Length = 4 * 1024 * 1024;
@@ -57,6 +60,110 @@ public sealed unsafe partial class WindowsSparseTransformTests
             Assert.Equal(first.Named.Compression, decompressed.Named.Compression);
             Assert.Equal(first.Named.Allocation, decompressed.Named.Allocation);
         });
+    }
+
+    [Theory]
+    [InlineData("all-hole")]
+    [InlineData("main-holes")]
+    [InlineData("named-holes")]
+    [InlineData("both-holes")]
+    [InlineData("sparse-no-holes")]
+    public void Reviewed_compression_jobs_preserve_sparse_streams_and_do_not_call_native_for_noops(string shape)
+    {
+        RequireFixture();
+        Run(shape, (path, first) =>
+        {
+            var jobs = CreateManager(path);
+            RunJob(jobs, path, StorageAction.Compress, changed: true);
+            var compressed = Report("reviewed compress", "changed", path, first);
+            Assert.Equal(WindowsCompression.Lznt1, compressed.Main.Compression);
+            Assert.Equal(first.Named.Allocation, compressed.Named.Allocation);
+            Assert.Equal(first.Named.Compression, compressed.Named.Compression);
+            RunJob(jobs, path, StorageAction.Compress, changed: false);
+
+            RunJob(jobs, path, StorageAction.RemoveCompression, changed: true);
+            var decompressed = Report("reviewed decompress", "changed", path, first);
+            Assert.Equal(WindowsCompression.None, decompressed.Main.Compression);
+            Assert.Equal(first.Main.Allocation, decompressed.Main.Allocation);
+            Assert.Equal(first.Named.Allocation, decompressed.Named.Allocation);
+            Assert.Equal(first.Named.Compression, decompressed.Named.Compression);
+            RunJob(jobs, path, StorageAction.RemoveCompression, changed: false);
+        });
+    }
+
+    [Fact]
+    public void A_sparse_range_overflow_refuses_before_a_native_call_while_a_noop_requires_no_inventory()
+    {
+        RequireFixture();
+        const int stride = 128 * 1024;
+        string root = Directory.CreateTempSubdirectory("filecat-sparse-fragmented-").FullName;
+        string path = Path.Join(root, "fragmented.bin");
+        try
+        {
+            using (var stream = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+            {
+                Assert.True(Control(stream.SafeFileHandle, SetSparse, null, 0, null, 0, out _, 0));
+                stream.SetLength((long)(WindowsStorageTransforms.SparseRangeLimit + 1) * stride);
+                for (int i = 0; i <= WindowsStorageTransforms.SparseRangeLimit; i++)
+                {
+                    TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
+                    stream.Position = (long)i * stride;
+                    stream.WriteByte(0x39);
+                }
+                stream.Flush(flushToDisk: true);
+            }
+            var jobs = CreateManager(path);
+            RunJob(jobs, path, StorageAction.RemoveCompression, changed: false);
+            var refused = Submit(jobs, path, StorageAction.Compress);
+            Assert.Equal(JobState.Failed, refused.State);
+            Assert.Equal(1, refused.StorageResult!.Counts.Failed);
+            Assert.Contains(refused.StorageResult.Reasons, r => r.Problem.Code == "sparse-range-limit");
+            AssertCallEvidence(jobs, refused, changed: false);
+            using var held = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            Assert.Equal(WindowsCompression.None, WindowsCompression.Query(held).Native);
+            Assert.True(File.GetAttributes(held).HasFlag(FileAttributes.SparseFile));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private static JobManager CreateManager(string path) =>
+        new(new PortableFileOperations(), new ProviderRegistry(), Directory.CreateDirectory(
+            Path.Join(Path.GetDirectoryName(path)!, "journal")).FullName, ArchiveJobBackends.Empty,
+            new WindowsStorageTransforms(), WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend);
+
+    private static Job Submit(JobManager jobs, string path, StorageAction action)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var review = jobs.PrepareStorageReview([ItemRef.ForFileSystemPath(path, EntryKind.File)], action, ct);
+        var selection = review.Approve(action, StorageScope.SelectedItems);
+        using var finished = new ManualResetEventSlim();
+        void OnFinished(Job _) => finished.Set();
+        jobs.JobFinished += OnFinished;
+        try
+        {
+            var job = jobs.SubmitStorage(review, selection, _ => { });
+            Assert.True(finished.Wait(TimeSpan.FromSeconds(45), ct));
+            return job;
+        }
+        finally { jobs.JobFinished -= OnFinished; }
+    }
+
+    private static void RunJob(JobManager jobs, string path, StorageAction action, bool changed)
+    {
+        var job = Submit(jobs, path, action);
+        Assert.True(job.State == JobState.Completed, $"{job.State}: " + string.Join(", ",
+            job.StorageResult!.Reasons.Select(r => r.Problem.Message).Concat(job.Issues.Select(i => i.Message))));
+        Assert.Equal(changed ? 1 : 0, job.StorageResult!.Counts.Changed);
+        Assert.Equal(changed ? 0 : 1, job.StorageResult.Counts.AlreadySatisfied);
+        AssertCallEvidence(jobs, job, changed);
+    }
+
+    private static void AssertCallEvidence(JobManager jobs, Job job, bool changed)
+    {
+        var report = jobs.ReadStorageReview(StorageJournalPolicy.FileName(job.CreatedUtc, job.Id), TestContext.Current.CancellationToken);
+        Assert.False(report.ReviewPending);
+        Assert.True(report.Current.History.Ended);
+        Assert.Equal(changed, report.Current.History.LastCall is not null);
     }
 
     private static void RequireFixture()

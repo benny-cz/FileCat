@@ -117,6 +117,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             private bool _disposed;
             private StorageAction? _prepared;
             private StorageObservation? _preparedObservation;
+            private SparseLayout? _preparedSparse;
             internal WindowsStorageDirectoryCursor? Cursor;
             internal bool Enumerating;
             internal Held Handle => _handle;
@@ -178,10 +179,15 @@ internal sealed unsafe partial class WindowsStorageTransforms
             }
             public StorageObservation PrepareMutation(StorageAction action, CancellationToken ct)
             {
-                RequireAction(action); _prepared = null; _preparedObservation = null;
+                RequireAction(action); _prepared = null; _preparedObservation = null; _preparedSparse = null;
                 var observation = Observe(ct);
                 if (observation.Ineligible is null && NeedsChange(observation.Compression, action))
-                { Promote(Access.Mutation, ct); observation = Observe(ct); }
+                {
+                    Promote(Access.Mutation, ct);
+                    observation = Observe(ct);
+                    if (observation.Ineligible is null && !observation.IsDirectory && NeedsChange(observation.Compression, action))
+                        _preparedSparse = ReadSparseLayout(_handle.File, ct);
+                }
                 _prepared = action;
                 _preparedObservation = observation;
                 return observation;
@@ -190,7 +196,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
             {
                 RequireAction(action);
                 if (_prepared != action || _preparedObservation is not { } before) throw new InvalidOperationException("Prepare the same held object before durable intent and call admission.");
-                _prepared = null; _preparedObservation = null;
+                var preparedSparse = _preparedSparse;
+                _prepared = null; _preparedObservation = null; _preparedSparse = null;
                 bool attempted = false;
                 try
                 {
@@ -199,10 +206,19 @@ internal sealed unsafe partial class WindowsStorageTransforms
                     if (!NeedsChange(before.Compression, action)) return new(before, before, StorageEffect.AlreadySatisfied, null);
                     if (_access != Access.Mutation) return new(before, before, StorageEffect.NotProcessed,
                         Problem(StorageReasonKind.IdentityChanged, "new-preparation-required", "The storage state changed after preparation; no native call was attempted."));
+                    var beforeSparse = before.IsDirectory ? null : ReadSparseLayout(_handle.File, CancellationToken.None);
+                    if (!SparseLayout.SameHoles(preparedSparse, beforeSparse) || preparedSparse?.Allocation != beforeSparse?.Allocation)
+                        return new(before, before, StorageEffect.NotProcessed,
+                            Problem(StorageReasonKind.IdentityChanged, "sparse-preparation-changed", "The sparse layout changed after preparation. No native call was attempted."));
                     // The caller has durably recorded intent and atomically admitted this call. No cancellation token intervenes.
                     attempted = true;
                     var call = WindowsCompression.InvokeAdmitted(_handle.File, action);
                     var after = Observe(CancellationToken.None);
+                    var afterSparse = after.IsDirectory ? null : ReadSparseLayout(_handle.File, CancellationToken.None);
+                    if (!SparseLayout.SameHoles(beforeSparse, afterSparse))
+                        return new(before, after, StorageEffect.Uncertain,
+                            Problem(StorageReasonKind.Unknown, "sparse-postcondition-changed",
+                                "Sparse state, length or the reported hole ranges changed. Review the file before continuing.")) { NativeCallAttempted = true };
                     if (after.Compression is StorageObservationState.Unknown or StorageObservationState.Unsupported || after.Ineligible?.Code == "inconsistent-storage")
                         return new(before, after, StorageEffect.Uncertain, after.Ineligible ?? Problem(StorageReasonKind.Unknown, "postcondition-unknown", "The native call's result remains uncertain.")) { NativeCallAttempted = true };
                     if (!NeedsChange(after.Compression, action)) return new(before, after, StorageEffect.Changed, after.Ineligible ??

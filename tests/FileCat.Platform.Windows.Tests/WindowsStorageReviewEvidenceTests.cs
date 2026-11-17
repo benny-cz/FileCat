@@ -9,6 +9,7 @@ using FileCat.Core.Archives;
 
 namespace FileCat.Platform.Windows.Tests;
 
+[Collection("Windows storage job evidence")]
 public sealed partial class WindowsStorageReviewEvidenceTests
 {
     [Fact]
