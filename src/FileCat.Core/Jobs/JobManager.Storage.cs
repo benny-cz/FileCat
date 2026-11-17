@@ -175,7 +175,8 @@ public sealed partial class JobManager
         }
         var payload = request.StorageTransform ?? throw new ArgumentException("A storage approval is required.", nameof(request));
         ReviewedStorageRoots.RequireAction(_storageTransforms, payload.Action);
-        if (!Enum.IsDefined(payload.Scope) || payload.ReviewRevision == Guid.Empty || !Enum.IsDefined(request.Mode))
+        ReviewedStorageRoots.RequireScope(_storageTransforms, payload.Action, payload.Scope);
+        if (payload.ReviewRevision == Guid.Empty || !Enum.IsDefined(request.Mode))
             throw new ArgumentException("The storage action, scope or review revision is invalid.", nameof(request));
         _ = StoragePaths.Capture(request.Sources);
         if (owner is null || !owner.IsAlive) throw new InvalidOperationException("Submit storage changes through their live reviewed owner.");

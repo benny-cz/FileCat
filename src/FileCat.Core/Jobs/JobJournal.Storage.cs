@@ -17,7 +17,7 @@ public sealed partial class JobJournal
         if (payload.Roots.IsDefault || payload.Roots.Length != paths.Length) throw new ArgumentException("Missing storage root mappings.");
         var header = new StorageJournalHeader(id, created, payload.Action, payload.Scope, payload.ReviewRevision,
             paths.Select((path, i) => new StorageJournalRoot(i, payload.Roots[i].PinIndex, path.Path, payload.Roots[i].Observation)).ToImmutableArray())
-            { EfsConsent = payload.EfsConsent };
+            { EfsConsent = payload.EfsConsent, RequiresEfsRecoveryEvidence = payload.Action == StorageAction.EncryptEfs };
         StorageTransformJournalCollector.ValidateHeader(header);
         _ = StorageTransformJournalWriter.Encode("storage-begin", 1, id, header, StorageJournalPolicy.VersionFor(header)); // strict 256 KiB preflight, no omitted roots
         return header;

@@ -45,8 +45,8 @@ public sealed class StorageSelectionReview : IDisposable
     /// <summary>Immediately invalidates approval. Cached action eligibility and scope changes require no native I/O.</summary>
     public long Request(StorageAction? action, StorageScope scope, bool retry = false)
     {
-        if (!Enum.IsDefined(scope)) throw new ArgumentOutOfRangeException(nameof(scope));
         if (action is { } requested) ReviewedStorageRoots.RequireAction(_adapter, requested);
+        ReviewedStorageRoots.RequireScope(_adapter, action, scope);
         lock (_gate)
         {
             Check(); var previousAction = _action; bool previousReady = !_needsInspection;

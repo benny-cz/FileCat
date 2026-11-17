@@ -18,6 +18,7 @@ internal sealed class StorageTransformExecutor(Job job, IStorageTransforms adapt
         internal IEnumerator<StorageTraversalEntry>? Entries;
     }
     private readonly StorageTransformRequest _request = job.Request.StorageTransform ?? throw new InvalidOperationException("Missing storage approval.");
+    private readonly StorageEfsRecoverySession? _recovery = job.Request.StorageTransform?.EfsConsent is { } consent ? new(consent) : null;
     private readonly Stack<Frame> _frames = new();
     private readonly StorageVisitLedger _visited = new(observationLimit, byteLimit);
     private StorageExecutionAccounting _account = null!;
@@ -86,7 +87,9 @@ internal sealed class StorageTransformExecutor(Job job, IStorageTransforms adapt
     }
 
     private IStorageTraversal OpenRoot(IStorageReviewLease pin) => StorageExecutionRetry.Run(job, pin.Target.Path,
-        () => adapter.OpenReviewedRoot(pin, _request.Action, job.Token));
+        () => _recovery is { } recovery && adapter is IStorageEfsJobAdapter efs
+            ? efs.OpenReviewedEfsRoot(pin, job, System.Numerics.BitOperations.TrailingZeroCount(_selected[pin.Observation.Identity].Sources), recovery, job.Token)
+            : adapter.OpenReviewedRoot(pin, _request.Action, job.Token));
 
     private void Walk(IStorageTraversal traversal)
     {

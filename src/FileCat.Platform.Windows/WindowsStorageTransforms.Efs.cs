@@ -40,7 +40,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
         => OpenEfsBinding(root, consent, null, requireRecovery: false, ct, invoke ?? InvokeEfs, sourceIndex);
 
     private IStorageObjectLease OpenEfsBinding(IStorageReviewLease root, StorageEfsConsent consent, StorageEfsRecoveryApproval? recovery,
-        bool requireRecovery, CancellationToken ct, Func<string, StorageAction, EfsNativeReturn> invoke, int sourceIndex)
+        bool requireRecovery, CancellationToken ct, Func<string, StorageAction, EfsNativeReturn> invoke, int sourceIndex,
+        Func<CancellationToken, StorageEfsRecoveryApproval>? resolveRecovery = null)
     {
         ArgumentNullException.ThrowIfNull(consent);
         RequireEfsHost(consent.Action);
@@ -62,7 +63,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             windows = ProtectedWindowsPath(ct);
             var observation = Inspect(path, windows.LeafFacts.Identity, ct, compressionPolicy: false).For(consent.Action);
             if (observation.Ineligible is { } excluded) throw new StorageInspectionException(excluded);
-            var binding = new EfsPathBinding(pin, path, windows, consent, sourceIndex, invoke, recovery, requireRecovery);
+            var binding = new EfsPathBinding(pin, path, windows, consent, sourceIndex, invoke, recovery, requireRecovery, resolveRecovery);
             path = null; windows = null;
             return binding;
         }
@@ -121,14 +122,15 @@ internal sealed unsafe partial class WindowsStorageTransforms
         }
     }
 
-    private sealed class EfsPathBinding : IStorageObjectLease
+    private sealed class EfsPathBinding : IStorageEfsObjectLease
     {
         private readonly Pin _pin;
         private readonly NativePath _path, _windows;
         private readonly StorageNativeAllowance _allowance;
         private readonly StorageEfsConsent _consent;
-        private readonly StorageEfsRecoveryApproval? _recovery;
+        private StorageEfsRecoveryApproval? _recovery;
         private readonly bool _requireRecovery;
+        private readonly Func<CancellationToken, StorageEfsRecoveryApproval>? _resolveRecovery;
         private readonly StorageObjectIdentity _identity;
         private readonly Func<string, StorageAction, EfsNativeReturn> _invoke;
         private readonly string _apiPath;
@@ -139,17 +141,20 @@ internal sealed unsafe partial class WindowsStorageTransforms
         internal ImmutableArray<WindowsEfsStream> PreparedStreams { get; private set; } = [];
         // The containing type owns construction; callers receive no unpinned ID-to-path authority.
         internal EfsPathBinding(Pin pin, NativePath path, NativePath windows, StorageEfsConsent consent, int sourceIndex,
-            Func<string, StorageAction, EfsNativeReturn> invoke, StorageEfsRecoveryApproval? recovery, bool requireRecovery)
+            Func<string, StorageAction, EfsNativeReturn> invoke, StorageEfsRecoveryApproval? recovery, bool requireRecovery,
+            Func<CancellationToken, StorageEfsRecoveryApproval>? resolveRecovery)
         {
             _pin = pin; _path = path; _windows = windows; _consent = consent; _invoke = invoke;
             _identity = consent.RootIdentities[sourceIndex];
             _recovery = recovery;
             _requireRecovery = requireRecovery;
+            _resolveRecovery = resolveRecovery;
             _allowance = StorageNativeAllowance.RequireCurrent();
             _apiPath = EfsApiPath(path, pin.Target.Path);
         }
         public string Path => _pin.Target.Path;
         public StorageObjectIdentity Identity => _identity;
+        public StorageEfsRecoveryApproval? RecoveryApproval => _recovery;
         internal bool IsFrom(WindowsStorageTransforms adapter) => ReferenceEquals(_pin.Adapter, adapter);
         internal StorageEfsAssociationSnapshot ReadAssociations(CancellationToken ct)
         {
@@ -180,6 +185,12 @@ internal sealed unsafe partial class WindowsStorageTransforms
         {
             RequireAction(action); _prepared = null; PreparedStreams = [];
             var before = Observe(ct);
+            if (before.Ineligible is null && action == StorageAction.EncryptEfs && NeedsChange(before.Efs, action) &&
+                _recovery is null && _resolveRecovery is { } resolve)
+            {
+                _recovery = resolve(ct);
+                before = Observe(ct);
+            }
             if (before.Ineligible is null && NeedsChange(before.Efs, action))
             {
                 RequireRecoveryKey(action, ct);
