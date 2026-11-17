@@ -9,6 +9,9 @@ using FileCat.Core.State;
 using FileCat.Core.Analysis;
 using FileCat.Core.Archives;
 
+if (args is ["--analysis-memory-counter-control"])
+    return AnalysisPhysicalMemoryNative.Control();
+
 if (args is ["--analysis-quota-hold", var quotaProfile, var quotaBytes, var quotaSession])
     return AnalysisQuotaHold.Run(quotaProfile, quotaBytes, quotaSession);
 if (args is ["--analysis-file-quota-hold", var fileQuotaProfile, var fileQuotaBytes, var fileQuotaSession, var fileQuotaParent])

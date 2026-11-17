@@ -1,0 +1,32 @@
+{
+  "revision": "r1172",
+  "productQualification": "source-manifest-r1170-main-sync-input-capacity.json",
+  "qualifiedCoreSha256": "88348be62e0deea11bfcb15eb76a534f22991647c5d62b5b758c7e82d246f9a9",
+  "qualifiedCoreReference": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\batch-r1170-mac\\tests\\FileCat.Core.Tests\\bin\\Debug\\net10.0\\FileCat.Core.dll",
+  "sources": [
+    {
+      "path": "tests/FileCat.CoreCrashHarness/CsvReportScale.cs",
+      "sha256": "eb03acf1608dc5fee55fdbbf3ffa6d2ef403d2c899600f091a7966dc74936145"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/AnalysisPhysicalMemory.cs",
+      "sha256": "8f90a9a16ee06d643c1d3e7f5ace182c49984524067b421086cc5d753de4fb2a"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "08c0f415dace275a28d037bedaa8b206d128c047dca2d5cf021abb72cc5ea4c3"
+    },
+    {
+      "path": ".tmp/csv-physical-pinned-r1172/Directory.cs",
+      "sha256": "16e1ec1a899275d10c86acbbbd7ac96c0086825440524f8f5f8a4eb77cc41c10"
+    },
+    {
+      "path": ".tmp/csv-physical-pinned-r1172/Program.cs",
+      "sha256": "23c3e4d0d24be9491d77d9f8e6c174f78abcddd2662db0ab4efe450371afd45e"
+    },
+    {
+      "path": ".tmp/csv-physical-pinned-r1172/PinnedPhysicalCsv.csproj",
+      "sha256": "773d844a9d86079635f4a32529b7938ae4a6453291ac69e586e6469e4d4a533d"
+    }
+  ]
+}

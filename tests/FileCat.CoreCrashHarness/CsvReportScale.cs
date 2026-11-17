@@ -20,12 +20,14 @@ internal static class CsvReportScale
         using var process = Process.GetCurrentProcess(); using var stop = new CancellationTokenSource();
         GC.Collect(); process.Refresh(); long baselinePrivate = process.PrivateMemorySize64, baselineWorking = process.WorkingSet64;
         long peakPrivate = baselinePrivate, peakWorking = baselineWorking, peakScratch = 0;
+        var physical = new AnalysisPhysicalMemory();
         var sampling = Task.Run(async () =>
         {
             while (!stop.IsCancellationRequested)
             {
                 process.Refresh(); peakPrivate = Math.Max(peakPrivate, process.PrivateMemorySize64); peakWorking = Math.Max(peakWorking, process.WorkingSet64);
                 peakScratch = Math.Max(peakScratch, workspace.ReservedBytes);
+                physical.Observe();
                 try { await Task.Delay(50, stop.Token); } catch (OperationCanceledException) { break; }
             }
         });
@@ -93,7 +95,7 @@ internal static class CsvReportScale
                 });
             }
             await lease.DisposeAsync(); lease = null; await dataset.DisposeAsync(); dataset = null;
-            stop.Cancel(); await sampling;
+            stop.Cancel(); await sampling; physical.Observe();
             bool clean = workspace.ReservedBytes == 0 && AnalysisScratchBudget.Shared.ReservedBytes == 0 &&
                 !Directory.Exists(inert) && File.ReadAllText(Path.Combine(output, "neighbor.txt")) == "preserve" && Directory.GetFiles(output).Length == 1;
             bool privateAvailable = baselinePrivate > 0, bounded = peakPrivate - baselinePrivate <= 512L * 1024 * 1024;
@@ -103,6 +105,7 @@ internal static class CsvReportScale
                 records = count, shape, directories, observedSourceWasNeverCreated = !Directory.Exists(inert), writeSeconds, sealSeconds, reports = results,
                 sampledPeakSessionScratchBytes = peakScratch, sampledIntervalMilliseconds = 50, baselinePrivateBytes = privateAvailable ? (long?)baselinePrivate : null,
                 sampledPeakPrivateIncrement = privateAvailable ? (long?)(peakPrivate - baselinePrivate) : null, privateMemoryBudgetVerified = privateAvailable && bounded,
+                nativePhysicalMemory = physical.Describe(),
                 privateMemoryBasis = privateAvailable ? ".NET process private bytes; sampled, not an absolute peak" : "Unavailable; working-set samples are not private bytes",
                 sampledPeakWorkingSetIncrement = peakWorking - baselineWorking, ownedArtifactsRemoved = clean, foreignNeighborPreserved = clean,
                 remainingQuotaBytes = workspace.ReservedBytes, remainingProfileQuotaBytes = AnalysisScratchBudget.Shared.ReservedBytes, passed = clean && (!privateAvailable || bounded)
@@ -117,7 +120,7 @@ internal static class CsvReportScale
             var first = await lease.ReadPathAsync(1); var last = await lease.ReadPathAsync((ulong)count);
             bool retained = lease.Descriptor.Paths == (ulong)count && first.Id == 1 && last.Id == (ulong)count && workspace.ReservedBytes == retainedSourceScratch;
             await lease.DisposeAsync(); lease = null; await dataset!.DisposeAsync(); dataset = null;
-            stop.Cancel(); await sampling;
+            stop.Cancel(); await sampling; physical.Observe();
             bool clean = workspace.ReservedBytes == 0 && AnalysisScratchBudget.Shared.ReservedBytes == 0 && !Directory.Exists(inert) &&
                 Directory.GetFiles(output).Length == 1 && File.ReadAllText(Path.Combine(output, "neighbor.txt")) == "preserve";
             bool privateAvailable = baselinePrivate > 0, bounded = peakPrivate - baselinePrivate <= 512L * 1024 * 1024;
@@ -130,6 +133,7 @@ internal static class CsvReportScale
                 observedSourceWasNeverCreated = !Directory.Exists(inert), ownedArtifactsRemoved = clean, foreignNeighborPreserved = clean,
                 baselinePrivateBytes = privateAvailable ? (long?)baselinePrivate : null, sampledPeakPrivateIncrement = privateAvailable ? (long?)(peakPrivate - baselinePrivate) : null,
                 privateMemoryBudgetVerified = privateAvailable && bounded, sampledPeakWorkingSetIncrement = peakWorking - baselineWorking,
+                nativePhysicalMemory = physical.Describe(),
                 remainingQuotaBytes = workspace.ReservedBytes, remainingProfileQuotaBytes = AnalysisScratchBudget.Shared.ReservedBytes,
                 passed = retained && clean && (!privateAvailable || bounded)
             }));

@@ -1,0 +1,1583 @@
+{
+  "revision": "r1173",
+  "observedUtc": "2026-11-17T08:41:44.285701+00:00",
+  "productQualification": "source-manifest-r1170-main-sync-input-capacity.json",
+  "productRebuilt": false,
+  "qualifiedCoreSha256": "88348be62e0deea11bfcb15eb76a534f22991647c5d62b5b758c7e82d246f9a9",
+  "sources": [
+    {
+      "path": "tests/FileCat.CoreCrashHarness/CsvReportScale.cs",
+      "sha256": "eb03acf1608dc5fee55fdbbf3ffa6d2ef403d2c899600f091a7966dc74936145"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/AnalysisPhysicalMemory.cs",
+      "sha256": "d8c33797891b870ee7db3de0c897bd3fe9c07ed803713ba18c23673baaa542c4"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "08c0f415dace275a28d037bedaa8b206d128c047dca2d5cf021abb72cc5ea4c3"
+    },
+    {
+      "path": ".tmp/csv-physical-pinned-r1172/Directory.cs",
+      "sha256": "16e1ec1a899275d10c86acbbbd7ac96c0086825440524f8f5f8a4eb77cc41c10"
+    },
+    {
+      "path": ".tmp/csv-physical-pinned-r1172/Program.cs",
+      "sha256": "23c3e4d0d24be9491d77d9f8e6c174f78abcddd2662db0ab4efe450371afd45e"
+    },
+    {
+      "path": ".tmp/csv-physical-pinned-r1172/PinnedPhysicalCsv.csproj",
+      "sha256": "773d844a9d86079635f4a32529b7938ae4a6453291ac69e586e6469e4d4a533d"
+    },
+    {
+      "path": ".tmp/csv-physical-pinned-r1172/packages.lock.json",
+      "sha256": "5911aedf0aebb407abf519f7da0b58a9e2bb1214600775d5af4f6ac923f999c6"
+    },
+    {
+      "path": ".tmp/mac-footprint-counter-control-r1171b.json",
+      "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c"
+    },
+    {
+      "path": ".tmp/mac-footprint-counter-control-r1171.c",
+      "sha256": "ce4e7aba464424b72f4554daecdef0e917d1d90f54450abe5f25819b471c9167"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-csv-physical-r1172.py",
+      "sha256": "26c0f705e04d2ebe0e6630e7027441af891ce5683db1723809bb0ce13ecacd85"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/csv-physical-windows-template-r1172.ps1",
+      "sha256": "383297dd5c5f413c4b2953082fa16a4f53c5239da50cd1406c03d08751677019"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/csv-physical-unix-template-r1172.sh",
+      "sha256": "d5b917528afc55f44d17653f519a9cd8466ee3202bf138d46d884de65cd63e6a"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/validate-csv-physical-r1172.py",
+      "sha256": "cb331ebe61f6f61fed5dd07d4511384e3dd20819f19d53eb1c7ea6166c49b633"
+    }
+  ],
+  "inputs": {
+    "windows": [
+      {
+        "path": "BouncyCastle.Cryptography.dll",
+        "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+        "bytes": 5155728
+      },
+      {
+        "path": "FileCat.Core.dll",
+        "sha256": "88348be62e0deea11bfcb15eb76a534f22991647c5d62b5b758c7e82d246f9a9",
+        "bytes": 5806080
+      },
+      {
+        "path": "FileCat.Core.pdb",
+        "sha256": "72e6644a4644e866103ef0e650a1a62f603dbef0ec4ced2cc26666642d3e645b",
+        "bytes": 1761760
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.deps.json",
+        "sha256": "94460f148c10eea1b62e6bc9be43a74efaf69c3ea673b81a941886098b9192c0",
+        "bytes": 1239
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.dll",
+        "sha256": "d09082236261eb304295b936ffff87e15399d55fac2df58d739a1bf0be09b1ef",
+        "bytes": 71680
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.exe",
+        "sha256": "2dd1b4406e5ce53f09cba4f2f4b0e8e0f0f5d1b1416d5a7c34e4bf4c3a5cf091",
+        "bytes": 162816
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.pdb",
+        "sha256": "ddd9cc49285749df72d72056583000f12b8200b680a1c6ff48e25818f0180027",
+        "bytes": 21232
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.runtimeconfig.json",
+        "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+        "bytes": 270
+      },
+      {
+        "path": "FileCat.Platform.Windows.dll",
+        "sha256": "c12ff2cd93584ffa4e0305d24309acdffa3c5d10b24ed5ff2615dfc3271815d0",
+        "bytes": 966656
+      },
+      {
+        "path": "FileCat.Recovery.dll",
+        "sha256": "7dfde5454212f331c524d04cb895edc4e61997ab45b97ee6e952c05f0d8422ad",
+        "bytes": 242688
+      },
+      {
+        "path": "invalid-counter-layout.json",
+        "sha256": "797fa807ae3603f47c14c96a01ff96fe47249d0ec48c9daa7ac844060e07b812",
+        "bytes": 283
+      },
+      {
+        "path": "Microsoft.Web.WebView2.Core.dll",
+        "sha256": "4a4efdf712ceea4050eb2252ec2a9136cdcf32b9bfbb3ad58d79396f36e9665d",
+        "bytes": 629872
+      },
+      {
+        "path": "native-counter-layout.json",
+        "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+        "bytes": 264
+      },
+      {
+        "path": "System.Management.dll",
+        "sha256": "7515a62492cb215cc7a5a7d7d8351148c2b540102de0925de6eece5b2322941b",
+        "bytes": 74552
+      },
+      {
+        "path": "validate.py",
+        "sha256": "cb331ebe61f6f61fed5dd07d4511384e3dd20819f19d53eb1c7ea6166c49b633",
+        "bytes": 1881
+      }
+    ],
+    "mac": [
+      {
+        "path": "BouncyCastle.Cryptography.dll",
+        "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5"
+      },
+      {
+        "path": "FileCat.Core.dll",
+        "sha256": "88348be62e0deea11bfcb15eb76a534f22991647c5d62b5b758c7e82d246f9a9"
+      },
+      {
+        "path": "FileCat.Core.pdb",
+        "sha256": "72e6644a4644e866103ef0e650a1a62f603dbef0ec4ced2cc26666642d3e645b"
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.deps.json",
+        "sha256": "94460f148c10eea1b62e6bc9be43a74efaf69c3ea673b81a941886098b9192c0"
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.dll",
+        "sha256": "f9007917798c2628e90d999d3a1ed33b4348ab96eae4339e70a57d30d4d1eb55"
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.exe",
+        "sha256": "2dd1b4406e5ce53f09cba4f2f4b0e8e0f0f5d1b1416d5a7c34e4bf4c3a5cf091"
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.pdb",
+        "sha256": "6ca7f559de79d7cde9c98b0564f3e7590f5852c0f07687a96f6c9ba562506f14"
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.runtimeconfig.json",
+        "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414"
+      },
+      {
+        "path": "invalid-counter-layout.json",
+        "sha256": "797fa807ae3603f47c14c96a01ff96fe47249d0ec48c9daa7ac844060e07b812"
+      },
+      {
+        "path": "native-counter-layout.json",
+        "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c"
+      },
+      {
+        "path": "validate.py",
+        "sha256": "3448df5437fbe183ff7bf249f84cca779417a595fb21b4ff71761046b5fca9b0"
+      }
+    ],
+    "ubuntu": [
+      {
+        "path": "BouncyCastle.Cryptography.dll",
+        "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+        "bytes": 5155728
+      },
+      {
+        "path": "FileCat.Core.dll",
+        "sha256": "88348be62e0deea11bfcb15eb76a534f22991647c5d62b5b758c7e82d246f9a9",
+        "bytes": 5806080
+      },
+      {
+        "path": "FileCat.Core.pdb",
+        "sha256": "72e6644a4644e866103ef0e650a1a62f603dbef0ec4ced2cc26666642d3e645b",
+        "bytes": 1761760
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.deps.json",
+        "sha256": "94460f148c10eea1b62e6bc9be43a74efaf69c3ea673b81a941886098b9192c0",
+        "bytes": 1239
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.dll",
+        "sha256": "d09082236261eb304295b936ffff87e15399d55fac2df58d739a1bf0be09b1ef",
+        "bytes": 71680
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.exe",
+        "sha256": "2dd1b4406e5ce53f09cba4f2f4b0e8e0f0f5d1b1416d5a7c34e4bf4c3a5cf091",
+        "bytes": 162816
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.pdb",
+        "sha256": "ddd9cc49285749df72d72056583000f12b8200b680a1c6ff48e25818f0180027",
+        "bytes": 21232
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.runtimeconfig.json",
+        "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+        "bytes": 270
+      },
+      {
+        "path": "invalid-counter-layout.json",
+        "sha256": "797fa807ae3603f47c14c96a01ff96fe47249d0ec48c9daa7ac844060e07b812",
+        "bytes": 283
+      },
+      {
+        "path": "native-counter-layout.json",
+        "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+        "bytes": 264
+      },
+      {
+        "path": "validate.py",
+        "sha256": "cb331ebe61f6f61fed5dd07d4511384e3dd20819f19d53eb1c7ea6166c49b633",
+        "bytes": 1881
+      }
+    ]
+  },
+  "matrix": {
+    "windows/counter": {
+      "purpose": "64 MiB private OS mapping touch/release counter control; no disk-space workload qualification",
+      "counter": ".NET process private bytes",
+      "nativeLayoutControlSha256": null,
+      "before": 7229440,
+      "touched": 73764864,
+      "released": 6524928,
+      "touchedBytes": 67108864,
+      "kernelLifetimePeakBytes": null,
+      "allocationAttempted": true,
+      "nativeReads": 0,
+      "reason": null,
+      "passed": true
+    },
+    "windows/small-wide": {
+      "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+      "records": 1000,
+      "shape": "wide",
+      "directories": 1,
+      "observedSourceWasNeverCreated": true,
+      "writeSeconds": 0.0340635,
+      "sealSeconds": 0.1406311,
+      "reports": [
+        {
+          "redact": true,
+          "captureSeconds": 0.2071346,
+          "exportSeconds": 0.0924073,
+          "bytes": 241405,
+          "lines": 1002,
+          "sha256": "107460573503019ceca1fd7a1e3178f8cf4232e6f1450ffbe9ad98b7611718b9",
+          "verifiedEveryDeclaredRow": true
+        },
+        {
+          "redact": false,
+          "captureSeconds": 0.1624818,
+          "exportSeconds": 0.0637939,
+          "bytes": 326575,
+          "lines": 1002,
+          "sha256": "75fe90e54acc0b000c05f3536b68595252d1e78de7572ed05204bf1e3b8b6bb4",
+          "verifiedEveryDeclaredRow": true
+        }
+      ],
+      "sampledPeakSessionScratchBytes": 808444,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": 11972608,
+      "sampledPeakPrivateIncrement": 26423296,
+      "privateMemoryBudgetVerified": true,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+      "sampledPeakWorkingSetIncrement": 31625216,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "windows/small-deep": {
+      "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+      "records": 1000,
+      "shape": "deep",
+      "directories": 64,
+      "observedSourceWasNeverCreated": true,
+      "writeSeconds": 0.0357553,
+      "sealSeconds": 0.1427788,
+      "reports": [
+        {
+          "redact": true,
+          "captureSeconds": 0.1916625,
+          "exportSeconds": 0.090786,
+          "bytes": 242224,
+          "lines": 1002,
+          "sha256": "675d65dec04f461bb891964f0f27543b2e61a665c2b78d56ccf0e48994739d8e",
+          "verifiedEveryDeclaredRow": true
+        },
+        {
+          "redact": false,
+          "captureSeconds": 0.1744154,
+          "exportSeconds": 0.0999463,
+          "bytes": 936604,
+          "lines": 1002,
+          "sha256": "cc58bf75807a01ec08b876e55cacf16e9e36da8b2b870b84bd1177fd95da630f",
+          "verifiedEveryDeclaredRow": true
+        }
+      ],
+      "sampledPeakSessionScratchBytes": 798301,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": 11804672,
+      "sampledPeakPrivateIncrement": 37883904,
+      "privateMemoryBudgetVerified": true,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+      "sampledPeakWorkingSetIncrement": 43560960,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "windows/wide": {
+      "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+      "records": 1000000,
+      "shape": "wide",
+      "directories": 1,
+      "observedSourceWasNeverCreated": true,
+      "writeSeconds": 7.1740865,
+      "sealSeconds": 53.356191,
+      "reports": [
+        {
+          "redact": true,
+          "captureSeconds": 153.1162963,
+          "exportSeconds": 68.0208877,
+          "bytes": 245890429,
+          "lines": 1000002,
+          "sha256": "39bc3391ffc2200bfffd662d89b29dc8f6fcf117d3ada8f916e0d73368294c12",
+          "verifiedEveryDeclaredRow": true
+        },
+        {
+          "redact": false,
+          "captureSeconds": 158.4759538,
+          "exportSeconds": 60.1688321,
+          "bytes": 322004524,
+          "lines": 1000002,
+          "sha256": "8f2e781d9ec57f222f30e8b98982613e09a94d044ff5fef0344a5450e0686861",
+          "verifiedEveryDeclaredRow": true
+        }
+      ],
+      "sampledPeakSessionScratchBytes": 858825253,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": 11800576,
+      "sampledPeakPrivateIncrement": 159129600,
+      "privateMemoryBudgetVerified": true,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+      "sampledPeakWorkingSetIncrement": 165761024,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "windows/deep": {
+      "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+      "records": 1000000,
+      "shape": "deep",
+      "directories": 64,
+      "observedSourceWasNeverCreated": true,
+      "writeSeconds": 7.0934637,
+      "sealSeconds": 52.8442835,
+      "reports": [
+        {
+          "redact": true,
+          "captureSeconds": 150.2880035,
+          "exportSeconds": 57.2058796,
+          "bytes": 245891815,
+          "lines": 1000002,
+          "sha256": "fc445c9cef2aeb587fa0a16685f270465507d679c1accbcc6d09de714f1176fe",
+          "verifiedEveryDeclaredRow": true
+        },
+        {
+          "redact": false,
+          "captureSeconds": 152.284631,
+          "exportSeconds": 89.4179954,
+          "bytes": 951985120,
+          "lines": 1000002,
+          "sha256": "7651d4b8d2d629ee5aab74f2ddac132c2f8cd623e2bb700745cf66f078577d7e",
+          "verifiedEveryDeclaredRow": true
+        }
+      ],
+      "sampledPeakSessionScratchBytes": 859060516,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": 12152832,
+      "sampledPeakPrivateIncrement": 149618688,
+      "privateMemoryBudgetVerified": true,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+      "sampledPeakWorkingSetIncrement": 143618048,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "windows/huge-wide": {
+      "purpose": "Measured 10M report-capture scratch refusal with retained source and native cleanup; full 10M CSV export is not qualified",
+      "records": 10000000,
+      "shape": "wide",
+      "directories": 1,
+      "limitRefusal": true,
+      "fullCsvExportQualified": false,
+      "retainedSourceUnchanged": true,
+      "sourcePaths": 10000000,
+      "firstSourcePath": 1,
+      "lastSourcePath": 10000000,
+      "retainedSourceScratchBytes": 2919346903,
+      "sampledPeakSessionScratchBytes": 4294911159,
+      "scratchLimitBytes": 4294967296,
+      "destinationWasNeverOpened": true,
+      "observedSourceWasNeverCreated": true,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "baselinePrivateBytes": 12009472,
+      "sampledPeakPrivateIncrement": 127492096,
+      "privateMemoryBudgetVerified": true,
+      "sampledPeakWorkingSetIncrement": 107253760,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "windows/huge-deep": {
+      "purpose": "Measured 10M report-capture scratch refusal with retained source and native cleanup; full 10M CSV export is not qualified",
+      "records": 10000000,
+      "shape": "deep",
+      "directories": 64,
+      "limitRefusal": true,
+      "fullCsvExportQualified": false,
+      "retainedSourceUnchanged": true,
+      "sourcePaths": 10000000,
+      "firstSourcePath": 1,
+      "lastSourcePath": 10000000,
+      "retainedSourceScratchBytes": 2919338020,
+      "sampledPeakSessionScratchBytes": 4294902276,
+      "scratchLimitBytes": 4294967296,
+      "destinationWasNeverOpened": true,
+      "observedSourceWasNeverCreated": true,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "baselinePrivateBytes": 11739136,
+      "sampledPeakPrivateIncrement": 122916864,
+      "privateMemoryBudgetVerified": true,
+      "sampledPeakWorkingSetIncrement": 108236800,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "mac/negative-layout": {
+      "purpose": "native memory counter control",
+      "passed": false,
+      "reason": "The compiled native layout/control does not agree with this binding.",
+      "allocationAttempted": false,
+      "nativeReads": 0
+    },
+    "mac/counter": {
+      "purpose": "64 MiB private OS mapping touch/release counter control; no disk-space workload qualification",
+      "counter": "Native physical footprint; independently compiled C layout checked",
+      "nativeLayoutControlSha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+      "before": 26952448,
+      "touched": 94618416,
+      "released": 27493120,
+      "touchedBytes": 67108864,
+      "kernelLifetimePeakBytes": 94618416,
+      "allocationAttempted": true,
+      "nativeReads": 4,
+      "reason": null,
+      "passed": true,
+      "nonAtomicAccountingControlPassed": true
+    },
+    "mac/small-wide": {
+      "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+      "records": 1000,
+      "shape": "wide",
+      "directories": 1,
+      "observedSourceWasNeverCreated": true,
+      "writeSeconds": 0.0112034,
+      "sealSeconds": 0.0586015,
+      "reports": [
+        {
+          "redact": true,
+          "captureSeconds": 0.0815301,
+          "exportSeconds": 0.0611933,
+          "bytes": 240403,
+          "lines": 1002,
+          "sha256": "aab13eac0e44aad31103d0abc07f688b64a5345e378ac46e43d14de2be767fad",
+          "verifiedEveryDeclaredRow": true
+        },
+        {
+          "redact": false,
+          "captureSeconds": 0.0661812,
+          "exportSeconds": 0.044619,
+          "bytes": 345573,
+          "lines": 1002,
+          "sha256": "0f956bed05f95435a3e08c9a61cd4aa55d5667722137d35c50e28de876583347",
+          "verifiedEveryDeclaredRow": true
+        }
+      ],
+      "sampledPeakSessionScratchBytes": 790444,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": null,
+      "sampledPeakPrivateIncrement": null,
+      "privateMemoryBudgetVerified": false,
+      "nativePhysicalMemory": {
+        "available": true,
+        "complete": true,
+        "basis": "Maximum of macOS proc_pid_rusage current footprint samples and kernel lifetime peaks, which are gathered separately; distinct from committed private bytes",
+        "nativeLayoutControlSha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+        "baselineBytes": 34898760,
+        "baselineLifetimePeakBytes": 34898760,
+        "lifetimePeakBytes": 51020640,
+        "lifetimePeakIncrementBytes": 16121880,
+        "sampledPeakCurrentBytes": 51020640,
+        "observedPeakBytes": 51020640,
+        "observedPeakIncrementBytes": 16121880,
+        "nonAtomicCounterPairs": 0,
+        "maximumCurrentAboveEarlierPeakBytes": 0,
+        "withinPhysicalReferenceCeiling": true,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": null
+      },
+      "privateMemoryBasis": "Unavailable; working-set samples are not private bytes",
+      "sampledPeakWorkingSetIncrement": 21479424,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1173"
+    },
+    "mac/small-deep": {
+      "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+      "records": 1000,
+      "shape": "deep",
+      "directories": 64,
+      "observedSourceWasNeverCreated": true,
+      "writeSeconds": 0.0110863,
+      "sealSeconds": 0.0580845,
+      "reports": [
+        {
+          "redact": true,
+          "captureSeconds": 0.0808108,
+          "exportSeconds": 0.0580045,
+          "bytes": 241222,
+          "lines": 1002,
+          "sha256": "6f3d05b056551287615d714255e8cc22adafc9c07136e36f3845ae7bae76ec61",
+          "verifiedEveryDeclaredRow": true
+        },
+        {
+          "redact": false,
+          "captureSeconds": 0.0653177,
+          "exportSeconds": 0.0629368,
+          "bytes": 955602,
+          "lines": 1002,
+          "sha256": "06454eaf838f8f3f633e52ec3dc97e4bb61f2221036d67a86ad6a4b71ba58b0b",
+          "verifiedEveryDeclaredRow": true
+        }
+      ],
+      "sampledPeakSessionScratchBytes": 780301,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": null,
+      "sampledPeakPrivateIncrement": null,
+      "privateMemoryBudgetVerified": false,
+      "nativePhysicalMemory": {
+        "available": true,
+        "complete": true,
+        "basis": "Maximum of macOS proc_pid_rusage current footprint samples and kernel lifetime peaks, which are gathered separately; distinct from committed private bytes",
+        "nativeLayoutControlSha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+        "baselineBytes": 34800432,
+        "baselineLifetimePeakBytes": 34800432,
+        "lifetimePeakBytes": 51266376,
+        "lifetimePeakIncrementBytes": 16465944,
+        "sampledPeakCurrentBytes": 51266376,
+        "observedPeakBytes": 51266376,
+        "observedPeakIncrementBytes": 16465944,
+        "nonAtomicCounterPairs": 0,
+        "maximumCurrentAboveEarlierPeakBytes": 0,
+        "withinPhysicalReferenceCeiling": true,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": null
+      },
+      "privateMemoryBasis": "Unavailable; working-set samples are not private bytes",
+      "sampledPeakWorkingSetIncrement": 21807104,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1173"
+    },
+    "mac/wide": {
+      "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+      "records": 1000000,
+      "shape": "wide",
+      "directories": 1,
+      "observedSourceWasNeverCreated": true,
+      "writeSeconds": 3.2120619,
+      "sealSeconds": 26.4075138,
+      "reports": [
+        {
+          "redact": true,
+          "captureSeconds": 69.4497868,
+          "exportSeconds": 33.0542707,
+          "bytes": 244890427,
+          "lines": 1000002,
+          "sha256": "176a8a152339d805e42c969a104127e295d440d6eed9e56e1a1718db968d1220",
+          "verifiedEveryDeclaredRow": true
+        },
+        {
+          "redact": false,
+          "captureSeconds": 69.7633786,
+          "exportSeconds": 35.581554,
+          "bytes": 341004522,
+          "lines": 1000002,
+          "sha256": "a027463151f8cee711c6cc2ed2e7266ec8d480a6149cc23e817f588e9df755ad",
+          "verifiedEveryDeclaredRow": true
+        }
+      ],
+      "sampledPeakSessionScratchBytes": 840321318,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": null,
+      "sampledPeakPrivateIncrement": null,
+      "privateMemoryBudgetVerified": false,
+      "nativePhysicalMemory": {
+        "available": true,
+        "complete": true,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+        "baselineBytes": 34833200,
+        "baselineLifetimePeakBytes": 34833200,
+        "lifetimePeakBytes": 132268920,
+        "lifetimePeakIncrementBytes": 97435720,
+        "withinPhysicalReferenceCeiling": true,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": null
+      },
+      "privateMemoryBasis": "Unavailable; working-set samples are not private bytes",
+      "sampledPeakWorkingSetIncrement": 103415808,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "mac/deep": {
+      "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+      "records": 1000000,
+      "shape": "deep",
+      "directories": 64,
+      "observedSourceWasNeverCreated": true,
+      "writeSeconds": 3.2745866,
+      "sealSeconds": 26.6216976,
+      "reports": [
+        {
+          "redact": true,
+          "captureSeconds": 69.6024118,
+          "exportSeconds": 39.1747015,
+          "bytes": 244891813,
+          "lines": 1000002,
+          "sha256": "c3d01ae1e08de5c19756ecdc6990978b2b6fe146a911ac5fe5ed3d535aa4e74c",
+          "verifiedEveryDeclaredRow": true
+        },
+        {
+          "redact": false,
+          "captureSeconds": 72.3379745,
+          "exportSeconds": 49.9484661,
+          "bytes": 970985118,
+          "lines": 1000002,
+          "sha256": "d4c8d3865e1dc4e716a52853a8a994f040e229ab5598686bbbc232a8ab9e950b",
+          "verifiedEveryDeclaredRow": true
+        }
+      ],
+      "sampledPeakSessionScratchBytes": 840928076,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": null,
+      "sampledPeakPrivateIncrement": null,
+      "privateMemoryBudgetVerified": false,
+      "nativePhysicalMemory": {
+        "available": true,
+        "complete": true,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+        "baselineBytes": 34898784,
+        "baselineLifetimePeakBytes": 34898784,
+        "lifetimePeakBytes": 134857664,
+        "lifetimePeakIncrementBytes": 99958880,
+        "withinPhysicalReferenceCeiling": true,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": null
+      },
+      "privateMemoryBasis": "Unavailable; working-set samples are not private bytes",
+      "sampledPeakWorkingSetIncrement": 102973440,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "mac/huge-wide": {
+      "purpose": "Measured 10M report-capture scratch refusal with retained source and native cleanup; full 10M CSV export is not qualified",
+      "records": 10000000,
+      "shape": "wide",
+      "directories": 1,
+      "limitRefusal": true,
+      "fullCsvExportQualified": false,
+      "retainedSourceUnchanged": true,
+      "sourcePaths": 10000000,
+      "firstSourcePath": 1,
+      "lastSourcePath": 10000000,
+      "retainedSourceScratchBytes": 2739327373,
+      "sampledPeakSessionScratchBytes": 4294680909,
+      "scratchLimitBytes": 4294967296,
+      "destinationWasNeverOpened": true,
+      "observedSourceWasNeverCreated": true,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "baselinePrivateBytes": null,
+      "sampledPeakPrivateIncrement": null,
+      "privateMemoryBudgetVerified": false,
+      "sampledPeakWorkingSetIncrement": 82821120,
+      "nativePhysicalMemory": {
+        "available": true,
+        "complete": true,
+        "basis": "Maximum of macOS proc_pid_rusage current footprint samples and kernel lifetime peaks, which are gathered separately; distinct from committed private bytes",
+        "nativeLayoutControlSha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+        "baselineBytes": 34898760,
+        "baselineLifetimePeakBytes": 34898760,
+        "lifetimePeakBytes": 112214904,
+        "lifetimePeakIncrementBytes": 77316144,
+        "sampledPeakCurrentBytes": 112165752,
+        "observedPeakBytes": 112214904,
+        "observedPeakIncrementBytes": 77316144,
+        "nonAtomicCounterPairs": 0,
+        "maximumCurrentAboveEarlierPeakBytes": 0,
+        "withinPhysicalReferenceCeiling": true,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": null
+      },
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1173"
+    },
+    "mac/huge-deep": {
+      "purpose": "Measured 10M report-capture scratch refusal with retained source and native cleanup; full 10M CSV export is not qualified",
+      "records": 10000000,
+      "shape": "deep",
+      "directories": 64,
+      "limitRefusal": true,
+      "fullCsvExportQualified": false,
+      "retainedSourceUnchanged": true,
+      "sourcePaths": 10000000,
+      "firstSourcePath": 1,
+      "lastSourcePath": 10000000,
+      "retainedSourceScratchBytes": 2739318490,
+      "sampledPeakSessionScratchBytes": 4294672026,
+      "scratchLimitBytes": 4294967296,
+      "destinationWasNeverOpened": true,
+      "observedSourceWasNeverCreated": true,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "baselinePrivateBytes": null,
+      "sampledPeakPrivateIncrement": null,
+      "privateMemoryBudgetVerified": false,
+      "sampledPeakWorkingSetIncrement": 82788352,
+      "nativePhysicalMemory": {
+        "available": true,
+        "complete": true,
+        "basis": "Maximum of macOS proc_pid_rusage current footprint samples and kernel lifetime peaks, which are gathered separately; distinct from committed private bytes",
+        "nativeLayoutControlSha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c",
+        "baselineBytes": 34898736,
+        "baselineLifetimePeakBytes": 34898736,
+        "lifetimePeakBytes": 112214904,
+        "lifetimePeakIncrementBytes": 77316168,
+        "sampledPeakCurrentBytes": 112149368,
+        "observedPeakBytes": 112214904,
+        "observedPeakIncrementBytes": 77316168,
+        "nonAtomicCounterPairs": 0,
+        "maximumCurrentAboveEarlierPeakBytes": 0,
+        "withinPhysicalReferenceCeiling": true,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": null
+      },
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1173"
+    },
+    "ubuntu/counter": {
+      "purpose": "64 MiB private OS mapping touch/release counter control; no disk-space workload qualification",
+      "counter": ".NET process private bytes",
+      "nativeLayoutControlSha256": null,
+      "before": 59359232,
+      "touched": 126697472,
+      "released": 59588608,
+      "touchedBytes": 67108864,
+      "kernelLifetimePeakBytes": null,
+      "allocationAttempted": true,
+      "nativeReads": 0,
+      "reason": null,
+      "passed": true
+    },
+    "ubuntu/small-wide": {
+      "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+      "records": 1000,
+      "shape": "wide",
+      "directories": 1,
+      "observedSourceWasNeverCreated": true,
+      "writeSeconds": 0.0228569,
+      "sealSeconds": 0.1092751,
+      "reports": [
+        {
+          "redact": true,
+          "captureSeconds": 0.1415834,
+          "exportSeconds": 0.0676524,
+          "bytes": 240403,
+          "lines": 1002,
+          "sha256": "a26f63001c6b6221f94853848f4cbd8a8bc75292130cbcfd43745f82ca716c49",
+          "verifiedEveryDeclaredRow": true
+        },
+        {
+          "redact": false,
+          "captureSeconds": 0.1137982,
+          "exportSeconds": 0.0466549,
+          "bytes": 344573,
+          "lines": 1002,
+          "sha256": "16dcf1cc0cd426054ca62e00efc04d583deb54bfcd7aecae816f71d307e0c177",
+          "verifiedEveryDeclaredRow": true
+        }
+      ],
+      "sampledPeakSessionScratchBytes": 790444,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": 97996800,
+      "sampledPeakPrivateIncrement": 62443520,
+      "privateMemoryBudgetVerified": true,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+      "sampledPeakWorkingSetIncrement": 43986944,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "ubuntu/small-deep": {
+      "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+      "records": 1000,
+      "shape": "deep",
+      "directories": 64,
+      "observedSourceWasNeverCreated": true,
+      "writeSeconds": 0.0239076,
+      "sealSeconds": 0.1110619,
+      "reports": [
+        {
+          "redact": true,
+          "captureSeconds": 0.1433934,
+          "exportSeconds": 0.0693155,
+          "bytes": 241222,
+          "lines": 1002,
+          "sha256": "a7605fea10c2c0872d9abfdef0dc78302ff1beda2599ffc8cdb8617374c712b5",
+          "verifiedEveryDeclaredRow": true
+        },
+        {
+          "redact": false,
+          "captureSeconds": 0.1199238,
+          "exportSeconds": 0.0763528,
+          "bytes": 954602,
+          "lines": 1002,
+          "sha256": "f40f5371637aa1eece62bde9eca76bdab9e481f373ac1279d3db1b65a3ab2059",
+          "verifiedEveryDeclaredRow": true
+        }
+      ],
+      "sampledPeakSessionScratchBytes": 780301,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": 98000896,
+      "sampledPeakPrivateIncrement": 61415424,
+      "privateMemoryBudgetVerified": true,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+      "sampledPeakWorkingSetIncrement": 43888640,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "ubuntu/wide": {
+      "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+      "records": 1000000,
+      "shape": "wide",
+      "directories": 1,
+      "observedSourceWasNeverCreated": true,
+      "writeSeconds": 6.4779577,
+      "sealSeconds": 49.2594048,
+      "reports": [
+        {
+          "redact": true,
+          "captureSeconds": 126.4395011,
+          "exportSeconds": 54.8775364,
+          "bytes": 244890427,
+          "lines": 1000002,
+          "sha256": "691f84c58445d77be41a009292ec30292b4ddd46edb44539898f88c111255d16",
+          "verifiedEveryDeclaredRow": true
+        },
+        {
+          "redact": false,
+          "captureSeconds": 130.4999591,
+          "exportSeconds": 62.1507161,
+          "bytes": 340004522,
+          "lines": 1000002,
+          "sha256": "d33070650b20d95620bac5c5978e79ebb1c13d313abc5620a39d1ebe735fbfe5",
+          "verifiedEveryDeclaredRow": true
+        }
+      ],
+      "sampledPeakSessionScratchBytes": 840898600,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": 97996800,
+      "sampledPeakPrivateIncrement": 196231168,
+      "privateMemoryBudgetVerified": true,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+      "sampledPeakWorkingSetIncrement": 165482496,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "ubuntu/deep": {
+      "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+      "records": 1000000,
+      "shape": "deep",
+      "directories": 64,
+      "observedSourceWasNeverCreated": true,
+      "writeSeconds": 7.0525248,
+      "sealSeconds": 51.2226813,
+      "reports": [
+        {
+          "redact": true,
+          "captureSeconds": 120.2053135,
+          "exportSeconds": 51.5019613,
+          "bytes": 244891813,
+          "lines": 1000002,
+          "sha256": "00fd8374c2e27b37e872d9f4f940fa7591892c17d43c2e1f62ef07d6872d5c44",
+          "verifiedEveryDeclaredRow": true
+        },
+        {
+          "redact": false,
+          "captureSeconds": 126.0218021,
+          "exportSeconds": 76.8059527,
+          "bytes": 969985118,
+          "lines": 1000002,
+          "sha256": "01e7869cc5b0e21d6db4ee69c7e7eed32ed00c5a029958413798e209c675d76e",
+          "verifiedEveryDeclaredRow": true
+        }
+      ],
+      "sampledPeakSessionScratchBytes": 840325697,
+      "sampledIntervalMilliseconds": 50,
+      "baselinePrivateBytes": 97996800,
+      "sampledPeakPrivateIncrement": 188325888,
+      "privateMemoryBudgetVerified": true,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+      "sampledPeakWorkingSetIncrement": 158040064,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "ubuntu/huge-wide": {
+      "purpose": "Measured 10M report-capture scratch refusal with retained source and native cleanup; full 10M CSV export is not qualified",
+      "records": 10000000,
+      "shape": "wide",
+      "directories": 1,
+      "limitRefusal": true,
+      "fullCsvExportQualified": false,
+      "retainedSourceUnchanged": true,
+      "sourcePaths": 10000000,
+      "firstSourcePath": 1,
+      "lastSourcePath": 10000000,
+      "retainedSourceScratchBytes": 2739327373,
+      "sampledPeakSessionScratchBytes": 4294945305,
+      "scratchLimitBytes": 4294967296,
+      "destinationWasNeverOpened": true,
+      "observedSourceWasNeverCreated": true,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "baselinePrivateBytes": 97996800,
+      "sampledPeakPrivateIncrement": 166318080,
+      "privateMemoryBudgetVerified": true,
+      "sampledPeakWorkingSetIncrement": 126320640,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    },
+    "ubuntu/huge-deep": {
+      "purpose": "Measured 10M report-capture scratch refusal with retained source and native cleanup; full 10M CSV export is not qualified",
+      "records": 10000000,
+      "shape": "deep",
+      "directories": 64,
+      "limitRefusal": true,
+      "fullCsvExportQualified": false,
+      "retainedSourceUnchanged": true,
+      "sourcePaths": 10000000,
+      "firstSourcePath": 1,
+      "lastSourcePath": 10000000,
+      "retainedSourceScratchBytes": 2739318490,
+      "sampledPeakSessionScratchBytes": 4294936422,
+      "scratchLimitBytes": 4294967296,
+      "destinationWasNeverOpened": true,
+      "observedSourceWasNeverCreated": true,
+      "ownedArtifactsRemoved": true,
+      "foreignNeighborPreserved": true,
+      "baselinePrivateBytes": 97996800,
+      "sampledPeakPrivateIncrement": 174059520,
+      "privateMemoryBudgetVerified": true,
+      "sampledPeakWorkingSetIncrement": 130785280,
+      "nativePhysicalMemory": {
+        "available": false,
+        "complete": false,
+        "basis": "macOS proc_pid_rusage RUSAGE_INFO_V4 physical footprint and kernel lifetime peak; distinct from committed private bytes",
+        "nativeLayoutControlSha256": null,
+        "baselineBytes": null,
+        "baselineLifetimePeakBytes": null,
+        "lifetimePeakBytes": null,
+        "lifetimePeakIncrementBytes": null,
+        "withinPhysicalReferenceCeiling": false,
+        "committedPrivateByteBudgetQualified": false,
+        "reason": "This additional physical-footprint counter is macOS-specific."
+      },
+      "remainingQuotaBytes": 0,
+      "remainingProfileQuotaBytes": 0,
+      "passed": true,
+      "qualificationSourceRevision": "r1172"
+    }
+  },
+  "postRunProcesses": {
+    "windows": {
+      "observedUtc": "2026-11-17T08:41:21.0224420Z",
+      "exitCode": 0,
+      "inventoryAccount": "filecatdsa_r2",
+      "filecatOrDotnet": []
+    },
+    "mac": {
+      "observedUtc": "2026-11-17T08:25:39.989298+00:00",
+      "exitCode": 0,
+      "filecatOrDotnet": []
+    },
+    "ubuntu": {
+      "observedUtc": "2026-11-17T08:25:39.707567+00:00",
+      "exitCode": 0,
+      "filecatOrDotnet": []
+    }
+  },
+  "nativeCounterControl": {
+    "counter": "proc_pid_rusage/RUSAGE_INFO_V4 physical footprint",
+    "structBytes": 296,
+    "footprintOffset": 72,
+    "lifetimePeakOffset": 240,
+    "pageBytes": 16384,
+    "touchedBytes": 67108864,
+    "before": 1114544,
+    "touched": 68256224,
+    "released": 1114544,
+    "lifetimePeak": 68256224,
+    "passed": true
+  },
+  "memoryMethods": {
+    "windowsLinux": "50 ms sampled .NET private-byte increment; not an absolute peak",
+    "mac": "Maximum of separate native current samples and kernel lifetime peaks minus pre-workload footprint; distinct from committed private bytes",
+    "appleReference": "https://developer.apple.com/documentation/xcode/analyzing-the-memory-usage-of-your-metal-app"
+  },
+  "qualification": {
+    "generatedCsvOnly": true,
+    "sourceTraversalQualified": false,
+    "globalMultiSessionMemoryQualified": false,
+    "committedPrivateBytesOnMacQualified": false,
+    "physicalInputA11yPackageMatrixQualified": false,
+    "publicFeatureRegistered": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
+  },
+  "originalMeasurementFailure": {
+    "revision": "r1172",
+    "state": "FINISHED exit=1 phase=huge-wide validation=failed",
+    "reason": "The native process footprint counters are inconsistent."
+  },
+  "helperOnlyCorrection": {
+    "revision": "r1173",
+    "baseline": "r1172",
+    "productRebuilt": false,
+    "qualifiedCoreSha256": "88348be62e0deea11bfcb15eb76a534f22991647c5d62b5b758c7e82d246f9a9",
+    "changedInputs": [
+      "FileCat.CoreCrashHarness.dll",
+      "FileCat.CoreCrashHarness.pdb",
+      "validate.py"
+    ],
+    "changedSourcePaths": [
+      "tests/FileCat.CoreCrashHarness/AnalysisPhysicalMemory.cs"
+    ],
+    "sources": [
+      {
+        "path": "tests/FileCat.CoreCrashHarness/CsvReportScale.cs",
+        "sha256": "eb03acf1608dc5fee55fdbbf3ffa6d2ef403d2c899600f091a7966dc74936145"
+      },
+      {
+        "path": "tests/FileCat.CoreCrashHarness/AnalysisPhysicalMemory.cs",
+        "sha256": "d8c33797891b870ee7db3de0c897bd3fe9c07ed803713ba18c23673baaa542c4"
+      },
+      {
+        "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+        "sha256": "08c0f415dace275a28d037bedaa8b206d128c047dca2d5cf021abb72cc5ea4c3"
+      },
+      {
+        "path": ".tmp/csv-physical-pinned-r1172/Directory.cs",
+        "sha256": "16e1ec1a899275d10c86acbbbd7ac96c0086825440524f8f5f8a4eb77cc41c10"
+      },
+      {
+        "path": ".tmp/csv-physical-pinned-r1172/Program.cs",
+        "sha256": "23c3e4d0d24be9491d77d9f8e6c174f78abcddd2662db0ab4efe450371afd45e"
+      },
+      {
+        "path": ".tmp/csv-physical-pinned-r1172/PinnedPhysicalCsv.csproj",
+        "sha256": "773d844a9d86079635f4a32529b7938ae4a6453291ac69e586e6469e4d4a533d"
+      },
+      {
+        "path": ".tmp/csv-physical-pinned-r1172/packages.lock.json",
+        "sha256": "5911aedf0aebb407abf519f7da0b58a9e2bb1214600775d5af4f6ac923f999c6"
+      },
+      {
+        "path": ".tmp/mac-footprint-counter-control-r1171b.json",
+        "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c"
+      },
+      {
+        "path": ".tmp/mac-footprint-counter-control-r1171.c",
+        "sha256": "ce4e7aba464424b72f4554daecdef0e917d1d90f54450abe5f25819b471c9167"
+      },
+      {
+        "path": "docs/validation/disk-space/drivers/prepare-csv-physical-r1172.py",
+        "sha256": "26c0f705e04d2ebe0e6630e7027441af891ce5683db1723809bb0ce13ecacd85"
+      },
+      {
+        "path": "docs/validation/disk-space/drivers/csv-physical-windows-template-r1172.ps1",
+        "sha256": "383297dd5c5f413c4b2953082fa16a4f53c5239da50cd1406c03d08751677019"
+      },
+      {
+        "path": "docs/validation/disk-space/drivers/csv-physical-unix-template-r1172.sh",
+        "sha256": "d5b917528afc55f44d17653f519a9cd8466ee3202bf138d46d884de65cd63e6a"
+      },
+      {
+        "path": "docs/validation/disk-space/drivers/validate-csv-physical-r1172.py",
+        "sha256": "cb331ebe61f6f61fed5dd07d4511384e3dd20819f19d53eb1c7ea6166c49b633"
+      }
+    ],
+    "inputs": [
+      {
+        "path": "BouncyCastle.Cryptography.dll",
+        "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5"
+      },
+      {
+        "path": "FileCat.Core.dll",
+        "sha256": "88348be62e0deea11bfcb15eb76a534f22991647c5d62b5b758c7e82d246f9a9"
+      },
+      {
+        "path": "FileCat.Core.pdb",
+        "sha256": "72e6644a4644e866103ef0e650a1a62f603dbef0ec4ced2cc26666642d3e645b"
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.deps.json",
+        "sha256": "94460f148c10eea1b62e6bc9be43a74efaf69c3ea673b81a941886098b9192c0"
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.dll",
+        "sha256": "f9007917798c2628e90d999d3a1ed33b4348ab96eae4339e70a57d30d4d1eb55"
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.exe",
+        "sha256": "2dd1b4406e5ce53f09cba4f2f4b0e8e0f0f5d1b1416d5a7c34e4bf4c3a5cf091"
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.pdb",
+        "sha256": "6ca7f559de79d7cde9c98b0564f3e7590f5852c0f07687a96f6c9ba562506f14"
+      },
+      {
+        "path": "FileCat.CoreCrashHarness.runtimeconfig.json",
+        "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414"
+      },
+      {
+        "path": "invalid-counter-layout.json",
+        "sha256": "797fa807ae3603f47c14c96a01ff96fe47249d0ec48c9daa7ac844060e07b812"
+      },
+      {
+        "path": "native-counter-layout.json",
+        "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c"
+      },
+      {
+        "path": "validate.py",
+        "sha256": "3448df5437fbe183ff7bf249f84cca779417a595fb21b4ff71761046b5fca9b0"
+      }
+    ],
+    "sha256": "8a19a2b5dd0495b34f53fa4f14c9a5f69d590313db81193b3f9116a87cd549ac",
+    "bytes": 5665529,
+    "runnerSha256": "1e0b033b4f557a24e66907bc7057343c5d3bc3b69822365c6934d8be62c2df08",
+    "sourceSnapshotSha256": "11eb346cf33a291eb33c9f8333a92c4764c8c1de903fe9b6ae8027e508c23c11",
+    "scopes": "Mac controls+1K preflights+10M wide/deep only; reuse passing original1M cases. Max of separate native current and kernel-peak observations with skew diagnostics; zero counters still refuse.",
+    "primarySource": "https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_resource.c#L3188"
+  },
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/csv-physical-mac-fix-r1173.json",
+      "sha256": "27973ee162c223e36a5e526f38649b3615fe0e8abb64070ced3836a63d9aa4ef"
+    },
+    {
+      "path": "docs/validation/disk-space/csv-physical-original-harness-build-r1173.txt",
+      "sha256": "b7f6d1c213dbbcfb69c4bff3e11de94804e073fa1a152c9703a15c11c4d2c150"
+    },
+    {
+      "path": "docs/validation/disk-space/csv-physical-pinned-build-r1172.txt",
+      "sha256": "10245faf24abc91050676c14ea26b2b95478a8944a7a650d9c73a711ca0e97df"
+    },
+    {
+      "path": "docs/validation/disk-space/csv-physical-pinned-build-r1173.txt",
+      "sha256": "6aeffb4404cb34733a174f2560f2bfe4f523793c945e139a87e1f0b52629bfb2"
+    },
+    {
+      "path": "docs/validation/disk-space/csv-physical-proof-r1172.json",
+      "sha256": "7f6af26c5d85fc56727f269b0ec25bce22ee45c61d2bfed15e5fbb89e10e3ca7"
+    },
+    {
+      "path": "docs/validation/disk-space/csv-physical-source-r1172.json",
+      "sha256": "4b632ae73a28a86f4cd0a8e66b91849b344db68363f6ace82dabfb60301eb9b3"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r1172-original-run.json",
+      "sha256": "b4fb80a3fd6e3e693f6bdbae79deb0031ee52b6d1876d4956370a29e59e7c205"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r1172-post.json",
+      "sha256": "0c7fd436fa3d23cc4ce72a6abd24c0b193f30fd145fc29b31c38c7d9687b712f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r1172-results.tgz",
+      "sha256": "326b9a45c1689a9b65c6271dbf6cf36a7b552cd2a2e0651742748a04066a176c"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r1173-original-run.json",
+      "sha256": "b556526d7453933f7e855c1eca6abc053bec15f2815f3acb9b610908c2fcb144"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r1173-post.json",
+      "sha256": "cb769364f1cb889af23e75128ad70be3df2973a4ea0e355728c185babf7314dd"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r1173-results.tgz",
+      "sha256": "9832acb96799a9c955557ee44bc7004d3d6991fccb9cca0b803961158926fa21"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-footprint-counter-control-r1171.c",
+      "sha256": "ce4e7aba464424b72f4554daecdef0e917d1d90f54450abe5f25819b471c9167"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-footprint-counter-control-r1171b.json",
+      "sha256": "a39f514a4ea7f84e601e3d3b70a1d4ba66708393f928481aade5e62927b3d06c"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-footprint-counter-r1171-state.json",
+      "sha256": "5d4f2f72e581e64046e00aea582b761f7343502814b893c9cef66883ba188b74"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r1171counterlaunch.json",
+      "sha256": "e7e331385652007df3cd647dea21abeb52398d0af983d3a506c8c863cc31c2d4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r1171counterpost.json",
+      "sha256": "c0d935acf5033b527f8aa736e5c57a90e3d5c3b4b254fd7dc531f1da4a07a272"
+    },
+    {
+      "path": "docs/validation/disk-space/source-r1172-csv-physical-instrumentation.tgz",
+      "sha256": "b0cce636cb8313b4d85e7072bbd2dbd194283bc314f88623e6ebf3d622b35432"
+    },
+    {
+      "path": "docs/validation/disk-space/source-r1173-csv-physical-counter-fix.tgz",
+      "sha256": "11eb346cf33a291eb33c9f8333a92c4764c8c1de903fe9b6ae8027e508c23c11"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r1172-original-run.json",
+      "sha256": "d08c315b0514701aace43809fae2c2264b135b23d2d64558035e4cb031525988"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r1172-post.json",
+      "sha256": "7a7ad36339a067355ab04316115db88779e4a3db4cdb7f65f693913cd56cdf5e"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r1172-results.tgz",
+      "sha256": "e05546fb3ed05b018773a18644f267b879cd6f8f62490c835d46b1bab848e975"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r1172-original-run.json",
+      "sha256": "aa4f86d2f83d90852f888aa9de861ec6b4640420848136d24bac2dc4bae2d815"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r1172-post.json",
+      "sha256": "72421134a1fab0999e8f02a778c6835def6c8d651c1eb174ad274f48ea174b9a"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r1172-results.tgz",
+      "sha256": "fa74b6079ad20b1816b83c12667c5762c21fa6a6188abec02d8a638bae5fe06d"
+    },
+    {
+      "path": "docs/validation/disk-space/exact-receipt-text-r1173-csv-physical.tgz",
+      "sha256": "465316b070cdd1cee3129e192185bf6a3b26998edeb44ee7e3fafa223559f171"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r1172.sh",
+      "sha256": "be817c9620cdc2a09b19f8f66bb221a814d3b32eefe6f287126e4ef3ac2d9994"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r1172.sh",
+      "sha256": "1fb9c962ec7eb48ac5b9d3ce8a61407ff7571364b5ce0c27c116d288cc893142"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r1173.sh",
+      "sha256": "1e0b033b4f557a24e66907bc7057343c5d3bc3b69822365c6934d8be62c2df08"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r1172.ps1",
+      "sha256": "e28c815e0534fbcfcbba21d05b9cf34e5c2e9d62d940960a9249dc0e21b53f4b"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-csv-physical-r1172.ps1",
+      "sha256": "fbb1951f3de7e111fea7231bbece405b0afaa71bc8deb623339b4ff78330f1d3"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/csv-physical-unix-template-r1172.sh",
+      "sha256": "d5b917528afc55f44d17653f519a9cd8466ee3202bf138d46d884de65cd63e6a"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/csv-physical-windows-template-r1172.ps1",
+      "sha256": "383297dd5c5f413c4b2953082fa16a4f53c5239da50cd1406c03d08751677019"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/finalize-csv-physical-r1173.py",
+      "sha256": "ea7fbd12f2cf9763550595d2d81b4be597c19ee7f1cd760f55e52c657fa505f2"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/native_batch_evidence.py",
+      "sha256": "7f80b575f1b1fef363736bafcf64c0efc6ea2e80839de182e266c6f60953e0aa"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-csv-physical-r1172.py",
+      "sha256": "26c0f705e04d2ebe0e6630e7027441af891ce5683db1723809bb0ce13ecacd85"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/validate-csv-physical-r1172.py",
+      "sha256": "cb331ebe61f6f61fed5dd07d4511384e3dd20819f19d53eb1c7ea6166c49b633"
+    }
+  ],
+  "exactTextSnapshot": {
+    "path": "docs/validation/disk-space/exact-receipt-text-r1173-csv-physical.tgz",
+    "entries": [
+      ".tmp/csv-physical-pinned-r1172/Directory.cs",
+      ".tmp/csv-physical-pinned-r1172/PinnedPhysicalCsv.csproj",
+      ".tmp/csv-physical-pinned-r1172/Program.cs",
+      ".tmp/csv-physical-pinned-r1172/packages.lock.json",
+      ".tmp/mac-footprint-counter-control-r1171.c",
+      ".tmp/mac-footprint-counter-control-r1171b.json",
+      "docs/validation/disk-space/csv-physical-mac-fix-r1173.json",
+      "docs/validation/disk-space/csv-physical-original-harness-build-r1173.txt",
+      "docs/validation/disk-space/csv-physical-pinned-build-r1172.txt",
+      "docs/validation/disk-space/csv-physical-pinned-build-r1173.txt",
+      "docs/validation/disk-space/csv-physical-proof-r1172.json",
+      "docs/validation/disk-space/csv-physical-source-r1172.json",
+      "docs/validation/disk-space/drivers/batch-linux-r1172.sh",
+      "docs/validation/disk-space/drivers/batch-mac-r1172.sh",
+      "docs/validation/disk-space/drivers/batch-mac-r1173.sh",
+      "docs/validation/disk-space/drivers/batch-windows-r1172.ps1",
+      "docs/validation/disk-space/drivers/collect-csv-physical-r1172.ps1",
+      "docs/validation/disk-space/drivers/csv-physical-unix-template-r1172.sh",
+      "docs/validation/disk-space/drivers/csv-physical-windows-template-r1172.ps1",
+      "docs/validation/disk-space/drivers/finalize-csv-physical-r1173.py",
+      "docs/validation/disk-space/drivers/native_batch_evidence.py",
+      "docs/validation/disk-space/drivers/prepare-csv-physical-r1172.py",
+      "docs/validation/disk-space/drivers/validate-csv-physical-r1172.py",
+      "docs/validation/disk-space/mac-batch-r1172-original-run.json",
+      "docs/validation/disk-space/mac-batch-r1172-post.json",
+      "docs/validation/disk-space/mac-batch-r1173-original-run.json",
+      "docs/validation/disk-space/mac-batch-r1173-post.json",
+      "docs/validation/disk-space/mac-footprint-counter-control-r1171.c",
+      "docs/validation/disk-space/mac-footprint-counter-control-r1171b.json",
+      "docs/validation/disk-space/mac-footprint-counter-r1171-state.json",
+      "docs/validation/disk-space/mac-pre-r1171counterlaunch.json",
+      "docs/validation/disk-space/mac-pre-r1171counterpost.json",
+      "docs/validation/disk-space/ubuntu-batch-r1172-original-run.json",
+      "docs/validation/disk-space/ubuntu-batch-r1172-post.json",
+      "docs/validation/disk-space/windows-batch-r1172-original-run.json",
+      "docs/validation/disk-space/windows-batch-r1172-post.json",
+      "tests/FileCat.CoreCrashHarness/AnalysisPhysicalMemory.cs",
+      "tests/FileCat.CoreCrashHarness/CsvReportScale.cs",
+      "tests/FileCat.CoreCrashHarness/Program.cs"
+    ],
+    "purpose": "Exact compiled source and producer receipt bytes; use these when Git checkout newline conversion differs."
+  }
+}
