@@ -396,8 +396,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{full}\" is not in the archive.");
             if (tag.Encrypted) return null;
             if (tag.UnsafeReason is not null) throw new InvalidDataException("This member has an unsafe name: " + tag.UnsafeReason);
-            if (retainedEdit) index.RequireClearEditSource();
-            return index.Extract(tag, _tempDirectory);
+            return index.Extract(tag, _tempDirectory, retainedEdit);
         }
     }
 
@@ -474,8 +473,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
                 throw new IOException("Direct editing needs one exact regular member. Extract the selected occurrence with F5 instead.");
             // The lease keeps the index open through extraction, whatever the cache does meanwhile.
             ct.ThrowIfCancellationRequested();
-            index.RequireClearEditSource();
-            return index.Extract(tag, _tempDirectory);
+            return index.Extract(tag, _tempDirectory, retainedEdit: true);
         }
     }
 
@@ -604,6 +602,12 @@ internal sealed class ZipIndex : IDisposable
         EstimatedBytes = estimatedBytes;
         _openedChangeToken = openedChangeToken;
         LastUsed = DateTime.UtcNow;
+    }
+
+    private void VerifyClearEditSource()
+    {
+        ArchiveOuterEfs.RequireClear(_handle, ArchiveOuterEfs.EditUnavailable);
+        VerifySource();
     }
 
     /// <summary>
@@ -842,25 +846,26 @@ internal sealed class ZipIndex : IDisposable
     /// (<see cref="ProgressiveContent"/>), so the first bytes are there at once. Either way the declared size is not
     /// trusted and the member's checksum is verified (.NET does not check it).
     /// </summary>
-    internal void RequireClearEditSource() => ArchiveOuterEfs.RequireClear(_handle, ArchiveOuterEfs.EditUnavailable);
-
-    public IContentSource Extract(ZipMemberTag tag, string tempDirectory)
+    public IContentSource Extract(ZipMemberTag tag, string tempDirectory, bool retainedEdit = false)
     {
         LastUsed = DateTime.UtcNow;
         lock (_lock)
         {
-            VerifySource();
+            if (retainedEdit) VerifyClearEditSource();
+            else VerifySource();
             if (_closing && _leases == 0) throw new IOException("The archive was closed; open it again.");
             var entry = _entries[tag.EntryIndex];
             var limits = Limits(entry);
             if (entry.Length > ZipProvider.MaxMemberInMemory)
             {
                 _leases++;
-                return new ProgressiveContent(tag.FullName, _lock, entry.Open, limits, ZipProvider.MaxSpooledMember, tempDirectory, Returned, VerifySource);
+                return new ProgressiveContent(tag.FullName, _lock, entry.Open, limits, ZipProvider.MaxSpooledMember,
+                    tempDirectory, Returned, retainedEdit ? VerifyClearEditSource : VerifySource);
             }
             var memory = new MemoryStream((int)Math.Max(0, entry.Length));
             using (var source = entry.Open()) limits.CopyAll(source, memory);
-            VerifySource();
+            if (retainedEdit) VerifyClearEditSource();
+            else VerifySource();
             // Ordinary members already have an exact-sized backing array. Keep its logical length instead of
             // copying the whole payload just before a viewer or nested reader allocates again. A malformed
             // member may expand within the allowed slack and force geometric over-allocation; trim that case.

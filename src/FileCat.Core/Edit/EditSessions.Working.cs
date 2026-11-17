@@ -94,24 +94,37 @@ public sealed partial class EditSessionStore
         private readonly string leaf;
         private readonly CancellationToken ct;
         private readonly FileStream stream;
+        private readonly bool checkEfs;
         internal NativeWorkingContent(EditDirectoryLease directory,string leaf,CancellationToken ct,bool review=false)
         {
             this.directory=directory;this.leaf=leaf;this.ct=ct;
+            checkEfs = !review && OperatingSystem.IsWindows();
             stream=review?directory.OpenWorkingFileForReview(leaf,ct):directory.OpenWorkingFile(leaf,ct);
-            if (!review)
-            {
-                try { ArchiveOuterEfs.RequireClear(stream.SafeFileHandle, ArchiveOuterEfs.WorkingCopyUnavailable); }
-                catch { stream.Dispose(); throw; }
-            }
+            try { RequireClearForCopy(); }
+            catch { stream.Dispose(); throw; }
         }
         public string DisplayName=>Path.Combine(directory.Path,leaf);
         public long Length=>stream.Length;
         public bool CanSeek=>true;
         public string? LocalPath=>null;
-        public ContentRevision? GetRevision()=>directory.ReviewWorkingFile(stream,leaf,ct);
+        public ContentRevision? GetRevision()
+        {
+            RequireClearForCopy();
+            return directory.ReviewWorkingFile(stream, leaf, ct);
+        }
         internal FileCat.Core.Archives.ArchiveOriginSnapshot ReadOrigin()=>directory.ReadOrigin(stream,leaf,ct);
         public int Read(long offset,Span<byte> buffer)
-        {ct.ThrowIfCancellationRequested();return RandomAccess.Read(stream.SafeFileHandle,buffer,offset);}
+        {
+            ct.ThrowIfCancellationRequested();
+            RequireClearForCopy();
+            int read = RandomAccess.Read(stream.SafeFileHandle, buffer, offset);
+            RequireClearForCopy();
+            return read;
+        }
+        private void RequireClearForCopy()
+        {
+            if (checkEfs) ArchiveOuterEfs.RequireClear(stream.SafeFileHandle, ArchiveOuterEfs.WorkingCopyUnavailable);
+        }
         public void Dispose(){try{stream.Dispose();}finally{directory.Dispose();}}
     }
 }

@@ -884,6 +884,11 @@ public sealed partial class EditSessionStore
         // The held file denies ordinary writers while its approved content is captured.
         using var source = new CommitContent(record.WorkingPath);
         source.RequireClearWorkingFile();
+        void CheckSource()
+        {
+            check?.Invoke();
+            source.RequireClearWorkingFile();
+        }
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
         CreatePrivateDirectory(directory);
         string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
@@ -891,7 +896,7 @@ public sealed partial class EditSessionStore
         {
             // Editors that already hold a write handle cause a conservative sharing refusal on Windows.
             // Unix sharing is advisory: length/time checks still apply; this is not a hostile-writer snapshot guarantee.
-            var copy = WriteWorkingCopy(source, path, ct, check: check);
+            var copy = WriteWorkingCopy(source, path, ct, check: CheckSource);
             File.SetLastWriteTimeUtc(path, source.ModifiedUtc);
             if (fs.ReadOriginMark(record.WorkingPath) is { } mark) PreserveOriginMark(path, mark);
             ct.ThrowIfCancellationRequested();
@@ -953,11 +958,15 @@ public sealed partial class EditSessionStore
             {
                 using var source = Content.ProgressiveContent.Sequential(provider.OpenContent(ItemRef.ForFileSystemPath(record.WorkingPath, EntryKind.File)))
                     ?? throw new IOException("The working copy cannot be read completely.");
-                if (OperatingSystem.IsWindows() && source is FileContentSource local)
-                    ArchiveOuterEfs.RequireClear(local.AttributesFromHeldFile(), ArchiveOuterEfs.WorkingCopyUnavailable);
-                check();
-                bytes = WriteWorkingCopy(source, path, default, check: check);
-                check();
+                void CheckSource()
+                {
+                    check();
+                    legacyPin?.RequireClearWorkingFile();
+                    if (OperatingSystem.IsWindows() && source is FileContentSource local)
+                        ArchiveOuterEfs.RequireClear(local.AttributesFromHeldFile(), ArchiveOuterEfs.WorkingCopyUnavailable);
+                }
+                bytes = WriteWorkingCopy(source, path, default, check: CheckSource);
+                CheckSource();
                 mark = fs.ReadOriginMark(record.WorkingPath);
             }
             // A copy of a marked edit is not made without its mark: a temporary area that cannot keep one refuses the Save

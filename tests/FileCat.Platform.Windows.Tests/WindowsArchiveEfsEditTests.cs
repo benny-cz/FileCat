@@ -76,6 +76,44 @@ public sealed class WindowsArchiveEfsEditTests
         finally { provider.Release(archive); Directory.Delete(path, recursive: true); }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void An_efs_change_after_open_leaves_no_captured_working_payload(bool nativeStorage)
+    {
+        RequireEfs();
+        var ct = TestContext.Current.CancellationToken;
+        string path = Directory.CreateTempSubdirectory("filecat-efs-working-drift-").FullName;
+        string archive = Path.Join(path, "source.zip");
+        var provider = new ZipProvider(Path.Join(path, "cache"));
+        try
+        {
+            CreateZip(archive);
+            var store = new EditSessionStore(Path.Join(path, "sessions"), new WindowsFileOperations(),
+                nativeStorage ? WindowsEditDirectoryLease.OpenRoot : null);
+            var record = store.Create(provider, Member(provider, archive), ct);
+            string output = Directory.CreateDirectory(Path.Join(path, "temporary")).FullName;
+            string search = nativeStorage ? store.SessionDirectory(record) : output;
+            string? stage = null;
+            int stageChecks = 0;
+            void EncryptAfterStageCreation()
+            {
+                stage ??= Directory.EnumerateFiles(search, Path.GetFileName(record.WorkingPath), SearchOption.AllDirectories)
+                    .FirstOrDefault(candidate => candidate != record.WorkingPath);
+                // Native capture creates the payload file before entering the initial two revision checks.
+                if (stage is not null && ++stageChecks == (nativeStorage ? 3 : 1)) File.Encrypt(record.WorkingPath);
+            }
+
+            var error = Assert.Throws<ArchiveWriteException>(() => store.PrepareCommit(record, output, ct, EncryptAfterStageCreation));
+            Assert.Equal(ArchiveOuterEfs.WorkingCopyUnavailable, error.Message);
+            Assert.NotNull(stage);
+            if (File.Exists(stage)) Assert.Equal(0, new FileInfo(stage).Length);
+            Assert.Equal(Contents, File.ReadAllText(record.WorkingPath));
+            Assert.True(File.GetAttributes(record.WorkingPath).HasFlag(FileAttributes.Encrypted));
+        }
+        finally { provider.Release(archive); Directory.Delete(path, recursive: true); }
+    }
+
     private static void RequireEfs()
     {
         Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
