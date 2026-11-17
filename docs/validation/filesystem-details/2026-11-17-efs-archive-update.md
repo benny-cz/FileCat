@@ -1,0 +1,9 @@
+# EFS protection at archive update admission
+
+The Windows native archive backend checks the EFS attribute on the held outer archive during target review and job scope creation. An encrypted target is refused before assessment, rebuilding or snapshot reservation. The same check runs before the native transaction, on the transaction's bound original and before retaining original bytes. The restoration lease checks the current target and retained snapshot before feeding them to its preparation path. The legacy ZIP executor independently checks the input handle actually opened for rebuilding before it digests the input or creates the temporary ZIP.
+
+The Windows 11 x64 VM test covered the native backend and legacy executor independently. Each fixture reviewed a clear ZIP, encrypted that same file and restored its modification time. The prior baseline still matched its bytes, size and time. Both execution paths reported the EFS reason, produced no stage or snapshot, and left the outer file encrypted with identical contents. The native test calls the actual execution entry and expects refusal before any worker is needed. The test does not exercise a successful native transaction on an encrypted archive.
+
+The medium-integrity VM run passed 22 tests across `WindowsArchiveEfsUpdateTests`, `WindowsArchiveTargetProbeTests` and `WindowsFileOperationsTests`. The elevated-only probe was skipped. Clear-target regressions include the legacy ZIP update with its original download mark. Results are retained in `.tmp/filecat-archive-efs-update-tests.xml` and `.tmp/filecat-archive-efs-update-results.log`. The build had zero warnings and errors.
+
+This is the tested admission portion of E-OUT7 and E-OUT9. Native restoration and concurrent state changes during publication need additional qualification. Packing other EFS inputs, member editing and archive viewing/spooling are separate routes with their own requirements.

@@ -53,6 +53,7 @@ internal static partial class WindowsArchiveJobBackend
             return (File.GetAttributes(archivePath) & FileAttributes.ReadOnly) != 0 ? ArchiveNotWritable : null;
         }
         catch (ArchiveWriteException error) when (error.Reason == ArchiveWriteReason.BudgetExceeded) { return ArchiveListingRevision.TooLarge; }
+        catch (ArchiveWriteException error) when (error.Reason == ArchiveWriteReason.PublicationUnavailable) { return error.Message; }
         catch (IOException error) when (error.Message == WindowsArchiveNative.NotRegular) { return LinkedArchive; }
         catch (NotSupportedException) { return NotWritableDrive; }
         // The way to the folder holds no link or cloud folder (checked above): what is left is a folder it cannot hold.
@@ -119,7 +120,12 @@ internal static partial class WindowsArchiveJobBackend
         {
             ct.ThrowIfCancellationRequested();
             directory = WindowsArchiveDirectory.Open(Path.GetDirectoryName(path) ?? throw new ArgumentException("A target directory is required."));
-            try { file = directory.OpenSource(Path.GetFileName(path)); }
+            try
+            {
+                file = directory.OpenSource(Path.GetFileName(path));
+                try { file.RequireClearUpdateSource(); }
+                catch { file.Dispose(); throw; }
+            }
             catch { directory.Dispose(); throw; }
         }
         public void Dispose() { try { file.Dispose(); } finally { directory.Dispose(); } }
@@ -145,13 +151,16 @@ internal static partial class WindowsArchiveJobBackend
             {
                 if (plan.Baseline is not null)
                 {
+                    string leaf = Path.GetFileName(plan.ArchivePath);
+                    directory.ProbeExisting(leaf);
                     // Refused before anything is rebuilt: the update would end at the transaction it cannot begin, or at the
                     // write open of an original it may not write.
                     if ((directory.Volume.Flags & SupportsTransactions) == 0)
                         throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, NoTransactions);
-                    if (!directory.MayWrite(Path.GetFileName(plan.ArchivePath)))
+                    if (!directory.MayWrite(leaf))
                         throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveNotWritable);
-                    original = directory.OpenSource(Path.GetFileName(plan.ArchivePath));
+                    original = directory.OpenSource(leaf);
+                    original.RequireClearUpdateSource();
                     Original = new(original, ((IArchiveRetainedFile)original).Observe(ct));
                 }
             }

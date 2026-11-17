@@ -194,7 +194,9 @@ internal sealed partial class WindowsArchiveDirectory : IDisposable, IArchiveDes
             {
                 if (status == NameNotFound) return null;
                 if (status < 0) throw Error(status, "Probe archive target");
-                return WindowsArchiveNative.Regular(handle, ArchiveWritePolicy.MaxPhysicalBytes, artifact: false, mayRename: false);
+                uint links = WindowsArchiveNative.Regular(handle, ArchiveWritePolicy.MaxPhysicalBytes, artifact: false, mayRename: false);
+                ArchiveOuterEfs.RequireClear(handle);
+                return links;
             }
         }
     }
