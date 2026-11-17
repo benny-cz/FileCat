@@ -13,8 +13,8 @@ namespace FileCat.App.Tests;
 
 /// <summary>
 /// Cloud providers' folders (E-CLOUD-1's validation): looking at one never downloads anything. A real provider's folder
-/// of files that are only in the cloud is listed with icons, every row's metadata and checksum check is asked for, its
-/// content is searched and its size counted — and afterwards every one of those files is still only in the cloud.
+/// of files that are with recall hints is listed with icons, every row's metadata and checksum check is asked for, its
+/// content is searched and its size counted — and afterwards every one of those files is still with recall hints.
 /// FILECAT_CLOUD_FOLDER names such a folder (on the owner's computer, a OneDrive folder of five small files).
 /// </summary>
 public sealed class CloudBrowsingTests
@@ -31,8 +31,8 @@ public sealed class CloudBrowsingTests
         Dictionary<string, FileAttributes> Snapshot() => new DirectoryInfo(folder).EnumerateFiles("*", SearchOption.AllDirectories)
             .ToDictionary(f => Path.GetRelativePath(folder, f.FullName), f => f.Attributes);
         var before = Snapshot();
-        var onlineOnly = before.Where(p => CloudFiles.StateOf(p.Value, inSyncRoot: true) == CloudState.OnlineOnly).Select(p => p.Key).ToList();
-        log?.WriteLine($"{before.Count} files, {onlineOnly.Count} only in the cloud");
+        var onlineOnly = before.Where(p => CloudFiles.StateOf(p.Value, inSyncRoot: true) == CloudState.RecallPossible).Select(p => p.Key).ToList();
+        log?.WriteLine($"{before.Count} files, {onlineOnly.Count} with recall hints");
         Assert.NotEmpty(onlineOnly);
 
         string root = Path.Combine(Path.GetTempPath(), "filecat-cloud-validate", Guid.NewGuid().ToString("N"));
@@ -90,11 +90,11 @@ public sealed class CloudBrowsingTests
             try { Directory.Delete(root, recursive: true); } catch (IOException) { }
         }
 
-        // Every file that was only in the cloud still is.
+        // Every file that was with recall hints still is.
         await Task.Delay(1000, ct);
         var after = Snapshot();
-        var downloaded = onlineOnly.Where(n => !after.TryGetValue(n, out var a) || CloudFiles.StateOf(a, inSyncRoot: true) != CloudState.OnlineOnly).ToList();
-        Assert.True(downloaded.Count == 0, $"Downloaded by looking: {string.Join(", ", downloaded)}");
-        log?.WriteLine($"all {onlineOnly.Count} still only in the cloud");
+        var downloaded = onlineOnly.Where(n => !after.TryGetValue(n, out var a) || CloudFiles.StateOf(a, inSyncRoot: true) != CloudState.RecallPossible).ToList();
+        Assert.True(downloaded.Count == 0, $"Recall hints changed while browsing: {string.Join(", ", downloaded)}");
+        log?.WriteLine($"all {onlineOnly.Count} still with recall hints");
     }
 }

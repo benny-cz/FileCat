@@ -293,13 +293,19 @@ public sealed class ArchiveJobBackendTests
     }
 
     [Fact]
-    public void A_failed_worker_handoff_releases_ownership_even_when_a_running_observer_throws()
+    public async Task A_throwing_running_observer_does_not_abort_an_admitted_backend_or_steal_password_ownership()
     {
         using var temp = new TempDir(); using var password = new ArchiveJobPassword(PublicPassword); var buffer = Buffer(password);
-        var backend = new Backend(ArchiveWriteFormat.Rar5); var manager = Manager(temp, backend); Job? seen = null;
+        var backend = new Backend(ArchiveWriteFormat.Rar5, execution =>
+        {
+            Live(password);
+            execution.Job.AddTotals(1, 0); execution.Job.ItemDone();
+        });
+        var manager = Manager(temp, backend); Job? seen = null;
         manager.JobChanged += job => { if (job.State == JobState.Running) throw new InvalidOperationException("Synthetic handoff observer failure."); };
-        Assert.Throws<InvalidOperationException>(() => manager.SubmitArchive(Plan(temp, Profile(9, 1)), password, register: job => seen = job));
-        Assert.NotNull(seen); Assert.Equal(JobState.Failed, seen.State); Erased(password, buffer); Assert.Equal(0, backend.Calls);
+        var submitted = manager.SubmitArchive(Plan(temp, Profile(9, 1)), password, register: job => seen = job);
+        await Finished(submitted);
+        Assert.Same(submitted, seen); Assert.Equal(JobState.Completed, submitted.State); Erased(password, buffer); Assert.Equal(1, backend.Calls);
     }
 
     [Fact]

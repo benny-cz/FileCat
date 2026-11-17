@@ -18,7 +18,7 @@ public sealed record HiddenEntryTag(HiddenItem Item, string Summary, IReadOnlyLi
 /// </summary>
 public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider
 {
-    /// <summary>How much of each item is read to say what it is.</summary>
+    /// <summary>Maximum explicit decoded preview size; enumeration does not read previews.</summary>
     public const int SummaryBytes = 64 * 1024;
 
     public override string Scheme => Schemes.HiddenData;
@@ -56,25 +56,30 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider
         _ => base.ExplainUnavailable(location, capability),
     };
 
-    public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct) => Task.Run(() =>
+    public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
     {
         string file = FileOf(location);
-        foreach (var item in hidden.List(file))
+        HiddenInventory inventory;
+        try { inventory = hidden.ReadInventory(file, new HiddenInventoryRequest(sink.IncludeSupplementaryEaValues), ct); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        { inventory = HiddenInventory.Unavailable(file, ex is UnauthorizedAccessException ? HiddenInventoryState.Denied : ex is NotSupportedException ? HiddenInventoryState.Unsupported : HiddenInventoryState.Failed, ex.Message); }
+        ct.ThrowIfCancellationRequested();
+        sink.ReportSupplementaryInventory(inventory);
+        foreach (var item in inventory.Items)
         {
             ct.ThrowIfCancellationRequested();
-            string summary;
-            IReadOnlyList<string> details;
-            try
-            {
-                (summary, details) = HiddenDataDecoder.Describe(item, hidden.Read(file, item, SummaryBytes));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                (summary, details) = ($"Cannot be read: {ex.Message}", []);
-            }
-            sink.AddBatch([new EntryData(item.Name, EntryKind.File, item.Size) { Tag = new HiddenEntryTag(item, summary, details) }]);
+            string summary = "Not read — F3 to view";
+            if (item.NativeFlags != 0) summary += $" · native flags 0x{item.NativeFlags:X2}";
+            if (HiddenMetadataRoles.DeleteRefusal(item) is { } reason) summary += " · " + reason;
+            sink.AddBatch([new EntryData(item.Name, EntryKind.File, item.Size) { Tag = new HiddenEntryTag(item, summary, []),
+                Flags = inventory.BoundToObject ? EntryFlags.None : EntryFlags.Unavailable }]);
         }
-    }, ct);
+        return Task.CompletedTask;
+    }
+
+    public override ItemRef GetItemRef(Location listing, in EntryData entry) => entry.Tag is HiddenEntryTag tag
+        ? new ItemRef(listing, entry.Name, entry.Kind, entry.Size, entry.Modified) { Ordinal = HiddenIdentities.Ordinal(tag.Item.Kind), Flags = entry.Flags }
+        : throw new InvalidOperationException("Supplementary row category is unavailable; refresh required.");
 
     public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
 
@@ -97,12 +102,23 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider
     public override IContentSource? OpenContent(ItemRef item)
     {
         string file = FileOf(item.Parent);
-        var found = Find(file, item.Name) ?? throw new FileNotFoundException($"{file} no longer has “{item.Name}”.");
-        return new HiddenContentSource(hidden, file, found);
+        var kind = HiddenIdentities.Kind(item.Ordinal) ?? throw new NotSupportedException("The supplementary category is missing or obsolete; refresh required.");
+        if ((item.Flags & EntryFlags.Unavailable) != 0) throw new NotSupportedException("A bound supplementary-data action is unavailable for this observation.");
+        // The native adapter acquires and resolves this exact category/name on its held source. Do not issue a
+        // combined inventory here: merely opening an ADS must never trigger an EA-value query.
+        return new HiddenContentSource(hidden, file, new HiddenItem(item.Name, kind, item.Size));
     }
 
-    /// <summary>The item named <paramref name="name"/> of the file, as it is now.</summary>
-    public HiddenItem? Find(string file, string name) => hidden.List(file).FirstOrDefault(i => i.Name == name);
+    /// <summary>The exact category and native name, resolved under the current file authority.</summary>
+    public HiddenItem? Find(string file, ItemRef reference, CancellationToken ct = default)
+    {
+        var kind = HiddenIdentities.Kind(reference.Ordinal) ?? throw new NotSupportedException("The supplementary category is missing or obsolete; refresh required.");
+        var inventory = hidden.ReadInventory(file, new HiddenInventoryRequest(IncludeEaValues: kind == HiddenKind.NtfsAttribute), ct);
+        if (!inventory.BoundToObject) throw new NotSupportedException(inventory.Notice ?? "A bound supplementary-data action is unavailable.");
+        var category = inventory.Categories.FirstOrDefault(c => c.Kind == kind);
+        if (category?.State != HiddenInventoryState.Complete) throw new IOException("The requested category could not be completely resolved; refresh required. " + category?.Reason);
+        return inventory.Items.SingleOrDefault(i => i.Kind == kind && string.Equals(i.Name, reference.Name, StringComparison.Ordinal));
+    }
 }
 
 /// <summary>One stream or attribute, read as content (the viewer, saving as a file).</summary>

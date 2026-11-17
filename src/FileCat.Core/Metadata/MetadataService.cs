@@ -62,7 +62,14 @@ public sealed record MetadataField(
     bool Folders = false,
     TimeSpan? RefreshAfter = null,
     Func<object?, string>? Detail = null,
-    Func<object?, bool>? NeedsExplanation = null);
+    Func<object?, bool>? NeedsExplanation = null,
+    bool ObservationLane = false,
+    bool MetadataOnlyOnOffline = false,
+    Func<EntryData, bool>? AppliesToEntry = null)
+{
+    public IComparable? CaptureKey(MetadataValue value) => value.State == MetadataState.Available &&
+        (!ObservationLane || value.Observation == MetadataObservation.Current) ? SortKey?.Invoke(value.Value) ?? value.Value as IComparable : null;
+}
 
 /// <summary>
 /// Demand-driven metadata (plan §10): values are produced for rows the user can see, bounded per device,
@@ -106,7 +113,7 @@ public sealed partial class MetadataService : IDisposable
         : this(io, () => Environment.TickCount64, ownership: ownership, names: names) { }
 
     internal MetadataService(DeviceIoScheduler io, Func<long> milliseconds, int maxCache = MaxCache, int maxSnapshots = 64,
-        IOwnership? ownership = null, PrincipalNames? names = null)
+        IOwnership? ownership = null, PrincipalNames? names = null, Records.IFileRecords? fileRecords = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(maxCache, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxSnapshots, 1);
@@ -115,6 +122,8 @@ public sealed partial class MetadataService : IDisposable
         _maxCache = maxCache;
         _maxSnapshots = maxSnapshots;
         foreach (var f in BuiltInFields.All) _fields[f.Id] = f;
+        if (fileRecords is not null)
+            foreach (var field in FileDetailsFields.Create(fileRecords, OperatingSystem.IsWindows())) Register(field);
         if (_fields.ContainsKey("owner") || ownership is not null || !OperatingSystem.IsWindows())
         {
             ownership ??= OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new UnixOwnership() : new NoOwnership();
@@ -157,8 +166,12 @@ public sealed partial class MetadataService : IDisposable
     }
 
     /// <summary>Reads already produced metadata without requesting I/O, for bounded accessibility inspection.</summary>
-    public MetadataValue Peek(string fieldId, string path, in EntryData entry) =>
-        _cache.TryGetValue(Key(path, entry, fieldId), out var value) ? value : new MetadataValue(MetadataState.NotRequested);
+    public MetadataValue Peek(string fieldId, string path, in EntryData entry)
+    {
+        string key = Key(path, entry, fieldId);
+        return _cache.TryGetValue(key, out var value) ? _fields.TryGetValue(fieldId, out var field) ? QualifyCached(field, key, value, false) : value
+            : new MetadataValue(MetadataState.NotRequested);
+    }
 
     /// <summary>Memory-only selection with the same applicability, placeholder and slow-location gates as Get.</summary>
     public MetadataValue Peek(string fieldId, string path, in EntryData entry, bool slowLocation) =>
@@ -170,7 +183,7 @@ public sealed partial class MetadataService : IDisposable
         key = null;
         if (!TryEligibleField(fieldId, entry, out field, out var rejection)) return rejection;
         key = Key(path, entry, fieldId);
-        if (_cache.TryGetValue(key, out var value)) return value;
+        if (_cache.TryGetValue(key, out var value)) return QualifyCached(field!, key, value, slowLocation);
         return slowLocation && field!.Cost >= MetadataCost.Expensive
             ? new MetadataValue(MetadataState.Unsupported, Detail: "Not computed automatically on slow locations.")
             : _inFlight.ContainsKey(key) ? MetadataValue.Pending : new MetadataValue(MetadataState.NotRequested);
@@ -183,7 +196,7 @@ public sealed partial class MetadataService : IDisposable
         if (!_fields.TryGetValue(fieldId, out field))
             rejection = new MetadataValue(MetadataState.Unsupported, Detail: "Unknown field.");
         else if (!Applies(field, entry)) return false;
-        else if (entry.Has(EntryFlags.Offline))
+        else if (entry.Has(EntryFlags.Offline) && !field.MetadataOnlyOnOffline)
             rejection = new MetadataValue(MetadataState.Unsupported, Detail: "Not read for a detected cloud placeholder.");
         else return true;
         return false;
@@ -195,17 +208,33 @@ public sealed partial class MetadataService : IDisposable
     private bool Fresh(string key, TimeSpan? refresh) => refresh is null ||
         _producedAt.TryGetValue(key, out var at) && at != long.MinValue && _milliseconds() - at < refresh.Value.TotalMilliseconds;
 
+    private MetadataValue QualifyCached(MetadataField field, string key, MetadataValue value, bool slowLocation) =>
+        field.ObservationLane && value.State == MetadataState.Available && !Fresh(key, EffectiveRefresh(field, slowLocation))
+            ? value with { Observation = MetadataObservation.LastKnown, Detail = value.Detail ?? "The observation interval expired; refresh is required for a current value." }
+            : value;
+
     private bool AutomaticallyDue(string key, MetadataValue value, TimeSpan? refresh) =>
         refresh is not null && value.State is not (MetadataState.Denied or MetadataState.Unsupported) && !Fresh(key, refresh);
 
-    private static bool Applies(MetadataField field, in EntryData entry) =>
-        (entry.Kind == EntryKind.File || entry.Kind == EntryKind.Directory && field.Folders) && field.AppliesToName(entry.Name);
+    public static bool Applies(MetadataField field, in EntryData entry) =>
+        (entry.Kind == EntryKind.File || entry.Kind == EntryKind.Directory && field.Folders) && field.AppliesToName(entry.Name) &&
+        (field.AppliesToEntry?.Invoke(entry) ?? true);
 
     /// <summary>Synchronous production for explicit analysis jobs (background threads only).</summary>
     public MetadataValue Compute(string fieldId, string path, in EntryData entry, CancellationToken ct,
         bool slowLocation = false, object? origin = null)
     {
         if (!TryEligibleField(fieldId, entry, out var field, out var rejection)) return rejection;
+        if (ct.IsCancellationRequested) return new MetadataValue(MetadataState.NotRequested);
+        if (field!.ObservationLane && Records.FileObservationRequests.HasAdmission && !Records.FileObservationRequests.IsAdmittedFor(PathUtil.GetDeviceKey(path)))
+            return new(MetadataState.Unsupported, Detail: "The observation admission belongs to a different device.");
+        if (field!.ObservationLane && !Records.FileObservationRequests.HasAdmission)
+        {
+            if (DeviceIoScheduler.IsDeviceWorker) return new(MetadataState.Unsupported, Detail: "The native observation requires admission on the original device before entering a worker.");
+            var captured = entry;
+            return Records.FileObservationRequests.RunOwned(_io, PathUtil.GetDeviceKey(path), IoPriority.Background,
+                token => Compute(fieldId, path, captured, token, slowLocation, origin), ct).GetAwaiter().GetResult();
+        }
         if (ct.IsCancellationRequested) return new MetadataValue(MetadataState.NotRequested);
         var key = Key(path, entry, fieldId);
         if (_cache.TryGetValue(key, out var v) && v.State is MetadataState.Available or MetadataState.Absent &&
@@ -256,7 +285,7 @@ public sealed partial class MetadataService : IDisposable
             ReleaseOutstanding(deviceKey);
             if (!IsCurrent(production)) Notify(); // visible rows can retry now that obsolete demand has ended
         }
-        var work = _io.Run(deviceKey, IoPriority.Background, ct =>
+        void Read(CancellationToken ct)
         {
             try
             {
@@ -268,10 +297,13 @@ public sealed partial class MetadataService : IDisposable
             {
                 Finished();
             }
-        });
+        }
+        Task work = field.ObservationLane
+            ? Records.FileObservationRequests.RunOwned(_io, deviceKey, IoPriority.Background, ct => { Read(ct); return true; })
+            : _io.Run(deviceKey, IoPriority.Background, Read);
         // Shutdown cancels queued work without entering its callback; release its demand record in that case too.
         _ = work.ContinueWith(_ => Finished(), CancellationToken.None,
-            TaskContinuationOptions.OnlyOnCanceled | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
 
     private void ReleaseOutstanding(string deviceKey)
@@ -302,6 +334,10 @@ public sealed partial class MetadataService : IDisposable
         catch (UnauthorizedAccessException ex)
         {
             return new MetadataValue(MetadataState.Denied, Detail: Sentence(ex.Message));
+        }
+        catch (NotSupportedException ex)
+        {
+            return new MetadataValue(MetadataState.Unsupported, Detail: Sentence(ex.Message));
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or FormatException or ArgumentException)
         {
@@ -396,6 +432,13 @@ public sealed partial class MetadataService : IDisposable
     {
         string prefix = fieldId + "|", suffix = "|" + path;
         Forget(fieldId, key => key.StartsWith(prefix, StringComparison.Ordinal) && key.EndsWith(suffix, StringComparison.Ordinal));
+    }
+
+    /// <summary>Retires one producer family, including current generations, without invalidating unrelated fields.</summary>
+    public void ForgetField(string fieldId)
+    {
+        string prefix = fieldId + "|";
+        Forget(fieldId, key => key.StartsWith(prefix, StringComparison.Ordinal));
     }
 
     /// <summary>Forgets one field's values for many items (the files a job just checked) in one pass over what is kept.</summary>
@@ -614,11 +657,19 @@ public static class BuiltInFields
     /// How many streams and attributes a file or folder carries beside its contents (D-55): alternate data streams and
     /// NTFS attributes on Windows, extended attributes on Linux and macOS. Alt+Shift+Enter lists them.
     /// </summary>
-    public static readonly MetadataField Hidden = new("hidden", OperatingSystem.IsWindows() ? "Streams" : "Attributes", MetadataCost.Cheap,
+    public static readonly MetadataField Hidden = new("hidden", "Extra data", MetadataCost.Cheap,
         _ => true,
-        (p, _) => HiddenDataSource is { IsSupported: true } source ? source.List(p).Count : null,
-        v => v is int n && n > 0 ? n.ToString(System.Globalization.CultureInfo.CurrentCulture) : string.Empty,
-        RightAlign: true, SortKey: v => v as int?, Folders: true);
+        (p, ct) =>
+        {
+            var inventory = HiddenDataSource is { IsSupported: true } source ? source.ReadInventory(p, new(), ct)
+                : HiddenData.HiddenInventory.Unavailable(p, HiddenData.HiddenInventoryState.Unsupported, "A bounded inventory adapter is unavailable.");
+            return new FileDetailsFields.Cell(inventory.CountText, inventory.Description + $" · Observed {inventory.ObservedAt:O}", inventory.ExactCount, !inventory.IsComplete);
+        },
+        v => (v as FileDetailsFields.Cell)?.Text ?? "Not inspected",
+        RightAlign: true, SortKey: v => (v as FileDetailsFields.Cell)?.Key, Folders: true,
+        RefreshAfter: TimeSpan.FromSeconds(20),
+        Detail: v => (v as FileDetailsFields.Cell)?.Explanation ?? "Not inspected",
+        NeedsExplanation: _ => true, ObservationLane: true);
 
     /// <summary>
     /// Whether the file matches the checksums and signatures beside it (D-57): empty when nothing covers it, "not checked"

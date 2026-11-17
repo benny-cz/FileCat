@@ -25,6 +25,8 @@ public enum ColumnField
 public sealed record ColumnSpec(ColumnField Field, string Header, double Width, bool RightAlign = false, bool Star = false)
 {
     public string? MetadataId { get; init; }
+    /// <summary>Semantic label without rewriting persisted profile headers.</summary>
+    public string DisplayHeader => MetadataId == "hidden" ? "Extra data" : Header;
 
     /// <summary>A date column that shows seconds (a change journal's times).</summary>
     public bool Seconds { get; init; }
@@ -83,7 +85,7 @@ public static class ColumnProfiles
             new(ColumnField.Metadata, "Permissions", 88) { MetadataId = "permissions" },
             new(ColumnField.Metadata, "Owner", 90) { MetadataId = "owner" },
             new(ColumnField.Metadata, "Group", 90) { MetadataId = "group" },
-            new(ColumnField.Metadata, "Attributes", 70, RightAlign: true) { MetadataId = "hidden" },
+            new(ColumnField.Metadata, "Extra data", 70, RightAlign: true) { MetadataId = "hidden" },
         ]),
         ("Media", [
             new(ColumnField.Name, "Name", DefaultFillShare, Star: true),
@@ -119,7 +121,7 @@ public static class ColumnProfiles
             new(ColumnField.Modified, "Modified", 128),
             new(ColumnField.Created, "Created", 128),
             new(ColumnField.Metadata, "Version", 110) { MetadataId = "version" },
-            new(ColumnField.Metadata, OperatingSystem.IsWindows() ? "Streams" : "Attributes", 70, RightAlign: true) { MetadataId = "hidden" },
+            new(ColumnField.Metadata, "Extra data", 70, RightAlign: true) { MetadataId = "hidden" },
             new(ColumnField.Attributes, "Attr", 50),
         ]),
         ("Media", [
@@ -231,7 +233,10 @@ public static class ColumnDescriptions
             ? "The account each item belongs to (a user, group, or service; not who created or last changed it)"
             : "The user account each item belongs to (not who created or last changed it)",
         "group" => "The group each item belongs to",
-        "hidden" => OperatingSystem.IsWindows() ? "Alternate data streams each file carries, counted" : "Extended attributes each item carries, counted",
+        "hidden" => "Bounded supplementary inventory by category and API view; partial counts are lower bounds, and Windows EAs require explicit admission",
+        Core.Metadata.FileDetailsFields.Allocated => "Reported allocation of the file or directory object; not recursive contents, exclusive ownership or deletion savings",
+        Core.Metadata.FileDetailsFields.HardLinks => "Observed names for a regular file; does not measure shared extents",
+        Core.Metadata.FileDetailsFields.ReparseType => "Observed Windows reparse type; a mount-point tag alone does not distinguish junctions from volume mounts",
         "verified" => "Whether files match the checksums and signatures beside them (large ones wait for File → Verify)",
         _ => "A column's value for every item",
     };
@@ -288,6 +293,9 @@ public sealed class ColumnProfileSet
             OperatingSystem.IsWindows() && f.Id == "owner" ? 160 : 110,
             f.Id == Core.Metadata.BuiltInFields.LinkTarget.Id ? ColumnProfiles.LinkTargetFillShare : ColumnProfiles.DefaultFillShare,
             ColumnDescriptions.For(f.Id))),
+        .. Core.Metadata.FileDetailsFields.Create(new Core.Records.NoFileRecords(), OperatingSystem.IsWindows()).Select(f =>
+            new ColumnChoice("meta:" + f.Id, f.Title, f.Id != Core.Metadata.FileDetailsFields.ReparseType, 110,
+                ColumnProfiles.DefaultFillShare, ColumnDescriptions.For(f.Id))),
     ];
 
     /// <summary>Stores a column width chosen by dragging its border (never turns a fill column fixed).</summary>

@@ -235,7 +235,7 @@ public sealed class IconProvider
     internal IImage? VerificationMark(Core.Verification.VerificationState state) =>
         _verificationMarks.GetOrAdd((state, ThemeManager.Current.Name), key => VectorIcons.VerificationMark(key.Item1));
 
-    /// <summary>A cloud provider's file (online only, on this computer, kept here always), at the upper left of its icon.</summary>
+    /// <summary>A neutral provider/recall hint, at the upper left of its icon.</summary>
     internal IImage? CloudOverlay(Core.FileSystem.CloudState state) => state == Core.FileSystem.CloudState.None ? null
         : _cloudOverlays.GetOrAdd((state, ThemeManager.Current.Name), key => VectorIcons.CloudOverlay(key.Item1));
 
@@ -394,9 +394,8 @@ public static class VectorIcons
     /// when it is not checked yet. Sidecars' own rows get none.
     /// </summary>
     /// <summary>
-    /// A cloud provider's file as Explorer tells it, ringed like the other marks at the one free corner, the upper left
-    /// (Git's takes the lower right, a link's arrow the lower left, a checksum's the upper right): a cloud outline when it
-    /// is only in the cloud, a ringed tick when it is on this computer, a filled tick when it is kept here always.
+    /// Neutral cloud outline in the upper-left corner. Attribute hints establish neither complete local content nor
+    /// a completed pin request, so this renderer does not draw residency checkmarks.
     /// </summary>
     internal static IImage? CloudOverlay(Core.FileSystem.CloudState state)
     {
@@ -406,33 +405,9 @@ public static class VectorIcons
         var g = new DrawingGroup();
         g.Children.Add(new GeometryDrawing { Geometry = new RectangleGeometry(new Avalonia.Rect(0, 0, 16, 16)), Brush = Brushes.Transparent });
         g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(0, 0, 10.4, 10.4)), Brush = window });
-        const string tick = "M3.3,5.3 L4.7,6.8 L7.2,3.8";
-        switch (state)
-        {
-            case Core.FileSystem.CloudState.OnlineOnly:
-            {
-                var ink = new SolidColorBrush(Color.Parse(palette.TextLink));
-                var cloud = Geometry.Parse("M3.4,7.0 L7.2,7.0 C8.0,7.0 8.5,6.4 8.4,5.7 C8.3,5.1 7.8,4.8 7.3,4.8 C7.2,3.8 6.4,3.2 5.5,3.2 C4.7,3.2 4.0,3.7 3.8,4.4 C3.0,4.4 2.3,5.0 2.3,5.7 C2.3,6.4 2.8,7.0 3.4,7.0 Z");
-                g.Children.Add(new GeometryDrawing { Geometry = cloud, Pen = new Pen(ink, 1.1, lineJoin: PenLineJoin.Round) });
-                break;
-            }
-            case Core.FileSystem.CloudState.Available:
-            {
-                var green = new SolidColorBrush(Color.Parse(palette.Success));
-                g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(1.4, 1.4, 7.6, 7.6)), Pen = new Pen(green, 1.2) });
-                g.Children.Add(new GeometryDrawing { Geometry = Geometry.Parse(tick), Pen = new Pen(green, 1.4, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round) });
-                break;
-            }
-            default:
-            {
-                var fill = Color.Parse(palette.Success);
-                double luminance = (0.2126 * fill.R + 0.7152 * fill.G + 0.0722 * fill.B) / 255;
-                var ink = luminance > 0.55 ? Color.FromRgb(0x1C, 0x1C, 0x1C) : Colors.White;
-                g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(1.0, 1.0, 8.4, 8.4)), Brush = new SolidColorBrush(fill) });
-                g.Children.Add(new GeometryDrawing { Geometry = Geometry.Parse(tick), Pen = new Pen(new SolidColorBrush(ink), 1.5, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round) });
-                break;
-            }
-        }
+        var ink = new SolidColorBrush(Color.Parse(palette.TextLink));
+        var cloud = Geometry.Parse("M3.4,7.0 L7.2,7.0 C8.0,7.0 8.5,6.4 8.4,5.7 C8.3,5.1 7.8,4.8 7.3,4.8 C7.2,3.8 6.4,3.2 5.5,3.2 C4.7,3.2 4.0,3.7 3.8,4.4 C3.0,4.4 2.3,5.0 2.3,5.7 C2.3,6.4 2.8,7.0 3.4,7.0 Z");
+        g.Children.Add(new GeometryDrawing { Geometry = cloud, Pen = new Pen(ink, 1.1, lineJoin: PenLineJoin.Round) });
         return new DrawingImage(g);
     }
 

@@ -18,13 +18,25 @@ public sealed partial class MainViewModel
             Notify("Streams and attributes belong to files and folders on disk.", true);
             return;
         }
+        OpenHiddenDataForPath(path, newWorkspaceTab: Scope is not null);
+    }
+
+    private void OpenHiddenDataForPath(string path, bool newWorkspaceTab)
+    {
         var location = HiddenDataProvider.Of(path);
         if (!Services.Providers.IsRegistered(Schemes.HiddenData) || Services.Providers.For(location) is not HiddenDataProvider { Data.IsSupported: true })
         {
             Notify("This system keeps no streams or attributes beside files.", true);
             return;
         }
-        tab.Navigate(location);
+        if (newWorkspaceTab)
+        {
+            if (_view?.TopLevel is not Avalonia.Controls.Window { IsVisible: true } main || Services.Io.IsStopped) return;
+            Workspace.ActivePanel?.OpenTab(location);
+            main.Activate();
+            _view.FocusActivePanel();
+        }
+        else ActiveTab?.Navigate(location);
     }
 
     private (HiddenDataProvider Provider, string File) HiddenDataOf(TabViewModel tab) =>
@@ -41,19 +53,24 @@ public sealed partial class MainViewModel
             text += " Without its download mark the file opens without the warning the system gives downloaded files.";
         if (!await Dialogs.ConfirmAsync("Delete", text, "Delete", danger: true)) return;
         var failures = new List<string>();
-        await Task.Run(() =>
+        string device = Services.Providers.For(Core.Resources.Location.FileSystem(file)).GetDeviceKey(Core.Resources.Location.FileSystem(file));
+        await Core.Records.FileObservationRequests.RunOwned(Services.Io, device, Core.Threading.IoPriority.Interactive, ct =>
         {
             foreach (var item in items)
             {
                 try
                 {
-                    if (provider.Find(file, item.Name) is { } found) provider.Data.Delete(file, found);
+                    ct.ThrowIfCancellationRequested();
+                    if (provider.Find(file, item, ct) is not { } found) throw new FileNotFoundException("The exact supplementary item is missing; refresh required.");
+                    if (HiddenMetadataRoles.DeleteRefusal(found) is { } reason) throw new NotSupportedException(reason);
+                    provider.Data.Delete(file, found);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
                 {
                     failures.Add($"{item.Name}: {ex.Message}");
                 }
             }
+            return true;
         });
         // The parent file's Streams/Attributes cell is cached by its own revision, which
         // need not change when a side stream is removed. Retire it even after a partial

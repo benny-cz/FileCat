@@ -13,6 +13,7 @@ using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Commands;
 using FileCat.Core.Jobs;
+using FileCat.Core.FileSystem;
 
 namespace FileCat.App.Views;
 
@@ -169,7 +170,8 @@ public partial class OperationsView : UserControl
             ObserveSelected(Center?.Selected);
         if (e.PropertyName is nameof(OperationCenterViewModel.Selected) or nameof(OperationCenterViewModel.IsOpen)
             or nameof(OperationCenterViewModel.HasInterrupted) or nameof(OperationCenterViewModel.HasReviewedRecovery)
-            or nameof(OperationCenterViewModel.SelectedInterrupted))
+            or nameof(OperationCenterViewModel.SelectedInterrupted) or nameof(OperationCenterViewModel.CanStopStorageHistory)
+            or nameof(OperationCenterViewModel.StorageAccountingStatus))
             QueueDrawerHeightRefresh();
     }
 
@@ -435,13 +437,19 @@ public partial class OperationsView : UserControl
     {
         if (Center?.Selected?.Job is not { } job) return;
         var snapshot = OperationReport.Capture(job);
-        new ReportWindow("Operation report", Formatters.SafeName(job.Title), ct => Task.Run(() =>
+        var report = new ReportWindow("Operation report", Formatters.SafeName(job.Title), ct => Task.Run(() =>
         {
             ct.ThrowIfCancellationRequested();
             return OperationReport.ForClipboard(snapshot) ??
                 "This retained report exceeds the window's 4 million character reading limit. " +
                 "Use Save report in the operations drawer to export every retained detail.";
-        }, ct)).Show();
+        }, ct));
+        if (job.Kind == FileCat.Core.Jobs.JobKind.StorageTransform && snapshot.Storage?.DurablePrefix is { } prefix && Main is { } main)
+            report.ConfigureStorageCalls(() =>
+            {
+                main.ShowStorageCallEvidence(job, prefix, !snapshot.State.IsFinished()); return Task.CompletedTask;
+            });
+        report.Show();
     }
 
     private async void OnCopyReport(object? sender, RoutedEventArgs e)
@@ -632,9 +640,14 @@ public partial class OperationsView : UserControl
 
     private void RevealRecoveryAction()
     {
-        if (Center is not { IsOpen: true, Jobs.Count: 0 } center) return;
+        if (Center is not { IsOpen: true } center) return;
+        if (center.Jobs.Count > 0 && center.SelectedInterrupted?.IsStorage != true && !center.CanStopStorageHistory) return;
         var buttons = RecoveryScroll.GetVisualDescendants().OfType<Button>();
-        var action = center.SelectedInterrupted is { CanReviewArchiveCleanup: true, IsActionBusy: false } selected
+        var action = center.CanStopStorageHistory && center.SelectedInterrupted?.CanStopReview != true
+            ? buttons.FirstOrDefault(button => button.Name == "StorageHistoryStop" && button.IsEffectivelyVisible)
+            : center.SelectedInterrupted is { IsStorage: true, IsActionBusy: false } storage
+            ? buttons.FirstOrDefault(button => ReferenceEquals(button.Tag, storage) && button.Content as string == storage.ReportButtonText && button.IsEffectivelyVisible)
+            : center.SelectedInterrupted is { CanReviewArchiveCleanup: true, IsActionBusy: false } selected
             ? buttons.FirstOrDefault(button => ReferenceEquals(button.Tag, selected) && button.Content as string == selected.CleanupLabel && button.IsEffectivelyVisible)
             : center.SelectedInterrupted is null && center.HasReviewedRecovery
                 ? buttons.FirstOrDefault(button => button.Tag is RecoveryReviewRecord && button.IsEffectivelyVisible) : null;
@@ -666,6 +679,21 @@ public partial class OperationsView : UserControl
             await main.ShowInterruptedReportAsync(item.Job);
     }
 
+    private async void OnReviewStorageChanges(object? sender, RoutedEventArgs e)
+    {
+        if (JobOf(sender) is not { } row || Main is not { } main || Center is not { } center) return;
+        var candidate = center.Manager.StorageHistoryCandidate(row.Job);
+        if (center.ReviewedRecovery.FirstOrDefault(r => PathUtil.SafetyComparer.Equals(r.JournalPath, candidate.JournalPath) && r.StorageRetainedLeaf is not null) is { } reviewed)
+        {
+            await main.ShowRetainedStorageHistoryAsync(reviewed);
+            return;
+        }
+        center.AddInterrupted(candidate);
+        center.SelectedInterrupted = center.Interrupted.First(r => PathUtil.SafetyComparer.Equals(r.Job.JournalPath, candidate.JournalPath));
+        center.IsOpen = true;
+        await main.ShowInterruptedReportAsync(center.SelectedInterrupted.Job);
+    }
+
     private async void OnMarkInterruptedReviewed(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Main is not { } main || Center is not { } center) return;
@@ -674,9 +702,18 @@ public partial class OperationsView : UserControl
         center.UpdateSummary();
     }
 
-    private void OnReviewedRecoveryReport(object? sender, RoutedEventArgs e)
+    private async void OnReviewedRecoveryReport(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is not RecoveryReviewRecord record) return;
+        if (record.IsStorage)
+        {
+            if (Main is { } main) await main.ShowRetainedStorageHistoryAsync(record);
+            return;
+        }
         new ReportWindow("Reviewed recovery report", Formatters.SafeName(record.Title), _ => Task.FromResult(record.Report)).Show();
     }
+
+    private async void OnMoreStorageHistory(object? sender, RoutedEventArgs e) { if (Main is { } main) await main.LoadStorageHistoryPageAsync(); }
+    private async void OnRefreshStorageHistory(object? sender, RoutedEventArgs e) { if (Main is { } main) await main.LoadStorageHistoryPageAsync(restart: true); }
+    private void OnStopStorageHistory(object? sender, RoutedEventArgs e) => Main?.StopStorageHistoryDiscovery();
 }

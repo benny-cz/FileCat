@@ -30,6 +30,9 @@ public enum LocationCapabilities : uint
 /// <summary>Receives enumeration batches. Implementations are single-writer and non-blocking.</summary>
 public interface IEnumerationSink
 {
+    /// <summary>Explicit admission for the Windows EA query that co-returns value bytes; never implied by listing.</summary>
+    bool IncludeSupplementaryEaValues => false;
+    void ReportSupplementaryInventory(HiddenData.HiddenInventory inventory) { }
     void AddBatch(ReadOnlySpan<EntryData> entries);
 
     /// <summary>A non-fatal problem (an entry or subtree that could not be read).</summary>

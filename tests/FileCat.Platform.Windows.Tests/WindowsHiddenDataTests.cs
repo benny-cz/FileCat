@@ -102,8 +102,8 @@ public sealed partial class WindowsHiddenDataTests
             var zone = Assert.Single(entries);
             var tag = Assert.IsType<HiddenEntryTag>(zone.Tag);
             Assert.Equal("Stream", tag.KindText);
-            Assert.Equal("Mark of the Web: from the Internet · https://example.com/setup.exe", tag.DetailsText);
-            using var content = provider.OpenContent(new ItemRef(location, zone.Name, EntryKind.File, zone.Size))!;
+            Assert.Equal("Not read — F3 to view", tag.DetailsText);
+            using var content = provider.OpenContent(provider.GetItemRef(location, zone))!;
             var buffer = new byte[64];
             int read = content.Read(0, buffer);
             Assert.StartsWith("[ZoneTransfer]", Encoding.UTF8.GetString(buffer, 0, read));
@@ -166,11 +166,89 @@ public sealed partial class WindowsHiddenDataTests
         public void ReportIssue(string message) { }
     }
 
+    [Fact]
+    public async Task Bounded_inventory_and_actions_keep_ADS_EA_categories_folder_streams_and_required_roles()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows NTFS fixture.");
+        string dir = NewFolder();
+        try
+        {
+            string file = Path.Combine(dir, "same.bin"); File.WriteAllText(file, "main");
+            File.WriteAllText(file + ":SAME", "stream value");
+            File.WriteAllText(file + ":$DATA", "named DATA value");
+            WriteEa(file, "SAME", "ea value"u8.ToArray());
+            WriteEa(file, "REQUIRED", "required value"u8.ToArray(), flags: 0x80);
+            var hidden = new WindowsHiddenData();
+            var initial = hidden.ReadInventory(file, new(), TestContext.Current.CancellationToken);
+            Assert.False(initial.ValueBearingQueryIssued); Assert.False(initial.IsComplete); Assert.Null(initial.ExactCount);
+            Assert.Equal(HiddenInventoryState.NotInspected, initial.Categories.Single(c => c.Kind == HiddenKind.NtfsAttribute).State);
+            Assert.DoesNotContain(initial.Items, i => i.Kind == HiddenKind.NtfsAttribute);
+            Assert.Contains(initial.Items, i => i.Name == "$DATA" && i.Kind == HiddenKind.Stream);
+            var admitted = hidden.ReadInventory(file, new(IncludeEaValues: true), TestContext.Current.CancellationToken);
+            Assert.True(admitted.IsComplete); Assert.True(admitted.ValueBearingQueryIssued); Assert.True(admitted.BoundToObject);
+            Assert.Equal(4, admitted.ExactCount);
+            var required = admitted.Items.Single(i => i.Name == "REQUIRED");
+            Assert.Equal(0x80, required.NativeFlags); Assert.Equal(HiddenMetadataRole.RequiredMetadata, required.Role);
+            Assert.Throws<NotSupportedException>(() => hidden.Delete(file, required with { NativeFlags = 0, Role = HiddenMetadataRole.Ordinary }));
+            var provider = new HiddenDataProvider(hidden); var location = HiddenDataProvider.Of(file);
+            var streamRef = new ItemRef(location, "SAME", EntryKind.File) { Ordinal = 1 };
+            var eaRef = new ItemRef(location, "SAME", EntryKind.File) { Ordinal = 3 };
+            using (var stream = provider.OpenContent(streamRef)!)
+            { byte[] buffer = new byte[64]; Assert.Equal("stream value", Encoding.UTF8.GetString(buffer, 0, stream.Read(0, buffer))); }
+            using (var ea = provider.OpenContent(eaRef)!)
+            { byte[] buffer = new byte[64]; Assert.Equal("ea value", Encoding.UTF8.GetString(buffer, 0, ea.Read(0, buffer))); }
+            hidden.Delete(file, provider.Find(file, eaRef, TestContext.Current.CancellationToken)!);
+            Assert.Null(provider.Find(file, eaRef, TestContext.Current.CancellationToken)); Assert.NotNull(provider.Find(file, streamRef, TestContext.Current.CancellationToken));
+            Assert.Equal("named DATA value", Encoding.UTF8.GetString(hidden.Read(file, admitted.Items.Single(i => i.Name == "$DATA"), 64)));
+            string folder = Directory.CreateDirectory(Path.Combine(dir, "folder")).FullName;
+            File.WriteAllText(folder + ":note", "directory stream");
+            var note = Assert.Single(hidden.ReadInventory(folder, new(), TestContext.Current.CancellationToken).Items);
+            Assert.Equal("directory stream", Encoding.UTF8.GetString(hidden.Read(folder, note, 64)));
+            hidden.Delete(folder, note);
+            Assert.Empty(hidden.ReadInventory(folder, new(), TestContext.Current.CancellationToken).Items);
+            Assert.Equal("main", File.ReadAllText(file));
+            await Task.CompletedTask;
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public async Task Actual_WOF_backing_is_not_exposed_to_generic_supplementary_delete()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows WOF fixture.");
+        string dir = NewFolder();
+        try
+        {
+            string file = Path.Combine(dir, "wof.bin"); File.WriteAllText(file, new string('w', 256 * 1024));
+            var start = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "compact.exe"))
+                { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+            foreach (string arg in new[] { "/C", "/EXE:LZX", "/F", "/I", "/Q", file }) start.ArgumentList.Add(arg);
+            using var process = System.Diagnostics.Process.Start(start)!;
+            var output = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+            var error = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+            await process.WaitForExitAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+            Assert.True(process.ExitCode == 0, await output + await error);
+            using (var handle = CreateFile(file, 0x80 /* READ_ATTRIBUTES */, 7, 0, 3, 0x00200000 /* OPEN_REPARSE_POINT */, 0))
+            {
+                var backing = WindowsStorageBacking.Query(handle, TestContext.Current.CancellationToken);
+                Assert.True(backing.External, "compact did not produce held-query WOF backing: " + backing.Reason);
+                Assert.Equal(2u, backing.Provider);
+            }
+            var hidden = new WindowsHiddenData();
+            var inventory = hidden.ReadInventory(file, new(), TestContext.Current.CancellationToken);
+            Assert.Equal(HiddenInventoryState.Unsupported, Assert.Single(inventory.Categories).State);
+            Assert.Throws<NotSupportedException>(() => hidden.Delete(file, new("WofCompressedData", HiddenKind.Stream, 0)));
+            Assert.Equal(new string('w', 256 * 1024), File.ReadAllText(file));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     /// <summary>Writes an EA as FILE_FULL_EA_INFORMATION: next offset, flags, name length, value length, name, NUL, value.</summary>
-    private static unsafe void WriteEa(string path, string name, byte[] value)
+    private static unsafe void WriteEa(string path, string name, byte[] value, byte flags = 0)
     {
         byte[] nameBytes = Encoding.ASCII.GetBytes(name);
         var buffer = new byte[(8 + nameBytes.Length + 1 + value.Length + 3) & ~3];
+        buffer[4] = flags;
         buffer[5] = (byte)nameBytes.Length;
         BitConverter.TryWriteBytes(buffer.AsSpan(6), (ushort)value.Length);
         nameBytes.CopyTo(buffer, 8);

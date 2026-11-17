@@ -5,9 +5,8 @@ namespace FileCat.Core.FileSystem;
 
 /// <summary>
 /// Which reparse points are links to another item: a symbolic link, a junction or mount point, a WSL symbolic link, an
-/// app execution alias. Every other reparse point belongs to a component that keeps the item under its own name (a Cloud
-/// Files placeholder such as OneDrive's, a deduplicated or compressed file): it is a file or folder like any other, read,
-/// written and deleted as one (review finding F-H3 of f134ba37).
+/// app execution alias. This is an existing operation policy, not a complete presentation taxonomy. Other tags do not
+/// establish ordinary or safe behavior; each operation retains its own conservative admission policy.
 /// </summary>
 public static partial class ReparseLinks
 {

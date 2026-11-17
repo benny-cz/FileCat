@@ -67,7 +67,7 @@ public sealed class AnalyzeFolderChoiceTests
             var dialogs = new ChoiceDialogs();
             vm.Dialogs = dialogs;
             dialogs.Choose = options => options.Items.ToList().FindIndex(item => item.Title ==
-                (OperatingSystem.IsWindows() ? "Streams" : "Attributes"));
+                "Extra data");
             await vm.ExecuteAsync(CommandIds.AnalyzeFolder);
             Assert.Equal("hidden", tab.Listing.Sort.MetadataId);
             Assert.Single(dialogs.Calls);
@@ -78,7 +78,7 @@ public sealed class AnalyzeFolderChoiceTests
             Assert.Equal(2, dialogs.Calls.Count);
             Assert.Equal("hidden", tab.Listing.Sort.MetadataId);
             Assert.Equal(dialogs.Calls[1].SelectedIndex, dialogs.Calls[1].Items.ToList().FindIndex(i => i.Title ==
-                (OperatingSystem.IsWindows() ? "Streams" : "Attributes")));
+                "Extra data"));
             Assert.Contains("Current sort", dialogs.Calls[1].Items[dialogs.Calls[1].SelectedIndex].Detail);
 
             // Rerunning the selected analysis must not toggle descending order.

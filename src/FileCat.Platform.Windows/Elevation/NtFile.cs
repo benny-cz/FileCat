@@ -57,7 +57,7 @@ internal static unsafe partial class NtFile
     /// the NTSTATUS; <paramref name="handle"/> is invalid unless the status is a success.
     /// </summary>
     public static int TryOpen(SafeHandle? root, string name, uint access, uint share, uint disposition, uint options,
-        out SafeFileHandle handle, uint fileAttributes = 0, ReadOnlySpan<byte> securityDescriptor = default)
+        out SafeFileHandle handle, uint fileAttributes = 0, ReadOnlySpan<byte> securityDescriptor = default, bool caseSensitive = false)
     {
         if (name.Length == 0 || name.Length > 32766) throw new ArgumentException("Invalid name.", nameof(name));
         bool added = false;
@@ -73,7 +73,7 @@ internal static unsafe partial class NtFile
                     Length = sizeof(ObjectAttributes),
                     RootDirectory = root?.DangerousGetHandle() ?? 0,
                     ObjectName = &text,
-                    Attributes = CaseInsensitive,
+                    Attributes = caseSensitive ? 0 : CaseInsensitive,
                     SecurityDescriptor = (nint)security,
                 };
                 IoStatusBlock io;

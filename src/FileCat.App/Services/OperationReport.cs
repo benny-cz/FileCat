@@ -6,7 +6,7 @@ using FileCat.Core.Jobs;
 namespace FileCat.App.Services;
 
 /// <summary>Bounded ordinary-job report. Paths and reasons use JSON strings so hidden characters remain exact.</summary>
-internal static class OperationReport
+internal static partial class OperationReport
 {
     internal const int ClipboardCharacterLimit = 4 * 1024 * 1024;
     internal const int ReadBatch = 256;
@@ -14,11 +14,19 @@ internal static class OperationReport
     internal sealed record Snapshot(Job Job, DateTime CapturedUtc, JobState State, JobIssueTotals Issues,
         JobCommandResultTotals CommandResults,
         long ItemsDone, long ItemsSkipped, long ItemsFailed, long ItemsTotal, bool TotalsFinal,
-        long DataBytesProcessed, TimeSpan ElapsedSinceStart);
+        long DataBytesProcessed, TimeSpan ElapsedSinceStart)
+    {
+        internal StorageResultSnapshot? Storage { get; init; }
+        internal string[] StorageRootPaths { get; init; } = [];
+    }
 
     internal static Snapshot Capture(Job job) => new(job, DateTime.UtcNow, job.State, job.IssueTotals, job.CommandResultTotals,
         job.ItemsDone, job.ItemsSkipped, job.ItemsFailed, job.ItemsTotal, job.TotalsFinal,
-        job.DataBytesProcessed, job.ElapsedSinceStart);
+        job.DataBytesProcessed, job.ElapsedSinceStart)
+    {
+        Storage = job.StorageResult,
+        StorageRootPaths = job.Kind == JobKind.StorageTransform ? job.Request.Sources.Select(s => s.Parent.Path.TrimEnd('\\') + "\\" + s.Name).ToArray() : [],
+    };
 
     internal static string? ForClipboard(Snapshot snapshot, int maximumCharacters = ClipboardCharacterLimit)
     {
@@ -44,6 +52,11 @@ internal static class OperationReport
                 throw new ReportTooLargeException();
         }
 
+        if (snapshot.Job.Kind == JobKind.StorageTransform)
+        {
+            WriteStorage(snapshot, Line);
+            return;
+        }
         Line("FileCat operation report");
         Line("Title: " + Quoted(snapshot.Job.Title));
         Line("Captured (UTC): " + snapshot.CapturedUtc.ToString("O"));

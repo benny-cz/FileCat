@@ -25,13 +25,16 @@ public sealed partial class TabViewModel
 
     private sealed class AnalysisCounts
     {
-        public int Completed, Considered, Current, LastKnown, Absent, Gone, Denied, Placeholder, Unsupported, Failed;
+        public int Completed, Considered, Current, LastKnown, Absent, Gone, Denied, Placeholder, Unsupported, Failed, Partial;
         public bool Prepared;
         public void Add(MetadataValue value, bool placeholder)
         {
             Completed++;
             if (value.State == MetadataState.Available)
-            { if (value.Observation == MetadataObservation.LastKnown) LastKnown++; else Current++; }
+            {
+                if (value.Observation == MetadataObservation.LastKnown) LastKnown++; else Current++;
+                if (value.Value is FileDetailsFields.Cell { Partial: true }) Partial++;
+            }
             else if (value.State == MetadataState.Absent)
             { if (value.Observation == MetadataObservation.Gone) Gone++; else Absent++; }
             else if (value.State == MetadataState.Denied) Denied++;
@@ -105,7 +108,7 @@ public sealed partial class TabViewModel
                         value = new(MetadataState.Available, key = GetFolderText(entry));
                     else if (retained is not null)
                     {
-                        if (!MetadataApplies(entry, fieldId) || entry.Has(EntryFlags.Offline))
+                        if (!MetadataApplies(entry, fieldId) || entry.Has(EntryFlags.Offline) && field?.MetadataOnlyOnOffline != true)
                             value = Services.Metadata.Peek(fieldId, "", entry, slow);
                     }
                     else
@@ -120,7 +123,8 @@ public sealed partial class TabViewModel
                     {
                         if (value.Value is Principal p)
                             name = names?.Answers.GetValueOrDefault(p) ?? new PrincipalName(NameStatus.NotRequested);
-                        else key ??= retained?.Values.Key(i) ?? field?.SortKey?.Invoke(value.Value) ?? value.Value as IComparable;
+                        else if (field?.ObservationLane != true || value.Observation == MetadataObservation.Current)
+                            key ??= retained?.Values.Key(i) ?? field?.CaptureKey(value) ?? value.Value as IComparable;
                     }
                     // Verification reports contain arbitrary detail/check graphs. Ordering retains only the
                     // existing scalar rank and observation state, never that report graph.
@@ -216,6 +220,7 @@ public sealed partial class TabViewModel
         string text = $"Read {title} for {counts.Completed:N0} items: {counts.Current:N0} current values" +
             (counts.LastKnown > 0 ? $", {counts.LastKnown:N0} last-known values." : ".");
         var outcomes = new List<string>();
+        if (counts.Partial > 0) outcomes.Add($"{counts.Partial:N0} inventories with incomplete category coverage");
         if (counts.Absent > 0) outcomes.Add($"{counts.Absent:N0} without a value");
         if (counts.Gone > 0) outcomes.Add($"{counts.Gone:N0} gone");
         if (counts.Denied > 0) outcomes.Add($"{counts.Denied:N0} with no access");
@@ -246,6 +251,7 @@ public sealed partial class TabViewModel
     public async Task AnalyzeAsync(string fieldId)
     {
         if (Location is not { } location || !CanAnalyzeMetadata(fieldId) || Services.Metadata.Field(fieldId) is not { } field) return;
+        if (field.ObservationLane && !location.IsFileSystem) { Banner = "Native metadata analysis requires an ordinary filesystem panel with its original device."; return; }
         RetireMetadataAnalysis();
         if (Listing.Sort.Field != SortField.Metadata || Listing.Sort.MetadataId != fieldId)
             ApplyExplicitSort(Listing.Sort with { Field = SortField.Metadata, MetadataId = fieldId, Descending = false });
@@ -279,16 +285,10 @@ public sealed partial class TabViewModel
         {
             storeLease = store.Lease();
             workerLease = values.Lease();
-            work = Services.Io.RunOwned(provider.GetDeviceKey(location), IoPriority.Background, ct =>
+            bool Analyze(CancellationToken ct)
             {
                 using var scan = new EntryStore.Scan(store, count);
-                for (int i = 0; i < count; i++)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    var e = scan.Materialize(i);
-                    if ((e.Kind == EntryKind.File || e.Kind == EntryKind.Directory && field.Folders) &&
-                        provider.GetItemRef(location, e).FileSystemPath is not null) counts.Considered++;
-                }
+                counts.Considered = count;
                 counts.Prepared = true;
                 long last = Environment.TickCount64;
                 for (int i = 0; i < count; i++)
@@ -296,16 +296,20 @@ public sealed partial class TabViewModel
                     ct.ThrowIfCancellationRequested();
                     if (!claim.IsCurrent) { metadataChanged = true; throw new OperationCanceledException(); }
                     var e = scan.Materialize(i);
-                    if (!(e.Kind == EntryKind.File || e.Kind == EntryKind.Directory && field.Folders) ||
-                        provider.GetItemRef(location, e).FileSystemPath is not { } path) continue;
-                    var value = Services.Metadata.Compute(fieldId, path, e, ct, slow, origin);
+                    bool applicable = MetadataApplies(e, fieldId);
+                    var path = applicable ? provider.GetItemRef(location, e).FileSystemPath : null;
+                    // Inapplicability is a completed missing value, retained in the same order snapshot.
+                    // It must not start a metadata read or disappear from the folder's result count.
+                    var value = !applicable ? new MetadataValue(MetadataState.Absent)
+                        : path is null ? new MetadataValue(MetadataState.Unsupported)
+                        : Services.Metadata.Compute(fieldId, path, e, ct, slow, origin);
                     ct.ThrowIfCancellationRequested();
                     if (value.State is MetadataState.NotRequested or MetadataState.Pending) throw new OperationCanceledException();
                     if (!claim.IsCurrent) { metadataChanged = true; throw new OperationCanceledException(); }
                     counts.Add(value, e.Has(EntryFlags.Offline));
                     if (value.Value is Core.Verification.VerificationResult)
                         values.TryAdd(i, value with { Value = null }, field.SortKey?.Invoke(value.Value));
-                    else values.TryAdd(i, value);
+                    else values.TryAdd(i, value, field.ObservationLane ? field.CaptureKey(value) : null);
                     if (Environment.TickCount64 - last >= 200)
                     {
                         last = Environment.TickCount64;
@@ -318,7 +322,10 @@ public sealed partial class TabViewModel
                 }
                 values.Seal();
                 return true;
-            }, cts.Token);
+            }
+            work = field.ObservationLane
+                ? Core.Records.FileObservationRequests.RunOwned(Services.Io, provider.GetDeviceKey(location), IoPriority.Background, Analyze, cts.Token)
+                : Services.Io.RunOwned(provider.GetDeviceKey(location), IoPriority.Background, Analyze, cts.Token);
             var ownedStore = storeLease;
             var ownedValues = workerLease;
             storeLease = workerLease = null;

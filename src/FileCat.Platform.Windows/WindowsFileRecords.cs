@@ -499,6 +499,8 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             uint tag = BinaryPrimitives.ReadUInt32LittleEndian(output);
             int length = BinaryPrimitives.ReadUInt16LittleEndian(output.AsSpan(4));
             int start = (tag & 0x8000_0000) != 0 ? 8 : 24;
+            if (got > output.Length || got < start || length > got - start)
+                return new InspectionSection("Reparse point", [("Tag", RecordText.ReparseTag(tag))]) { Lines = ["Malformed or truncated reparse data; no target interpreted."] };
             var data = output.AsSpan(start, Math.Max(0, Math.Min(length, got - start)));
             var fields = new List<(string, string)> { ("Tag", RecordText.ReparseTag(tag)) };
             if (start == 24) fields.Add(("Vendor", new Guid(output.AsSpan(8, 16)).ToString("B")));

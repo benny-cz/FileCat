@@ -1043,7 +1043,7 @@ public partial class PanelView : UserControl
             if (column.SortField is not { } field || field == SortField.None) continue;
             string? metadataId = field == SortField.Metadata ? column.MetadataId : null;
             if (field == SortField.Metadata && metadataId is null) continue;
-            string label = Formatters.SafeName(column.Header);
+            string label = Formatters.SafeName(column.DisplayHeader);
             bool current = tab.Listing.Sort.Field == field &&
                 (field != SortField.Metadata || tab.Listing.Sort.MetadataId == metadataId);
             var item = new MenuItem
@@ -1078,6 +1078,16 @@ public partial class PanelView : UserControl
     {
         if (Panel?.ActiveTab is { } t) t.Banner = null;
         List.Focus();
+    }
+
+    private async void OnReadSupplementaryEas(object? sender, RoutedEventArgs e)
+    {
+        if (_main is not { } main || Panel?.ActiveTab is not { CanReadSupplementaryEas: true } tab || tab.Location is not { } location) return;
+        long generation = tab.NavigationGeneration;
+        bool admitted = await main.Dialogs.ConfirmAsync("Read extended attributes",
+            "Windows returns extended attribute names and value bytes in the same query. FileCat will acquire a bounded buffer, retain names, flags and lengths, and discard the values. The inventory does not display or export value excerpts.", "Read extended attributes");
+        if (!admitted || !ReferenceEquals(Panel?.ActiveTab, tab) || tab.Location != location || tab.NavigationGeneration != generation || !tab.CanReadSupplementaryEas) return;
+        tab.Listing.AdmitSupplementaryEaQuery();
     }
 
     /// <summary>Count in the status line: this panel's marked folders are counted, and the keyboard stays in its list.</summary>

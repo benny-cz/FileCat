@@ -79,6 +79,8 @@ public sealed class ListingModel : IDisposable
     private string? _pendingFocusName;
     private EntryKind? _pendingFocusKind;
     private Dictionary<EntryKind, HashSet<string>>? _pendingMarks;
+    private HashSet<ItemRef>? _pendingSupplementaryMarks;
+    private ItemRef? _pendingSupplementaryFocus;
     /// <summary>
     /// Folder sizes computed here (Space), by name, with the folder's own time then. A refresh (a change the folder
     /// watcher saw, Ctrl+R) carries each over while that time is unchanged; a change in the folder makes it stale.
@@ -116,6 +118,15 @@ public sealed class ListingModel : IDisposable
     /// <summary>Why the location could not be listed (<see cref="Error"/> says it in words), or null.</summary>
     public Exception? LoadError { get; private set; }
     public IReadOnlyList<string> Issues => _issues;
+    public HiddenData.HiddenInventory? SupplementaryInventory { get; private set; }
+    public bool IncludeSupplementaryEaValues { get; private set; }
+
+    public void AdmitSupplementaryEaQuery()
+    {
+        if (Location?.Scheme != Schemes.HiddenData || _disposed) return;
+        IncludeSupplementaryEaValues = true;
+        Refresh();
+    }
 
     /// <summary>Only part of the location is shown: its listing broke off on an error or was stopped (<see cref="Issues"/> says which).</summary>
     public bool IsPartial { get; private set; }
@@ -373,6 +384,7 @@ public sealed class ListingModel : IDisposable
         int store = VisibleAt(visibleIndex);
         _pendingFocusName = null;
         _pendingFocusKind = null;
+        _pendingSupplementaryFocus = null;
         _focusAnchored = true;
         if (store == _focusStore) return;
         _focusStore = store;
@@ -398,6 +410,7 @@ public sealed class ListingModel : IDisposable
         if (_disposed) return;
         // First: a location nothing can list leaves the listing as it was, not its store released under it.
         var provider = _providers.For(location);
+        if (Location != location) { IncludeSupplementaryEaValues = false; SupplementaryInventory = null; }
         CancelPipelines();
         Location = location;
         Provider = provider;
@@ -418,6 +431,8 @@ public sealed class ListingModel : IDisposable
         _pendingFocusName = focusName;
         _pendingFocusKind = null;
         _pendingMarks = null;
+        _pendingSupplementaryMarks = null;
+        _pendingSupplementaryFocus = null;
         _computedSizes = new(StringComparer.Ordinal);
         _pendingSizes = null;
         _awaitingEntries = true;
@@ -446,6 +461,14 @@ public sealed class ListingModel : IDisposable
         }
         if (State == ListingState.Loading && _pendingRefresh is null)
         {
+            if (Location.Scheme == Schemes.HiddenData)
+            {
+                var selection = CaptureSupplementarySelection();
+                Load(Location);
+                _pendingSupplementaryMarks = selection.Marks;
+                _pendingSupplementaryFocus = selection.Focus;
+                return;
+            }
             // Loading again keeps the name still awaited (going up focuses the folder just left), or the row the user moved to.
             Load(Location, _pendingFocusName ?? (_focusAnchored && TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? f.Name : null));
             return;
@@ -498,10 +521,16 @@ public sealed class ListingModel : IDisposable
         PreparingStore?.Invoke(location, store);
         var p = new Pipeline(++_generation, location, provider, store, isRefresh, CurrentSpec(), _ui, this);
         var device = provider.GetDeviceKey(location);
-        p.LoadTask = _io.Run(device, IoPriority.Interactive, ct =>
+        void Enumerate(CancellationToken ct)
         {
             provider.EnumerateAsync(location, p.Sink, ct).GetAwaiter().GetResult();
-        }, p.Cts.Token);
+        }
+        p.LoadTask = location.Scheme == Schemes.HiddenData ? ReadSupplementaryAsync() : _io.Run(device, IoPriority.Interactive, Enumerate, p.Cts.Token);
+        async Task ReadSupplementaryAsync()
+        {
+            await Records.FileObservationRequests.RunOwned(_io, device, IoPriority.Interactive,
+                ct => { Enumerate(ct); return true; }, p.Cts.Token).ConfigureAwait(false);
+        }
         p.LoadTask.ContinueWith(t =>
         {
             p.LoadError = t.IsFaulted ? t.Exception!.GetBaseException() : null;
@@ -592,6 +621,7 @@ public sealed class ListingModel : IDisposable
 
     private void SwapToRefresh(Pipeline p)
     {
+        var supplementary = Location?.Scheme == Schemes.HiddenData ? CaptureSupplementarySelection() : default;
         // Carry marks and focus by exact name into the new generation.
         var marked = new Dictionary<EntryKind, HashSet<string>>();
         using (var scan = new EntryStore.Scan(_store, _appliedCount, _marks.Count))
@@ -628,17 +658,34 @@ public sealed class ListingModel : IDisposable
         _issues.Clear();
         IsPartial = false;
         LastRefreshError = null;
-        _pendingMarks = marked.Count > 0 ? marked : null;
+        _pendingMarks = Location?.Scheme != Schemes.HiddenData && marked.Count > 0 ? marked : null;
+        _pendingSupplementaryMarks = supplementary.Marks;
+        _pendingSupplementaryFocus = supplementary.Focus;
         _pendingSizes = _computedSizes.Count > 0 ? _computedSizes : null;
         _computedSizes = new(StringComparer.Ordinal);
         _awaitingEntries = true;
-        _pendingFocusName = focusName;
-        _pendingFocusKind = focusKind;
+        _pendingFocusName = Location?.Scheme == Schemes.HiddenData ? null : focusName;
+        _pendingFocusKind = Location?.Scheme == Schemes.HiddenData ? null : focusKind;
         _focusStore = -1;
+    }
+
+    private (HashSet<ItemRef>? Marks, ItemRef? Focus) CaptureSupplementarySelection()
+    {
+        var marked = _pendingSupplementaryMarks is { } pending ? new HashSet<ItemRef>(pending) : [];
+        foreach (int i in _marks.Enumerate())
+            if (i < _appliedCount && _store[i].Kind != EntryKind.Parent) marked.Add(GetItemRef(i));
+        var focused = _pendingSupplementaryFocus;
+        if (focused is null && _focusAnchored && _focusStore >= 0 && _focusStore < _appliedCount)
+        {
+            var entry = _store[_focusStore];
+            focused = entry.Kind == EntryKind.Parent ? new ItemRef(Location!, entry.Name, EntryKind.Parent) : GetItemRef(_focusStore);
+        }
+        return (marked.Count > 0 ? marked : null, focused);
     }
 
     private void ApplyResult(Pipeline p, PipelineResult r)
     {
+        SupplementaryInventory = p.SupplementaryInventory;
         int oldFocusVisible = FocusedIndex >= 0 ? FocusedIndex : _focusVisibleHint;
         int previousCount = _appliedCount;
         _diskView?.Dispose();
@@ -658,13 +705,39 @@ public sealed class ListingModel : IDisposable
 
         // Resolve names that were waiting for their entry to arrive.
         List<(int Index, long Size, bool LowerBound)>? sized = null;
-        if (_pendingMarks is not null || _pendingFocusName is not null || _pendingSizes is not null)
+        if (_pendingMarks is not null || _pendingFocusName is not null || _pendingSizes is not null || _pendingSupplementaryMarks is not null || _pendingSupplementaryFocus is not null)
         {
             using var scan = new EntryStore.Scan(_store, r.Count, r.Count - previousCount);
             for (int i = previousCount; i < r.Count; i++)
             {
                 var e = scan[i];
-                if (e.Kind == EntryKind.Parent) continue;
+                if (e.Kind == EntryKind.Parent)
+                {
+                    if (_pendingSupplementaryFocus?.Kind == EntryKind.Parent)
+                    {
+                        _focusStore = i;
+                        _pendingSupplementaryFocus = null;
+                        _focusAnchored = true;
+                        change |= ListingChange.Focus;
+                    }
+                    continue;
+                }
+                if (_pendingSupplementaryMarks is not null || _pendingSupplementaryFocus is not null)
+                {
+                    var reference = GetItemRef(i);
+                    if (_pendingSupplementaryMarks?.Remove(reference) == true)
+                    {
+                        _marks.Set(i, true);
+                        change |= ListingChange.Marks;
+                    }
+                    if (_pendingSupplementaryFocus?.Equals(reference) == true)
+                    {
+                        _focusStore = i;
+                        _pendingSupplementaryFocus = null;
+                        _focusAnchored = true;
+                        change |= ListingChange.Focus;
+                    }
+                }
                 // A folder whose own time is unchanged keeps the size computed for it before the refresh.
                 if (_pendingSizes is not null && e.Kind == EntryKind.Directory && _pendingSizes.GetAlternateLookup<ReadOnlySpan<char>>().Remove(e.Name, out _, out var kept))
                 {
@@ -699,7 +772,7 @@ public sealed class ListingModel : IDisposable
             change |= ListingChange.Rows;
         }
 
-        if (!_focusAnchored && _pendingFocusName is null)
+        if (!_focusAnchored && _pendingFocusName is null && _pendingSupplementaryFocus is null)
         {
             // Entries stream in and re-sort: an untouched cursor stays on the first row, not on whichever entry
             // happened to be first in the first batch.
@@ -724,8 +797,18 @@ public sealed class ListingModel : IDisposable
 
         if (r.Completion)
         {
+            if (_pendingSupplementaryFocus is not null)
+            {
+                // The selected category disappeared. Do not move focus onto an identically named survivor.
+                _focusStore = HasParentRow ? 0 : -1;
+                _focusVisibleHint = 0;
+                _focusAnchored = true;
+                change |= ListingChange.Focus;
+            }
             p.CompletionApplied = true;
             _pendingMarks = null;
+            _pendingSupplementaryMarks = null;
+            _pendingSupplementaryFocus = null;
             _pendingSizes = null;
             _awaitingEntries = false;
             _pendingFocusName = null;
@@ -1162,6 +1245,8 @@ public sealed class ListingModel : IDisposable
         _marks = new MarkSet();
         _computedSizes = new(StringComparer.Ordinal);
         _pendingMarks = null;
+        _pendingSupplementaryMarks = null;
+        _pendingSupplementaryFocus = null;
         _pendingSizes = null;
         _pendingFocusName = null;
         _pendingFocusKind = null;
@@ -1211,6 +1296,7 @@ public sealed class ListingModel : IDisposable
             _ui = ui;
             _owner = owner;
             Sink = new StoreSink(this);
+            IncludeEaValues = owner.IncludeSupplementaryEaValues;
             StartedTimestamp = Stopwatch.GetTimestamp();
         }
 
@@ -1221,6 +1307,8 @@ public sealed class ListingModel : IDisposable
         public bool IsRefresh { get; }
         public CancellationTokenSource Cts { get; } = new();
         public IEnumerationSink Sink { get; }
+        public bool IncludeEaValues { get; }
+        public volatile HiddenData.HiddenInventory? SupplementaryInventory;
         public long StartedTimestamp { get; }
         public Task? LoadTask { get; set; }
         public Task? WorkTask { get; private set; }
@@ -1506,6 +1594,13 @@ public sealed class ListingModel : IDisposable
 
         private sealed class StoreSink(Pipeline owner) : IEnumerationSink
         {
+            public bool IncludeSupplementaryEaValues => owner.IncludeEaValues;
+            public void ReportSupplementaryInventory(HiddenData.HiddenInventory inventory)
+            {
+                owner.Cts.Token.ThrowIfCancellationRequested();
+                owner.SupplementaryInventory = inventory;
+                owner.Signal();
+            }
             public bool Shown => true;
 
             // Until this pipeline retires (another location, a refresh that replaced it, the tab closing): retiring cancels it.

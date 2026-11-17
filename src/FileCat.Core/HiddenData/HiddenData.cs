@@ -18,6 +18,8 @@ public enum HiddenKind
 /// <param name="Size">Its size in bytes, or -1 when unknown.</param>
 public sealed record HiddenItem(string Name, HiddenKind Kind, long Size)
 {
+    public byte NativeFlags { get; init; }
+    public HiddenMetadataRole Role { get; init; }
     /// <summary>The Linux namespace ("user", "security", "trusted", "system"), or null.</summary>
     public string? Namespace => Kind == HiddenKind.Attribute && Name.IndexOf('.') is > 0 and var dot && !OperatingSystem.IsMacOS() ? Name[..dot] : null;
 
@@ -39,9 +41,14 @@ public interface IHiddenData
 {
     /// <summary>Whether this system keeps such data at all.</summary>
     bool IsSupported { get; }
+    bool SupportsEaValueQuery => false;
 
     /// <summary>Everything the file carries beside its contents (the unnamed main stream not included).</summary>
     IReadOnlyList<HiddenItem> List(string path);
+
+    /// <summary>Bounded names/types/lengths. Windows EA values require explicit admission; legacy List is never a fallback.</summary>
+    HiddenInventory ReadInventory(string path, HiddenInventoryRequest request, CancellationToken ct) =>
+        HiddenInventory.Unavailable(path, HiddenInventoryState.Unsupported, "A bounded inventory adapter is unavailable.");
 
     /// <summary>At most <paramref name="max"/> bytes of an item, from its start.</summary>
     byte[] Read(string path, HiddenItem item, int max);
@@ -62,6 +69,12 @@ public static class DownloadMarks
     };
 
     public static bool IsDownloadMark(string name) => Names.Contains(name);
+
+    public static bool IsDownloadMark(HiddenItem item, bool windows, bool mac) => windows
+        ? item.Kind == HiddenKind.Stream && (item.Name.Equals("Zone.Identifier", StringComparison.OrdinalIgnoreCase) || item.Name.Equals("SmartScreen", StringComparison.OrdinalIgnoreCase))
+        : item.Kind == HiddenKind.Attribute && (mac
+            ? item.Name is "com.apple.quarantine" or "com.apple.metadata:kMDItemWhereFroms" or "com.apple.metadata:kMDItemDownloadedDate"
+            : item.Name is "user.xdg.origin.url" or "user.xdg.referrer.url");
 }
 
 /// <summary>A system without such data.</summary>

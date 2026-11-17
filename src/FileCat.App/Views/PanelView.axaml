@@ -143,6 +143,17 @@
         </Grid>
       </Border>
 
+      <Border DockPanel.Dock="Top" Classes="banner" IsVisible="{Binding ActiveTab.IsSupplementaryData}">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="small" Text="{Binding ActiveTab.SupplementaryInventoryText}" TextWrapping="Wrap"
+                     AutomationProperties.Name="Supplementary data inventory" />
+          <Button Content="Read extended attributes…" HorizontalAlignment="Left"
+                  IsVisible="{Binding ActiveTab.CanReadSupplementaryEas}" Click="OnReadSupplementaryEas"
+                  AutomationProperties.Name="Read extended attributes"
+                  AutomationProperties.HelpText="Windows returns extended attribute names and values together. Review before issuing that query." />
+        </StackPanel>
+      </Border>
+
       <Panel>
         <ctl:QuickViewPane x:Name="QuickView" IsVisible="{Binding QuickViewSource, Converter={x:Static ObjectConverters.IsNotNull}}"
                            Background="{DynamicResource FcPanel}" ZIndex="1" />

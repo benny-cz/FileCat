@@ -25,14 +25,15 @@
           </TextBlock>
           <TextBlock Text="{Binding Route}" Classes="small muted" TextTrimming="CharacterEllipsis"
                      IsVisible="{Binding Route, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{Binding Route}" />
-          <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsActive}">
+          <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowsHistoryProgress}">
             <ProgressBar Height="6" MinHeight="6" Minimum="0" Maximum="100" Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}"
                          VerticalAlignment="Center" AutomationProperties.Name="Progress of the operation" />
             <TextBlock Grid.Column="1" Text="{Binding PercentText}" Classes="small" FontWeight="SemiBold" MinWidth="38" TextAlignment="Right"
-                       VerticalAlignment="Center" Margin="8,0,0,0" />
+                       VerticalAlignment="Center" Margin="8,0,0,0" IsVisible="{Binding !IsStorage}" />
           </Grid>
           <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsActive}">
-            <TextBlock Text="{Binding CurrentFileText}" Classes="small muted" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding CurrentFileText}" Classes="small muted" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                       ToolTip.Tip="{Binding CurrentFileText}" AutomationProperties.Name="{Binding CurrentFileText}" />
             <ProgressBar Grid.Column="1" Width="160" Height="3" MinHeight="3" Minimum="0" Maximum="100" Value="{Binding CurrentFilePercent}"
                          IsVisible="{Binding ShowsFileProgress}" VerticalAlignment="Center" Margin="8,0,46,0"
                          AutomationProperties.Name="Progress of the current file" />
@@ -75,6 +76,16 @@
           <TextBlock Text="{Binding RecoveryAnnouncement}" IsVisible="{Binding HasRecoveryAnnouncement}" Margin="8,4" Classes="small recoveryAnnouncement"
                      TextWrapping="Wrap" AutomationProperties.Name="{Binding RecoveryAnnouncement}"
                      AutomationProperties.LiveSetting="Polite" />
+          <StackPanel Margin="8,4" Spacing="4" IsVisible="{Binding ShowsStorageHistory}">
+            <TextBlock Text="{Binding StorageHistoryStatus}" Classes="small muted" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding StorageAccountingStatus}" Classes="small muted" TextWrapping="Wrap"
+                       IsVisible="{Binding StorageAccountingStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <WrapPanel ItemSpacing="6" LineSpacing="4">
+              <Button Content="More storage history" Click="OnMoreStorageHistory" IsVisible="{Binding HasMoreStorageHistory}" IsEnabled="{Binding !IsStorageHistoryLoading}" />
+              <Button Content="Refresh storage history" Click="OnRefreshStorageHistory" IsEnabled="{Binding !IsStorageHistoryLoading}" />
+              <Button x:Name="StorageHistoryStop" Content="Stop history work" Click="OnStopStorageHistory" IsVisible="{Binding CanStopStorageHistory}" />
+            </WrapPanel>
+          </StackPanel>
           <ItemsControl ItemsSource="{Binding SyncGroups}" Margin="8,4" AutomationProperties.Name="Synchronization plans">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:SyncGroupViewModel">
@@ -123,10 +134,10 @@
                                 IsEnabled="{Binding !IsActionBusy}"
                                 ToolTip.Tip="Original transfer options are incomplete; choose and review a new transfer before anything changes" />
                         <Button Content="{Binding CleanupLabel}" Tag="{Binding}" Click="OnCleanupInterrupted" IsEnabled="{Binding !IsActionBusy}" IsVisible="{Binding CanCleanup}" />
-                        <Button Content="Review report" Tag="{Binding}" Click="OnInterruptedReport" AutomationProperties.Name="{Binding ReviewReportLabel}"
+                        <Button Content="{Binding ReportButtonText}" Tag="{Binding}" Click="OnInterruptedReport" AutomationProperties.Name="{Binding ReviewReportLabel}"
                                 IsEnabled="{Binding !IsActionBusy}"
                                 ToolTip.Tip="Inspect, copy or save all retained known paths and review limits without changing files" />
-                        <Button Content="Mark reviewed…" Tag="{Binding}" Click="OnMarkInterruptedReviewed" AutomationProperties.Name="{Binding MarkReviewedLabel}"
+                        <Button Content="{Binding MarkReviewedButtonText}" Tag="{Binding}" Click="OnMarkInterruptedReviewed" AutomationProperties.Name="{Binding MarkReviewedLabel}"
                                 IsEnabled="{Binding !IsActionBusy}" IsVisible="{Binding CanMarkReviewed}"
                                 ToolTip.Tip="Stop future recovery reminders after review; files remain unchanged and a diagnostic report is retained" />
                         <Button Content="Hide for now" Tag="{Binding}" Click="OnHideInterrupted" AutomationProperties.Name="{Binding HideLabel}"
@@ -190,7 +201,7 @@
                     <Run Text=" · " />
                     <Run Text="{Binding DetailText}" />
                   </TextBlock>
-                  <ProgressBar Height="3" MinHeight="3" Minimum="0" Maximum="100" Value="{Binding Percent}" IsVisible="{Binding IsActive}" IsIndeterminate="{Binding IsIndeterminate}" />
+                  <ProgressBar Height="3" MinHeight="3" Minimum="0" Maximum="100" Value="{Binding Percent}" IsVisible="{Binding ShowsHistoryProgress}" IsIndeterminate="{Binding IsIndeterminate}" />
                 </StackPanel>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -218,6 +229,7 @@
             <Button Content="{Binding CancelLabel}" IsVisible="{Binding !IsFinished}" IsEnabled="{Binding CanCancel}" Click="OnCancel"
                     ToolTip.Tip="{Binding CancelTooltip}" ToolTip.ShowOnDisabled="True" AutomationProperties.HelpText="{Binding CancelTooltip}" />
             <Button Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
+            <Button Content="Review storage changes" IsVisible="{Binding CanReviewStorage}" Click="OnReviewStorageChanges" />
             <TextBlock Text="{Binding UndoStatus}" VerticalAlignment="Center" Classes="small muted" />
             <Button Content="Undo report" IsVisible="{Binding CanShowUndoReport}" Click="OnShowUndoReport"
                     ToolTip.Tip="Every outcome with full paths and counts; includes Copy all and Save as" />
@@ -246,7 +258,8 @@
                 <Run Text="{Binding PercentText}" FontWeight="SemiBold" />
               </TextBlock>
               <TextBlock Text="{Binding CurrentFileText}" Classes="small muted" TextTrimming="CharacterEllipsis"
-                         IsVisible="{Binding CurrentFileText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                         IsVisible="{Binding CurrentFileText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         ToolTip.Tip="{Binding CurrentFileText}" AutomationProperties.Name="{Binding CurrentFileText}" />
               <TextBlock Text="{Binding TimingText}" Classes="small" TextTrimming="CharacterEllipsis" />
               <TextBlock Text="{Binding ItemsText}" Classes="small" TextTrimming="CharacterEllipsis" />
               <TextBlock Text="{Binding DataText}" Classes="small" TextTrimming="CharacterEllipsis" />

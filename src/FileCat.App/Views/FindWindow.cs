@@ -42,6 +42,7 @@ public sealed class FindWindow : Window, IViewActions
     [
         CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.HexEdit, CommandIds.Copy, CommandIds.Move,
         CommandIds.Delete, CommandIds.DeletePermanent, CommandIds.Properties, CommandIds.UserMenu, CommandIds.OpenWithSystem,
+        CommandIds.FileRecord, CommandIds.HiddenData,
         CommandIds.Reveal, CommandIds.CopyNames, CommandIds.CopyPaths, CommandIds.CopyUncPaths, CommandIds.CopyToClipboard,
         CommandIds.CutToClipboard, CommandIds.MarkToggleDown, CommandIds.MarkAll, CommandIds.MarkNone, CommandIds.MarkInvert,
         CommandIds.MarkInvertAll, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask, CommandIds.MarkSameExt,
@@ -522,7 +523,8 @@ public sealed class FindWindow : Window, IViewActions
         CommandItem(CommandIds.View), CommandItem(CommandIds.ViewAlternate), CommandItem(CommandIds.Edit), new Separator(),
         CommandItem(CommandIds.Copy), CommandItem(CommandIds.Move), CommandItem(CommandIds.Delete), CommandItem(CommandIds.DeletePermanent),
         new Separator(),
-        CommandItem(CommandIds.Properties), CommandItem(CommandIds.UserMenu), CommandItem(CommandIds.Checksum), CommandItem(CommandIds.Pack),
+        CommandItem(CommandIds.Properties), CommandItem(CommandIds.FileRecord), CommandItem(CommandIds.HiddenData),
+        CommandItem(CommandIds.UserMenu), CommandItem(CommandIds.Checksum), CommandItem(CommandIds.Pack),
         new Separator(),
         CommandItem(CommandIds.CopyNames), CommandItem(CommandIds.CopyPaths), CommandItem(CommandIds.CopyToClipboard),
         CommandItem(CommandIds.AddToWorkingSet),
@@ -539,6 +541,7 @@ public sealed class FindWindow : Window, IViewActions
                     var (enabled, reason) = state();
                     item.IsEnabled = enabled;
                     ToolTip.SetTip(item, enabled ? null : reason);
+                    AutomationProperties.SetHelpText(item, enabled ? null : reason);
                 }
         };
         return top;
@@ -599,7 +602,13 @@ public sealed class FindWindow : Window, IViewActions
     {
         var menu = new ContextMenu { ItemsSource = FileItems().Concat([new Separator(), FindActionItem(CommandIds.FindHideSelected, "Hide selected items", HideSelected, icon: "find.hideSelected")]).ToList() };
         foreach (var item in menu.Items.OfType<MenuItem>())
-            if (item.Tag is Func<(bool Enabled, string? Reason)> state) item.IsEnabled = state().Enabled;
+            if (item.Tag is Func<(bool Enabled, string? Reason)> state)
+            {
+                var (enabled, reason) = state();
+                item.IsEnabled = enabled;
+                ToolTip.SetTip(item, enabled ? null : reason);
+                AutomationProperties.SetHelpText(item, enabled ? null : reason);
+            }
         menu.Open(_list);
     }
 
@@ -636,7 +645,7 @@ public sealed class FindWindow : Window, IViewActions
     private async Task EditAdvancedAsync()
     {
         if (_dialogs.IsOpen) return;
-        if (await FindDialogs.AdvancedAsync(_dialogs, _advanced) is { } edited) SetAdvanced(edited);
+        if (await FindDialogs.AdvancedAsync(_dialogs, _advanced, NativeSearchPredicates.HasNativeScope(_within)) is { } edited) SetAdvanced(edited);
     }
 
     private async Task EditIgnoredFoldersAsync()
@@ -834,7 +843,7 @@ public sealed class FindWindow : Window, IViewActions
                 _ => "; added " + query.Describe(),
             };
         }
-        _session = new SearchSession(query, found);
+        _session = new SearchSession(query, found, _services.Io);
         _cts = new CancellationTokenSource();
         var session = _session;
         var token = _cts.Token;
@@ -994,6 +1003,11 @@ public sealed class FindWindow : Window, IViewActions
         if (finished)
         {
             _timer.Stop();
+            if (_mode == RefineMode.Append && _refineScratch is { IsComplete: false } appended)
+            {
+                _set.IsComplete = false;
+                foreach (var issue in appended.Issues.Take(Math.Max(0, 100 - _set.Issues.Count))) _set.Issues.Add(issue);
+            }
             if (_mode is RefineMode.Intersect or RefineMode.Subtract && _refineScratch is { } refine)
             {
                 if (refine.IsComplete)
@@ -1003,7 +1017,9 @@ public sealed class FindWindow : Window, IViewActions
                 }
                 else
                 {
-                    _message.Text = "The search stopped before it finished, so the list was left as it was.";
+                    _message.Text = session.NativePredicateUnexamined + session.ExtraDataUnexamined > 0
+                        ? "The criteria could not be checked for every subject, so the list was left as it was."
+                        : "The search stopped before it finished, so the list was left as it was.";
                 }
             }
             Refresh(force: true);
@@ -1040,7 +1056,7 @@ public sealed class FindWindow : Window, IViewActions
         var log = s.Log;
         bool complete = _refineScratch?.IsComplete ?? _set.IsComplete;
         var feedback = FindFeedback.Create(s.Finished, complete, _set.Count, s.FoldersVisited, s.FilesExamined,
-            s.Matches, s.CurrentFolder, log, s.RegexTimedOut, _searchScope);
+            s.Matches, s.CurrentFolder, log, s.RegexTimedOut, _searchScope, s.NativePredicateUnexamined + s.ExtraDataUnexamined);
         // Announce the outcome once. The rapidly changing folder and counters stay out of the live region.
         AutomationProperties.SetLiveSetting(_status, s.Finished ? AutomationLiveSetting.Polite : AutomationLiveSetting.Off);
         AutomationProperties.SetLiveSetting(_qualifications, s.Finished ? AutomationLiveSetting.Polite : AutomationLiveSetting.Off);

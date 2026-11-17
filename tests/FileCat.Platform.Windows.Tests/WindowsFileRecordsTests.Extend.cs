@@ -73,7 +73,7 @@ public sealed partial class WindowsFileRecordsTests
             var reparse = Section(report, "Reparse index ($Reparse:$R)");
             excerpt = Excerpt(report, "Reparse index");
             Assert.True(reparse.Fields.Any(f => f.Name == "Its entry"), excerpt);
-            Assert.StartsWith($"tag 0xA0000003 mount point (junction)", Field(reparse, "Its entry"), StringComparison.Ordinal);
+            Assert.StartsWith($"tag 0xA0000003 junction or volume mount", Field(reparse, "Its entry"), StringComparison.Ordinal);
             Assert.EndsWith($"→ record {record:N0}, sequence {sequence}", Field(reparse, "Its entry"), StringComparison.Ordinal);
             Assert.Equal("matches what Windows reports (FSCTL_GET_REPARSE_POINT): tag 0xA0000003, for this item's record", Field(reparse, "Compared"));
             Assert.StartsWith("matches: Windows reports no object ID for it", Field(Section(report, "Object ID index ($ObjId:$O)"), "Compared"), StringComparison.Ordinal);

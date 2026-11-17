@@ -23,6 +23,7 @@ public interface IPlatform : IDisposable
 
     /// <summary>What the file system itself records about an item: IDs, exact times, journals, raw records (D-56).</summary>
     Records.IFileRecords FileRecords { get; }
+    IStorageTransforms StorageTransforms { get; }
 
     /// <summary>Registers the file-system, computer, network, and OS-specific providers.</summary>
     void RegisterProviders(ProviderRegistry registry);
@@ -47,6 +48,7 @@ public class PortablePlatform : IPlatform
         OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new HiddenData.UnixHiddenData() : new HiddenData.NoHiddenData();
     public Records.IFileRecords FileRecords { get; protected init; } =
         OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new Records.UnixFileRecords() : new Records.NoFileRecords();
+    public IStorageTransforms StorageTransforms { get; protected init; } = new NoStorageTransforms();
     public IOwnership Ownership { get; protected init; } =
         OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new UnixOwnership() : new NoOwnership();
     public LocalFileSystemProvider? FileSystemProvider { get; private set; }

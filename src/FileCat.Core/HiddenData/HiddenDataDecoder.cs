@@ -303,10 +303,11 @@ public static class HiddenDataDecoder
         return ($"Finder information: {(parts.Count > 0 ? string.Join(", ", parts) : $"flags 0x{flags:X4}")}", []);
     }
 
-    /// <summary>HFS+ and APFS transparent compression: 'fpmc', the method, and the size uncompressed.</summary>
+    /// <summary>A bounded decmpfs header claim, independent of the object's current compression flag/representation.</summary>
     private static (string, IReadOnlyList<string>)? Decmpfs(ReadOnlySpan<byte> v)
     {
-        if (v.Length < 16 || !v[..4].SequenceEqual("fpmc"u8)) return null;
+        if (v.Length < 4 || !v[..4].SequenceEqual("fpmc"u8)) return null;
+        if (v.Length < 16) return ("Truncated decmpfs header; representation not interpreted", [HexLine(v)]);
         uint type = BinaryPrimitives.ReadUInt32LittleEndian(v[4..]);
         ulong size = BinaryPrimitives.ReadUInt64LittleEndian(v[8..]);
         string method = type switch
@@ -316,9 +317,11 @@ public static class HiddenDataDecoder
             9 => "stored, in the attribute", 10 => "stored, in the resource fork",
             11 => "LZFSE, in the attribute", 12 => "LZFSE, in the resource fork",
             13 => "LZBITMAP, in the attribute", 14 => "LZBITMAP, in the resource fork",
-            _ => $"method {type}",
+            _ => string.Empty,
         };
-        return ($"Compressed by the file system ({method}), {Bytes((long)size)} uncompressed", []);
+        if (method.Length == 0) return ($"Header declares method {type}; representation not interpreted", ["Raw size/context bytes: " + HexLine(v.Slice(8, 8))]);
+        if (size > long.MaxValue) return ($"Header declares {method}; unsigned size exceeds the supported range", ["Declared unsigned size: " + size.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+        return ($"Header declares {method}, {Bytes((long)size)} uncompressed", ["A decoded header does not establish active compression."]);
     }
 
     // ---- Anything else ----------------------------------------------------------------------------------------

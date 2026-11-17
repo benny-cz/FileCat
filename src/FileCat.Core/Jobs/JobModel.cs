@@ -36,6 +36,8 @@ public enum JobKind
     VerifyBeside,
     /// <summary>A reserved, reviewed filesystem inverse with tracked mutation ownership and retained outcomes.</summary>
     Undo,
+    /// <summary>An explicitly reviewed in-place storage transformation; existing numeric values stay stable.</summary>
+    StorageTransform,
 }
 
 public enum RegistryAction { SetValue, DeleteValue, CreateKey, RenameKey, DeleteKey, CopyValue, RenameValue, CopyKey }
@@ -152,6 +154,8 @@ public sealed class JobRequest
     public string? Description { get; init; }
     /// <summary>For <see cref="JobKind.Attributes"/>.</summary>
     public AttributeChangeSet? Attributes { get; init; }
+    /// <summary>Immutable approval facts. Native lifetime authority is held separately by JobManager.</summary>
+    public StorageTransformRequest? StorageTransform { get; init; }
     public RegistryChange? Registry { get; init; }
     /// <summary>A previewed import plan, executed in order with per-step journal outcomes.</summary>
     public IReadOnlyList<RegistryChange> RegistryChanges { get; init; } = [];

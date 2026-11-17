@@ -1254,7 +1254,7 @@ public sealed partial class FileListControl : Control
         {
             if (_columnX[i] + _columnW[i] < _horizontalOffset || _columnX[i] > _horizontalOffset + width) continue;
             var c = _columns[i];
-            string title = c.Header;
+            string title = c.DisplayHeader;
             if (c.SortField is { } sf && sf == sort.Field && (sf != SortField.Metadata || sort.MetadataId == c.MetadataId)) title += sort.Descending ? " ▼" : " ▲";
             using var ft = MakeText(title, _headerText, _typeface, _columnW[i] - 2 * Padding);
             double x = c.RightAlign ? _columnX[i] + _columnW[i] - Padding - ft.Width : _columnX[i] + Padding + (i == 0 ? IconSize + MarkGutter + 4 : 0);
@@ -1339,7 +1339,7 @@ public sealed partial class FileListControl : Control
                     {
                         dc.DrawImage(icon, iconRect);
                     }
-                    if (shellOverlay is null && (e.Has(EntryFlags.Link) || IconProvider.IsShortcut(e))) dc.DrawImage(icons!.LinkOverlay, iconRect);
+                    if (shellOverlay is null && (Core.FileSystem.EntryPresentation.IsLink(e, Tab?.Location) || IconProvider.IsShortcut(e))) dc.DrawImage(icons!.LinkOverlay, iconRect);
                     if (shellOverlay is null && e.Kind is EntryKind.File or EntryKind.Directory && icons?.GitOverlay(git) is { } gitOverlay)
                         dc.DrawImage(gitOverlay, iconRect);
                     // What checking it against the checksums and signatures beside it found (D-57): only in folders that have them.
@@ -1417,6 +1417,8 @@ public sealed partial class FileListControl : Control
                 ? $"No items match the filter \"{listing.Filter.Text}\".\nEsc clears the filter."
                 : Core.Search.ResultSetProvider.IsWorkingSetList(listing.Location)
                     ? "No working sets yet.\nF7 creates one; Ctrl+Shift+W adds marked items to a set."
+                    : listing.Location?.Scheme == Schemes.HiddenData
+                    ? listing.SupplementaryInventory?.Description ?? "Supplementary inventory not inspected."
                     : "This location is empty.";
         }
         if (message is null) return;
@@ -1440,10 +1442,10 @@ public sealed partial class FileListControl : Control
     {
         ColumnField.Name => DisplayName(e),
         ColumnField.Extension => e.IsContainer ? string.Empty : Formatters.SafeName(NameParts.GetExtension(e.Name)),
-        ColumnField.Size => Formatters.SizeCell(e),
+        ColumnField.Size => Formatters.SizeCell(e, Tab?.Location),
         ColumnField.Modified => e.Kind == EntryKind.Parent ? string.Empty : Formatters.Date(e, column.Seconds),
         ColumnField.Created => e.Kind == EntryKind.Parent ? string.Empty : Formatters.Date(e.Created),
-        ColumnField.Attributes => Formatters.Attributes(e),
+        ColumnField.Attributes => Formatters.Attributes(e, Tab?.Location),
         ColumnField.Folder => Formatters.SafeName(Tab?.GetFolderText(e) ?? string.Empty),
         ColumnField.Kind => Formatters.SafeName(Tab?.GetKindText(e) ?? string.Empty),
         ColumnField.Details => Formatters.SafeName(Tab?.GetDetailsText(e) ?? string.Empty),
@@ -1880,7 +1882,7 @@ public sealed partial class FileListControl : Control
             return $"Full name: {safe}" + (safe == entry.Name ? string.Empty :
                 "\n" + Formatters.DescribeHiddenNameCharacters(entry.Name));
         }
-        return $"{Formatters.SafeName(column.Header)}: {text}";
+        return $"{Formatters.SafeName(column.DisplayHeader)}: {text}";
     }
 
     private void ClearTip()
@@ -1909,6 +1911,15 @@ public sealed partial class FileListControl : Control
         int storeIndex = listing.GetStoreIndex(row);
         string safeName = Formatters.SafeName(entry.Name);
         var report = new StringBuilder("Focused item: ").AppendLine(safeName);
+        if (Core.FileSystem.EntryPresentation.Kind(entry, Tab?.Location) is { Length: > 0 } kind)
+            report.Append("Observed kind: ").AppendLine(kind);
+        if (Core.FileSystem.EntryPresentation.IsWindowsFileSystem(entry, Tab?.Location))
+        {
+            if (entry.NativeReparseTag != 0) report.Append("Observed reparse tag: 0x").AppendLine(entry.NativeReparseTag.ToString("X8"));
+            if (Core.FileSystem.CloudFiles.Observe((FileAttributes)entry.Attributes, _inCloudRoot) is { Indicator: not Core.FileSystem.CloudState.None } cloud)
+                report.AppendLine(cloud.Description);
+        }
+        report.AppendLine("File-system details: Not inspected; this view uses cached listing facts.");
         if (safeName != entry.Name) report.AppendLine(Formatters.DescribeHiddenNameCharacters(entry.Name));
         for (int col = 0; col < _columns.Length; col++)
         {
@@ -1931,7 +1942,7 @@ public sealed partial class FileListControl : Control
             else value = CellString(entry, spec);
             if (value.Length == 0) continue;
             if (detail.Length > 0) value += "\n    " + detail.Replace("\n", "\n    ", StringComparison.Ordinal);
-            report.Append(Formatters.SafeName(spec.Header)).Append(": ");
+            report.Append(Formatters.SafeName(spec.DisplayHeader)).Append(": ");
             if (report.Length + value.Length > 1_048_576)
             {
                 int remaining = Math.Max(0, 1_048_576 - report.Length);
@@ -2236,14 +2247,18 @@ public sealed partial class FileListControl : Control
         return location;
     }
 
-    internal static string ItemWarnings(in EntryData e)
+    internal static string ItemWarnings(in EntryData e, Core.Resources.Location? location = null)
     {
         string details = string.Empty;
         if (Formatters.DescribeHiddenNameCharacters(e.Name) is { } hidden) details += ", " + hidden;
         if (e.Has(EntryFlags.Offline)) details += ", cloud placeholder or offline; opening may download content";
         if (e.Has(EntryFlags.Unavailable)) details += ", unavailable";
         if (e.Has(EntryFlags.Protected)) details += ", protected content";
-        if (e.Has(EntryFlags.Link)) details += ", link";
+        if (Core.FileSystem.EntryPresentation.Kind(e, location) is { Length: > 0 } kind && e.Tag is not IDisplayDetails)
+            details += ", " + kind;
+        if (Core.FileSystem.EntryPresentation.IsWindowsFileSystem(e, location) &&
+            Core.FileSystem.CloudFiles.Observe((FileAttributes)e.Attributes, false) is { Indicator: not Core.FileSystem.CloudState.None } cloud)
+            details += ", " + cloud.Description;
         if (e.Tag is IDisplayDetails display && display.DetailsText.Length > 0) details += ", " + Formatters.SafeName(display.DetailsText);
         return details;
     }
@@ -2271,7 +2286,7 @@ public sealed partial class FileListControl : Control
         var marked = e.Kind == EntryKind.Parent ? string.Empty : listing.IsMarked(storeIndex) ? ", marked" : ", not marked";
         var git = GitStatusLabel(_gitStatuses?.ForName(e.Name) ?? GitStatusKind.None) is { } gitLabel
             ? ", " + gitLabel : string.Empty;
-        details += ItemWarnings(e);
+        details += ItemWarnings(e, Tab?.Location);
         if (Tab is { } owner && e.Tag is ResultTag) details += ", location: " + ItemLocation(owner, e);
         // Inspection may only read cached verification; asking an offscreen peer must not start file reads.
         if (Tab is { HasSidecars: true, Location.IsFileSystem: true } tab && e.Kind == EntryKind.File &&

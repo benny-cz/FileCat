@@ -38,6 +38,8 @@ public sealed partial class MainViewModel
     internal void StopEditSessions()
     {
         _editSessionsStopped = true;
+        _storageHistoryReading?.Cancel();
+        _storageAccounting?.Dispose();
         foreach (var review in _recoveryReviews.Values.ToArray()) review.Stop();
         foreach (string id in _sessionWatchers.Keys.ToArray()) Unwatch(id);
     }

@@ -19,7 +19,7 @@ namespace FileCat.Core.Jobs;
 /// intents before destructive or externally visible transitions are flushed to disk synchronously,
 /// everything else is group-committed. The journal records intent and outcome; it is not undo.
 /// </summary>
-public sealed class JobJournal : IDisposable
+public sealed partial class JobJournal : IDisposable
 {
     private readonly FileStream _stream;
     private readonly object _lock = new();
@@ -45,7 +45,7 @@ public sealed class JobJournal : IDisposable
 
     public string Path { get; }
     /// <summary>A temporary rename could not be reconciled; do not append an end record that hides recovery.</summary>
-    public bool NeedsRecovery { get { lock (_lock) return Held || _archiveTransactions.RequiresReview; } }
+    public bool NeedsRecovery { get { lock (_lock) return Held || _archiveTransactions.RequiresReview || _storageJournal?.NeedsRecovery == true; } }
     /// <summary>Keep this journal open when an operation left a temporary item that must be reviewed after restart.</summary>
     public void RequireRecovery() { lock (_lock) _manualRecovery = true; }
     /// <summary>A preparation failed before publication: keep the journal for review unless its exact discard completes.</summary>
@@ -341,8 +341,11 @@ public sealed class JobJournal : IDisposable
     /// <summary>Sidecar listing every source path of a large job, one per line (plan §9.3 durable manifest).</summary>
     public static string ManifestPathOf(string journalPath) => journalPath + ".sources";
 
-    public static JobJournal Create(string directory, Job job)
+    public static JobJournal Create(string directory, Job job) => Create(directory, job, null);
+
+    internal static JobJournal Create(string directory, Job job, Func<string, string, CancellationToken, StorageJournalFile>? createStorageJournal)
     {
+        if (job.Kind == JobKind.StorageTransform) return CreateStorage(directory, job, createStorageJournal);
         Directory.CreateDirectory(directory);
         var path = System.IO.Path.Combine(directory, $"job-{job.CreatedUtc:yyyyMMddHHmmss}-{job.ShortId}.fcj");
         var fs = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read, 4096, FileOptions.None);
@@ -473,6 +476,7 @@ public sealed class JobJournal : IDisposable
 
     public void Finish(JobState state, string summary)
     {
+        if (_storageJournal is not null) throw new InvalidOperationException("Storage history requires its typed summary and collector-approved closure.");
         lock (_lock)
         {
             if (NeedsRecovery) throw new IOException("An unresolved archive or temporary-item transaction cannot receive an ordinary journal end record.");
@@ -486,6 +490,7 @@ public sealed class JobJournal : IDisposable
 
     private void Write(JsonObject record, bool sync)
     {
+        if (_storageJournal is not null) throw new InvalidOperationException("Generic records cannot be appended to storage history.");
         if (_archiveRecoveryOnly && record["t"]?.GetValue<string>() is not ("archive-content-recovery" or "archive-content-restoration" or "archive-creation-cleanup" or "archive-exchange-update" or "archive-discard" or "end"))
             throw new InvalidOperationException("This retained recovery writer only appends reconciliation and closure records.");
         var json = record.ToJsonString();
@@ -518,8 +523,13 @@ public sealed class JobJournal : IDisposable
         {
             if (_disposed) return;
             _disposed = true;
-            try { _stream.Flush(flushToDisk: true); } catch (IOException) { }
-            _stream.Dispose();
+            try { _stream.Flush(flushToDisk: true); }
+            catch (IOException) { _storageJournal?.Fault(); if (_storageJournal is not null) throw; }
+            finally
+            {
+                try { _stream.Dispose(); }
+                finally { _storageJournal?.Dispose(); Interlocked.Exchange(ref _storageWriterCharge, null)?.Dispose(); }
+            }
         }
     }
 
@@ -681,6 +691,9 @@ public sealed class JournalRecord(JsonObject node)
 public sealed record InterruptedJob(string JournalPath, string Kind, string Title, DateTime CreatedUtc,
     IReadOnlyList<string> Sources, string? Destination, IReadOnlyList<PendingIntent> OpenIntents, IReadOnlyList<string> StagingDirectories, int CompletedSteps, int SourceCount)
 {
+    /// <summary>Manager-scoped storage evidence name. JournalPath is then a bounded row key, not a user-file path.</summary>
+    public string? StorageJournalLeaf { get; init; }
+    public bool IsStorageTransform => Kind == nameof(JobKind.StorageTransform) || StorageJournalPolicy.IsCandidate(JournalPath);
     /// <summary>Archive facts requiring their own object-bound review; generic stage cleanup cannot resolve these.</summary>
     public ArchiveTransactionRecovery ArchiveTransactions { get; init; } = new([], false, null);
     /// <summary>Folders that received direct copies (source folder, destination folder), bounded.</summary>
@@ -703,7 +716,7 @@ public sealed record InterruptedJob(string JournalPath, string Kind, string Titl
 
     public string? TransferIntentProblem { get; init; }
 
-    public bool CanContinueTransfer => SourcesKnown && TransferIntent is { } intent && intent.Matches(this);
+    public bool CanContinueTransfer => !IsStorageTransform && SourcesKnown && TransferIntent is { } intent && intent.Matches(this);
 }
 
 public sealed record FillDirectory(string Source, string Destination);
@@ -755,7 +768,10 @@ public static partial class JournalRecovery
         var result = new List<InterruptedJob>();
         if (WindowsTokenAuthority.IsHighIntegrity) return result;
         if (!Directory.Exists(directory)) return result;
-        var files = new DirectoryInfo(directory).GetFiles("job-*.fcj").OrderByDescending(f => f.Name).ToList();
+        // Storage candidates are classified before legacy materialization/parsing/deletion. Their bounded discovery
+        // is separate, including when the first record is damaged or absent.
+        var files = Directory.EnumerateFiles(directory, "job-*.fcj").Where(p => !StorageJournalPolicy.IsCandidate(p))
+            .Select(p => new FileInfo(p)).OrderByDescending(f => f.Name).ToList();
         int finished = 0;
         var cutoff = DateTime.UtcNow - (maxAge ?? TimeSpan.FromDays(30));
         foreach (var f in files)
@@ -771,10 +787,13 @@ public static partial class JournalRecovery
             var fills = new List<FillDirectory>();
             bool fillsCut = false;
             var archiveTransactions = new ArchiveTransactionCollector();
+            bool storageRecords = false;
             try
             {
                 foreach (var record in JobJournal.ReadRecords(f.FullName, archiveTransactions.DamagedRecord))
                 {
+                    if (record.Type.StartsWith("storage-", StringComparison.Ordinal) || record.Type == "begin" && record.Get("kind") == nameof(JobKind.StorageTransform))
+                    { storageRecords = true; break; }
                     archiveTransactions.Read(record.Type, record.Node);
                     switch (record.Type)
                     {
@@ -805,6 +824,7 @@ public static partial class JournalRecovery
             }
             catch (IOException) { continue; }
             catch (UnauthorizedAccessException) { continue; }
+            if (storageRecords) { result.Add(StoragePlaceholder(f.FullName)); continue; }
             if (begin is null && archiveTransactions.Snapshot.HasRecords) archiveTransactions.DamagedRecord();
             var archiveRecovery = archiveTransactions.Snapshot;
             var manifest = JobJournal.ManifestPathOf(f.FullName);
@@ -870,6 +890,7 @@ public static partial class JournalRecovery
     /// <summary>Potential staged paths, bounded by <paramref name="limit"/>. Review their current bytes before deletion.</summary>
     public static IReadOnlyList<string> FindStagedLeftovers(InterruptedJob job, int limit = 1000, Action? check = null)
     {
+        if (job.IsStorageTransform) return [];
         if (job.ArchiveTransactions.HasRecords) return []; // Archive artifacts need native object-bound review.
         var id = Path.GetFileNameWithoutExtension(job.JournalPath);
         var shortId = id.Length >= 8 ? id[^8..] : id;
@@ -953,7 +974,7 @@ public static partial class JournalRecovery
 
     /// <summary>Renames that were under way: the item still has its temporary name (<see cref="PendingIntent.Via"/>).</summary>
     public static IReadOnlyList<PendingIntent> FindRenameLeftovers(InterruptedJob job) =>
-        job.ArchiveTransactions.HasRecords ? [] :
+        job.IsStorageTransform || job.ArchiveTransactions.HasRecords ? [] :
             job.OpenIntents.Where(i => i.Operation == JobJournal.RenameViaOp && i.Via is { } via && (File.Exists(via) || Directory.Exists(via))).ToList();
 
     /// <summary>
@@ -990,6 +1011,7 @@ public static partial class JournalRecovery
     /// </summary>
     public static CopyReview ReviewCopies(InterruptedJob job, int limit = 1000, Action? check = null)
     {
+        if (job.IsStorageTransform) return new([], [], true);
         if (job.ArchiveTransactions.HasRecords) return new([], [], true);
         var incomplete = new List<IncompleteCopy>();
         var differing = new List<string>();
@@ -1179,6 +1201,7 @@ public static partial class JournalRecovery
     /// <summary>Every source path of the job (header or manifest), or null when they are not all known.</summary>
     public static IReadOnlyList<string>? LoadSources(InterruptedJob job)
     {
+        if (job.IsStorageTransform) return null;
         if (job.SourceCount < 0 || job.SourceCount > JobJournal.ManifestLimit) return null;
         if (job.SourceCount == job.Sources.Count) return job.Sources;
         if (job.ManifestPath is not { } manifest) return null;
@@ -1205,6 +1228,7 @@ public static partial class JournalRecovery
     /// <summary>Reconciles durably before removing the source manifest. A failed append keeps the manifest.</summary>
     public static bool TryClose(InterruptedJob job, string resolution)
     {
+        if (job.IsStorageTransform || HasStorageRecords(job.JournalPath)) return false;
         try
         {
             if (InUse(job.JournalPath) || ReadArchiveTransactions(job.JournalPath).RequiresReview) return false;
@@ -1237,6 +1261,11 @@ public static partial class JournalRecovery
     public static bool IsInterrupted(InterruptedJob job)
     {
         if (InUse(job.JournalPath)) return false;
+        if (job.IsStorageTransform || HasStorageRecords(job.JournalPath))
+        {
+            try { return ReadStorageHistory(job.JournalPath).ReviewPending; }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return true; }
+        }
         try
         {
             bool began = false;

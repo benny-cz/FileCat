@@ -230,6 +230,7 @@ public sealed class EntryStore : IDisposable
             Modified = BinaryPrimitives.ReadInt64LittleEndian(record[24..]),
             Created = BinaryPrimitives.ReadInt64LittleEndian(record[32..]),
             Attributes = BinaryPrimitives.ReadUInt32LittleEndian(record[40..]),
+            NativeReparseTag = BinaryPrimitives.ReadUInt32LittleEndian(record[44..]),
         };
     }
 
@@ -244,6 +245,7 @@ public sealed class EntryStore : IDisposable
         BinaryPrimitives.WriteInt64LittleEndian(record[24..], entry.Modified);
         BinaryPrimitives.WriteInt64LittleEndian(record[32..], entry.Created);
         BinaryPrimitives.WriteUInt32LittleEndian(record[40..], entry.Attributes);
+        BinaryPrimitives.WriteUInt32LittleEndian(record[44..], entry.NativeReparseTag);
     }
 
     private static void ReadExactly(Microsoft.Win32.SafeHandles.SafeFileHandle handle, Span<byte> buffer, long offset)
@@ -365,7 +367,8 @@ public sealed class EntryStore : IDisposable
             var name = length == 0 ? ReadOnlySpan<char>.Empty : new ReadOnlySpan<char>(_names + offset, length / 2);
             return new EntryView(name, (EntryKind)record[12], (EntryFlags)BinaryPrimitives.ReadUInt16LittleEndian(record[13..]),
                 BinaryPrimitives.ReadInt64LittleEndian(record[16..]), BinaryPrimitives.ReadInt64LittleEndian(record[24..]),
-                BinaryPrimitives.ReadInt64LittleEndian(record[32..]), BinaryPrimitives.ReadUInt32LittleEndian(record[40..]));
+                BinaryPrimitives.ReadInt64LittleEndian(record[32..]), BinaryPrimitives.ReadUInt32LittleEndian(record[40..]),
+                BinaryPrimitives.ReadUInt32LittleEndian(record[44..]));
         }
 
         public void Dispose()
@@ -414,7 +417,7 @@ public sealed class EntryStore : IDisposable
             if (_spill is not { } spill || (uint)index >= (uint)spill.Count) return _store[index];
             var view = spill.Get(index);
             return new EntryData(view.Name.ToString(), view.Kind, view.Size, view.Modified)
-            { Flags = view.Flags, Created = view.Created, Attributes = view.Attributes };
+            { Flags = view.Flags, Created = view.Created, Attributes = view.Attributes, NativeReparseTag = view.NativeReparseTag };
         }
 
         public void Dispose() => _spill?.Dispose();

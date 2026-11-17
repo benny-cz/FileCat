@@ -112,7 +112,7 @@ public static class RecordText
     {
         string? name = tag switch
         {
-            0xA000_0003 => "mount point (junction)",
+            0xA000_0003 => "junction or volume mount",
             0xA000_000C => "symbolic link",
             0xC000_0004 => "hierarchical storage (HSM)",
             0x8000_0006 => "hierarchical storage (HSM2)",
@@ -156,55 +156,25 @@ public static class RecordText
     /// <summary>What a reparse point's data says, for the tags whose layout is known; null for the others.</summary>
     public static string? ReparseTarget(uint tag, ReadOnlySpan<byte> data)
     {
-        try
+        var payload = FileSystem.ReparsePayloadReader.ParseData(tag, data);
+        if (payload.State != FileSystem.ReparsePayloadState.Known) return null;
+        if (payload.Link is { } link)
+            return (link.Relative ? "relative: " : "") + (link.PrintName.Length > 0 ? link.PrintName : link.SubstituteName);
+        if (payload.Alias is { } alias)
         {
-            switch (tag)
-            {
-                case 0xA000_000C when data.Length >= 12:
-                {
-                    bool relative = (BinaryPrimitives.ReadUInt32LittleEndian(data[8..]) & 1) != 0;
-                    string target = LinkName(data, 12);
-                    return (relative ? "relative: " : "") + target;
-                }
-                case 0xA000_0003 when data.Length >= 8:
-                    return LinkName(data, 8);
-                case 0x8000_001B when data.Length >= 4:
-                {
-                    // Version 3: package, app user model ID, target, and app type, each ending in a NUL.
-                    var parts = Encoding.Unicode.GetString(data[4..][..(data.Length - 4 & ~1)]).Split('\0');
-                    var named = new List<string>();
-                    if (parts.Length > 0 && parts[0].Length > 0) named.Add("package " + parts[0]);
-                    if (parts.Length > 1 && parts[1].Length > 0) named.Add("app " + parts[1]);
-                    if (parts.Length > 2 && parts[2].Length > 0) named.Add("runs " + parts[2]);
-                    return named.Count > 0 ? string.Join(" · ", named) : null;
-                }
-                case 0xA000_001D when data.Length > 4:
-                    return Encoding.UTF8.GetString(data[4..]);
-                case 0x8000_0017 when data.Length >= 8:
-                {
-                    uint provider = BinaryPrimitives.ReadUInt32LittleEndian(data[4..]);
-                    if (provider == 2 && data.Length >= 16)
-                    {
-                        uint algorithm = BinaryPrimitives.ReadUInt32LittleEndian(data[12..]);
-                        string name = algorithm switch { 0 => "XPRESS4K", 1 => "LZX", 2 => "XPRESS8K", 3 => "XPRESS16K", _ => $"algorithm {algorithm}" };
-                        return $"compressed by the file provider with {name}; Windows decompresses it when read";
-                    }
-                    return provider == 1 ? "backed by a WIM image (WIMBoot)" : $"provider {provider}";
-                }
-            }
+            var named = new List<string>();
+            if (alias.Package.Length > 0) named.Add("package " + alias.Package);
+            if (alias.AppId.Length > 0) named.Add("app " + alias.AppId);
+            if (alias.Executable.Length > 0) named.Add("runs " + alias.Executable);
+            return named.Count > 0 ? string.Join(" · ", named) : null;
         }
-        catch (ArgumentOutOfRangeException) { }
-        return null;
-    }
-
-    /// <summary>A symbolic link's or junction's print name (or its substitute name when it has none).</summary>
-    private static string LinkName(ReadOnlySpan<byte> data, int buffer)
-    {
-        int subOffset = BinaryPrimitives.ReadUInt16LittleEndian(data), subLength = BinaryPrimitives.ReadUInt16LittleEndian(data[2..]);
-        int printOffset = BinaryPrimitives.ReadUInt16LittleEndian(data[4..]), printLength = BinaryPrimitives.ReadUInt16LittleEndian(data[6..]);
-        string print = buffer + printOffset + printLength <= data.Length ? Encoding.Unicode.GetString(data.Slice(buffer + printOffset, printLength & ~1)) : "";
-        string substitute = buffer + subOffset + subLength <= data.Length ? Encoding.Unicode.GetString(data.Slice(buffer + subOffset, subLength & ~1)) : "";
-        return print.Length > 0 ? print : substitute;
+        if (payload.Wof is { Provider: 2, Algorithm: { } algorithm })
+        {
+            string name = algorithm switch { 0 => "XPRESS4K", 1 => "LZX", 2 => "XPRESS8K", 3 => "XPRESS16K", _ => $"algorithm {algorithm}" };
+            return $"compressed by the file provider with {name}; Windows decompresses it when read";
+        }
+        if (payload.Wof is { Provider: 1 }) return "backed by a WIM image (WIMBoot)";
+        return payload.WslTarget;
     }
 
     /// <summary>

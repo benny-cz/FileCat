@@ -192,9 +192,10 @@ internal readonly ref struct EntryView
         Modified = e.Modified;
         Created = e.Created;
         Attributes = e.Attributes;
+        NativeReparseTag = e.NativeReparseTag;
     }
 
-    public EntryView(ReadOnlySpan<char> name, EntryKind kind, EntryFlags flags, long size, long modified, long created, uint attributes)
+    public EntryView(ReadOnlySpan<char> name, EntryKind kind, EntryFlags flags, long size, long modified, long created, uint attributes, uint nativeReparseTag = 0)
     {
         Name = name;
         Kind = kind;
@@ -203,6 +204,7 @@ internal readonly ref struct EntryView
         Modified = modified;
         Created = created;
         Attributes = attributes;
+        NativeReparseTag = nativeReparseTag;
     }
 
     public ReadOnlySpan<char> Name { get; }
@@ -212,6 +214,7 @@ internal readonly ref struct EntryView
     public long Modified { get; }
     public long Created { get; }
     public uint Attributes { get; }
+    public uint NativeReparseTag { get; }
 
     public bool IsContainer => Kind is EntryKind.Directory or EntryKind.Parent or EntryKind.Drive
         or EntryKind.Server or EntryKind.Share or EntryKind.RegistryKey;
