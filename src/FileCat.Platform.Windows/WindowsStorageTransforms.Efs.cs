@@ -59,6 +59,12 @@ internal sealed unsafe partial class WindowsStorageTransforms
         finally { windows?.Dispose(); path?.Dispose(); }
     }
 
+    internal StorageEfsAssociationSnapshot InspectEfsAssociations(IStorageObjectLease item, CancellationToken ct)
+    {
+        if (item is not EfsPathBinding binding || !binding.IsFrom(this)) throw new ArgumentException("Inspect EFS associations through this adapter's live held binding.", nameof(item));
+        return binding.ReadAssociations(ct);
+    }
+
     private static void RequireEfsHost(StorageAction action)
     {
         if (action is not (StorageAction.EncryptEfs or StorageAction.DecryptEfs)) throw new ArgumentException("Choose an EFS action.", nameof(action));
@@ -130,6 +136,20 @@ internal sealed unsafe partial class WindowsStorageTransforms
         }
         public string Path => _pin.Target.Path;
         public StorageObjectIdentity Identity => _identity;
+        internal bool IsFrom(WindowsStorageTransforms adapter) => ReferenceEquals(_pin.Adapter, adapter);
+        internal StorageEfsAssociationSnapshot ReadAssociations(CancellationToken ct)
+        {
+            Check(); var before = Observe(ct);
+            if (before.Ineligible is { } excluded) throw new StorageInspectionException(excluded);
+            if (before.Efs != StorageObservationState.Enabled) throw Refuse("efs-association-state", "The held item is not known to be EFS encrypted.");
+            if (!_guards) { PromoteEfsGuards(_path, Path, ct); _guards = true; }
+            return WindowsEfsAssociations.Read(_apiPath, Identity, _pin.InvokerSid!, token =>
+            {
+                var observed = Observe(token);
+                if (observed.Efs != StorageObservationState.Enabled || observed.Ineligible is not null)
+                    throw Changed("efs-association-changed", "The held encrypted item changed during its certificate query.");
+            }, ct);
+        }
         private void Check()
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -210,23 +230,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         }
         private void ValidateSpelling(CancellationToken ct)
         {
-            string raw = Path.StartsWith(@"\\?\", StringComparison.Ordinal) ? Path[4..] : Path;
-            int prefix = raw.StartsWith("Volume{", StringComparison.OrdinalIgnoreCase) ? 45 : 3;
-            string[] names = raw[prefix..].TrimEnd('\\').Split('\\');
-            for (int i = 0; i < _path.Nodes.Count; i++)
-            {
-                var node = _path.Nodes[i]; var facts = Facts(node.Handle.File, _path.Volume.Binding, ct);
-                ValidateNode(facts, node.Facts);
-                using var scratch = _allowance.ClaimScratch();
-                int status = NtFile.TryOpen(i == 0 ? null : _path.Nodes[i - 1].Handle.File, i == 0 ? @"\??\" + raw[..prefix] : names[i - 1],
-                    NtFile.ReadAttributes | NtFile.Synchronize, NtFile.ShareRead | NtFile.ShareWrite, NtFile.Open,
-                    NtFile.OpenReparsePoint | (node.Facts.IsDirectory ? NtFile.DirectoryFile : 0), out var current, caseSensitive: i != 0);
-                using (current)
-                {
-                    if (status < 0) throw Changed("efs-path-changed", "The captured EFS spelling could not be reopened without following links.");
-                    ValidateNode(Facts(current, _path.Volume.Binding, ct), node.Facts);
-                }
-            }
+            ValidateCapturedEfsPath(_path, Path, ct);
             ValidateNode(Facts(_pin.Handle.File, _path.Volume.Binding, ct), _path.LeafFacts);
             foreach (var node in _windows.Nodes) ValidateNode(Facts(node.Handle.File, _windows.Volume.Binding, ct), node.Facts);
         }
@@ -238,6 +242,26 @@ internal sealed unsafe partial class WindowsStorageTransforms
         }
         public void Dispose()
         { if (_disposed) return; _disposed = true; try { _path.Dispose(); } finally { _windows.Dispose(); } }
+    }
+
+    private static void ValidateCapturedEfsPath(NativePath path, string captured, CancellationToken ct)
+    {
+        string raw = captured.StartsWith(@"\\?\", StringComparison.Ordinal) ? captured[4..] : captured;
+        int prefix = raw.StartsWith("Volume{", StringComparison.OrdinalIgnoreCase) ? 45 : 3;
+        string[] names = raw[prefix..].TrimEnd('\\').Split('\\');
+        for (int i = 0; i < path.Nodes.Count; i++)
+        {
+            var node = path.Nodes[i]; EfsPathBinding.ValidateNode(Facts(node.Handle.File, path.Volume.Binding, ct), node.Facts);
+            using var scratch = StorageNativeAllowance.RequireCurrent().ClaimScratch();
+            int status = NtFile.TryOpen(i == 0 ? null : path.Nodes[i - 1].Handle.File, i == 0 ? @"\??\" + raw[..prefix] : names[i - 1],
+                NtFile.ReadAttributes | NtFile.Synchronize, NtFile.ShareRead | NtFile.ShareWrite, NtFile.Open,
+                NtFile.OpenReparsePoint | (node.Facts.IsDirectory ? NtFile.DirectoryFile : 0), out var current, caseSensitive: i != 0);
+            using (current)
+            {
+                if (status < 0) throw Changed("efs-path-changed", "The captured EFS spelling could not be reopened without following links.");
+                EfsPathBinding.ValidateNode(Facts(current, path.Volume.Binding, ct), node.Facts);
+            }
+        }
     }
 
     private static string EfsApiPath(NativePath path, string captured)
