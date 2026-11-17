@@ -18,7 +18,7 @@ public sealed partial class ProtectedHexFile : IContentSource
 {
     private const uint GenericRead = 0x80000000, GenericWrite = 0x40000000, FileShareRead = 1, OpenExisting = 3;
     private const uint FlagOpenReparsePoint = 0x00200000, FlagRandomAccess = 0x10000000;
-    private const uint AttributeReadOnly = 0x1, AttributeDirectory = 0x10, AttributeSparse = 0x200, AttributeReparsePoint = 0x400;
+    private const uint AttributeReadOnly = 0x1, AttributeDirectory = 0x10, AttributeSparse = 0x200, AttributeReparsePoint = 0x400, AttributeEncrypted = 0x4000;
     private const string LinkRefused = "This path is a link. Editing through it could change an unexpected file; open the file it points to instead.";
     private readonly SafeFileHandle _handle;
     private readonly string _path;
@@ -127,6 +127,29 @@ public sealed partial class ProtectedHexFile : IContentSource
                 !actual.AsSpan().SequenceEqual(range.Original))
                 throw new IOException($"Original bytes at 0x{range.Offset:X} changed; save is blocked." +
                     (ExcludesWriters ? string.Empty : " Another program wrote the file while it was open; reopen it to see its bytes now."));
+        }
+    }
+
+    // The recovery journal stores original/replacement bytes without an EFS-preservation protocol.
+    // This is a fresh held-target check at persistence admission, not a cached opening attribute.
+    // Save As and patch export have separate output-admission requirements.
+    internal void RequireUnencryptedJournalTarget()
+    {
+        if (JournalProtectionProblem(_handle) is { } problem) throw new IOException(problem);
+    }
+
+    internal static string? JournalProtectionProblem(SafeFileHandle handle)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try
+        {
+            return (Attributes(handle) & AttributeEncrypted) != 0
+                ? "EFS files cannot be saved in place because this recovery journal is not yet protected. Existing recovery journals are retained."
+                : null;
+        }
+        catch (Win32Exception)
+        {
+            return "The file's current EFS protection could not be established. In-place saving and recovery are blocked because the recovery journal is not protected.";
         }
     }
 

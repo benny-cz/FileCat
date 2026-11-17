@@ -51,6 +51,7 @@ public static class HexSaveJournal
         try
         {
             if (ranges.Count == 0) { committed = true; return ""; }
+            file.RequireUnencryptedJournalTarget();
             file.ValidateForSave(ranges);
             byte[] payload = Serialize(file, ranges);
             Directory.CreateDirectory(journalDirectory);
@@ -184,6 +185,8 @@ public static class HexSaveJournal
                 return new HexRecoveryInspection(0, 0, 0, "A different file now has this name, so the journal no longer applies to it.");
             if (openFile.Length != record.Length)
                 return new HexRecoveryInspection(0, 0, 0, "The file's length changed after the save stopped, so another program modified it.");
+            if (ProtectedHexFile.JournalProtectionProblem(openFile.Handle) is { } protection)
+                return new HexRecoveryInspection(0, 0, 0, protection);
             return Compare(record.Ranges, (offset, buffer) => openFile.Read(offset, buffer));
         }
         string path;
@@ -202,6 +205,8 @@ public static class HexSaveJournal
                 return new HexRecoveryInspection(0, 0, 0, "A different file now has this name, so the journal no longer applies to it.");
             if (RandomAccess.GetLength(handle) != record.Length)
                 return new HexRecoveryInspection(0, 0, 0, "The file's length changed after the save stopped, so another program modified it.");
+            if (ProtectedHexFile.JournalProtectionProblem(handle) is { } protection)
+                return new HexRecoveryInspection(0, 0, 0, protection);
             return Compare(record.Ranges, (offset, buffer) => RandomAccess.Read(handle, buffer, offset));
         }
     }
@@ -221,6 +226,7 @@ public static class HexSaveJournal
         {
             if (file.FileIdentity != record.Identity || file.Length != record.Length)
                 throw new IOException("The file at this path is not the one that was being saved, or its length changed. Automatic recovery is blocked.");
+            file.RequireUnencryptedJournalTarget();
             var state = Compare(record.Ranges, (offset, buffer) => file.Read(offset, buffer));
             if (state.Blocker is not null) throw new IOException(state.Blocker);
             for (int i = 0; i < record.Ranges.Count; i++)
