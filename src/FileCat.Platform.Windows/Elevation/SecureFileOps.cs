@@ -54,6 +54,8 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
     private const uint AddFile = 0x2;
     private const uint EditableAttributes = (uint)(FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System |
                                                    FileAttributes.Archive | FileAttributes.NotContentIndexed);
+    private const string EncryptedCopySource = "The administrator helper cannot copy EFS-encrypted items without preserving their protection.";
+    private const string EncryptedCopyTarget = "The administrator helper cannot replace an EFS-encrypted destination without preserving its protection.";
     private readonly Func<string, string> _display = display ?? (p => p);
 
     /// <summary>"\\?\Volume{GUID}\a\b" as the NT root "\??\Volume{GUID}\" and its checked components.</summary>
@@ -245,16 +247,16 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         var report = new TreeReport();
         using var sourceParent = Walk(sourcePath, includeLast: false, out var leaf);
         using var destination = OpenDirectory(destinationFolder);
-        SafeFileHandle source;
-        uint attributes;
-        bool link;
-        try
-        {
-            source = OpenOrThrow(sourceParent, leaf, ReadAccess, ShareAll, Open, OpenReparsePoint, "Open the source");
-            attributes = GetBasic(source).FileAttributes;
-            link = IsLink(source);
-        }
+        (SafeFileHandle source, uint attributes, bool link) entry;
+        try { entry = OpenCopyEntry(sourceParent, leaf); }
         catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(sourcePath), ex); return report; }
+        var (source, attributes, link) = entry;
+        if (!link && IsEncrypted(attributes))
+        {
+            source.Dispose();
+            report.Fail(_display(sourcePath), new IOException(EncryptedCopySource));
+            return report;
+        }
         if (link || !IsDirectory(attributes))
         {
             using (source)
@@ -264,7 +266,7 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                     report.LinksSkipped++;
                     report.Note($"{_display(sourcePath)} is a link; links are not copied by the administrator helper.");
                 }
-                else CopyFile(source, destination, name, replace, sourcePath, report);
+                else CopyFile(sourceParent, leaf, source, destination, name, replace, sourcePath, report);
             }
             return report;
         }
@@ -290,35 +292,34 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                 }
                 string child = pending.Dequeue();
                 string childPath = path + "\\" + child;
-                SafeFileHandle entry;
-                uint entryAttributes;
-                bool entryLink;
-                try
-                {
-                    entry = OpenOrThrow(from, child, ReadAccess, ShareAll, Open, OpenReparsePoint, "Open");
-                    entryAttributes = GetBasic(entry).FileAttributes;
-                    entryLink = IsLink(entry);
-                }
+                (SafeFileHandle childHandle, uint attributes, bool link) childEntry;
+                try { childEntry = OpenCopyEntry(from, child); }
                 catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(childPath), ex); continue; }
-                if (entryLink)
+                var (childHandle, childAttributes, childLink) = childEntry;
+                if (childLink)
                 {
-                    entry.Dispose();
+                    childHandle.Dispose();
                     report.LinksSkipped++;
                     report.Note($"{_display(childPath)} is a link; it was not copied or followed.");
                 }
-                else if (IsDirectory(entryAttributes))
+                else if (IsEncrypted(childAttributes))
+                {
+                    childHandle.Dispose();
+                    report.Fail(_display(childPath), new IOException(EncryptedCopySource));
+                }
+                else if (IsDirectory(childAttributes))
                 {
                     var target = OpenOrCreateDirectory(to, child, childPath, report);
-                    if (target is null) entry.Dispose();
+                    if (target is null) childHandle.Dispose();
                     else
                     {
-                        try { stack.Push((entry, target, childPath, new Queue<string>(List(entry).Select(e => e.Name)))); }
-                        catch (Exception ex) when (IsIo(ex)) { entry.Dispose(); target.Dispose(); report.Fail(_display(childPath), ex); }
+                        try { stack.Push((childHandle, target, childPath, new Queue<string>(List(childHandle).Select(e => e.Name)))); }
+                        catch (Exception ex) when (IsIo(ex)) { childHandle.Dispose(); target.Dispose(); report.Fail(_display(childPath), ex); }
                     }
                 }
                 else
                 {
-                    using (entry) CopyFile(entry, to, child, replace, childPath, report);
+                    using (childHandle) CopyFile(from, child, childHandle, to, child, replace, childPath, report);
                 }
             }
             return report;
@@ -333,6 +334,15 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
             }
         }
     }
+
+    private static (SafeFileHandle Handle, uint Attributes, bool Link) OpenCopyEntry(SafeFileHandle parent, string name)
+    {
+        var handle = OpenOrThrow(parent, name, ReadAccess, ShareAll, Open, OpenReparsePoint, "Open the source");
+        try { return (handle, GetBasic(handle).FileAttributes, IsLink(handle)); }
+        catch { handle.Dispose(); throw; }
+    }
+
+    private static bool IsEncrypted(uint attributes) => (attributes & (uint)FileAttributes.Encrypted) != 0;
 
     private SafeFileHandle? OpenOrCreateDirectory(SafeFileHandle parent, string name, string path, TreeReport report)
     {
@@ -366,15 +376,17 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         return existing;
     }
 
-    private void CopyFile(SafeFileHandle source, SafeFileHandle targetDirectory,
+    private void CopyFile(SafeFileHandle sourceParent, string sourceName, SafeFileHandle observedSource, SafeFileHandle targetDirectory,
         string targetName, bool replace, string path, TreeReport report)
     {
+        FileIdentity? replaceIdentity = null;
         int existing = TryOpen(targetDirectory, targetName, ReadAttributes | Synchronize, ShareAll, Open, OpenReparsePoint, out var existingHandle);
         using (existingHandle)
         {
             if (existing >= 0)
             {
-                if (IsDirectory(GetBasic(existingHandle).FileAttributes))
+                uint attributes = GetBasic(existingHandle).FileAttributes;
+                if (IsDirectory(attributes))
                 {
                     report.Fail(_display(path), new IOException("A folder with this name exists at the destination."));
                     return;
@@ -384,6 +396,12 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                     report.Kept++;
                     return;
                 }
+                if (IsEncrypted(attributes))
+                {
+                    report.Fail(_display(path), new IOException(EncryptedCopyTarget));
+                    return;
+                }
+                replaceIdentity = ProtectedHexFile.Identity(existingHandle);
             }
             else if (existing != NameNotFound)
             {
@@ -391,6 +409,10 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                 return;
             }
         }
+        SafeFileHandle source;
+        try { source = BindCopySource(sourceParent, sourceName, observedSource); }
+        catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(path), ex); return; }
+        using var heldSource = source;
         // Hold a readable mark without write/delete sharing until publication. An inaccessible stream is not an
         // absent stream: publishing the copy without it would silently remove Windows' download warning.
         SafeFileHandle? sourceZone;
@@ -414,7 +436,9 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
             for (long offset = 0; ;)
             {
                 checkpoint();
+                RequireClearSource(source);
                 int read = RandomAccess.Read(source, buffer, offset);
+                RequireClearSource(source);
                 if (read <= 0) break;
                 RandomAccess.Write(output, buffer.AsSpan(0, read), offset);
                 offset += read;
@@ -428,7 +452,15 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
             SetBasic(output, basic);
             if (mark is null) EnsureZoneIdentifierMissing(source);
             else VerifyZoneIdentifier(stagedZone!, mark);
-            NtFile.Rename(output, targetDirectory, targetName, replace);
+            RequireClearSource(source);
+            if (replaceIdentity is { } reviewedTarget)
+            {
+                using var current = OpenOrThrow(targetDirectory, targetName, ReadAttributes | Synchronize, ShareAll, Open,
+                    OpenReparsePoint, "Recheck the replacement destination");
+                if (IsEncrypted(GetBasic(current).FileAttributes)) throw new IOException(EncryptedCopyTarget);
+                if (ProtectedHexFile.Identity(current) != reviewedTarget) throw new IOException("The replacement destination changed while the source was copied.");
+            }
+            NtFile.Rename(output, targetDirectory, targetName, replace: replaceIdentity is not null);
             if (mark is null) EnsureZoneIdentifierMissing(source);
             else VerifyZoneIdentifier(stagedZone!, mark);
             complete = true;
@@ -444,6 +476,25 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
             }
             output.Dispose();
         }
+    }
+
+    private static SafeFileHandle BindCopySource(SafeFileHandle parent, string name, SafeFileHandle observed)
+    {
+        // Reopen the exact child without write or delete sharing before creating the payload stage.
+        var held = OpenOrThrow(parent, name, ReadAccess, ShareRead, Open, NonDirectoryFile | OpenReparsePoint, "Hold the copy source");
+        try
+        {
+            if (ProtectedHexFile.Identity(held) != ProtectedHexFile.Identity(observed) || IsLink(held))
+                throw new IOException("The source changed while the administrator helper was opening it.");
+            RequireClearSource(held);
+            return held;
+        }
+        catch { held.Dispose(); throw; }
+    }
+
+    private static void RequireClearSource(SafeFileHandle source)
+    {
+        if (IsEncrypted(GetBasic(source).FileAttributes)) throw new IOException(EncryptedCopySource);
     }
 
     /// <summary>

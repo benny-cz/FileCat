@@ -175,6 +175,103 @@ public sealed class ElevationTests
         finally { DeleteTree(root); }
     }
 
+    [Theory]
+    [InlineData("source")]
+    [InlineData("child")]
+    [InlineData("replacement")]
+    [InlineData("replacement-encrypted-during-copy")]
+    [InlineData("replacement-appeared-during-copy")]
+    public void Administrator_copy_refuses_efs_sources_and_retains_encrypted_destinations(string scenario)
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires a disposable Windows VM with EFS enabled.");
+        string root = NewDirectory();
+        try
+        {
+            string sourceFolder = Directory.CreateDirectory(Path.Join(root, "source")).FullName;
+            string targetFolder = Directory.CreateDirectory(Path.Join(root, "target")).FullName;
+            string source = Path.Join(sourceFolder, "member.txt");
+            string target = Path.Join(targetFolder, "copy.txt");
+            File.WriteAllText(source, "Synthetic source data");
+            if (scenario is "source" or "child") File.Encrypt(source);
+            if (scenario is "replacement" or "replacement-encrypted-during-copy") File.WriteAllText(target, "Original destination");
+            if (scenario == "replacement") File.Encrypt(target);
+            bool injected = false;
+            var ops = new SecureFileOps(() =>
+            {
+                if (injected || scenario is not ("replacement-encrypted-during-copy" or "replacement-appeared-during-copy")) return;
+                injected = true;
+                if (!File.Exists(target)) File.WriteAllText(target, "Original destination");
+                File.Encrypt(target);
+            });
+            string selected = scenario == "child" ? sourceFolder : source;
+            string destination = scenario == "child" ? "copy-folder" : Path.GetFileName(target);
+            var report = ops.CopyTree(ElevationPaths.ToVolumePath(selected), ElevationPaths.ToVolumePath(targetFolder), destination, replace: true);
+            Assert.Equal(1, report.Failed);
+            Assert.Equal(scenario == "child" ? 1 : 0, report.Done);
+            Assert.Empty(Directory.EnumerateFiles(targetFolder, ".filecat-admin-*", SearchOption.AllDirectories));
+            if (scenario is "source" or "child")
+            {
+                Assert.Contains("EFS-encrypted items", Assert.Single(report.Problems));
+                Assert.Empty(Directory.EnumerateFiles(targetFolder, "*", SearchOption.AllDirectories));
+                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+            }
+            else
+            {
+                if (scenario != "replacement-appeared-during-copy")
+                    Assert.Contains("EFS-encrypted destination", Assert.Single(report.Problems));
+                Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+                Assert.Equal("Original destination", File.ReadAllText(target));
+            }
+            Assert.Equal(scenario.EndsWith("during-copy", StringComparison.Ordinal), injected);
+            Assert.Equal("Synthetic source data", File.ReadAllText(source));
+        }
+        finally { DeleteTree(root); }
+    }
+
+    [Fact]
+    public void The_administrator_copy_refuses_observed_encryption_after_source_admission()
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires a disposable Windows VM with EFS enabled.");
+        string root = NewDirectory();
+        try
+        {
+            string source = Path.Join(root, "original.txt");
+            string target = Path.Join(root, "copy.txt");
+            File.WriteAllText(source, "Synthetic source data");
+            bool attempted = false;
+            Exception? refused = null;
+            var ops = new SecureFileOps(() =>
+            {
+                if (attempted) return;
+                attempted = true;
+                refused = Record.Exception(() => File.Encrypt(source));
+            });
+            var report = ops.CopyTree(ElevationPaths.ToVolumePath(source), ElevationPaths.ToVolumePath(root), Path.GetFileName(target), replace: false);
+            Assert.True(attempted);
+            if (refused is null)
+            {
+                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+                Assert.Equal((0, 1), (report.Done, report.Failed));
+                Assert.Contains("EFS-encrypted items", Assert.Single(report.Problems));
+                Assert.False(File.Exists(target));
+            }
+            else
+            {
+                Assert.True(refused is IOException or UnauthorizedAccessException, refused.ToString());
+                Assert.Equal((1, 0), (report.Done, report.Failed));
+                Assert.False(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+                Assert.Equal("Synthetic source data", File.ReadAllText(target));
+                File.Encrypt(source);
+                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+            }
+            Assert.Empty(Directory.GetFiles(root, ".filecat-admin-*"));
+            TestContext.Current.TestOutputHelper?.WriteLine($"EFS_BROKER_SOURCE nativeEncryptionSucceeded={refused is null} copied={report.Done} failed={report.Failed}");
+        }
+        finally { DeleteTree(root); }
+    }
+
     [Fact]
     public void Administrator_copy_bounds_and_rechecks_download_marks_before_publication()
     {
