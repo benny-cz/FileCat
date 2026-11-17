@@ -94,9 +94,10 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
             }
             var observed = entry.ObservedUtc ?? DateTimeOffset.UtcNow;
             if (observed < _header.Identity.StartedUtc) throw AnalysisIndexedGraph.Invalid();
+            var times = entry.CaptureTimes(observed);
             string? provisional = entry.Kind == AnalysisKind.File ? Id('p', id) : null;
             var node = new AnalysisNode(id, rootId, parent, entry.Name, entry.Kind, provisional, entry.Sparse, entry.Compressed, entry.Cloud)
-            { NameEncoding = entry.NameEncoding, RawName = entry.RawName, Times = new(observed, entry.ModifiedUtc, entry.ModifiedPrecisionTicks),
+            { NameEncoding = entry.NameEncoding, RawName = entry.RawName, Times = times,
                 ObservedIdentity = entry.Identity, MetadataState = entry.MetadataState, IncludedByPolicy = entry.IncludedByPolicy };
             byte[] path = AnalysisIndexedPathCodec.Encode(node, root, depth, _header.Roots);
             byte[]? candidate = provisional is null ? null : AnalysisCapturedFileCodec.Encode(new(id,

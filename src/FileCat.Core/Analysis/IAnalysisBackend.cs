@@ -10,6 +10,17 @@ public sealed record AnalysisEntry(ImmutableArray<byte> RelativeName, string Nam
     public MeasurementState MetadataState { get; init; } = MeasurementState.Known;
     public bool IncludedByPolicy { get; init; } = true;
     public string? IssueCode { get; init; }
+    public DateTimeOffset? CreatedUtc { get; init; }
+    public ulong? CreatedPrecisionTicks { get; init; }
+    public DateTimeOffset? ChangedUtc { get; init; }
+    public ulong? ChangedPrecisionTicks { get; init; }
+    internal AnalysisObservationTimes CaptureTimes(DateTimeOffset observed)
+    {
+        if (ModifiedPrecisionTicks == 0 || CreatedUtc.HasValue != CreatedPrecisionTicks.HasValue ||
+            ChangedUtc.HasValue != ChangedPrecisionTicks.HasValue || CreatedPrecisionTicks == 0 || ChangedPrecisionTicks == 0)
+            throw new InvalidDataException("Native observation timestamps have inconsistent precision evidence.");
+        return new(observed, ModifiedUtc, ModifiedPrecisionTicks, CreatedUtc, CreatedPrecisionTicks, ChangedUtc, ChangedPrecisionTicks);
+    }
     // Process-owned read-scope evidence. It is deliberately absent from inventory records and never authorizes mutation.
     internal AnalysisAncestry? Ancestry { get; init; }
 

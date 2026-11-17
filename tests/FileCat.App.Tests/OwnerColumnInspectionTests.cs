@@ -224,15 +224,19 @@ public sealed partial class OwnerColumnTests
         using var f = new OwnerFixture(new OwnerSource { NameAnswer = new(NameStatus.Resolved, name, "User\u200B") });
         await f.Load();
         await f.ShowOwner();
-        int references = f.Provider.References;
         HoverOwner(f);
         string tip = Assert.IsType<string>(ToolTip.GetTip(f.List));
         Assert.Contains(new string('a', 200) + "\\u202E", tip);
         Assert.Contains("User\\u200B · UID 42", tip);
         Assert.DoesNotContain('\u202E', tip);
         Assert.DoesNotContain('\u200B', tip);
+        // MouseMove can dispatch a queued metadata-completion repaint of all visible rows.
+        // Measure the synchronous inspection after that paint, as the tooltip-limit test above
+        // does. Otherwise ordinary paint-time references race this cached-inspection assertion.
+        int references = f.Provider.References, reads = f.Source.ReadPaths.Count, names = f.Source.NameCalls;
         Assert.Contains(new string('a', 200) + "\\u202E", f.List.FocusedInspectionText());
         Assert.Equal(references, f.Provider.References);
+        Assert.Equal(reads, f.Source.ReadPaths.Count); Assert.Equal(names, f.Source.NameCalls);
     }
 
     [AvaloniaFact]

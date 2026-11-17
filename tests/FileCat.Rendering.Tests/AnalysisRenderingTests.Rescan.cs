@@ -71,6 +71,11 @@ public sealed partial class AnalysisRenderingTests
         {
             Assert.DoesNotContain(snapshot.Nodes, row => row.Name == "RESCAN_PRIVATE_CANARY.txt");
             Assert.True(snapshot.Nodes.Count(row => !row.IncludedByPolicy && row.MetadataState == MeasurementState.Excluded) >= 2);
+            foreach (var boundary in snapshot.Nodes.Where(row => !row.IncludedByPolicy && row.MetadataState == MeasurementState.Excluded))
+            {
+                Assert.Null(boundary.Times?.CreatedUtc); Assert.Null(boundary.Times?.CreatedPrecisionTicks);
+                Assert.Null(boundary.Times?.ChangedUtc); Assert.Null(boundary.Times?.ChangedPrecisionTicks);
+            }
         }
         Assert.DoesNotContain(old.Nodes, row => row.Name == "second-visible.bin");
         Assert.Contains(current.Nodes, row => row.Name == "second-visible.bin");

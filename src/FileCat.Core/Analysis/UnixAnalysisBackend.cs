@@ -25,7 +25,8 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
     public AnalysisEntry RootEntry { get; }
     public string Basis => _mac ? "darwin-stat-total-blocks-v1" : "linux-statx-blocks-v1";
     private sealed record Facts(ulong Device, ulong Inode, ulong Mount, AnalysisKind Kind, ulong Size, ulong Blocks,
-        uint Links, long Modified, uint ModifiedNs, long Changed, uint ChangedNs, bool HasAllocation, uint Flags);
+        uint Links, long Modified, uint ModifiedNs, long Changed, uint ChangedNs, bool HasAllocation, uint Flags,
+        DateTimeOffset? Created = null);
 
     public UnixAnalysisBackend(string selectedRoot) : this(selectedRoot, null) { }
 
@@ -205,19 +206,29 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
 
     private bool Same(AnalysisEntry entry, Facts f) => entry.Version == Version(f) &&
         entry.Identity == (_identitySupported ? Identity(f) : null) && f.Device == _device && f.Mount == _mount;
-    private AnalysisEntry Entry(ImmutableArray<byte> relative, byte[] raw, Facts f) => new(relative,
+    private AnalysisEntry Entry(ImmutableArray<byte> relative, byte[] raw, Facts f)
+    {
+        var created = _identitySupported ? f.Created : null;
+        var changed = _identitySupported ? Time(f.Changed, f.ChangedNs) : null;
+        return new(relative,
         Encoding.UTF8.GetString(raw), raw.ToImmutableArray(), f.Kind, _identitySupported ? Identity(f) : null,
         f.Kind == AnalysisKind.File ? AnalysisMeasurement.Known(f.Size) : AnalysisMeasurement.Missing(MeasurementState.Unsupported),
         f.HasAllocation && !(_mac && (f.Flags & 0x40000000) != 0) ? AnalysisMeasurement.Known(checked((UInt128)f.Blocks * 512)) : AnalysisMeasurement.Missing(MeasurementState.Unsupported),
         AnalysisMeasurement.Known(f.Links), Time(f.Modified, f.ModifiedNs), Version(f),
         Cloud: _mac ? (f.Flags & 0x40000000) != 0 : null, Compressed: _mac ? (f.Flags & 0x20) != 0 : null,
-        NameEncoding: "unix-bytes", ObservedUtc: DateTimeOffset.UtcNow, ModifiedPrecisionTicks: _modifiedPrecisionTicks);
+        NameEncoding: "unix-bytes", ObservedUtc: DateTimeOffset.UtcNow, ModifiedPrecisionTicks: _modifiedPrecisionTicks)
+        { CreatedUtc = created, CreatedPrecisionTicks = created is null ? null : _modifiedPrecisionTicks,
+            ChangedUtc = changed, ChangedPrecisionTicks = changed is null ? null : _modifiedPrecisionTicks };
+    }
     private string Identity(Facts f) => $"{(_mac ? "darwin" : "linux")}:{f.Device:X}:{f.Inode:X}";
     private static string Version(Facts f) => $"{f.Device:X}:{f.Inode:X}:{f.Kind}:{f.Size}:{f.Changed}:{f.ChangedNs}";
     private static DateTimeOffset? Time(long seconds, uint ns)
     {
+        if (ns >= 1_000_000_000) return null;
         try { return DateTimeOffset.FromUnixTimeSeconds(seconds).AddTicks(ns / 100); } catch (ArgumentOutOfRangeException) { return null; }
     }
+    internal static DateTimeOffset? StatxCreatedTime(uint mask, long seconds, uint ns) =>
+        (mask & 0x800) != 0 ? Time(seconds, ns) : null;
     private static byte[] Join(ReadOnlySpan<byte> parent, ReadOnlySpan<byte> name)
     {
         if (parent.Length + name.Length + 1 > AnalysisLimits.LocatorBytes) throw new IOException("Analysis path limit reached.");
@@ -298,11 +309,15 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
             int result = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? FstatMac(fd, b) : FstatMac64(fd, b);
             if (result != 0 || *(long*)(b + 96) < 0 || *(long*)(b + 104) < 0) throw new IOException("File metadata is unavailable.");
             var fileSystem = MacFileSystem(fd);
+            long birthNs = *(long*)(b + 88);
+            var created = fileSystem.Type is "apfs" or "hfs" && birthNs is >= 0 and < 1_000_000_000
+                ? Time(*(long*)(b + 80), (uint)birthNs) : null;
             return new((uint)*(int*)b, *(ulong*)(b + 8), fileSystem.Id, Kind(*(ushort*)(b + 4)), (ulong)*(long*)(b + 96),
                 (ulong)*(long*)(b + 104), *(ushort*)(b + 6), *(long*)(b + 48), checked((uint)*(long*)(b + 56)),
-                *(long*)(b + 64), checked((uint)*(long*)(b + 72)), true, *(uint*)(b + 116));
+                *(long*)(b + 64), checked((uint)*(long*)(b + 72)), true, *(uint*)(b + 116),
+                created);
         }
-        const uint requested = 0x1 | 0x4 | 0x40 | 0x80 | 0x100 | 0x200 | 0x400 | 0x1000;
+        const uint requested = 0x1 | 0x4 | 0x40 | 0x80 | 0x100 | 0x200 | 0x400 | 0x800 | 0x1000;
         if (Statx(fd, "", 0x1000 | 0x100 | 0x800 | 0x4000, requested, b) != 0) throw new IOException("File metadata is unavailable."); // EMPTY_PATH, NOFOLLOW, NO_AUTOMOUNT, DONT_SYNC
         uint mask = *(uint*)b;
         const uint required = 0x1 | 0x4 | 0x40 | 0x80 | 0x100 | 0x200 | 0x1000;
@@ -310,7 +325,8 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
             throw new IOException("Required metadata fields are unavailable.");
         return new(((ulong)*(uint*)(b + 136) << 32) | *(uint*)(b + 140), *(ulong*)(b + 32), *(ulong*)(b + 144),
             Kind(*(ushort*)(b + 28)), *(ulong*)(b + 40), *(ulong*)(b + 48), *(uint*)(b + 16), *(long*)(b + 112), *(uint*)(b + 120),
-            *(long*)(b + 96), *(uint*)(b + 104), (mask & 0x400) != 0, 0);
+            *(long*)(b + 96), *(uint*)(b + 104), (mask & 0x400) != 0, 0,
+            StatxCreatedTime(mask, *(long*)(b + 80), *(uint*)(b + 88)));
     }
     private static AnalysisKind Kind(ushort mode) => (mode & 0xF000) switch { 0x8000 => AnalysisKind.File, 0x4000 => AnalysisKind.Directory, 0xA000 => AnalysisKind.Link, _ => AnalysisKind.Special };
     private static AnalysisKind DirectoryEntryKind(byte type) => type switch

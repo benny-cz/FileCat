@@ -97,7 +97,10 @@ public sealed partial class DiskSpaceViewModel
             // That request must win before any source ownership or scan work transfers.
             preparation.Token.ThrowIfCancellationRequested();
             if (_disposed) return;
+            var runtimeRoots = _prepared.Select(RuntimeReopenLocator).ToImmutableArray();
             _session = _acquisition!.Start(_prepared.ToArray(), new LatestProgress(_services.Ui, UpdateProgress), Components);
+            _runtimeRoots = runtimeRoots;
+            _runtimeComponents = Components;
             HistoryObservation = ObserveHistoryAsync(_acquisition);
             _prepared.Clear(); _preparedInput = [];
         }

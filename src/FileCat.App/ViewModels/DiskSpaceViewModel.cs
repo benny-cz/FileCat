@@ -96,21 +96,21 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     }
     private void UpdateProgress(AnalysisProgress progress)
     {
-        if (_disposed) return;
+        if (_disposed || IsRescanning) return;
         Phase = progress.Phase; Dirty = true;
         SourceCloseFailures = progress.SourceCloseFailures;
         SetStatus($"{progress.Phase} · {progress.ObservedPaths:N0} observed paths · {progress.Issues:N0} issues. Values are observations over time." +
             (progress.MemoryFallback ? " Using bounded memory; analysis stops with partial results if the memory limit is reached." : "") +
             (SourceCloseFailures == 0 ? "" : $" Source cleanup reported {SourceCloseFailures:N0} " + (SourceCloseFailures == 1 ? "failure" : "failures") + "; close was not retried."));
     }
-    public void PauseOrResume() { if (Phase == AnalysisPhase.Paused || Phase == AnalysisPhase.Pausing) _session?.Resume(); else _session?.Pause(); }
+    public void PauseOrResume() { var active = _rescanSession ?? _session; if (Phase == AnalysisPhase.Paused || Phase == AnalysisPhase.Pausing) active?.Resume(); else active?.Pause(); }
     public void Stop()
     {
         if (_preparationCancel is { } preparation)
         {
             preparation.Cancel(); SetStatus("Stopping location binding. Waiting for its native request to return…");
         }
-        _session?.Stop();
+        (_rescanSession ?? _session)?.Stop();
     }
     public void SetStatus(string text) { if (_disposed) return; Status = text; Changed?.Invoke(); }
     public async Task RebuildAsync(bool force = false, CancellationToken cancellation = default)
@@ -379,7 +379,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         _selectionLifetime.Cancel(); _markCountCancel?.Cancel();
         RetireDeferredRequest();
         _countTree = null; _countMarks = null; _countScope = null; _countAgain = false; MarkVisibility = null;
-        _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _session?.Stop(); _lease?.Dispose(); _pending?.Lease?.Dispose();
+        _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _rescanSession?.Stop(); _session?.Stop(); _lease?.Dispose(); _pending?.Lease?.Dispose();
         _inventory?.Dispose();
         _capturedOwner?.Dispose(); _capturedOwner = null;
         _comparisonReady = false; _restoredComparisonQuery?.Dispose(); _restoredComparisonQuery = null;

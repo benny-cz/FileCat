@@ -54,7 +54,7 @@ public sealed partial class DiskSpaceWindow : Window
         {
             try { await close; }
             catch (Exception error) { RecordIndexedCloseFailure(error); }
-            finally { _indexedClosures.Remove(close); }
+            finally { _indexedClosures.Remove(close); if (!_closed) RefreshIndexedCloseNotice(); }
         }
     }
     private void RecordIndexedCloseFailure(Exception error)
@@ -66,6 +66,7 @@ public sealed partial class DiskSpaceWindow : Window
     {
         _notice.IsVisible = _indexedCloseError is not null || _admissionPool.HasFailedClose;
         if (_notice.IsVisible) _notice.Text = AnalysisSessionAdmission.FailedCloseMessage;
+        foreach (var session in _sessions.OfType<SessionView>()) session.RefreshRescanAvailability();
     }
     private readonly Panel _overlay = new() { IsVisible = false };
     private readonly OverlayDialogService _dialogs;
@@ -254,6 +255,8 @@ public sealed partial class DiskSpaceWindow : Window
         private ImmutableArray<RootBinding> _shownRoots = [];
         private sealed record RootChoice(string? Id, string Label) { public override string ToString() => Label; }
         private readonly Button _pause = new() { Content = "Pause" }, _stop = new() { Content = "Stop" };
+        private readonly Button _rescan = new() { Content = "Rescan all" };
+        private readonly Border _rescanHelp = new() { Focusable = true };
         private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap, FontSize = 18 };
         private readonly TextBlock _scope = new() { TextWrapping = TextWrapping.Wrap }, _coverage = new() { TextWrapping = TextWrapping.Wrap };
         private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap }, _error = new() { TextWrapping = TextWrapping.Wrap };
@@ -309,6 +312,9 @@ public sealed partial class DiskSpaceWindow : Window
             DataNavigation("Forward", Model.Forward, "Return to the next analysis scope.");
             DataNavigation("Up", Model.Parent, "Inspect the parent scope without changing the captured sources.");
             nav.Children.Add(_mode); nav.Children.Add(_metric); nav.Children.Add(_group); nav.Children.Add(_color); nav.Children.Add(_pause); nav.Children.Add(_stop);
+            _rescanHelp.Child = _rescan; nav.Children.Add(_rescanHelp);
+            AutomationProperties.SetName(_rescanHelp, "Rescan all locations");
+            _rescan.Click += async (_, _) => await RescanAllAsync();
             AutomationProperties.SetName(_mode, "Chart view"); AutomationProperties.SetName(_metric, "Analysis metric");
             AutomationProperties.SetName(_group, "Analysis grouping");
             ToolTip.SetTip(_group, new RichTip("Group captured measurements", detail: "Explore by captured folders, file type, extension, modification age or location. Shared charges are counted once. Changing grouping keeps marks and the review basket."));
@@ -435,7 +441,7 @@ public sealed partial class DiskSpaceWindow : Window
             _filterTimer.Tick += (_, _) => { _filterTimer.Stop(); Model.Query = _query.Text ?? ""; _ = Model.RebuildAsync(true); };
             foreach (var chart in new AnalysisChartControl[] { _treemap, _sunburst })
             { chart.Activated += ActivateItem; chart.InteractionChanged += Model.Interaction; chart.InteractionChanged += active => _color.IsEnabled = !active; }
-            _timer.Tick += async (_, _) => { if (IsEffectivelyVisible) await Model.RebuildAsync(); };
+            _timer.Tick += async (_, _) => { if (IsEffectivelyVisible) { await Model.RebuildAsync(); RefreshRescanAvailability(); } };
             AttachedToVisualTree += (_, _) => { _timer.Start(); _ = Model.RebuildAsync(true); };
             DetachedFromVisualTree += (_, _) => _timer.Stop();
             Model.Changed += Refresh;
@@ -601,6 +607,8 @@ public sealed partial class DiskSpaceWindow : Window
                 _components.IsEnabled = !Model.IsPreparing && Model.Phase == AnalysisPhase.Ready;
                 _resolved.Text = Model.ResolvedTargets; _status.Text = Model.Status; _error.Text = Model.FilterError; _error.IsVisible = Model.FilterError is not null;
                 _pause.IsEnabled = Model.Running; _stop.IsEnabled = Model.Running || Model.IsPreparing;
+                _rescanHelp.IsVisible = !setupOnly;
+                RefreshRescanAvailability();
                 _save.IsEnabled = Model.CanSave && !_persistenceBusy;
                 _openSaved.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
                 _importExternal.IsEnabled = Model.HistoryServices is { Io.IsStopped: false } && !_actualWork.HasUnconfirmedClose && !_persistenceBusy;

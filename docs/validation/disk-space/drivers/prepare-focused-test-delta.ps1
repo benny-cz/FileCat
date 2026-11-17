@@ -3,11 +3,12 @@ param(
  [Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$BaselineRevision,
  [Parameter(Mandatory=$true)][string[]]$Methods,
  [ValidatePattern('^r[0-9]+[a-z]?$')][string]$WindowsBaselineRevision,
+ [ValidateSet('FileCat.Core.Tests','FileCat.Rendering.Tests','FileCat.App.Tests')][string]$TestAssembly,
  [ValidateSet('core','render')][string]$Phase='render'
 )
 $ErrorActionPreference='Stop'
 foreach($method in $Methods){if($method-notmatch'^[A-Za-z0-9_.*]+$'){throw 'Use fully qualified method patterns'}}
-$assembly=if($Phase-eq'core'){'FileCat.Core.Tests'}else{'FileCat.Rendering.Tests'}
+$assembly=if($TestAssembly){$TestAssembly}elseif($Phase-eq'core'){'FileCat.Core.Tests'}else{'FileCat.Rendering.Tests'}
 $bin=Join-Path $PWD ('tests/'+$assembly+'/bin/Debug/net10.0')
 $proof=@()
 foreach($platform in 'windows','mac','linux'){

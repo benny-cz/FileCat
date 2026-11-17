@@ -151,7 +151,8 @@ public sealed partial class AnalysisSession
     private static AnalysisEntry ExcludedPrivate(AnalysisEntry entry) => entry with
     {
         Identity = null, Version = "", IncludedByPolicy = false, MetadataState = MeasurementState.Excluded,
-        ModifiedUtc = null, Sparse = null, Compressed = null, Cloud = null,
+        ModifiedUtc = null, CreatedUtc = null, CreatedPrecisionTicks = null, ChangedUtc = null, ChangedPrecisionTicks = null,
+        Sparse = null, Compressed = null, Cloud = null,
         LogicalLength = AnalysisMeasurement.Missing(MeasurementState.Excluded), Allocation = AnalysisMeasurement.Missing(MeasurementState.Excluded),
         Links = AnalysisMeasurement.Missing(MeasurementState.Excluded), IssueCode = "private-analysis-state-excluded"
     };

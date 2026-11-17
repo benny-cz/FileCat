@@ -44,6 +44,7 @@ public sealed class AnalysisStore(bool canonicalPathIds = false, int pathLimit =
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (_sealed) return null;
+        var times = e.CaptureTimes(e.ObservedUtc ?? DateTimeOffset.UtcNow);
         long cost = checked(2048L + e.RawName.Length * 4L + Encoding.UTF8.GetByteCount(e.Name) * 8L + (e.Identity?.Length ?? 0) * 8L);
         if (_nodes.Count >= Math.Clamp(pathLimit, 1, AnalysisLimits.Observations) || !Reserve(cost)) { Limited = true; return null; }
         ulong id = checked((ulong)_nodes.Count + 1);
@@ -83,7 +84,7 @@ public sealed class AnalysisStore(bool canonicalPathIds = false, int pathLimit =
             _facts.Add(new("d" + id, null, id, "directory-self", basis, e.Allocation, basis,
                 e.ObservedUtc ?? DateTimeOffset.UtcNow, []));
         _nodes.Add(new(id, rootId, parent, e.Name, e.Kind, objectId, Sparse: e.Sparse, Compressed: e.Compressed, Cloud: e.Cloud)
-            { NameEncoding = e.NameEncoding, RawName = e.RawName, Times = new(e.ObservedUtc ?? DateTimeOffset.UtcNow, e.ModifiedUtc, e.ModifiedPrecisionTicks), ObservedIdentity = e.Identity,
+            { NameEncoding = e.NameEncoding, RawName = e.RawName, Times = times, ObservedIdentity = e.Identity,
                 MetadataState = e.MetadataState, IncludedByPolicy = e.IncludedByPolicy });
         return id;
     }

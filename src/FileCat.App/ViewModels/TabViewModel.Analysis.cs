@@ -288,7 +288,8 @@ public sealed partial class TabViewModel
             bool Analyze(CancellationToken ct)
             {
                 using var scan = new EntryStore.Scan(store, count);
-                counts.Considered = count;
+                // The parent row is a navigation command, outside the folder's item inventory.
+                counts.Considered = count - (count > 0 && store[0].Kind == EntryKind.Parent ? 1 : 0);
                 counts.Prepared = true;
                 long last = Environment.TickCount64;
                 for (int i = 0; i < count; i++)
@@ -296,6 +297,7 @@ public sealed partial class TabViewModel
                     ct.ThrowIfCancellationRequested();
                     if (!claim.IsCurrent) { metadataChanged = true; throw new OperationCanceledException(); }
                     var e = scan.Materialize(i);
+                    if (e.Kind == EntryKind.Parent) continue;
                     bool applicable = MetadataApplies(e, fieldId);
                     var path = applicable ? provider.GetItemRef(location, e).FileSystemPath : null;
                     // Inapplicability is a completed missing value, retained in the same order snapshot.

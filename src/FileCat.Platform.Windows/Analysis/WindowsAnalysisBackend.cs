@@ -18,6 +18,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
     internal bool IsDisposed => _disposed;
     private readonly ulong _volume;
     private readonly string _namespace;
+    private readonly ulong? _nativeTimePrecisionTicks;
     private readonly Guid _bindingId = Guid.NewGuid();
     public RootBinding Root { get; }
     public AnalysisEntry RootEntry { get; }
@@ -55,7 +56,8 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
             var parts = ntPath.Split('\\', StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length < 2 || parts[0] != "Device" || !parts[1].StartsWith("HarddiskVolume", StringComparison.Ordinal)) throw new NotSupportedException("This source namespace is unqualified.");
             _namespace = parts[1];
-            var entry = Observe(_root.Value, [], Raw(Path.GetFileName(full.TrimEnd('\\')) is { Length: > 0 } label ? label : full), _namespace);
+            _nativeTimePrecisionTicks = QualifiedTimePrecision(_root.Value);
+            var entry = Observe(_root.Value, [], Raw(Path.GetFileName(full.TrimEnd('\\')) is { Length: > 0 } label ? label : full), _namespace, _nativeTimePrecisionTicks);
             if (entry.Kind is not (AnalysisKind.Directory or AnalysisKind.File)) throw new IOException("Select a file or folder, or explicitly select the resolved target of a link.");
             if (entry.Identity is null) throw new IOException("The source does not expose a qualified root identity.");
             if (entry.Kind == AnalysisKind.Directory && entry.Cloud != true)
@@ -109,7 +111,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
                     {
                         using var child = OpenChild(lease.Handle, name, directory: false);
                         if (Volume(child.Value) != _volume) throw new AnalysisEntryUnavailableException(MeasurementState.Excluded, "source-volume-boundary");
-                        result = Bind(Observe(child.Value, relative.ToImmutableArray(), raw, _namespace), directory.Ancestry);
+                        result = Bind(Observe(child.Value, relative.ToImmutableArray(), raw, _namespace, _nativeTimePrecisionTicks), directory.Ancestry);
                     }
                     catch (AnalysisEntryUnavailableException ex)
                     {
@@ -255,7 +257,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         var entry = Observe(handle, [], [], parts[1]);
         return entry.Kind == AnalysisKind.Directory ? entry.Identity : null;
     }
-    private static AnalysisEntry Observe(SafeHandle h, ImmutableArray<byte> relative, byte[] raw, string sourceNamespace)
+    private static AnalysisEntry Observe(SafeHandle h, ImmutableArray<byte> relative, byte[] raw, string sourceNamespace, ulong? timePrecisionTicks = null)
     {
         byte* standard = stackalloc byte[24]; byte* basic = stackalloc byte[40]; byte* id = stackalloc byte[24];
         if (!GetInfo(h, 1, standard, 24) || !GetInfo(h, 0, basic, 40) || !GetInfo(h, 18, id, 24)) throw new IOException("Required file metadata is unavailable.");
@@ -281,10 +283,27 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         string? identity = idBytes.IndexOfAnyExcept((byte)0) < 0 ? null : $"win:{sourceNamespace}:{*(ulong*)id:X}:" + Convert.ToHexString(idBytes);
         DateTimeOffset? modified;
         try { modified = DateTimeOffset.FromFileTime(*(long*)(basic + 16)); } catch (ArgumentOutOfRangeException) { modified = null; }
+        DateTimeOffset? created = timePrecisionTicks is null ? null : NativeFileTime(*(long*)basic);
+        DateTimeOffset? changed = timePrecisionTicks is null ? null : NativeFileTime(*(long*)(basic + 24));
         return new(relative, Utf16(raw), raw.ToImmutableArray(), kind, identity,
             kind == AnalysisKind.File ? AnalysisMeasurement.Known((ulong)length) : AnalysisMeasurement.Missing(MeasurementState.Unsupported),
             allocated, AnalysisMeasurement.Known(*(uint*)(standard + 16)), modified, $"{identity}:{length}:{*(long*)(basic + 24)}", cloud,
-            Compressed: (attributes & 0x800) != 0, NameEncoding: "utf16le", ObservedUtc: DateTimeOffset.UtcNow, Sparse: (attributes & 0x200) != 0);
+            Compressed: (attributes & 0x800) != 0, NameEncoding: "utf16le", ObservedUtc: DateTimeOffset.UtcNow, Sparse: (attributes & 0x200) != 0)
+            { CreatedUtc = created, CreatedPrecisionTicks = created is null ? null : timePrecisionTicks,
+                ChangedUtc = changed, ChangedPrecisionTicks = changed is null ? null : timePrecisionTicks };
+    }
+    private static DateTimeOffset? NativeFileTime(long value)
+    {
+        if (value <= 0) return null;
+        try { return DateTimeOffset.FromFileTime(value).ToUniversalTime(); } catch (ArgumentOutOfRangeException) { return null; }
+    }
+    private static ulong? QualifiedTimePrecision(SafeHandle handle)
+    {
+        // Query the held object's volume once. Other filesystem timestamp contracts remain unknown.
+        char* name = stackalloc char[32]; new Span<char>(name, 32).Clear();
+        if (!GetVolumeInformationByHandle(handle, null, 0, null, null, null, name, 32)) return null;
+        int length = 0; while (length < 32 && name[length] != 0) length++;
+        return length < 32 && new string(name, 0, length).Equals("NTFS", StringComparison.OrdinalIgnoreCase) ? 1UL : null;
     }
     internal static (AnalysisKind Kind, bool Cloud) Classify(uint attributes, uint tag)
     {
@@ -341,6 +360,8 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
     [LibraryImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetInfo(SafeHandle h, int kind, byte* info, uint length);
     [LibraryImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", SetLastError = true)] private static partial uint GetFinalPathNameByHandle(SafeHandle h, char* path, uint length, uint flags);
     [LibraryImport("kernel32.dll", EntryPoint = "GetDriveTypeW", StringMarshalling = StringMarshalling.Utf16)] private static partial uint GetDriveType(string root);
+    [LibraryImport("kernel32.dll", EntryPoint = "GetVolumeInformationByHandleW", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetVolumeInformationByHandle(SafeHandle handle, char* volume, uint volumeLength, uint* serial, uint* componentLength, uint* flags, char* fileSystem, uint fileSystemLength);
     [LibraryImport("ntdll.dll")] private static partial int NtCreateFile(out SafeFileHandle h, uint access, ObjectAttributes* attributes, out IoStatus io, nint allocation, uint flags, uint share, uint disposition, uint options, nint ea, uint eaLength);
     [LibraryImport("ntdll.dll")] private static partial int NtQueryDirectoryFile(SafeHandle h, nint evt, nint apc, nint ctx, out IoStatus io, byte* buffer, uint length, int kind, [MarshalAs(UnmanagedType.U1)] bool single, nint pattern, [MarshalAs(UnmanagedType.U1)] bool restart);
 }
