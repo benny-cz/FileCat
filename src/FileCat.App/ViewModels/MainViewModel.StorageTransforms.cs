@@ -74,7 +74,7 @@ public sealed partial class MainViewModel
             if (await StorageRejectedSelectionDialog.ShowIfRejectedAsync(Dialogs, captured.Items, captured.Hidden)) return;
             using var review = Services.Jobs.CaptureStorageSelection(captured.Items);
             string device = Services.Providers.For(captured.Items[0].Parent).GetDeviceKey(captured.Items[0].Parent);
-            using var form = new StorageCompressionDialog(review, Services.Io, device, captured.Hidden, initial.Stop.Token, initial.Detach);
+            using var form = new StorageChangeDialog(review, Services.Io, device, captured.Hidden, initial.Stop.Token, initial.Detach);
             using var choice = await form.ShowAsync(Dialogs);
             if (choice is null)
             {
