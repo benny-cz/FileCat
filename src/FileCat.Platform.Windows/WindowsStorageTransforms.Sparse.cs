@@ -10,9 +10,9 @@ internal sealed unsafe partial class WindowsStorageTransforms
     internal const int SparseRangeLimit = 4096;
 
     [StructLayout(LayoutKind.Sequential)]
-    private readonly record struct AllocatedRange(long Offset, long Length);
+    internal readonly record struct AllocatedRange(long Offset, long Length);
 
-    private sealed record SparseLayout(long Length, long Allocation, AllocatedRange[] Ranges)
+    internal sealed record SparseLayout(long Length, long Allocation, AllocatedRange[] Ranges)
     {
         internal static bool SameHoles(SparseLayout? first, SparseLayout? second) =>
             first is null ? second is null :
@@ -20,7 +20,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
     }
 
     // Observe only this held data stream. A different stream's sparse state need not appear on this handle.
-    private static SparseLayout? ReadSparseLayout(SafeFileHandle file, CancellationToken ct)
+    internal static SparseLayout? ReadSparseLayout(SafeFileHandle file, CancellationToken ct)
     {
         if (!HasSparseFlag(file, ct)) return null;
         var first = ReadStreamSize(file, ct);
@@ -32,7 +32,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         return new(first.Length, first.Allocation, ranges);
     }
 
-    private static bool HasSparseFlag(SafeFileHandle file, CancellationToken ct)
+    internal static bool HasSparseFlag(SafeFileHandle file, CancellationToken ct)
     {
         Span<byte> basic = stackalloc byte[40];
         Query(file, 0 /* FileBasicInfo */, basic, ct);

@@ -30,7 +30,9 @@ The [outer archive checkpoint](../validation/filesystem-details/2026-11-17-efs-a
 
 The [sparse native transform checkpoint](../validation/filesystem-details/2026-11-17-sparse-native-transforms.md) records successful bounded Windows EFS and compression round trips with main and named stream holes. It also records the named-only case where the main handle exposes no sparse flag. The adapter, concurrency, scale and output gates remain open.
 
-The [held sparse compression checkpoint](../validation/filesystem-details/2026-11-17-sparse-held-compression.md) admits sparse files to the C candidate with bounded same-stream layout checks. Reviewed compression jobs preserve tested sparse shapes and refuse incomplete inventories before a mutation call. The EFS adapter, wider race/scale/output qualification and product enablement remain open.
+The [held sparse compression checkpoint](../validation/filesystem-details/2026-11-17-sparse-held-compression.md) admits sparse files to the C candidate with bounded same-stream layout checks. Reviewed compression jobs preserve tested sparse shapes and refuse incomplete inventories before a mutation call. Wider race, scale and output qualification and product enablement remain open.
+
+The [sparse EFS binding checkpoint](../validation/filesystem-details/2026-11-17-sparse-efs-binding.md) adds bounded sparse main and named stream checks to the EFS pathname candidate. Windows x64 round trips preserved the tested layouts, and observed hole changes resulted in refusal before the call or uncertainty after it. Durable job, recovery key, output and wider native gates remain open.
 
 This controls the conflicting wording below.
 

@@ -91,6 +91,98 @@ public sealed unsafe partial class WindowsSparseTransformTests
         });
     }
 
+    [Theory]
+    [InlineData("all-hole")]
+    [InlineData("main-holes")]
+    [InlineData("named-holes")]
+    [InlineData("both-holes")]
+    [InlineData("sparse-no-holes")]
+    public void Reviewed_efs_binding_preserves_sparse_main_and_named_layouts(string shape)
+    {
+        RequireFixture();
+        Run(shape, (path, first) =>
+        {
+            var encrypted = ApplyReviewedEfs(path, StorageAction.EncryptEfs);
+            Assert.Equal(StorageEffect.Changed, encrypted.Effect);
+            Assert.True(encrypted.NativeCallAttempted);
+            var enabled = Report("reviewed encrypt", "changed", path, first);
+            Assert.True(enabled.Attributes.HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(first.Main.Allocation, enabled.Main.Allocation);
+            Assert.Equal(first.Named.Allocation, enabled.Named.Allocation);
+            var encryptNoop = ApplyReviewedEfs(path, StorageAction.EncryptEfs);
+            Assert.Equal(StorageEffect.AlreadySatisfied, encryptNoop.Effect);
+            Assert.False(encryptNoop.NativeCallAttempted);
+
+            var decrypted = ApplyReviewedEfs(path, StorageAction.DecryptEfs);
+            Assert.Equal(StorageEffect.Changed, decrypted.Effect);
+            Assert.True(decrypted.NativeCallAttempted);
+            var disabled = Report("reviewed decrypt", "changed", path, first);
+            Assert.False(disabled.Attributes.HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(first.Main.Allocation, disabled.Main.Allocation);
+            Assert.Equal(first.Named.Allocation, disabled.Named.Allocation);
+            var decryptNoop = ApplyReviewedEfs(path, StorageAction.DecryptEfs);
+            Assert.Equal(StorageEffect.AlreadySatisfied, decryptNoop.Effect);
+            Assert.False(decryptNoop.NativeCallAttempted);
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Named_sparse_layout_growth_before_or_during_the_call_is_never_reported_as_success(bool duringCall)
+    {
+        RequireFixture();
+        Run("named-holes", (path, first) =>
+        {
+            void GrowNamedStream()
+            {
+                using var named = new FileStream(path + NamedStream, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+                named.Position = 1024 * 1024;
+                named.WriteByte(0x5A);
+                named.Flush(flushToDisk: true);
+            }
+            var outcome = ApplyReviewedEfs(path, StorageAction.EncryptEfs,
+                afterPrepare: duringCall ? null : GrowNamedStream, afterCall: duringCall ? GrowNamedStream : null);
+            Assert.Equal(duringCall ? StorageEffect.Uncertain : StorageEffect.NotProcessed, outcome.Effect);
+            Assert.Equal(duringCall ? "efs-sparse-postcondition-changed" : "efs-sparse-preparation-changed", outcome.Problem?.Code);
+            Assert.Equal(duringCall, outcome.NativeCallAttempted);
+            var after = Observe(path);
+            Assert.Equal(duringCall, after.Attributes.HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(first.Main.Digest, after.Main.Digest);
+            Assert.NotEqual(first.Named.Digest, after.Named.Digest);
+        });
+    }
+
+    private static StorageMutationResult ApplyReviewedEfs(string path, StorageAction action, Action? afterPrepare = null,
+        Action? afterCall = null)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var adapter = new WindowsStorageTransforms();
+        var target = StoragePaths.Capture([ItemRef.ForFileSystemPath(path, EntryKind.File)])[0];
+        using var reserve = StorageReviewResources.ReservePins(1);
+        using var native = StorageReviewResources.EnterNative(ct);
+        IStorageReviewLease pin;
+        using (StorageReviewResources.EnterRootInspection(target))
+            pin = adapter.InspectEfsRoot(target, action, ct);
+        using (pin)
+        {
+            var consent = StorageEfsConsent.Capture(Guid.NewGuid(), action, StorageScope.SelectedItems,
+                [pin.Observation.Identity], new(true, action == StorageAction.EncryptEfs));
+            using var held = adapter.OpenEfsPath(pin, consent, ct, afterCall is null ? null : (boundPath, observedAction) =>
+            {
+                Assert.Equal(StorageAction.EncryptEfs, observedAction);
+                File.Encrypt(boundPath);
+                afterCall();
+                return new(true, 0);
+            });
+            Assert.Null(held.PrepareMutation(action, ct).Ineligible);
+            afterPrepare?.Invoke();
+            var result = held.ApplyAdmitted(action);
+            TestContext.Current.TestOutputHelper!.WriteLine($"reviewed {action} -> {result.Effect} {result.Problem}");
+            return result;
+        }
+    }
+
     [Fact]
     public void A_sparse_range_overflow_refuses_before_a_native_call_while_a_noop_requires_no_inventory()
     {

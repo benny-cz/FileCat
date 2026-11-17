@@ -169,7 +169,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             if (before.Ineligible is null && NeedsChange(before.Efs, action))
             {
                 if (!_guards) { PromoteEfsGuards(_path, Path, ct); _guards = true; before = Observe(ct); }
-                PreparedStreams = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, ct);
+                PreparedStreams = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, ct, includeSparseLayouts: true);
                 RequireNativeStatus(before, ct);
                 before = Observe(ct);
             }
@@ -189,7 +189,11 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 if (!_preparedNeeded) return new(before, before, StorageEffect.NotProcessed,
                     Problem(StorageReasonKind.IdentityChanged, "new-preparation-required", "The EFS state changed after no-op preparation; no native call was attempted."));
                 // Complete metadata again after preparation. Consent covers compressed streams added meanwhile.
-                PreparedStreams = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, CancellationToken.None);
+                var streamsBefore = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, CancellationToken.None, includeSparseLayouts: true);
+                if (!WindowsEfsStreams.SameSparseLayouts(PreparedStreams, streamsBefore))
+                    return new(before, before, StorageEffect.NotProcessed,
+                        Problem(StorageReasonKind.IdentityChanged, "efs-sparse-preparation-changed",
+                            "The observed sparse stream layouts changed after preparation. No EFS call was attempted."));
                 RequireNativeStatus(before, CancellationToken.None);
                 before = Observe(CancellationToken.None);
                 if (before.Ineligible is { } changed) return new(before, before, StorageEffect.NotProcessed, changed);
@@ -200,6 +204,10 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 var after = Observe(CancellationToken.None);
                 if (after.Ineligible is not null || after.Efs is not (StorageObservationState.Enabled or StorageObservationState.Disabled))
                     return Result(after, StorageEffect.Uncertain, after.Ineligible ?? Problem(StorageReasonKind.Unknown, "efs-postcondition-unknown", "The held EFS effect could not be established."));
+                var streamsAfter = WindowsEfsStreams.Read(_path.Leaf.File, Identity, after.IsDirectory, CancellationToken.None, includeSparseLayouts: true);
+                if (!WindowsEfsStreams.SameSparseLayouts(streamsBefore, streamsAfter))
+                    return Result(after, StorageEffect.Uncertain, Problem(StorageReasonKind.Unknown, "efs-sparse-postcondition-changed",
+                        "A sparse stream's state, length or reported hole ranges changed. Review the file before continuing."));
                 if (!NeedsChange(after.Efs, action)) return Result(after, StorageEffect.Changed,
                     call.Succeeded ? null : Problem(StorageReasonKind.TransientFailure, "efs-native-" + call.Error, "The desired held EFS state was observed after a failed native return."));
                 return Result(after, call.Succeeded ? StorageEffect.Uncertain : StorageEffect.Failed,

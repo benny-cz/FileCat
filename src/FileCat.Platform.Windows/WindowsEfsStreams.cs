@@ -9,7 +9,10 @@ using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
 
-internal sealed record WindowsEfsStream(string NativeName, long Length, StorageObservationState Compression);
+internal sealed record WindowsEfsStream(string NativeName, long Length, StorageObservationState Compression)
+{
+    internal WindowsStorageTransforms.SparseLayout? Sparse { get; init; }
+}
 
 /// <summary>Complete, bounded metadata from the held object. Reads no stream payload and never queries EAs.</summary>
 internal static unsafe partial class WindowsEfsStreams
@@ -18,11 +21,12 @@ internal static unsafe partial class WindowsEfsStreams
     private const int Overflow = unchecked((int)0x80000005), TooSmall = unchecked((int)0xC0000023), LengthMismatch = unchecked((int)0xC0000004);
     [StructLayout(LayoutKind.Sequential)] private struct IoStatus { public nint Status; public nuint Information; }
 
-    internal static ImmutableArray<WindowsEfsStream> Read(SafeFileHandle root, StorageObjectIdentity identity, bool directory, CancellationToken ct)
+    internal static ImmutableArray<WindowsEfsStream> Read(SafeFileHandle root, StorageObjectIdentity identity, bool directory,
+        CancellationToken ct, bool includeSparseLayouts = false)
     {
         var names = ReadNames(root, directory, ct);
         var result = ImmutableArray.CreateBuilder<WindowsEfsStream>(names.Length);
-        Span<byte> id = stackalloc byte[24];
+        int sparseRanges = 0;
         foreach (var entry in names)
         {
             ct.ThrowIfCancellationRequested();
@@ -30,7 +34,8 @@ internal static unsafe partial class WindowsEfsStreams
             {
                 var format = WindowsCompression.Query(root); ct.ThrowIfCancellationRequested();
                 if (format.State is not (StorageObservationState.Enabled or StorageObservationState.Disabled)) throw Failure("stream-compression", "The unnamed stream's compression state could not be established.");
-                result.Add(entry with { Compression = format.State }); continue;
+                result.Add(AddSparseLayout(entry with { Compression = format.State }, root));
+                continue;
             }
             using var charge = StorageNativeAllowance.RequireCurrent().ClaimScratch();
             int status = NtFile.TryOpen(root, entry.NativeName, NtFile.ReadAttributes | NtFile.Synchronize, NtFile.ShareAll, NtFile.Open,
@@ -38,20 +43,68 @@ internal static unsafe partial class WindowsEfsStreams
             using (stream)
             {
                 if (status < 0) throw new StorageInspectionException(new(StorageReasonKind.Unknown, "stream-open", "A named stream could not be bound to its held object: " + NtFile.Error(status, "Inspect EFS stream").Message, true));
-                ct.ThrowIfCancellationRequested();
-                id.Clear();
-                fixed (byte* bytes = id)
-                    if (!GetInfo(stream, 18 /* FileIdInfo */, bytes, (uint)id.Length)) throw Failure("stream-identity", "A stream's held identity could not be read.");
-                ct.ThrowIfCancellationRequested();
-                if (BinaryPrimitives.ReadUInt64LittleEndian(id) != identity.Volume || Convert.ToHexString(id[8..]) != identity.ObjectId ||
-                    WindowsStorageTransforms.ActualVolumeBinding(stream, false, ct) != identity.VolumeBinding)
-                    throw Failure("stream-identity", "A stream did not belong to the held reviewed object.");
+                RequireStreamIdentity(stream, identity, ct);
                 var format = WindowsCompression.Query(stream); ct.ThrowIfCancellationRequested();
                 if (format.State is not (StorageObservationState.Enabled or StorageObservationState.Disabled)) throw Failure("stream-compression", "A named stream's compression state could not be established.");
-                result.Add(entry with { Compression = format.State });
+                var observed = entry with { Compression = format.State };
+                if (includeSparseLayouts && WindowsStorageTransforms.HasSparseFlag(stream, ct))
+                {
+                    using var sparseCharge = StorageNativeAllowance.RequireCurrent().ClaimScratch();
+                    int sparseStatus = NtFile.TryOpen(root, entry.NativeName, NtFile.ReadData | NtFile.ReadAttributes | NtFile.Synchronize,
+                        NtFile.ShareAll, NtFile.Open, NtFile.NonDirectoryFile | NtFile.OpenReparsePoint | 0x400000, out var sparse, caseSensitive: true);
+                    using (sparse)
+                    {
+                        if (sparseStatus < 0) throw Failure("sparse-stream-open", "The named sparse stream's allocation could not be inspected: " +
+                            NtFile.Error(sparseStatus, "Open held sparse stream").Message);
+                        RequireStreamIdentity(sparse, identity, ct);
+                        observed = AddSparseLayout(observed, sparse);
+                        if (observed.Sparse is null)
+                            throw Failure("sparse-stream-changed", "The named stream's sparse state changed during its observation.");
+                    }
+                }
+                result.Add(observed);
             }
         }
         return result.MoveToImmutable();
+
+        WindowsEfsStream AddSparseLayout(WindowsEfsStream entry, SafeFileHandle held)
+        {
+            if (!includeSparseLayouts) return entry;
+            var layout = WindowsStorageTransforms.ReadSparseLayout(held, ct);
+            if (layout is null) return entry;
+            if (layout.Length != entry.Length)
+                throw Failure("sparse-stream-changed", "A sparse stream's length changed during its held enumeration.");
+            sparseRanges += layout.Ranges.Length;
+            if (sparseRanges > WindowsStorageTransforms.SparseRangeLimit)
+                throw Failure("sparse-range-limit", "The complete EFS sparse range inventory exceeds 4,096 retained ranges.");
+            return entry with { Sparse = layout };
+        }
+    }
+
+    private static void RequireStreamIdentity(SafeFileHandle stream, StorageObjectIdentity identity, CancellationToken ct)
+    {
+        Span<byte> id = stackalloc byte[24];
+        ct.ThrowIfCancellationRequested();
+        fixed (byte* bytes = id)
+            if (!GetInfo(stream, 18 /* FileIdInfo */, bytes, (uint)id.Length))
+                throw Failure("stream-identity", "A stream's held identity could not be read.");
+        ct.ThrowIfCancellationRequested();
+        if (BinaryPrimitives.ReadUInt64LittleEndian(id) != identity.Volume || Convert.ToHexString(id[8..]) != identity.ObjectId ||
+            WindowsStorageTransforms.ActualVolumeBinding(stream, false, ct) != identity.VolumeBinding)
+            throw Failure("stream-identity", "A stream did not belong to the held reviewed object.");
+    }
+
+    internal static bool SameSparseLayouts(ImmutableArray<WindowsEfsStream> before, ImmutableArray<WindowsEfsStream> after)
+    {
+        var pending = before.Where(entry => entry.Sparse is not null).ToDictionary(entry => entry.NativeName, StringComparer.Ordinal);
+        foreach (var entry in after)
+        {
+            if (entry.Sparse is null) continue;
+            if (!pending.Remove(entry.NativeName, out var previous) ||
+                !WindowsStorageTransforms.SparseLayout.SameHoles(previous.Sparse, entry.Sparse))
+                return false;
+        }
+        return pending.Count == 0;
     }
 
     private static ImmutableArray<WindowsEfsStream> ReadNames(SafeFileHandle root, bool directory, CancellationToken ct)
