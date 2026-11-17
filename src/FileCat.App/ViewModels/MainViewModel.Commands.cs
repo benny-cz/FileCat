@@ -48,6 +48,12 @@ public sealed partial class MainViewModel
         }
         switch (id)
         {
+            case CommandIds.StorageAttributes:
+                if (Scope?.StorageAvailability?.Invoke() is { Enabled: false } storageGate) return storageGate;
+                if (Services.Jobs.CompressionUnavailable is { } storageUnavailable) return CommandAvailability.No(storageUnavailable.Message);
+                if (tab is null || loc is null || !hasItem) return CommandAvailability.No("Focus or mark files or folders to change NTFS compression.");
+                return loc.IsFileSystem || loc.Scheme == Schemes.ResultSet
+                    ? CommandAvailability.Yes : CommandAvailability.No("NTFS compression acts on local filesystem originals, including local search results and working sets.");
             case CommandIds.FileRecord:
             case CommandIds.HiddenData:
                 if (id == CommandIds.FileRecord && !Services.Platform.FileRecords.IsSupported)

@@ -141,6 +141,8 @@ public sealed class ListingModel : IDisposable
     public Exception? LastRefreshError { get; private set; }
     public bool HasParentRow { get; private set; }
     public int Generation => _generation;
+    /// <summary>Explicit mark edits. Automatic restoration during a same-location refresh does not advance it.</summary>
+    public long MarkRevision { get; private set; }
     /// <summary>The newest requested view revision, including sorts, filters, and visibility changes.</summary>
     public int ViewSpecVersion => _specVersion;
     /// <summary>The view revision whose rows are currently shown.</summary>
@@ -1098,6 +1100,7 @@ public sealed class ListingModel : IDisposable
 
     private void MarksChanged()
     {
+        MarkRevision++;
         _statsCache = null;
         Raise(ListingChange.Marks);
     }

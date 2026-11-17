@@ -17,6 +17,8 @@ internal abstract class StorageHistoryEvidence : IDisposable
     internal abstract string DirectoryIdentity { get; }
     internal abstract string Identity { get; }
     internal abstract Stream Stream { get; }
+    /// <summary>Charge an export output before its factory opens it, within this same evidence envelope.</summary>
+    internal virtual IDisposable ClaimExportOutput() => throw new NotSupportedException("Storage call export is unavailable on this evidence reader.");
     public abstract void Dispose();
 }
 

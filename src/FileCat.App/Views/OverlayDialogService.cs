@@ -772,68 +772,103 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var tcs = new TaskCompletionSource<object?>();
         Session? session = null;
         DispatcherTimer? requery = null;
+        var presentationSubscriptions = new List<(DialogButtonPresentation Source, Action Changed)>();
+        bool presentationClosed = false;
+        void RetirePresentation()
+        {
+            presentationClosed = true;
+            requery?.Stop();
+            foreach (var (source, changed) in presentationSubscriptions) source.Changed -= changed;
+            presentationSubscriptions.Clear();
+        }
         void Finish(object? r)
         {
             if (tcs.Task.IsCompleted) return;
-            requery?.Stop();
+            RetirePresentation();
             Close(session!);
             tcs.TrySetResult(r);
         }
-        var gated = new List<(Button Button, Func<bool> Available)>();
-        DialogButton? confirm = null;
-        Func<bool>? confirmAvailable = null;
-        var btns = buttons.Select(b =>
+        try
         {
-            var btn = new Button { Content = b.Text, IsDefault = b.IsDefault, IsCancel = b.IsCancel };
-            if (!string.IsNullOrWhiteSpace(b.HelpText))
-                AutomationProperties.SetHelpText(btn, b.HelpText);
-            if (b.IsDanger) btn.Classes.Add("danger");
-            else if (b.IsDefault) btn.Classes.Add("primary");
-            var available = b.IsDefault && canConfirm is not null
-                ? b.IsAvailable is { } own ? () => own() && canConfirm() : canConfirm
-                : b.IsAvailable;
-            if (available is not null) gated.Add((btn, available));
-            if (b.IsDefault && confirm is null) (confirm, confirmAvailable) = (b, available);
-            btn.Click += (_, _) => { if (IsCurrent(session) && available?.Invoke() != false && b.Validate?.Invoke() != false) Finish(b.Result); };
-            return btn;
-        }).ToArray();
-        // Buttons show whether they would do anything (the predicates are cheap and side-effect free).
-        if (gated.Count > 0)
-        {
-            void Requery()
+            var gated = new List<(Button Button, Func<bool> Available)>();
+            DialogButton? confirm = null;
+            Func<bool>? confirmAvailable = null;
+            var btns = buttons.Select(b =>
             {
-                foreach (var (button, available) in gated) button.IsEnabled = available();
+                var btn = new Button { Content = b.Text, IsDefault = b.IsDefault, IsCancel = b.IsCancel };
+                if (!string.IsNullOrWhiteSpace(b.HelpText))
+                    AutomationProperties.SetHelpText(btn, b.HelpText);
+                if (b.IsDanger) btn.Classes.Add("danger");
+                else if (b.IsDefault) btn.Classes.Add("primary");
+                var available = b.IsDefault && canConfirm is not null
+                    ? b.IsAvailable is { } own ? () => own() && canConfirm() : canConfirm
+                    : b.IsAvailable;
+                if (available is not null) gated.Add((btn, available));
+                if (b.Presentation is { } presentation)
+                {
+                    void ApplyPresentation()
+                    {
+                        if (presentationClosed) return;
+                        var snapshot = presentation.Snapshot;
+                        btn.Content = snapshot.Text;
+                        AutomationProperties.SetName(btn, snapshot.AccessibleName ?? snapshot.Text);
+                        AutomationProperties.SetHelpText(btn, snapshot.HelpText ?? b.HelpText ?? string.Empty);
+                        // Text and eligibility must describe the same action, including an immediate Enter.
+                        btn.IsEnabled = available?.Invoke() != false;
+                        foreach (var (button, predicate) in gated) button.IsEnabled = predicate();
+                    }
+                    void Changed()
+                    {
+                        if (Dispatcher.UIThread.CheckAccess()) ApplyPresentation();
+                        else Dispatcher.UIThread.Post(ApplyPresentation);
+                    }
+                    presentation.Changed += Changed;
+                    presentationSubscriptions.Add((presentation, Changed));
+                    ApplyPresentation();
+                }
+                if (b.IsDefault && confirm is null) (confirm, confirmAvailable) = (b, available);
+                btn.Click += (_, _) => { if (IsCurrent(session) && available?.Invoke() != false && b.Validate?.Invoke() != false) Finish(b.Result); };
+                return btn;
+            }).ToArray();
+            // Buttons show whether they would do anything (the predicates are cheap and side-effect free).
+            if (gated.Count > 0)
+            {
+                void Requery()
+                {
+                    foreach (var (button, available) in gated) button.IsEnabled = available();
+                }
+                Requery();
+                requery = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+                requery.Tick += (_, _) => Requery();
+                requery.Start();
             }
-            Requery();
-            requery = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
-            requery.Tick += (_, _) => Requery();
-            requery.Start();
+            var card = Card(title, content, ButtonRow(btns), 760, pinnedReview);
+            if (resizable) card.EnableResizing(host, behavior?.PreferredSize);
+            // Enter confirms as soon as the dialog would: whether the default button may act is asked when Enter is pressed,
+            // not only when the 200 ms re-check last enabled it, so Enter right after typing is not lost. A button or a
+            // multi-line box that used Enter keeps it; a focused list item takes Enter for itself, and in a dialog Enter
+            // there still confirms (unless the content acted on it already and so ended the dialog).
+            card.AddHandler(InputElement.KeyDownEvent, (_, e) =>
+            {
+                if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || !IsCurrent(session) || e.Source is not Visual source) return;
+                bool inListItem = source.FindAncestorOfType<ListBoxItem>(includeSelf: true) is { } item && card.IsVisualAncestorOf(item);
+                if (e.Handled && !inListItem || confirm is null || confirmAvailable?.Invoke() == false) return;
+                e.Handled = true;
+                if (confirm.Validate?.Invoke() != false) Finish(confirm.Result);
+            }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+            // Enter on a check box or an option confirms, as in Windows dialogs (Space toggles it): Avalonia would click it.
+            card.AddHandler(InputElement.KeyDownEvent, (_, e) =>
+            {
+                if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || !IsCurrent(session) || e.Source is not (CheckBox or RadioButton)) return;
+                e.Handled = true;
+                if (confirm is not null && confirmAvailable?.Invoke() != false && confirm.Validate?.Invoke() != false) Finish(confirm.Result);
+            }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+            var cancel = buttons.FirstOrDefault(b => b.IsCancel);
+            session = Show(card, initialFocus ?? btns.FirstOrDefault(b => b.IsDefault), top: false, () => Finish(cancel?.Result), behavior);
+            closer?.Attach(Finish);
+            return tcs.Task;
         }
-        var card = Card(title, content, ButtonRow(btns), 760, pinnedReview);
-        if (resizable) card.EnableResizing(host, behavior?.PreferredSize);
-        // Enter confirms as soon as the dialog would: whether the default button may act is asked when Enter is pressed,
-        // not only when the 200 ms re-check last enabled it, so Enter right after typing is not lost. A button or a
-        // multi-line box that used Enter keeps it; a focused list item takes Enter for itself, and in a dialog Enter
-        // there still confirms (unless the content acted on it already and so ended the dialog).
-        card.AddHandler(InputElement.KeyDownEvent, (_, e) =>
-        {
-            if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || !IsCurrent(session) || e.Source is not Visual source) return;
-            bool inListItem = source.FindAncestorOfType<ListBoxItem>(includeSelf: true) is { } item && card.IsVisualAncestorOf(item);
-            if (e.Handled && !inListItem || confirm is null || confirmAvailable?.Invoke() == false) return;
-            e.Handled = true;
-            if (confirm.Validate?.Invoke() != false) Finish(confirm.Result);
-        }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
-        // Enter on a check box or an option confirms, as in Windows dialogs (Space toggles it): Avalonia would click it.
-        card.AddHandler(InputElement.KeyDownEvent, (_, e) =>
-        {
-            if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || !IsCurrent(session) || e.Source is not (CheckBox or RadioButton)) return;
-            e.Handled = true;
-            if (confirm is not null && confirmAvailable?.Invoke() != false && confirm.Validate?.Invoke() != false) Finish(confirm.Result);
-        }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
-        var cancel = buttons.FirstOrDefault(b => b.IsCancel);
-        session = Show(card, initialFocus ?? btns.FirstOrDefault(b => b.IsDefault), top: false, () => Finish(cancel?.Result), behavior);
-        closer?.Attach(Finish);
-        return tcs.Task;
+        catch { RetirePresentation(); throw; }
     }
 
     public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null, bool remapOnly = false)

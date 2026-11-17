@@ -192,19 +192,23 @@ public sealed class StorageOperationsUiTests
     [AvaloniaFact]
     public async Task Narrow_snapshot_window_requires_displayed_evidence_before_actions_and_keeps_actions_reachable()
     {
-        string text = StorageHistoryReport.Format(HistoryStatus()); int saved = 0, acknowledged = 0;
+        string text = StorageHistoryReport.Format(HistoryStatus()); int saved = 0, acknowledged = 0, calls = 0;
         var ready = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         var window = new ReportWindow("Storage history snapshot", "Storage changes", _ => ready.Task) { Width = 640, Height = 420 };
         window.ConfigureStorageReview(text, () => { saved++; return Task.CompletedTask; }, () => { acknowledged++; return Task.CompletedTask; });
+        window.ConfigureStorageCalls(() => { calls++; return Task.CompletedTask; });
         try
         {
             window.Show(); window.UpdateLayout();
             for (int i = 0; i < 100 && window.Reading is null; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
             var acknowledge = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Acknowledge reviewed history…");
             acknowledge.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Assert.Equal(0, acknowledged);
+            var viewCalls = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "View recorded calls…");
+            viewCalls.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Assert.Equal(0, calls);
             ready.SetResult(text);
             await Assert.IsAssignableFrom<Task>(window.Reading); window.UpdateLayout();
             acknowledge.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Assert.Equal(1, acknowledged);
+            viewCalls.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Assert.Equal(1, calls); Assert.True(viewCalls.IsEffectivelyVisible);
             var save = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Save call details…");
             Assert.True(save.IsEffectivelyVisible); Assert.True(acknowledge.IsEffectivelyVisible); Assert.True(acknowledge.Focus());
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Assert.Equal(1, saved);

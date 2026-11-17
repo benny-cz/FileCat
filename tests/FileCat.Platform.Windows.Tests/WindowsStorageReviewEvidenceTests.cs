@@ -262,6 +262,11 @@ public sealed partial class WindowsStorageReviewEvidenceTests
             var calls = JournalRecovery.ReadStorageCalls(Path.Join(root, leaf), Assert.IsType<StorageJournalPrefix>(prefix), 0,
                 WindowsStorageReviewEvidence.Backend, Stop);
             Assert.Empty(calls.Calls); Assert.False(calls.More); Assert.Equal(prefix, calls.Prefix);
+            using var exported = new MemoryStream();
+            JournalRecovery.CopyStorageCalls(Path.Join(root, leaf), prefix!, () => exported, WindowsStorageReviewEvidence.Backend, Stop);
+            byte[] copied = exported.ToArray();
+            Assert.Equal(prefix!.ByteLength, copied.LongLength);
+            Assert.Equal(prefix.Sha256, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(copied)));
             var account = StorageEvidenceAccounting.Census(root, null, Stop, WindowsStorageReviewEvidence.Backend);
             Assert.True(account.Complete, account.Problem); Assert.Equal(1, account.PendingHistories);
         }

@@ -41,6 +41,7 @@ internal sealed partial class WindowsStorageReviewEvidence
         internal override string DirectoryIdentity { get; }
         internal override string Identity { get; }
         internal override Stream Stream => _stream;
+        internal override IDisposable ClaimExportOutput() => _envelope.Claim();
         internal History(NativeHandle file, StorageEvidenceEnvelope envelope, string directoryIdentity, string identity)
         {
             _file = file; _envelope = envelope; _stream = new(file.Handle, FileAccess.Read);

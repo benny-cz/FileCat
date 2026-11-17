@@ -5,6 +5,17 @@ namespace FileCat.Core.Tests;
 public sealed class StorageNativeAllowanceTests
 {
     [Fact]
+    public void Typed_blocker_remains_until_the_last_charged_native_handle_actually_retires()
+    {
+        var job = new Job(new JobRequest { Kind = JobKind.StorageTransform }, "Storage owner", "fixture", [], []);
+        using var native = StorageReviewResources.EnterNative(TestContext.Current.CancellationToken, job);
+        using var handle = StorageNativeAllowance.RequireCurrent().ClaimScratch();
+        Assert.Same(job, StorageReviewResources.NativeBlocker);
+        native.Dispose(); Assert.Same(job, StorageReviewResources.NativeBlocker);
+        handle.Dispose(); Assert.Null(StorageReviewResources.NativeBlocker);
+    }
+
+    [Fact]
     public void Traversal_and_scratch_have_separate_fixed_bounds_and_duplicate_returns_do_not_expand_them()
     {
         using var native = StorageReviewResources.EnterNative(TestContext.Current.CancellationToken);

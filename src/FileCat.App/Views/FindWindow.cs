@@ -26,7 +26,7 @@ namespace FileCat.App.Views;
 /// panel's list, which acts on the original items with the panels' own commands (F3, F4, F5, F6, F8, …). A new search
 /// can replace the found items, keep only those it matches too, remove those it matches, or add its matches.
 /// </summary>
-public sealed class FindWindow : Window, IViewActions
+public sealed partial class FindWindow : Window, IViewActions
 {
     // Screen readers follow a list's focused row and, on Linux, hear focus after window activation.
     protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
@@ -42,7 +42,7 @@ public sealed class FindWindow : Window, IViewActions
     [
         CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.HexEdit, CommandIds.Copy, CommandIds.Move,
         CommandIds.Delete, CommandIds.DeletePermanent, CommandIds.Properties, CommandIds.UserMenu, CommandIds.OpenWithSystem,
-        CommandIds.FileRecord, CommandIds.HiddenData,
+        CommandIds.FileRecord, CommandIds.HiddenData, CommandIds.StorageAttributes,
         CommandIds.Reveal, CommandIds.CopyNames, CommandIds.CopyPaths, CommandIds.CopyUncPaths, CommandIds.CopyToClipboard,
         CommandIds.CutToClipboard, CommandIds.MarkToggleDown, CommandIds.MarkAll, CommandIds.MarkNone, CommandIds.MarkInvert,
         CommandIds.MarkInvertAll, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask, CommandIds.MarkSameExt,
@@ -156,6 +156,7 @@ public sealed class FindWindow : Window, IViewActions
     {
         _vm = vm;
         _services = vm.Services;
+        _services.Jobs.JobFinished += OnStorageJobFinished;
         _origin = origin;
         _requiresLocalChoice = within is null && origin is not null && !origin.IsFileSystem;
         _panel = new PanelViewModel(vm.Workspace, vm.Services);
@@ -288,6 +289,9 @@ public sealed class FindWindow : Window, IViewActions
         Closed += (_, _) =>
         {
             _closed = true;
+            _services.Jobs.JobFinished -= OnStorageJobFinished;
+            if (_tab is not null) _tab.Listing.Changed -= OnStorageListingChanged;
+            StorageResultsSettled = false;
             _timer.Stop();
             Stop();
             _tab?.Dispose();
@@ -524,7 +528,7 @@ public sealed class FindWindow : Window, IViewActions
         CommandItem(CommandIds.Copy), CommandItem(CommandIds.Move), CommandItem(CommandIds.Delete), CommandItem(CommandIds.DeletePermanent),
         new Separator(),
         CommandItem(CommandIds.Properties), CommandItem(CommandIds.FileRecord), CommandItem(CommandIds.HiddenData),
-        CommandItem(CommandIds.UserMenu), CommandItem(CommandIds.Checksum), CommandItem(CommandIds.Pack),
+        CommandItem(CommandIds.UserMenu), CommandItem(CommandIds.Checksum), CommandItem(CommandIds.StorageAttributes), CommandItem(CommandIds.Pack),
         new Separator(),
         CommandItem(CommandIds.CopyNames), CommandItem(CommandIds.CopyPaths), CommandItem(CommandIds.CopyToClipboard),
         CommandItem(CommandIds.AddToWorkingSet),
@@ -541,6 +545,7 @@ public sealed class FindWindow : Window, IViewActions
                     var (enabled, reason) = state();
                     item.IsEnabled = enabled;
                     ToolTip.SetTip(item, enabled ? null : reason);
+                    ToolTip.SetShowOnDisabled(item, true);
                     AutomationProperties.SetHelpText(item, enabled ? null : reason);
                 }
         };
@@ -607,6 +612,7 @@ public sealed class FindWindow : Window, IViewActions
                 var (enabled, reason) = state();
                 item.IsEnabled = enabled;
                 ToolTip.SetTip(item, enabled ? null : reason);
+                ToolTip.SetShowOnDisabled(item, true);
                 AutomationProperties.SetHelpText(item, enabled ? null : reason);
             }
         menu.Open(_list);
@@ -809,6 +815,8 @@ public sealed class FindWindow : Window, IViewActions
             return;
         }
         var history = _services.History;
+        _storagePublishing = true;
+        StorageResultsSettled = false;
         AppServices.RememberText(history.SearchNames, string.IsNullOrWhiteSpace(criteria.Names) ? "*" : criteria.Names);
         if (criteria.Text.Length > 0) AppServices.RememberText(history.SearchTexts, criteria.Text);
         if (_within is null) AppServices.RememberText(history.SearchFolders, criteria.LookIn.Trim());
@@ -850,6 +858,7 @@ public sealed class FindWindow : Window, IViewActions
         _ = Task.Run(() => session.Run(token), token);
         _message.Text = string.Empty;
         UpdateButtons();
+        _storagePublishing = false;
         _timer.Start();
         OnTick();
     }
@@ -866,7 +875,8 @@ public sealed class FindWindow : Window, IViewActions
         if (_tab is null)
         {
             _tab = _panel.OpenTab(location);
-            _scope = new CommandScope(_tab, _dialogs, this);
+            _scope = new CommandScope(_tab, _dialogs, this) { StorageAvailability = StorageAvailability };
+            _tab.Listing.Changed += OnStorageListingChanged;
             _list.Tab = _tab;
             _placeholder.IsVisible = false;
         }
@@ -899,67 +909,78 @@ public sealed class FindWindow : Window, IViewActions
     private async Task GroupDuplicatesAsync(DuplicateCriteria alike)
     {
         if (_set is not { } found) return;
-        _grouping = new CancellationTokenSource();
-        var token = _grouping.Token;
+        var grouping = new CancellationTokenSource();
+        _grouping = grouping;
+        var token = grouping.Token;
         var items = found.Snapshot().Select(s => s.Item).ToList();
         _status.Text = $"Comparing {Formatters.Plural(items.Count(i => !i.IsContainer), "file", "files")}…";
         _comparing = true;
         UpdateButtons();
-        DuplicateResult result;
+        UpdateStorageAvailability();
         try
         {
-            var fs = _services.Platform.FileOperations;
-            result = await Task.Run(() => DuplicateFinder.Find(items, alike, token, fs.GetFileIdentity), token);
-        }
-        catch (OperationCanceledException)
-        {
-            _status.Text = "Comparing stopped; the list shows everything found.";
-            return;
+            DuplicateResult result;
+            try
+            {
+                var fs = _services.Platform.FileOperations;
+                result = await Task.Run(() => DuplicateFinder.Find(items, alike, token, fs.GetFileIdentity), token);
+            }
+            catch (OperationCanceledException)
+            {
+                _status.Text = "Comparing stopped; the list shows everything found.";
+                return;
+            }
+            if (_closed || !ReferenceEquals(found, _set)) return;
+            var groups = _services.ResultSets.Create(found.Title.Replace("Search", "Duplicates", StringComparison.Ordinal),
+                found.Provenance + "; duplicates by " + Describe(alike));
+            groups.FullFolders = true;
+            groups.ShowsGroups = true;
+            var relative = found.Snapshot().ToDictionary(s => s.Item, s => s.Relative);
+            for (int g = 0; g < result.Groups.Count; g++)
+            {
+                var group = result.Groups[g];
+                foreach (var item in group)
+                {
+                    groups.Add(item, relative.GetValueOrDefault(item, string.Empty));
+                    groups.SetNote(item, $"group {g + 1} · {group.Count} files");
+                }
+            }
+            groups.IsComplete = true;
+            _groups = result.Groups;
+            _set = groups;
+            _searchScope = groups.Provenance;
+            ShowSet(groups);
+            // The groups keep the order found; a column header sorts them otherwise.
+            _tab!.Listing.Sort = new Core.Listing.SortSpec(Core.Listing.SortField.None);
+            Refresh(force: true);
+            int files = result.Groups.Sum(g => g.Count);
+            _status.Text = result.Groups.Count == 0
+                ? "No duplicates among the found files."
+                : $"{Formatters.Plural(result.Groups.Count, "group", "groups")} of duplicates · {Formatters.Plural(files, "file", "files")}";
+            UpdateEmptyResults(new FindFeedback(_status.Text, string.Empty, string.Empty, _status.Text,
+                "Comparison scope: " + _searchScope, false));
+            if (result.Unreadable.Count > 0)
+                ShowNotification($"{Formatters.Plural(result.Unreadable.Count, "file", "files")} could not be read and were left out: {string.Join(", ", result.Unreadable.Take(3).Select(Path.GetFileName))}{(result.Unreadable.Count > 3 ? ", …" : "")}", true);
+            else if (result.SameFile.Count > 0 || result.Links.Count > 0)
+            {
+                var notes = new List<string>();
+                if (result.SameFile.Count > 0)
+                    notes.Add($"{Formatters.Plural(result.SameFile.Count, "name was", "names were")} left out as other names of a listed file (a hard link, or a path through a junction): not copies");
+                if (result.Links.Count > 0)
+                    notes.Add($"{Formatters.Plural(result.Links.Count, "link", "links")} to files left out: a link is not a copy");
+                ShowNotification(string.Join("; ", notes) + ".", false);
+            }
         }
         finally
         {
-            _comparing = false;
-            UpdateButtons();
-        }
-        if (_closed || !ReferenceEquals(found, _set)) return;
-        var groups = _services.ResultSets.Create(found.Title.Replace("Search", "Duplicates", StringComparison.Ordinal),
-            found.Provenance + "; duplicates by " + Describe(alike));
-        groups.FullFolders = true;
-        groups.ShowsGroups = true;
-        var relative = found.Snapshot().ToDictionary(s => s.Item, s => s.Relative);
-        for (int g = 0; g < result.Groups.Count; g++)
-        {
-            var group = result.Groups[g];
-            foreach (var item in group)
+            if (ReferenceEquals(_grouping, grouping))
             {
-                groups.Add(item, relative.GetValueOrDefault(item, string.Empty));
-                groups.SetNote(item, $"group {g + 1} · {group.Count} files");
+                _grouping = null;
+                _comparing = false;
+                UpdateButtons();
+                UpdateStorageAvailability();
             }
-        }
-        groups.IsComplete = true;
-        _groups = result.Groups;
-        _set = groups;
-        _searchScope = groups.Provenance;
-        ShowSet(groups);
-        // The groups keep the order found; a column header sorts them otherwise.
-        _tab!.Listing.Sort = new Core.Listing.SortSpec(Core.Listing.SortField.None);
-        Refresh(force: true);
-        int files = result.Groups.Sum(g => g.Count);
-        _status.Text = result.Groups.Count == 0
-            ? "No duplicates among the found files."
-            : $"{Formatters.Plural(result.Groups.Count, "group", "groups")} of duplicates · {Formatters.Plural(files, "file", "files")}";
-        UpdateEmptyResults(new FindFeedback(_status.Text, string.Empty, string.Empty, _status.Text,
-            "Comparison scope: " + _searchScope, false));
-        if (result.Unreadable.Count > 0)
-            ShowNotification($"{Formatters.Plural(result.Unreadable.Count, "file", "files")} could not be read and were left out: {string.Join(", ", result.Unreadable.Take(3).Select(Path.GetFileName))}{(result.Unreadable.Count > 3 ? ", …" : "")}", true);
-        else if (result.SameFile.Count > 0 || result.Links.Count > 0)
-        {
-            var notes = new List<string>();
-            if (result.SameFile.Count > 0)
-                notes.Add($"{Formatters.Plural(result.SameFile.Count, "name was", "names were")} left out as other names of a listed file (a hard link, or a path through a junction): not copies");
-            if (result.Links.Count > 0)
-                notes.Add($"{Formatters.Plural(result.Links.Count, "link", "links")} to files left out: a link is not a copy");
-            ShowNotification(string.Join("; ", notes) + ".", false);
+            grouping.Dispose();
         }
     }
 
@@ -989,6 +1010,7 @@ public sealed class FindWindow : Window, IViewActions
     private void OnTick()
     {
         if (_session is not { } session || _set is null) return;
+        _storagePublishing = true;
         bool finished = session.Finished;
         if (_mode == RefineMode.Append && _refineScratch is { } scratch)
         {
@@ -1037,6 +1059,8 @@ public sealed class FindWindow : Window, IViewActions
             Refresh(force: false);
         }
         UpdateStatus();
+        _storagePublishing = false;
+        UpdateStorageAvailability();
     }
 
     /// <summary>Shows new finds, at most about once a second while a search runs (each look checks every item again).</summary>

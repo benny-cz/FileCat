@@ -14,6 +14,13 @@ public sealed class PictureWorkerStderrBudgetTests(ITestOutputHelper output)
     public async Task Unix_worker_discards_a_newline_free_stderr_stream_without_retaining_it()
     {
         Assert.SkipWhen(OperatingSystem.IsWindows(), "Windows picture workers use sandbox-owned pipes.");
+        if (!IsolatedAppTestProcess.IsChild(typeof(PictureWorkerStderrBudgetTests), nameof(Unix_worker_discards_a_newline_free_stderr_stream_without_retaining_it)))
+        {
+            string measurement = await IsolatedAppTestProcess.RunAsync(typeof(PictureWorkerStderrBudgetTests), nameof(Unix_worker_discards_a_newline_free_stderr_stream_without_retaining_it));
+            Assert.Contains("PICTURE_STDERR_BUDGET emittedBytes=33554432", measurement);
+            output.WriteLine("Isolated process: " + measurement.Trim());
+            return;
+        }
         const long emitted = 32L * 1024 * 1024;
         const long maximumRetained = 12L * 1024 * 1024;
         Type workerType = typeof(PictureDecoder).GetNestedType("Worker", BindingFlags.NonPublic)!;
@@ -41,4 +48,5 @@ public sealed class PictureWorkerStderrBudgetTests(ITestOutputHelper output)
                 .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         }
     }
+
 }

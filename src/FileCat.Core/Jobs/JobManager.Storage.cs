@@ -5,6 +5,9 @@ namespace FileCat.Core.Jobs;
 
 public sealed partial class JobManager
 {
+    /// <summary>Platform/build availability captured at composition, without native work in command presentation.</summary>
+    public StorageProblem? CompressionUnavailable { get; }
+
     private readonly Dictionary<Job, StorageReviewOwner> _storageOwners = [];
 
     /// <summary>Published once after terminal retirement, with no live writer, traversal or review pins.</summary>
@@ -91,6 +94,14 @@ public sealed partial class JobManager
         return JournalRecovery.ReadStorageCalls(path, prefix, afterCall, backend, ct);
     }
 
+    /// <summary>Writes the whole verified captured prefix to a caller-owned staging output; never publishes it.</summary>
+    public void CopyStorageCalls(string fileName, StorageJournalPrefix prefix, Func<Stream> createOutput, CancellationToken ct = default)
+    {
+        string path = StorageHistoryPath(fileName);
+        var backend = _storageEvidenceBackend ?? throw new NotSupportedException("Private storage call evidence is unavailable on this platform.");
+        JournalRecovery.CopyStorageCalls(path, prefix, createOutput, backend, ct);
+    }
+
     public StorageReviewStatus AcknowledgeStorageReview(StorageReviewedJournal reviewed, string reviewText,
         StorageReviewChoice choice, CancellationToken ct = default)
     {
@@ -119,6 +130,8 @@ public sealed partial class JobManager
     /// <summary>Call on an owned I/O delegate. Cancellation never transfers or retires a still-running delegate's pins.</summary>
     public ReviewedStorageRoots PrepareStorageReview(IReadOnlyList<ItemRef> sources, StorageAction? action, CancellationToken ct) =>
         ReviewedStorageRoots.Prepare(_storageTransforms, sources, action, ct);
+
+    public StorageSelectionReview CaptureStorageSelection(IReadOnlyList<ItemRef> sources) => new(_storageTransforms, sources);
 
     /// <summary>The registration names the captured origin, or explicitly supplies a detached no-selection disposition.</summary>
     public Job SubmitStorage(ReviewedStorageRoots reviewed, StorageReviewApproval approval, Action<Job> register, QueueMode mode = QueueMode.Start)

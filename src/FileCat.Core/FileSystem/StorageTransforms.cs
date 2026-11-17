@@ -70,12 +70,19 @@ public interface IStorageTransforms
 {
     StorageProblem? Unavailable(StorageAction action);
     IStorageReviewLease InspectRoot(StorageTarget target, StorageAction? action, CancellationToken ct);
+    /// <summary>Pure eligibility from retained bound observations; null requests fresh inspection. No native I/O.</summary>
+    StorageObservation? EvaluatePinnedRoot(IStorageReviewLease root, StorageAction? action) => null;
+    /// <summary>Refresh the original live pin. Never acquire a replacement pin for a previously bound root.</summary>
+    StorageObservation InspectPinnedRoot(IStorageReviewLease root, StorageAction? action, CancellationToken ct) =>
+        throw new NotSupportedException("Pinned-root reinspection is unavailable on this adapter.");
     IStorageTraversal OpenReviewedRoot(IStorageReviewLease root, StorageAction action, CancellationToken ct);
 }
 
 public sealed class NoStorageTransforms : IStorageTransforms
 {
-    public StorageProblem Unavailable(StorageAction action) => new(StorageReasonKind.WindowsLimitation, "platform", "Storage transformations are unsupported on this platform.", false);
+    public StorageProblem Unavailable(StorageAction action) => OperatingSystem.IsWindows()
+        ? new(StorageReasonKind.FileCatBoundary, "build-unqualified", "NTFS storage changes are not enabled in this build while qualification is unfinished.", false)
+        : new(StorageReasonKind.WindowsLimitation, "platform", "NTFS compression requires a qualified Windows NTFS volume.", false);
     public IStorageReviewLease InspectRoot(StorageTarget target, StorageAction? action, CancellationToken ct) => throw new NotSupportedException("Storage transformations are unsupported on this platform.");
     public IStorageTraversal OpenReviewedRoot(IStorageReviewLease root, StorageAction action, CancellationToken ct) => throw new NotSupportedException(Unavailable(action).Message);
 }
@@ -109,6 +116,23 @@ public static class StoragePaths
     public static bool IsChildName(ReadOnlySpan<char> name) => !name.IsEmpty && !name.SequenceEqual(".") && !name.SequenceEqual("..")
         && name.IndexOfAny('\\', '/', ':') < 0 && name.IndexOfAny('\0', '*', '?') < 0;
 
+    /// <summary>Pure captured-reference validation. No provider resolution or filesystem access.</summary>
+    public static StorageProblem? SourceProblem(ItemRef? source)
+    {
+        string? message = source switch
+        {
+            null => "The captured item is unavailable.",
+            { Kind: not (EntryKind.File or EntryKind.Directory) } => "Select a file or folder; this item kind cannot use NTFS compression.",
+            _ when !source.Parent.IsFileSystem || source.Parent.Container is not null || source.Parent.Session is not null =>
+                "This item is not an ordinary local filesystem original. Archive, remote and virtual items cannot use NTFS compression.",
+            _ when !IsChildName(source.Name) => "The captured name contains path or stream syntax that FileCat cannot use for storage changes.",
+            _ when !IsOrdinaryLocalPath(source.Parent.Path) => "The original location is not an ordinary local Windows path that FileCat can use for storage changes.",
+            _ when !IsOrdinaryLocalPath(source.Parent.Path.TrimEnd('\\') + "\\" + source.Name) => "The captured storage path is invalid or too long.",
+            _ => null,
+        };
+        return message is null ? null : new(StorageReasonKind.FileCatBoundary, "source-path", message, false);
+    }
+
     public static ImmutableArray<StorageTarget> Capture(IReadOnlyList<ItemRef> sources)
     {
         ArgumentNullException.ThrowIfNull(sources);
@@ -117,10 +141,7 @@ public static class StoragePaths
         for (int i = 0; i < sources.Count; i++)
         {
             var source = sources[i];
-            if (source is null || source.Kind is not (EntryKind.File or EntryKind.Directory) || !source.Parent.IsFileSystem ||
-                source.Parent.Container is not null || source.Parent.Session is not null || !IsChildName(source.Name) ||
-                !IsOrdinaryLocalPath(source.Parent.Path))
-                throw new ArgumentException("Storage transformations require ordinary local filesystem paths without stream syntax.", nameof(sources));
+            if (SourceProblem(source) is { } problem) throw new ArgumentException(problem.Message, nameof(sources));
             // This is the Windows target grammar, even in portable fake tests. Host Path.Join would change the spelling
             // on Unix. Keep only the bounded original filesystem reference, without unrelated provider payloads.
             string path = source.Parent.Path.TrimEnd('\\') + "\\" + source.Name;

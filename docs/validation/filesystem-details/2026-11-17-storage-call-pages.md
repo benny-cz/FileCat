@@ -6,7 +6,7 @@ Pages retain at most 64 call records and 1 MiB of conservatively charged record/
 
 The page preserves exact paths, selected-root mapping, held identity, before state, desired state, disposition, no-call reason, observed result and postcondition. Active-prefix intents without results are labelled pending rather than inferred completed uncertain effects. Missing inactive results remain explicitly unestablished. Summary wording is conditional when no actual pending call is known. Paths/reasons are JSON escaped and the original three-part summary remains separate from call evidence and bounded examples.
 
-Navigation replaces one displayed page, with First/Next controls. Copy/Save are labelled **this call page**. Cancellation, a late refresh, corruption or missing/pruned evidence cannot publish stale rows. The report producer remains owned until it actually returns after close. Whole-prefix live export and paged navigation from inactive recovery reports remain outstanding; existing verified inactive raw export is unchanged.
+Navigation replaces one displayed page, with First/Next controls. Copy/Save are labelled **this call page**. Cancellation, a late refresh, corruption or missing/pruned evidence cannot publish stale rows. The report producer remains owned until it actually returns after close. The subsequent [prefix-export checkpoint](2026-11-17-storage-prefix-export.md) adds the whole-prefix staging reader and inactive report page navigation. Live export picker/publication remains outstanding; existing verified inactive raw export is unchanged.
 
 Accepted disposable-machine runs:
 

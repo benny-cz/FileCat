@@ -376,6 +376,7 @@ jobs:
           hdiutil detach "$DISK"
       # Saved passwords against a real Secret Service: GNOME Keyring in a private D-Bus session (macOS uses its keychain).
       - name: Prepare Linux native test dependencies
+        id: linux_dependency_controls
         if: runner.os == 'Linux'
         timeout-minutes: 10
         run: |
@@ -384,7 +385,7 @@ jobs:
           /usr/bin/python3 eng/validation/validate-linux-ci-dependencies.py --evidence-dir "$RUNNER_TEMP/linux-dependency-controls"
           bash eng/validation/prepare-linux-ci-dependencies.sh
       - name: Retain Linux dependency launcher controls
-        if: always() && runner.os == 'Linux'
+        if: always() && runner.os == 'Linux' && steps.linux_dependency_controls.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-dependency-launcher-controls
