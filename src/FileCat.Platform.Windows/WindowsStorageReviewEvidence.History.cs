@@ -28,7 +28,7 @@ internal sealed partial class WindowsStorageReviewEvidence
                 held = new(file, charge); file = null; charge = null;
             }
             finally { file?.Dispose(); charge?.Dispose(); }
-            var result = new History(held, envelope, directoryIdentity, Identity(held.Handle, binding)); held = null; return result;
+            var result = new History(held, envelope, directoryIdentity, Identity(held.Handle, binding), owner); held = null; return result;
         }
         catch { held?.Dispose(); envelope.Dispose(); throw; }
     }
@@ -38,14 +38,17 @@ internal sealed partial class WindowsStorageReviewEvidence
         private readonly NativeHandle _file;
         private readonly StorageEvidenceEnvelope _envelope;
         private readonly FileStream _stream;
+        private readonly string _owner;
         internal override string DirectoryIdentity { get; }
         internal override string Identity { get; }
         internal override Stream Stream => _stream;
         internal override IDisposable ClaimExportOutput() => _envelope.Claim();
-        internal History(NativeHandle file, StorageEvidenceEnvelope envelope, string directoryIdentity, string identity)
+        internal override StorageEvidenceExport CreateExport(string destination, CancellationToken ct) =>
+            CreateBoundExport(_envelope, DirectoryIdentity, _owner, destination, ct);
+        internal History(NativeHandle file, StorageEvidenceEnvelope envelope, string directoryIdentity, string identity, string owner)
         {
             _file = file; _envelope = envelope; _stream = new(file.Handle, FileAccess.Read);
-            DirectoryIdentity = directoryIdentity; Identity = identity;
+            DirectoryIdentity = directoryIdentity; Identity = identity; _owner = owner;
         }
         public override void Dispose()
         {

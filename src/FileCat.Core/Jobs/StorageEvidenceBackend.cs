@@ -19,6 +19,18 @@ internal abstract class StorageHistoryEvidence : IDisposable
     internal abstract Stream Stream { get; }
     /// <summary>Charge an export output before its factory opens it, within this same evidence envelope.</summary>
     internal virtual IDisposable ClaimExportOutput() => throw new NotSupportedException("Storage call export is unavailable on this evidence reader.");
+    internal virtual StorageEvidenceExport CreateExport(string destination, CancellationToken ct) =>
+        throw new NotSupportedException("Bound storage evidence publication is unavailable on this reader.");
+    public abstract void Dispose();
+}
+
+public sealed record StorageExportResult(string Destination, string? Warning);
+
+/// <summary>New output only. Owns staging and directory handles until same-object publication or cleanup.</summary>
+internal abstract class StorageEvidenceExport : IDisposable
+{
+    internal abstract Stream Stream { get; }
+    internal abstract StorageExportResult Publish(CancellationToken ct);
     public abstract void Dispose();
 }
 

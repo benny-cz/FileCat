@@ -29,4 +29,6 @@ CI follow-up: the full run also exposed process-wide test contamination. The Uni
 
 The subsequent [complete-refusal checkpoint](2026-11-17-storage-refused-selection.md) implements mixed-provider/lexically refused captured-item disclosure before native preparation.
 
-Remaining: standalone Find affected-refresh/native qualification, retained/inactive call-page and live export work, the wider native/provider/device/performance/crash/retention/UI matrix, remaining filesystem collectors and full EFS identity/key/output/consent implementation. The user explicitly requires EFS; these compression passes do not waive it or enable the product before its applicable release gates pass. The unrelated full hosted CI run `44106344168` has an Ubuntu picture-worker stderr memory-budget failure; focused passes here do not claim full CI is green.
+The [prefix-export](2026-11-17-storage-prefix-export.md) and [bound-export](2026-11-17-storage-bound-export.md) checkpoints subsequently add inactive call pages and live evidence export/publication.
+
+Remaining: standalone Find affected-refresh/native qualification, the wider native/provider/device/performance/crash/retention/UI matrix, remaining filesystem collectors and full EFS identity/key/output/consent implementation. The user explicitly requires EFS; these compression passes do not waive it or enable the product before its applicable release gates pass. The unrelated full hosted CI run `44106344168` has an Ubuntu picture-worker stderr memory-budget failure; focused passes here do not claim full CI is green.

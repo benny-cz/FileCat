@@ -23,6 +23,8 @@ internal abstract class StorageReviewEvidence : StorageReviewArtifacts
     internal abstract string JournalLeaf { get; }
     internal abstract string JournalIdentity { get; }
     internal abstract Stream Journal { get; }
+    internal virtual StorageEvidenceExport CreateExport(string destination, CancellationToken ct) =>
+        throw new NotSupportedException("Bound storage evidence publication is unavailable on this owner.");
     internal abstract StorageReviewArtifact CreateArtifact(string temporaryLeaf, CancellationToken ct);
     internal abstract void PublishNew(StorageReviewArtifact artifact, string publishedLeaf, CancellationToken ct);
     internal abstract void DeleteJournal(StorageEvidenceVersion expected, CancellationToken ct);

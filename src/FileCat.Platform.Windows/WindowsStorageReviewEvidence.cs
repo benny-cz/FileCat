@@ -31,6 +31,8 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
         get { Check(); RequireFile(_journal!.Handle, _owner, _binding, CancellationToken.None); return Identity(_journal.Handle, _binding); }
     }
     internal override Stream Journal => _stream ?? throw new IOException("This namespace owner does not own an inactive journal.");
+    internal override StorageEvidenceExport CreateExport(string destination, CancellationToken ct)
+    { Check(); return CreateBoundExport(_envelope, DirectoryIdentity, _owner, destination, ct); }
     internal override bool IsOwned => NamespaceOwned && !_deleted && _journal is not null && !_journal.Handle.IsClosed;
     private bool NamespaceOwned => !_disposed;
     internal int MaximumHandles => _envelope.MaximumHandles;

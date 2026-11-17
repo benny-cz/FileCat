@@ -92,8 +92,9 @@ public sealed partial class MainViewModel
         {
             using var picked = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Save exact retained storage call evidence", SuggestedFileName = reviewed.JournalLeaf,
-                DefaultExtension = "fcj", FileTypeChoices = [new FilePickerFileType("FileCat storage evidence") { Patterns = ["*.fcj"] }],
+                Title = "Save exact retained storage call evidence — choose a new file", SuggestedFileName = reviewed.JournalLeaf,
+                DefaultExtension = "fcj", ShowOverwritePrompt = false,
+                FileTypeChoices = [new FilePickerFileType("FileCat storage evidence") { Patterns = ["*.fcj"] }],
             });
             scope.Check();
             if (picked is null) return;
@@ -102,23 +103,13 @@ public sealed partial class MainViewModel
             if (Path.GetFullPath(destination).StartsWith(privateRoot, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             { Notify("Choose an export location outside FileCat's private evidence directory.", true); return; }
             scope.SetPhase(RecoveryActionPhase.Applying, "Saving exact call evidence; Stop review cancels this export…");
-            await StorageHistoryIoAsync(job, scope, ct =>
-            {
-                string temp = Path.Join(Path.GetDirectoryName(destination)!, ".filecat-storage-export-" + Guid.NewGuid().ToString("N") + ".tmp");
-                try
-                {
-                    using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536))
-                    { Services.Jobs.CopyStorageReview(reviewed, stream, ct); stream.Flush(true); }
-                    ct.ThrowIfCancellationRequested(); File.Move(temp, destination, overwrite: true);
-                }
-                finally { if (File.Exists(temp)) File.Delete(temp); }
-                return true;
-            });
+            var result = await StorageHistoryIoAsync(job, scope, ct => Services.Jobs.ExportStorageReview(reviewed, destination, ct));
             scope.SetPhase(RecoveryActionPhase.Completed, "Exact call evidence saved.");
-            Notify("Saved exact storage call evidence to " + Formatters.SafeName(destination) + ".");
+            Notify("Saved exact storage call evidence to " + Formatters.SafeName(result.Destination) + "." +
+                (result.Warning is null ? "" : " " + Formatters.SafeName(result.Warning)));
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or System.ComponentModel.Win32Exception)
         { if (EditSessionsActive) Notify("Storage call evidence was not exported: " + Formatters.SafeName(ex.Message), true); }
         finally { EndRecoveryAction(scope); }
     }

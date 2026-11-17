@@ -7,6 +7,24 @@ namespace FileCat.App.Views;
 
 public sealed partial class ReportWindow
 {
+    internal Task? StorageExporting { get; private set; }
+
+    internal void ConfigureStorageCallExport(Func<CancellationToken, Task> save)
+    {
+        var button = new Button { Content = "Save all recorded calls…" };
+        ToolTip.SetTip(button, "Save every record in this captured snapshot to a new file. Existing files are never replaced. Close this report to cancel.");
+        button.Click += async (_, _) =>
+        {
+            if (_reading is not null || _closing.IsCancellationRequested || StorageExporting is { IsCompleted: false }) return;
+            button.IsEnabled = false;
+            try { StorageExporting = save(_closing.Token); await StorageExporting; }
+            catch (OperationCanceledException) when (_closing.IsCancellationRequested) { }
+            catch (Exception error) { if (!_closing.IsCancellationRequested) _status.Text = "Storage call export did not complete: " + Formatters.SafeName(error.Message); }
+            finally { if (!_closing.IsCancellationRequested) button.IsEnabled = true; }
+        };
+        _actions.Children.Add(button);
+    }
+
     internal static ReportWindow CreateStorageCalls(string subject, StorageJournalPrefix prefix, bool activeAtCapture,
         Func<long, CancellationToken, Task<StorageCallEvidencePage>> load)
     {

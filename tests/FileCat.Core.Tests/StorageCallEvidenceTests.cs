@@ -3,7 +3,7 @@ using FileCat.Core.Jobs;
 
 namespace FileCat.Core.Tests;
 
-public sealed class StorageCallEvidenceTests
+public sealed partial class StorageCallEvidenceTests
 {
     private static CancellationToken Stop => TestContext.Current.CancellationToken;
     private static readonly StorageObservation Before = new(StorageObservationState.Disabled, StorageObservationState.Disabled,

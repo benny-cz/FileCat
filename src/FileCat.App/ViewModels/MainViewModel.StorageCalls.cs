@@ -35,6 +35,7 @@ public sealed partial class MainViewModel
             catch (OperationCanceledException error) when (!ct.IsCancellationRequested && Services.Io.IsStopped)
             { throw new IOException("This FileCat session has closed.", error); }
         });
+        report.ConfigureStorageCallExport(ct => SaveStorageCallsAsync(leaf, prefix, ct));
         report.Show(); return report;
     }
 }
