@@ -2,8 +2,6 @@ using FileCat.Core.FileSystem;
 
 namespace FileCat.Core.Jobs;
 
-internal enum StorageEfsRecoveryChoice { DeclaredArrangement, WindowsReportedExport }
-
 internal sealed record StorageEfsBackupCompletion(StorageObjectIdentity ObservedIdentity, string InvokerSid, string CertificateSha1);
 
 /// <summary>An invoking user's recovery choice for an observed setup key and a single reviewed scope.</summary>
@@ -11,24 +9,22 @@ internal sealed class StorageEfsRecoveryApproval
 {
     private readonly StorageEfsConsent _consent;
 
-    private StorageEfsRecoveryApproval(StorageEfsConsent consent, string invokerSid, string certificateSha1, StorageEfsRecoveryChoice choice)
+    private StorageEfsRecoveryApproval(StorageEfsConsent consent, StorageEfsAssociationSnapshot association, string certificateSha1, StorageEfsRecoveryChoice choice)
     {
         _consent = consent;
-        InvokerSid = invokerSid;
-        CertificateSha1 = certificateSha1;
-        Choice = choice;
+        Evidence = new(association.Identity, association.InvokerSid, certificateSha1, choice);
     }
 
-    internal string InvokerSid { get; }
-    internal string CertificateSha1 { get; }
-    internal StorageEfsRecoveryChoice Choice { get; }
+    internal StorageEfsReviewedKey Evidence { get; }
+    internal string InvokerSid => Evidence.InvokerSid;
+    internal string CertificateSha1 => Evidence.CertificateSha1;
 
     internal static StorageEfsRecoveryApproval DeclareArrangement(StorageEfsConsent consent, StorageEfsSetupResult setup,
         string certificateSha1, bool acknowledged)
     {
         if (!acknowledged) throw new ArgumentException("Acknowledge the recovery arrangement for the reviewed EFS certificate explicitly.", nameof(acknowledged));
         var association = RequireSetup(consent, setup, certificateSha1);
-        return new(consent, association.InvokerSid, certificateSha1, StorageEfsRecoveryChoice.DeclaredArrangement);
+        return new(consent, association, certificateSha1, StorageEfsRecoveryChoice.DeclaredArrangement);
     }
 
     internal static StorageEfsRecoveryApproval RecordWindowsExport(StorageEfsConsent consent, StorageEfsSetupResult setup,
@@ -38,7 +34,7 @@ internal sealed class StorageEfsRecoveryApproval
         var association = RequireSetup(consent, setup, completion.CertificateSha1);
         if (completion.InvokerSid != association.InvokerSid || completion.ObservedIdentity != association.Identity)
             throw new ArgumentException("The reported export belongs to a different EFS observation or invoking user.", nameof(completion));
-        return new(consent, association.InvokerSid, completion.CertificateSha1, StorageEfsRecoveryChoice.WindowsReportedExport);
+        return new(consent, association, completion.CertificateSha1, StorageEfsRecoveryChoice.WindowsReportedExport);
     }
 
     private static StorageEfsAssociationSnapshot RequireSetup(StorageEfsConsent consent, StorageEfsSetupResult setup, string certificateSha1)
@@ -58,11 +54,6 @@ internal sealed class StorageEfsRecoveryApproval
         consent.RootIdentities.SequenceEqual(_consent.RootIdentities) && invokerSid == InvokerSid;
 
     internal bool Matches(StorageEfsKeyEvidence key) => Matches(key, InvokerSid, CertificateSha1);
-
-    internal bool Matches(StorageEfsAssociationSnapshot association) => association.InvokerSid == InvokerSid &&
-        association.Users.Any(user => user.Sid == InvokerSid && user.CertificateSha1 == CertificateSha1) &&
-        association.Users.All(user => user.Sid is not null && (user.Sid != InvokerSid || user.CertificateSha1 == CertificateSha1)) &&
-        association.CurrentUserKeys.Any(Matches);
 
     private static bool Matches(StorageEfsKeyEvidence key, string sid, string hash) =>
         key.InvokerSid == sid && key.CertificateSha1 == hash && key.State == StorageEfsKeyState.MatchedAvailable &&

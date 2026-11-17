@@ -196,6 +196,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             RequireAction(action);
             var before = _prepared ?? throw new InvalidOperationException("Prepare the same EFS object before durable intent and atomic call admission.");
             _prepared = null; bool attempted = false;
+            StorageEfsResultKeys? observedKeys = null;
             try
             {
                 before = Observe(CancellationToken.None);
@@ -223,7 +224,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 if (_recovery is { } recovery && after.Efs == StorageObservationState.Enabled)
                 {
                     var association = ReadAssociations(CancellationToken.None);
-                    if (!recovery.Matches(association))
+                    observedKeys = StorageEfsResultKeys.FromAssociation(association, recovery.InvokerSid);
+                    if (!observedKeys.Matches(recovery.Evidence))
                     {
                         var unexpected = association.Users.FirstOrDefault(user => user.Sid == recovery.InvokerSid && user.CertificateSha1 != recovery.CertificateSha1);
                         string observed = unexpected is null ? "The resulting association could not be confirmed against the reviewed key."
@@ -253,7 +255,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
                             : "No EFS call was attempted: " + error.Message)) { NativeCallAttempted = attempted };
             }
             StorageMutationResult Result(StorageObservation after, StorageEffect effect, StorageProblem? issue) =>
-                new(before, after, effect, issue) { NativeCallAttempted = true };
+                new(before, after, effect, issue) { NativeCallAttempted = true, EfsKeys = observedKeys };
         }
         private void RequireAction(StorageAction action)
         { if (action != _consent.Action) throw new ArgumentException("This EFS binding belongs to one acknowledged action.", nameof(action)); }

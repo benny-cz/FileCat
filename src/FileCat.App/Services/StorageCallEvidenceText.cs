@@ -38,6 +38,14 @@ internal static class StorageCallEvidenceText
             Line($"Held identity: volume {call.Identity.Volume:X16}; binding {Q(call.Identity.VolumeBinding)}; object {Q(call.Identity.ObjectId)}");
             Observation("Before", call.Before); Line((page.Action is StorageAction.EncryptEfs or StorageAction.DecryptEfs ? "Desired EFS state: " : "Desired compression state: ") + call.Desired);
             if (call.EfsConsentId is { } consentId) Line("EFS scope consent: " + consentId.ToString("D"));
+            if (call.EfsReviewedKey is { } key)
+            {
+                Line("Reviewed EFS certificate " + Q(key.CertificateSha1));
+                Line("Invoking account SID " + Q(key.InvokerSid));
+                Line(key.Choice == StorageEfsRecoveryChoice.WindowsReportedExport
+                    ? "Windows reported private-key export completed."
+                    : "Recovery arrangement acknowledged by the user.");
+            }
             if (call.Disposition is null)
                 Line(activeAtCapture ? "Pending at this active snapshot: an intent is durable; no result is recorded. This does not establish a completed uncertain effect."
                     : "No result is recorded at this prefix. The effect is not established by this call record.");
@@ -50,6 +58,13 @@ internal static class StorageCallEvidenceText
                     Line($"Native call attempted: {result.NativeCallAttempted}; observed effect: {result.Effect}");
                     Observation("Result before", result.Before);
                     if (result.After is { } after) Observation("Result after", after); else Line("Result after: unavailable");
+                    if (result.EfsKeys is { } keys)
+                    {
+                        Line(keys.UserAssociationsEstablished ? "Windows reported the resulting EFS user associations." : "Some resulting EFS user associations could not be established.");
+                        foreach (var observed in keys.Keys) Line($"Observed EFS certificate {Q(observed.CertificateSha1)} [{observed.State}]");
+                    }
+                    else if (call.EfsReviewedKey is not null && result.NativeCallAttempted)
+                        Line("Resulting EFS key associations are unavailable for this call.");
                     if (result.Problem is { } problem) Problem("Result reason", problem);
                 }
                 else Line("No mutation result accompanies this no-call record.");

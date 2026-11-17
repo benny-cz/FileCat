@@ -24,7 +24,7 @@ public sealed record StorageReviewBinding(Guid AssociationId, string DirectoryId
     internal static StorageReviewBinding From(StorageReviewedJournal reviewed) => new(reviewed.AssociationId,
         reviewed.DirectoryIdentity, reviewed.JournalLeaf, reviewed.Evidence,
         reviewed.History.Prefix.JobId == Guid.Empty ? null : reviewed.History.Prefix.JobId, reviewed.History.Prefix.Sequence,
-        reviewed.History.Action is { } action ? StorageJournalPolicy.VersionFor(action) : null, reviewed.History.EffectUncertain,
+        reviewed.History.JournalSchema ?? (reviewed.History.Action is { } action ? StorageJournalPolicy.VersionFor(action) : null), reviewed.History.EffectUncertain,
         reviewed.History.Damaged, reviewed.History.LimitReached);
 }
 

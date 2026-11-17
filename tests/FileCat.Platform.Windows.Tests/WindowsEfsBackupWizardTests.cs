@@ -58,8 +58,8 @@ public sealed partial class WindowsEfsBackupWizardTests
                         {
                             Assert.NotNull(result.Completion);
                             var approval = StorageEfsRecoveryApproval.RecordWindowsExport(consent, setup, result.Completion);
-                            Assert.Equal(StorageEfsRecoveryChoice.WindowsReportedExport, approval.Choice);
-                            Assert.True(approval.Matches(setup.Association));
+                            Assert.Equal(StorageEfsRecoveryChoice.WindowsReportedExport, approval.Evidence.Choice);
+                            Assert.True(StorageEfsResultKeys.FromAssociation(setup.Association, approval.InvokerSid).Matches(approval.Evidence));
                             Assert.Throws<ArgumentException>(() => StorageEfsRecoveryApproval.RecordWindowsExport(consent, setup,
                                 result.Completion with { ObservedIdentity = consent.RootIdentities[0] }));
                         }

@@ -19,7 +19,7 @@ public sealed partial class JobJournal
             paths.Select((path, i) => new StorageJournalRoot(i, payload.Roots[i].PinIndex, path.Path, payload.Roots[i].Observation)).ToImmutableArray())
             { EfsConsent = payload.EfsConsent };
         StorageTransformJournalCollector.ValidateHeader(header);
-        _ = StorageTransformJournalWriter.Encode("storage-begin", 1, id, header, StorageJournalPolicy.VersionFor(header.Action)); // strict 256 KiB preflight, no omitted roots
+        _ = StorageTransformJournalWriter.Encode("storage-begin", 1, id, header, StorageJournalPolicy.VersionFor(header)); // strict 256 KiB preflight, no omitted roots
         return header;
     }
 

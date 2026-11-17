@@ -42,17 +42,21 @@ internal sealed class StorageTransformJournalWriter : IDisposable
         Append(begin, "storage-begin");
     }
 
-    internal StorageJournalCall FlushIntent(int sourceIndex, string path, StorageObservation before)
+    internal StorageJournalCall FlushIntent(int sourceIndex, string path, StorageObservation before, StorageEfsRecoveryApproval? recovery = null)
     {
         lock (_lock)
         {
             RequireWritable();
             if (_callReserved || _collector.Pending is not null || _collector.Summary is not null || _collector.EffectUncertain) throw new InvalidOperationException("One resolved storage call must settle before another intent.");
+            if (_header.RequiresEfsRecoveryEvidence
+                ? recovery is null || !recovery.Matches(_header.EfsConsent!, recovery.InvokerSid)
+                : recovery is not null)
+                throw new ArgumentException("The encryption intent requires its own reviewed EFS recovery key evidence.", nameof(recovery));
             if (_bytes > _byteLimit - _remainingRootBytes - StorageJournalPolicy.ClosureBytes - StorageJournalPolicy.CallBytes ||
                 _sequence > _recordLimit - _remainingRootRecords - StorageJournalPolicy.ClosureRecords - StorageJournalPolicy.CallRecords)
                 throw new StorageJournalLimitException();
             var intent = new StorageJournalIntent(checked(_call + 1), sourceIndex, path, before.Identity, before,
-                StorageJournalPolicy.Desired(_header.Action)) { EfsConsentId = _header.EfsConsent?.ConsentId };
+                StorageJournalPolicy.Desired(_header.Action)) { EfsConsentId = _header.EfsConsent?.ConsentId, EfsReviewedKey = recovery?.Evidence };
             byte[] record = EncodeRecord("storage-intent", _sequence + 1, _header.JobId, intent);
             _callReserved = true; // whole 1 MiB/four-record allowance, in addition to every remaining fixed slot
             try
@@ -150,7 +154,7 @@ internal sealed class StorageTransformJournalWriter : IDisposable
         catch { _faulted = true; _collector.Fault(); throw; }
     }
 
-    private byte[] EncodeRecord<T>(string type, long sequence, Guid job, T data) => Encode(type, sequence, job, data, StorageJournalPolicy.VersionFor(_header.Action));
+    private byte[] EncodeRecord<T>(string type, long sequence, Guid job, T data) => Encode(type, sequence, job, data, StorageJournalPolicy.VersionFor(_header));
 
     internal static byte[] Encode<T>(string type, long sequence, Guid job, T data, int version = StorageJournalPolicy.Version)
     {

@@ -11,6 +11,8 @@ public sealed record StorageHistoryCall(long Call, int SourceIndex, string Path,
 {
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public Guid? EfsConsentId { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StorageEfsReviewedKey? EfsReviewedKey { get; init; }
 }
 public sealed record StorageHistorySnapshot(StorageJournalPrefix Prefix, ImmutableArray<StorageHistoryRoot> Roots,
     StorageAction? Action, StorageScope? Scope, Guid? ReviewRevision, bool EffectUncertain, bool ReviewPending,
@@ -18,6 +20,7 @@ public sealed record StorageHistorySnapshot(StorageJournalPrefix Prefix, Immutab
 {
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public StorageEfsConsent? EfsConsent { get; init; }
+    internal int? JournalSchema { get; init; }
 }
 public sealed record StorageHistoryRow(string FileName, Guid? JobId, StorageAction? Action, StorageScope? Scope,
     int? RootCount, string Status)
@@ -68,8 +71,9 @@ public static partial class JournalRecovery
             c.Header?.Action, c.Header?.Scope, c.Header?.ReviewRevision, c.EffectUncertain, c.ReviewPending, c.Damaged, c.Ended,
             read.LimitReached, c.Summary is { } summary ? c.ToSnapshot(summary) with { DurablePrefix = read.Prefix } : null,
             intent is null ? null : new(intent.Call, intent.SourceIndex, intent.Path, intent.Identity, intent.Before, intent.Desired,
-                outcome?.Disposition, outcome?.NoCallReason, outcome?.Result) { EfsConsentId = intent.EfsConsentId })
-            { EfsConsent = c.Header?.EfsConsent };
+                outcome?.Disposition, outcome?.NoCallReason, outcome?.Result)
+                { EfsConsentId = intent.EfsConsentId, EfsReviewedKey = intent.EfsReviewedKey })
+            { EfsConsent = c.Header?.EfsConsent, JournalSchema = c.JournalSchema };
     }
 
     internal static bool HasStorageRecords(string path)
