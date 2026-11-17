@@ -1,0 +1,26 @@
+  Determining projects to restore...
+  Restored E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Platform.Windows\FileCat.Platform.Windows.csproj (in 517 ms).
+  Restored E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.ShellHost\FileCat.ShellHost.csproj (in 517 ms).
+  Restored E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.PrivilegedHost\FileCat.PrivilegedHost.csproj (in 517 ms).
+  Restored E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.Platform.Windows.Tests\FileCat.Platform.Windows.Tests.csproj (in 567 ms).
+  7 of 11 projects are up-to-date for restore.
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.CoreCrashHarness -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.CoreCrashHarness\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.WorkerProbe -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.WorkerProbe\bin\Debug\net10.0\FileCat.WorkerProbe.dll
+  FileCat.Platform.Windows -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Platform.Windows\bin\Debug\net10.0\FileCat.Platform.Windows.dll
+  FileCat.ShellHost -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.ShellHost\bin\Debug\net10.0\FileCat.ShellHost.dll
+  FileCat.PrivilegedHost -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.PrivilegedHost\bin\Debug\net10.0\FileCat.PrivilegedHost.dll
+  Native bootstrap built: 229 reported headers, 11 searched libraries, 7 reported tool components.
+E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.Platform.Windows.Tests\AnalysisWindowsTests.Epoch.cs(15,30): error CS0246: The type or namespace name 'TempDir' could not be found (are you missing a using directive or an assembly reference?) [E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.Platform.Windows.Tests\FileCat.Platform.Windows.Tests.csproj]
+
+Build FAILED.
+
+E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.Platform.Windows.Tests\AnalysisWindowsTests.Epoch.cs(15,30): error CS0246: The type or namespace name 'TempDir' could not be found (are you missing a using directive or an assembly reference?) [E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.Platform.Windows.Tests\FileCat.Platform.Windows.Tests.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:16.62

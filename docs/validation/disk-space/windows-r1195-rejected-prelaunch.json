@@ -1,0 +1,9 @@
+{
+  "controller": 5078,
+  "terminal": true,
+  "exitCode": 1,
+  "chunk": "02002d",
+  "phase": "Host parameter validation before guest deployment",
+  "reason": "Older deploy helper caps Windows tasks at90min; no guest test started",
+  "retryLimitMinutes": 90
+}

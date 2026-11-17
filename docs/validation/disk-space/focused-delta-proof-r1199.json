@@ -1,0 +1,38 @@
+[
+  {
+    "guestBaseline": "r1195",
+    "sha256": "12cf01d2f1ae03fd59f11b5cdfa1ffd381147ea79945b2a621380e0578c1107d",
+    "baseline": "r1194",
+    "verifiedFiles": 119,
+    "bytes": 756234,
+    "platform": "windows",
+    "changed": [
+      "FileCat.Rendering.Tests.dll",
+      "FileCat.Rendering.Tests.pdb"
+    ]
+  },
+  {
+    "guestBaseline": "r1194",
+    "sha256": "c7ffe4143cac9366c3b2bfd5ec888b21cdb2f2efcc16d9dcc7f3cd4c46f95589",
+    "baseline": "r1194",
+    "verifiedFiles": 115,
+    "bytes": 757103,
+    "platform": "mac",
+    "changed": [
+      "FileCat.Rendering.Tests.dll",
+      "FileCat.Rendering.Tests.pdb"
+    ]
+  },
+  {
+    "guestBaseline": "r1194",
+    "sha256": "8740559161c8ddea0bdb9b5942e932a096a38ba26a90bbb0e748d5813e3e677a",
+    "baseline": "r1194",
+    "verifiedFiles": 114,
+    "bytes": 757035,
+    "platform": "linux",
+    "changed": [
+      "FileCat.Rendering.Tests.dll",
+      "FileCat.Rendering.Tests.pdb"
+    ]
+  }
+]

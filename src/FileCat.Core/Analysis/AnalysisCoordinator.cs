@@ -5,6 +5,8 @@ namespace FileCat.Core.Analysis;
 
 public sealed record AnalysisProgress(int ObservedPaths, ulong Issues, AnalysisPhase Phase)
 {
+    public Guid SessionId { get; init; }
+    public long Epoch { get; init; }
     // Runtime resource lifecycle, separate from an already frozen metadata revision.
     public ulong SourceCloseFailures { get; init; }
     public int PreviewPaths { get; init; }
@@ -13,18 +15,17 @@ public sealed record AnalysisProgress(int ObservedPaths, ulong Issues, AnalysisP
     public bool MemoryFallback { get; init; }
 }
 
-public sealed class AnalysisCoordinator(DeviceIoScheduler io, string? profileIdentity = null)
+public sealed partial class AnalysisCoordinator(DeviceIoScheduler io, string? profileIdentity = null)
 {
     private readonly string _profileIdentity = profileIdentity ?? "ephemeral:" + Guid.NewGuid().ToString("N");
     // Ownership of prepared sources transfers to the session, including blocked native requests.
     public AnalysisSession Start(IReadOnlyList<IAnalysisBackend> sources, IProgress<AnalysisProgress>? progress = null,
         AnalysisComponentPreset components = AnalysisComponentPreset.Standard, AnalysisStorageOptions? storage = null)
     {
-        if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
-        if (sources.Count is < 1 or > AnalysisLimits.Roots) throw new ArgumentException("Select between 1 and 32 roots.", nameof(sources));
-        if (!Enum.IsDefined(components)) throw new ArgumentOutOfRangeException(nameof(components));
-        storage?.Validate();
-        return new(io, sources.ToArray(), progress, _profileIdentity, components, storage);
+        RequireAdmission();
+        ArgumentNullException.ThrowIfNull(sources); var prepared = sources.ToArray();
+        ValidateStart(prepared, components, storage);
+        return new(io, prepared, progress, _profileIdentity, components, storage);
     }
 }
 
@@ -54,20 +55,36 @@ public sealed partial class AnalysisSession : IDisposable
     public ulong SourceCloseFailures { get { lock (_sync) return _sourceCloseFailures; } }
     public Task Completion { get; }
     internal AnalysisSession(DeviceIoScheduler io, IAnalysisBackend[] sources, IProgress<AnalysisProgress>? progress, string profileIdentity,
-        AnalysisComponentPreset components, AnalysisStorageOptions? storage = null)
+        AnalysisComponentPreset components, AnalysisStorageOptions? storage = null, SessionIdentity? nextEpoch = null)
     {
-        _storage = storage; _store = new(storage is not null, storage?.PreviewPaths ?? AnalysisLimits.Observations);
-        _io = io; _sources = sources; _progress = progress;
-        _roots = sources.Select((s, i) => s.Root with { Id = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), Kind = s.RootEntry.Kind,
-            ObservedObjectIdentity = s.RootEntry.Identity }).ToImmutableArray();
-        var now = DateTimeOffset.UtcNow;
-        var firstObservation = sources.Select(s => s.RootEntry.ObservedUtc ?? now).Append(now).Min();
-        _identity = new(Guid.NewGuid(), 1, 1, profileIdentity, firstObservation, now);
-        _policy = new() { BasisIds = sources.Select(s => s.Basis).Distinct().ToImmutableArray(), PackagePolicy = "contents-included",
-            ComponentPreset = components == AnalysisComponentPreset.DetailedAllocation ? "detailed" : "standard", Limits = AnalysisLimits.EffectivePolicy,
-            Exclusions = storage is null ? [] : ["filecat-private-analysis-state"] };
-        _io.HealthChanged += OnDeviceHealth;
-        Completion = Task.Run(ProduceAsync);
+        _storage = storage; _io = io; _sources = sources; _progress = progress;
+        AnalysisStore? created = null; bool subscribed = false;
+        try
+        {
+            _store = created = new(storage is not null, storage?.PreviewPaths ?? AnalysisLimits.Observations);
+            _roots = sources.Select((s, i) => s.Root with { Id = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), Kind = s.RootEntry.Kind,
+                ObservedObjectIdentity = s.RootEntry.Identity }).ToImmutableArray();
+            _selectedRoots = _roots;
+            var now = DateTimeOffset.UtcNow;
+            var firstObservation = sources.Select(s => s.RootEntry.ObservedUtc ?? now).Append(now).Min();
+            _identity = nextEpoch is null ? new(Guid.NewGuid(), 1, 1, profileIdentity, firstObservation, now) :
+                nextEpoch with { StartedUtc = firstObservation, ObservedUtc = now };
+            _revision = _identity.Revision - 1;
+            if (nextEpoch is not null) _phase = AnalysisPhase.Refreshing;
+            _policy = new() { BasisIds = sources.Select(s => s.Basis).Distinct().ToImmutableArray(), PackagePolicy = "contents-included",
+                ComponentPreset = components == AnalysisComponentPreset.DetailedAllocation ? "detailed" : "standard", Limits = AnalysisLimits.EffectivePolicy,
+                Exclusions = storage is null ? [] : ["filecat-private-analysis-state"] };
+            _io.HealthChanged += OnDeviceHealth;
+            subscribed = true;
+            Completion = Task.Run(ProduceAsync);
+        }
+        catch
+        {
+            if (subscribed) _io.HealthChanged -= OnDeviceHealth;
+            try { created?.Dispose(); }
+            finally { _cancel.Dispose(); _finalizeCancel.Dispose(); }
+            throw;
+        }
     }
     public AnalysisSnapshot Snapshot()
     {
@@ -116,7 +133,7 @@ public sealed partial class AnalysisSession : IDisposable
     {
         lock (_sync)
         {
-            if (_disposed || _workerFinished || _phase != AnalysisPhase.Scanning) return;
+            if (_disposed || _workerFinished || _phase is not (AnalysisPhase.Scanning or AnalysisPhase.Refreshing)) return;
             _resume = new(TaskCreationOptions.RunContinuationsAsynchronously); _phase = AnalysisPhase.Pausing;
         }
         Report();
@@ -127,7 +144,7 @@ public sealed partial class AnalysisSession : IDisposable
         lock (_sync)
         {
             if (_disposed || _workerFinished || _phase is not (AnalysisPhase.Paused or AnalysisPhase.Pausing)) return;
-            resume = _resume; _resume = null; _phase = AnalysisPhase.Scanning;
+            resume = _resume; _resume = null; _phase = _identity.Epoch > 1 ? AnalysisPhase.Refreshing : AnalysisPhase.Scanning;
         }
         resume?.TrySetResult(); Report();
     }
@@ -435,7 +452,8 @@ public sealed partial class AnalysisSession : IDisposable
     {
         AnalysisProgress p;
         lock (_sync) { if (_disposed) return; p = new(_storage is null || _memoryFallback ? _store.Count : _capturedPaths, _store.IssueCount, _phase) { SourceCloseFailures = _sourceCloseFailures,
-            PreviewPaths = _store.Count, PreviewLimited = _previewLimited, DatasetReady = _dataset is not null, MemoryFallback = _memoryFallback }; }
+            PreviewPaths = _store.Count, PreviewLimited = _previewLimited, DatasetReady = _dataset is not null, MemoryFallback = _memoryFallback,
+            SessionId = _identity.SessionId, Epoch = _identity.Epoch }; }
         // Observers do not own traversal or handle lifetimes. A released/broken UI subscription cannot
         // skip independent closes, strand a scan reservation or turn valid observations into a producer failure.
         try { _progress?.Report(p); } catch (Exception) { }

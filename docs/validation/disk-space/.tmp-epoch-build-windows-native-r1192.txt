@@ -1,0 +1,18 @@
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.CoreCrashHarness -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.CoreCrashHarness\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+  FileCat.WorkerProbe -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.WorkerProbe\bin\Debug\net10.0\FileCat.WorkerProbe.dll
+  FileCat.Platform.Windows -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.Platform.Windows\bin\Debug\net10.0\FileCat.Platform.Windows.dll
+  FileCat.ShellHost -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.ShellHost\bin\Debug\net10.0\FileCat.ShellHost.dll
+  FileCat.PrivilegedHost -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\src\FileCat.PrivilegedHost\bin\Debug\net10.0\FileCat.PrivilegedHost.dll
+  Native bootstrap built: 229 reported headers, 11 searched libraries, 7 reported tool components.
+  FileCat.Platform.Windows.Tests -> E:\FileCat\.tmp\worktrees\dsa-epoch-refresh-20261117\tests\FileCat.Platform.Windows.Tests\bin\Debug\net10.0\FileCat.Platform.Windows.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:12.31

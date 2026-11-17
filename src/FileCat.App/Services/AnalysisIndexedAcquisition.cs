@@ -26,7 +26,7 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
     private Guid _profile;
     private readonly string _ephemeralProfile = "ephemeral:" + Guid.NewGuid().ToString("N");
     internal AnalysisHostProfileIdentity? Profile { get; private set; }
-    internal string ProfileIdentity => Profile?.ToString() ?? _ephemeralProfile;
+    internal string ProfileIdentity => _rescanProfileCorrelation ?? Profile?.ToString() ?? _ephemeralProfile;
     internal string? MemoryPreparationNotice { get; private set; }
     private AnalysisIndexedAcquisition(AppServices services, bool indexedStorage)
     { _services = services; _indexedStorage = indexedStorage; _privatePaths = [services.Paths.AnalysisSnapshotsDirectory, services.Paths.AnalysisScratchDirectory, services.Paths.AnalysisHistoryDirectory]; }
@@ -133,7 +133,11 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
             {
                 try { CheckPreparation(index, cancellation); } catch { DisposePreparedOnWorker(root); throw; }
                 if (root.RootEntry.Kind == AnalysisKind.Directory)
-                { _protection[index] = root; _ancestorGuard[index] = depth != 0; return; }
+                {
+                    _protection[index] = root; _ancestorGuard[index] = depth != 0;
+                    _privateWitnesses[index] = root.Root with { Kind = root.RootEntry.Kind, ObservedObjectIdentity = root.RootEntry.Identity };
+                    return;
+                }
                 DisposePreparedOnWorker(root); // Still on this preparation's actual admitted worker.
             }
             UseMemoryPreparation();
@@ -163,7 +167,10 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
                  new(PathUtil.GetDeviceKey(_privatePaths[2]), () => TakeProtection(2)) { RequiresDisjointSource = _ancestorGuard[2] }])
             { CreateProfileQuota = _indexedStorage && MemoryPreparationNotice is null ? OpenProfileQuota : null, ProfileDeviceKey = PathUtil.GetDeviceKey(_privatePaths[0]),
                 AllowMemoryFallback = true, MemoryOnly = !_indexedStorage || MemoryPreparationNotice is not null };
-            _session = new AnalysisCoordinator(_services.Io, ProfileIdentity).Start(sources, progress, components, storage);
+            var coordinator = new AnalysisCoordinator(_services.Io, ProfileIdentity);
+            _session = _rescanPredecessor is { } previous ? coordinator.Rescan(previous, sources, progress, components, storage) :
+                coordinator.Start(sources, progress, components, storage);
+            _rescanPredecessor = null;
             HistoryCompletion = CompleteHistoryAsync(_session);
             return _session;
         }

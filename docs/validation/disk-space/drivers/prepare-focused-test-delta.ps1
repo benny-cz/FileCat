@@ -2,6 +2,7 @@ param(
  [Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$Revision,
  [Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$BaselineRevision,
  [Parameter(Mandatory=$true)][string[]]$Methods,
+ [ValidatePattern('^r[0-9]+[a-z]?$')][string]$WindowsBaselineRevision,
  [ValidateSet('core','render')][string]$Phase='render'
 )
 $ErrorActionPreference='Stop'
@@ -25,7 +26,8 @@ foreach($platform in 'windows','mac','linux'){
   }
   [ordered]@{path=$relative;baselineSha256=$old;sha256=$new;patch=$patch}
  })
- $remote=if($platform-eq'windows'){'C:\FileCatDsa20261104R2\batch-'+$BaselineRevision+'\payload\'+$Phase}elseif($platform-eq'mac'){'/Users/benny/FileCatValidation/dsa-batch-20261107-'+$BaselineRevision+'/payload/'+$Phase}else{'/home/benny/FileCatValidation/dsa-batch-20261107-'+$BaselineRevision+'/payload/'+$Phase}
+ $guestRevision=if($platform-eq'windows'-and$WindowsBaselineRevision){$WindowsBaselineRevision}else{$BaselineRevision}
+ $remote=if($platform-eq'windows'){'C:\FileCatDsa20261104R2\batch-'+$guestRevision+'\payload\'+$Phase}elseif($platform-eq'mac'){'/Users/benny/FileCatValidation/dsa-batch-20261107-'+$BaselineRevision+'/payload/'+$Phase}else{'/home/benny/FileCatValidation/dsa-batch-20261107-'+$BaselineRevision+'/payload/'+$Phase}
  [ordered]@{revision=$Revision;baseline=$remote;assembly=$assembly+'.dll';methods=$Methods;files=$files}|ConvertTo-Json -Depth 5|Set-Content (Join-Path $stage 'plan.json')
  if($platform-eq'windows'){
   $template=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'run-focused-test-delta.ps1')).Replace('@BASELINE@',$remote).Replace('@REV@',$Revision)
@@ -48,9 +50,9 @@ mkdir driver
 tar -xzf bundle.tgz -C driver
 python3 driver/run.py
 '@
-  [IO.File]::WriteAllText((Join-Path $PWD ('.tmp/batch-'+$platform+'-'+$Revision+'.sh')),$runner.Replace('@HASH@',$hash),[Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText((Join-Path $PWD ('.tmp/batch-'+$platform+'-'+$Revision+'.sh')),$runner.Replace('@HASH@',$hash).Replace("`r`n","`n"),[Text.UTF8Encoding]::new($false))
  }
- $proof+=@{platform=$platform;baseline=$BaselineRevision;verifiedFiles=$files.Count;changed=@($files|Where-Object{$_.patch}|ForEach-Object{$_.path});bytes=(Get-Item -LiteralPath $archive).Length;sha256=$hash}
+ $proof+=@{platform=$platform;baseline=$BaselineRevision;guestBaseline=$guestRevision;verifiedFiles=$files.Count;changed=@($files|Where-Object{$_.patch}|ForEach-Object{$_.path});bytes=(Get-Item -LiteralPath $archive).Length;sha256=$hash}
 }
 $proof|ConvertTo-Json -Depth 5|Set-Content ('.tmp/focused-delta-proof-'+$Revision+'.json')
 $proof|Select-Object platform,verifiedFiles,bytes|Format-Table
