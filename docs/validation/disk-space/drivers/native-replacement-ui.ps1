@@ -86,7 +86,7 @@ finally{
  }
  $result.postProcesses=@(Observed)
  if($result.postProcesses.Count){$result.passed=$false}
- $result|ConvertTo-Json -Depth 30|Set-Content (Join-Path $base 'result.json')
+ $result|ConvertTo-Json -Depth 30|Set-Content -Encoding UTF8 (Join-Path $base 'result.json')
  $names=@('result.json','desktop.log','desktop-error.log','owned.pid')
  if(Test-Path -LiteralPath (Join-Path $base 'cache-proof.json')){$names+='cache-proof.json'}
  if($run){
