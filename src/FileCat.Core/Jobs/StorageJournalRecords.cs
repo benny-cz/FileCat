@@ -8,9 +8,17 @@ public enum StorageNoCallReason { Canceled, Paused, StateChanged, PreparationFai
 
 internal sealed record StorageJournalRoot(int SourceIndex, int PinIndex, string Path, StorageObservation Observation);
 internal sealed record StorageJournalHeader(Guid JobId, DateTime CreatedUtc, StorageAction Action, StorageScope Scope,
-    Guid ReviewRevision, ImmutableArray<StorageJournalRoot> Roots);
+    Guid ReviewRevision, ImmutableArray<StorageJournalRoot> Roots)
+{
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StorageEfsConsent? EfsConsent { get; init; }
+}
 internal sealed record StorageJournalIntent(long Call, int SourceIndex, string Path, StorageObjectIdentity Identity,
-    StorageObservation Before, StorageObservationState Desired);
+    StorageObservation Before, StorageObservationState Desired)
+{
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? EfsConsentId { get; init; }
+}
 internal sealed record StorageJournalOutcome(long Call, StorageCallDisposition Disposition, StorageNoCallReason? NoCallReason,
     StorageMutationResult? Result);
 internal sealed record StorageJournalCounts(long Changed, long AlreadySatisfied, long Skipped, long Failed, long Uncertain, long NotProcessed)
@@ -36,6 +44,12 @@ public sealed record StorageJournalPrefix(Guid JobId, long Sequence, long ByteLe
 internal static class StorageJournalPolicy
 {
     internal const int Version = 1, RecordBytes = 256 * 1024, RootSummaryBytes = 64 * 1024, RecordLimit = 131072;
+    internal const int EfsVersion = 2;
+    internal static bool IsEfs(StorageAction action) => action is StorageAction.EncryptEfs or StorageAction.DecryptEfs;
+    internal static int VersionFor(StorageAction action) => IsEfs(action) ? EfsVersion : Version;
+    internal static StorageObservationState Desired(StorageAction action) => action is StorageAction.Compress or StorageAction.EncryptEfs
+        ? StorageObservationState.Enabled : StorageObservationState.Disabled;
+    internal static StorageObservationState State(StorageAction action, StorageObservation observation) => IsEfs(action) ? observation.Efs : observation.Compression;
     internal const long JournalBytes = 64L * 1024 * 1024, ClosureBytes = 1024 * 1024, CallBytes = 1024 * 1024;
     internal const int ClosureRecords = 4, CallRecords = 4;
     internal const long ReviewBytes = 1024 * 1024, ReviewWriteBytes = 2 * ReviewBytes,

@@ -25,8 +25,8 @@ public sealed unsafe partial class WindowsEfsPathTests
         using var inspection = StorageReviewResources.EnterRootInspection(target);
         return adapter.InspectEfsRoot(target, action, Ct);
     }
-    private static WindowsStorageTransforms.EfsPathConsent Consent(IStorageReviewLease pin, StorageAction action) =>
-        new(pin.Observation.Identity, action, true, action == StorageAction.EncryptEfs);
+    private static StorageEfsConsent Consent(IStorageReviewLease pin, StorageAction action) =>
+        StorageEfsConsent.Capture(Guid.NewGuid(), action, StorageScope.SelectedItems, [pin.Observation.Identity], new(true, action == StorageAction.EncryptEfs));
     private static StorageMutationResult Apply(IStorageObjectLease item, StorageAction action)
     {
         Assert.Null(item.PrepareMutation(action, Ct).Ineligible);
@@ -123,9 +123,11 @@ public sealed unsafe partial class WindowsEfsPathTests
             using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
             var adapter = new WindowsStorageTransforms(); using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
             var valid = Consent(pin, StorageAction.EncryptEfs);
-            foreach (var refused in new[] { valid with { AcceptConcurrentLinkChange = false }, valid with { AcceptAllStreamDecompression = false },
-                valid with { Action = StorageAction.DecryptEfs }, valid with { Identity = valid.Identity with { ObjectId = new string('0', 32) } } })
+            foreach (var refused in new[] { valid with { Acknowledgments = valid.Acknowledgments with { AcceptConcurrentLinkChange = false } },
+                valid with { Acknowledgments = valid.Acknowledgments with { AcceptAllStreamDecompression = false } }, valid with { ReviewRevision = Guid.Empty },
+                valid with { Action = StorageAction.DecryptEfs }, valid with { RootIdentities = [pin.Observation.Identity with { ObjectId = new string('0', 32) }] } })
                 Assert.Equal("efs-consent", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPath(pin, refused, Ct)).Problem.Code);
+            Assert.Equal("efs-consent", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPath(pin, valid, Ct, sourceIndex: 1)).Problem.Code);
             Assert.Equal((FileAttributes)0, File.GetAttributes(path) & FileAttributes.Encrypted);
         }
         finally { Directory.Delete(root, true); }

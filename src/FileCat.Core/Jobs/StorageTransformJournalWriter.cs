@@ -35,7 +35,7 @@ internal sealed class StorageTransformJournalWriter : IDisposable
         _stream = stream; _flush = flush; _header = header; _byteLimit = byteLimit; _recordLimit = recordLimit;
         _remainingRootRecords = header.Roots.Length;
         _remainingRootBytes = (long)header.Roots.Length * StorageJournalPolicy.RootSummaryBytes;
-        byte[] begin = Encode("storage-begin", 1, header.JobId, header);
+        byte[] begin = EncodeRecord("storage-begin", 1, header.JobId, header);
         if (byteLimit < begin.Length + _remainingRootBytes + StorageJournalPolicy.ClosureBytes ||
             recordLimit < 1 + _remainingRootRecords + StorageJournalPolicy.ClosureRecords)
             throw new IOException("The storage journal cannot reserve its fixed summary and closure capacity.");
@@ -52,8 +52,8 @@ internal sealed class StorageTransformJournalWriter : IDisposable
                 _sequence > _recordLimit - _remainingRootRecords - StorageJournalPolicy.ClosureRecords - StorageJournalPolicy.CallRecords)
                 throw new StorageJournalLimitException();
             var intent = new StorageJournalIntent(checked(_call + 1), sourceIndex, path, before.Identity, before,
-                _header.Action == StorageAction.Compress ? StorageObservationState.Enabled : StorageObservationState.Disabled);
-            byte[] record = Encode("storage-intent", _sequence + 1, _header.JobId, intent);
+                StorageJournalPolicy.Desired(_header.Action)) { EfsConsentId = _header.EfsConsent?.ConsentId };
+            byte[] record = EncodeRecord("storage-intent", _sequence + 1, _header.JobId, intent);
             _callReserved = true; // whole 1 MiB/four-record allowance, in addition to every remaining fixed slot
             try
             {
@@ -82,7 +82,7 @@ internal sealed class StorageTransformJournalWriter : IDisposable
         {
             RequireWritable(); RequireCall(call);
             byte[] record;
-            try { record = Encode("storage-result", _sequence + 1, _header.JobId, result); }
+            try { record = EncodeRecord("storage-result", _sequence + 1, _header.JobId, result); }
             catch { _faulted = true; _collector.Fault(); throw; }
             try { Append(record, "storage-result"); }
             catch { _faulted = true; _collector.Fault(); throw; }
@@ -97,7 +97,7 @@ internal sealed class StorageTransformJournalWriter : IDisposable
         {
             RequireWritable();
             if (_callReserved || _remainingRootRecords <= 0) throw new InvalidOperationException("The storage root summary cannot be written now.");
-            byte[] record = Encode("storage-root", _sequence + 1, _header.JobId, summary);
+            byte[] record = EncodeRecord("storage-root", _sequence + 1, _header.JobId, summary);
             if (record.Length > StorageJournalPolicy.RootSummaryBytes) throw new IOException("The storage root summary exceeds its fixed slot.");
             Append(record, "storage-root");
             _remainingRootRecords--; _remainingRootBytes -= StorageJournalPolicy.RootSummaryBytes;
@@ -117,9 +117,9 @@ internal sealed class StorageTransformJournalWriter : IDisposable
                 Examples = result.Examples, OmittedExamples = result.OmittedExamples,
                 AmbiguousDuplicates = result.AmbiguousDuplicates, ObservationCounts = result.ObservationCounts,
             };
-            Append(Encode("storage-summary", _sequence + 1, _header.JobId, summary), "storage-summary");
+            Append(EncodeRecord("storage-summary", _sequence + 1, _header.JobId, summary), "storage-summary");
             if (!_collector.CanFinish || result.PersistenceFault || result.ReviewPending) return; // durable summary, deliberately no end
-            Append(Encode("storage-end", _sequence + 1, _header.JobId, new StorageJournalTerminal(result.FinalState())), "storage-end");
+            Append(EncodeRecord("storage-end", _sequence + 1, _header.JobId, new StorageJournalTerminal(result.FinalState())), "storage-end");
         }
     }
 
@@ -150,9 +150,11 @@ internal sealed class StorageTransformJournalWriter : IDisposable
         catch { _faulted = true; _collector.Fault(); throw; }
     }
 
-    internal static byte[] Encode<T>(string type, long sequence, Guid job, T data)
+    private byte[] EncodeRecord<T>(string type, long sequence, Guid job, T data) => Encode(type, sequence, job, data, StorageJournalPolicy.VersionFor(_header.Action));
+
+    internal static byte[] Encode<T>(string type, long sequence, Guid job, T data, int version = StorageJournalPolicy.Version)
     {
-        var envelope = new StorageTransformJournalCollector.StorageEnvelope(type, StorageJournalPolicy.Version, sequence, job,
+        var envelope = new StorageTransformJournalCollector.StorageEnvelope(type, version, sequence, job,
             JsonSerializer.SerializeToElement(data, StorageTransformJournalCollector.Json));
         using var bounded = new BoundedRecord();
         JsonSerializer.Serialize(bounded, envelope, StorageTransformJournalCollector.Json);

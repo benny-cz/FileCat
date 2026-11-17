@@ -13,8 +13,6 @@ internal sealed unsafe partial class WindowsStorageTransforms
 {
     // Native qualification seam only. Product admission still rejects EFS until the key, output,
     // approval/journal and architecture gates have been implemented and qualified together.
-    internal sealed record EfsPathConsent(StorageObjectIdentity Identity, StorageAction Action,
-        bool AcceptConcurrentLinkChange, bool AcceptAllStreamDecompression);
     internal sealed record EfsNativeReturn(bool Succeeded, int Error);
     private static readonly Lazy<bool> EfsEdition = new(() => GetProductInfo(10, 0, 0, 0, out uint product) &&
         product is 0x30 or 0x31 /* Pro, Pro N */ or 0x04 or 0x1B /* Enterprise, Enterprise N */ or 0x79 or 0x7A /* Education, Education N */);
@@ -33,13 +31,16 @@ internal sealed unsafe partial class WindowsStorageTransforms
         return new Pin(this, target, inspection, action, path.TakeLeaf(), sid);
     }
 
-    internal IStorageObjectLease OpenEfsPath(IStorageReviewLease root, EfsPathConsent consent, CancellationToken ct,
-        Func<string, StorageAction, EfsNativeReturn>? invoke = null)
+    internal IStorageObjectLease OpenEfsPath(IStorageReviewLease root, StorageEfsConsent consent, CancellationToken ct,
+        Func<string, StorageAction, EfsNativeReturn>? invoke = null, int sourceIndex = 0)
     {
+        ArgumentNullException.ThrowIfNull(consent);
         RequireEfsHost(consent.Action);
         var pin = RequirePin(root);
-        if (pin.InvokerSid is null || pin.Action != consent.Action || consent.Identity != pin.Observation.Identity ||
-            !consent.AcceptConcurrentLinkChange || consent.Action == StorageAction.EncryptEfs && !consent.AcceptAllStreamDecompression)
+        try { StorageEfsConsent.Require(consent, consent.ReviewRevision, consent.Action, consent.Scope, consent.RootIdentities); }
+        catch (ArgumentException) { throw Refuse("efs-consent", "EFS needs fresh action/scope/revision-bound acknowledgment of concurrent link changes and, for encryption, all-stream decompression."); }
+        if (pin.InvokerSid is null || pin.Action != consent.Action || (uint)sourceIndex >= (uint)consent.RootIdentities.Length ||
+            consent.RootIdentities[sourceIndex] != pin.Observation.Identity)
             throw Refuse("efs-consent", "EFS needs separate identity-bound acknowledgment of the concurrent link-change boundary and, for encryption, all-stream decompression.");
         if (EfsInvoker() != pin.InvokerSid) throw Changed("efs-invoker", "The invoking EFS user changed; create a new review.");
         NativePath? path = null, windows = null;
@@ -51,7 +52,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             windows = ProtectedWindowsPath(ct);
             var observation = Inspect(path, windows.LeafFacts.Identity, ct, compressionPolicy: false).For(consent.Action);
             if (observation.Ineligible is { } excluded) throw new StorageInspectionException(excluded);
-            var binding = new EfsPathBinding(pin, path, windows, consent, invoke ?? InvokeEfs);
+            var binding = new EfsPathBinding(pin, path, windows, consent, sourceIndex, invoke ?? InvokeEfs);
             path = null; windows = null;
             return binding;
         }
@@ -109,7 +110,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
         private readonly Pin _pin;
         private readonly NativePath _path, _windows;
         private readonly StorageNativeAllowance _allowance;
-        private readonly EfsPathConsent _consent;
+        private readonly StorageEfsConsent _consent;
+        private readonly StorageObjectIdentity _identity;
         private readonly Func<string, StorageAction, EfsNativeReturn> _invoke;
         private readonly string _apiPath;
         private StorageObservation? _prepared;
@@ -118,15 +120,16 @@ internal sealed unsafe partial class WindowsStorageTransforms
         private bool _disposed;
         internal ImmutableArray<WindowsEfsStream> PreparedStreams { get; private set; } = [];
         // The containing type owns construction; callers receive no unpinned ID-to-path authority.
-        internal EfsPathBinding(Pin pin, NativePath path, NativePath windows, EfsPathConsent consent,
+        internal EfsPathBinding(Pin pin, NativePath path, NativePath windows, StorageEfsConsent consent, int sourceIndex,
             Func<string, StorageAction, EfsNativeReturn> invoke)
         {
             _pin = pin; _path = path; _windows = windows; _consent = consent; _invoke = invoke;
+            _identity = consent.RootIdentities[sourceIndex];
             _allowance = StorageNativeAllowance.RequireCurrent();
             _apiPath = EfsApiPath(path, pin.Target.Path);
         }
         public string Path => _pin.Target.Path;
-        public StorageObjectIdentity Identity => _consent.Identity;
+        public StorageObjectIdentity Identity => _identity;
         private void Check()
         {
             ObjectDisposedException.ThrowIf(_disposed, this);

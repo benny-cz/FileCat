@@ -14,6 +14,8 @@ The [controlled pathname/decompression investigation](../validation/filesystem-d
 
 The [native EFS binding checkpoint](../validation/filesystem-details/2026-11-17-efs-native-binding.md) implements the internal live-pin/held-parent candidate, supported physical pathname calls, complete bounded stream metadata and conservative post-observation. Its native and portable checks pass at their stated scope. Key/output, durable consent, recursion/UI and wider native gates remain open; product EFS remains unavailable.
 
+The [EFS consent/evidence checkpoint](../validation/filesystem-details/2026-11-17-efs-consent-evidence.md) adds the shared action/scope/revision/root-bound acknowledgment record, v2 EFS header and per-intent consent references, strict recovery, bounded call-page/export projection and explicit historical report text. The native candidate consumes the same record. This closes neither live EFS approval UI nor key/output admission; their broader E-only ledger rows remain incomplete. Version-1 C evidence and reserved-EFS rejection are retained.
+
 **Sparse-file support requested, 17 November 2026:** §5.5 now makes sparse interoperability explicit work rather than leaving it as an indefinite exclusion. Windows documents sparse-file EFS support, but this does not establish FileCat's preservation, pathname, key or output protocol. Existing sparse refusals remain until their action-specific fixtures pass; no operation may silently clear sparse state or materialize holes as a fallback.
 
 This controls the conflicting wording below.

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 
@@ -159,7 +160,7 @@ public sealed partial class JobManager
         var request = new JobRequest
         {
             Kind = JobKind.StorageTransform, Sources = reviewed.Sources, Mode = mode,
-            StorageTransform = new(approval.Action, approval.Scope, approval.ReviewRevision) { Roots = reviewed.Roots },
+            StorageTransform = new(approval.Action, approval.Scope, approval.ReviewRevision) { Roots = reviewed.Roots, EfsConsent = approval.EfsConsent },
         };
         _ = JobJournal.CaptureStorageHeader(request, Guid.NewGuid(), DateTime.UnixEpoch); // before owner transfer/job creation
         return Submit(request, null, register, storageOwner: reviewed.Transfer(_storageTransforms, approval));
@@ -180,6 +181,8 @@ public sealed partial class JobManager
         if (owner is null || !owner.IsAlive) throw new InvalidOperationException("Submit storage changes through their live reviewed owner.");
         if (payload.Roots.IsDefault || payload.Roots.Length != request.Sources.Count)
             throw new ArgumentException("The original-root mappings are missing.", nameof(request));
+        StorageEfsConsent.Require(payload.EfsConsent, payload.ReviewRevision, payload.Action, payload.Scope,
+            payload.Roots.Select(r => r.Observation.Identity).ToImmutableArray());
         for (int i = 0; i < payload.Roots.Length; i++)
         {
             var root = payload.Roots[i];

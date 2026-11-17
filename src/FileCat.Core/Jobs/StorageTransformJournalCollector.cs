@@ -10,6 +10,7 @@ internal sealed class StorageTransformJournalCollector
 {
     private long _sequence, _lastCall;
     private Guid _job;
+    private int _version;
     private bool _damaged, _uncertain, _ended;
     private ulong _rootSummaries;
     internal StorageJournalHeader? Header { get; private set; }
@@ -45,7 +46,8 @@ internal sealed class StorageTransformJournalCollector
         {
             ValidateTree(envelope);
             var record = envelope.Deserialize<StorageEnvelope>(Json) ?? throw Invalid();
-            if (_damaged || _ended || record.V != StorageJournalPolicy.Version || record.Q != _sequence + 1 || record.Job == Guid.Empty ||
+            if (_damaged || _ended || record.V is not (StorageJournalPolicy.Version or StorageJournalPolicy.EfsVersion) ||
+                _version != 0 && record.V != _version || record.Q != _sequence + 1 || record.Job == Guid.Empty ||
                 _job != Guid.Empty && record.Job != _job) throw Invalid();
             switch (record.T)
             {
@@ -54,8 +56,8 @@ internal sealed class StorageTransformJournalCollector
                     if (Header is not null || _sequence != 0) throw Invalid();
                     var header = Payload<StorageJournalHeader>(record);
                     ValidateHeader(header);
-                    if (header.JobId != record.Job) throw Invalid();
-                    _job = record.Job; Header = header;
+                    if (header.JobId != record.Job || record.V != StorageJournalPolicy.VersionFor(header.Action)) throw Invalid();
+                    _job = record.Job; _version = record.V; Header = header;
                     break;
                 }
                 case "storage-intent":
@@ -116,7 +118,7 @@ internal sealed class StorageTransformJournalCollector
     internal static void ValidateHeader(StorageJournalHeader h)
     {
         if (h.JobId == Guid.Empty || h.ReviewRevision == Guid.Empty || h.CreatedUtc.Kind != DateTimeKind.Utc ||
-            h.Action is not (StorageAction.Compress or StorageAction.RemoveCompression) || !Enum.IsDefined(h.Scope) ||
+            !Enum.IsDefined(h.Action) || !Enum.IsDefined(h.Scope) ||
             h.Roots.IsDefault || h.Roots.Length is < 1 or > 64) throw Invalid();
         for (int i = 0; i < h.Roots.Length; i++)
         {
@@ -127,18 +129,21 @@ internal sealed class StorageTransformJournalCollector
                 root.Observation.Efs is not (StorageObservationState.Enabled or StorageObservationState.Disabled) ||
                 root.Observation.Efs == StorageObservationState.Enabled && (h.Action == StorageAction.Compress || root.Observation.Compression == StorageObservationState.Enabled)) throw Invalid();
         }
+        StorageEfsConsent.Require(h.EfsConsent, h.ReviewRevision, h.Action, h.Scope, h.Roots.Select(r => r.Observation.Identity).ToImmutableArray());
     }
     private void ValidateIntent(StorageJournalIntent i)
     {
         if (_uncertain || i.Call != _lastCall + 1 || i.SourceIndex < 0 || i.SourceIndex >= Header!.Roots.Length || !StoragePaths.IsOrdinaryLocalPath(i.Path) ||
-            i.Desired != (Header.Action == StorageAction.Compress ? StorageObservationState.Enabled : StorageObservationState.Disabled)) throw Invalid();
+            i.Desired != StorageJournalPolicy.Desired(Header.Action) || i.EfsConsentId != Header.EfsConsent?.ConsentId) throw Invalid();
         ValidateIdentity(i.Identity); ValidateObservation(i.Before);
         var root = Header.Roots[i.SourceIndex];
         if (i.Identity.Volume != root.Observation.Identity.Volume || i.Identity.VolumeBinding != root.Observation.Identity.VolumeBinding ||
             (!root.Observation.IsDirectory || Header.Scope == StorageScope.SelectedItems) &&
                 (i.Identity != root.Observation.Identity || !i.Path.Equals(root.Path, StringComparison.Ordinal))) throw Invalid();
-        if (i.Before.Identity != i.Identity || i.Before.Ineligible is not null || i.Before.Compression == i.Desired ||
+        if (i.Before.Identity != i.Identity || i.Before.Ineligible is not null || StorageJournalPolicy.State(Header.Action, i.Before) == i.Desired ||
             i.Before.Compression is not (StorageObservationState.Enabled or StorageObservationState.Disabled) ||
+            i.Before.Efs is not (StorageObservationState.Enabled or StorageObservationState.Disabled) ||
+            i.Before.Compression == StorageObservationState.Enabled && i.Before.Efs == StorageObservationState.Enabled ||
             Header.Action == StorageAction.Compress && i.Before.Efs != StorageObservationState.Disabled) throw Invalid();
     }
     private void ValidateOutcome(StorageJournalOutcome o)
@@ -156,8 +161,8 @@ internal sealed class StorageTransformJournalCollector
         if (r.NativeCallAttempted)
         {
             if (r.Effect is not (StorageEffect.Changed or StorageEffect.Failed or StorageEffect.Uncertain)) throw Invalid();
-            if (r.Effect == StorageEffect.Changed && (r.After is null || r.After.Compression != intent.Desired)) throw Invalid();
-            if (r.Effect == StorageEffect.Failed && (r.After is null || r.After.Compression is not (StorageObservationState.Enabled or StorageObservationState.Disabled) || r.After.Compression == intent.Desired)) throw Invalid();
+            if (r.Effect == StorageEffect.Changed && (r.After is null || StorageJournalPolicy.State(Header!.Action, r.After) != intent.Desired)) throw Invalid();
+            if (r.Effect == StorageEffect.Failed && (r.After is null || StorageJournalPolicy.State(Header!.Action, r.After) is not (StorageObservationState.Enabled or StorageObservationState.Disabled) || StorageJournalPolicy.State(Header.Action, r.After) == intent.Desired)) throw Invalid();
             if (r.Effect == StorageEffect.Uncertain && r.Problem is null) throw Invalid();
         }
         else if (r.Effect is StorageEffect.Changed or StorageEffect.Uncertain) throw Invalid();
