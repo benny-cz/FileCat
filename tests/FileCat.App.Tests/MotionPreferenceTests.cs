@@ -10,6 +10,8 @@ namespace FileCat.App.Tests;
 // active. On 15 November 2026 the macOS full lane failed Viewer_activation_keeps_effects_running_after_main_window_
 // deactivates that way, across its await of the motion preference. Classes that apply a theme and judge it across an
 // await run in this collection, after the parallel ones, one at a time.
+// Window-lifetime probes also use a fresh process: previously started windows can remain active after their test
+// finishes, and the real aggregate clock correctly keeps running for those independent owners.
 [CollectionDefinition("Shared theme state", DisableParallelization = true)]
 public sealed class SharedThemeStateCollection;
 
@@ -19,6 +21,11 @@ public sealed class MotionPreferenceTests
     [AvaloniaFact]
     public async Task Closing_the_last_tracked_window_stops_effects_without_a_deactivation_notification()
     {
+        if (!IsolatedAppTestProcess.IsChild(typeof(MotionPreferenceTests), nameof(Closing_the_last_tracked_window_stops_effects_without_a_deactivation_notification)))
+        {
+            await IsolatedAppTestProcess.RunAsync(typeof(MotionPreferenceTests), nameof(Closing_the_last_tracked_window_stops_effects_without_a_deactivation_notification));
+            return;
+        }
         string prior = ThemeManager.RequestedName;
         var originalReader = ThemeAnimation.PreferenceReader;
         var viewer = new Window();
@@ -51,6 +58,11 @@ public sealed class MotionPreferenceTests
     [AvaloniaFact]
     public async Task Viewer_activation_keeps_effects_running_after_main_window_deactivates()
     {
+        if (!IsolatedAppTestProcess.IsChild(typeof(MotionPreferenceTests), nameof(Viewer_activation_keeps_effects_running_after_main_window_deactivates)))
+        {
+            await IsolatedAppTestProcess.RunAsync(typeof(MotionPreferenceTests), nameof(Viewer_activation_keeps_effects_running_after_main_window_deactivates));
+            return;
+        }
         string prior = ThemeManager.RequestedName;
         var originalReader = ThemeAnimation.PreferenceReader;
         var main = new Window();
