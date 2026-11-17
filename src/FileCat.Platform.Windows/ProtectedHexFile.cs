@@ -14,7 +14,7 @@ namespace FileCat.Platform.Windows;
 /// may read and write the file, and every save first checks that the path still names this file and that each byte being
 /// replaced still holds the value the editor showed.
 /// </summary>
-public sealed partial class ProtectedHexFile : IContentSource
+public sealed partial class ProtectedHexFile : IContentSource, IHexContentOrigin
 {
     private const uint GenericRead = 0x80000000, GenericWrite = 0x40000000, FileShareRead = 1, OpenExisting = 3;
     private const uint FlagOpenReparsePoint = 0x00200000, FlagRandomAccess = 0x10000000;
@@ -97,6 +97,21 @@ public sealed partial class ProtectedHexFile : IContentSource
     public bool IsSparse { get; }
     public FileIdentity FileIdentity => _identity;
     internal SafeFileHandle Handle => _handle;
+
+    public HexContentContributor CaptureHexOrigin() => CaptureHexOrigin(_handle, _path);
+
+    internal static HexContentContributor CaptureHexOrigin(SafeFileHandle handle, string inputPath)
+    {
+        try
+        {
+            var state = OperatingSystem.IsWindows() && (Attributes(handle) & AttributeEncrypted) != 0 ? HexEfsOriginState.Efs : HexEfsOriginState.NotEfs;
+            return new(inputPath, Identity(handle).ToString(), state);
+        }
+        catch (Exception error) when (error is Win32Exception or IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return new(inputPath, null, HexEfsOriginState.Unknown);
+        }
+    }
 
     /// <summary>
     /// Whether other programs cannot write the file while it is open (Windows). Elsewhere they can, and saving checks

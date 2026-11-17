@@ -22,6 +22,8 @@ The [zero-byte setup/association checkpoint](../validation/filesystem-details/20
 
 The [hex journal checkpoint](../validation/filesystem-details/2026-11-17-efs-hex-journal.md) refuses in-place save/recovery against a currently encrypted held target before new journal payload or recovery writes, retaining edits and existing journals. Native and editor regressions pass on the supplied machines. Imported EFS/Unknown patch contributors and reviewed export remain open E-OUT14/3 work; this current-target check does not close complete E-OUT2 admission.
 
+The [hex provenance checkpoint](../validation/filesystem-details/2026-11-17-efs-hex-provenance.md) adds actual input provenance to imported patches and freezes it with the edited ranges. EFS or unknown input blocks unprotected save and export. New journals retain the admitted contributors, and recovery checks the actual journal input as well as its recorded contributors and current target. Legacy journals remain inspectable with unknown input protection and cannot be applied. Native and portable E-OUT2/14 cases pass at the recorded scope. Reviewed E-OUT3 export remains open.
+
 **Sparse-file support requested, 17 November 2026:** §5.5 now makes sparse interoperability explicit work rather than leaving it as an indefinite exclusion. Windows documents sparse-file EFS support, but this does not establish FileCat's preservation, pathname, key or output protocol. Existing sparse refusals remain until their action-specific fixtures pass; no operation may silently clear sparse state or materialize holes as a fallback.
 
 This controls the conflicting wording below.

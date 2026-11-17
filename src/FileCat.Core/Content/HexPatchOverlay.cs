@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using FileCat.Core.Resources;
 
 namespace FileCat.Core.Content;
@@ -26,6 +27,11 @@ public sealed class HexPatchOverlay : IContentSource
     private int _undoBytes;
     private bool _saving;
     private bool _disposed;
+    private HexContentContributor? _baselineOrigin;
+    private List<HexContentContributor> _contributors = new();
+    private int _contributorBytes;
+    public const int MaxContributors = 64;
+    public const int MaxContributorBytes = 256 * 1024;
 
     private sealed record PatchAction(long Offset, byte[] Before, byte[] After)
     {
@@ -37,6 +43,8 @@ public sealed class HexPatchOverlay : IContentSource
         if (!baseline.CanSeek || baseline.Length < 0) throw new ArgumentException("Hex editing requires known random-access length.");
         _baseline = baseline;
         Length = baseline.Length;
+        _baselineOrigin = baseline is IHexContentOrigin origin ? origin.CaptureHexOrigin() : HexContentContributor.Unknown;
+        IncludeContributor(_baselineOrigin);
     }
 
     public string DisplayName => _baseline.DisplayName;
@@ -48,6 +56,25 @@ public sealed class HexPatchOverlay : IContentSource
     public bool CanUndo { get { lock (_gate) return _undo.Count > 0; } }
     public bool CanRedo { get { lock (_gate) return _redo.Count > 0; } }
     public bool IsModified(long offset) { lock (_gate) return _patch.ContainsKey(offset); }
+
+    /// <summary>Attach before the first imported Write. Failure and Undo/Redo never remove a contributor.</summary>
+    public void IncludeContributor(HexContentContributor contributor)
+    {
+        ArgumentNullException.ThrowIfNull(contributor);
+        if (!Enum.IsDefined(contributor.Protection) || contributor.InputPath is null || contributor.InputPath.Length > 32768 || contributor.Identity is { Length: > 256 })
+            throw new ArgumentException("The hex contributor metadata is invalid or exceeds its bound.", nameof(contributor));
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_saving) throw new InvalidOperationException("A hex save is in progress.");
+            if (_contributors.Contains(contributor)) return;
+            int bytes = checked(128 + 2 * (contributor.InputPath.Length + (contributor.Identity?.Length ?? 0)));
+            if (_contributors.Count >= MaxContributors || bytes > MaxContributorBytes - _contributorBytes)
+                throw new IOException("The hex editor's input provenance limit was reached. Reload before importing another patch.");
+            _contributors.Add(contributor); _contributorBytes += bytes;
+            Interlocked.Increment(ref _revision);
+        }
+    }
 
     /// <summary>Bytes of these ranges no edit has touched yet: what writing them all would add to <see cref="TouchedBytes"/>.</summary>
     public int NewlyTouched(IEnumerable<HexPatchRange> ranges)
@@ -199,14 +226,16 @@ public sealed class HexPatchOverlay : IContentSource
         }
     }
 
-    public IReadOnlyList<HexPatchRange> FreezeForSave()
+    public IReadOnlyList<HexPatchRange> FreezeForSave() => FreezeForPersistence().Ranges;
+
+    public HexSaveSnapshot FreezeForPersistence()
     {
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_saving) throw new InvalidOperationException("A hex save is already in progress.");
             _saving = true;
-            return SnapshotRanges();
+            return new(SnapshotRanges(), _contributors.ToImmutableArray());
         }
     }
 
@@ -218,6 +247,7 @@ public sealed class HexPatchOverlay : IContentSource
             if (committed)
             {
                 _patch.Clear(); _original.Clear(); _undo.Clear(); _redo.Clear(); _undoBytes = 0;
+                if (!_disposed) ResetContributors();
                 Interlocked.Increment(ref _revision);
             }
             _saving = false;
@@ -233,6 +263,7 @@ public sealed class HexPatchOverlay : IContentSource
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_saving) throw new InvalidOperationException("A hex save is in progress.");
             _patch.Clear(); _original.Clear(); _undo.Clear(); _redo.Clear(); _undoBytes = 0;
+            ResetContributors();
             Interlocked.Increment(ref _revision);
         }
         Changed?.Invoke(new HexOverlayChange(0, null));
@@ -248,9 +279,18 @@ public sealed class HexPatchOverlay : IContentSource
             // Replace the dictionaries so retirement retains no backing arrays, including minimum capacity.
             _patch = new(); _original = new();
             _undo.Clear(); _redo.Clear(); _redo.TrimExcess(); _undoBytes = 0;
+            _contributors = new(); _baselineOrigin = null; _contributorBytes = 0;
             Changed = null;
         }
         // Retire owned memory even when closing the source fails; never close the source twice.
         _baseline.Dispose();
+    }
+
+    private void ResetContributors()
+    {
+        // Called with the lock held, including while FinishSave still owns the saving state.
+        // The baseline was validated on construction; only imported contributors are retired.
+        _contributors = [_baselineOrigin!];
+        _contributorBytes = checked(128 + 2 * (_baselineOrigin!.InputPath.Length + (_baselineOrigin.Identity?.Length ?? 0)));
     }
 }
