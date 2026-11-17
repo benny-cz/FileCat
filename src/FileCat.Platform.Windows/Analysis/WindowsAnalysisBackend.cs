@@ -194,9 +194,11 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
     private sealed class OwnedHandle(SafeFileHandle handle, IDisposable reservation, Action<Exception> failed, Func<nint, bool>? close) : IDisposable
     {
         private readonly AnalysisNativeHandle _owned = AnalysisNativeHandle.Adopt(handle, reservation, close: close);
+        private Action<Exception> _failed = failed;
         public AnalysisNativeHandle Value => _owned;
+        public void ReassignCloseFailure(Action<Exception> handler) => _failed = handler;
         public void Dispose()
-        { try { _owned.CloseChecked(); } catch (Exception error) { failed(error); throw; } }
+        { try { _owned.CloseChecked(); } catch (Exception error) { _failed(error); throw; } }
     }
     private sealed class DirectoryLease(List<OwnedHandle> handles, SafeHandle root) : IDisposable
     {

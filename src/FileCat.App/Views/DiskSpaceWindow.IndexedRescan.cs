@@ -23,6 +23,7 @@ public sealed partial class DiskSpaceWindow
         private void AddRuntimeRescanControls(WrapPanel bar)
         {
             _runtimeRescanHelp.Child = _runtimeRescan; bar.Children.Add(_runtimeRescanHelp); bar.Children.Add(_runtimePause); bar.Children.Add(_runtimeStop);
+            AddBranchRefreshControls(bar);
             AutomationProperties.SetName(_runtimeRescanHelp, "Rescan captured locations");
             _runtimeRescan.Click += async (_, _) => await RescanRuntimeAsync();
             _runtimePause.Click += (_, _) =>
@@ -44,10 +45,11 @@ public sealed partial class DiskSpaceWindow
         internal void RefreshRuntimeRescanControls()
         {
             if (_disposed) return;
+            RefreshBranchAvailability();
             string? refusal = _runtimeAcquisition is null ? "These captured observations have no runtime source context. Choose New analysis to scan locations." :
                 _runtimeRescanIssued ? "This epoch has started a successor. Rescan from its tab, or choose New analysis if it could not be opened." :
                 _runtimeAcquisition.RuntimeHasSuccessor ? "This epoch already has a successor. Rescan from the newer result." :
-                _runtimeRescanCancel is not null ? "A rescan is already in progress." :
+                _runtimeRescanCancel is not null || _runtimeBranchCancel is not null ? "An analysis refresh is already in progress." :
                 !_runtimeAcquisition.HasRuntimeRescanContext ? "Wait for actual source closure. Unconfirmed source cleanup prevents another scan." :
                 !_window._admissionPool.HasCapacity ? _window._admissionPool.Refusal :
                 _actualWork.HasUnconfirmedClose ? "An owner could not close. Preserve this result and restart FileCat." : null;
@@ -68,7 +70,7 @@ public sealed partial class DiskSpaceWindow
 
         private async Task RescanRuntimeAsync()
         {
-            if (_disposed || _runtimeRescanCancel is not null || _runtimeRescanIssued || _runtimeAcquisition is not { HasRuntimeRescanContext: true } original || _services is null)
+            if (_disposed || _runtimeRescanCancel is not null || _runtimeBranchCancel is not null || _runtimeRescanIssued || _runtimeAcquisition is not { HasRuntimeRescanContext: true } original || _services is null)
                 return;
             using var actual = _actualWork.Enter();
             using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_selectionLifetime.Token);

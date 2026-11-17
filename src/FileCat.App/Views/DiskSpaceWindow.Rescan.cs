@@ -16,7 +16,9 @@ public sealed partial class DiskSpaceWindow
         {
             if (_disposed) return;
             RefreshRecordedResultAvailability();
-            string? refusal = Model.RescanUnavailableReason ?? (!_window._admissionPool.HasCapacity ? _window._admissionPool.Refusal : null);
+            RefreshBranchAvailability();
+            string? refusal = _branchRefresh is not null ? "A branch refresh is already running." :
+                Model.RescanUnavailableReason ?? (!_window._admissionPool.HasCapacity ? _window._admissionPool.Refusal : null);
             _rescan.IsEnabled = refusal is null;
             string detail = refusal ?? "Revalidate and scan the same captured locations with the same component policy. Open the new epoch in another tab; keep this result, marks and review basket. Focus is retained only where entry identity can be verified.";
             if (_rescanReason == detail) return;
@@ -27,7 +29,7 @@ public sealed partial class DiskSpaceWindow
 
         private async Task RescanAllAsync()
         {
-            if (_disposed || !Model.CanRescan) return;
+            if (_disposed || _branchRefresh is not null || !Model.CanRescan) return;
             AnalysisSessionAdmission.Slot? admission = null; DiskSpaceViewModel? refreshed = null;
             using var actual = _actualWork.Enter();
             try

@@ -114,6 +114,7 @@ public sealed partial class DiskSpaceWindow
         private void RefreshSelection()
         {
             if (_disposed) return;
+            RefreshBranchAvailability();
             ScheduleMarkVisibility();
             _markFocused.IsEnabled = _focus != 0;
             _showCapturedFolder.IsEnabled = _focus != 0;

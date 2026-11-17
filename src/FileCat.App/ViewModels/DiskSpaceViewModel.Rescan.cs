@@ -23,6 +23,10 @@ public sealed partial class DiskSpaceViewModel
             ? "Source closure could not be confirmed. Keep this result and restart FileCat before another scan." :
         Tree is null ? "Wait for the captured result to be displayed." : AnalysisAdmission.Refusal();
     public bool CanRescan => RescanUnavailableReason is null;
+    internal AnalysisIndexedAcquisition? BranchRuntime => !_disposed && !IsPreparing && !IsRescanning && !Running &&
+        !IsIndexedRuntimePreview && _bindingCloseError is null && !_actualWork.HasUnconfirmedClose &&
+        _acquisition is { HasRuntimeBranchContext: true } acquisition ? acquisition : null;
+    internal string? RuntimeChangeHints() => _disposed ? null : _acquisition?.ReadRuntimeChangeHints();
 
     private static string RuntimeReopenLocator(IAnalysisBackend source)
         => AnalysisIndexedAcquisition.RuntimeReopenLocator(source);

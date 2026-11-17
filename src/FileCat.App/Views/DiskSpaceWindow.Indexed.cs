@@ -269,6 +269,7 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetName(provenanceLabel, "Analysis provenance: " + provenance);
             Children.Add(provenanceLabel); Children.Add(toolbar); Children.Add(filters); Children.Add(_summary); Children.Add(_status); Children.Add(navigation); Children.Add(_legend);
             Children.Add(_historyNotice);
+            AddRuntimeChangeHint();
             Children.Add(new ScrollViewer { Content = _breadcrumbs, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto });
             _body.Children.Add(_main); _body.Children.Add(_inspector); Children.Add(_body);
             _main.Children.Add(_treemap); _main.Children.Add(_sunburst); _main.Children.Add(_buckets);
@@ -689,6 +690,7 @@ public sealed partial class DiskSpaceWindow
             {
                 if (!await explorer.InspectAsync(path, alias, fact, issue, maximum: 32) || _disposed || version != _inspection || !ReferenceEquals(explorer, _explorer)) return;
                 var detail = explorer.Inspection!; _shownInspection = detail;
+                RefreshBranchAvailability();
                 var item = _selectedGroupedItem?.NodeId == path ? _selectedGroupedItem : AnalysisIndexedChart.Row(detail.Row, explorer.Metric);
                 var metric = _grouping?.Metric ?? explorer.Metric;
                 var text = new System.Text.StringBuilder();
@@ -755,6 +757,7 @@ public sealed partial class DiskSpaceWindow
         internal Task CloseCompletion { get; private set; } = Task.CompletedTask;
         public void Dispose()
         {
+            _runtimeChangeTimer.Stop();
             if (_disposed) return; _disposed = true; ++_navigation; ++_inspection; _buildCancel?.Cancel(); _navigationCancel?.Cancel();
             _services?.AnalysisSavedReferences.Untrack(this);
             _memberCaptureCancel?.Cancel(); _selectionLifetime.Cancel(); _selection.ClearMarks(); _selection.ClearBasket();

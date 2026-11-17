@@ -318,6 +318,7 @@ public sealed partial class DiskSpaceWindow : Window
             _rescanHelp.Child = _rescan; nav.Children.Add(_rescanHelp);
             AutomationProperties.SetName(_rescanHelp, "Rescan all locations");
             _rescan.Click += async (_, _) => await RescanAllAsync();
+            AddBranchRefreshControls(nav);
             AutomationProperties.SetName(_mode, "Chart view"); AutomationProperties.SetName(_metric, "Analysis metric");
             AutomationProperties.SetName(_group, "Analysis grouping");
             ToolTip.SetTip(_group, new RichTip("Group captured measurements", detail: "Explore by captured folders, file type, extension, modification age or location. Shared charges are counted once. Changing grouping keeps marks and the review basket."));
@@ -351,6 +352,7 @@ public sealed partial class DiskSpaceWindow : Window
             ToolTip.SetTip(_sort, new RichTip("Sort observed table rows", detail: "Numeric sorting uses exact recorded integers. Missing numeric values follow known amounts in either direction. Partial amounts rank by their known subtotal. Charts keep their accounting order; focus and marks keep their observation identities."));
             toolbar.Children.Add(nav); toolbar.Children.Add(_breadcrumbs); toolbar.Children.Add(_scope); toolbar.Children.Add(_summary); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(ordering); toolbar.Children.Add(_legend); toolbar.Children.Add(_error);
             AddRecordedResultControls(toolbar);
+            toolbar.Children.Add(_runtimeChangeHint);
             _dataControls.AddRange([_pause, _inspect, _save, _compare, _breadcrumbs, _scope, _summary, _coverage, filters, ordering]);
             Grid.SetRow(toolbar, 1); Children.Add(toolbar);
             _chartHost.Children.Add(_treemap); _chartHost.Children.Add(_sunburst); _explorer.Children.Add(_chartHost);
@@ -445,7 +447,7 @@ public sealed partial class DiskSpaceWindow : Window
             _filterTimer.Tick += (_, _) => { _filterTimer.Stop(); Model.Query = _query.Text ?? ""; _ = Model.RebuildAsync(true); };
             foreach (var chart in new AnalysisChartControl[] { _treemap, _sunburst })
             { chart.Activated += ActivateItem; chart.InteractionChanged += Model.Interaction; chart.InteractionChanged += active => _color.IsEnabled = !active; }
-            _timer.Tick += async (_, _) => { if (IsEffectivelyVisible) { await Model.RebuildAsync(); RefreshRescanAvailability(); } };
+            _timer.Tick += async (_, _) => { if (IsEffectivelyVisible) { await Model.RebuildAsync(); RefreshRescanAvailability(); RefreshRuntimeChangeHint(); } };
             AttachedToVisualTree += (_, _) => { _timer.Start(); _ = Model.RebuildAsync(true); };
             DetachedFromVisualTree += (_, _) => _timer.Stop();
             Model.Changed += Refresh;

@@ -222,6 +222,8 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
         await _imports.CloseAsync().ConfigureAwait(false);
         Exception? failure = null;
         void Remember(Exception error) => failure = AnalysisViewWork.PreserveCloseFailure(failure, error);
+        try { await CloseRuntimeChangeHintsAsync().ConfigureAwait(false); }
+        catch (Exception error) { Remember(error); }
         if (_session is { } session)
         {
             try { session.Stop(); }
