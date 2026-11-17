@@ -220,6 +220,51 @@ public sealed class WindowsEfsJobTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Fact]
+    public void Default_recovery_workflow_requires_setup_and_an_explicit_recovery_choice_after_backup_failure()
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-efs-job-recovery-workflow-").FullName;
+        try
+        {
+            string path = Write(root, "clear.txt");
+            var manager = Manager(root, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            var requests = new List<DecisionRequest>();
+            bool allWaitingAndClear = true;
+            manager.DecisionRequested += pending =>
+            {
+                requests.Add(pending.Request);
+                allWaitingAndClear &= pending.Job.State == JobState.AwaitingDecision && !IsEncrypted(path);
+                Decision answer = pending.Request switch
+                {
+                    ConfirmRequest => new(DecisionAction.Proceed),
+                    StorageEfsRecoveryDecision recovery when !recovery.Keys.IsDefaultOrEmpty =>
+                        new(requests.Count == 2 ? DecisionAction.BackUpEfsKey : DecisionAction.DeclareEfsRecovery)
+                        { EfsRecovery = new(recovery.Keys[0].CertificateSha1, 0) },
+                    _ => new(DecisionAction.CancelJob),
+                };
+                pending.Resolve(answer);
+            };
+
+            var job = Run(manager, StorageAction.EncryptEfs, [ItemRef.ForFileSystemPath(path, EntryKind.File)]);
+            AssertCompleted(job, changed: 1, already: 0);
+            Assert.True(allWaitingAndClear);
+            Assert.Equal(3, requests.Count);
+            var setup = Assert.IsType<ConfirmRequest>(requests[0]);
+            Assert.Equal(DecisionAction.CancelJob, setup.InitialAction);
+            Assert.False(setup.OffersApplyToAll);
+            var initial = Assert.IsType<StorageEfsRecoveryDecision>(requests[1]);
+            var retry = Assert.IsType<StorageEfsRecoveryDecision>(requests[2]);
+            Assert.Null(initial.PreviousResult);
+            Assert.Contains("visible FileCat window", retry.PreviousResult);
+            Assert.Equal(initial.Keys, retry.Keys);
+            var recorded = Assert.Single(Evidence(manager, job).Calls);
+            Assert.Equal(StorageEfsRecoveryChoice.DeclaredArrangement, recorded.EfsReviewedKey!.Choice);
+            Assert.Equal(Assert.Single(initial.Keys).CertificateSha1, recorded.EfsReviewedKey.CertificateSha1);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     private static Decision RequestTestSetup(Job job, string first) => job.Ask(new ConfirmRequest("Set up the EFS test key",
         "Use the disposable VM account's EFS setup fixture.", first, "efs-test-setup", [DecisionAction.Proceed, DecisionAction.CancelJob])
     { InitialAction = DecisionAction.CancelJob, OffersApplyToAll = false });

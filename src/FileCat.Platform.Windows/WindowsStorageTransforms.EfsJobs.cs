@@ -10,6 +10,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
         Func<Job, string, StorageEfsConsent, CancellationToken, StorageEfsRecoveryApproval?> recoveryDecision) =>
         new EfsJobs(this, recoveryDecision ?? throw new ArgumentNullException(nameof(recoveryDecision)));
 
+    internal IStorageTransforms CreateEfsJobCandidate() => CreateEfsJobCandidate(ReviewEfsRecovery);
+
     private sealed class EfsJobs(WindowsStorageTransforms adapter,
         Func<Job, string, StorageEfsConsent, CancellationToken, StorageEfsRecoveryApproval?> recoveryDecision)
         : IStorageTransforms, IStorageEfsJobAdapter
