@@ -67,7 +67,28 @@ public partial class App : Application
             // Periodic autosave keeps the layout recoverable even after a hard crash (plan §19.2).
             var autosave = new DispatcherTimer(TimeSpan.FromSeconds(60), DispatcherPriority.Background, (_, _) => vm.SaveWorkspace(null));
             autosave.Start();
-            vm.Initialize(state);
+            WorkspaceTransfer.Prepared? remembered = null;
+            string? workspaceWarning = null;
+            if (!benchmark && !StartupOptions.ResetLayout && StartupOptions.Workspace is null)
+            {
+                try { remembered = vm.PrepareRememberedWorkspace(); }
+                catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+                {
+                    workspaceWarning = "Could not load the remembered workspace. " + Formatters.SafeName(ex.Message);
+                }
+            }
+            try
+            {
+                vm.Initialize(remembered?.State ?? state);
+                if (remembered is not null)
+                {
+                    if (remembered.Skipped > 0)
+                        workspaceWarning = $"The remembered workspace skipped {remembered.Skipped} unavailable or linked folders.";
+                    vm.RetainWorkspaceTransferPaths(remembered);
+                    remembered = null;
+                }
+            }
+            finally { remembered?.Dispose(); }
             vm.OpenArguments(StartupOptions, initial: true);
             desktop.MainWindow = window;
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
@@ -79,6 +100,8 @@ public partial class App : Application
             };
             if (!benchmark && services.Shell.IsElevated)
                 NotifyAdministratorNotice(vm);
+            if (services.AdministratorTransferWarning is { } appearanceWarning) vm.Notify(appearanceWarning, true);
+            if (workspaceWarning is not null) vm.Notify(workspaceWarning, true);
             if (services.Paths.PortableUnavailableReason is { } portable) vm.Notify(portable, true);
             desktop.Exit += (_, _) =>
             {
@@ -117,7 +140,8 @@ public partial class App : Application
     }
 
     internal static void NotifyAdministratorNotice(MainViewModel vm) =>
-        vm.Notify("FileCat is running as administrator: every operation has full rights, Windows blocks drag and drop from other programs, and changes to its user-profile state are not saved. Start it normally for everyday work.");
+        vm.Notify("FileCat is running as administrator. Operations have full rights, drag and drop from other programs is blocked, and the normal profile is read-only." +
+            (vm.Services.AdministratorTransfers is not null ? " Use Settings to remember copied preferences for later administrator launches." : ""));
 
     /// <summary>
     /// A UI exception is logged with its stack and reported instead of terminating FileCat; jobs keep their

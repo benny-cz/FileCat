@@ -17,7 +17,8 @@ public sealed class AppServices : IDisposable
 {
     private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null, Core.Archives.ArchiveJobBackends? archiveBackends = null,
         Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null, IOwnership? ownershipOverride = null,
-        int metadataCacheSize = 50_000, Func<long>? metadataClock = null, IStorageTransforms? storageTransforms = null)
+        int metadataCacheSize = 50_000, Func<long>? metadataClock = null, IStorageTransforms? storageTransforms = null,
+        FileCat.Platform.Windows.AdministratorTransferRegistry? administratorRegistry = null)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
@@ -31,6 +32,18 @@ public sealed class AppServices : IDisposable
             Settings = JsonFileStore.Load(paths.SettingsFile, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema,
                 () => new AppSettings(), out settingsStatus);
         SettingsStatus = settingsStatus;
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                AdministratorTransfers = AdministratorTransferPreferences.ForProfile(paths, administratorRegistry);
+                AdministratorTransfers?.LoadAppearance(Settings);
+            }
+            catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+            {
+                AdministratorTransferWarning = "Could not load remembered appearance. " + ex.Message;
+            }
+        }
         Settings.Terminal.Upgrade();
         History = JsonFileStore.Load(paths.HistoryFile, StateJsonContext.Default.HistoryState, HistoryState.CurrentSchema,
             () => new HistoryState(), out var historyStatus);
@@ -265,6 +278,9 @@ public sealed class AppServices : IDisposable
     /// <param name="sftpConnector">Tests connect to an in-memory server instead of SSH.NET.</param>
     public static AppServices CreateForPaths(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector);
 
+    internal static AppServices CreateForPathsWithAdministratorRegistry(AppPaths paths,
+        FileCat.Platform.Windows.AdministratorTransferRegistry registry) => new(paths, administratorRegistry: registry);
+
     internal static AppServices CreateForPathsWithStorageTransforms(AppPaths paths, IStorageTransforms storageTransforms) =>
         new(paths, storageTransforms: storageTransforms);
 
@@ -459,6 +475,8 @@ public sealed class AppServices : IDisposable
     }
 
     private readonly WindowsSettingsFile? _windowsSettings;
+    internal AdministratorTransferPreferences? AdministratorTransfers { get; }
+    internal string? AdministratorTransferWarning { get; }
 
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     internal WindowsSettingsFile NormalAppearanceSettings => _windowsSettings

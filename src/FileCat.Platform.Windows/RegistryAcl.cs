@@ -18,17 +18,22 @@ public static partial class RegistryAcl
     public static RegistryAclInfo Inspect(Location location)
     {
         using var key = WindowsRegistryProvider.Open(location, false);
-        uint length = 0;
-        int code = RegGetKeySecurity(key.Handle, OwnerGroupDacl, null, ref length);
-        if (code != InsufficientBuffer && code != 0) throw new Win32Exception(code);
-        if (length == 0 || length > MaxDescriptor) throw new IOException("Registry security descriptor is unavailable or too large.");
-        var bytes = new byte[length];
-        code = RegGetKeySecurity(key.Handle, OwnerGroupDacl, bytes, ref length);
-        if (code != 0) throw new Win32Exception(code);
-        var descriptor = new RawSecurityDescriptor(bytes, 0);
+        var descriptor = ReadDescriptor(key.Handle);
         return new RegistryAclInfo(descriptor.Owner?.Value, descriptor.Group?.Value,
             descriptor.DiscretionaryAcl?.Count ?? 0,
             descriptor.GetSddlForm(AccessControlSections.Owner | AccessControlSections.Group | AccessControlSections.Access));
+    }
+
+    internal static RawSecurityDescriptor ReadDescriptor(SafeRegistryHandle key)
+    {
+        uint length = 0;
+        int code = RegGetKeySecurity(key, OwnerGroupDacl, null, ref length);
+        if (code != InsufficientBuffer && code != 0) throw new Win32Exception(code);
+        if (length == 0 || length > MaxDescriptor) throw new IOException("Registry security descriptor is unavailable or too large.");
+        var bytes = new byte[length];
+        code = RegGetKeySecurity(key, OwnerGroupDacl, bytes, ref length);
+        if (code != 0) throw new Win32Exception(code);
+        return new RawSecurityDescriptor(bytes, 0);
     }
 
     [LibraryImport("advapi32.dll", EntryPoint = "RegGetKeySecurity")]

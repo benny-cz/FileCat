@@ -477,7 +477,7 @@ public static class SettingsDialog
                         if (control is TextBox textBox) textBox.IsReadOnly = true;
                         else if (control is Button or ComboBox or CheckBox or NumericUpDown) control.IsEnabled = false;
             string reason = WindowsTokenAuthority.IsHighIntegrity
-                ? "Administrator Settings are read-only. You can copy appearance for this session."
+                ? "Administrator Settings are read-only. You can copy appearance and open folders from a normal window."
                 : vm.Services.SettingsStatus switch
             {
                 StateLoadStatus.NewerSchemaReadOnly => "These settings were written by a newer FileCat. They can be inspected here, but this version cannot change them.",
