@@ -168,7 +168,7 @@ public sealed unsafe partial class WindowsSparseTransformTests
         {
             var consent = StorageEfsConsent.Capture(Guid.NewGuid(), action, StorageScope.SelectedItems,
                 [pin.Observation.Identity], new(true, action == StorageAction.EncryptEfs));
-            using var held = adapter.OpenEfsPath(pin, consent, ct, afterCall is null ? null : (boundPath, observedAction) =>
+            using var held = adapter.OpenEfsPathForQualification(pin, consent, ct, afterCall is null ? null : (boundPath, observedAction) =>
             {
                 Assert.Equal(StorageAction.EncryptEfs, observedAction);
                 File.Encrypt(boundPath);
