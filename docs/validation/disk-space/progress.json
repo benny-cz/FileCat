@@ -15839,5 +15839,22 @@
     "publicEntryEnabled": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "metadataRecipePreview": {
+    "status": "qualified-internal-slice",
+    "packet": "source-manifest-r1352-metadata-recipes.json",
+    "document": "METADATA_RECIPE_PREVIEW_QUALIFICATION.md",
+    "builtInRules": 5,
+    "coreCasesPerPlatform": 11,
+    "dialogCasesPerPlatform": 2,
+    "nativeWindowRevision": "r1351",
+    "macCompositorReceipt": "source-proof-r1353-recipe-compositor.json",
+    "customRecipesAvailable": false,
+    "duplicateContentPassAvailable": false,
+    "growthInsightsAvailable": false,
+    "candidateStagingAvailable": false,
+    "publicEntryEnabled": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }

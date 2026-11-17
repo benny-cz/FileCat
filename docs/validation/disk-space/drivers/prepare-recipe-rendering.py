@@ -1,0 +1,72 @@
+"""Stage the recipe UI tests with explicit, hashed overlays of the reusable rendering build."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import sys
+import tarfile
+
+revision = sys.argv[1]
+root = Path.cwd()
+temp = root / ".tmp"
+binary = root / "tests/FileCat.Rendering.Tests/bin/Debug/net10.0"
+assemblies = (
+    "FileCat", "FileCat.Archives", "FileCat.Archives.Rar15", "FileCat.Core", "FileCat.CoreCrashHarness", "FileCat.Platform.Windows",
+    "FileCat.Recovery", "FileCat.Remote", "FileCat.Rendering.Tests", "FileCat.SharpCompress", "FileCat.ShellHost",
+)
+allow = {f"{name}.{extension}" for name in assemblies for extension in ("dll", "pdb")}
+allow.update(f"{name}.exe" for name in ("FileCat", "FileCat.CoreCrashHarness", "FileCat.Rendering.Tests", "FileCat.ShellHost"))
+
+def sha(path):
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+proof = {}
+for platform in ("windows", "mac", "linux"):
+    baseline = temp / f"batch-r1334-{platform}/render"
+    template = temp / f"focused-delta-{platform}-r1345"
+    plan = json.loads((template / "plan.json").read_text(encoding="utf-8"))
+    plan["revision"] = revision
+    plan["methods"] = ["*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*"]
+    changes = set()
+    for entry in plan["files"]:
+        name = entry["path"]
+        assert sha(baseline / name) == entry["baselineSha256"], name
+        entry["sha256"] = sha(binary / name)
+        entry["patch"] = entry["sha256"] != entry["baselineSha256"]
+        if entry["patch"]:
+            changes.add(name)
+    assert changes <= allow, f"Review changed rendering inputs: {sorted(changes - allow)}"
+    assert {"FileCat.Core.dll", "FileCat.dll", "FileCat.Rendering.Tests.dll"} <= changes
+    stage = temp / f"focused-delta-{platform}-{revision}"
+    (stage / "patch").mkdir(parents=True)
+    for name in sorted(changes):
+        shutil.copyfile(binary / name, stage / "patch" / name)
+    (stage / "plan.json").write_text(json.dumps(plan, indent=2), encoding="utf-8")
+    if platform != "windows":
+        worker = (template / "run.py").read_text(encoding="utf-8").replace(
+            "(plan['assembly'],plan['assembly'][:-4]+'.pdb','FileCat.dll','FileCat.pdb')", repr(tuple(sorted(changes)))
+        ).replace("[10,10,0,0,0]", "[2,2,0,0,0]")
+        compile(worker, "run.py", "exec")
+        (stage / "run.py").write_text(worker, encoding="utf-8", newline="\n")
+    archive = temp / f"dsa-batch-{platform}-{revision}.tgz"
+    assert not archive.exists()
+    with tarfile.open(archive, "w:gz", compresslevel=4) as output:
+        for path in stage.rglob("*"):
+            if path.is_file():
+                output.add(path, arcname=path.relative_to(stage).as_posix(), recursive=False)
+    suffix = ".ps1" if platform == "windows" else ".sh"
+    runner = (temp / f"batch-{platform}-r1345{suffix}").read_text(encoding="utf-8").replace(
+        sha(temp / f"dsa-batch-{platform}-r1345.tgz"), sha(archive)
+    ).replace("r1345", revision)
+    if platform == "windows":
+        quoted = ",".join(f"'{name}'" for name in sorted(changes))
+        runner = runner.replace("$plan.assembly,($plan.assembly-replace'[.]dll$','.pdb'),'FileCat.dll','FileCat.pdb'", f"@({quoted})").replace(
+            "[int]$a.total-ne10-or[int]$a.passed-ne10", "[int]$a.total-ne2-or[int]$a.passed-ne2"
+        )
+    runner_path = temp / f"batch-{platform}-{revision}{suffix}"
+    runner_path.write_text(runner, encoding="utf-8", newline="\n")
+    proof[platform] = {"archive": sha(archive), "runner": sha(runner_path), "size": archive.stat().st_size, "patch": sorted(changes)}
+(temp / f"cache-input-{revision}").mkdir()
+(temp / f"recipe-rendering-proof-{revision}.json").write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
+print(json.dumps(proof))

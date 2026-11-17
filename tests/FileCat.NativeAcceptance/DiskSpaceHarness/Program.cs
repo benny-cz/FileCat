@@ -173,6 +173,12 @@ internal sealed partial class HarnessApp : Application
         Add("large.bin", 1024 * 1024); Add("Photos/photo.png", 240 * 1024); Add("Archives/archive.zip", 80 * 1024);
         Add("zero.bin", 0); Add("report.csv", 60); Add("Package.app/Contents/readme.md", 11 * 1024);
         Add("Unicode/space and café 😀.txt", 123); Add(".hidden.bin", 321);
+        if (Program.BranchRefreshProbe)
+        {
+            Add("RecipeProject/RecipeProject.csproj", 128);
+            Add("RecipeProject/obj/project.assets.json", 256);
+            Add("RecipeLookalike/obj/project.assets.json", 400);
+        }
         for (int i = 0; i < 500; i++) Add($"Small files/item-{i:D4}.txt", i % 97);
         string aliases = Path.Combine(_fixture, "Aliases"); Directory.CreateDirectory(aliases);
         string original = Path.Combine(_fixture, "large.bin"), alias = Path.Combine(aliases, "large-link.bin");
@@ -272,7 +278,7 @@ internal static class Program
         if (BranchRefreshProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe || IndexedDeferredProbe)) return 64;
         if (IndexedDeferredProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe)) return 64;
         ReplacementCompositorCapture = args.Contains("--replacement-compositor-capture", StringComparer.Ordinal);
-        if (ReplacementCompositorCapture && (!(ReplacementUiProbe || IndexedDeferredProbe) || !OperatingSystem.IsMacOS())) return 64;
+        if (ReplacementCompositorCapture && (!(ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe) || !OperatingSystem.IsMacOS())) return 64;
         if (ReplacementUiProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile)) return 64;
         if (MemoryFallbackProbe && args.Contains("--indexed-probe", StringComparer.Ordinal)) return 64;
         if (ProfileProbe && WindowsInput) return 64;

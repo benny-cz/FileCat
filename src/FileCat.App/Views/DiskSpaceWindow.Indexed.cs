@@ -256,6 +256,7 @@ public sealed partial class DiskSpaceWindow
             var navigation = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             AddIndexedPersistenceControls(navigation);
             AddRuntimeRescanControls(navigation);
+            AddRecipeControls(navigation);
             _back = ActionButton("Back", () => _ = HistoryAsync(false), "Return to the preceding analysis scope.");
             _forward = ActionButton("Forward", () => _ = HistoryAsync(true), "Return to the next analysis scope.");
             _parent = ActionButton("Parent", () => _ = ParentAsync(), "Explore the preceding group level or captured parent directory.");

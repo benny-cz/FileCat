@@ -319,6 +319,7 @@ public sealed partial class DiskSpaceWindow : Window
             AutomationProperties.SetName(_rescanHelp, "Rescan all locations");
             _rescan.Click += async (_, _) => await RescanAllAsync();
             AddBranchRefreshControls(nav);
+            AddRecipeControls(nav);
             AutomationProperties.SetName(_mode, "Chart view"); AutomationProperties.SetName(_metric, "Analysis metric");
             AutomationProperties.SetName(_group, "Analysis grouping");
             ToolTip.SetTip(_group, new RichTip("Group captured measurements", detail: "Explore by captured folders, file type, extension, modification age or location. Shared charges are counted once. Changing grouping keeps marks and the review basket."));
