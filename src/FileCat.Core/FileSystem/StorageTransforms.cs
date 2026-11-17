@@ -116,6 +116,23 @@ public static class StoragePaths
     public static bool IsChildName(ReadOnlySpan<char> name) => !name.IsEmpty && !name.SequenceEqual(".") && !name.SequenceEqual("..")
         && name.IndexOfAny('\\', '/', ':') < 0 && name.IndexOfAny('\0', '*', '?') < 0;
 
+    /// <summary>Pure captured-reference validation. No provider resolution or filesystem access.</summary>
+    public static StorageProblem? SourceProblem(ItemRef? source)
+    {
+        string? message = source switch
+        {
+            null => "The captured item is unavailable.",
+            { Kind: not (EntryKind.File or EntryKind.Directory) } => "Select a file or folder; this item kind cannot use NTFS compression.",
+            _ when !source.Parent.IsFileSystem || source.Parent.Container is not null || source.Parent.Session is not null =>
+                "This item is not an ordinary local filesystem original. Archive, remote and virtual items cannot use NTFS compression.",
+            _ when !IsChildName(source.Name) => "The captured name contains path or stream syntax that FileCat cannot use for storage changes.",
+            _ when !IsOrdinaryLocalPath(source.Parent.Path) => "The original location is not an ordinary local Windows path that FileCat can use for storage changes.",
+            _ when !IsOrdinaryLocalPath(source.Parent.Path.TrimEnd('\\') + "\\" + source.Name) => "The captured storage path is invalid or too long.",
+            _ => null,
+        };
+        return message is null ? null : new(StorageReasonKind.FileCatBoundary, "source-path", message, false);
+    }
+
     public static ImmutableArray<StorageTarget> Capture(IReadOnlyList<ItemRef> sources)
     {
         ArgumentNullException.ThrowIfNull(sources);
@@ -124,10 +141,7 @@ public static class StoragePaths
         for (int i = 0; i < sources.Count; i++)
         {
             var source = sources[i];
-            if (source is null || source.Kind is not (EntryKind.File or EntryKind.Directory) || !source.Parent.IsFileSystem ||
-                source.Parent.Container is not null || source.Parent.Session is not null || !IsChildName(source.Name) ||
-                !IsOrdinaryLocalPath(source.Parent.Path))
-                throw new ArgumentException("Storage transformations require ordinary local filesystem paths without stream syntax.", nameof(sources));
+            if (SourceProblem(source) is { } problem) throw new ArgumentException(problem.Message, nameof(sources));
             // This is the Windows target grammar, even in portable fake tests. Host Path.Join would change the spelling
             // on Unix. Keep only the bounded original filesystem reference, without unrelated provider payloads.
             string path = source.Parent.Path.TrimEnd('\\') + "\\" + source.Name;

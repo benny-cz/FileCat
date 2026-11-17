@@ -163,6 +163,61 @@ public sealed class StorageCommandIntegrationTests
     }
 
     [AvaloniaTheory]
+    [InlineData("remote")]
+    [InlineData("archive")]
+    [InlineData("stream")]
+    public async Task Mixed_or_lexically_refused_selection_discloses_every_original_without_native_inspection(string refusal)
+    {
+        var adapter = new Adapter();
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(storageTransforms: adapter);
+        Task? running = null;
+        try
+        {
+            var tab = vm.ActiveTab!;
+            var set = services.ResultSets.Create("Mixed captured roots", "fixture"); set.FullFolders = true;
+            var parent = refusal switch
+            {
+                "remote" => new Location(Schemes.Sftp, "/original/remote", session: "fixture-profile"),
+                "archive" => new Location("zip", "nested/folder", Location.FileSystem(@"C:\archives\original.zip")),
+                _ => Location.FileSystem(@"C:\refused"),
+            };
+            string name = refusal == "stream" ? "other:stream" : "other\nfile";
+            set.Add(new(Location.FileSystem(@"C:\captured"), "local.txt", EntryKind.File), "");
+            set.Add(new(parent, name, EntryKind.File), ""); set.IsComplete = true;
+            tab.Navigate(ResultSetProvider.LocationOf(set));
+            await Until(() => tab.Listing.State == ListingState.Complete && tab.Listing.TotalCount == 2);
+            tab.Listing.MarkNames(["local.txt", name], true); tab.SetFilter("local*");
+            await Until(() => tab.Listing.AppliedViewSpecVersion == tab.Listing.ViewSpecVersion);
+            running = vm.ExecuteAsync(CommandIds.StorageAttributes);
+            await Until(() => vm.Dialogs.IsOpen && window.GetVisualDescendants().OfType<Expander>().Any());
+            var disclosure = Assert.Single(window.GetVisualDescendants().OfType<Expander>());
+            Assert.True(disclosure.IsExpanded); Assert.Equal("Selected items (2)", disclosure.Header);
+            var details = Assert.Single(disclosure.GetVisualDescendants().OfType<TextBox>(), box => box.IsReadOnly);
+            string captured = details.Text!;
+            Assert.Contains("local.txt", captured); Assert.Contains("C:\\\\captured\\\\local.txt", captured);
+            Assert.Contains("Captured locator:", captured);
+            Assert.Contains(refusal == "stream" ? "other:stream" : "other\\nfile", captured);
+            Assert.Contains("Hidden mark: Yes", captured); Assert.Contains(StoragePaths.SourceProblem(new(parent, name, EntryKind.File))!.Message, captured);
+            Assert.Empty(window.GetVisualDescendants().OfType<RadioButton>());
+            Assert.Empty(adapter.Pins); Assert.Empty(services.Jobs.Jobs);
+            tab.Navigate(Location.FileSystem(root));
+            await Until(() => tab.Listing.State == ListingState.Complete && tab.Location?.Path == root);
+            Assert.Equal(captured, details.Text);
+            var search = Assert.Single(disclosure.GetVisualDescendants().OfType<TextBox>(), box => !box.IsReadOnly);
+            search.Text = @"C:\captured";
+            await Until(() => details.Text != captured);
+            Assert.Contains("local.txt", details.Text); Assert.DoesNotContain(refusal == "stream" ? "other:stream" : "other\\nfile", details.Text);
+            ((OverlayDialogService)vm.Dialogs).CancelAll(); await running;
+            Assert.Empty(adapter.Pins); Assert.Empty(services.Jobs.Jobs);
+        }
+        finally
+        {
+            ((OverlayDialogService)vm.Dialogs).CancelAll(); if (running is not null) await running;
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Find_refuses_storage_until_final_result_or_group_publication_has_finished(bool duplicates)

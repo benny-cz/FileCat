@@ -4,6 +4,8 @@
 
 Exact durable-prefix call pages are implemented in the [call-evidence checkpoint](../validation/filesystem-details/2026-11-17-storage-call-pages.md). Whole-prefix live export and inactive-report page navigation remain open along with the remaining command/review/refresh integration.
 
+Complete mixed-provider/lexically refused captured selections are implemented in the [refusal checkpoint](../validation/filesystem-details/2026-11-17-storage-refused-selection.md), before native review/pin allocation. Invalid immutable reference grammar requires Cancel and changing the selection; Retry inspection applies to references admitted to native review. T-UI/T-CAP remain Partial pending their wider matrices.
+
 **User-approved change:** see the [consent amendment](FILECAT_EFS_COMPRESSION_CONSENT_AMENDMENT_PROPOSAL.md).
 
 This controls the conflicting wording below.
