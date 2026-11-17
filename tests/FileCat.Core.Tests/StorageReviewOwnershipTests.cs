@@ -87,9 +87,11 @@ public sealed class StorageReviewOwnershipTests
     public void Unset_action_unknown_enums_reserved_EFS_and_stale_approval_do_not_consume_the_owner()
     {
         using var temp = new TempDir(); var adapter = new Adapter(); var manager = Manager(temp, adapter);
+        int composedAvailability = adapter.Availability;
+        Assert.Equal(1, composedAvailability); // The manager caches command availability once at composition.
         Assert.Throws<NotSupportedException>(() => manager.PrepareStorageReview([Source()], StorageAction.EncryptEfs, TestContext.Current.CancellationToken));
         Assert.Throws<ArgumentOutOfRangeException>(() => manager.PrepareStorageReview([Source()], (StorageAction)1234, TestContext.Current.CancellationToken));
-        Assert.Equal(0, adapter.Availability); Assert.Equal(0, adapter.Inspections);
+        Assert.Equal(composedAvailability, adapter.Availability); Assert.Equal(0, adapter.Inspections);
         using var unset = manager.PrepareStorageReview([Source()], null, TestContext.Current.CancellationToken);
         Assert.Throws<InvalidOperationException>(() => unset.Approve(StorageAction.Compress, StorageScope.SelectedItems));
         using var review = manager.PrepareStorageReview([Source()], StorageAction.Compress, TestContext.Current.CancellationToken);
