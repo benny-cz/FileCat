@@ -28,6 +28,8 @@ The [outer archive checkpoint](../validation/filesystem-details/2026-11-17-efs-a
 
 **Sparse-file support requested, 17 November 2026:** §5.5 now makes sparse interoperability explicit work rather than leaving it as an indefinite exclusion. Windows documents sparse-file EFS support, but this does not establish FileCat's preservation, pathname, key or output protocol. Existing sparse refusals remain until their action-specific fixtures pass; no operation may silently clear sparse state or materialize holes as a fallback.
 
+The [sparse native transform checkpoint](../validation/filesystem-details/2026-11-17-sparse-native-transforms.md) records successful bounded Windows EFS and compression round trips with main and named stream holes. It also records the named-only case where the main handle exposes no sparse flag. The adapter, concurrency, scale and output gates remain open.
+
 This controls the conflicting wording below.
 
 Finalized planning revision: **17 November 2026**. Intended repository path: `docs/design/FILECAT_NTFS_COMPRESSION_EFS_IMPLEMENTATION_PLAN.md`. Status: **WP1–5 are specified for compression implementation; native release gates remain unrun. EFS mutation is deferred pending a credible replacement protocol.** No production code, filesystem attributes, certificates or keys were changed by this review.
