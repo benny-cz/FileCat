@@ -18,6 +18,7 @@ public sealed partial class DiskSpaceWindow
         private readonly StackPanel _deferredSelectionHost = new() { Spacing = 4 };
         private DialogCloser? _deferredReviewCloser;
         private bool _reviewingDeferredSelection;
+        private bool? _reviewTipUsesRecordedResult;
         private void AddDeferredSelectionControls()
         {
             var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8,
@@ -29,7 +30,6 @@ public sealed partial class DiskSpaceWindow
             _deferSelection.Click += (_, _) => Model.RequestSelectionAfterScan();
             _cancelDeferredSelection.Click += (_, _) => Model.CancelDeferredSelection();
             _reviewDeferredSelection.Click += async (_, _) => await ReviewDeferredSelectionAsync();
-            ToolTip.SetTip(_reviewDeferredSelection, new RichTip("Review final captured matches", detail: "Inspect the exact bounded set captured after this scan completes. Applying adds only these reviewed paths to marks. The review basket and filesystem remain unchanged."));
         }
         private void RefreshDeferredSelection()
         {
@@ -38,6 +38,16 @@ public sealed partial class DiskSpaceWindow
             _cancelDeferredSelection.IsVisible = Model.HasDeferredSelection;
             _reviewDeferredSelection.IsVisible = Model.CanReviewDeferredSelection;
             _reviewDeferredSelection.IsEnabled = Model.CanReviewDeferredSelection && !_reviewingDeferredSelection;
+            bool recorded = Model.HasIndexedDeferredReview || Model.IsIndexedRuntimePreview;
+            if (_reviewTipUsesRecordedResult != recorded)
+            {
+                _reviewTipUsesRecordedResult = recorded;
+                string detail = recorded
+                    ? "Inspect the exact captured matches, then explicitly open them as marks in a new recorded-result tab. This preview's marks and review basket stay unchanged. No files are changed."
+                    : "Inspect the exact bounded set captured after this scan completes. Applying adds only these reviewed paths to marks. The review basket and filesystem remain unchanged.";
+                ToolTip.SetTip(_reviewDeferredSelection, new RichTip("Review final captured matches", detail: detail));
+                AutomationProperties.SetHelpText(_reviewDeferredSelection, detail);
+            }
             string text = Model.DeferredSelectionText ?? Model.DeferredSelectionUnavailableReason ?? "Capture this displayed query and scope, then review its matches after the scan completes.";
             if (_deferredSelectionSummary.Text != text) _deferredSelectionSummary.Text = text;
             AutomationProperties.SetHelpText(_deferSelection, Model.DeferredSelectionUnavailableReason ?? "Request captured matching files for explicit review after this live scan finishes.");
@@ -47,16 +57,19 @@ public sealed partial class DiskSpaceWindow
         private async Task ReviewDeferredSelectionAsync()
         {
             if (_disposed || _reviewingDeferredSelection || !Model.CanReviewDeferredSelection) return;
+            if (Model.HasIndexedDeferredReview) { await ReviewIndexedDeferredSelectionAsync(); return; }
             using var actual = _actualWork.Enter(); using var review = Model.CaptureDeferredSelectionReview();
             _reviewingDeferredSelection = true; var closer = new DialogCloser(); _deferredReviewCloser = closer; Model.Interaction(true);
             try
             {
+                RefreshDeferredSelection();
                 var snapshot = review.Snapshot; var ids = review.Selection.NodeIds;
                 if (_disposed || _window._dialogs.IsOpen) return;
                 int offset = 0;
                 var label = new TextBlock { TextWrapping = TextWrapping.Wrap };
                 var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
-                var list = new ListBox { MinHeight = 100, MaxHeight = 300 };
+                var list = new ListBox { MinHeight = 100, MaxHeight = 300, ItemTemplate = DialogLayout.WrappingListText };
+                ScrollViewer.SetHorizontalScrollBarVisibility(list, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
                 AutomationProperties.SetName(list, "Deferred captured matches");
                 var previous = new Button { Content = "Previous deferred matches" }; var next = new Button { Content = "Next deferred matches" };
                 var apply = new Button { Content = "Add reviewed matches to marks" };

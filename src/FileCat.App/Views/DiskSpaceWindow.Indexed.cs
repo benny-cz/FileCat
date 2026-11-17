@@ -30,7 +30,8 @@ public sealed partial class DiskSpaceWindow
         Func<AnalysisInventoryReceipt?>? openedInventory = null, string? historyNotice = null, IAsyncDisposable? additionalOwner = null,
         AnalysisSessionAdmission.Slot? reservedAdmission = null, AnalysisIndexedAcquisition? runtimeAcquisition = null,
         Func<AnalysisDatasetLease, CancellationToken, Task<AnalysisSavedView?>>? prepareView = null, Func<ulong?>? restoredFocus = null,
-        Func<DiskSpaceViewModel.RecordedResultHandoff>? runtimeHandoff = null, Func<string?>? preparedViewNotice = null)
+        Func<DiskSpaceViewModel.RecordedResultHandoff>? runtimeHandoff = null, Func<string?>? preparedViewNotice = null,
+        AnalysisSelection? reviewedMarks = null)
     {
         AnalysisSessionAdmission.Slot? admission = reservedAdmission;
         try
@@ -104,6 +105,14 @@ public sealed partial class DiskSpaceWindow
             {
                 view._historyOwner = additionalOwner; additionalOwner = null;
                 view._runtimeAcquisition = runtimeAcquisition;
+                if (reviewedMarks is not null)
+                {
+                    var identity = retained.Descriptor.Identity;
+                    if (reviewedMarks.SessionId != identity.SessionId || reviewedMarks.Epoch != identity.Epoch || reviewedMarks.Revision != identity.Revision ||
+                        reviewedMarks.Kind != AnalysisSelectionKind.VisibleMatches || reviewedMarks.NodeIds.Length > AnalysisLimits.ReviewPaths)
+                        throw new InvalidOperationException("Reviewed marks belong to another captured result or exceed its review limit.");
+                    view.SetReviewedMarks(reviewedMarks);
+                }
                 view.SetHistoryNotice(historyNotice);
                 if (openedInventory?.Invoke() is { } receipt) view.RememberOpenedInventory(receipt);
                 view.RefreshRuntimeRescanControls();

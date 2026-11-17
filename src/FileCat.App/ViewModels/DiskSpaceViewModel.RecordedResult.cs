@@ -11,13 +11,19 @@ public sealed partial class DiskSpaceViewModel
         ? "Live preview of a bounded subset. Marks and selection apply to this displayed revision. Open the recorded result after scanning to explore every recorded entry."
         : null);
     internal bool CanOpenRecordedResult => RecordedResultUnavailableReason is null;
-    internal string? RecordedResultUnavailableReason => _disposed ? "This analysis is closed."
+    internal string? RecordedResultUnavailableReason => RecordedResultUnavailableReasonFor(null);
+    private string? RecordedResultUnavailableReasonFor(Guid? reviewedRequest) => _disposed ? "This analysis is closed."
         : !IsIndexedRuntimePreview || _acquisition is null ? "This view has no pending full recorded result."
+        : reviewedRequest is not null && _deferredIndexedReady?.Request != reviewedRequest
+            ? "The deferred selection was canceled or replaced. No reviewed matches were opened."
+        : HasDeferredSelection && (reviewedRequest is null || _deferredIndexedReady?.Request != reviewedRequest)
+            ? "Review or cancel the pending after-scan selection first. This keeps its captured matches with the recorded scan."
         : _actualWork.HasUnconfirmedClose || _bindingCloseError is not null || _session!.SourceCloseFailures != 0
             ? "Source cleanup could not be confirmed. Preserve this result before restarting FileCat."
         : IsPreparing || IsRescanning || !_session!.Completion.IsCompletedSuccessfully || _session.DatasetDescriptor is null
             ? "Wait for the scan and its source handles to finish closing."
-        : _building || _interaction != 0 ? "Finish the current view update or chart interaction first."
+        : _building || _interaction != 0 && !(reviewedRequest is not null && _interaction == 1)
+            ? "Finish the current view update or chart interaction first."
         : Tree is null || _publishedView is null ? "Wait for the preview revision to be displayed."
         : null;
 
@@ -29,9 +35,9 @@ public sealed partial class DiskSpaceViewModel
 
     // Called only after the full view has finished its fallible native preparation. No source
     // factory is decoded from observations. The caller either publishes or rolls back this move.
-    internal RecordedResultHandoff DetachRecordedResultOwner()
+    internal RecordedResultHandoff DetachRecordedResultOwner(Guid? reviewedRequest = null)
     {
-        if (RecordedResultUnavailableReason is { } reason) throw new InvalidOperationException(reason);
+        if (RecordedResultUnavailableReasonFor(reviewedRequest) is { } reason) throw new InvalidOperationException(reason);
         var preview = CaptureDisplayedRevision();
         try { return new(this, preview); }
         catch { preview.Dispose(); throw; }

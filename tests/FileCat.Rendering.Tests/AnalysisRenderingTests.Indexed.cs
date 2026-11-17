@@ -221,6 +221,7 @@ public sealed partial class AnalysisRenderingTests
         internal string PayloadPath => Path.Combine(Root, "source", "folder", "match-target.bin");
         internal byte[] Payload { get; } = [1, 2, 3];
         internal AnalysisDatasetLease? Lease;
+        internal int CapturedPreviewPaths { get; private set; }
         private IndexedFixture() { Root = Path.Combine(_parent, "indexed-window-" + Guid.NewGuid().ToString("N")); }
         internal static async Task<IndexedFixture> CreateAsync(bool unverified = false, bool namespaceEntry = false, bool sharedAlias = false, int extraExtensions = 0, int extraAliases = 0,
             AnalysisComponentPreset components = AnalysisComponentPreset.Standard)
@@ -242,6 +243,7 @@ public sealed partial class AnalysisRenderingTests
                     () => Interlocked.Exchange(ref storage, null) ?? throw new InvalidOperationException("Private owner transferred."), [new(device, () => unverified || namespaceEntry ? new UnverifiedFiles(Prepare(fixture.PrivatePath), unverified) : Prepare(fixture.PrivatePath))], PreviewPaths: 2)); source = null;
                 await session.Completion.WaitAsync(TimeSpan.FromSeconds(45), TestContext.Current.CancellationToken);
                 Assert.Equal(AnalysisPhase.Finished, session.Snapshot().Phase); Assert.Equal(0UL, session.SourceCloseFailures);
+                fixture.CapturedPreviewPaths = session.Snapshot().Nodes.Length;
                 fixture.Lease = await session.AcquireDatasetAsync(TestContext.Current.CancellationToken); Assert.NotNull(fixture.Lease); Assert.Equal(305UL + (namespaceEntry ? 1UL : 0UL) + (sharedAlias ? 1UL : 0UL) + (ulong)extraExtensions + (ulong)extraAliases, fixture.Lease.Descriptor.Paths); completed = true; return fixture;
             }
             finally

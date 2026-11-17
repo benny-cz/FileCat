@@ -98,7 +98,7 @@ public sealed partial class DiskSpaceWindow
                                 (previous.RawName.IsDefaultOrEmpty ? AnalysisRawNames.Encode(previous.NameEncoding, previous.Name).AsSpan() : previous.RawName.AsSpan())
                                     .SequenceEqual(next.RawName.IsDefaultOrEmpty ? AnalysisRawNames.Encode(next.NameEncoding, next.Name) : next.RawName.AsSpan()) ? id : null;
                         }
-                    }, restoredFocus: () => restoredFocus, runtimeHandoff: Model.DetachRecordedResultOwner, preparedViewNotice: () => scopeNotice);
+                    }, restoredFocus: () => restoredFocus, runtimeHandoff: () => Model.DetachRecordedResultOwner(), preparedViewNotice: () => scopeNotice);
                 Model.RecordedResultPublished();
             }
             catch (Exception error) when (IndexedExpectedError(error))

@@ -27,14 +27,15 @@ public sealed partial class AnalysisRenderingTests
         private readonly List<IAnalysisBackend> _sources = [];
         internal bool SourcesDisposed => _sources.Count != 0 && _sources.All(source => source is WindowsAnalysisBackend windows ? windows.IsDisposed : ((UnixAnalysisBackend)source).IsDisposed);
         internal DiskSpaceViewModel Model { get; private set; } = null!;
+        internal FileCat.App.Services.AppServices Services => _fixture.Services;
         internal string Input => Path.Combine(_fixture.Root, "input");
-        internal static async Task<DeferredFixture> CreateAsync(int future = 2, bool partial = false, bool unknownAllocation = false)
+        internal static async Task<DeferredFixture> CreateAsync(int future = 2, bool partial = false, bool unknownAllocation = false, bool indexedStorage = false, bool mixedExtensions = false)
         {
             OrdinaryPreparation(); var fixture = new DeferredFixture(); var fixtureCancellation = DeferredCancellation;
             try
             {
                 Directory.CreateDirectory(Path.Combine(fixture.Input, "waiting")); File.WriteAllBytes(Path.Combine(fixture.Input, "current.txt"), [1]);
-                for (int index = 0; index < future; index++) File.WriteAllBytes(Path.Combine(fixture.Input, "waiting", $"next-{index:D4}.txt"), new byte[16]);
+                for (int index = 0; index < future; index++) File.WriteAllBytes(Path.Combine(fixture.Input, "waiting", $"next-{index:D4}" + (mixedExtensions && index % 2 != 0 ? ".bin" : ".txt")), new byte[16]);
                 if (partial) await CorruptProfileForMemoryAsync(fixture._fixture);
                 fixture.Model = new DiskSpaceViewModel(fixture._fixture.Services, path =>
                 {
@@ -49,7 +50,7 @@ public sealed partial class AnalysisRenderingTests
                         ? entry with { Allocation = AnalysisMeasurement.Missing(MeasurementState.Unsupported) } : entry;
                     IAnalysisBackend source = OperatingSystem.IsWindows() ? new WindowsAnalysisBackend(path, null, BeforeChildren, Observe) : new UnixAnalysisBackend(path, null, BeforeChildren, Observe);
                     fixture._sources.Add(source); return source;
-                });
+                }, indexedStorage);
                 string[] roots = partial ? [fixture.Input, Path.GetDirectoryName(fixture._fixture.Services.Paths.AnalysisScratchDirectory)!] : [fixture.Input];
                 await fixture.Model.StartAsync(roots);
                 try { await fixture.Gate.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), fixtureCancellation); }

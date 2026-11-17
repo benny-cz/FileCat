@@ -35,7 +35,7 @@ public sealed partial class AnalysisRenderingTests
         {
             window.AddSession(model); window.Show(); var clock = Stopwatch.StartNew(); await model.StartAsync([input]);
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)); await Until(() => model.Tree?.Snapshot.Nodes.Length > 0);
-            Assert.True(model.Running); Assert.False(model.CanOpenRecordedResult); Assert.False(model.CanRequestDeferredSelection);
+            Assert.True(model.Running); Assert.False(model.CanOpenRecordedResult); Assert.True(model.CanRequestDeferredSelection);
             Assert.Contains("bounded", model.RuntimePreviewNotice); Assert.DoesNotContain("stops with partial", model.AcquisitionNotice ?? "", StringComparison.Ordinal);
             TestContext.Current.TestOutputHelper?.WriteLine("First visible bounded preview: " + clock.ElapsedMilliseconds + " ms; producer still blocked.");
             gate.Set(); await Until(() => model.Phase == AnalysisPhase.Finished); await model.RebuildAsync(true); await Until(() => model.CanOpenRecordedResult);

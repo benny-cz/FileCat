@@ -20,6 +20,7 @@ public sealed partial class DiskSpaceWindow
     private sealed partial class IndexedSessionView
     {
         private readonly AnalysisSelectionState _selection = new();
+        internal void SetReviewedMarks(AnalysisSelection selection) { _selection.MarkCaptured(selection.NodeIds); RefreshSelection(); }
         private readonly CancellationTokenSource _selectionLifetime = new();
         private CancellationTokenSource? _memberCaptureCancel;
         private bool _capturingMembers, _updatingMarks, _reviewingBasket;
