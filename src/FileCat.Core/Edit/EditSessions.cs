@@ -696,7 +696,9 @@ public sealed partial class EditSessionStore
         string memberPath = member.Parent.Path.Length == 0 ? member.Name : member.Parent.Path + "/" + member.Name;
         var baseline = ArchiveBaseline.Of(archive);
         uint expectedCrc; long expectedLength;
-        using (var catalog = System.IO.Compression.ZipFile.OpenRead(archive))
+        using var archiveBytes = new FileStream(archive, FileMode.Open, FileAccess.Read, FileShare.Read);
+        ArchiveOuterEfs.RequireClear(archiveBytes.SafeFileHandle, ArchiveOuterEfs.EditUnavailable);
+        using (var catalog = new System.IO.Compression.ZipArchive(archiveBytes, System.IO.Compression.ZipArchiveMode.Read, leaveOpen: true))
         {
             if (catalog.Entries.Count > ZipProvider.MaxEntries) throw new InvalidDataException("Too many archive members to prepare an edit.");
             System.IO.Compression.ZipArchiveEntry? found = null;
@@ -714,7 +716,8 @@ public sealed partial class EditSessionStore
         return CreateSession(member.Name, (working,open) =>
         {
             ct.ThrowIfCancellationRequested();
-            var source = Content.ProgressiveContent.Sequential(zip.OpenContent(member)) ?? throw new NotSupportedException("This member is encrypted and cannot be edited here.");
+            var content = zip is ZipProvider provider ? provider.OpenEditContent(member) : zip.OpenContent(member);
+            var source = Content.ProgressiveContent.Sequential(content) ?? throw new NotSupportedException("This member is encrypted and cannot be edited here.");
             return ReadOwned(source, () =>
             {
                 var copy = WriteWorkingCopy(source, working, ct,outputFactory:open);
@@ -878,6 +881,9 @@ public sealed partial class EditSessionStore
         RefuseElevatedSession();
         ct.ThrowIfCancellationRequested();
         if(record.StorageRootIdentity.Length!=0)return PrepareNativeSnapshot(record,ct,check);
+        // The held file denies ordinary writers while its approved content is captured.
+        using var source = new CommitContent(record.WorkingPath);
+        source.RequireClearWorkingFile();
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
         CreatePrivateDirectory(directory);
         string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
@@ -885,7 +891,6 @@ public sealed partial class EditSessionStore
         {
             // Editors that already hold a write handle cause a conservative sharing refusal on Windows.
             // Unix sharing is advisory: length/time checks still apply; this is not a hostile-writer snapshot guarantee.
-            using var source = new CommitContent(record.WorkingPath);
             var copy = WriteWorkingCopy(source, path, ct, check: check);
             File.SetLastWriteTimeUtc(path, source.ModifiedUtc);
             if (fs.ReadOriginMark(record.WorkingPath) is { } mark) PreserveOriginMark(path, mark);
@@ -920,6 +925,9 @@ public sealed partial class EditSessionStore
     {
         RefuseElevatedSession();
         check();
+        using var legacyPin = OperatingSystem.IsWindows() && record.StorageRootIdentity.Length == 0
+            ? new CommitContent(record.WorkingPath) : null;
+        legacyPin?.RequireClearWorkingFile();
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
         CreatePrivateDirectory(directory);
         string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
@@ -945,6 +953,8 @@ public sealed partial class EditSessionStore
             {
                 using var source = Content.ProgressiveContent.Sequential(provider.OpenContent(ItemRef.ForFileSystemPath(record.WorkingPath, EntryKind.File)))
                     ?? throw new IOException("The working copy cannot be read completely.");
+                if (OperatingSystem.IsWindows() && source is FileContentSource local)
+                    ArchiveOuterEfs.RequireClear(local.AttributesFromHeldFile(), ArchiveOuterEfs.WorkingCopyUnavailable);
                 check();
                 bytes = WriteWorkingCopy(source, path, default, check: check);
                 check();
@@ -1048,7 +1058,12 @@ public sealed partial class EditSessionStore
     private sealed class CommitContent : IContentSource
     {
         private readonly FileStream _stream; private readonly string _path;
-        public CommitContent(string path) { _path = path; _stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.RandomAccess); }
+        public CommitContent(string path)
+        {
+            _path = path;
+            _stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.RandomAccess);
+        }
+        internal void RequireClearWorkingFile() => ArchiveOuterEfs.RequireClear(_stream.SafeFileHandle, ArchiveOuterEfs.WorkingCopyUnavailable);
         public string DisplayName => _path;
         public long Length => _stream.Length;
         public bool CanSeek => true;

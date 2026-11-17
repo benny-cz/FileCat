@@ -28,6 +28,8 @@ The [hex provenance checkpoint](../validation/filesystem-details/2026-11-17-efs-
 
 The [outer archive checkpoint](../validation/filesystem-details/2026-11-17-efs-archive-update.md) adds held-target EFS refusal in the native archive and legacy ZIP update routes before rebuilding or snapshotting. Both execution routes refused a ZIP encrypted after review even when the earlier byte and time baseline still matched. Broader restoration/publication and the other E-OUT routes remain open.
 
+The [archive edit checkpoint](../validation/filesystem-details/2026-11-17-efs-archive-edit.md) checks the actual outer ZIP before new edit extraction and the working file before native and legacy commit and Save Copy capture. The Windows VM verified clean refusal and retained read-only access. Nested origins and broader E-OUT8 recovery/output coverage remain open.
+
 **Sparse-file support requested, 17 November 2026:** §5.5 now makes sparse interoperability explicit work rather than leaving it as an indefinite exclusion. Windows documents sparse-file EFS support, but this does not establish FileCat's preservation, pathname, key or output protocol. Existing sparse refusals remain until their action-specific fixtures pass; no operation may silently clear sparse state or materialize holes as a fallback.
 
 The [sparse native transform checkpoint](../validation/filesystem-details/2026-11-17-sparse-native-transforms.md) records successful bounded Windows EFS and compression round trips with main and named stream holes. It also records the named-only case where the main handle exposes no sparse flag. The adapter, concurrency, scale and output gates remain open.

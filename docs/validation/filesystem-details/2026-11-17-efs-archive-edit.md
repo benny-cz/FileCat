@@ -1,0 +1,9 @@
+# EFS at archive edit and working-copy capture
+
+Legacy ZIP edit creation now holds the actual outer archive while checking the EFS attribute, reviewing the member and creating the session. The ZIP content provider also checks the index's held source before extracting a member for an edit. The reviewed native ZIP route makes the same held index check in addition to its existing native outer archive admission. Ordinary ZIP viewing uses its existing path.
+
+Commit and Save Copy refuse a currently EFS-encrypted working file before writing a snapshot or temporary payload. Native sessions check the held working handle in the private edit namespace. Legacy commit and Save Copy hold the file while checking it, and the local content provider's own handle is checked in Save Copy. Read-only review continues to recognize the existing file.
+
+The Windows 11 x64 VM ran as a normal user on local NTFS. A legacy edit refused an outer ZIP encrypted after the original item was captured and whose earlier byte count and modified-time baseline still matched. No edit store was created, and ordinary member reads still worked. Separately, both native and legacy edit records refused commit and Save Copy after their original working file was encrypted outside FileCat. The tests observed no new captured output, unchanged file contents and retained EFS state. The Windows archive and edit regression run passed 94 with zero failures or skips. See `.tmp/filecat-efs-archive-edit-tests.xml` and `.tmp/filecat-efs-archive-edit-results.log`.
+
+The portable ZIP and edit regressions passed 86 cases each on the Ubuntu VM and Mac. Each skipped 19 Windows-only sharing and byte-lock controls. The remote XML is under `.tmp/efs-archive-edit-check/results.xml` in the existing test checkouts. These cases cover the direct outer ZIP and working-file capture boundaries of E-OUT8. Nested container origin and broader recovery/output admission still require their own qualification.

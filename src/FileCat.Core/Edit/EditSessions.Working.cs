@@ -1,3 +1,4 @@
+using FileCat.Core.Archives;
 using FileCat.Core.Resources;
 
 namespace FileCat.Core.Edit;
@@ -97,6 +98,11 @@ public sealed partial class EditSessionStore
         {
             this.directory=directory;this.leaf=leaf;this.ct=ct;
             stream=review?directory.OpenWorkingFileForReview(leaf,ct):directory.OpenWorkingFile(leaf,ct);
+            if (!review)
+            {
+                try { ArchiveOuterEfs.RequireClear(stream.SafeFileHandle, ArchiveOuterEfs.WorkingCopyUnavailable); }
+                catch { stream.Dispose(); throw; }
+            }
         }
         public string DisplayName=>Path.Combine(directory.Path,leaf);
         public long Length=>stream.Length;

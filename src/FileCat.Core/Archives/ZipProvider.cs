@@ -377,7 +377,11 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
 
     // ---- Content -----------------------------------------------------------------------------------------
 
-    public override IContentSource? OpenContent(ItemRef item)
+    public override IContentSource? OpenContent(ItemRef item) => OpenContent(item, retainedEdit: false);
+
+    internal IContentSource? OpenEditContent(ItemRef item) => OpenContent(item, retainedEdit: true);
+
+    private IContentSource? OpenContent(ItemRef item, bool retainedEdit)
     {
         using var source = ZipPath(item.Parent);
         // Resolve nested paths before taking the cache lock; cross-provider spool locks stay ordered.
@@ -392,6 +396,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{full}\" is not in the archive.");
             if (tag.Encrypted) return null;
             if (tag.UnsafeReason is not null) throw new InvalidDataException("This member has an unsafe name: " + tag.UnsafeReason);
+            if (retainedEdit) index.RequireClearEditSource();
             return index.Extract(tag, _tempDirectory);
         }
     }
@@ -468,7 +473,9 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             if (matches.Length != 1 || matches[0].Tag is not { Encrypted: false, UnsafeReason: null } tag)
                 throw new IOException("Direct editing needs one exact regular member. Extract the selected occurrence with F5 instead.");
             // The lease keeps the index open through extraction, whatever the cache does meanwhile.
-            ct.ThrowIfCancellationRequested(); return index.Extract(tag, _tempDirectory);
+            ct.ThrowIfCancellationRequested();
+            index.RequireClearEditSource();
+            return index.Extract(tag, _tempDirectory);
         }
     }
 
@@ -835,6 +842,8 @@ internal sealed class ZipIndex : IDisposable
     /// (<see cref="ProgressiveContent"/>), so the first bytes are there at once. Either way the declared size is not
     /// trusted and the member's checksum is verified (.NET does not check it).
     /// </summary>
+    internal void RequireClearEditSource() => ArchiveOuterEfs.RequireClear(_handle, ArchiveOuterEfs.EditUnavailable);
+
     public IContentSource Extract(ZipMemberTag tag, string tempDirectory)
     {
         LastUsed = DateTime.UtcNow;
