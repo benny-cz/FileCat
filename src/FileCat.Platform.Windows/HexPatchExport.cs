@@ -14,45 +14,15 @@ public sealed record HexPatchFile(string SourcePath, string SourceIdentity, long
 /// Portable record of exact modified ranges. Export never changes the source; applying a patch only stages its
 /// ranges in an editor's overlay after every expected original byte matches.
 /// </summary>
-public static class HexPatchExport
+public static partial class HexPatchExport
 {
     public const string Format = "FileCat fixed-length hex patch v1";
     private const long MaxPatchFileBytes = 64L * 1024 * 1024;
 
     public static void Export(ProtectedHexFile source, HexPatchOverlay overlay, string destination)
     {
-        string full = Path.GetFullPath(destination);
-        if (File.Exists(full) || Directory.Exists(full)) throw new IOException("Patch export requires a new file name; this one already exists.");
-        string temp = Path.Combine(Path.GetDirectoryName(full)!, ".filecat-patch-" + Guid.NewGuid().ToString("N") + ".tmp");
-        overlay.IncludeContributor(source.CaptureHexOrigin());
-        var snapshot = overlay.FreezeForPersistence(); var ranges = snapshot.Ranges;
-        bool created = false;
-        try
-        {
-            if (ranges.Count == 0) throw new IOException("There are no modified bytes to export.");
-            snapshot.RequireUnprotectedOutput("Patch export");
-            source.ValidateForSave(ranges);
-            using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024))
-            {
-                created = true;
-                JsonSerializer.Serialize(stream, new
-                {
-                    format = Format,
-                    sourcePath = source.LocalPath,
-                    sourceIdentity = source.FileIdentity.ToString(),
-                    sourceLength = source.Length,
-                    ranges = ranges.Select(r => new { offset = r.Offset, originalBase64 = Convert.ToBase64String(r.Original),
-                        replacementBase64 = Convert.ToBase64String(r.Replacement) }).ToArray(),
-                }, new JsonSerializerOptions { WriteIndented = true });
-                stream.Flush(flushToDisk: true);
-            }
-            File.Move(temp, full, overwrite: false);
-        }
-        finally
-        {
-            overlay.FinishSave(false);
-            if (created && File.Exists(temp)) File.Delete(temp);
-        }
+        using var review = Prepare(source, overlay, destination);
+        review.Export();
     }
 
     /// <summary>Parses and bounds-checks a patch file; content is untrusted input.</summary>

@@ -71,9 +71,77 @@ public sealed class HexPatchProvenanceTests
             if (undoRedo) { Assert.True(overlay.Undo()); Assert.True(overlay.Redo()); }
             var snapshot = overlay.FreezeForPersistence(); Assert.Contains(snapshot.Contributors, item => item.Protection == HexEfsOriginState.Efs); overlay.FinishSave(false);
             RefusedOutputs(root, file, overlay);
+            string reviewedPath = Path.Join(root, "reviewed.json");
+            using (var review = HexPatchExport.Prepare(file, overlay, reviewedPath))
+            {
+                Assert.True(review.NeedsEfsConsent);
+                review.ApproveEfsExport();
+                review.Export(TestContext.Current.CancellationToken);
+                Assert.False(File.Exists(review.Temporary));
+            }
+            var exported = Assert.Single(HexPatchExport.Read(reviewedPath).Ranges);
+            Assert.Equal(1, exported.Offset);
+            Assert.Equal(new byte[] { 2 }, exported.Original);
+            Assert.Equal(new byte[] { 9 }, exported.Replacement);
+            Assert.Equal(1, overlay.DirtyBytes);
             byte[] actual = new byte[4]; Assert.Equal(4, file.Read(0, actual)); Assert.Equal([1, 2, 3, 4], actual);
         }
         finally { File.Decrypt(patchPath); Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Efs_patch_review_holds_the_output_folder_and_writes_only_after_approval()
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Disposable normal-user Windows EFS input qualification.");
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
+        string root = Directory.CreateTempSubdirectory("filecat-hex-reviewed-patch-").FullName;
+        string target = Path.Join(root, "input");
+        string output = Directory.CreateDirectory(Path.Join(root, "output")).FullName;
+        string destination = Path.Join(output, "patch.json");
+        File.WriteAllBytes(target, [1, 2, 3, 4]);
+        File.Encrypt(target);
+        try
+        {
+            using var file = new ProtectedHexFile(target);
+            using var overlay = new HexPatchOverlay(file);
+            overlay.Write(1, [9]);
+            using (var review = HexPatchExport.Prepare(file, overlay, destination))
+            {
+                Assert.True(review.NeedsEfsConsent);
+                Assert.Equal(destination, review.Destination);
+                Assert.Equal(output, Path.GetDirectoryName(review.Temporary));
+                Assert.Throws<IOException>(() => Directory.Move(output, Path.Join(root, "renamed")));
+                Assert.Empty(Directory.EnumerateFileSystemEntries(output));
+                Assert.Contains("approval", Assert.Throws<IOException>(() => review.Export(TestContext.Current.CancellationToken)).Message);
+            }
+            using (var review = HexPatchExport.Prepare(file, overlay, destination))
+            {
+                review.ApproveEfsExport();
+                Assert.ThrowsAny<OperationCanceledException>(() => review.Export(new CancellationToken(canceled: true)));
+                Assert.Empty(Directory.EnumerateFileSystemEntries(output));
+            }
+            using (var review = HexPatchExport.Prepare(file, overlay, destination))
+            {
+                review.ApproveEfsExport();
+                File.WriteAllText(destination, "competing creation");
+                Assert.Throws<IOException>(() => review.Export(TestContext.Current.CancellationToken));
+                Assert.Equal("competing creation", File.ReadAllText(destination));
+                Assert.False(File.Exists(review.Temporary));
+            }
+            File.Delete(destination);
+            using (var review = HexPatchExport.Prepare(file, overlay, destination))
+            {
+                review.ApproveEfsExport();
+                review.Export(TestContext.Current.CancellationToken);
+                Assert.False(File.Exists(review.Temporary));
+            }
+            Assert.False(File.GetAttributes(destination).HasFlag(FileAttributes.Encrypted));
+            Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(new byte[] { 9 }, Assert.Single(HexPatchExport.Read(destination).Ranges).Replacement);
+            Assert.Equal(1, overlay.DirtyBytes);
+        }
+        finally { Directory.Delete(root, recursive: true); }
     }
 
     private static void RefusedOutputs(string root, ProtectedHexFile file, HexPatchOverlay overlay)

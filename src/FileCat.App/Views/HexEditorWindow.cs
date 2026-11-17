@@ -1117,21 +1117,42 @@ public sealed class HexEditorWindow : Window
             FileTypeChoices = [new FilePickerFileType("FileCat hex patch") { Patterns = ["*.json"] }],
         });
         string? target = picked?.TryGetLocalPath();
-        if (target is null) return;
+        if (target is not null) await ExportPatchToAsync(target);
+    }
+
+    internal async Task ExportPatchToAsync(string target)
+    {
+        if (_closed || !CanEdit || _overlay.DirtyBytes == 0) return;
         SetSaving(true);
+        _copyStop = new CancellationTokenSource();
         try
         {
             var file = _file;
             var overlay = _overlay;
-            int ranges = overlay.SnapshotRanges().Count;
-            await Task.Run(() => HexPatchExport.Export(file, overlay, target));
-            Status($"Exported {Formatters.Plural(ranges, "changed range", "changed ranges")} to {Path.GetFileName(target)}. The file itself was not changed; the edits are still unsaved.");
+            var token = _copyStop.Token;
+            using var review = await Task.Run(() => HexPatchExport.Prepare(file, overlay, target), token);
+            if (review.NeedsEfsConsent)
+            {
+                bool approved = await _dialogs.ConfirmWithCancellationAsync("Export patch without EFS protection?",
+                    $"This patch contains original and replacement file bytes from an edit that used EFS-protected inputs. Anyone who can read the patch can decode those bytes. The destination and its temporary sibling may both store them without EFS protection.\n\nDestination\n{review.Destination}\n\nTemporary file\n{review.Temporary}\n\nIf FileCat is interrupted, the temporary file may remain in this folder.",
+                    "Export patch", danger: true, cancellationToken: token);
+                if (!approved) return;
+                review.ApproveEfsExport();
+            }
+            await Task.Run(() => review.Export(token), token);
+            Status($"Exported {Formatters.Plural(review.RangeCount, "changed range", "changed ranges")} to {Path.GetFileName(target)}. The file itself was not changed; the edits are still unsaved.");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            await _dialogs.AlertAsync("Patch export failed", ex.Message);
+            if (!_closed) await _dialogs.AlertAsync("Patch export failed", ex.Message);
         }
-        finally { SetSaving(false); }
+        finally
+        {
+            _copyStop.Dispose();
+            _copyStop = null;
+            SetSaving(false);
+        }
     }
 
     private async Task ApplyPatchAsync()
