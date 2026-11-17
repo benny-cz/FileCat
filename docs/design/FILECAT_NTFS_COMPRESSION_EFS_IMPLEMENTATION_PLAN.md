@@ -16,6 +16,8 @@ The [native EFS binding checkpoint](../validation/filesystem-details/2026-11-17-
 
 The [EFS consent/evidence checkpoint](../validation/filesystem-details/2026-11-17-efs-consent-evidence.md) adds the shared action/scope/revision/root-bound acknowledgment record, v2 EFS header and per-intent consent references, strict recovery, bounded call-page/export projection and explicit historical report text. The native candidate consumes the same record. This closes neither live EFS approval UI nor key/output admission; their broader E-only ledger rows remain incomplete. Version-1 C evidence and reserved-EFS rejection are retained.
 
+The [fresh key-comparison checkpoint](../validation/filesystem-details/2026-11-17-efs-key-proof.md) adds the E-only typed key observation and bounded read-only CurrentUser lookup, with a property-free certificate context, silent/no-healing comparison and CAPI/CNG ownership. Native software-key tests reproduce cached certificate-A/key-B acceptance and reject it through the fresh path, including non-exportable fixtures. This is partial §7.1 point 3/N-KEY evidence; actual setup associations, recovery/export/provider UI and post-encryption key checks remain open.
+
 **Sparse-file support requested, 17 November 2026:** §5.5 now makes sparse interoperability explicit work rather than leaving it as an indefinite exclusion. Windows documents sparse-file EFS support, but this does not establish FileCat's preservation, pathname, key or output protocol. Existing sparse refusals remain until their action-specific fixtures pass; no operation may silently clear sparse state or materialize holes as a fallback.
 
 This controls the conflicting wording below.
