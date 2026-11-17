@@ -15824,5 +15824,20 @@
     "fullAccessibilityQualified": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "branchRefreshAndDirectChangeHints": {
+    "status": "qualified-internal-slice",
+    "sourceCommit": "1fea0239",
+    "packet": "source-manifest-r1347-branch-refresh.json",
+    "document": "BRANCH_REFRESH_QUALIFICATION.md",
+    "finalFocusedCasesPerPlatform": 10,
+    "nativeWindowRevision": "r1346",
+    "windowsFocusedComparisonCasesPassed": 4,
+    "completeWatcherCoverageQualified": false,
+    "physicalInputQualified": false,
+    "fullAccessibilityQualified": false,
+    "publicEntryEnabled": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }

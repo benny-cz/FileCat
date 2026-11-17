@@ -1,0 +1,238 @@
+{
+  "buildBase": "fa073e58d345b39c62673c44464265605c15163f",
+  "sourceCommit": "1fea0239dbd6d8b088bc2eb835aab7b37ef8d96d",
+  "checks": {
+    "windows/r1334": {
+      "total": 6,
+      "passed": 4,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    "windows/r1336": {
+      "total": 851,
+      "passed": 850,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "windows/r1339": {
+      "total": 854,
+      "passed": 852,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 1
+    },
+    "windows/r1345": {
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "windows/r1346": {
+      "finished": true,
+      "passed": true,
+      "sessions": 3,
+      "branchRoot": "Photos",
+      "observed": [
+        "after-scan.txt",
+        "photo.png"
+      ],
+      "hint": "Possibly stale: fixture. Refresh a folder or rescan the locations to record new observations. Direct changes watched at 1 of 1 selected locations. Other changes can go undetected.",
+      "originalMarksAndBasketKept": true,
+      "newFilesPreserved": true,
+      "input": "native window control events"
+    },
+    "mac/r1334": {
+      "total": 6,
+      "passed": 4,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    "mac/r1336": {
+      "total": 851,
+      "passed": 851,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "mac/r1339": {
+      "total": 854,
+      "passed": 854,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "mac/r1345": {
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "mac/r1346": {
+      "finished": true,
+      "passed": true,
+      "sessions": 3,
+      "branchRoot": "Photos",
+      "observed": [
+        "after-scan.txt",
+        "photo.png"
+      ],
+      "hint": "Possibly stale: fixture. Refresh a folder or rescan the locations to record new observations. Direct changes watched at 1 of 1 selected locations. Other changes can go undetected.",
+      "originalMarksAndBasketKept": true,
+      "newFilesPreserved": true,
+      "input": "native window control events"
+    },
+    "ubuntu/r1334": {
+      "total": 6,
+      "passed": 4,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    "ubuntu/r1336": {
+      "total": 851,
+      "passed": 851,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "ubuntu/r1339": {
+      "total": 854,
+      "passed": 854,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "ubuntu/r1345": {
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "ubuntu/r1346": {
+      "finished": true,
+      "passed": true,
+      "sessions": 3,
+      "branchRoot": "Photos",
+      "observed": [
+        "after-scan.txt",
+        "photo.png"
+      ],
+      "hint": "Possibly stale: fixture. Refresh a folder or rescan the locations to record new observations. Direct changes watched at 1 of 1 selected locations. Other changes can go undetected.",
+      "originalMarksAndBasketKept": true,
+      "newFilesPreserved": true,
+      "input": "native window control events"
+    },
+    "windows/r1349": [
+      {
+        "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeIndexedComparisonCatalogRouteUsesEntireRevisionsAndPagesBothRecordedSides(metric: FileSize)",
+        "seconds": 6.6549558
+      },
+      {
+        "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeIndexedComparisonCatalogRouteUsesEntireRevisionsAndPagesBothRecordedSides(metric: UniqueFileSize)",
+        "seconds": 4.123984
+      },
+      {
+        "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeIndexedComparisonCatalogRouteUsesEntireRevisionsAndPagesBothRecordedSides(metric: OnDisk)",
+        "seconds": 3.7063948
+      },
+      {
+        "name": "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeIndexedComparisonCatalogRouteUsesEntireRevisionsAndPagesBothRecordedSides(metric: Files)",
+        "seconds": 5.7925613
+      }
+    ]
+  },
+  "scope": "Branch-only native metadata refresh and bounded direct-child change hints for verified live roots.",
+  "publicCommandRegistered": false,
+  "physicalInputQualified": false,
+  "screenReaderQualified": false,
+  "completeWatcherCoverageQualified": false,
+  "fullGoalComplete": false,
+  "finalIndependentReviewPerformed": false,
+  "retained": {
+    "batch-linux-r1334.sh": "bd2c59fc57ba14c9af23ff98417e89bde849448463f96893f52f68d83d95b5e2",
+    "batch-linux-r1336.sh": "03d95e1deef32e6425b21d2353ba7a49911d26f45dff29e32b1eb3ba95d40744",
+    "batch-linux-r1339.sh": "70665f7b3c73d8d4f606bb79dd683a215119089679e086f75b915daff14af708",
+    "batch-linux-r1345.sh": "b67cf714c8494039159dd4b92ec8882affaeb22e683bc9fd6e5e1cea9863fd89",
+    "batch-linux-r1346.sh": "94da5f16ebf36e0d611cc5bed5874b4fad917799d095896d0fcd24accc31d909",
+    "batch-mac-r1334.sh": "447dee15aeebe82e508ba4daf01c83b2665746b45ad1a29470f427146bb927f6",
+    "batch-mac-r1336.sh": "a588be84384a308c86d3bf9ffe2b953bde37ffcf417d93ee8b649311dbdfbb40",
+    "batch-mac-r1339.sh": "3d0f7cdfbc719ae76bef7564ee3dada495961331e7f0f3c48d0b6bb56f716c45",
+    "batch-mac-r1341.sh": "30f10007c5bd8f14de3e7b88a4b02fe13cc6a6dcdd45122626d971a4995182fa",
+    "batch-mac-r1345.sh": "d306bc544ecfb2ae671602fdaf3d061e634a8649cf5e97394236f1bc496a5df9",
+    "batch-mac-r1346.sh": "d4595986a0a77a70435bb84863838e28caea00e278579c122cb707c3f52bfb08",
+    "batch-windows-r1334.ps1": "e7bc84093758a4c6c4c314b226a115f7fd234558d9224c9ba4fd57597d3b6bf2",
+    "batch-windows-r1336.ps1": "956dc2a2314228b7791dcdb23c0f1f0e9cd0eaf1fc044830b7911b5f2188a1f0",
+    "batch-windows-r1339.ps1": "7b494ac85987c05ed445065a3bcd744629769ddf1ad325b638fd6b2ad98678af",
+    "batch-windows-r1345.ps1": "3c644bc199e46529071c635467b7311e28c3e37a136c760f8a3c3ebb824b4488",
+    "batch-windows-r1346.ps1": "75b1762a746dadd327fcc344a55d441bf8247bebae5f0a5eaf29346f72fab80f",
+    "batch-windows-r1349.ps1": "e0ef35e0b134f4fa1fc71a6adcc4ecfbcdc1e4bca6fcc200b1a6a48f852ef5f8",
+    "branch-change-hints-build-r1338.txt": "e82c28c77e74f0098556a2d3c5c84652bca579dfc9ef38d535bb5cd0b9e5c7dd",
+    "branch-refresh-controls-build-r1332.txt": "c20de0866b62f8940a1cd1f9e4e395e05db4a52374a66ffe9d93aef94111a074",
+    "branch-refresh-fixture-build-r1333.txt": "bc5fca019b779526fb1af6c2b55a4f8169d32f462a4aec311dc891d63299816d",
+    "branch-refresh-main-app-proof-r1330.json": "f141709d198bd0bf1433602b45474c2a21a60865f06263a94d62d842ac123972",
+    "branch-refresh-native-build-r1340.txt": "0cff0063e94eec5ab8764e1f4103e3bde0f3ea5d5a9ac68153ea88918379f585",
+    "branch-refresh-native-final-build-r1344.txt": "a3a5ecd740a360b65e1abbee5b7cf3f5685d2c93ce689619c39f09a953eadaa0",
+    "branch-refresh-proof-r1334.json": "01d48774f8829df834d61984a122de6359e1ddddb544066059ef5f2be2771b67",
+    "branch-refresh-proof-r1336.json": "9d0e6b0d0a9b838b9ada141fef90faf70d564196442e824938d72f4168258c6c",
+    "branch-refresh-proof-r1339.json": "e1494f59f1b51af2aa6a9fc028dbce683fa2346c6e0335dca0ad2c118769912b",
+    "branch-refresh-proof-r1345.json": "67fd32b395e18932ec7a29a91ed0d8b56e25e4d06a4a4ed72f03735135d0cd18",
+    "branch-refresh-recorded-fixture-build-r1335.txt": "2518c1f0dc28dcb9d39373cd33bfc948f5debbdb96c2b02f2a89f58c2be97f13",
+    "branch-refresh-scope-final-build-r1344.txt": "c4ab6be2ea6488eb99c8d99d0fd6dcbfb950f4b7777bc69322c12b8bd4440e94",
+    "mac-batch-r1334-post.json": "eeb66fd05977b7bcd3706372efec786df80d4487110d5890fd95b87c7715f3cc",
+    "mac-batch-r1334-results.tgz": "512b9326e576dc0f03790f67adcb7fee9fa77a83f77b40a4dd40bb5a695a0a2a",
+    "mac-batch-r1336-post.json": "e610d059ea4351125444f7aea1a6cbab5be6573001492aac0b7944c5910575e8",
+    "mac-batch-r1336-results.tgz": "00b66a199c49884b407cb55d0d04a796c8cdad92a6d711066ae26e13b234c27b",
+    "mac-batch-r1339-post.json": "e70b7e5e8cd03f590e12b22b2ad7368047609c0c7ddcf222b5d3585cb080fa7d",
+    "mac-batch-r1339-results.tgz": "081ad00c0b3c0019f741fc83e74bfd9126abd10951c0a1eedd50272485688650",
+    "mac-batch-r1345-post.json": "0a1707715bf4635ce60e11de0bd9072c02d20a995d4d8f642c2897bc1feb8fd3",
+    "mac-batch-r1345-results.tgz": "ba6209ef06c8d6f1f174685461ab4e8270b8b68614e6c0633977824d5406bb47",
+    "mac-native-r1341-post.json": "828a30fde258a7e271352d640d9ef5768dd369ede7ba6694c0697a3c7756a5b2",
+    "mac-native-r1341-results.tgz": "559dd63fe2721e4ff86613c2ebc60d45e562f131ed58caccd50b30ebb4ec5e35",
+    "mac-native-r1346-post.json": "4ff9add9bd5dba32cac5e3ef8d205078870d892ae518568db1a9ef68b2aa9142",
+    "mac-native-r1346-results.tgz": "142b0fae97b844367352496f6690e9b1b7c7a5e0d0c5b49c5affe699c19a5f00",
+    "native-branch-proof-r1341.json": "6be51ca7b0c76594135744d98c7b415cb6c2970731161b05205c1db7aad5d0dc",
+    "native-branch-proof-r1346.json": "82ea22e4881b313cffb9871c8b597f78b2f9e029a493442b942d401cc5c773b5",
+    "prepare-branch-refresh-r1336-original.py": "626ef7f688de10e2eb314b2489c3a7be49b804b612eccbfb8fe1ea21baedabc2",
+    "prepare-branch-refresh-r1339-original.py": "620e939090576d79428215aa8c9969bdf5c5f1aa86f54a849391a4f6e62ea0c8",
+    "prepare-native-branch-r1341-original.py": "45ebf5e3aef504e4cf9acfec374a5fda757755f3186751ac1d154724c708e4be",
+    "source-r1334-branch-refresh.tgz": "b5be9aaa7eef4408268d301e188d2d2645a8741cd36ed2fe67c02cba0b203284",
+    "source-r1336-branch-fixture.tgz": "23937d5b740b0e83828b79e86a8cf66dcd7fe7775c9fe5e932dca2a0a014742a",
+    "source-r1339-branch-fixture.tgz": "106065858bba7a456a21d7a3c2b81272f42ca2ddb95063776b923cebb7f1110e",
+    "source-r1345-branch-fixture.tgz": "072c6c61304fd25b3b9c1ac47ead87b5db06b3e59440be89d8bdb2c821511816",
+    "ubuntu-batch-r1334-post.json": "bcc3788b5149f1d5ff81d620eade272ca41702d2f811b1aa6e04b82f8fbd3bf9",
+    "ubuntu-batch-r1334-results.tgz": "79214f3b4a0ef0fd5e16960a049e348c5f0821be4e68661be7f3aeda69cfcc64",
+    "ubuntu-batch-r1336-post.json": "02ac9d3c1b8da973a0068d2c2839933d167541c9322d8b72ded75f5da9ec267f",
+    "ubuntu-batch-r1336-results.tgz": "b033b48ec276633296d775f271d7e251cb60adae99410e0220432102f14dd479",
+    "ubuntu-batch-r1339-post.json": "9835184c6e61d70baf12ba06ae63b308412f1c3cf4c277f2bdf7cf11e267ee94",
+    "ubuntu-batch-r1339-results.tgz": "44f5c2ae472300e9c11949547582fb615c6df1c99ac05dd3da136cca4d09cbea",
+    "ubuntu-batch-r1345-post.json": "f6a55de4404d729d7ab7f221f8fd76dd21ebd61d984f5f57b2f68b2acb502950",
+    "ubuntu-batch-r1345-results.tgz": "93eda892ecdf8c602b9b0a223f3833b38f7482d1b1dd7cfc6b9cdc0a818a79a0",
+    "ubuntu-native-r1346-post.json": "66ce1df90c9fac1bd70f641226de5d211cfea667753114f714354bbe583b3656",
+    "ubuntu-native-r1346-results.tgz": "dc916dd9917555c53119339a1973b8da82051b4b9c829c933dfccdd36a19c4fd",
+    "windows-batch-r1330-post.json": "3eb0f32bec86c0e1f6fc476ed1155776040423902e0d2b4d6b0a679168b12b5b",
+    "windows-batch-r1330-results.tgz": "b5d68d6cceb58fc23ac8f57e57584de4ebfa6b1048a6759b2f8c4de68092e8e6",
+    "windows-batch-r1334-post.json": "590bad6fe019a10a2512e2a7771bc5d2d7160f03cf518019a8af15c845d3553e",
+    "windows-batch-r1334-results.tgz": "3c55766d0feb6335bc78db0e28845af5e0153348a2063bdcdc0d846288f03308",
+    "windows-batch-r1336-post.json": "8e57fbfb4ffa5326a0a09d4b03720419f44b3877047b71376028c817ffb3ffb8",
+    "windows-batch-r1336-results.tgz": "a4c79604030a6747fc8e4d99533e3cea473239dbd249675ec33f8666f4c46eb0",
+    "windows-batch-r1339-post.json": "6f60fc492796fb64ca2c2c3c8081ffafe5c26b95ea9ccbf07d0bbd22fac68a57",
+    "windows-batch-r1339-results.tgz": "2e22e3994543ee2166ba4f620321cfaf2097ad616c9ff5b973d2b2e1b3119767",
+    "windows-batch-r1345-post.json": "20053520e0f4b0398e8cc6b0b55509a22a294139679bbc8150b0b56da2b68d65",
+    "windows-batch-r1345-results.tgz": "a427cd16040bc30ffe54318bcd4338940011e3ee57da354cf68e2b4c6cab9f00",
+    "windows-batch-r1349-post.json": "2139a6979e3fbcdaffaf2182cb459f0831fe2b066c2232750eebb010eb6a5c31",
+    "windows-batch-r1349-results.tgz": "275e0bc1d68269e24f501fffe4eaf8050dcc21fabb6671c9103f12890d9bdc0e",
+    "windows-native-r1346-post.json": "3b135df31d85bffed1e219c7cd783d245d0954a7482c28e9b70fd9cdfad138ac",
+    "windows-native-r1346-results.tgz": "9c29c586fab8f857d862804db61e0fded449ed4e89fddc11695d994624698211",
+    "windows-native-r1346-task-outcome.json": "265804299972850203fdfbd7466c62a906c13b7b02e7139575480638657056b5"
+  },
+  "archives": {
+    "exact-source-r1347-branch-refresh.tgz": "145d666e6bb8d84437b4f827d6ada505c088a353991d9b583a0a0ec86edb68fe",
+    "exact-receipts-r1347-branch-refresh.tgz": "89bea7f538ac534aaacce1b321f83a841858a3355409e1af31d98fcc46cafb23"
+  }
+}
