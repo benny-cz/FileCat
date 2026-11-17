@@ -97,6 +97,8 @@ public sealed class StorageSelectionReview : IDisposable
         }
         try
         {
+            if (progress is not null)
+                try { progress(State); } catch (Exception ex) { AppLog.Warn("Storage selection observer failed", ex); }
             for (int i = 0; i < Targets.Length; i++)
             {
                 ct.ThrowIfCancellationRequested(); IStorageReviewLease? pin;

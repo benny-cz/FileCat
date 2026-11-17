@@ -71,6 +71,9 @@ public sealed record ChoiceOptions(string Title, IReadOnlyList<ChoiceItem> Items
 /// <summary>A button in a custom dialog; <see cref="Result"/> is returned when chosen.</summary>
 public sealed record DialogButton(string Text, object Result, bool IsDefault = false, bool IsCancel = false, bool IsDanger = false)
 {
+    /// <summary>Optional live text and accessibility, changed together with availability on the UI thread.</summary>
+    public DialogButtonPresentation? Presentation { get; init; }
+
     /// <summary>
     /// When set, the button is enabled only while this is true ("Go to" needs a result): cheap and side-effect free, it
     /// is re-evaluated while the dialog is open.
@@ -82,6 +85,23 @@ public sealed record DialogButton(string Text, object Result, bool IsDefault = f
 
     /// <summary>Runs only on an explicit activation. False keeps this dialog open so field validation can retain the draft and focus.</summary>
     public Func<bool>? Validate { get; init; }
+}
+
+public sealed record DialogButtonSnapshot(string Text, string? AccessibleName = null, string? HelpText = null);
+
+/// <summary>Presentation only. The dialog's existing result, availability and validation own activation.</summary>
+public sealed class DialogButtonPresentation(DialogButtonSnapshot initial)
+{
+    private DialogButtonSnapshot _snapshot = initial ?? throw new ArgumentNullException(nameof(initial));
+    public DialogButtonSnapshot Snapshot => Volatile.Read(ref _snapshot);
+    public event Action? Changed;
+
+    public void Update(DialogButtonSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        Volatile.Write(ref _snapshot, snapshot);
+        Changed?.Invoke();
+    }
 }
 
 /// <summary>Lets a custom dialog's content end it as one of its buttons would (Enter on a search result: "Go to").</summary>
