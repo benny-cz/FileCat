@@ -134,9 +134,9 @@ public sealed partial class AnalysisRenderingTests
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
-    private static async Task Until(Func<bool> predicate, Func<string>? diagnostic = null)
+    private static async Task Until(Func<bool> predicate, Func<string>? diagnostic = null, TimeSpan? timeout = null)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(5));
         while (!predicate() && DateTime.UtcNow < deadline) { Dispatcher.UIThread.RunJobs(); await Task.Delay(10); }
         Assert.True(predicate(), "The requested view state was not published." + (diagnostic is null ? "" : " " + diagnostic()));
     }

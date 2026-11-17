@@ -1,0 +1,763 @@
+{
+  "baseCommit": "dfda8ab86df53ee384a2e7e9443e2c71a6bda5b0",
+  "productRevision": "r1241",
+  "currentFixtureRevision": "r1247",
+  "rawMatrix": {
+    "windows/r1233/epoch": {
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "3.659",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "windows/r1233/app-rescan": {
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "6.241",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "windows/r1233/core": {
+      "total": 2078,
+      "passed": 2022,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 56,
+      "seconds": "306.174",
+      "failedNames": [],
+      "skippedNames": [
+        "FileCat.Core.Tests.PathAndStateTests.FileCats_own_folders_are_its_users_alone_on_Linux_and_macOS",
+        "FileCat.Core.Tests.AnalysisInventoryPathMapTests.UnixNativeOriginalIdMapOutlivesItsWorkspaceOwnerAndClosesAllAnonymousFiles",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.NativePrivateFilesPreserveForeignTokensAndRefuseAChangedProfile",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 4, mode: 384, marker: 0)",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 4, mode: 384, marker: 29)",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 5, mode: 384, marker: 17987)",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 4, mode: 438, marker: 17987)",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 4, mode: 384, marker: 17987)",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.NativePrivateFilesShareCapacityAndRetainItAfterOwnerClose",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.QuarantinedNativeScratchKeepsCrossProcessCapacityUntilActualProcessExit",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.NativePrivateFilesCoordinateOwnedChildrenThroughActualExit(crash: False)",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.NativePrivateFilesCoordinateOwnedChildrenThroughActualExit(crash: True)",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeWorkspaceSharesDirectoryAndQuotaUntilAllArenaReadersClose",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.LinuxScratchCannotBePublishedThroughItsKernelDescriptorButInventoryStagingCan",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeCreateNewRoundTripConflictsAndInterruptedWritesKeepExistingBytes",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixScratchPrivacyOrAncestryLossRefusesFurtherIoAndNeverTouchesTheReplacement",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeRefusesLinksBroadPermissionsAndMovedAncestry",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeExternalIndexKeepsExactRangesAndReleasesRunArtifacts",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.MacNativeExtendedAclGrantIsRefusedBeforePayloadCreation",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeRelatedTablesRetainOneCoherentRevisionAfterOwnerClosure",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeRehydratedReadWitnessRejectsAQueuedDirectoryReplacement",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeWideDirectoryScanSpillsItsLiveFrontierInsteadOfDroppingChildren",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeCoordinatorUsesIndexedStorageAndExcludesItsProtectedDirectory",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeScratchHasNoPayloadNameAfterAbruptProcessDeath",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeMetadataCaptureCoalescesActualHardLinksWithoutReadingFileContent",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeScratchIsAnonymousAndItsReaderSurvivesWriterClosure",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeTypedGraphKeepsItsExactRelatedIndexesAfterOwnerClosure",
+        "FileCat.Core.Tests.AnalysisPrivateRootExclusionTests.ExplicitFileRootInsidePrivateStorageRetainsOnlyExcludedEvidence",
+        "FileCat.Core.Tests.AnalysisOperationFeasibilityTests.UnixHeldChildDoesNotPreventReplacementBeforeUnlinkAt",
+        "FileCat.Core.Tests.AnalysisOperationFeasibilityTests.UnixHeldParentDoesNotPinItsSelectedAncestorBinding",
+        "FileCat.Core.Tests.AnalysisIndexedSessionTests.NativeUnixSourcesExcludePrivateRootsWhenSecureScratchIsUnavailable",
+        "FileCat.Core.Tests.CommandTests.Unix_language_file_fifo_is_ignored_without_waiting_for_a_writer(linked: False)",
+        "FileCat.Core.Tests.CommandTests.Unix_language_file_fifo_is_ignored_without_waiting_for_a_writer(linked: True)",
+        "FileCat.Core.Tests.AnalysisInventoryStageTests.NativeUnixStagingRetainsTheWholeContainerAndOriginalIdMapAfterInputAndWorkspaceClose",
+        "FileCat.Core.Tests.AnalysisProfileTests.NativeUnixProfileStateSurvivesReopenAndRejectsASymlinkWithoutChangingItsTarget",
+        "FileCat.Core.Tests.AnalysisScanningTests.NativeDeepSiblingEnumerationHasBoundedDescriptorChurn",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixQueuedDirectoryRetainsItsAncestorBinding",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixUnreadableDirectoryDoesNotLoseReadableSiblingFiles",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixExplicitHardLinkedFileRootsAreTwoPathsAndOneObject",
+        "FileCat.Core.Tests.AnalysisScanningTests.NativeDirectoryReplacementDuringEnumerationCannotPublishEitherOccupant(restore: False)",
+        "FileCat.Core.Tests.AnalysisScanningTests.NativeDirectoryReplacementDuringEnumerationCannotPublishEitherOccupant(restore: True)",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink(detailed: False)",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink(detailed: True)",
+        "FileCat.Core.Tests.AnalysisScanningTests.NativeRelativeChildrenObserveLinksAndFifosWithoutFollowingOrReadingThem",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixNestedRootsAreCoveredOnceInEitherSelectionOrder(childFirst: False)",
+        "FileCat.Core.Tests.AnalysisScanningTests.UnixNestedRootsAreCoveredOnceInEitherSelectionOrder(childFirst: True)",
+        "FileCat.Core.Tests.AnalysisScanningTests.NativeUnixCreationAndChangeTimesComeFromMetadataAndSurviveTheMemoryAcquisition(fileRoot: False)",
+        "FileCat.Core.Tests.AnalysisScanningTests.NativeUnixCreationAndChangeTimesComeFromMetadataAndSurviveTheMemoryAcquisition(fileRoot: True)",
+        "FileCat.Core.Tests.AnalysisScanningTests.NativeUnixRescanEpochAcceptsNewChildrenButRefusesAReplacedSelectedRoot(replaceRoot: False)",
+        "FileCat.Core.Tests.AnalysisScanningTests.NativeUnixRescanEpochAcceptsNewChildrenButRefusesAReplacedSelectedRoot(replaceRoot: True)",
+        "FileCat.Core.Tests.AnalysisComparisonTests.NativeUnixInventoriesCompareActualGrowthAndHardLinkAttribution",
+        "FileCat.Core.Tests.AnalysisCatalogTests.NativeUnixCatalogCanBeReopenedAndNeverFollowsMetadataLinks",
+        "FileCat.Core.Tests.AnalysisNativeHandleTests.RepeatedUnixPrivateCatalogCursorsReturnTheirNativeReservations",
+        "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeBackendChildCloseFailureStopsNewWorkAndRemainsVisibleAtFinalClosure",
+        "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeFileTokenCloseRefusalKeepsCapacityAfterFinalQuotaCloseUntilActualExit",
+        "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-removed\\\")"
+      ]
+    },
+    "windows/r1233/render": {
+      "total": 801,
+      "passed": 799,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 1,
+      "seconds": "572.576",
+      "failedNames": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeIndexedComparisonCanceledMappingAndAcquisitionPublishNoPartialTab"
+      ],
+      "skippedNames": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RestoredUnixPrivatePathCannotAcceptAReplacementExclusionCapability"
+      ]
+    },
+    "windows/r1241/app-rescan": {
+      "total": 24,
+      "passed": 23,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "20.658",
+      "failedNames": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeOwnedRuntimeViewRescanRestoresScopedCrossPageFocusWithoutRetaggingReviewEntries"
+      ],
+      "skippedNames": []
+    },
+    "windows/r1243/render-r1243": {
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "7.370",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "windows/r1243/render": {
+      "total": 810,
+      "passed": 809,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 1,
+      "seconds": "662.316",
+      "failedNames": [],
+      "skippedNames": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RestoredUnixPrivatePathCannotAcceptAReplacementExclusionCapability"
+      ]
+    },
+    "windows/r1247/render-r1247": {
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "11.737",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "mac/r1233/epoch": {
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "1.165",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "mac/r1233/app-rescan": {
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "3.662",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "mac/r1233/core": {
+      "total": 2078,
+      "passed": 2072,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 6,
+      "seconds": "76.081",
+      "failedNames": [],
+      "skippedNames": [
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.WindowsForeignObjectTypeIsPreservedAndItsPrivateNameDoesNotEscapeTheFailure",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.LinuxScratchCannotBePublishedThroughItsKernelDescriptorButInventoryStagingCan",
+        "FileCat.Core.Tests.PathAndStateTests.Windows_name_rules",
+        "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-release\\\")",
+        "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-close\\\")",
+        "FileCat.Core.Tests.ZipListingRevisionTests.Rows_appear_without_reading_the_whole_archive_and_a_failed_read_is_tried_again"
+      ]
+    },
+    "mac/r1233/render": {
+      "total": 801,
+      "passed": 801,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "253.171",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "mac/r1241/app-rescan": {
+      "total": 24,
+      "passed": 24,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "8.566",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "mac/r1241/render": {
+      "total": 810,
+      "passed": 810,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "251.512",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "mac/r1243/render-r1243": {
+      "total": 9,
+      "passed": 8,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "34.824",
+      "failedNames": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeOwnedRuntimeViewRescanRestoresScopedCrossPageFocusWithoutRetaggingReviewEntries"
+      ],
+      "skippedNames": []
+    },
+    "mac/r1247/render-r1247": {
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "5.286",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "ubuntu/r1233/epoch": {
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "3.605",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "ubuntu/r1233/app-rescan": {
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "4.516",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "ubuntu/r1233/core": {
+      "total": 2078,
+      "passed": 2072,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 6,
+      "seconds": "337.828",
+      "failedNames": [],
+      "skippedNames": [
+        "FileCat.Core.Tests.PathAndStateTests.Windows_name_rules",
+        "FileCat.Core.Tests.AnalysisPrivateStorageTests.MacNativeExtendedAclGrantIsRefusedBeforePayloadCreation",
+        "FileCat.Core.Tests.AnalysisProfileQuotaTests.WindowsForeignObjectTypeIsPreservedAndItsPrivateNameDoesNotEscapeTheFailure",
+        "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-release\\\")",
+        "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-close\\\")",
+        "FileCat.Core.Tests.ZipListingRevisionTests.Rows_appear_without_reading_the_whole_archive_and_a_failed_read_is_tried_again"
+      ]
+    },
+    "ubuntu/r1233/render": {
+      "total": 801,
+      "passed": 801,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "432.027",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "ubuntu/r1241/app-rescan": {
+      "total": 24,
+      "passed": 24,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "10.446",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "ubuntu/r1241/render": {
+      "total": 810,
+      "passed": 810,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "371.385",
+      "failedNames": [],
+      "skippedNames": []
+    },
+    "ubuntu/r1243/render-r1243": {
+      "total": 9,
+      "passed": 8,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "36.330",
+      "failedNames": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeOwnedRuntimeViewRescanRestoresScopedCrossPageFocusWithoutRetaggingReviewEntries"
+      ],
+      "skippedNames": []
+    },
+    "ubuntu/r1247/render-r1247": {
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "6.917",
+      "failedNames": [],
+      "skippedNames": []
+    }
+  },
+  "derivedRenderingCoverage": {
+    "total": 811,
+    "windowsPassed": 810,
+    "windowsSkipped": 1,
+    "macPassed": 811,
+    "ubuntuPassed": 811,
+    "explanation": "Exact r1241 product; full 810-case suites plus the corrected ownership fixture and additional handle-budget recovery case in the test-only r1247 ten-case rerun. Raw failures are retained."
+  },
+  "publicFeatureRegistered": false,
+  "fullW1LifecycleComplete": false,
+  "physicalDesktopAccessibilityQualified": false,
+  "nativeMillionCurrentProductQualified": false,
+  "fullGoalComplete": false,
+  "finalIndependentReviewPerformed": false,
+  "sourceDeltas": [
+    {
+      "path": "r1233/src/FileCat.App/Services/AnalysisIndexedAcquisition.Rescan.cs",
+      "sha256": "32b88558aee84f89b8be56b5489c68264e4e3f9a28c3a7d29c42f58df01384f9"
+    },
+    {
+      "path": "r1233/src/FileCat.App/Services/AnalysisIndexedAcquisition.cs",
+      "sha256": "64da85e4a3fffa2d8b22004dc92797120a103798ca01f6dcb2ef5e37f644848c"
+    },
+    {
+      "path": "r1233/src/FileCat.App/ViewModels/DiskSpaceViewModel.Acquisition.cs",
+      "sha256": "624b73d43f7fd3af82b3e618e1e7b8f8cd814fb6e08a9b6d7adaa23b647ff34c"
+    },
+    {
+      "path": "r1233/src/FileCat.App/ViewModels/DiskSpaceViewModel.Rescan.cs",
+      "sha256": "9c7e09d910a7b0a1d521c2ec8837fdbef0cd0999a38945a37f261915eeec18da"
+    },
+    {
+      "path": "r1233/src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "ab0a43dab48e5cf8c547ac26e95d50827f997527f12afe3dfe4ea40136fab298"
+    },
+    {
+      "path": "r1233/src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "24d14014ece9f3783c834dfc8bbd418f18d4eb8241da6188bc924ad4a87fc144"
+    },
+    {
+      "path": "r1233/src/FileCat.Core/Analysis/AnalysisRefreshNavigation.Indexed.cs",
+      "sha256": "bf0a36c185eef074bf9c5ac1f0eaa176bbb19915f6786375845cb34c003b37ed"
+    },
+    {
+      "path": "r1233/src/FileCat.Core/Analysis/AnalysisRefreshNavigation.cs",
+      "sha256": "23d64acdeb32788ca3578f4b592b067198f9887b4cb74574b360b0ef38ab6190"
+    },
+    {
+      "path": "r1233/tests/FileCat.Core.Tests/AnalysisDatasetTests.RefreshNavigation.cs",
+      "sha256": "ca19da01cf184b1c72628c13bb64ced800fffe39980be9c57f28c675142937e8"
+    },
+    {
+      "path": "r1233/tests/FileCat.Rendering.Tests/AnalysisRenderingTests.IndexedComparisonUi.cs",
+      "sha256": "7ee8e312eb7a7a2793ee5f647428dc83c123e699c53a56e513019d1c1317728d"
+    },
+    {
+      "path": "r1233/tests/FileCat.Rendering.Tests/AnalysisRenderingTests.IndexedRuntimeRescan.cs",
+      "sha256": "493cf5b08999a70ad103bb0faf5d4505dfa8a05f67ea64138369347bc44bfd3e"
+    },
+    {
+      "path": "r1233/tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Navigation.cs",
+      "sha256": "ac6690705a50a594554847d780eb6bc7aca171ab711e4046563a039a7d5f6061"
+    },
+    {
+      "path": "r1241/src/FileCat.App/Services/AnalysisIndexedAcquisition.Rescan.cs",
+      "sha256": "e1035bc966152cf984e3d994003f7155065d403c6f361f3510810de24ad50c63"
+    },
+    {
+      "path": "r1241/src/FileCat.App/Services/AnalysisIndexedAcquisition.cs",
+      "sha256": "64da85e4a3fffa2d8b22004dc92797120a103798ca01f6dcb2ef5e37f644848c"
+    },
+    {
+      "path": "r1241/src/FileCat.App/ViewModels/DiskSpaceViewModel.Acquisition.cs",
+      "sha256": "43951d10d2b0cc763bf7cd1dffffbd4b58802d12fa054bf1b2c5fca525995c92"
+    },
+    {
+      "path": "r1241/src/FileCat.App/ViewModels/DiskSpaceViewModel.Rescan.cs",
+      "sha256": "9c7e09d910a7b0a1d521c2ec8837fdbef0cd0999a38945a37f261915eeec18da"
+    },
+    {
+      "path": "r1241/src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "b6d96266d6590c242ad6d708c880656a6103aa81fb21914eb4fcbbdb65fe100e"
+    },
+    {
+      "path": "r1241/src/FileCat.App/Views/DiskSpaceWindow.IndexedRescan.cs",
+      "sha256": "293e51c842ccc5024200baf161e7a8697db43d0ec10fe5a87a788c56b7176050"
+    },
+    {
+      "path": "r1241/src/FileCat.App/Views/DiskSpaceWindow.OwnedAcquisition.cs",
+      "sha256": "32005d98bcc448794e5b72395c6730f1f9ae495fe82a3f576b98cb41097ad3d7"
+    },
+    {
+      "path": "r1241/src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "5c6c5d9b91caf56a01590be9d41d3798c7ce1105f0811216fe133954c053fa2f"
+    },
+    {
+      "path": "r1241/src/FileCat.Core/Analysis/AnalysisRefreshNavigation.Indexed.cs",
+      "sha256": "bf0a36c185eef074bf9c5ac1f0eaa176bbb19915f6786375845cb34c003b37ed"
+    },
+    {
+      "path": "r1241/src/FileCat.Core/Analysis/AnalysisRefreshNavigation.cs",
+      "sha256": "23d64acdeb32788ca3578f4b592b067198f9887b4cb74574b360b0ef38ab6190"
+    },
+    {
+      "path": "r1241/tests/FileCat.Core.Tests/AnalysisDatasetTests.RefreshNavigation.cs",
+      "sha256": "ca19da01cf184b1c72628c13bb64ced800fffe39980be9c57f28c675142937e8"
+    },
+    {
+      "path": "r1241/tests/FileCat.Rendering.Tests/AnalysisRenderingTests.IndexedComparisonUi.cs",
+      "sha256": "7d27b6f04099e7795731c1ff4a8dff39f8b1957fc9d270811f54ea9277a3ac90"
+    },
+    {
+      "path": "r1241/tests/FileCat.Rendering.Tests/AnalysisRenderingTests.IndexedRuntimeRescan.cs",
+      "sha256": "493cf5b08999a70ad103bb0faf5d4505dfa8a05f67ea64138369347bc44bfd3e"
+    },
+    {
+      "path": "r1241/tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Navigation.cs",
+      "sha256": "9a2109fa8c0af5e1fca2bb827493bd9a23ba2e2bb82ca5a1da8305b4918c2800"
+    },
+    {
+      "path": "r1241/tests/FileCat.Rendering.Tests/AnalysisRenderingTests.OwnedRuntimeView.cs",
+      "sha256": "fbe3803f131c6d5b65f46c75a411e9b888d77bb615853d8da12d63ba01008893"
+    },
+    {
+      "path": "r1243/tests/FileCat.Rendering.Tests/AnalysisRenderingTests.OwnedRuntimeView.cs",
+      "sha256": "edda9f116284d7690d1e69cf12b786d13c13beb45006d65c25f2ac1d874be77e"
+    },
+    {
+      "path": "r1247/tests/FileCat.Rendering.Tests/AnalysisRenderingTests.OwnedRuntimeView.cs",
+      "sha256": "6c30c3d0073f91a536e560541442fd4818c67283396016a08afc0d0880ce7097"
+    }
+  ],
+  "receiptFiles": [
+    {
+      "path": "mac-batch-r1233-post.json",
+      "sha256": "ff61c77094e3e3cf6e617d755821285bab63055fa4585a106f3e887cc64ae461",
+      "bytes": 103
+    },
+    {
+      "path": "mac-batch-r1233-results.tgz",
+      "sha256": "03a86c7913427f2a672072f64eb7af332fcb8edaf47349756cb02505e16dc967",
+      "bytes": 220710
+    },
+    {
+      "path": "mac-batch-r1241-post.json",
+      "sha256": "c1a245181bccc81e690dbbbf03a138b32a3f2b4937430597b15ae91777d81f71",
+      "bytes": 103
+    },
+    {
+      "path": "mac-batch-r1241-results.tgz",
+      "sha256": "6386eeaff781891cf5670ffa59bb0b296c336306e034237e3c983d9f9bd5f331",
+      "bytes": 66751
+    },
+    {
+      "path": "mac-batch-r1243-post.json",
+      "sha256": "2f80f02d4974dbdbc90ebcdb388dd98ccde98a51cba5f23b13eaf3370b0e59d6",
+      "bytes": 103
+    },
+    {
+      "path": "mac-batch-r1243-results.tgz",
+      "sha256": "0887e73ce06e1c905bd7f9454773cc23787bd9d0cf6fe9ba5b15ddb7d7f83e0e",
+      "bytes": 2938
+    },
+    {
+      "path": "mac-batch-r1247-post.json",
+      "sha256": "99325ce5bd51256a7f6db445861668604c46518b8c85dc2340c72854f5582e25",
+      "bytes": 103
+    },
+    {
+      "path": "mac-batch-r1247-results.tgz",
+      "sha256": "c05d6373758dee492bd72567783c96ed4017a34c7165a3f7f63b05aedf46e062",
+      "bytes": 2007
+    },
+    {
+      "path": "ubuntu-batch-r1233-post.json",
+      "sha256": "99fb1f398475641179bb7973d1525a66ddc218ac6b66567989e3dafd8c6025c5",
+      "bytes": 103
+    },
+    {
+      "path": "ubuntu-batch-r1233-results.tgz",
+      "sha256": "ccc7d0c5649d5e640cafb9961b682957f20a1d7d7b5f83028e45442680f08e98",
+      "bytes": 229625
+    },
+    {
+      "path": "ubuntu-batch-r1241-post.json",
+      "sha256": "17aed4f0c2e8d80092b43ea6c2509bb02418223508584d96217d232fc22bb90c",
+      "bytes": 103
+    },
+    {
+      "path": "ubuntu-batch-r1241-results.tgz",
+      "sha256": "b943c6629d8e215737f09a222544e6cd587ac5778f1d7c2ad932edbf6ad64f84",
+      "bytes": 68211
+    },
+    {
+      "path": "ubuntu-batch-r1243-post.json",
+      "sha256": "f8474c0c0f64ff91cb8e4b02d450f30bac8e1aae6db012d120b7bcf148a5621a",
+      "bytes": 103
+    },
+    {
+      "path": "ubuntu-batch-r1243-results.tgz",
+      "sha256": "62c6e0f42df9d1b38649e5f61dfc858eb7db9a0c8fe2e71c9555f8e8d4d4fcea",
+      "bytes": 2974
+    },
+    {
+      "path": "ubuntu-batch-r1247-post.json",
+      "sha256": "d89ddde20a8fe470ca1122d1b895f2603647cd3066b0ae926c64d767cd83bf7f",
+      "bytes": 103
+    },
+    {
+      "path": "ubuntu-batch-r1247-results.tgz",
+      "sha256": "83469688e41b3bb8eefab2b5f8e6fc59aafa97a3f501bb4f528410d140ab655b",
+      "bytes": 2046
+    },
+    {
+      "path": "windows-batch-r1233-post.json",
+      "sha256": "7a709e7c51af4a24b13a9d958c9be84c2b59a8e243151b996153fd921fde3788",
+      "bytes": 139
+    },
+    {
+      "path": "windows-batch-r1233-results.tgz",
+      "sha256": "41c71b7ba0aae96a301d4ccd2511019ac8546406d8679de32505c2dc8ae7bf8f",
+      "bytes": 235112
+    },
+    {
+      "path": "windows-batch-r1241-post.json",
+      "sha256": "19036a63354df12818909f0a58ded4bb7bb5583ff57d1156c5b871605ee6a5be",
+      "bytes": 139
+    },
+    {
+      "path": "windows-batch-r1241-results.tgz",
+      "sha256": "b1ef06dc73bb276019f234799bf4db30cb550e816f06ae410f151d5ca739fca4",
+      "bytes": 4437
+    },
+    {
+      "path": "windows-batch-r1243-post.json",
+      "sha256": "ff51032bec6e7b99cf9228201e6b6e483e6f8585c6387b049b679fc20d262cb6",
+      "bytes": 139
+    },
+    {
+      "path": "windows-batch-r1243-results.tgz",
+      "sha256": "9e6781dee563f0361e1888e4197f6f1a4f292af2ca481178d97c3300d76c8b77",
+      "bytes": 68660
+    },
+    {
+      "path": "windows-batch-r1247-post.json",
+      "sha256": "a831a477702a23c36e5c468913fdd03caa38ec2dc84ecef83e3ca777b2411ed6",
+      "bytes": 139
+    },
+    {
+      "path": "windows-batch-r1247-results.tgz",
+      "sha256": "a272a4fad92112c59ebf15812e59cde32e6fdd968d41214e217562753c7a9acd",
+      "bytes": 2404
+    }
+  ],
+  "workflowFiles": [
+    {
+      "path": ".tmp/batch-linux-r1233.sh",
+      "sha256": "830633b1a6b5fd85a6b996a54841d0d1004cf46d3e1a013c789f3abdf6589c8f"
+    },
+    {
+      "path": ".tmp/batch-linux-r1241.sh",
+      "sha256": "e640f5a107a3bbfb86a28701daa6eaa19481985ae04039fb8242e6ab9566da6c"
+    },
+    {
+      "path": ".tmp/batch-linux-r1243.sh",
+      "sha256": "ae45f6dd7260aee6cd75658d9cdd1b38a4cb0dfb1a9602b5640081273efd4ac4"
+    },
+    {
+      "path": ".tmp/batch-linux-r1247.sh",
+      "sha256": "0428c1dae6bec9d35dd8b3e2895b990fa0a9451ba195ee08748553473504bba3"
+    },
+    {
+      "path": ".tmp/batch-mac-r1233.sh",
+      "sha256": "2c81d6980be348f862c05d2c44ff391c3306dd8baf1f2c28410085ae858eebd9"
+    },
+    {
+      "path": ".tmp/batch-mac-r1241.sh",
+      "sha256": "09beed416d07a71dc31823f481f23732f7774e55212499ae241a0ea2b9ccdcb2"
+    },
+    {
+      "path": ".tmp/batch-mac-r1243.sh",
+      "sha256": "2477061049d44347ab98046a6e194c0f7e360b0bc42e5b4b4619e9852ad7ae10"
+    },
+    {
+      "path": ".tmp/batch-mac-r1247.sh",
+      "sha256": "701c76a8a814285655da95f8a0e60d5009d99bba69e95fa2f2760f9fd3634f95"
+    },
+    {
+      "path": ".tmp/batch-windows-r1233.ps1",
+      "sha256": "4f0bc02ecd12d433d4129087d6f772e8ff8a6769daec5f407c4577771cb66d73"
+    },
+    {
+      "path": ".tmp/batch-windows-r1241.ps1",
+      "sha256": "9c8dec63e7e6074f301425b3ffbaac2175820351dd769c9e5cb1fef04ee1192d"
+    },
+    {
+      "path": ".tmp/batch-windows-r1243.ps1",
+      "sha256": "65e68f56e14acede60845d096a74691bc1e81606f35ed6b7f75ab52f3b2e7cb7"
+    },
+    {
+      "path": ".tmp/batch-windows-r1247.ps1",
+      "sha256": "4587795dd81138999fca7e579f0020c1a9c4dc02c359853acc7dd6f787d06924"
+    },
+    {
+      "path": ".tmp/focused-delta-linux-r1243/plan.json",
+      "sha256": "47d4875bb3e02d8e871b77f55d6a903f5640c3b5dddf80784e62559311ff931b"
+    },
+    {
+      "path": ".tmp/focused-delta-linux-r1247/plan.json",
+      "sha256": "0ca2f5784d83f509466ef9c8fedbd2704edfdc5e8e96a03c561c92bcc743fe69"
+    },
+    {
+      "path": ".tmp/focused-delta-mac-r1243/plan.json",
+      "sha256": "1bc58ef58a107de12d84663b1c95f45a9bdf36343aa95c6298cac2b201cdc89b"
+    },
+    {
+      "path": ".tmp/focused-delta-mac-r1247/plan.json",
+      "sha256": "1ba42c035baa5cde8f554b16a41e2bb01ea6d8507ded53a91753189eec966e08"
+    },
+    {
+      "path": ".tmp/focused-delta-proof-r1243.json",
+      "sha256": "a92c159b20653276f245e55dfb57f638978f699de6cf4e9c1656f5c77b998dbd"
+    },
+    {
+      "path": ".tmp/focused-delta-proof-r1247.json",
+      "sha256": "fde07e057ceaef9b079704e1d2abf95bf0298ece7592ce4fa52482097937f7ff"
+    },
+    {
+      "path": ".tmp/focused-delta-windows-r1243/plan.json",
+      "sha256": "388cbd0794370cdcd0038f2170fc4ca017cea2c8433368e1e494823279af442f"
+    },
+    {
+      "path": ".tmp/focused-delta-windows-r1247/plan.json",
+      "sha256": "72a63e53014c0e1fb5bb63a5b0d8c644185a71681fb5fd52baa27496a766860b"
+    },
+    {
+      "path": ".tmp/indexed-runtime-helpers-controls-build-r1232.txt",
+      "sha256": "808d8d9bf857009fc86a444a43386f4170a33f71870bf47607451141ad70fd00"
+    },
+    {
+      "path": ".tmp/indexed-runtime-helpers-proof-r1233.json",
+      "sha256": "82982e553290f5ddc90e899f83c1d9ff8d2484fb32fa9df1f1bb9dd35b9542ad"
+    },
+    {
+      "path": ".tmp/indexed-runtime-resource-fixture-final-build-r1246.txt",
+      "sha256": "9d242a2bdd2088053e1d16fe3995b929b0bb7edf69fd2de98b2f4ea8dc456e06"
+    },
+    {
+      "path": ".tmp/indexed-runtime-view-frozen-build-r1240.txt",
+      "sha256": "e91debcc2d820febb084a977b760b72acd63bf4bd9c07db778c3175fc1f290b3"
+    },
+    {
+      "path": ".tmp/owned-fixture-continuation-proof-r1243.json",
+      "sha256": "e51d3a55890fdc745e2d8489fd76438cf14a92f39202532f7d586aa697f534eb"
+    },
+    {
+      "path": ".tmp/owned-fixture-proof-r1247.json",
+      "sha256": "1334c1d2dfc76ee6c23682752b4c2abc3be6100325a11a4fcd635063d39b9e09"
+    },
+    {
+      "path": ".tmp/owned-runtime-view-proof-r1241.json",
+      "sha256": "47bf2a9f7207f8e9b9192b0d3790ebabce2f4d5a0ab953188809adf0858789aa"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-app-fixture-native-r1227.ps1",
+      "sha256": "df2ba24f5b2c9861dbe5ca829050471e94b8bc58617b0a67d02d558794ac5420"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-rescan-ui-r1216.ps1",
+      "sha256": "bdca709787ec4f638bb9fbb1a2fbfd348617d953b7f20b772803d864d008901f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/deploy-batch.ps1",
+      "sha256": "a268e46a28e72314f96501cf3b4afd9642b7dc745f1d220f8b76df41f4089000"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/epoch-app-unix-template-r1194.sh",
+      "sha256": "d6daf238edc60c82b8f6ad721bd7773141ec8d7729c3e63ef2782439cf315c81"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/epoch-app-windows-template-r1195.ps1",
+      "sha256": "24b2cd15076ed939eccdc73f30ac976c03d337b67f38ec3dd612cdf6edc2ccbd"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/extend-owned-fixture-continuation-r1243.py",
+      "sha256": "37f2fb89acf879d32d247885693ecf9f1121e1ca006cd03b45cc658e53deb1e4"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/finalize-indexed-runtime-views-r1248.py",
+      "sha256": "46ef5fe82d2427932f3f0e7d6de6b63499777796a435b39f5318b44f64158c49"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/preflight-indexed-r732.ps1",
+      "sha256": "bb69544f9c7e1309400c9f771c15fc74d11fab070cd51b8f1da6d0f2d0995d40"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-focused-test-delta.ps1",
+      "sha256": "50dd14bde348fb0c6bb3549057c11a6b477f053234ed8573e93c540994c629c4"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-indexed-runtime-helpers-r1233.py",
+      "sha256": "223d976d0076db33c30f42ca8f63aad252bff6964222e722fd01e155f1c7aff4"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-owned-runtime-view-r1241.py",
+      "sha256": "a0ee255b8384c5625134037e84d9744cdc8b3d6c7f611a4bc33d5e082cde11d3"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/run-focused-test-delta.ps1",
+      "sha256": "7f0675b79d56ff235218eabb0bacdae57b962da989af02518d097d401340778b"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/run-focused-test-delta.py",
+      "sha256": "064614ea0f7a96784ca35b43eada1c78231908cf5efa70ceac6cd5b14e80839a"
+    }
+  ],
+  "archives": [
+    {
+      "path": "exact-source-deltas-r1248-indexed-runtime-views.tgz",
+      "sha256": "91b99372b2a184dc15386e4d5765b5a0454e463bf6391747e275401404c86228",
+      "bytes": 102320
+    },
+    {
+      "path": "exact-receipts-r1248-indexed-runtime-views.tgz",
+      "sha256": "0a12672d39f260f31cd81d2b989d2c6c3dd8e4f0d460b4f81d9207eed7893569",
+      "bytes": 908982
+    },
+    {
+      "path": "exact-workflow-r1248-indexed-runtime-views.tgz",
+      "sha256": "f22d40601565cffb957a0a651a9178738fc9902bee0710211cc184364d7b9912",
+      "bytes": 474075
+    }
+  ]
+}

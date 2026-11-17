@@ -23,7 +23,7 @@ foreach($count in 1000,1000000){foreach($shape in 'wide','deep'){
  }
  $name='busy-'+$count+'-'+$shape+'.json';if(Test-Path -LiteralPath (Join-Path $base $name)){$names+=$name}
 }}
-foreach($phase in 'render-@REV@'){foreach($extension in 'xml','log'){ $name=$phase+'.'+$extension;if(Test-Path -LiteralPath (Join-Path $base $name)){$names+=$name}};$name='busy-'+$phase+'.json';if(Test-Path -LiteralPath (Join-Path $base $name)){$names+=$name}}
+foreach($phase in 'render-@REV@','render'){foreach($extension in 'xml','log'){ $name=$phase+'.'+$extension;if(Test-Path -LiteralPath (Join-Path $base $name)){$names+=$name}};$name='busy-'+$phase+'.json';if(Test-Path -LiteralPath (Join-Path $base $name)){$names+=$name}}
 if(Test-Path -LiteralPath (Join-Path $base 'busy-verify.json')){$names+='busy-verify.json'}
 if(!$names.Contains('state.txt')){throw 'Runner state is missing'}
 & tar.exe -czf (Join-Path $base 'results.tgz') @names

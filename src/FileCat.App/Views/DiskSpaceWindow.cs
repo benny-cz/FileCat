@@ -67,6 +67,7 @@ public sealed partial class DiskSpaceWindow : Window
         _notice.IsVisible = _indexedCloseError is not null || _admissionPool.HasFailedClose;
         if (_notice.IsVisible) _notice.Text = AnalysisSessionAdmission.FailedCloseMessage;
         foreach (var session in _sessions.OfType<SessionView>()) session.RefreshRescanAvailability();
+        foreach (var session in _sessions.OfType<IndexedSessionView>()) session.RefreshRuntimeRescanControls();
     }
     private readonly Panel _overlay = new() { IsVisible = false };
     private readonly OverlayDialogService _dialogs;

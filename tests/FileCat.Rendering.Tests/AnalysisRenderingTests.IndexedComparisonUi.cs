@@ -117,7 +117,9 @@ public sealed partial class AnalysisRenderingTests
             // The ordinary catalog route imports an independent Previous graph and must still work.
             Click(window, "Compare…"); await Until(() => ComparisonControl<TextBox>(window, "Saved inventory filename") is not null);
             ComparisonControl<TextBox>(window, "Saved inventory filename")!.Text = "cancel.fcdsa"; Click(window, "Compare captured inventories");
-            await Until(() => window.SessionCount == 2, () => ComparisonText(window));
+            // This includes a full native inventory import and comparison index build. Shared
+            // disposable guests can take more than the short UI-dispatch deadline to finish I/O.
+            await Until(() => window.SessionCount == 2, () => ComparisonText(window), TimeSpan.FromSeconds(30));
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
         Assert.Empty(Directory.GetFiles(profile.Services.Paths.AnalysisScratchDirectory));

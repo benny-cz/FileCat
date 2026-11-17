@@ -1,7 +1,7 @@
 namespace FileCat.Core.Analysis;
 
 /// <summary>Conservative navigation continuity. This never maps marks or operation authority.</summary>
-public static class AnalysisRefreshNavigation
+public static partial class AnalysisRefreshNavigation
 {
     public static string? Map(AnalysisTree previous, AnalysisSnapshot current, string key)
     {

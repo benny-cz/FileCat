@@ -27,10 +27,22 @@ public sealed partial class DiskSpaceWindow
 
     internal async Task<AnalysisDatasetExplorer> AddPreparedIndexedSessionAsync(Func<CancellationToken, Task<AnalysisDatasetLease>> prepareSource,
         AnalysisMetric metric, AnalysisFilterRequest? filter, AnalysisSavedView? saved, CancellationToken cancellation, AppServices? services = null,
-        Func<AnalysisInventoryReceipt?>? openedInventory = null, string? historyNotice = null, IAsyncDisposable? additionalOwner = null)
+        Func<AnalysisInventoryReceipt?>? openedInventory = null, string? historyNotice = null, IAsyncDisposable? additionalOwner = null,
+        AnalysisSessionAdmission.Slot? reservedAdmission = null, AnalysisIndexedAcquisition? runtimeAcquisition = null,
+        Func<AnalysisDatasetLease, CancellationToken, Task<AnalysisSavedView?>>? prepareView = null, Func<ulong?>? restoredFocus = null)
     {
-        Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
-        AnalysisSessionAdmission.Slot? admission = _admissionPool.Acquire();
+        AnalysisSessionAdmission.Slot? admission = reservedAdmission;
+        try
+        {
+            Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
+            admission ??= _admissionPool.Acquire();
+        }
+        catch
+        {
+            var close = additionalOwner?.DisposeAsync().AsTask() ?? Task.CompletedTask;
+            if (admission is not null) await admission.CloseAfterAsync(close); else await close;
+            throw;
+        }
         if (_pendingIndexed++ == 0) _indexedIdle = new(TaskCreationOptions.RunContinuationsAsynchronously);
         AnalysisDatasetLease? retained = null; AnalysisDatasetExplorer? explorer = null;
         Exception? unconfirmed = null;
@@ -38,6 +50,7 @@ public sealed partial class DiskSpaceWindow
         try
         {
             retained = await prepareSource(linked.Token);
+            if (prepareView is not null) saved = await prepareView(retained, linked.Token);
             string? restoreNotice = null; ulong scope = 0, offset = 0; int skipped = 0;
             if (saved is not null)
             {
@@ -68,15 +81,33 @@ public sealed partial class DiskSpaceWindow
                 { restoreNotice = (restoreNotice is null ? "" : restoreNotice + " ") + "The saved Other subset is absent. Showing its captured parent; no selection was restored."; }
                 if (other is not null) { var previous = explorer; explorer = other; await previous.DisposeAsync(); }
             }
+            ulong? focus = restoredFocus?.Invoke();
+            if (focus is { } focused && (saved is null || saved.Grouping == AnalysisGroupingDimension.FolderHierarchy))
+            {
+                if (await explorer.InspectAsync(focused, maximum: 1, cancellation: linked.Token) && explorer.Inspection?.Row.IsVisible == true)
+                {
+                    var position = await explorer.LocateChildAsync(focused, saved is null ? AnalysisHierarchySort.Metric : SavedIndexedSort(saved.Sort), saved?.SortDescending ?? true, linked.Token);
+                    if (position.ParentId == scope) offset = position.Offset / 128 * 128;
+                    else focus = null;
+                }
+                else focus = null;
+            }
             await Task.WhenAll(explorer.LoadPageAsync(scope, saved is null ? AnalysisHierarchySort.Metric : SavedIndexedSort(saved.Sort), offset,
                 cancellation: linked.Token, descending: saved?.SortDescending ?? true), explorer.LoadChartAsync(scope, linked.Token));
             linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
             var view = await IndexedSessionView.CreateAsync(this, retained, explorer, filter ?? new(""), admission, saved, restoreNotice, linked.Token, services);
-            view.SetHistoryNotice(historyNotice);
-            if (openedInventory?.Invoke() is { } receipt) view.RememberOpenedInventory(receipt);
-            view._historyOwner = additionalOwner; additionalOwner = null;
-            try { AddView(view); }
-            catch { retained = null; explorer = null; admission = null; view.Dispose(); throw; }
+            try
+            {
+                view._historyOwner = additionalOwner; additionalOwner = null;
+                view._runtimeAcquisition = runtimeAcquisition;
+                view.SetHistoryNotice(historyNotice);
+                if (openedInventory?.Invoke() is { } receipt) view.RememberOpenedInventory(receipt);
+                view.RefreshRuntimeRescanControls();
+                if (focus is { } restored) await view.RestoreRuntimeFocusAsync(restored);
+                linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
+                AddView(view);
+            }
+            catch { retained = null; explorer = null; admission = null; view.Dispose(); await view.CloseCompletion; throw; }
             retained = null; admission = null; var result = explorer; explorer = null; return result;
         }
         catch (Exception error) when (AnalysisCloseUnconfirmedException.IsPresent(error)) { unconfirmed = error; throw; }
@@ -159,7 +190,7 @@ public sealed partial class DiskSpaceWindow
         private int _navigation, _inspection;
         private bool _disposed, _building, _again, _publishing;
         private string? _rootId;
-        public bool HasTemporaryWork => _persistenceBusy || _selection.Marks.Count != 0 || _selection.Basket.Count != 0 ||
+        public bool HasTemporaryWork => _persistenceBusy || _runtimeRescanCancel is not null || _selection.Marks.Count != 0 || _selection.Basket.Count != 0 ||
             !_revisionSaved && _source.Descriptor.Origin == AnalysisOrigin.LiveSession && _source.Descriptor.Persistence == AnalysisPersistence.Temporary;
         public bool IsComparison => false;
 
@@ -199,6 +230,7 @@ public sealed partial class DiskSpaceWindow
             filters.Children.Add(ActionButton("Clear filter", () => { _query.Text = ""; _unknown.IsChecked = false; _ = RebuildAsync(); }, "Clear the query and uncertain-results cohort."));
             var navigation = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             AddIndexedPersistenceControls(navigation);
+            AddRuntimeRescanControls(navigation);
             _back = ActionButton("Back", () => _ = HistoryAsync(false), "Return to the preceding analysis scope.");
             _forward = ActionButton("Forward", () => _ = HistoryAsync(true), "Return to the next analysis scope.");
             _parent = ActionButton("Parent", () => _ = ParentAsync(), "Explore the preceding group level or captured parent directory.");
@@ -621,7 +653,7 @@ public sealed partial class DiskSpaceWindow
             _legend.SetView(color, chart.ObservedUtc);
             _treemap.SetView(chart, scope, focus, _selection.Marks, color); _sunburst.SetView(chart, scope, focus, _selection.Marks, color);
         }
-        private async Task InspectAsync(ulong path, ulong alias = 0, ulong fact = 0, ulong issue = 0)
+        internal async Task InspectAsync(ulong path, ulong alias = 0, ulong fact = 0, ulong issue = 0)
         {
             if (_disposed || _actualWork.HasUnconfirmedClose) return;
             using var actualWork = _actualWork.Enter();
@@ -695,6 +727,7 @@ public sealed partial class DiskSpaceWindow
             _actualWork.RecordUnconfirmedClose(error);
             if (AnalysisCloseUnconfirmedException.IsPresent(error)) _window.RecordIndexedCloseFailure(error);
         }
+        internal Task CloseCompletion { get; private set; } = Task.CompletedTask;
         public void Dispose()
         {
             if (_disposed) return; _disposed = true; ++_navigation; ++_inspection; _buildCancel?.Cancel(); _navigationCancel?.Cancel();
@@ -703,11 +736,13 @@ public sealed partial class DiskSpaceWindow
             _markVisibilityCancel?.Cancel(); _visibilityMarks = null; _markVisibility = null; _visibilityOwner = null;
             CancelTableRange();
             _inventoryCancel?.Cancel(); _inventoryCloser?.Close(false);
+            _runtimeRescanCancel?.Cancel(); StopRuntimeRescan();
             var actualWork = _actualWork.CloseAsync();
             _treemap.Clear(); _sunburst.Clear(); _list.ItemsSource = null; _details.Text = ""; _breadcrumbs.Children.Clear(); _buckets.Children.Clear();
             _shownPage = null; _shownChart = null; _shownInspection = null;
             _groupPage = null; _selectedGroupedItem = null; _chargePage = null;
-            _window.TrackIndexedClose(CloseAsync(actualWork), _admission);
+            CloseCompletion = CloseAsync(actualWork);
+            _window.TrackIndexedClose(CloseCompletion, _admission);
         }
         private async Task CloseAsync(Task actualWork)
         {

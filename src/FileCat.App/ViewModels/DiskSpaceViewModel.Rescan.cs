@@ -25,19 +25,7 @@ public sealed partial class DiskSpaceViewModel
     public bool CanRescan => RescanUnavailableReason is null;
 
     private static string RuntimeReopenLocator(IAnalysisBackend source)
-    {
-        string locator = source.Root.CanonicalLocator;
-        // GetFinalPathNameByHandle records a Win32 extended canonical spelling. The ordinary
-        // source adapter intentionally refuses device namespaces, so reopen the captured local
-        // drive spelling and let the coordinator verify its canonical and physical identities.
-        if (OperatingSystem.IsWindows() && locator.StartsWith("\\\\?\\", StringComparison.Ordinal))
-        {
-            locator = locator[4..];
-            if (locator.Length < 3 || !char.IsAsciiLetter(locator[0]) || locator[1] != ':' || locator[2] != '\\')
-                throw new NotSupportedException("The captured source has no qualified local drive spelling for rescan.");
-        }
-        return locator;
-    }
+        => AnalysisIndexedAcquisition.RuntimeReopenLocator(source);
 
     // A sibling tab keeps every old mark, basket reference, immutable revision and save owner
     // in its original epoch. Numeric path IDs are never silently reassigned to the new result.

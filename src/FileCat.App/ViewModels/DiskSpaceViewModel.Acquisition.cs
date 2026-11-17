@@ -19,6 +19,30 @@ public sealed partial class DiskSpaceViewModel
     internal AppServices? HistoryServices => _services;
     internal CancellationToken HistoryLifetime => _selectionLifetime.Token;
 
+    internal static DiskSpaceViewModel AdoptAcquisition(AnalysisIndexedAcquisition acquisition, AppServices services, AnalysisSavedView? view)
+    {
+        var session = acquisition.RuntimeSession;
+        if (!session.Completion.IsCompletedSuccessfully || session.DatasetDescriptor is not null)
+            throw new InvalidOperationException("Adopt only a completed bounded-memory acquisition here.");
+        var settings = acquisition.RuntimeSettings;
+        var model = new DiskSpaceViewModel(services)
+        {
+            _acquisition = acquisition, _session = session, _runtimeRoots = settings.Locations.ToImmutableArray(),
+            _runtimeComponents = settings.Components, Components = settings.Components, Phase = session.Snapshot().Phase,
+            SourceCloseFailures = session.SourceCloseFailures, _privateStorageUnavailable = acquisition.MemoryPreparationNotice is not null
+        };
+        model.SetContinuityNotice(acquisition.Profile); model.HistoryObservation = model.ObserveHistoryAsync(acquisition);
+        if (view is not null)
+        {
+            model.Metric = view.Metric; model.Chart = view.Chart; model.ColorDimension = view.ColorDimension;
+            model.Grouping = view.Grouping; model.Query = view.Query; model.CaseSensitive = view.CaseSensitive;
+            model.ShowUnknownFilterResults = view.ShowUnknown; model.RootFilter = view.Root; model._rootDisplayIds = view.RootDisplayIds;
+            model.Sort = view.Sort; model.SortDescending = view.SortDescending;
+            // Numeric IDs from an indexed predecessor are never reused for a memory fallback.
+        }
+        return model;
+    }
+
     private static string? PrivateBoundaryNotice(AnalysisSnapshot observations)
     {
         var unavailable = observations.Roots.Where(r => r.Disposition == AnalysisRootDisposition.UnavailablePrivateBoundary).ToArray();

@@ -160,6 +160,11 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(_close is not null, this);
             if (_session is not null || _importStarted) throw new InvalidOperationException("This indexed preparation already owns an acquisition or inventory load.");
+            int sourceCount = sources.Count;
+            if (sourceCount is < 1 or > AnalysisLimits.Roots) throw new ArgumentException("Choose between one and 32 prepared roots.", nameof(sources));
+            if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
+            var locations = new string[sourceCount];
+            for (int i = 0; i < sourceCount; i++) locations[i] = RuntimeReopenLocator(sources[i]);
             var storage = new AnalysisStorageOptions(PathUtil.GetDeviceKey(_privatePaths[1]),
                 () => Interlocked.Exchange(ref _scratch, null) ?? throw new IOException("Private scratch ownership has already transferred."),
                 [new(PathUtil.GetDeviceKey(_privatePaths[0]), () => TakeProtection(0)) { RequiresDisjointSource = _ancestorGuard[0] },
@@ -171,6 +176,7 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
             _session = _rescanPredecessor is { } previous ? coordinator.Rescan(previous, sources, progress, components, storage) :
                 coordinator.Start(sources, progress, components, storage);
             _rescanPredecessor = null;
+            _runtimeLocations = locations; _runtimeComponents = components;
             HistoryCompletion = CompleteHistoryAsync(_session);
             return _session;
         }
