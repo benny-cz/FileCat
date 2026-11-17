@@ -4,6 +4,10 @@
 
 Exact durable-prefix call pages are implemented in the [call-evidence checkpoint](../validation/filesystem-details/2026-11-17-storage-call-pages.md). Whole-prefix live export and inactive-report page navigation remain open along with the remaining command/review/refresh integration.
 
+**User-approved change:** see the [consent amendment](FILECAT_EFS_COMPRESSION_CONSENT_AMENDMENT_PROPOSAL.md).
+
+This controls the conflicting wording below.
+
 Finalized planning revision: **17 November 2026**. Intended repository path: `docs/design/FILECAT_NTFS_COMPRESSION_EFS_IMPLEMENTATION_PLAN.md`. Status: **WP1–5 are specified for compression implementation; native release gates remain unrun. EFS mutation is deferred pending a credible replacement protocol.** No production code, filesystem attributes, certificates or keys were changed by this review.
 
 This document fulfills `docs/design/FILECAT_NTFS_COMPRESSION_EFS_PLANNING_PROMPT.md` and incorporates the earlier [adversarial review](../security/FILECAT_NTFS_COMPRESSION_EFS_PLAN_REVIEW.md), a subsequent three-reviewer challenge, and the **nine independent area reviews with bounded reconciliation checks completed for the preceding NTFS revision**. The 17 November integration update is limited to the companion filesystem roadmap and report-output contract; its eight independent area reviews are recorded there. The current normative decisions are in this document. The linked report and earlier dispositions are historical evidence; the current contracts in §§3–7 and final joint disposition in §10.6 govern superseded wording and UI choices. The implementation launcher in §11 is ready to use in the repository.

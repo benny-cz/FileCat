@@ -39,11 +39,33 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
         ct.ThrowIfCancellationRequested();
         using var path = Walk(target.Path, reviewLeaf: true, ct);
         using var windows = ProtectedWindowsPath(ct);
-        var observation = Observe(path, windows.LeafFacts.Identity, action, ct);
+        var inspection = Inspect(path, windows.LeafFacts.Identity, ct);
+        var observation = inspection.For(action);
         if (observation.IsDirectory != (target.Source.Kind == Core.Resources.EntryKind.Directory))
             throw Changed("kind-changed", "The selected item's kind changed; inspect the selection again.");
-        return new Pin(this, target, observation, action, path.TakeLeaf());
+        return new Pin(this, target, inspection, action, path.TakeLeaf());
     }
+
+    public StorageObservation? EvaluatePinnedRoot(IStorageReviewLease root, StorageAction? action)
+    {
+        if (Unavailable(action ?? StorageAction.Compress) is { } unavailable) throw new StorageInspectionException(unavailable);
+        var pin = RequirePin(root); return pin.Reframe(action);
+    }
+
+    public StorageObservation InspectPinnedRoot(IStorageReviewLease root, StorageAction? action, CancellationToken ct)
+    {
+        if (Unavailable(action ?? StorageAction.Compress) is { } unavailable) throw new StorageInspectionException(unavailable);
+        var pin = RequirePin(root); StorageReviewResources.RequireRootInspection(pin.Target);
+        using var path = Walk(pin.Target.Path, reviewLeaf: false, ct);
+        if (path.LeafFacts.Identity != pin.Observation.Identity || Facts(pin.Handle.File, path.Volume.Binding, ct).Identity != pin.Observation.Identity)
+            throw Changed("review-stale", "The captured path no longer names the live reviewed object. Close this review and select it again.");
+        using var windows = ProtectedWindowsPath(ct);
+        var inspection = Inspect(path, windows.LeafFacts.Identity, ct);
+        ct.ThrowIfCancellationRequested(); return pin.Update(inspection, action);
+    }
+
+    private Pin RequirePin(IStorageReviewLease root) => root is Pin pin && ReferenceEquals(pin.Adapter, this) && pin.IsAlive
+        ? pin : throw Changed("review-pin", "This review no longer owns its original live pin. Close it and select the item again.");
 
     public IStorageTraversal OpenReviewedRoot(IStorageReviewLease root, StorageAction action, CancellationToken ct)
     {
@@ -82,11 +104,18 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
     }
 
     private static StorageObservation Observe(NativePath path, StorageObjectIdentity protectedWindows, StorageAction? action, CancellationToken ct)
-        => Observe(path.Leaf.File, path.LeafFacts.Identity, path.Nodes.Select(n => n.Facts.Identity), path.Nodes[0].Facts.Identity,
-            path.Volume, protectedWindows, action, ct);
+        => Inspect(path, protectedWindows, ct).For(action);
+
+    private static Inspection Inspect(NativePath path, StorageObjectIdentity protectedWindows, CancellationToken ct)
+        => Inspect(path.Leaf.File, path.LeafFacts.Identity, path.Nodes.Select(n => n.Facts.Identity), path.Nodes[0].Facts.Identity,
+            path.Volume, protectedWindows, ct);
 
     private static StorageObservation Observe(SafeFileHandle file, StorageObjectIdentity expected, IEnumerable<StorageObjectIdentity> ancestry,
         StorageObjectIdentity volumeRoot, VolumeFacts volume, StorageObjectIdentity protectedWindows, StorageAction? action, CancellationToken ct)
+        => Inspect(file, expected, ancestry, volumeRoot, volume, protectedWindows, ct).For(action);
+
+    private static Inspection Inspect(SafeFileHandle file, StorageObjectIdentity expected, IEnumerable<StorageObjectIdentity> ancestry,
+        StorageObjectIdentity volumeRoot, VolumeFacts volume, StorageObjectIdentity protectedWindows, CancellationToken ct)
     {
         var facts = Facts(file, volume.Binding, ct);
         StorageProblem? problem = PhysicalProblem(expected, ancestry, volumeRoot, volume, facts, protectedWindows);
@@ -111,17 +140,27 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
                 problem = Problem(StorageReasonKind.Unknown, "compression-unknown", "The main-data compression format could not be established.");
             else if (compression == StorageObservationState.Enabled && efs == StorageObservationState.Enabled)
                 problem = Problem(StorageReasonKind.Unknown, "inconsistent-storage", "Both compression and EFS were observed; automatic conversion is refused.");
-            else if (action == StorageAction.Compress && efs == StorageObservationState.Enabled)
+        }
+        return new(new(compression, efs, facts.Identity, facts.IsDirectory, problem),
+            (facts.Attributes & (uint)FileAttributes.ReadOnly) != 0, facts.Size);
+    }
+
+    private sealed record Inspection(StorageObservation Basic, bool ReadOnly, long Size)
+    {
+        internal StorageObservation For(StorageAction? action)
+        {
+            if (Basic.Ineligible is not null || action is null) return Basic;
+            StorageProblem? problem = null;
+            if (action == StorageAction.Compress && Basic.Efs == StorageObservationState.Enabled)
                 problem = Problem(StorageReasonKind.FileCatBoundary, "efs-conflict", "This item is encrypted with EFS. Compression cannot remove that protection.");
-            else if (action is { } requested && NeedsChange(compression, requested))
+            else if (NeedsChange(Basic.Compression, action.Value) && !Basic.IsDirectory)
             {
-                if (!facts.IsDirectory && (facts.Attributes & (uint)FileAttributes.ReadOnly) != 0)
-                    problem = Problem(StorageReasonKind.PermissionOrPolicy, "read-only-file", "The file is read-only; its attributes will not be cleared.");
-                else if (!facts.IsDirectory && requested == StorageAction.Compress && facts.Size > 30_000_000_000L)
+                if (ReadOnly) problem = Problem(StorageReasonKind.PermissionOrPolicy, "read-only-file", "The file is read-only; its attributes will not be cleared.");
+                else if (action == StorageAction.Compress && Size > 30_000_000_000L)
                     problem = Problem(StorageReasonKind.FileCatBoundary, "enable-size-limit", "This file exceeds FileCat's qualified 30,000,000,000-byte compression-enable limit.");
             }
+            return Basic with { Ineligible = problem };
         }
-        return new(compression, efs, facts.Identity, facts.IsDirectory, problem);
     }
 
     private static bool NeedsChange(StorageObservationState current, StorageAction action) =>
@@ -155,13 +194,18 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
         error is 5 or 1314 ? StorageReasonKind.PermissionOrPolicy : error is 32 or 33 ? StorageReasonKind.TransientFailure : StorageReasonKind.Unknown,
         "native-" + error, operation + ": " + new Win32Exception(error).Message));
 
-    private sealed class Pin(WindowsStorageTransforms adapter, StorageTarget target, StorageObservation observation, StorageAction? action, Held handle) : IStorageReviewLease
+    private sealed class Pin(WindowsStorageTransforms adapter, StorageTarget target, Inspection inspection, StorageAction? action, Held handle) : IStorageReviewLease
     {
+        private sealed record State(Inspection Inspection, StorageAction? Action);
+        private State _state = new(inspection, action);
         internal WindowsStorageTransforms Adapter => adapter;
         internal Held Handle => handle;
-        internal StorageAction? Action => action;
+        internal StorageAction? Action => Volatile.Read(ref _state).Action;
         public StorageTarget Target => target;
-        public StorageObservation Observation => observation;
+        public StorageObservation Observation { get { var state = Volatile.Read(ref _state); return state.Inspection.For(state.Action); } }
+        internal StorageObservation Reframe(StorageAction? requested) => Update(Volatile.Read(ref _state).Inspection, requested);
+        internal StorageObservation Update(Inspection facts, StorageAction? requested)
+        { Interlocked.Exchange(ref _state, new(facts, requested)); return facts.For(requested); }
         public bool IsAlive => !handle.File.IsClosed && !handle.File.IsInvalid;
         public void Dispose() => handle.Dispose();
     }

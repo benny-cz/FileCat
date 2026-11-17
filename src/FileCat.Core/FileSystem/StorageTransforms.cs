@@ -70,6 +70,11 @@ public interface IStorageTransforms
 {
     StorageProblem? Unavailable(StorageAction action);
     IStorageReviewLease InspectRoot(StorageTarget target, StorageAction? action, CancellationToken ct);
+    /// <summary>Pure eligibility from retained bound observations; null requests fresh inspection. No native I/O.</summary>
+    StorageObservation? EvaluatePinnedRoot(IStorageReviewLease root, StorageAction? action) => null;
+    /// <summary>Refresh the original live pin. Never acquire a replacement pin for a previously bound root.</summary>
+    StorageObservation InspectPinnedRoot(IStorageReviewLease root, StorageAction? action, CancellationToken ct) =>
+        throw new NotSupportedException("Pinned-root reinspection is unavailable on this adapter.");
     IStorageTraversal OpenReviewedRoot(IStorageReviewLease root, StorageAction action, CancellationToken ct);
 }
 

@@ -22,7 +22,7 @@ public sealed class ReviewedStorageRoots : IDisposable
     private StorageReviewOwner? _owner;
     private readonly StorageAction? _inspectedAction;
 
-    private ReviewedStorageRoots(IStorageTransforms adapter, StorageAction? action, ImmutableArray<StorageTarget> targets,
+    internal ReviewedStorageRoots(IStorageTransforms adapter, StorageAction? action, ImmutableArray<StorageTarget> targets,
         ImmutableArray<StorageReviewedRoot> roots, StorageReviewOwner owner)
     {
         _adapter = adapter; _inspectedAction = action; Targets = targets; Roots = roots; _owner = owner;
@@ -122,7 +122,7 @@ public sealed class ReviewedStorageRoots : IDisposable
         if (adapter.Unavailable(action) is { } reason) throw new NotSupportedException(reason.Message);
     }
 
-    private static void RequireLease(IStorageReviewLease lease, StorageTarget target)
+    internal static void RequireLease(IStorageReviewLease lease, StorageTarget target)
     {
         var observation = lease.Observation;
         if (!lease.IsAlive || lease.Target != target || observation is null || observation.Identity is null ||
@@ -135,7 +135,7 @@ public sealed class ReviewedStorageRoots : IDisposable
             throw new InvalidOperationException("The storage adapter did not return a bound, valid observation.");
     }
 
-    private static void RequireMetadataBound<T>(T value)
+    internal static void RequireMetadataBound<T>(T value)
     {
         using var count = new MetadataCounter();
         JsonSerializer.Serialize(count, value);
@@ -209,7 +209,15 @@ internal static class StorageReviewResources
     {
         if (StorageNativeAllowance.Current is not null) throw new InvalidOperationException("Borrow the existing storage native allowance; do not reacquire it.");
         Native.Wait(ct);
-        return new StorageNativeAllowance(() => Native.Release());
+        using var reserved = new StorageNativeReservation(() => Native.Release());
+        return reserved.Enter();
+    }
+    /// <summary>Reserve before entering the device queue, so no device worker waits for global native capacity.</summary>
+    internal static async Task<StorageNativeReservation> ReserveNativeAsync(CancellationToken ct)
+    {
+        if (StorageNativeAllowance.Current is not null) throw new InvalidOperationException("Release the current native allowance before another reservation.");
+        await Native.WaitAsync(ct).ConfigureAwait(false);
+        return new StorageNativeReservation(() => Native.Release());
     }
     internal static IDisposable EnterRootInspection(StorageTarget target)
     {
@@ -227,5 +235,27 @@ internal static class StorageReviewResources
     {
         private Action? _release = release;
         public void Dispose() => Interlocked.Exchange(ref _release, null)?.Invoke();
+    }
+}
+
+/// <summary>A queued reservation transfers its release to the actual synchronous native owner exactly once.</summary>
+internal sealed class StorageNativeReservation(Action release) : IDisposable
+{
+    private readonly object _gate = new();
+    private Action? _release = release;
+    internal IDisposable Enter()
+    {
+        lock (_gate)
+        {
+            if (StorageNativeAllowance.Current is not null) throw new InvalidOperationException("A native allowance is already bound to this thread.");
+            var owned = _release ?? throw new InvalidOperationException("This native reservation was disposed or consumed.");
+            var allowance = new StorageNativeAllowance(owned); _release = null; return allowance;
+        }
+    }
+    public void Dispose()
+    {
+        Action? release;
+        lock (_gate) { release = _release; _release = null; }
+        release?.Invoke();
     }
 }

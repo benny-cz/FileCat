@@ -120,6 +120,8 @@ public sealed partial class JobManager
     public ReviewedStorageRoots PrepareStorageReview(IReadOnlyList<ItemRef> sources, StorageAction? action, CancellationToken ct) =>
         ReviewedStorageRoots.Prepare(_storageTransforms, sources, action, ct);
 
+    public StorageSelectionReview CaptureStorageSelection(IReadOnlyList<ItemRef> sources) => new(_storageTransforms, sources);
+
     /// <summary>The registration names the captured origin, or explicitly supplies a detached no-selection disposition.</summary>
     public Job SubmitStorage(ReviewedStorageRoots reviewed, StorageReviewApproval approval, Action<Job> register, QueueMode mode = QueueMode.Start)
     {

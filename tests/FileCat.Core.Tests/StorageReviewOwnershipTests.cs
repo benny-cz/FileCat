@@ -6,6 +6,7 @@ using FileCat.Core.Resources;
 
 namespace FileCat.Core.Tests;
 
+[Collection("Storage review process resources")]
 public sealed class StorageReviewOwnershipTests
 {
     private sealed class Adapter : IStorageTransforms
