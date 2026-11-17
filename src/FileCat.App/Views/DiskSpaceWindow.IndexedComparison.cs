@@ -25,6 +25,7 @@ public sealed partial class DiskSpaceWindow
         IndexedComparisonBuilder? compare = null, AppServices? services = null)
     {
         Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
+        if (AnalysisIndexedComparison.IndexCapacityRefusal is { } refusal) throw new InvalidOperationException(refusal);
         AnalysisSessionAdmission.Slot? admission = _admissionPool.Acquire();
         if (_pendingIndexed++ == 0) _indexedIdle = new(TaskCreationOptions.RunContinuationsAsynchronously);
         AnalysisDatasetLease? a = null, b = null; AnalysisIndexedComparison? result = null;

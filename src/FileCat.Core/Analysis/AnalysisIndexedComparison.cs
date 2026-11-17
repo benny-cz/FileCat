@@ -39,6 +39,10 @@ internal sealed record AnalysisIndexedComparisonRow(ulong Id, AnalysisComparison
 /// <summary>Inert paged comparison. All actual work retains both captured inputs and all temporary owners.</summary>
 internal sealed partial class AnalysisIndexedComparison : IAsyncDisposable
 {
+    // An advisory UI check only; each actual entity admission still enforces
+    // the shared cap atomically. Retained readers keep these places occupied.
+    internal static string? IndexCapacityRefusal => AnalysisComparisonEntities.HasCapacityForPair ? null :
+        "One indexed comparison can be open at a time. Close the open comparison and wait for its work to finish before opening another. Saved copies can still be browsed or deleted.";
     private readonly AnalysisOwnedDatasetIo<State> _owned;
     private readonly AnalysisComparisonEntities _previous, _current;
     private readonly AnalysisComparisonPaths _paths;

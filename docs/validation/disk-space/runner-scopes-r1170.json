@@ -1,0 +1,10 @@
+{
+  "revision": "r1170",
+  "productRevision": "r1168",
+  "coreFixtureRevision": "r1170",
+  "renderFixtureRevision": "r1169",
+  "windows": "Complete new-product analysis/Core/native/render/settings, fixed metadata and Owner App filters; only the changed baseline rendering benchmark. Reuse unchanged OwnerPerf/OwnerAnalysis/font checks from original r1166b, whose full4 Owner tests passed.",
+  "mac": "Only metacore237 after r1169 original finishes and is collected; unchanged product and rendering fixture reused.",
+  "ubuntu": "Only metacore237 after r1169 original finishes and is collected, correcting the native unknown-NSS test; unchanged product and all other successful phases reused.",
+  "assertionPreserved": "Only a native success with a null result is confirmed NotFound. Actual errors remain Unavailable with a reason. Independent Ubuntu libc probe observed errno2; known UID resolved."
+}

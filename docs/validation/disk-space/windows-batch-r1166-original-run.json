@@ -1,0 +1,9 @@
+{
+  "observedUtc": "2026-11-17T05:32:51.797796+00:00",
+  "sessionId": 64681,
+  "terminalExit": 75,
+  "controllerExit": 1,
+  "completionChunk": "89b462",
+  "actualOriginalController": true,
+  "meaning": "Occupancy refusal; inspect original runner state and completed phases before replay."
+}

@@ -1,0 +1,9 @@
+{
+  "observedUtc": "2026-11-17T06:51:46.530211+00:00",
+  "sessionId": 72581,
+  "terminalExit": 1,
+  "controllerExit": 1,
+  "completionChunk": "493fcf",
+  "actualOriginalController": true,
+  "meaning": "Only native unknown-NSS fixture failed; source inputs and all other original phases retained."
+}

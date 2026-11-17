@@ -1,0 +1,15 @@
+{
+    "observedUtc":  "2026-11-17T06:13:32.6172990Z",
+    "state":  "RUNNING phase=ownerrender runnerPid=14920\r\n",
+    "processes":  [
+                      {
+                          "pid":  15492,
+                          "command":  "\"C:\\Program Files\\dotnet\\dotnet.exe\" C:\\FileCatDsa20261104R2\\batch-r1166b\\payload\\render\\FileCat.Rendering.Tests.dll -class *ColumnOwnershipBaselineTests -class *OwnerColumnPerformanceTests -class *OwnerColumnWidthTests -class *OwnershipAnalysisPerformanceTests -noLogo -noColor -maxThreads 1 -xml C:\\FileCatDsa20261104R2\\batch-r1166b\\ownerrender-r1166b.xml",
+                          "cpuSeconds":  1263.859375,
+                          "workingSet":  629022720
+                      }
+                  ],
+    "realTimeProtection":  false,
+    "antivirusEngine":  true,
+    "updateStatus":  "Stopped"
+}

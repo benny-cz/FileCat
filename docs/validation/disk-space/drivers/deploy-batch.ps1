@@ -1,4 +1,5 @@
-param([Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$Revision,[Parameter(Mandatory=$true)][ValidateSet('mac','linux','windows')][string]$Platform,[switch]$InteractiveWindows)
+param([Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$Revision,[Parameter(Mandatory=$true)][ValidateSet('mac','linux','windows')][string]$Platform,[switch]$InteractiveWindows,
+ [ValidateRange(5,90)][int]$WindowsTaskLimitMinutes=30)
 $ErrorActionPreference='Stop'
 function Check([string]$what){if($LASTEXITCODE){throw $what}}
 $archive=Join-Path $PWD ('.tmp/dsa-batch-'+$Platform+'-'+$Revision+'.tgz')
@@ -34,7 +35,7 @@ if(Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue){throw 'A
 if(@(Get-Process -Name 'FileCat*',dotnet -ErrorAction SilentlyContinue).Count){'BUSY phase=verify'|Set-Content (Join-Path $base 'state.txt');exit 75}
 $principal=New-ScheduledTaskPrincipal -UserId ($env:COMPUTERNAME+'\filecatdsa_r2') -LogonType Interactive -RunLevel Limited
 $action=New-ScheduledTaskAction -Execute 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File '+$script)
-$settings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
+$settings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes @TASKLIMIT@)
 Register-ScheduledTask -TaskName $taskName -Principal $principal -Action $action -Settings $settings|Out-Null
 $began=Get-Date;Start-ScheduledTask -TaskName $taskName
 do{
@@ -42,14 +43,14 @@ do{
  $state=Get-ScheduledTask -TaskName $taskName;$info=Get-ScheduledTaskInfo -TaskName $taskName
  if($info.LastRunTime-ge$began.AddSeconds(-2)-and$state.State-ne'Running'){
   $result=$info.LastTaskResult
-  [ordered]@{name=$taskName;lastRunTime=$info.LastRunTime.ToString('o');terminalExit=$result;principal=$principal.UserId;logonType=[string]$principal.LogonType;runLevel=[string]$principal.RunLevel}|ConvertTo-Json|Set-Content (Join-Path $base 'task-outcome.json')
+  [ordered]@{name=$taskName;lastRunTime=$info.LastRunTime.ToString('o');terminalExit=$result;principal=$principal.UserId;logonType=[string]$principal.LogonType;runLevel=[string]$principal.RunLevel;timeLimitMinutes=@TASKLIMIT@}|ConvertTo-Json|Set-Content (Join-Path $base 'task-outcome.json')
   Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
   exit $result
  }
-}while((Get-Date)-lt$began.AddMinutes(31))
+}while((Get-Date)-lt$began.AddMinutes(@CONTROLLIMIT@))
 throw 'The actual scheduled test task is still live; inspect its handle without restarting'
 '@
-  $launch=$launch.Replace('@BASE@',$guest).Replace('@REV@',$Revision).Replace('@HASH@',$hash)
+  $launch=$launch.Replace('@BASE@',$guest).Replace('@REV@',$Revision).Replace('@HASH@',$hash).Replace('@TASKLIMIT@',[string]$WindowsTaskLimitMinutes).Replace('@CONTROLLIMIT@',[string]($WindowsTaskLimitMinutes+1))
   $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($launch))
   & $v -T ws -vp a -gu Admin -gp a runProgramInGuest $vm 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoProfile -WindowStyle Hidden -EncodedCommand $encoded;Check 'Windows interactive candidate failed or busy'
  }else{

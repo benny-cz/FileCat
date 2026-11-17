@@ -84,6 +84,7 @@ public sealed class ColumnOwnershipBaselineTests
                             {
                                 for (int frame = 0; frame < 240; frame++)
                                 {
+                                    int rendersBefore = times.Count;
                                     foreach (var (tab, list) in tabs.Zip(lists))
                                     {
                                         tab.Listing.SetFocus((frame % 60) * 30);
@@ -92,6 +93,11 @@ public sealed class ColumnOwnershipBaselineTests
                                     }
                                     if (target is not null) target.Render(grid);
                                     else window.CaptureRenderedFrame()?.Dispose();
+                                    // Headless capture also drains queued UI paints. Count
+                                    // actual work, while requiring every requested frame
+                                    // to paint all four invalidated panels.
+                                    Assert.True(times.Count - rendersBefore >= lists.Count,
+                                        $"Requested frame {frame} did not paint all {lists.Count} panels.");
                                 }
                             }
                             finally { FileListControl.RenderTimed = null; }
@@ -104,7 +110,6 @@ public sealed class ColumnOwnershipBaselineTests
                             if (run >= 0) samples.Add(new { check = "PF1", count, panels = 4, run, elapsedMs = clock.Elapsed.TotalMilliseconds,
                                 renderCount = times.Count, renderMedianMs = Percentile(times, .5), renderP95Ms = Percentile(times, .95),
                                 renderAllocatedBytes = allocated, allocatedBytes, memory = Memory() });
-                            Assert.Equal(960, times.Count);
                         }
                         if (target is not null && Environment.GetEnvironmentVariable("FILECAT_COLUMN_PROFILE_IMAGE") is { Length: > 0 } shot)
                             target.Save(shot, PngBitmapEncoderOptions.Default);

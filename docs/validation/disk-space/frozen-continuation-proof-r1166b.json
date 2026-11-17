@@ -1,0 +1,105 @@
+{
+  "revision": "r1166b",
+  "baseline": "r1166",
+  "scope": "RunnerOnly",
+  "observedUtc": "2026-11-17T05:47:36.365612+00:00",
+  "producerSha256": "2ab85f959e0e188a8577b18420368b2d83270ab68292e85d15e9a9e97b9fdac2",
+  "platforms": [
+    {
+      "platform": "windows",
+      "priorState": "BUSY phase=metacore",
+      "reusedPhases": {
+        "smoke": {
+          "sha256": "d5121f8739dae13744eb6760952d24babec03f3d417ef62e63d29588f78104ed",
+          "total": 17,
+          "passed": 17,
+          "skipped": 0
+        },
+        "preview": {
+          "sha256": "94d967e4e43a806ea22ff14860970d789f3ef84754989d02ab709fad0d3cbab7",
+          "total": 5,
+          "passed": 5,
+          "skipped": 0
+        },
+        "core": {
+          "sha256": "e0d95406b72b1d2c2c29f51e22687be63aab829e1b4bdc6addcd6d6f1eb5a37c",
+          "total": 1980,
+          "passed": 1932,
+          "skipped": 48
+        }
+      },
+      "pendingPhases": [
+        "metacore",
+        "native",
+        "ownernative",
+        "render",
+        "ownerrender",
+        "appsettings",
+        "ownerapp"
+      ],
+      "verifiedInputs": 270,
+      "changed": [],
+      "archiveSha256": "8849f0fda03575b118fba3dd74c16954f5f929c04da71c2294eaee4425d39017",
+      "archiveBytes": 95952508,
+      "runnerSha256": "3916f242e2ec50b8a951e162e9738f2d711b9537a8a975f383c6a3e1ea392231",
+      "templateSha256": "79bbfc4572d4a2aeec533f5d4c45222b2abaa8b8f42675c3a077e1dfb0b021af"
+    },
+    {
+      "platform": "mac",
+      "priorState": "BUSY phase=preview",
+      "reusedPhases": {
+        "smoke": {
+          "sha256": "e96b6ffbb054c58cf6825d3a98b50d2e7f54a6df6eb0b27b4b8bd7d8c22cbfe3",
+          "total": 17,
+          "passed": 17,
+          "skipped": 0
+        }
+      },
+      "pendingPhases": [
+        "preview",
+        "core",
+        "metacore",
+        "render",
+        "ownerrender",
+        "appsettings",
+        "ownerapp"
+      ],
+      "verifiedInputs": 192,
+      "changed": [],
+      "archiveSha256": "1e016d6857574a2d975af4e5280223b4ad00f8cccc506fba8157f24f60b1e88e",
+      "archiveBytes": 9347,
+      "runnerSha256": "e629b6a21af7a158fe4e77169e9cc6f27da9313bd752b647e98c04611b0f0bf7",
+      "templateSha256": "c1bbd0a812e462af5c790b1c75cf1791fbf5285f87f0798ee11a2cbeeab59bc1"
+    },
+    {
+      "platform": "linux",
+      "priorState": "BUSY phase=preview",
+      "reusedPhases": {
+        "smoke": {
+          "sha256": "e5857c6cbca68852e7b17d83faf91d4d4ed385d3bf79d7f8e22cbcc25bf6f601",
+          "total": 17,
+          "passed": 17,
+          "skipped": 0
+        }
+      },
+      "pendingPhases": [
+        "preview",
+        "core",
+        "metacore",
+        "render",
+        "ownerrender",
+        "appsettings",
+        "ownerapp"
+      ],
+      "verifiedInputs": 191,
+      "changed": [],
+      "archiveSha256": "060c4573cbbe3a013a8ae3d708fc5394a5b32018b1d2c58264a4a5ba81b53913",
+      "archiveBytes": 9284,
+      "runnerSha256": "561c8c7a69a977b5a9e124ae40120353c7e9c7c2ebebd9b36192da613ccb78a8",
+      "templateSha256": "c1bbd0a812e462af5c790b1c75cf1791fbf5285f87f0798ee11a2cbeeab59bc1"
+    }
+  ],
+  "sourceManifestSha256": "6c116d54e6bac0cee7efe3aec2d1b42a57b19d09dff6b53bc3ea52b8708bd4ae",
+  "sourceSnapshot": ".tmp/source-r1166-main-sync.tgz",
+  "sourceSnapshotSha256": "5a79e52c22411f7f6017d7efa4615b7aedbe3e4a7409b950853941d612eaabae"
+}

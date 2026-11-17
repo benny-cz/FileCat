@@ -1,0 +1,162 @@
+{
+  "windows/metacore": {
+    "total": 237,
+    "skippedNames": [
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Content_unchanged_mode_mtime_and_raw_origin_changes_produce_new_observations",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Held_rename_replacement_symlink_and_unlink_never_retarget_metadata_capture",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_C_header_observer_independently_agrees_on_every_stat_and_flag_field",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_Linux_POSIX_access_ACL_bytes_are_frozen_and_not_replaced_with_mode_bits",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_Mac_extended_ACL_is_captured_including_changes_not_expressed_by_mode",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_hardlink_counts_observe_both_names_without_modifying_content",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_nodump_flags_participate_in_observations_and_are_never_silently_cleared",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_observations_match_the_held_object_and_preserve_precision_without_touching_it",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_permission_denials_are_unavailable_for_absent_and_present_origin_marks(marked: False)",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_permission_denials_are_unavailable_for_absent_and_present_origin_marks(marked: True)",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Non_regular_devices_directories_cancelled_and_disposed_handles_are_refused",
+      "FileCat.Core.Tests.MacCopyMetadataTests.Copy_of_plain_file_still_succeeds_without_an_acl_or_fork",
+      "FileCat.Core.Tests.MacCopyMetadataTests.Copy_preserves_resource_fork_and_other_xattrs_on_mac",
+      "FileCat.Core.Tests.MacCopyMetadataTests.Created_folder_can_receive_its_source_acl_and_xattrs_after_children",
+      "FileCat.Core.Tests.UnixOwnershipTests.Native_linux_owned_files_folders_and_broken_links_match_independent_stat",
+      "FileCat.Core.Tests.UnixPermissionTests.A_copied_private_folder_stays_private",
+      "FileCat.Core.Tests.UnixPermissionTests.A_recursive_change_reaches_folders_last_and_leaves_links_and_documents_alone",
+      "FileCat.Core.Tests.UnixPermissionTests.An_entry_reports_its_mode_owner_and_group",
+      "FileCat.Core.Tests.UnixPermissionTests.Linux_copy_keeps_named_user_file_and_folder_acls",
+      "FileCat.Core.Tests.UnixPermissionTests.Linux_copy_removes_an_inherited_acl_absent_on_source",
+      "FileCat.Core.Tests.UnixPermissionTests.Permission_columns_cover_files_and_folders"
+    ],
+    "skipReasons": {
+      "FileCat.Core.Tests.UnixPermissionTests.A_recursive_change_reaches_folders_last_and_leaves_links_and_documents_alone": "POSIX permissions are a Linux and macOS feature.",
+      "FileCat.Core.Tests.UnixPermissionTests.Linux_copy_keeps_named_user_file_and_folder_acls": "Requires Linux with POSIX ACL tools.",
+      "FileCat.Core.Tests.UnixPermissionTests.An_entry_reports_its_mode_owner_and_group": "POSIX permissions are a Linux and macOS feature.",
+      "FileCat.Core.Tests.UnixPermissionTests.A_copied_private_folder_stays_private": "POSIX permissions are a Linux and macOS feature.",
+      "FileCat.Core.Tests.UnixPermissionTests.Linux_copy_removes_an_inherited_acl_absent_on_source": "Requires Linux with POSIX ACL tools.",
+      "FileCat.Core.Tests.UnixPermissionTests.Permission_columns_cover_files_and_folders": "POSIX permissions are a Linux and macOS feature.",
+      "FileCat.Core.Tests.MacCopyMetadataTests.Created_folder_can_receive_its_source_acl_and_xattrs_after_children": "macOS directory metadata APIs only.",
+      "FileCat.Core.Tests.MacCopyMetadataTests.Copy_of_plain_file_still_succeeds_without_an_acl_or_fork": "macOS metadata APIs only.",
+      "FileCat.Core.Tests.MacCopyMetadataTests.Copy_preserves_resource_fork_and_other_xattrs_on_mac": "macOS resource forks only.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_C_header_observer_independently_agrees_on_every_stat_and_flag_field": "Native Unix metadata fixture.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Non_regular_devices_directories_cancelled_and_disposed_handles_are_refused": "Native Unix metadata fixture.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_observations_match_the_held_object_and_preserve_precision_without_touching_it": "Native Unix metadata fixture.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_nodump_flags_participate_in_observations_and_are_never_silently_cleared": "Native Unix metadata fixture.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_hardlink_counts_observe_both_names_without_modifying_content": "Native Unix metadata fixture.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_permission_denials_are_unavailable_for_absent_and_present_origin_marks(marked: False)": "Native Unix metadata fixture.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_permission_denials_are_unavailable_for_absent_and_present_origin_marks(marked: True)": "Native Unix metadata fixture.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_Linux_POSIX_access_ACL_bytes_are_frozen_and_not_replaced_with_mode_bits": "Native Linux POSIX ACL fixture.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Held_rename_replacement_symlink_and_unlink_never_retarget_metadata_capture": "Native Unix metadata fixture.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_Mac_extended_ACL_is_captured_including_changes_not_expressed_by_mode": "Native macOS extended ACL fixture.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Content_unchanged_mode_mtime_and_raw_origin_changes_produce_new_observations": "Native Unix metadata fixture.",
+      "FileCat.Core.Tests.UnixOwnershipTests.Native_linux_owned_files_folders_and_broken_links_match_independent_stat": "GL1 requires an ordinary-user Linux runtime."
+    },
+    "nativeArchiveCObserverNotQualified": false
+  },
+  "windows/ownernative": {
+    "total": 53,
+    "skippedNames": [],
+    "skipReasons": {},
+    "nativeArchiveCObserverNotQualified": false
+  },
+  "windows/ownerapp": {
+    "total": 61,
+    "skippedNames": [],
+    "skipReasons": {},
+    "nativeArchiveCObserverNotQualified": false
+  },
+  "windows/ownerrender": {
+    "total": 1,
+    "skippedNames": [],
+    "skipReasons": {},
+    "nativeArchiveCObserverNotQualified": false
+  },
+  "mac/metacore": {
+    "total": 237,
+    "skippedNames": [
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_C_header_observer_independently_agrees_on_every_stat_and_flag_field",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_Linux_POSIX_access_ACL_bytes_are_frozen_and_not_replaced_with_mode_bits",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Unsupported_Windows_dispatch_does_not_treat_a_handle_as_Unix_metadata",
+      "FileCat.Core.Tests.MetadataTests.Windows_origin_column_binds_allocation_for_oversized_zone_stream",
+      "FileCat.Core.Tests.MetadataTests.Windows_origin_column_keeps_an_unmarked_file_absent",
+      "FileCat.Core.Tests.MetadataTests.Windows_origin_column_reads_a_normal_zone_stream",
+      "FileCat.Core.Tests.UnixOwnershipTests.Native_linux_owned_files_folders_and_broken_links_match_independent_stat",
+      "FileCat.Core.Tests.UnixPermissionTests.Linux_copy_keeps_named_user_file_and_folder_acls",
+      "FileCat.Core.Tests.UnixPermissionTests.Linux_copy_removes_an_inherited_acl_absent_on_source"
+    ],
+    "skipReasons": {
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_C_header_observer_independently_agrees_on_every_stat_and_flag_field": "Explicit independently compiled native C observer required.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_Linux_POSIX_access_ACL_bytes_are_frozen_and_not_replaced_with_mode_bits": "Native Linux POSIX ACL fixture.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Unsupported_Windows_dispatch_does_not_treat_a_handle_as_Unix_metadata": "Windows unsupported-platform guard.",
+      "FileCat.Core.Tests.UnixOwnershipTests.Native_linux_owned_files_folders_and_broken_links_match_independent_stat": "GL1 requires an ordinary-user Linux runtime.",
+      "FileCat.Core.Tests.MetadataTests.Windows_origin_column_keeps_an_unmarked_file_absent": "Windows NTFS alternate streams only.",
+      "FileCat.Core.Tests.MetadataTests.Windows_origin_column_reads_a_normal_zone_stream": "Windows NTFS alternate streams only.",
+      "FileCat.Core.Tests.MetadataTests.Windows_origin_column_binds_allocation_for_oversized_zone_stream": "Windows NTFS alternate streams only.",
+      "FileCat.Core.Tests.UnixPermissionTests.Linux_copy_keeps_named_user_file_and_folder_acls": "Requires Linux with POSIX ACL tools.",
+      "FileCat.Core.Tests.UnixPermissionTests.Linux_copy_removes_an_inherited_acl_absent_on_source": "Requires Linux with POSIX ACL tools."
+    },
+    "nativeArchiveCObserverNotQualified": true
+  },
+  "mac/ownerapp": {
+    "total": 61,
+    "skippedNames": [
+      "FileCat.App.Tests.OwnerColumnTests.Windows_owner_analysis_is_guarded_for_mixed_results_before_any_sort_or_read"
+    ],
+    "skipReasons": {
+      "FileCat.App.Tests.OwnerColumnTests.Windows_owner_analysis_is_guarded_for_mixed_results_before_any_sort_or_read": "The newly enabled Owner scope guard is Windows-specific."
+    },
+    "nativeArchiveCObserverNotQualified": false
+  },
+  "mac/ownerrender": {
+    "total": 4,
+    "skippedNames": [
+      "FileCat.Rendering.Tests.OwnerColumnWidthTests.Windows_owner_default_width_fits_the_required_well_known_names"
+    ],
+    "skipReasons": {
+      "FileCat.Rendering.Tests.OwnerColumnWidthTests.Windows_owner_default_width_fits_the_required_well_known_names": "The Windows Owner default width has its own native font check."
+    },
+    "nativeArchiveCObserverNotQualified": false
+  },
+  "ubuntu/metacore": {
+    "total": 237,
+    "skippedNames": [
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_C_header_observer_independently_agrees_on_every_stat_and_flag_field",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_Mac_extended_ACL_is_captured_including_changes_not_expressed_by_mode",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Unsupported_Windows_dispatch_does_not_treat_a_handle_as_Unix_metadata",
+      "FileCat.Core.Tests.MacCopyMetadataTests.Copy_of_plain_file_still_succeeds_without_an_acl_or_fork",
+      "FileCat.Core.Tests.MacCopyMetadataTests.Copy_preserves_resource_fork_and_other_xattrs_on_mac",
+      "FileCat.Core.Tests.MacCopyMetadataTests.Created_folder_can_receive_its_source_acl_and_xattrs_after_children",
+      "FileCat.Core.Tests.MetadataTests.Windows_origin_column_binds_allocation_for_oversized_zone_stream",
+      "FileCat.Core.Tests.MetadataTests.Windows_origin_column_keeps_an_unmarked_file_absent",
+      "FileCat.Core.Tests.MetadataTests.Windows_origin_column_reads_a_normal_zone_stream"
+    ],
+    "skipReasons": {
+      "FileCat.Core.Tests.MacCopyMetadataTests.Copy_of_plain_file_still_succeeds_without_an_acl_or_fork": "macOS metadata APIs only.",
+      "FileCat.Core.Tests.MacCopyMetadataTests.Copy_preserves_resource_fork_and_other_xattrs_on_mac": "macOS resource forks only.",
+      "FileCat.Core.Tests.MacCopyMetadataTests.Created_folder_can_receive_its_source_acl_and_xattrs_after_children": "macOS directory metadata APIs only.",
+      "FileCat.Core.Tests.MetadataTests.Windows_origin_column_keeps_an_unmarked_file_absent": "Windows NTFS alternate streams only.",
+      "FileCat.Core.Tests.MetadataTests.Windows_origin_column_binds_allocation_for_oversized_zone_stream": "Windows NTFS alternate streams only.",
+      "FileCat.Core.Tests.MetadataTests.Windows_origin_column_reads_a_normal_zone_stream": "Windows NTFS alternate streams only.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_Mac_extended_ACL_is_captured_including_changes_not_expressed_by_mode": "Native macOS extended ACL fixture.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Native_C_header_observer_independently_agrees_on_every_stat_and_flag_field": "Explicit independently compiled native C observer required.",
+      "FileCat.Core.Tests.ArchiveUnixOuterMetadataTests.Unsupported_Windows_dispatch_does_not_treat_a_handle_as_Unix_metadata": "Windows unsupported-platform guard."
+    },
+    "nativeArchiveCObserverNotQualified": true
+  },
+  "ubuntu/ownerapp": {
+    "total": 61,
+    "skippedNames": [
+      "FileCat.App.Tests.OwnerColumnTests.Windows_owner_analysis_is_guarded_for_mixed_results_before_any_sort_or_read"
+    ],
+    "skipReasons": {
+      "FileCat.App.Tests.OwnerColumnTests.Windows_owner_analysis_is_guarded_for_mixed_results_before_any_sort_or_read": "The newly enabled Owner scope guard is Windows-specific."
+    },
+    "nativeArchiveCObserverNotQualified": false
+  },
+  "ubuntu/ownerrender": {
+    "total": 4,
+    "skippedNames": [
+      "FileCat.Rendering.Tests.OwnerColumnWidthTests.Windows_owner_default_width_fits_the_required_well_known_names"
+    ],
+    "skipReasons": {
+      "FileCat.Rendering.Tests.OwnerColumnWidthTests.Windows_owner_default_width_fits_the_required_well_known_names": "The Windows Owner default width has its own native font check."
+    },
+    "nativeArchiveCObserverNotQualified": false
+  }
+}

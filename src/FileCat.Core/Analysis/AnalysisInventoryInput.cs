@@ -16,8 +16,13 @@ public abstract class AnalysisInventoryInput : IAnalysisScratchOwned
             !AnalysisPrivateInventoryStore.WellFormedText(path) || System.Text.Encoding.UTF8.GetByteCount(path) > AnalysisLimits.LocatorBytes ||
             path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(component => component is "." or ".."))
             throw new ArgumentException("Choose an absolute local inventory path whose spelling can be preserved exactly.");
-        if (comparison) AnalysisPrivateInventoryStore.ValidateComparisonName(Path.GetFileName(path));
-        else AnalysisPrivateInventoryStore.ValidateName(Path.GetFileName(path));
+        string name = Path.GetFileName(path), extension = comparison ? ".fcdsc" : ".fcdsa";
+        // Canonicalize the known suffix only for portable-name validation. The
+        // returned path and the native opener's basename keep the exact spelling
+        // chosen by the user, including on a case-sensitive filesystem.
+        if (name.EndsWith(extension, StringComparison.OrdinalIgnoreCase)) name = name[..^extension.Length] + extension;
+        if (comparison) AnalysisPrivateInventoryStore.ValidateComparisonName(name);
+        else AnalysisPrivateInventoryStore.ValidateName(name);
         return path;
     }
 

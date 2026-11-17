@@ -140,10 +140,16 @@ public sealed class UnixOwnershipTests
             Assert.Equal(ids[1], source.ReadGroup(path).Principal!.Value.Id);
         }
         Assert.Equal(OwnerReadStatus.Gone, source.ReadOwner(Path.Combine(dir.Path, "absent")).Status);
-        var missing = source.LookUp(new Principal(PrincipalKind.UnixUser, "4294967294"));
-        Assert.Equal(NameStatus.NotFound, missing.Status);
         var known = source.LookUp(source.ReadOwner(file).Principal!.Value);
         Assert.Equal(NameStatus.Resolved, known.Status);
+        var missing = source.LookUp(new Principal(PrincipalKind.UnixUser, "4294967294"));
+        // Configured NSS providers may return an error for an unknown UID.
+        // A native error must stay Unavailable, rather than becoming a false
+        // confirmed absence. Deterministic tests above verify that distinction.
+        Assert.True(missing.Status is NameStatus.NotFound or NameStatus.Unavailable,
+            $"Unexpected missing-account outcome: {missing.Status}: {missing.Reason}");
+        Assert.Null(missing.Name);
+        if (missing.Status == NameStatus.Unavailable) Assert.False(string.IsNullOrWhiteSpace(missing.Reason));
     }
 
     private sealed class FakeUnixNative : IUnixOwnershipNative

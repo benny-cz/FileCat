@@ -202,14 +202,14 @@ public sealed partial class DiskSpaceWindow
                 var body = new StackPanel { Spacing = 8, Children =
                 {
                     new TextBlock { Text = comparing
-                        ? "Choose Previous from the private saved analyses. Current is this entire captured inventory; filters and the displayed page do not restrict the comparison. Both inputs remain offline. Measurement, coverage and identity differences may require a limited or structural comparison."
+                        ? "Choose Previous from the private saved analyses. Current is this entire captured inventory; filters and the displayed page do not restrict the comparison. Both inputs remain offline. Measurement, coverage and identity differences may require a limited or structural comparison. One indexed comparison can be open at a time; close the open comparison and wait for its work to finish before comparing another pair."
                         : "Select an analysis from the private catalog to restore its display settings. Entering a filename alone uses the default view. Recorded locations are not reconnected and no file actions are granted.", TextWrapping = TextWrapping.Wrap },
                     browse, message, choices, name, inspection, mapRoots, error
                 } };
                 var closer = new DialogCloser(); _inventoryCloser = closer;
                 InventoryChoice? SelectedChoice() => choices.SelectedItem is InventoryChoice selected && selected.Name == name.Text ? selected : null;
                 var result = await _window._dialogs.ShowCustomAsync(comparing ? "Choose previous analysis" : "Open saved analysis", body,
-                    [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton(comparing ? "Compare captured inventories" : "Open inventory", true) { IsAvailable = () => InventoryFilenameError(name.Text) is null && !loading && SelectedChoice()?.Replacement is null && _window.CanAddSession },
+                    [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton(comparing ? "Compare captured inventories" : "Open inventory", true) { IsAvailable = () => InventoryFilenameError(name.Text) is null && !loading && SelectedChoice()?.Replacement is null && _window.CanAddSession && (!comparing || AnalysisIndexedComparison.IndexCapacityRefusal is null) },
                     new DialogButton("Delete selected analysis…", SavedAnalysisMaintenanceAction.Delete) { IsAvailable = () => !loading && SelectedChoice()?.Entry is not null },
                     new DialogButton("Restore pending analysis…", SavedAnalysisMaintenanceAction.Restore) { IsAvailable = () => !loading && SelectedChoice()?.Pending?.PayloadPresent == true },
                     new DialogButton("Review pending replacement…", SavedAnalysisMaintenanceAction.Replacement) { IsAvailable = () => !loading && SelectedChoice()?.Replacement is not null }], name, closer: closer);

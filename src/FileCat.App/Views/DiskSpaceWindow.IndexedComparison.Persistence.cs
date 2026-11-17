@@ -66,12 +66,14 @@ public sealed partial class DiskSpaceWindow
             var body = new StackPanel { Spacing = 8, Children =
             {
                 new TextBlock { Text = "Open both complete captured inventories, root mapping and the applied comparison view from this profile. Recorded locations stay offline. Corrupt or unsupported bundles are kept and refused.", TextWrapping = TextWrapping.Wrap },
+                new TextBlock { Text = "One indexed comparison can be open at a time. Close the open comparison and wait for its work to finish before opening another. Browsing and deleting saved copies remain available.", TextWrapping = TextWrapping.Wrap },
                 new TextBlock { Text = "Saved comparisons folder: " + AnalysisNames.Display(services.Paths.AnalysisSnapshotsDirectory, 1000), TextWrapping = TextWrapping.Wrap },
                 browse, status, choices, name, error
             } };
             var accepted = await _dialogs.ShowCustomAsync("Open saved comparison", body,
                 [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Open comparison observations", true)
-                    { IsAvailable = () => !busy && !browsing.HasUnconfirmedClose && CanAddSession && IndexedComparisonNameError(name.Text) is null },
+                    { HelpText = "Close the open indexed comparison before opening another; saved-copy maintenance remains available.",
+                      IsAvailable = () => !busy && !browsing.HasUnconfirmedClose && CanAddSession && AnalysisIndexedComparison.IndexCapacityRefusal is null && IndexedComparisonNameError(name.Text) is null },
                  new DialogButton("Delete selected comparison…", SavedAnalysisMaintenanceAction.Delete)
                     { HelpText = "Review removal of the selected private comparison copy. Open observations and source files are kept.",
                       IsAvailable = () => !busy && !browsing.HasUnconfirmedClose && choices.SelectedItem is string selected && selected == name.Text }], name, closer: closer);

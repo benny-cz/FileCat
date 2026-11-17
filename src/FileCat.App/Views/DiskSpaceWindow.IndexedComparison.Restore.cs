@@ -40,6 +40,7 @@ public sealed partial class DiskSpaceWindow
         Func<CancellationToken, Task<AnalysisSavedIndexedComparison>> load, CancellationToken cancellation, string? savedName = null)
     {
         Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
+        if (AnalysisIndexedComparison.IndexCapacityRefusal is { } refusal) throw new InvalidOperationException(refusal);
         AnalysisSessionAdmission.Slot? admission = _admissionPool.Acquire();
         if (_pendingIndexed++ == 0) _indexedIdle = new(TaskCreationOptions.RunContinuationsAsynchronously);
         AnalysisSavedIndexedComparison? saved = null; AnalysisDatasetLease? a = null, b = null;

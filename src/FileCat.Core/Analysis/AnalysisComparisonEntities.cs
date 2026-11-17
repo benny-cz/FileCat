@@ -52,6 +52,7 @@ internal sealed record AnalysisComparisonAccountingEntity(ulong Id, ulong? Repre
 internal sealed partial class AnalysisComparisonEntities : IAsyncDisposable
 {
     private static int s_active;
+    internal static bool HasCapacityForPair => Volatile.Read(ref s_active) == 0;
     private readonly AnalysisOwnedDatasetIo<State> _owned;
     internal AnalysisDatasetDescriptor Descriptor { get; }
     internal AnalysisMetric Metric { get; }

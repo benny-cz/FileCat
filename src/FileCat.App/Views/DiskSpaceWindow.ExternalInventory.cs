@@ -79,12 +79,12 @@ public sealed partial class DiskSpaceWindow
         {
             if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
             var items = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            { Title = "Import offline analysis", AllowMultiple = false, FileTypeFilter = [new FilePickerFileType("FileCat inventory or comparison") { Patterns = ["*.fcdsa", "*.fcdsc"] }] });
+            { Title = "Import offline analysis", AllowMultiple = false, FileTypeFilter = [new FilePickerFileType("FileCat inventory or comparison") { Patterns = ["*.fcdsa", "*.FCDSA", "*.fcdsc", "*.FCDSC"] }, FilePickerFileTypes.All] });
             using var picked = new PickedStorageItems(items);
             cancel.Token.ThrowIfCancellationRequested();
             if (items.Count == 0) return;
             string path = items[0].TryGetLocalPath() ?? throw new NotSupportedException("Choose an inventory on a directly accessible local drive.");
-            bool comparison = path.EndsWith(".fcdsc", StringComparison.Ordinal);
+            bool comparison = path.EndsWith(".fcdsc", StringComparison.OrdinalIgnoreCase);
             AnalysisInventoryInput.ValidateChosenPath(path, comparison);
             if (!await ConfirmExternalInventoryAsync(_dialogs, path, cancel.Token, comparison)) return;
             cancel.Token.ThrowIfCancellationRequested();

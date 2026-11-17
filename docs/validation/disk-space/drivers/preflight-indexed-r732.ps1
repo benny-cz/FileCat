@@ -15,7 +15,7 @@ if($Platform-eq'windows'){
  $probe=@'
 import datetime,json,subprocess
 rows=[]
-for args in [['pgrep','-x','FileCat([.].*)?'],['pgrep','-f','^[^ ]*dotnet +.*FileCat']]:
+for args in [['pgrep','-x','FileCat([.].*)?'],['pgrep','-x','dotnet']]:
  p=subprocess.run(args,text=True,capture_output=True)
  if p.returncode not in (0,1):raise RuntimeError(p.stderr)
  for pid in p.stdout.split():
