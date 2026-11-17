@@ -106,19 +106,19 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
     private static StorageObservation Observe(NativePath path, StorageObjectIdentity protectedWindows, StorageAction? action, CancellationToken ct)
         => Inspect(path, protectedWindows, ct).For(action);
 
-    private static Inspection Inspect(NativePath path, StorageObjectIdentity protectedWindows, CancellationToken ct)
+    private static Inspection Inspect(NativePath path, StorageObjectIdentity protectedWindows, CancellationToken ct, bool compressionPolicy = true)
         => Inspect(path.Leaf.File, path.LeafFacts.Identity, path.Nodes.Select(n => n.Facts.Identity), path.Nodes[0].Facts.Identity,
-            path.Volume, protectedWindows, ct);
+            path.Volume, protectedWindows, ct, compressionPolicy);
 
     private static StorageObservation Observe(SafeFileHandle file, StorageObjectIdentity expected, IEnumerable<StorageObjectIdentity> ancestry,
         StorageObjectIdentity volumeRoot, VolumeFacts volume, StorageObjectIdentity protectedWindows, StorageAction? action, CancellationToken ct)
         => Inspect(file, expected, ancestry, volumeRoot, volume, protectedWindows, ct).For(action);
 
     private static Inspection Inspect(SafeFileHandle file, StorageObjectIdentity expected, IEnumerable<StorageObjectIdentity> ancestry,
-        StorageObjectIdentity volumeRoot, VolumeFacts volume, StorageObjectIdentity protectedWindows, CancellationToken ct)
+        StorageObjectIdentity volumeRoot, VolumeFacts volume, StorageObjectIdentity protectedWindows, CancellationToken ct, bool compressionPolicy = true)
     {
         var facts = Facts(file, volume.Binding, ct);
-        StorageProblem? problem = PhysicalProblem(expected, ancestry, volumeRoot, volume, facts, protectedWindows);
+        StorageProblem? problem = PhysicalProblem(expected, ancestry, volumeRoot, volume, facts, protectedWindows, compressionPolicy);
         var compression = StorageObservationState.Unknown;
         var efs = (facts.Attributes & (uint)FileAttributes.Encrypted) != 0 ? StorageObservationState.Enabled : StorageObservationState.Disabled;
         if (problem is null)
@@ -153,7 +153,7 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
             StorageProblem? problem = null;
             if (action == StorageAction.Compress && Basic.Efs == StorageObservationState.Enabled)
                 problem = Problem(StorageReasonKind.FileCatBoundary, "efs-conflict", "This item is encrypted with EFS. Compression cannot remove that protection.");
-            else if (NeedsChange(Basic.Compression, action.Value) && !Basic.IsDirectory)
+            else if (NeedsChange(action is StorageAction.EncryptEfs or StorageAction.DecryptEfs ? Basic.Efs : Basic.Compression, action.Value) && !Basic.IsDirectory)
             {
                 if (ReadOnly) problem = Problem(StorageReasonKind.PermissionOrPolicy, "read-only-file", "The file is read-only; its attributes will not be cleared.");
                 else if (action == StorageAction.Compress && Size > 30_000_000_000L)
@@ -164,10 +164,10 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
     }
 
     private static bool NeedsChange(StorageObservationState current, StorageAction action) =>
-        action == StorageAction.Compress ? current != StorageObservationState.Enabled : current != StorageObservationState.Disabled;
+        action is StorageAction.Compress or StorageAction.EncryptEfs ? current != StorageObservationState.Enabled : current != StorageObservationState.Disabled;
 
     private static StorageProblem? PhysicalProblem(StorageObjectIdentity expected, IEnumerable<StorageObjectIdentity> ancestry,
-        StorageObjectIdentity volumeRoot, VolumeFacts volume, NodeFacts facts, StorageObjectIdentity protectedWindows)
+        StorageObjectIdentity volumeRoot, VolumeFacts volume, NodeFacts facts, StorageObjectIdentity protectedWindows, bool compressionPolicy = true)
     {
         if (facts.Identity != expected || facts.DeletePending) return Problem(StorageReasonKind.IdentityChanged, "entry-changed", "The held entry changed or is being deleted.");
         if (facts.Identity == volumeRoot) return Problem(StorageReasonKind.FileCatBoundary, "volume-root", "The volume root cannot be a storage-change target.");
@@ -179,8 +179,9 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
         if ((facts.Attributes & (uint)FileAttributes.SparseFile) != 0) return Problem(StorageReasonKind.FileCatBoundary, "sparse-entry", "Compression changes for sparse entries are outside the qualified workflow.");
         if ((volume.Flags & 0x80000) != 0) return Problem(StorageReasonKind.PermissionOrPolicy, "read-only-volume", "This drive is read-only.");
         if (volume.AllocationUnit == 0) return Problem(StorageReasonKind.Unknown, "allocation-unit-unknown", "The volume's allocation unit could not be established.");
-        if (volume.AllocationUnit > 4096) return Problem(StorageReasonKind.FileCatBoundary, "allocation-unit", "Compression changes require an allocation unit no larger than 4096 bytes.");
-        if ((volume.Flags & 0x10) == 0) return Problem(StorageReasonKind.WindowsLimitation, "volume-compression", "This volume does not advertise per-file compression support.");
+        if (compressionPolicy && volume.AllocationUnit > 4096) return Problem(StorageReasonKind.FileCatBoundary, "allocation-unit", "Compression changes require an allocation unit no larger than 4096 bytes.");
+        if (compressionPolicy && (volume.Flags & 0x10) == 0) return Problem(StorageReasonKind.WindowsLimitation, "volume-compression", "This volume does not advertise per-file compression support.");
+        if (!compressionPolicy && (volume.Flags & 0x20000) == 0) return Problem(StorageReasonKind.WindowsLimitation, "volume-efs", "This volume does not advertise EFS support.");
         return null;
     }
 
@@ -194,12 +195,13 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
         error is 5 or 1314 ? StorageReasonKind.PermissionOrPolicy : error is 32 or 33 ? StorageReasonKind.TransientFailure : StorageReasonKind.Unknown,
         "native-" + error, operation + ": " + new Win32Exception(error).Message));
 
-    private sealed class Pin(WindowsStorageTransforms adapter, StorageTarget target, Inspection inspection, StorageAction? action, Held handle) : IStorageReviewLease
+    private sealed class Pin(WindowsStorageTransforms adapter, StorageTarget target, Inspection inspection, StorageAction? action, Held handle, string? invokerSid = null) : IStorageReviewLease
     {
         private sealed record State(Inspection Inspection, StorageAction? Action);
         private State _state = new(inspection, action);
         internal WindowsStorageTransforms Adapter => adapter;
         internal Held Handle => handle;
+        internal string? InvokerSid => invokerSid;
         internal StorageAction? Action => Volatile.Read(ref _state).Action;
         public StorageTarget Target => target;
         public StorageObservation Observation { get { var state = Volatile.Read(ref _state); return state.Inspection.For(state.Action); } }

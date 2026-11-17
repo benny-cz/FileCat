@@ -1,0 +1,42 @@
+# EFS native binding checkpoint — 17 November 2026
+
+Status: **implemented native candidate; partial E-ID/N-E1/N-E2 evidence, product EFS remains gated**. This implements the [approved pathname boundary](../../design/FILECAT_EFS_PATH_API_CONCURRENCY_AMENDMENT_PROPOSAL.md) and [independent decompression consent](../../design/FILECAT_EFS_COMPRESSION_CONSENT_AMENDMENT_PROPOSAL.md). It does not close EFS key recovery, output admission, typed job/journal/UI consent or whole-protocol qualification.
+
+The internal `WindowsStorageTransforms.InspectEfsRoot` / `OpenEfsPath` seam owns an original live review pin, action/identity-specific acknowledgments, the original native allowance, a fresh no-follow case-aware path and protected-Windows anchor. It checks the normal invoking SID again at bind, preparation and call observations. The EFS edition candidate is Windows 11 x64 Pro/Enterprise/Education (including N); other editions/architectures are refused. Volume encryption support is separate from compression's 4 KiB allocation-unit limit. Sparse inputs remain explicitly unqualified pending the new plan §5.5 fixtures.
+
+When a change is needed, the adapter opens read/list guards relative to retained parents, validates identities and storage backing, and keeps them without delete sharing through actual API return and post-observation. Promotion uses one rolling charged scratch slot while retaining continuity with the prior metadata handle. The root is reopened at its held physical device root. No-op EFS needs no data guard, stream conversion, key setup or EFS mutation call. A no-op preparation becoming change-needed requires fresh preparation; it cannot borrow the old admission.
+
+The supported EFS API pathname consists of the held physical root plus the captured exact components, under `\\?\GLOBALROOT\Device\HarddiskVolume…\`. It does not chase a renamed leaf or rely on a drive letter resolving to the same volume later. Microsoft documents the [NT root query flags](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew) and [GLOBALROOT namespace](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file); the round-trip fixture below establishes this API spelling on the tested host, not every filesystem/Windows version.
+
+`WindowsEfsStreams` queries the held object with `NtQueryInformationFile(FileStreamInformation)` and uses its actual returned byte count. The inventory grows 64 KiB → 256 KiB → 1 MiB, at most two retries, and refuses failed/truncated/duplicate/ambiguous records or more than 1,024 streams / 1 MiB retained names metadata. Exact named streams open relative to the held base file; their held volume/object identity and compression state are checked. No stream payload or EA values are read. Already-satisfied items do not need this conversion inventory. Native EFS status retains its exact reason code and cannot turn Home/unknown edition into support.
+
+After one prepared call is consumed, the adapter observes the held object and reopens the captured spelling through held parents without following links. A native success without the desired held EFS state is Uncertain. A failed return with the desired state observed is Changed with an issue. Read failures or detected path/storage churn after a call are Uncertain; no unbound retry or automatic undo occurs. No cancellation token can bypass post-observation after admission.
+
+## Executed checks
+
+Host builds only: the Windows platform and test projects built with zero warnings/errors. Tests ran off the user's workstation.
+
+| Target / exact filter | Result |
+|---|---|
+| Disposable Windows VM, interactive `admin`, medium integrity (`S-1-16-8192`), x64 .NET 10.0.15; `WindowsEfsPathTests` + `WindowsStorageInspectionTests`, `FILECAT_TEST_EFS=1` | **18 passed, 0 failed, 0 skipped**; 13 EFS-class cases (3 parser + 10 native), 5 existing C inspection cases. |
+| Ubuntu VM; `WindowsEfsPathTests.Complete_stream_parser_*` | **3 passed, 0 failed, 0 skipped**. Managed parser only. |
+| Mac; same parser filter | **3 passed, 0 failed, 0 skipped**. Managed parser only. Awake assertion remained active and `IOConsoleLocked=No`. |
+
+The Windows native cases establish synthetic file and folder default Encrypt/Decrypt round trips through the physical pathname, main/ADS payload preservation, an unchanged ReadOnly folder marker, independent consent refusal, stale/disposed review refusal, ordinary `File.Move` / `File.Delete` / ancestor `Directory.Move` exclusion after guard preparation, one-shot preparation, native false/true return handling, ReadOnly no-op, a change arising after no-op preparation, cancellation before preparation, and post-observation despite a Stop requested inside an admitted call. The false-return/desired-state fixture intentionally supplies a failed return after a successful native Encrypt; it verifies outcome handling, not an OS-generated failure with that effect.
+
+The deterministic competitor converts an empty held folder into a junction **inside the call delegate, after the last adapter check**, then invokes supported EncryptFileW. The unselected target's EFS default changes. The adapter returns Uncertain after detecting reparse churn on the held original. This is an executed example of the user's accepted boundary; it is not evidence of wrong-object prevention, independent-process race stress, file payload redirection coverage or permission to undo the target.
+
+Two findings changed the candidate before the passing run. Attribute-only metadata handles allowed ordinary rename despite omitted delete sharing; the final adapter promotes to read/list guards. A ReOpenFile prototype failed access checks on this fixture and was replaced with exact held-parent opens; no general statement about ReOpenFile support follows. EncryptFileW removed compression from the regular file's named stream, while the folder's named stream remained compressed. The tests record these separate observations; decompression consent permits removal and does not promise removal from every stream.
+
+## Inputs and local artifacts
+
+Source SHA-256:
+
+- `WindowsStorageTransforms.cs`: `D5B6862E8820AC1DA6C99EA63E1861DE83CD0B67AAE1DA1E340696F26F852062`
+- `WindowsStorageTransforms.Efs.cs`: `66F2D313AFB1D63CCEDC5348921BE6F2A1A056A8698397F0BD0CB7F740C7A1E4`
+- `WindowsEfsStreams.cs`: `40CE7EE68F2F71124E17BEA78F3F5108A9004FB4F785340EC0A982958A4AE64F`
+- `WindowsEfsPathTests.cs`: `9CA4EA60467F3A0451F9537EC1DA0E66E260C08909DFE621A59E68F17E47C612`
+
+Ignored local artifacts: `.tmp/filecat-efs-binding-results.log`, `.tmp/filecat-efs-binding-tests.xml`, `.tmp/filecat-efs-binding.ps1`, `.tmp/filecat-efs-binding-launch.ps1`. The native six-file binary patch SHA-256 is `BAF550DD7512911B1D05EAC4A16C2B098C8D7886C0794C4FADD8515C42684C36`; the managed parser package is `48A2B684D36DB03F1D86BE39D4B80E17BD6208EE51DB6E967CC8ED9C5CD14B83`. The native log ends `Native exit: 0` / `FILECAT_EFS_BINDING_FINISHED`; XML records 18 passed and zero errors/failures/skips. Synthetic fixtures were deleted after their handles retired; the disposable VM's EFS keys remain intact.
+
+Still open: independently qualified file/ancestor/case-distinct and extended rename/deletion adversaries, existing writers, stream churn/large inventories on actual native objects, all no-hydration/device/policy fixtures, sparse preservation, key setup/recovery and post-call key association, output routes, durable action/scope/revision-bound consents, recursive EFS execution and UI/lifecycle qualification, architecture-specific release gates. `IStorageTransforms.Unavailable`, Core action admission and product composition still refuse EFS. No whole E release gate is marked Passed by this checkpoint.
