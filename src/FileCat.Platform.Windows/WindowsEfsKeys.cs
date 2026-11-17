@@ -24,7 +24,11 @@ internal sealed unsafe partial class WindowsEfsKeys : IStorageEfsKeys
     [StructLayout(LayoutKind.Sequential)] private struct Blob { public uint Length; public byte* Data; }
     private sealed record Binding(string Container, string Provider, uint Type, uint Flags, uint KeySpec);
 
-    public StorageEfsKeyEvidence ProbeAssociatedCertificate(string invokerSid, string certificateSha1, CancellationToken ct)
+    public StorageEfsKeyEvidence ProbeAssociatedCertificate(string invokerSid, string certificateSha1, CancellationToken ct) =>
+        InspectAssociatedCertificate(invokerSid, certificateSha1, ct, useMatchedCertificate: null);
+
+    private StorageEfsKeyEvidence InspectAssociatedCertificate(string invokerSid, string certificateSha1, CancellationToken ct,
+        Action<nint>? useMatchedCertificate)
     {
         ValidateRequest(invokerSid, certificateSha1);
         ct.ThrowIfCancellationRequested();
@@ -50,14 +54,15 @@ internal sealed unsafe partial class WindowsEfsKeys : IStorageEfsKeys
                 int error = Marshal.GetLastPInvokeError();
                 return Error(invokerSid, certificateSha1, error == NotFound ? false : null, null, error, "efs-certificate-missing", "The exact file-associated certificate was not found in CurrentUser My.");
             }
-            try { return ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct); }
+            try { return ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct, useMatchedCertificate); }
             finally { FreeCertificate(certificate); }
         }
         finally { CloseStore(store, 0); }
     }
 
     /// <summary>Borrow an API-owned certificate context and its caller's scratch charge. Used by native qualification.</summary>
-    internal static StorageEfsKeyEvidence ProbeHeldCertificate(nint certificate, string invokerSid, string certificateSha1, CancellationToken ct)
+    internal static StorageEfsKeyEvidence ProbeHeldCertificate(nint certificate, string invokerSid, string certificateSha1, CancellationToken ct,
+        Action<nint>? useMatchedCertificate = null)
     {
         ValidateRequest(invokerSid, certificateSha1); RequireInvoker(invokerSid, ct);
         var allowance = StorageNativeAllowance.RequireCurrent();
@@ -110,6 +115,7 @@ internal sealed unsafe partial class WindowsEfsKeys : IStorageEfsKeys
                 if (!callerFree || key == 0 || keySpec is not (1 or 2 or uint.MaxValue) || (keySpec == uint.MaxValue) != (binding.Type == 0))
                     return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.Unknown, provider, null,
                         "efs-key-comparison-unestablished", "A fresh owned certificate-to-key comparison was not established; a cached or ambiguous result cannot authorize encryption.");
+                useMatchedCertificate?.Invoke(fresh);
                 return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.MatchedAvailable, provider, null, null, null);
             }
             finally
