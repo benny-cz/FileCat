@@ -153,6 +153,10 @@ internal sealed partial class AnalysisComparisonEntities : IAsyncDisposable
         _owned.RunAsync((state, token) => state.FindPath(path, token), cancellation);
     internal Task<AnalysisDatasetPage<AnalysisPathMetadata>> ReadMembersAsync(ulong entity, ulong offset = 0, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((state, token) => state.ReadMembers(entity, offset, maximum, token), cancellation);
+    internal Task<AnalysisDatasetPage<AnalysisPathMetadata>> ReadMembersBeforeAsync(ulong entity, ulong before, int maximum, CancellationToken cancellation) =>
+        _owned.RunAsync((state, token) => state.ReadMembersBefore(entity, before, maximum, token), cancellation);
+    internal Task<ulong> FindMemberOffsetAsync(ulong entity, ulong path, CancellationToken cancellation) =>
+        _owned.RunAsync((state, token) => state.FindMemberOffset(entity, path, token), cancellation);
     public ValueTask DisposeAsync() => _owned.DisposeAsync();
 
     // Self-delimiting cohort keys may later prefix exact metadata/evidence keys. They are local to one side.

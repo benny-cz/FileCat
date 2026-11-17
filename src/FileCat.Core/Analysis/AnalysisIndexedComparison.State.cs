@@ -12,6 +12,7 @@ internal sealed partial class AnalysisIndexedComparison
     {
         internal AnalysisScratchWorkspace? Workspace;
         internal AnalysisSortedIndexReader? OldBases, NewBases, PathEdges, Edges, Incoming, OldIdentities, NewIdentities, Order;
+        internal AnalysisSortedIndexReader? PathRows, Positions;
         private AnalysisScratchVector? _fallbackWriter, _rowWriter;
         private AnalysisScratchArena? _pendingArena;
         private AnalysisScratchVectorCheckpoint? _fallback;
@@ -100,7 +101,7 @@ internal sealed partial class AnalysisIndexedComparison
         public void Dispose()
         {
             if (_disposed) return; _disposed = true; Exception? failure = _closeFailure;
-            try { CloseAll(Order, Rows, _rowWriter, _fallbackWriter, _fallback, OldBases, NewBases, PathEdges, Incoming, Edges, OldIdentities, NewIdentities, _pendingArena, Workspace); }
+            try { CloseAll(PathRows, Positions, Order, Rows, _rowWriter, _fallbackWriter, _fallback, OldBases, NewBases, PathEdges, Incoming, Edges, OldIdentities, NewIdentities, _pendingArena, Workspace); }
             catch (Exception error) { failure = failure is null ? error : new AggregateException(failure, error); }
             if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         }

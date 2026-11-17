@@ -1,0 +1,68 @@
+{
+  "windows": [
+    {
+      "path": "render/FileCat.App.Tests.deps.json",
+      "sha256": "5be2b401e0db40ee3c0b689ae929f1b6137a20fd4292af95141e118de92093db"
+    },
+    {
+      "path": "render/FileCat.App.Tests.dll",
+      "sha256": "f027343ba5aa0d962f99b95693d56757ba63df69c48bc73642f642ff935e1b4c"
+    },
+    {
+      "path": "render/FileCat.App.Tests.exe",
+      "sha256": "b7fb47523a857765053acdd204ba1d23ccb497c12ee62b5b1cd17647a50efc72"
+    },
+    {
+      "path": "render/FileCat.App.Tests.pdb",
+      "sha256": "eaab064420ebe6e11c739a14a46b6e31a622fcaa75df99dfc9381b32f4f6795c"
+    },
+    {
+      "path": "render/FileCat.App.Tests.runtimeconfig.json",
+      "sha256": "90751b8460971c2289443df1768438644dfc508933067f78211841d2972717f8"
+    }
+  ],
+  "mac": [
+    {
+      "path": "render/FileCat.App.Tests.deps.json",
+      "sha256": "5be2b401e0db40ee3c0b689ae929f1b6137a20fd4292af95141e118de92093db"
+    },
+    {
+      "path": "render/FileCat.App.Tests.dll",
+      "sha256": "f027343ba5aa0d962f99b95693d56757ba63df69c48bc73642f642ff935e1b4c"
+    },
+    {
+      "path": "render/FileCat.App.Tests.exe",
+      "sha256": "b7fb47523a857765053acdd204ba1d23ccb497c12ee62b5b1cd17647a50efc72"
+    },
+    {
+      "path": "render/FileCat.App.Tests.pdb",
+      "sha256": "eaab064420ebe6e11c739a14a46b6e31a622fcaa75df99dfc9381b32f4f6795c"
+    },
+    {
+      "path": "render/FileCat.App.Tests.runtimeconfig.json",
+      "sha256": "90751b8460971c2289443df1768438644dfc508933067f78211841d2972717f8"
+    }
+  ],
+  "linux": [
+    {
+      "path": "render/FileCat.App.Tests.deps.json",
+      "sha256": "5be2b401e0db40ee3c0b689ae929f1b6137a20fd4292af95141e118de92093db"
+    },
+    {
+      "path": "render/FileCat.App.Tests.dll",
+      "sha256": "f027343ba5aa0d962f99b95693d56757ba63df69c48bc73642f642ff935e1b4c"
+    },
+    {
+      "path": "render/FileCat.App.Tests.exe",
+      "sha256": "b7fb47523a857765053acdd204ba1d23ccb497c12ee62b5b1cd17647a50efc72"
+    },
+    {
+      "path": "render/FileCat.App.Tests.pdb",
+      "sha256": "eaab064420ebe6e11c739a14a46b6e31a622fcaa75df99dfc9381b32f4f6795c"
+    },
+    {
+      "path": "render/FileCat.App.Tests.runtimeconfig.json",
+      "sha256": "90751b8460971c2289443df1768438644dfc508933067f78211841d2972717f8"
+    }
+  ]
+}

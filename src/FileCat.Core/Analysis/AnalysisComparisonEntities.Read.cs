@@ -41,6 +41,21 @@ internal sealed partial class AnalysisComparisonEntities
             if (offset >= row.Count) throw new ArgumentOutOfRangeException(nameof(offset));
             return Members!.Read(row.First + offset, token).Value;
         }
+        internal ulong FindMemberOffset(ulong entity, ulong path, CancellationToken token)
+        {
+            ulong pathRow = _graph!.FindPathRow(path, token) ?? throw new ArgumentOutOfRangeException(nameof(path));
+            if (EntityForPathRow(pathRow, token) != entity) throw new ArgumentException("The path does not belong to this captured accounting entity.", nameof(path));
+            var row = Decode(_rows!.Read(entity, token));
+            // Members share an entity key, then sort by captured graph row.
+            ulong low = 0, high = row.Count;
+            while (low < high)
+            {
+                token.ThrowIfCancellationRequested(); ulong middle = low + (high - low) / 2;
+                if (Members!.Read(row.First + middle, token).Value < pathRow) low = middle + 1; else high = middle;
+            }
+            if (low == row.Count || Members!.Read(row.First + low, token).Value != pathRow) throw AnalysisIndexedGraph.Invalid();
+            return low;
+        }
         internal AnalysisObject? FirstObject(ulong entity, CancellationToken token)
         { var row = Decode(_rows!.Read(entity, token)); return row.Object == 0 ? null : _graph!.ReadObject(row.Object, token); }
         internal AnalysisComparisonAccountingEntity Read(ulong entity, CancellationToken token, out long cost)
@@ -93,6 +108,22 @@ internal sealed partial class AnalysisComparisonEntities
                 paths.Add(AnalysisPathMetadata.From(path)); bytes += cost;
             }
             return new(offset, row.Count, paths.ToImmutable());
+        }
+        internal AnalysisDatasetPage<AnalysisPathMetadata> ReadMembersBefore(ulong entity, ulong before, int maximum, CancellationToken token)
+        {
+            var row = Decode(_rows!.Read(entity, token));
+            if (before > row.Count || maximum is < 1 or > AnalysisLimits.BatchRecords) throw new ArgumentOutOfRangeException(nameof(before));
+            var paths = ImmutableArray.CreateBuilder<AnalysisPathMetadata>(); long bytes = 0;
+            while ((ulong)paths.Count < before && paths.Count < maximum)
+            {
+                token.ThrowIfCancellationRequested();
+                var path = _graph!.ReadPathRow(Members!.Read(row.First + before - (ulong)paths.Count - 1, token).Value, token);
+                long cost = PathBytes(path);
+                if (cost > AnalysisLimits.BatchBytes) throw new IOException("A comparison alias exceeds the bounded page payload.");
+                if (cost > AnalysisLimits.BatchBytes - bytes) break;
+                paths.Add(AnalysisPathMetadata.From(path)); bytes += cost;
+            }
+            return new(before - (ulong)paths.Count, row.Count, paths.ToImmutable().Reverse().ToImmutableArray());
         }
     }
 }

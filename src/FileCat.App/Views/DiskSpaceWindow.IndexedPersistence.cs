@@ -32,6 +32,8 @@ public sealed partial class DiskSpaceWindow
         {
             _services?.AnalysisSavedReferences.Track(this);
             bar.Children.Add(_saveInventory); bar.Children.Add(_openInventory); bar.Children.Add(_compareInventory);
+            bar.Children.Add(_openIndexedComparison); _openIndexedComparison.Click += async (_, _) => await OpenIndexedComparisonSavedAsync();
+            ToolTip.SetTip(_openIndexedComparison, new RichTip("Open captured comparison", detail: "Open both complete captured inputs and the applied comparison view from this profile. Recorded locations stay offline."));
             _compareInventory.Click += async (_, _) => await OpenInventoryAsync(comparing: true);
             ToolTip.SetTip(_compareInventory, new RichTip("Compare captured observations", detail: "Choose a saved analysis as Previous. The entire current captured inventory is Current; the display filter does not restrict either input. Recorded paths remain offline."));
             _importExternal.IsVisible = _services is not null; bar.Children.Add(_importExternal);
@@ -54,6 +56,7 @@ public sealed partial class DiskSpaceWindow
             _saveInventory.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _openInventory.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _compareInventory.IsEnabled = HasInventoryStore && !_persistenceBusy && _window.CanAddSession;
+            _openIndexedComparison.IsEnabled = HasInventoryStore && !_persistenceBusy && _window.CanAddSession;
             _importExternal.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _exportExternal.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _exportReport.IsEnabled = HasInventoryStore && !_persistenceBusy;

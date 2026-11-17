@@ -69,7 +69,7 @@ public sealed partial class DiskSpaceWindow
             TextWrapping = TextWrapping.Wrap,
             Text = (comparison ? "Open both captured inventories and the saved comparison view as offline observations:\n" : "Open this inventory as offline observations:\n") + AnalysisNames.Display(path, 4096) +
                 "\nRecorded locations are not opened, and imported claims cannot grant file actions. The complete record graph and accounting must validate before a tab opens. Maximum input size: 8 GiB." +
-                (comparison ? " Comparison and import-memory limits also apply; an input that exceeds them is refused without opening a partial comparison." : "")
+                (comparison ? " Private scratch and profile capacity limits also apply; an input that exceeds them is refused without opening a partial comparison." : "")
         }, [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Import observations", true)], closer: closer) is true;
     }
     private async Task ImportExternalInventoryAsync(AppServices services, CancellationToken lifetime, Action<Exception> rememberFailure)
@@ -88,7 +88,7 @@ public sealed partial class DiskSpaceWindow
             AnalysisInventoryInput.ValidateChosenPath(path, comparison);
             if (!await ConfirmExternalInventoryAsync(_dialogs, path, cancel.Token, comparison)) return;
             cancel.Token.ThrowIfCancellationRequested();
-            Task task = comparison ? AddExternalComparisonSessionAsync(services, path, cancel.Token) : AddExternalIndexedSessionAsync(services, path, cancel.Token);
+            Task task = comparison ? AddExternalIndexedComparisonSessionAsync(services, path, cancel.Token) : AddExternalIndexedSessionAsync(services, path, cancel.Token);
             if (task.IsCompleted) { await task; return; }
             var closer = new DialogCloser();
             using var close = cancel.Token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => closer.Close(false)));

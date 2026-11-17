@@ -6,6 +6,7 @@ param(
  [Parameter(Mandatory=$true)][string]$SourceManifest,
  [ValidateSet('windows','mac','linux')][string[]]$ReusePlatforms=@('windows'),
  [ValidateSet('TestOnly','AppUi','OldProductControl','RunnerOnly')][string]$InputScope='TestOnly',
+ [switch]$ReuseFrozenDependencies,
  [switch]$IncludeCoverageMapping,
  [ValidateSet('core','render')][string[]]$AdditionalTestPhases=@(),
  [string]$WindowsTemplate='.tmp/batch-windows-grouping-template.ps1',
@@ -17,6 +18,16 @@ if($build.Contains('Build FAILED.')){throw 'A failed build cannot qualify a cach
 foreach($required in 'Build succeeded.','0 Warning(s)','0 Error(s)'){if(!$build.Contains($required)){throw 'A completed clean build is required'}}
 foreach($item in (Get-Content -Raw -LiteralPath $SourceManifest|ConvertFrom-Json)){
  if((Get-FileHash -LiteralPath $item.path -Algorithm SHA256).Hash.ToLowerInvariant()-ne$item.sha256){throw 'Source changed after freeze'}
+}
+if($ReuseFrozenDependencies){
+ if($InputScope-ne'AppUi'){throw 'Frozen dependency reuse is limited to AppUi changes'}
+ $previous=@{};foreach($item in (Get-Content -Raw -LiteralPath ('.tmp/source-candidate-'+$BaselineRevision+'.json')|ConvertFrom-Json)){$previous[$item.path]=$item.sha256}
+ $current=@{};foreach($item in (Get-Content -Raw -LiteralPath $SourceManifest|ConvertFrom-Json)){$current[$item.path]=$item.sha256}
+ foreach($path in $previous.Keys){if(!$current.ContainsKey($path)){throw ('A frozen dependency source disappeared: '+$path)}}
+ foreach($path in $current.Keys){
+  if($previous.ContainsKey($path)-and$previous[$path]-eq$current[$path]){continue}
+  if(!$path.EndsWith('.cs',[StringComparison]::Ordinal)-or!($path.StartsWith('src/FileCat.App/',[StringComparison]::Ordinal)-or$path.StartsWith('tests/FileCat.Rendering.Tests/',[StringComparison]::Ordinal))){throw ('Non-UI dependency source changed: '+$path)}
+ }
 }
 $assemblies=@{core='FileCat.Core.Tests';native='FileCat.Platform.Windows.Tests';render='FileCat.Rendering.Tests'}
 $testPhases=@(@($Phase)+$AdditionalTestPhases|Sort-Object -Unique)
@@ -43,7 +54,7 @@ foreach($platform in 'windows','mac','linux'){
   if($relative-eq'FileCat.slnx'-or$relative.StartsWith('tests/',[StringComparison]::Ordinal)){$current=Join-Path $PWD $relative}
   elseif($relative.StartsWith('render/FileCat.App.Tests.',[StringComparison]::Ordinal)){$current=Join-Path $PWD ('tests/FileCat.App.Tests/bin/Debug/net10.0/'+$parts[1])}
   else{$current=Join-Path $bin $parts[1]}
-  if($InputScope-eq'OldProductControl'-and$relative-notin$allowed){$current=$_.FullName}
+  if(($InputScope-eq'OldProductControl'-or$ReuseFrozenDependencies)-and$relative-notin$allowed){$current=$_.FullName}
   $before=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
   $after=(Get-FileHash -LiteralPath $current -Algorithm SHA256).Hash.ToLowerInvariant()
   $patch=$before-ne$after
@@ -114,5 +125,5 @@ foreach($platform in 'windows','mac','linux'){
  $proof+=@{platform=$platform;verifiedInputs=$files.Count;changed=$changed;guestReuse=$platform-in$ReusePlatforms;archiveBytes=(Get-Item -LiteralPath $archive).Length;sha256=$hash}
 }
 $watch.Stop()
-[ordered]@{revision=$Revision;baseline=$BaselineRevision;scope=$InputScope;testPhases=$testPhases;productSourceBaseline=if($InputScope-eq'OldProductControl'){$BaselineRevision}else{$null};elapsedSeconds=$watch.Elapsed.TotalSeconds;platforms=$proof}|ConvertTo-Json -Depth 5|Set-Content ('.tmp/test-fix-proof-'+$Revision+'.json')
+[ordered]@{revision=$Revision;baseline=$BaselineRevision;scope=$InputScope;testPhases=$testPhases;productSourceBaseline=if($InputScope-eq'OldProductControl'){$BaselineRevision}else{$null};reuseFrozenDependencies=[bool]$ReuseFrozenDependencies;producerSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant();elapsedSeconds=$watch.Elapsed.TotalSeconds;platforms=$proof}|ConvertTo-Json -Depth 5|Set-Content ('.tmp/test-fix-proof-'+$Revision+'.json')
 Write-Output ('Prepared one immutable batch per platform; verified guest reuse: '+($ReusePlatforms-join', ')+'. Seconds: '+[math]::Round($watch.Elapsed.TotalSeconds,2))

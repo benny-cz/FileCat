@@ -92,13 +92,32 @@ public sealed partial class DiskSpaceWindow
             if (!data.Items.TryGetValue(key, out var item)) return;
             var row = await _chartOwner.RowForAsync(item, token); token.ThrowIfCancellationRequested();
             if (row is null) return;
+            bool visible = await LocateComparisonRowAsync(row, token);
+            await InspectRowAsync(row, token);
+            if (item.NodeId is { } pathId) await SelectFocusedMemberAsync(_chartOwner.Previous, pathId, token);
+            if (!visible) _chartCaption.Text += " Selected accounting row is outside the applied table filter; both captured sides are shown in the inspector. The table filter has been kept.";
+        });
+        private async Task<bool> LocateComparisonRowAsync(AnalysisIndexedComparisonRow row, CancellationToken token)
+        {
             var visible = _page.Rows.FirstOrDefault(candidate => candidate.Row.Id == row.Id);
+            if (visible is null && _result is not null)
+            {
+                ulong? offset = _queryResult is null ? await _result.FindOffsetAsync(row.Id, token) : await _queryResult.FindOffsetAsync(row.Id, token);
+                token.ThrowIfCancellationRequested();
+                if (offset is { } position)
+                {
+                    // Start exactly at the requested row: a preceding wide scalar
+                    // must not consume the bounded page and hide the selection.
+                    var page = await ReadPageAsync(_result, position, token, _queryResult); token.ThrowIfCancellationRequested(); Publish(page);
+                    visible = _page.Rows.FirstOrDefault(candidate => candidate.Row.Id == row.Id)
+                        ?? throw new InvalidDataException("The located comparison row was absent from its captured page.");
+                }
+            }
             _publishing = true;
             try { _rows.SelectedItem = visible; if (visible is not null) _rows.ScrollIntoView(visible); }
             finally { _publishing = false; }
-            await InspectRowAsync(row, token);
-            if (visible is null) _chartCaption.Text += " Selected accounting row is outside the current table page or applied table filter; both captured sides are shown in the inspector.";
-        });
+            return visible is not null;
+        }
         private void DrawChart()
         {
             if (_chartProjection is not { } data || _chartMode == 0) { _chartHost.IsVisible = false; return; }

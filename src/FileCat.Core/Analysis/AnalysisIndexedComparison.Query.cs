@@ -65,7 +65,7 @@ internal sealed partial class AnalysisIndexedComparison
         }
     }
 
-    internal sealed class Query : IAsyncDisposable
+    internal sealed partial class Query : IAsyncDisposable
     {
         private readonly AnalysisIndexedComparison _owner;
         private readonly AnalysisOwnedDatasetIo<QueryState> _owned;
@@ -111,7 +111,7 @@ internal sealed partial class AnalysisIndexedComparison
     {
         internal AnalysisScratchWorkspace? Workspace;
         internal AnalysisIndexedFilter? PreviousFilter, CurrentFilter;
-        internal AnalysisSortedIndexReader? Order;
+        internal AnalysisSortedIndexReader? Order, Positions;
         internal ulong Definite, Unknown;
         private AnalysisScratchArena? _arena;
         private AnalysisScratchVector? _writer;
@@ -120,9 +120,9 @@ internal sealed partial class AnalysisIndexedComparison
         private bool _disposed;
         internal QueryState Retain()
         {
-            var index = Order!.Retain();
-            try { return new(source) { Order = index, Definite = Definite, Unknown = Unknown }; }
-            catch { index.Dispose(); throw; }
+            var index = Order!.Retain(); AnalysisSortedIndexReader? positions = null;
+            try { positions = Positions?.Retain(); return new(source) { Order = index, Positions = positions, Definite = Definite, Unknown = Unknown }; }
+            catch { try { positions?.Dispose(); } finally { index.Dispose(); } throw; }
         }
         internal void Initialize()
         {
@@ -165,11 +165,13 @@ internal sealed partial class AnalysisIndexedComparison
             }
             return new(offset, Order.Count, rows.ToImmutable());
         }
+        internal AnalysisDatasetPage<AnalysisIndexedComparisonRow> PreviousPage(ulong before, int maximum, CancellationToken token) =>
+            RowsBefore(source, Order!, before, maximum, token);
         public void Dispose()
         {
             if (_disposed) return; _disposed = true;
             Exception? failure = _closeFailure;
-            try { CloseAll(Order, PreviousFilter, CurrentFilter, _input, _writer, _arena, Workspace); }
+            try { CloseAll(Positions, Order, PreviousFilter, CurrentFilter, _input, _writer, _arena, Workspace); }
             catch (Exception error) { failure = failure is null ? error : new AggregateException(failure, error); }
             if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         }

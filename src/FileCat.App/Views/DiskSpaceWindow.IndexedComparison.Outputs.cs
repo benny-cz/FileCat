@@ -12,11 +12,17 @@ public sealed partial class DiskSpaceWindow
         private Button _exportReport = null!;
         private void AddOutputs()
         {
+            AddBundleControls();
             _exportReport = Button("Export comparison report…", () => _ = ExportReportAsync(),
                 "Export the applied query/cohort/order or entire comparison as Markdown, HTML or spreadsheet-safe CSV. A displayed chart can be exported as SVG or PNG. Names and paths are omitted by default.");
             Children.Add(_exportReport);
         }
-        private void RefreshOutputs(bool usable) => _exportReport.IsEnabled = usable && !_chartInteracting && _result is not null && _services is { Io.IsStopped: false };
+        private void RefreshOutputs(bool usable)
+        {
+            bool enabled = usable && !_chartInteracting && _result is not null && _services is { Io.IsStopped: false };
+            _exportReport.IsEnabled = _saveBundle.IsEnabled = _exportBundle.IsEnabled = enabled;
+            _openBundle.IsEnabled = enabled && _window.CanAddSession;
+        }
         private Task ExportReportAsync() => RunAsync("Exporting captured comparison observations…", async token =>
         {
             if (_result is null || _services is not { } services) return;
