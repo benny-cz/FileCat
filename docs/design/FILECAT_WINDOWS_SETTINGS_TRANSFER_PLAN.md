@@ -1,6 +1,6 @@
 # FileCat Windows settings transfer plan
 
-Add **Copy appearance or workspace between sessions…** to Settings on Windows. The default direction is normal → administrator. The user copies display preferences from the ordinary profile and applies them to the current elevated session. Workspace copy is an opt-in action. Either transfer can be remembered for future launches under that administrator account and FileCat profile. The ordinary profile remains the baseline. Only a separate, confirmed action in a normal window can change it.
+Add **Copy appearance and workspace between sessions…** to Settings on Windows. The default direction is normal → administrator. Users can copy saved appearance and the current workspace together or transfer either one separately. Transfers can be remembered for future launches under that administrator account and FileCat profile. The ordinary profile remains the baseline. Only a separate, confirmed action in a normal window can change it.
 
 Use a disposable profile with schema 1, the `Psychedelic` theme, compact rows, and list and content font sizes of 13 for acceptance tests. The usual installed profile stores its settings under `%APPDATA%\FileCat\settings.json`.
 
@@ -8,6 +8,8 @@ Use a disposable profile with schema 1, the `Psychedelic` theme, compact rows, a
 
 | Where | Action | Result |
 |---|---|---|
+| Normal Settings | **Copy appearance and workspace for administrator** | Copies saved appearance and the current panel layout and local-folder tabs as a single value. |
+| Administrator Settings | **Use copied appearance and workspace** | Accepts one paste and shows one review for both parts. Select **Remember for future administrator launches** to restore both together. |
 | Normal Settings | **Copy saved appearance for administrator** | Copies the active profile’s saved display preferences. Shows the source profile and path. An open Settings draft stays separate. |
 | Administrator Settings | **Use copied appearance for this session** | Shows the incoming changes and applies them to the running UI. Select **Remember for future administrator launches** to load these values again. |
 | Normal Settings | **Copy current workspace for administrator** | Copies the current panel arrangement and open local-folder tabs from the running window. |
@@ -51,7 +53,7 @@ Same-account UAC uses the normal window as the source. With alternate administra
 
 The normal window uses its already-resolved path, covering installed roaming settings, `profiles\<name>`, portable `Data`, portable fallback to roaming, and `--data`. The receiver never guesses another account’s roaming directory. If a same-profile launch would forward to the existing window, the existing `--new-instance` option opens a separate window. [AppPaths.Resolve](../../src/FileCat.Core/State/AppPaths.cs) · [SingleInstance.TryForward](../../src/FileCat.App/SingleInstance.cs)
 
-Remembered transfers live in an administrator-only Windows registry key, scoped by the elevated account’s SID and the resolved profile path. Portable installations keep these administrator preferences on the machine that received them. `--data` launches apply transfers for one session only. `--reset-layout` skips the remembered workspace for that launch. [Administrator registry storage](../../src/FileCat.Platform.Windows/AdministratorTransferRegistry.cs)
+Remembered transfers live in an administrator-only Windows registry key, scoped by the elevated account’s SID and the resolved profile path. An elevated launch reads the appearance and workspace from one record. Separately stored values from earlier FileCat versions remain readable. Portable installations keep these administrator preferences on the machine that received them. `--data` launches apply transfers for one session only. `--reset-layout` skips the remembered workspace for that launch. [Administrator registry storage](../../src/FileCat.Platform.Windows/AdministratorTransferRegistry.cs)
 
 ## Acceptance tests
 

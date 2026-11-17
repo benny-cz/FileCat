@@ -12,8 +12,10 @@ namespace FileCat.App.Views;
 [SupportedOSPlatform("windows")]
 internal static class AppearanceTransferDialog
 {
-    internal const string ActionLabel = "Copy appearance or workspace between sessions…";
+    internal const string ActionLabel = "Copy appearance and workspace between sessions…";
     private const string Keep = "Keep my settings";
+    private const string CopyBoth = "Copy appearance and workspace for administrator";
+    private const string UseBoth = "Use copied appearance and workspace";
     private const string CopyWorkspace = "Copy current workspace for administrator";
     private const string UseWorkspace = "Use copied workspace for this session";
     private const string CopyAppearance = "Copy saved appearance for administrator";
@@ -48,6 +50,7 @@ internal static class AppearanceTransferDialog
         {
             Content = elevated ? UseWorkspace : CopyWorkspace,
         };
+        var combined = new Button { Content = elevated ? UseBoth : CopyBoth };
         var reverseActions = new StackPanel { Spacing = 6, Children = { reverse } };
         var rememberedActions = new StackPanel { Spacing = 6 };
         var closer = new DialogCloser();
@@ -87,6 +90,28 @@ internal static class AppearanceTransferDialog
             catch (Exception ex) when (IsSettingsError(ex)) { status.Text = ex.Message; }
         }
 
+        async Task ReviewWorkspaceAsync(WorkspaceTransfer transfer, AppearanceTransferV1? appearance = null)
+        {
+            var changes = appearance?.DescribeChanges(services.Settings).ToList() ?? [];
+            for (int i = 0; i < transfer.Panels.Length; i++)
+            {
+                var panel = transfer.Panels[i];
+                changes.Add(panel.Folders.Length == 0 ? $"Panel {i + 1} · Home" : $"Panel {i + 1}");
+                changes.AddRange(panel.Folders);
+            }
+            string subject = appearance is null ? "workspace" : "appearance and workspace";
+            string description = appearance is null
+                ? "Replace the panels and tabs in this administrator session."
+                : "Apply the appearance and replace the panels and tabs in this administrator session.";
+            description += " Only available local folders open. You can restore the previous workspace.";
+            var remember = RememberChoice();
+            string apply = appearance is null ? "Apply workspace for this session" : "Apply appearance and workspace";
+            if (await ConfirmChangesAsync(vm, $"Use {subject} in this administrator session",
+                description, changes, apply, remember) &&
+                await vm.UseTransferredWorkspaceAsync(transfer, remember?.IsChecked == true, appearance))
+                closer.Close(true);
+        }
+
         if (elevated)
         {
             primary.Click += async (_, _) =>
@@ -124,16 +149,13 @@ internal static class AppearanceTransferDialog
             {
                 var value = await ReadTransferAsync(vm, "Use copied workspace", "workspace",
                     WorkspaceTransfer.MaxCharacters, WorkspaceTransfer.Decode, CopyWorkspace, "normal");
-                if (value is null) return;
-                var folders = value.Panels.SelectMany((panel, index) => panel.Folders.Length > 0
-                    ? new[] { $"Panel {index + 1}" }.Concat(panel.Folders)
-                    : [$"Panel {index + 1} · Home"]).ToArray();
-                const string description = "Replace the panels and tabs in this administrator session. Only available local folders are opened. You can restore the previous workspace.";
-                var remember = RememberChoice();
-                if (await ConfirmChangesAsync(vm, "Use workspace in this administrator session",
-                    description, folders, "Apply workspace for this session", remember) &&
-                    await vm.UseTransferredWorkspaceAsync(value, remember?.IsChecked == true))
-                    closer.Close(true);
+                if (value is not null) await ReviewWorkspaceAsync(value);
+            };
+            combined.Click += async (_, _) =>
+            {
+                var value = await ReadTransferAsync(vm, UseBoth, "appearance and workspace",
+                    CombinedTransfer.MaxCharacters, CombinedTransfer.Decode, CopyBoth, "normal");
+                if (value is not null) await ReviewWorkspaceAsync(value.Workspace, value.Appearance);
             };
             if (store is not null)
             {
@@ -162,6 +184,24 @@ internal static class AppearanceTransferDialog
         else
         {
             primary.Click += (_, _) => Copy();
+            combined.Click += (_, _) =>
+            {
+                ClearCopy();
+                try
+                {
+                    var appearance = AppearanceTransferV1.Capture(services.NormalAppearanceSettings.ReadSaved(), ThemeManager.Names);
+                    var transfer = new CombinedTransfer(appearance, WorkspaceTransfer.Capture(vm.Workspace));
+                    ShowCopy(transfer.Encode(), "Appearance and workspace", UseBoth);
+                }
+                catch (FileNotFoundException)
+                {
+                    status.Text = "This profile has no saved appearance yet. Save Settings in the normal window and try again.";
+                }
+                catch (Exception ex) when (IsSettingsError(ex))
+                {
+                    status.Text = "Could not copy the appearance and workspace. " + Formatters.SafeName(ex.Message);
+                }
+            };
             workspace.Click += (_, _) =>
             {
                 ClearCopy();
@@ -216,13 +256,13 @@ internal static class AppearanceTransferDialog
             Spacing = 8,
             Children =
             {
-                context, primary, workspace, rememberedActions,
+                context, combined, primary, workspace, rememberedActions,
                 new Expander { Header = "Copy back…", Content = reverseActions }, status, copied,
             },
         };
         return await vm.Dialogs.ShowCustomAsync(ActionLabel.TrimEnd('…'), body,
             [new DialogButton("Close", false, IsDefault: true, IsCancel: true)],
-            initialFocus: primary, closer: closer, behavior: Modal) is true;
+            initialFocus: combined, closer: closer, behavior: Modal) is true;
     }
 
     private static Task<AppearanceTransferV1?> ReadAppearanceAsync(MainViewModel vm, string title, bool copyBack = false) =>
@@ -241,26 +281,30 @@ internal static class AppearanceTransferDialog
         var paste = new Button { Content = $"Paste {kind} text" };
         string? Mismatch(string? text)
         {
-            if (kind == "workspace" && AppearanceTransferV1.HasHeader(text)) return "This is appearance text.";
-            if (kind == "appearance" && WorkspaceTransfer.HasHeader(text)) return "This is workspace text.";
+            if (kind != "appearance" && AppearanceTransferV1.HasHeader(text)) return $"This is appearance text. {copyHelp}";
+            if (kind != "workspace" && WorkspaceTransfer.HasHeader(text)) return $"This is workspace text. {copyHelp}";
+            if (kind != "appearance and workspace" && CombinedTransfer.HasHeader(text))
+                return sourceWindow == "normal"
+                    ? $"This text contains appearance and workspace. Choose “{UseBoth}” in the transfer dialog."
+                    : $"This text contains appearance and workspace. {copyHelp}";
             return null;
         }
 
         void Paste()
         {
-            // Read up to the larger format's limit so the appearance dialog can recognize a workspace paste.
-            string? text = WindowsClipboardFileDrop.ReadBoundedText(WorkspaceTransfer.MaxCharacters);
+            // Read up to the largest format's limit so each dialog can identify a mismatched transfer.
+            string? text = WindowsClipboardFileDrop.ReadBoundedText(CombinedTransfer.MaxCharacters);
             if (text is null)
             {
                 status.Text = $"No readable text is available on the clipboard. {copyHelp}";
                 return;
             }
             string? error = Mismatch(text);
-            if (error is null && text.Length > limit) error = $"The {kind} text exceeds the size limit.";
+            if (error is null && text.Length > limit) error = $"The {kind} text exceeds the size limit. {copyHelp}";
             if (error is not null)
             {
                 input.Text = null;
-                status.Text = $"{error} {copyHelp}";
+                status.Text = error;
                 return;
             }
             input.Text = text;
@@ -277,8 +321,7 @@ internal static class AppearanceTransferDialog
         {
             value = decode(input.Text);
             if (value is not null) return true;
-            string message = Mismatch(input.Text) ?? $"Enter valid {kind} text copied from FileCat.";
-            status.Text = $"{message} {copyHelp}";
+            status.Text = Mismatch(input.Text) ?? $"Enter valid {kind} text copied from FileCat. {copyHelp}";
             input.Focus();
             return false;
         }

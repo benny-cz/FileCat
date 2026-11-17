@@ -71,6 +71,7 @@ public partial class App : Application
             string? workspaceWarning = null;
             if (!benchmark && !StartupOptions.ResetLayout && StartupOptions.Workspace is null)
             {
+                workspaceWarning = services.AdministratorWorkspaceWarning;
                 try { remembered = vm.PrepareRememberedWorkspace(); }
                 catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
                 {

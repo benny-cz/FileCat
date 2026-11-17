@@ -14,6 +14,7 @@ internal sealed class AdministratorTransferPreferences(AdministratorTransferRegi
 {
     private string AppearanceName => scope + ".appearance";
     private string WorkspaceName => scope + ".workspace";
+    private string TransfersName => scope + ".transfers.v1";
 
     internal static AdministratorTransferPreferences? ForProfile(AppPaths paths, AdministratorTransferRegistry? registry = null)
     {
@@ -28,34 +29,70 @@ internal sealed class AdministratorTransferPreferences(AdministratorTransferRegi
     internal static string ProfileScope(string sid, string settingsDirectory) => Convert.ToHexString(SHA256.HashData(
         Encoding.UTF8.GetBytes(sid + '\0' + Path.GetFullPath(settingsDirectory).ToUpperInvariant())));
 
-    internal void LoadAppearance(AppSettings settings)
+    /// <summary>Reads the authoritative record once. Older installations stored the values separately.</summary>
+    internal TransferPackets? ReadSnapshot()
     {
-        string? text = registry.Read(AppearanceName, AppearanceTransferV1.MaxCharacters);
+        string? text = registry.Read(TransfersName, TransferPackets.MaxCharacters);
+        return text is null ? null : TransferPackets.Decode(text)
+            ?? throw new IOException("The remembered transfers use an invalid or unsupported format.");
+    }
+
+    private string? ReadAppearance(TransferPackets? snapshot) => snapshot is not null
+        ? snapshot.Appearance : registry.Read(AppearanceName, AppearanceTransferV1.MaxCharacters);
+
+    private string? ReadWorkspace(TransferPackets? snapshot) => snapshot is not null
+        ? snapshot.Workspace : registry.Read(WorkspaceName, WorkspaceTransfer.MaxCharacters);
+
+    internal void LoadAppearance(AppSettings settings, TransferPackets? snapshot)
+    {
+        string? text = ReadAppearance(snapshot);
         if (text is null) return;
         if (!AppearanceTransferV1.TryParse(text, ThemeManager.Names, out var value) || value is null)
             throw new IOException("The remembered appearance uses an invalid or unsupported format.");
         value.ApplyTo(settings);
     }
 
-    internal WorkspaceTransfer? LoadWorkspace()
+    internal WorkspaceTransfer? LoadWorkspace(TransferPackets? snapshot)
     {
-        string? text = registry.Read(WorkspaceName, WorkspaceTransfer.MaxCharacters);
+        string? text = ReadWorkspace(snapshot);
         return text is null ? null : WorkspaceTransfer.Decode(text)
             ?? throw new IOException("The remembered workspace uses an invalid or unsupported format.");
     }
 
-    internal void RememberAppearance(AppearanceTransferV1 value) =>
-        registry.Save(AppearanceName, value.Encode(), AppearanceTransferV1.MaxCharacters);
+    internal WorkspaceTransfer? LoadWorkspace() => LoadWorkspace(ReadSnapshot());
 
-    internal void RememberWorkspace(WorkspaceTransfer value) =>
-        registry.Save(WorkspaceName, value.Encode(), WorkspaceTransfer.MaxCharacters);
+    internal void RememberAppearance(AppearanceTransferV1 value) => WithWriterLock(() =>
+        Save(new TransferPackets(value.Encode(), ReadWorkspace(ReadSnapshot()))));
 
-    internal void Forget()
+    internal void RememberWorkspace(WorkspaceTransfer value) => WithWriterLock(() =>
+        Save(new TransferPackets(ReadAppearance(ReadSnapshot()), value.Encode())));
+
+    internal void RememberBoth(AppearanceTransferV1 appearance, WorkspaceTransfer workspace) => WithWriterLock(() =>
+        Save(new TransferPackets(appearance.Encode(), workspace.Encode())));
+
+    private void Save(TransferPackets packets) => registry.Save(TransfersName, packets.Encode(), TransferPackets.MaxCharacters);
+
+    internal void Forget() => WithWriterLock(() =>
     {
+        // Remove the legacy values before removing the record that supersedes them.
         registry.Forget(AppearanceName);
         registry.Forget(WorkspaceName);
+        registry.Forget(TransfersName);
+    });
+
+    private void WithWriterLock(Action action)
+    {
+        using var mutex = new Mutex(false, @"Global\FileCat.AdministratorTransfers." + scope);
+        try
+        {
+            if (!mutex.WaitOne(TimeSpan.FromSeconds(2)))
+                throw new IOException("Another administrator window is saving these preferences. Try again.");
+        }
+        catch (AbandonedMutexException) { }
+        try { action(); }
+        finally { mutex.ReleaseMutex(); }
     }
 
     internal static bool IsStoreFailure(Exception ex) =>
-        ex is IOException or UnauthorizedAccessException or SecurityException or Win32Exception;
+        ex is IOException or UnauthorizedAccessException or SecurityException or Win32Exception or WaitHandleCannotBeOpenedException;
 }

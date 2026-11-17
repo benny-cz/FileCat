@@ -37,11 +37,24 @@ public sealed class AppServices : IDisposable
             try
             {
                 AdministratorTransfers = AdministratorTransferPreferences.ForProfile(paths, administratorRegistry);
-                AdministratorTransfers?.LoadAppearance(Settings);
+                if (AdministratorTransfers is { } store)
+                {
+                    var snapshot = store.ReadSnapshot();
+                    try { store.LoadAppearance(Settings, snapshot); }
+                    catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+                    {
+                        AdministratorTransferWarning = "Could not load remembered appearance. " + ex.Message;
+                    }
+                    try { RememberedAdministratorWorkspace = store.LoadWorkspace(snapshot); }
+                    catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+                    {
+                        AdministratorWorkspaceWarning = "Could not load the remembered workspace. " + ex.Message;
+                    }
+                }
             }
             catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
             {
-                AdministratorTransferWarning = "Could not load remembered appearance. " + ex.Message;
+                AdministratorTransferWarning = "Could not load remembered transfers. " + ex.Message;
             }
         }
         Settings.Terminal.Upgrade();
@@ -477,6 +490,8 @@ public sealed class AppServices : IDisposable
     private readonly WindowsSettingsFile? _windowsSettings;
     internal AdministratorTransferPreferences? AdministratorTransfers { get; }
     internal string? AdministratorTransferWarning { get; }
+    internal WorkspaceTransfer? RememberedAdministratorWorkspace { get; }
+    internal string? AdministratorWorkspaceWarning { get; }
 
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     internal WindowsSettingsFile NormalAppearanceSettings => _windowsSettings

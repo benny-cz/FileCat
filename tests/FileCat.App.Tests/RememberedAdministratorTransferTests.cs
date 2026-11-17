@@ -46,7 +46,7 @@ public sealed class RememberedAdministratorTransferTests
             File.WriteAllText(paths.WorkspaceFile, workspace);
             File.WriteAllText(paths.WorkspaceFile + ".bak", workspace);
             var packet = new WorkspaceTransfer([new([local], 0, null)], new(0, false, 1, []), 0);
-            string appearance = AppearanceTransferV1.Export(new AppSettings { Theme = "Psychedelic", FontSize = 17 }, ThemeManager.Names);
+            var appearance = AppearanceTransferV1.Capture(new AppSettings { Theme = "Psychedelic", FontSize = 17 }, ThemeManager.Names);
             var first = AppServices.CreateForPathsWithAdministratorRegistry(paths, store);
             var firstVm = new MainViewModel(first);
             var window = new MainWindow(firstVm, null) { Width = 1200, Height = 800 };
@@ -56,10 +56,13 @@ public sealed class RememberedAdministratorTransferTests
                 Assert.Null(first.AdministratorTransfers!.LoadWorkspace());
                 firstVm.Initialize(null);
                 window.Show();
-                await ApplyAndRememberAsync(firstVm, window, "Use copied appearance for this session",
-                    "Appearance text", appearance, "Apply for this session");
-                await ApplyAndRememberAsync(firstVm, window, "Use copied workspace for this session",
-                    "Workspace text", packet.Encode(), "Apply workspace for this session");
+                await ApplyAndRememberAsync(firstVm, window, "Use copied appearance and workspace",
+                    "Appearance and workspace text", new CombinedTransfer(appearance, packet).Encode(), "Apply appearance and workspace");
+                var remembered = first.AdministratorTransfers!.ReadSnapshot();
+                Assert.Equal(appearance.Encode(), remembered?.Appearance);
+                Assert.Equal(packet.Encode(), remembered?.Workspace);
+                Assert.Equal("Psychedelic", first.Settings.Theme);
+                Assert.Equal(local, firstVm.Workspace.ActivePanel?.ActiveTab?.Location?.Path);
             }
             finally { AccessibilityTests.Close(first, window, Path.Combine(root, "window")); }
             using (var reopened = AppServices.CreateForPathsWithAdministratorRegistry(paths, store))
@@ -83,8 +86,35 @@ public sealed class RememberedAdministratorTransferTests
                 Assert.Null(isolated.AdministratorTransfers);
             using var identity = WindowsIdentity.GetCurrent();
             string otherAccount = AdministratorTransferPreferences.ProfileScope("S-1-5-21-7-7-7-1001", paths.SettingsDirectory);
-            Assert.NotEqual(AdministratorTransferPreferences.ProfileScope(identity.User!.Value, paths.SettingsDirectory), otherAccount);
-            Assert.Null(store.Read(otherAccount + ".appearance", AppearanceTransferV1.MaxCharacters));
+            string scope = AdministratorTransferPreferences.ProfileScope(identity.User!.Value, paths.SettingsDirectory);
+            Assert.NotEqual(scope, otherAccount);
+            Assert.Null(new AdministratorTransferPreferences(store, otherAccount).ReadSnapshot());
+            Assert.Null(store.Read(scope + ".appearance", AppearanceTransferV1.MaxCharacters));
+            Assert.Null(store.Read(scope + ".workspace", WorkspaceTransfer.MaxCharacters));
+
+            // A single-option update retains the other half of an existing pair.
+            var pair = AdministratorTransferPreferences.ForProfile(paths, store)!;
+            var classic = AppearanceTransferV1.Capture(new AppSettings { Theme = "ClassicDark" }, ThemeManager.Names);
+            pair.RememberAppearance(classic);
+            Assert.Equal(packet.Encode(), pair.LoadWorkspace()?.Encode());
+            pair.RememberWorkspace(packet);
+            Assert.Equal(classic.Encode(), pair.ReadSnapshot()?.Appearance);
+
+            // Existing separately stored preferences remain readable and migrate together on update.
+            var legacyPaths = AppPaths.Resolve("Legacy", overrideRoot: root);
+            string legacyScope = AdministratorTransferPreferences.ProfileScope(identity.User!.Value, legacyPaths.SettingsDirectory);
+            store.Save(legacyScope + ".appearance", appearance.Encode(), AppearanceTransferV1.MaxCharacters);
+            store.Save(legacyScope + ".workspace", packet.Encode(), WorkspaceTransfer.MaxCharacters);
+            using (var legacy = AppServices.CreateForPathsWithAdministratorRegistry(legacyPaths, store))
+            {
+                Assert.Equal("Psychedelic", legacy.Settings.Theme);
+                Assert.Equal(packet.Encode(), legacy.RememberedAdministratorWorkspace?.Encode());
+                Assert.Null(legacy.AdministratorTransfers!.ReadSnapshot());
+                legacy.AdministratorTransfers.RememberAppearance(classic);
+                Assert.Equal(packet.Encode(), legacy.AdministratorTransfers.ReadSnapshot()?.Workspace);
+                legacy.AdministratorTransfers.Forget();
+                Assert.Null(legacy.AdministratorTransfers.LoadWorkspace());
+            }
             AdministratorTransferPreferences.ForProfile(paths, store)!.Forget();
             using var reset = AppServices.CreateForPathsWithAdministratorRegistry(paths, store);
             Assert.Equal("System", reset.Settings.Theme);

@@ -72,7 +72,9 @@ public sealed class AppearanceTransferV1
 
     public string Encode() => Prefix + _values.ToJsonString();
 
-    public static string Export(AppSettings settings, IReadOnlyList<string> themes)
+    public static string Export(AppSettings settings, IReadOnlyList<string> themes) => Capture(settings, themes).Encode();
+
+    public static AppearanceTransferV1 Capture(AppSettings settings, IReadOnlyList<string> themes)
     {
         var values = new JsonObject();
         var defaults = new AppSettings();
@@ -86,7 +88,7 @@ public sealed class AppearanceTransferV1
             else if (field.Name != nameof(AppSettings.DateFormat))
                 values.Add(field.Name, field.Get(defaults));
         }
-        return new AppearanceTransferV1(values).Encode();
+        return new AppearanceTransferV1(values);
     }
 
     public static bool TryParse(string? text, IReadOnlyList<string> themes, out AppearanceTransferV1? transfer)

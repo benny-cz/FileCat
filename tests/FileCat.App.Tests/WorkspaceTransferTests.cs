@@ -47,6 +47,23 @@ public sealed class WorkspaceTransferTests
             Assert.Null(WorkspaceTransfer.Decode(bad));
     }
 
+    [Fact]
+    public void Combined_transfer_requires_both_valid_packets()
+    {
+        var appearance = AppearanceTransferV1.Capture(new AppSettings { Theme = "Psychedelic" }, ThemeManager.Names);
+        var workspace = new WorkspaceTransfer([new([@"C:\Data"], 0, null)], new(0, false, 1, []), 0);
+        string text = new CombinedTransfer(appearance, workspace).Encode();
+        var combined = Assert.IsType<CombinedTransfer>(CombinedTransfer.Decode(text));
+        Assert.Equal(appearance.Encode(), combined.Appearance.Encode());
+        Assert.Equal(workspace.Encode(), combined.Workspace.Encode());
+        const string prefix = "FileCat-AppearanceWorkspace-1 ";
+        Assert.Null(CombinedTransfer.Decode(prefix + new TransferPackets(appearance.Encode(), null).Encode()));
+        Assert.Null(CombinedTransfer.Decode(prefix + new TransferPackets("invalid", workspace.Encode()).Encode()));
+        Assert.Null(CombinedTransfer.Decode(prefix + new TransferPackets(appearance.Encode(), "invalid").Encode()));
+        Assert.Null(CombinedTransfer.Decode(text.Replace("AppearanceWorkspace-1", "AppearanceWorkspace-2")));
+        Assert.Null(CombinedTransfer.Decode(text.Insert(prefix.Length + 1, "\"Workspace\":\"duplicate\",")));
+    }
+
     [AvaloniaFact]
     public async Task Normal_copy_uses_current_layout_and_local_tabs_without_saving()
     {
@@ -75,6 +92,14 @@ public sealed class WorkspaceTransferTests
             Assert.Equal(3, packet.Layout.Children[0].Size);
             Assert.Equal(2, packet.Panels[0].Target);
             Assert.True(Shows(window, "Use copied workspace for this session"));
+
+            Click(window, "Copy appearance and workspace for administrator");
+            var combined = Assert.IsType<CombinedTransfer>(
+                CombinedTransfer.Decode(Field(window, "Appearance and workspace text to copy").Text));
+            Assert.Equal(packet.Encode(), combined.Workspace.Encode());
+            Assert.Equal(AppearanceTransferV1.Export(services.NormalAppearanceSettings.ReadSaved(), ThemeManager.Names),
+                combined.Appearance.Encode());
+            Assert.True(Shows(window, "Use copied appearance and workspace"));
 
             Click(window, "Copy saved appearance for administrator");
             Assert.True(Field(window, "Appearance text to copy").IsEffectivelyVisible);

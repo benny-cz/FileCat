@@ -253,7 +253,8 @@ public sealed partial class MainViewModel
         View.FocusActivePanel();
     }
 
-    internal async Task<bool> UseTransferredWorkspaceAsync(WorkspaceTransfer transfer, bool remember)
+    internal async Task<bool> UseTransferredWorkspaceAsync(WorkspaceTransfer transfer, bool remember,
+        AppearanceTransferV1? appearance = null)
     {
         if (!WindowsTokenAuthority.IsHighIntegrity) return false;
         var previous = Workspace.ToState(LastPlacement);
@@ -265,6 +266,7 @@ public sealed partial class MainViewModel
         _ = DropUnrestorableTabs(previous);
         WorkspaceTransfer.Prepared? prepared = null;
         bool applying = false;
+        AppearanceTransferV1? previousAppearance = null;
         try
         {
             prepared = await Task.Run(() => transfer.Prepare(WorkspaceViewModel.DefaultLocation()));
@@ -272,22 +274,32 @@ public sealed partial class MainViewModel
             applying = true;
             Workspace.LoadState(prepared.State);
             int skipped = prepared.Skipped;
+            if (appearance is not null)
+            {
+                // Elevated appearance consists of the same allowlisted values.
+                previousAppearance = AppearanceTransferV1.Capture(Services.Settings, ThemeManager.Names);
+                appearance.ApplyTo(Services.Settings);
+                RefreshAppearance();
+            }
             RetainWorkspaceTransferPaths(prepared);
             prepared = null;
             SetPreviousWorkspace(previous);
-            string message = "Workspace applied to this administrator session.";
+            string subject = appearance is null ? "Workspace" : "Appearance and workspace";
+            string message = $"{subject} applied to this administrator session.";
             bool saveFailed = false;
             if (remember && OperatingSystem.IsWindows() && Services.AdministratorTransfers is { } store)
             {
                 try
                 {
-                    store.RememberWorkspace(WorkspaceTransfer.Capture(Workspace));
-                    message = "Workspace applied and remembered for future administrator launches.";
+                    var workspace = WorkspaceTransfer.Capture(Workspace);
+                    if (appearance is null) store.RememberWorkspace(workspace);
+                    else store.RememberBoth(appearance, workspace);
+                    message = $"{subject} applied and remembered for future administrator launches.";
                 }
                 catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
                 {
                     saveFailed = true;
-                    message += " Could not remember it. " + Formatters.SafeName(ex.Message);
+                    message += " Could not save the transfer for future launches. " + Formatters.SafeName(ex.Message);
                 }
             }
             Notify(message +
@@ -302,17 +314,19 @@ public sealed partial class MainViewModel
             {
                 try { Workspace.LoadState(previous); } catch (Exception) { }
             }
-            Notify("Could not open the copied workspace. " + Formatters.SafeName(ex.Message), true);
+            if (previousAppearance is not null)
+            {
+                previousAppearance.ApplyTo(Services.Settings);
+                try { RefreshAppearance(); } catch (Exception) { }
+            }
+            Notify("Could not apply the copied transfer. " + Formatters.SafeName(ex.Message), true);
             return false;
         }
         finally { prepared?.Dispose(); }
     }
 
     internal WorkspaceTransfer.Prepared? PrepareRememberedWorkspace()
-    {
-        if (!OperatingSystem.IsWindows() || Services.AdministratorTransfers is not { } store) return null;
-        return store.LoadWorkspace()?.Prepare(WorkspaceViewModel.DefaultLocation());
-    }
+        => Services.RememberedAdministratorWorkspace?.Prepare(WorkspaceViewModel.DefaultLocation());
 
     internal void RetainWorkspaceTransferPaths(WorkspaceTransfer.Prepared prepared)
     {
