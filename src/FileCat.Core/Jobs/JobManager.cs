@@ -52,6 +52,7 @@ public sealed partial class JobManager
         _journalDirectory = journalDirectory;
         _archiveBackends = archiveBackends ?? throw new ArgumentNullException(nameof(archiveBackends));
         _storageTransforms = storageTransforms ?? throw new ArgumentNullException(nameof(storageTransforms));
+        CompressionUnavailable = _storageTransforms.Unavailable(StorageAction.Compress);
         _createStorageJournal = createStorageJournal;
         _storageEvidenceBackend = storageEvidenceBackend;
     }
@@ -573,7 +574,7 @@ public sealed partial class JobManager
             if (job.Kind == JobKind.StorageTransform)
             {
                 storageEvidence = StorageEvidenceBudget.Shared.Reserve(_journalDirectory, job.Id, job.Token, _storageEvidenceBackend);
-                storageNative = StorageReviewResources.EnterNative(job.Token);
+                storageNative = StorageReviewResources.EnterNative(job.Token, job);
             }
             journal = JobJournal.Create(_journalDirectory, job, _createStorageJournal);
             ArchiveJobOperation? archiveOperation;

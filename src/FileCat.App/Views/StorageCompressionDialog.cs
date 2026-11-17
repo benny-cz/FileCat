@@ -30,6 +30,8 @@ internal sealed class StorageCompressionDialog : IDisposable
     private readonly RadioButton _selectedOnly, _contents;
     private readonly RadioButton _compress, _remove;
     private readonly Button _retry;
+    private readonly Button _showBlocker = new() { Content = "Cancel preparation and show operation", IsVisible = false };
+    private readonly DispatcherTimer _resourceTimer = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private StorageAction? _selectedAction;
     private StorageScope _scope = StorageScope.SelectedItems;
     private Task? _work;
@@ -62,6 +64,13 @@ internal sealed class StorageCompressionDialog : IDisposable
         AutomationProperties.SetName(_contents, "Selected folders and their existing contents");
         _retry = new Button { Content = "Retry inspection" };
         _retry.Click += (_, _) => Request(retry: true);
+        _showBlocker.Click += (_, _) =>
+        {
+            if (StorageReviewResources.NativeBlocker is not { } blocker || blocker.State.IsFinished()) { RenderResourceWait(); return; }
+            RequestedOperation = blocker; _closer.Close("blocker");
+        };
+        AutomationProperties.SetName(_showBlocker, "Cancel preparation and show the blocking operation");
+        _resourceTimer.Tick += (_, _) => { if (_open && !_frozen) RenderResourceWait(); };
         AutomationProperties.SetName(_retry, "Retry inspection of the original selected items");
         AutomationProperties.SetName(_search, "Search selected items by name or original location");
         AutomationProperties.SetName(_items, "Selected items and original locations, select text to copy");
@@ -81,7 +90,7 @@ internal sealed class StorageCompressionDialog : IDisposable
         {
             Body.Children.Add(_selectedOnly); Body.Children.Add(_contents); Body.Children.Add(_scopeHelp);
         }
-        Body.Children.Add(_status); Body.Children.Add(_retry); Body.Children.Add(_disclosure);
+        Body.Children.Add(_status); Body.Children.Add(_showBlocker); Body.Children.Add(_retry); Body.Children.Add(_disclosure);
         Body.Children.Add(Text("Changes the main file data or folder default. Alternate data streams keep their own compression settings."));
         Body.Children.Add(Text("Storage changes run separately from other tracked file operations. Later queued operations may wait while this change is queued, paused, or waiting for your decision."));
         _review.Request(null, StorageScope.SelectedItems);
@@ -91,6 +100,7 @@ internal sealed class StorageCompressionDialog : IDisposable
     internal StackPanel Body { get; }
     internal bool Ready => _milestone;
     internal Task? PendingWork => _work;
+    internal Job? RequestedOperation { get; private set; }
 
     /// <summary>The returned owner must be submitted or disposed by the caller.</summary>
     internal async Task<StorageCompressionChoice?> ShowAsync(IDialogService dialogs)
@@ -105,6 +115,7 @@ internal sealed class StorageCompressionDialog : IDisposable
                 _compress, closer: _closer, resizable: true, behavior: new DialogBehavior { KeepOperationsUsable = true });
             _initialRegistration = _initial.Register(() => Dispatcher.UIThread.Post(() => { if (!_milestone && _open) _closer.Close("cancel"); }));
             _shutdownRegistration = _stop.Token.Register(() => Dispatcher.UIThread.Post(() => { if (_open) _closer.Close("cancel"); }));
+            _resourceTimer.Start();
             Request();
             object? result = await dialog;
             if (result is not ("start" or "queue") || _approved is null || _approval is null) return null;
@@ -114,6 +125,7 @@ internal sealed class StorageCompressionDialog : IDisposable
         finally
         {
             _open = false; _stop.Cancel();
+            _resourceTimer.Stop();
             _initialRegistration.Dispose(); _shutdownRegistration.Dispose();
             try
             {
@@ -128,7 +140,7 @@ internal sealed class StorageCompressionDialog : IDisposable
         }
     }
 
-    private bool CanApprove() => _open && !_frozen && !_stop.IsCancellationRequested && (_milestone || !_initial.IsCancellationRequested) && _review.State.CanApprove;
+    private bool CanApprove() => _open && _milestone && !_frozen && !_stop.IsCancellationRequested && _review.State.CanApprove;
     private bool Freeze()
     {
         if (!CanApprove()) return false;
@@ -211,6 +223,18 @@ internal sealed class StorageCompressionDialog : IDisposable
         string label = state.Action switch { StorageAction.Compress => "Compress", StorageAction.RemoveCompression => "Remove compression", _ => "Choose action" };
         string scope = state.Scope == StorageScope.SelectedItems ? "Selected items only" : "Selected folders and their existing contents";
         _primary.Update(new(label, label, $"{scope}. Changes main data or folder defaults; alternate data streams keep their compression settings."));
+        RenderResourceWait();
+    }
+    private void RenderResourceWait()
+    {
+        var state = _review.State;
+        bool waiting = _open && !_frozen && !_stop.IsCancellationRequested && state.NeedsInspection && !state.Inspecting;
+        var blocker = waiting ? StorageReviewResources.NativeBlocker : null;
+        _showBlocker.IsVisible = blocker is not null && !blocker.State.IsFinished();
+        if (!waiting) return;
+        _status.Text = _showBlocker.IsVisible
+            ? $"Waiting for the storage resource owned by {JsonSerializer.Serialize(blocker!.Title)}. Cancel this preparation to show that operation."
+            : "Waiting for a storage inspection resource. Another storage check or review may be using this resource.";
     }
     private void RenderItems(StorageSelectionState state)
     {
@@ -232,6 +256,7 @@ internal sealed class StorageCompressionDialog : IDisposable
     public void Dispose()
     {
         _open = false; _stop.Cancel(); _initialRegistration.Dispose(); _shutdownRegistration.Dispose();
+        _resourceTimer.Stop();
         _review.Dispose(); _approved?.Dispose(); _stop.Dispose();
     }
 }

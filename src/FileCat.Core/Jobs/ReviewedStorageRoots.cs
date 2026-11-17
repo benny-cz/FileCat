@@ -193,6 +193,8 @@ internal static class StorageReviewResources
 {
     private static readonly object PinLock = new();
     private static readonly SemaphoreSlim Native = new(1, 1);
+    private static Job? _nativeJob;
+    internal static Job? NativeBlocker => Volatile.Read(ref _nativeJob);
     private static int _pins;
     [ThreadStatic] private static StorageTarget? _inspecting;
     internal const int PinLimit = 256, NativeSlots = 188;
@@ -205,11 +207,12 @@ internal static class StorageReviewResources
         }
         return new Once(() => { lock (PinLock) _pins -= count; });
     }
-    internal static IDisposable EnterNative(CancellationToken ct)
+    internal static IDisposable EnterNative(CancellationToken ct, Job? owner = null)
     {
         if (StorageNativeAllowance.Current is not null) throw new InvalidOperationException("Borrow the existing storage native allowance; do not reacquire it.");
         Native.Wait(ct);
-        using var reserved = new StorageNativeReservation(() => Native.Release());
+        Volatile.Write(ref _nativeJob, owner);
+        using var reserved = new StorageNativeReservation(ReleaseNative);
         return reserved.Enter();
     }
     /// <summary>Reserve before entering the device queue, so no device worker waits for global native capacity.</summary>
@@ -217,7 +220,12 @@ internal static class StorageReviewResources
     {
         if (StorageNativeAllowance.Current is not null) throw new InvalidOperationException("Release the current native allowance before another reservation.");
         await Native.WaitAsync(ct).ConfigureAwait(false);
-        return new StorageNativeReservation(() => Native.Release());
+        return new StorageNativeReservation(ReleaseNative);
+    }
+    private static void ReleaseNative()
+    {
+        Volatile.Write(ref _nativeJob, null);
+        Native.Release();
     }
     internal static IDisposable EnterRootInspection(StorageTarget target)
     {

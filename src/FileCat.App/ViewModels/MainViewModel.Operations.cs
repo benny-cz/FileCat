@@ -56,6 +56,7 @@ public sealed partial class MainViewModel
         if (Core.Search.ResultSetProvider.IsWorkingSetList(ActiveTab?.Location) && await WorkingSetListCommandAsync(id)) return true;
         switch (id)
         {
+            case CommandIds.StorageAttributes: await ChangeStorageAttributesAsync(); return true;
             case CommandIds.AddToWorkingSet: await AddToWorkingSetAsync(); return true;
             case CommandIds.WorkingSets: OpenWorkingSets(); return true;
             case CommandIds.Copy:
@@ -679,11 +680,12 @@ public sealed partial class MainViewModel
     private void OnJobFinishedCore(Job job)
     {
         Operations.UpdateSummary();
+        if (job.Kind == JobKind.StorageTransform && _storageOrigins.Remove(job, out var storageOrigin)) storageOrigin.UnmarkCompleted(job);
         if (_jobOrigins.Remove(job, out var origin))
         {
             var tab = origin.Tab;
             if (origin.Location.Scheme == Schemes.ResultSet) FollowSetChanges(job, origin.Location);
-            if (tab.Location == origin.Location && job.Request.Sources.Count > 0 && job.Kind is not (JobKind.CreateDirectory or JobKind.CreateFile))
+            if (tab.Location == origin.Location && job.Request.Sources.Count > 0 && job.Kind is not (JobKind.CreateDirectory or JobKind.CreateFile or JobKind.StorageTransform))
             {
                 // Unmark what the job finished; failed and skipped roots stay marked for a retry.
                 try { tab.Listing.MarkItems(job.Request.Sources, job.CompletedRootIndices, false); }
@@ -790,7 +792,7 @@ public sealed partial class MainViewModel
         {
             foreach (var t in p.Tabs)
             {
-                if (t.Location is { } l && (folders.Contains(l) || l.Scheme == Schemes.ResultSet || parents is null && l.IsFileSystem ||
+                if (t.Location is { } l && (folders.Contains(l) || l.Scheme == Schemes.ResultSet || StorageIncludesFolder(job, l) || parents is null && l.IsFileSystem ||
                                             archive is not null && l.Scheme is Schemes.Zip or Schemes.Archive && string.Equals(l.Container?.Path, archive, StringComparison.Ordinal)))
                     t.Refresh();
             }

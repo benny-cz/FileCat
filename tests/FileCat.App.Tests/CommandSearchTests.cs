@@ -37,7 +37,9 @@ public sealed class CommandSearchTests
     [InlineData("new folder", CommandIds.MakeDirectory)]
     [InlineData("mkdir", CommandIds.MakeDirectory)]
     [InlineData("zip", CommandIds.Pack)]
-    [InlineData("compres", CommandIds.Pack)] // the start of a keyword
+    [InlineData("compres", CommandIds.StorageAttributes)] // the newly available title outranks Pack's keyword
+    [InlineData("NTFS", CommandIds.StorageAttributes)]
+    [InlineData("uncompress", CommandIds.StorageAttributes)]
     [InlineData("settings", CommandIds.Settings)]
     [InlineData("preferences", CommandIds.Settings)]
     [InlineData("files find", CommandIds.FindFiles)] // words in any order; the closer title wins

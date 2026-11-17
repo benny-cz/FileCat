@@ -17,7 +17,7 @@ public sealed class AppServices : IDisposable
 {
     private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null, Core.Archives.ArchiveJobBackends? archiveBackends = null,
         Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null, IOwnership? ownershipOverride = null,
-        int metadataCacheSize = 50_000, Func<long>? metadataClock = null)
+        int metadataCacheSize = 50_000, Func<long>? metadataClock = null, IStorageTransforms? storageTransforms = null)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
@@ -101,7 +101,7 @@ public sealed class AppServices : IDisposable
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = new ContainerDetectors(Zip, Archives);
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory,
-            archiveBackends ?? Core.Archives.ArchiveJobBackends.Empty, Platform.StorageTransforms,
+            archiveBackends ?? Core.Archives.ArchiveJobBackends.Empty, storageTransforms ?? Platform.StorageTransforms,
             FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateJournal : null,
             FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Backend : null);
         Archives.MutationAvailability = plan => Jobs.CanReviewArchive(plan) ? Jobs.ArchiveAvailability(plan)
@@ -257,6 +257,9 @@ public sealed class AppServices : IDisposable
     /// <summary>Constructs an isolated composition root at explicit paths (including headless UI tests).</summary>
     /// <param name="sftpConnector">Tests connect to an in-memory server instead of SSH.NET.</param>
     public static AppServices CreateForPaths(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector);
+
+    internal static AppServices CreateForPathsWithStorageTransforms(AppPaths paths, IStorageTransforms storageTransforms) =>
+        new(paths, storageTransforms: storageTransforms);
 
     internal static AppServices CreateForPathsWithOwnership(AppPaths paths, IOwnership ownership, int cacheSize = 50_000,
         Func<long>? clock = null) => new(paths, ownershipOverride: ownership, metadataCacheSize: cacheSize, metadataClock: clock);

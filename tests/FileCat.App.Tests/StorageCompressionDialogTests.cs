@@ -187,4 +187,33 @@ public sealed class StorageCompressionDialogTests
         }
         finally { host.Dialogs.CancelAll(); await showing; }
     }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_resource_wait_can_only_navigate_to_the_actual_typed_job_owner(bool jobOwned)
+    {
+        using var host = new Host(); var adapter = new Adapter();
+        using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
+        var owner = new Job(new JobRequest { Kind = JobKind.StorageTransform, Sources = [Item()] }, "Existing storage operation", "fixture", [], []);
+        var holding = Task.Run(() =>
+        {
+            using var native = StorageReviewResources.EnterNative(TestContext.Current.CancellationToken, jobOwned ? owner : null);
+            entered.Set(); if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+        });
+        await Until(() => entered.IsSet);
+        using var review = new StorageSelectionReview(adapter, [Item()]);
+        using var form = new StorageCompressionDialog(review, host.Io, "fixture", [false]);
+        var showing = form.ShowAsync(host.Dialogs);
+        try
+        {
+            var show = form.Body.Children.OfType<Button>().Single(button => button.Content as string == "Cancel preparation and show operation");
+            await Until(() => show.IsVisible == jobOwned);
+            if (jobOwned) show.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); else host.Dialogs.CancelAll();
+            Assert.Null(await showing.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.Equal(jobOwned ? owner : null, form.RequestedOperation); Assert.Equal(0, adapter.Opens);
+        }
+        finally { release.Set(); host.Dialogs.CancelAll(); await showing; await holding; }
+        Assert.Null(StorageReviewResources.NativeBlocker);
+    }
 }

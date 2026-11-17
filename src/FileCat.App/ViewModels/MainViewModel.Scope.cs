@@ -6,7 +6,11 @@ namespace FileCat.App.ViewModels;
 /// A tab outside the panels (a Find window's results) with the window that shows it: commands run there act on the
 /// tab, open their dialogs in that window, and report there.
 /// </summary>
-public sealed record CommandScope(TabViewModel Tab, IDialogService Dialogs, IViewActions View);
+public sealed record CommandScope(TabViewModel Tab, IDialogService Dialogs, IViewActions View)
+{
+    /// <summary>Find's cached final-publication state; no filesystem or result scan runs in availability.</summary>
+    public Func<CommandAvailability>? StorageAvailability { get; init; }
+}
 
 public sealed partial class MainViewModel
 {

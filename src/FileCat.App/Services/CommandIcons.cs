@@ -78,6 +78,7 @@ public static class CommandIcons
         [CommandIds.Checksum] = [new("M6.5,2 L5,14 M11.5,2 L10,14 M2.5,5.5 L14,5.5 M2,10.5 L13.5,10.5")],
         [CommandIds.VerifyChecksums] = [new("M5.5,2 L4.5,10 M10,2 L9,10 M2.5,4.5 L11.5,4.5 M2,8 L11,8", "TextMuted"), new("M8.5,12 L10.5,14 L14.5,9.5", "Success")],
         [CommandIds.Attributes] = [new("M2.5,4 L13.5,4 M2.5,8 L13.5,8 M2.5,12 L13.5,12"), new("M6,2.5 L6,5.5 M10.5,6.5 L10.5,9.5 M4.5,10.5 L4.5,13.5", "ActiveAccent")],
+        [CommandIds.StorageAttributes] = [new("M3,2 L10,2 L13,5 L13,14 L3,14 Z", "TextMuted"), new("M1,8 L6,8 M4,6 L6,8 L4,10 M15,8 L10,8 M12,6 L10,8 L12,10", "ActiveAccent")],
         [CommandIds.CreateLink] = [new(Box, "TextMuted"), new("M5,11 L11,5 M7,5 L11,5 L11,9", "TextLink")],
         [CommandIds.BulkRename] = [new("M1.5,3 L10.5,3 M1.5,7 L10.5,7 M1.5,11 L10.5,11", "TextMuted"), new("M13,2 L13,14 M11.5,2 L14.5,2 M11.5,14 L14.5,14", "ActiveAccent")],
         [CommandIds.ApplyCommand] = [new(Box, "TextMuted"), new("M4.5,5.5 L7,8 L4.5,10.5 M8.5,10.5 L11.5,10.5", "ActiveAccent")],

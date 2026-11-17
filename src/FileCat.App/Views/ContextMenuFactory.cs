@@ -69,7 +69,7 @@ public static class ContextMenuFactory
     private static readonly string[] MoreItems =
     [
         CommandIds.Duplicate, CommandIds.DeletePermanent, "-",
-        CommandIds.CopyNames, CommandIds.OpenInNewTab, CommandIds.OpenTerminal, CommandIds.Checksum, CommandIds.VerifyChecksums,
+        CommandIds.CopyNames, CommandIds.OpenInNewTab, CommandIds.OpenTerminal, CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.StorageAttributes,
     ];
 
     public static ContextMenu Build(MainViewModel vm)

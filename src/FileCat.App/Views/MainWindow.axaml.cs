@@ -29,6 +29,16 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         new FileCat.App.Controls.DescendantFocusWindowAutomationPeer(this);
 
     private readonly MainViewModel _vm;
+    internal bool RevealStorageBlocker(Core.Jobs.Job job)
+    {
+        var center = _vm.Operations;
+        if (center.Jobs.FirstOrDefault(row => ReferenceEquals(row.Job, job)) is not { } row) return false;
+        center.IsOpen = true;
+        center.Selected = row;
+        Activate();
+        Dispatcher.UIThread.Post(() => OperationsPane.FocusForKeyboard(), DispatcherPriority.Loaded);
+        return true;
+    }
     private readonly Dictionary<PanelViewModel, PanelView> _panelViews = new();
     private PanelView? _pointerFocusOwner;
     private long _pointerFocusAt;

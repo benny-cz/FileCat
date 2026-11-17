@@ -5,6 +5,9 @@ namespace FileCat.Core.Jobs;
 
 public sealed partial class JobManager
 {
+    /// <summary>Platform/build availability captured at composition, without native work in command presentation.</summary>
+    public StorageProblem? CompressionUnavailable { get; }
+
     private readonly Dictionary<Job, StorageReviewOwner> _storageOwners = [];
 
     /// <summary>Published once after terminal retirement, with no live writer, traversal or review pins.</summary>
