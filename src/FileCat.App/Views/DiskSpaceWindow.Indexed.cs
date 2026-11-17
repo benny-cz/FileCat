@@ -29,12 +29,15 @@ public sealed partial class DiskSpaceWindow
         AnalysisMetric metric, AnalysisFilterRequest? filter, AnalysisSavedView? saved, CancellationToken cancellation, AppServices? services = null,
         Func<AnalysisInventoryReceipt?>? openedInventory = null, string? historyNotice = null, IAsyncDisposable? additionalOwner = null,
         AnalysisSessionAdmission.Slot? reservedAdmission = null, AnalysisIndexedAcquisition? runtimeAcquisition = null,
-        Func<AnalysisDatasetLease, CancellationToken, Task<AnalysisSavedView?>>? prepareView = null, Func<ulong?>? restoredFocus = null)
+        Func<AnalysisDatasetLease, CancellationToken, Task<AnalysisSavedView?>>? prepareView = null, Func<ulong?>? restoredFocus = null,
+        Func<DiskSpaceViewModel.RecordedResultHandoff>? runtimeHandoff = null, Func<string?>? preparedViewNotice = null)
     {
         AnalysisSessionAdmission.Slot? admission = reservedAdmission;
         try
         {
             Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
+            if (runtimeHandoff is not null && (additionalOwner is not null || runtimeAcquisition is not null))
+                throw new ArgumentException("Choose either immediate or transactional runtime ownership.");
             admission ??= _admissionPool.Acquire();
         }
         catch
@@ -51,7 +54,7 @@ public sealed partial class DiskSpaceWindow
         {
             retained = await prepareSource(linked.Token);
             if (prepareView is not null) saved = await prepareView(retained, linked.Token);
-            string? restoreNotice = null; ulong scope = 0, offset = 0; int skipped = 0;
+            string? restoreNotice = preparedViewNotice?.Invoke(); ulong scope = 0, offset = 0; int skipped = 0;
             if (saved is not null)
             {
                 AnalysisSavedCatalog.ValidateView(saved); metric = saved.Metric;
@@ -96,6 +99,7 @@ public sealed partial class DiskSpaceWindow
                 cancellation: linked.Token, descending: saved?.SortDescending ?? true), explorer.LoadChartAsync(scope, linked.Token));
             linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
             var view = await IndexedSessionView.CreateAsync(this, retained, explorer, filter ?? new(""), admission, saved, restoreNotice, linked.Token, services);
+            DiskSpaceViewModel.RecordedResultHandoff? transfer = null;
             try
             {
                 view._historyOwner = additionalOwner; additionalOwner = null;
@@ -105,9 +109,21 @@ public sealed partial class DiskSpaceWindow
                 view.RefreshRuntimeRescanControls();
                 if (focus is { } restored) await view.RestoreRuntimeFocusAsync(restored);
                 linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
+                if (runtimeHandoff is not null)
+                {
+                    transfer = runtimeHandoff();
+                    view._historyOwner = transfer.Acquisition; view._runtimeAcquisition = transfer.Acquisition;
+                    view.RefreshRuntimeRescanControls();
+                }
+                linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
                 AddView(view);
+                transfer?.Commit();
             }
-            catch { retained = null; explorer = null; admission = null; view.Dispose(); await view.CloseCompletion; throw; }
+            catch
+            {
+                if (transfer?.TryRollback() == true) { view._historyOwner = null; view._runtimeAcquisition = null; }
+                retained = null; explorer = null; admission = null; view.Dispose(); await view.CloseCompletion; throw;
+            }
             retained = null; admission = null; var result = explorer; explorer = null; return result;
         }
         catch (Exception error) when (AnalysisCloseUnconfirmedException.IsPresent(error)) { unconfirmed = error; throw; }
@@ -218,7 +234,7 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetName(_query, "Filter indexed observations"); AutomationProperties.SetName(_metric, "Indexed metric");
             AutomationProperties.SetName(_roots, "Indexed captured location"); AutomationProperties.SetName(_sort, "Indexed table order");
             AutomationProperties.SetName(_descending, "Indexed descending table order");
-            AutomationProperties.SetName(_chartMode, "Indexed chart mode"); AutomationProperties.SetName(_status, "Indexed analysis status");
+            AutomationProperties.SetName(_chartMode, "Indexed chart mode"); AutomationProperties.SetAutomationId(_status, "Indexed analysis status");
             AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
             AutomationProperties.SetName(_details, "Captured metadata inspector"); AutomationProperties.SetLiveSetting(_inspectorStatus, AutomationLiveSetting.Polite);
             var toolbar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };

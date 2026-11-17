@@ -53,6 +53,7 @@ public sealed partial class DiskSpaceViewModel
     public bool CanRequestDeferredSelection => DeferredSelectionUnavailableReason is null;
     public string? DeferredSelectionUnavailableReason => _disposed ? "This analysis is closed."
         : _actualWork.HasUnconfirmedClose ? "Captured storage cleanup is unconfirmed."
+        : IsIndexedRuntimePreview ? "This preview contains a bounded subset. Open the recorded result after the scan finishes to review matching entries."
         : _session is null || !Running || _session.Completion.IsCompleted ? "Available while this analysis is scanning or paused. Captured inventories have no future scan results."
         : Tree is null || _publishedView is null ? "Wait for a displayed observation revision."
         : null;

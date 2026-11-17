@@ -13,11 +13,11 @@ namespace FileCat.Rendering.Tests;
 
 public sealed partial class AnalysisRenderingTests
 {
-    private static string CapturedScopeStatus(Window window) => window.GetVisualDescendants().OfType<TextBlock>().Single(text => AutomationProperties.GetName(text) == "Indexed analysis status").Text!;
+    private static string CapturedScopeStatus(Window window) => window.GetVisualDescendants().OfType<TextBlock>().Single(text => AutomationLabel(text) == "Indexed analysis status").Text!;
     private static async Task CapturedScopeNameOrder(Window window)
     {
-        window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed table order").SelectedIndex = 3;
-        window.GetVisualDescendants().OfType<CheckBox>().Single(check => AutomationProperties.GetName(check) == "Indexed descending table order").IsChecked = false;
+        window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Indexed table order").SelectedIndex = 3;
+        window.GetVisualDescendants().OfType<CheckBox>().Single(check => AutomationLabel(check) == "Indexed descending table order").IsChecked = false;
         await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text?.EndsWith("Name · Ascending", StringComparison.Ordinal) == true)); Frame(window);
     }
     [AvaloniaTheory]
@@ -64,11 +64,11 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Explore selected group"); await Until(() => MemberReady(window)); Frame(window);
             list.SelectedItem = list.Items.OfType<AnalysisDatasetGroupRow>().Single(row => row.Member.Path.Name == "match-target.bin");
             await Until(() => IndexedDetails(window).Text?.Contains("match-target.bin", StringComparison.Ordinal) == true); Click(window, "Toggle focused mark"); Click(window, "Add to review basket");
-            var query = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Filter indexed observations");
+            var query = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationLabel(text) == "Filter indexed observations");
             query.Text = "name:file-0000.bin"; Click(window, "Apply filter"); await Until(() => GroupReady(window) && list.Items.OfType<AnalysisDatasetGroup>().Single().Members == 1);
             await Until(() => IndexedSelectionSummary(window).Contains("1 marked items hidden by filters", StringComparison.Ordinal));
-            Click(window, "Review captured basket"); await Until(() => window.GetVisualDescendants().OfType<ListBox>().Any(control => AutomationProperties.GetName(control) == "Captured basket entries")); Frame(window);
-            window.GetVisualDescendants().OfType<ListBox>().Single(control => AutomationProperties.GetName(control) == "Captured basket entries").SelectedIndex = 0; Click(window, "Inspect captured basket entry");
+            Click(window, "Review captured basket"); await Until(() => window.GetVisualDescendants().OfType<ListBox>().Any(control => AutomationLabel(control) == "Captured basket entries")); Frame(window);
+            window.GetVisualDescendants().OfType<ListBox>().Single(control => AutomationLabel(control) == "Captured basket entries").SelectedIndex = 0; Click(window, "Inspect captured basket entry");
             await Until(() => IndexedDetails(window).Text?.Contains("Captured file size: 3 bytes", StringComparison.Ordinal) == true); Click(window, "Show in captured folder");
             await Until(() => GroupingSelector(window).SelectedIndex == 0 && list.Items.OfType<AnalysisHierarchyRow>().Any(row => row.Path.Name == "match-target.bin")); Frame(window);
             Assert.Equal("", query.Text); Assert.Contains("Cleared the display filters", CapturedScopeStatus(window)); Assert.True(IndexedSelectionCount(window, 1, 1));
@@ -162,11 +162,11 @@ public sealed partial class AnalysisRenderingTests
             var list = IndexedList(window); list.SelectedItem = Assert.Single(list.Items.OfType<AnalysisHierarchyRow>()); Click(window, "Toggle focused mark");
             await SelectGrouping(window, AnalysisGroupingDimension.FileType); list.SelectedItem = Assert.Single(list.Items.OfType<AnalysisDatasetGroup>(), group => group.Kind == AnalysisGroupKind.SharedAcrossGroups);
             Click(window, "Mark current members"); await Until(() => IndexedSelectionCount(window, 3, 0)); Click(window, "Add to review basket");
-            var query = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Filter indexed observations"); query.Text = "name:match-target.bin"; Click(window, "Apply filter");
+            var query = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationLabel(text) == "Filter indexed observations"); query.Text = "name:match-target.bin"; Click(window, "Apply filter");
             await Until(() => GroupReady(window)); await Until(() => IndexedSelectionSummary(window).Contains("1 marked items hidden by filters", StringComparison.Ordinal));
             Assert.Contains("1 elsewhere", IndexedSelectionSummary(window)); Click(window, "Review marked entries");
-            await Until(() => window.GetVisualDescendants().OfType<ListBox>().Any(control => AutomationProperties.GetName(control) == "Captured marked entries")); Frame(window);
-            var marked = window.GetVisualDescendants().OfType<ListBox>().Single(control => AutomationProperties.GetName(control) == "Captured marked entries"); Assert.Equal(3, marked.ItemCount);
+            await Until(() => window.GetVisualDescendants().OfType<ListBox>().Any(control => AutomationLabel(control) == "Captured marked entries")); Frame(window);
+            var marked = window.GetVisualDescendants().OfType<ListBox>().Single(control => AutomationLabel(control) == "Captured marked entries"); Assert.Equal(3, marked.ItemCount);
             marked.SelectedItem = marked.Items.Cast<object>().Single(row => row.ToString()!.Contains("alias.jpg", StringComparison.Ordinal)); Click(window, "Unmark selected entry");
             Assert.True(IndexedSelectionCount(window, 2, 3)); Click(window, "Keep files / Close review");
             await Until(() => IndexedSelectionSummary(window).Contains("0 marked items hidden by filters", StringComparison.Ordinal));
@@ -204,10 +204,10 @@ public sealed partial class AnalysisRenderingTests
             var container = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(list.SelectedIndex)); container.BringIntoView(); Frame(window);
             point = container.TranslatePoint(new Point(Math.Min(80, container.Bounds.Width / 2), container.Bounds.Height / 2), window)!.Value;
             window.MouseMove(point); window.MouseDown(point, MouseButton.Left); pressed = true;
-            var roots = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed captured location"); roots.SelectedIndex = 1;
+            var roots = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Indexed captured location"); roots.SelectedIndex = 1;
             await Until(() => CapturedScopeStatus(window) == "Query ready. Finish the current interaction to display it.");
             Click(window, "Show in captured folder");
-            var query = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Filter indexed observations"); query.Text = "name:file-0000.bin";
+            var query = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationLabel(text) == "Filter indexed observations"); query.Text = "name:file-0000.bin";
             window.MouseUp(point, MouseButton.Left); pressed = false;
             await Until(() => GroupingSelector(window).SelectedIndex == 0 && list.Items.OfType<AnalysisHierarchyRow>().Any(row => row.Path.Id == target.Member.Path.Id)); Frame(window);
             Assert.Equal(0, roots.SelectedIndex); Assert.Equal("name:file-0000.bin", query.Text);

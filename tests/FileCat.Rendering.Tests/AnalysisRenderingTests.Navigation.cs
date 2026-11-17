@@ -31,7 +31,7 @@ public sealed partial class AnalysisRenderingTests
                 await Until(() => !ReferenceEquals(model.Tree, prepared));
                 Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
-                var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Ranked analysis entries");
+                var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationLabel(l) == "Ranked analysis entries");
                 var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
                 var point = row.TranslatePoint(new Point(pointerX, row.Bounds.Height / 2), window)!.Value;
                 var hit = window.InputHitTest(point) as Visual;
@@ -93,8 +93,8 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            var sort = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == "Analysis table sort");
-            var direction = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == "Analysis table sort direction");
+            var sort = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationLabel(c) == "Analysis table sort");
+            var direction = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationLabel(c) == "Analysis table sort direction");
             sort.SelectedIndex = (int)AnalysisTableSort.Name; direction.SelectedIndex = 0;
             await model.RebuildAsync(true); await Until(() => model.Rows.Length == 2 && model.Rows[0].Key == "n:6");
             direction.SelectedIndex = 1; await model.RebuildAsync(true); await Until(() => model.Rows[0].Key == "n:4");
@@ -103,7 +103,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal("n:4", model.Selection.Focus); Assert.Equal(new ulong[] { 4 }, model.Selection.Marks); Assert.Equal(new ulong[] { 4 }, model.Selection.Basket);
             Assert.Equal(new[] { "All locations", "Fixture", "Projects" }, model.Breadcrumbs.Select(p => p.Label));
             model.NavigateToScope("n:3"); Assert.Equal("n:2", model.Selection.Scope);
-            var parent = window.GetVisualDescendants().OfType<Button>().Single(b => AutomationProperties.GetName(b) == "Go to captured location: Fixture");
+            var parent = window.GetVisualDescendants().OfType<Button>().Single(b => AutomationLabel(b) == "Go to captured location: Fixture");
             parent.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Until(() => model.Selection.Scope == "n:1" && model.Rows.Any(r => r.Key == "n:2"));
             model.Back(); await Until(() => model.Selection.Scope == "n:2" && model.Rows.Any(r => r.Key == "n:4"));

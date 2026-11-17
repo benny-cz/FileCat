@@ -16,7 +16,7 @@ namespace FileCat.Rendering.Tests;
 
 public sealed partial class AnalysisRenderingTests
 {
-    private static string OtherStatus(Window window) => window.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(text => text.IsEffectivelyVisible && AutomationProperties.GetName(text) == "Indexed analysis status")?.Text ?? "";
+    private static string OtherStatus(Window window) => window.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(text => text.IsEffectivelyVisible && AutomationLabel(text) == "Indexed analysis status")?.Text ?? "";
     private static bool ExactOtherReady(Window window) => OtherStatus(window).StartsWith("Exact Other subset.", StringComparison.Ordinal);
     private static bool OtherParentReady(Window window) => OtherStatus(window).StartsWith("Complete under captured policy.", StringComparison.Ordinal) ||
         OtherStatus(window).StartsWith("Partial namespace observations;", StringComparison.Ordinal);
@@ -88,7 +88,7 @@ public sealed partial class AnalysisRenderingTests
             await Until(() => ExactOtherReady(window) && window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text?.EndsWith(" · Name · Ascending · exact geometry subset", StringComparison.Ordinal) == true));
             IndexedPersistenceControl<TextBox>(window, "Filter indexed observations").Text = "name:future-only.bin";
             File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(source.PayloadPath)!, "future-only.bin"), [5]);
-            Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Inventory filename"));
+            Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control) == "Inventory filename"));
             IndexedPersistenceControl<TextBox>(window, "Inventory filename").Text = "other.fcdsa"; Click(window, "Save new inventory");
             await Until(() => OtherStatus(window).StartsWith("Saved other.fcdsa", StringComparison.Ordinal), () => OtherViewDiagnostic(window));
             await using (var prepared = await AnalysisIndexedAcquisition.PrepareAsync(profile.Services, token, indexedStorage: false))
@@ -98,8 +98,8 @@ public sealed partial class AnalysisRenderingTests
             }
             using (var saved = await ReadOtherReference(profile, "other.fcdsa"))
             { Assert.Equal(snapshot.Nodes.Length, saved.Snapshot.Nodes.Length); Assert.DoesNotContain(saved.Snapshot.Nodes, row => row.Name == "future-only.bin"); }
-            Click(window, "Open saved analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Saved inventory filename"));
-            Click(window, "Browse saved analyses"); await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Saved analyses" && control.ItemCount == 2));
+            Click(window, "Open saved analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control) == "Saved inventory filename"));
+            Click(window, "Browse saved analyses"); await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control) == "Saved analyses" && control.ItemCount == 2));
             var choices = IndexedPersistenceControl<ComboBox>(window, "Saved analyses"); choices.SelectedItem = choices.Items.Cast<object>().Single(item => item.ToString()!.StartsWith("other.fcdsa ·", StringComparison.Ordinal)); Click(window, "Open inventory");
             await Until(() => window.SessionCount == 2 && ExactOtherReady(window), () => OtherViewDiagnostic(window)); Frame(window);
             var restored = IndexedList(window).Items.OfType<AnalysisHierarchyRow>().ToArray(); Assert.All(restored, row => Assert.Contains(row.Path.Id, expected));

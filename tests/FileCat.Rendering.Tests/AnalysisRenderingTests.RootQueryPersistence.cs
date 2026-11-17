@@ -94,7 +94,7 @@ public sealed partial class AnalysisRenderingTests
             IndexedPersistenceControl<TextBox>(window, "Filter indexed observations").Text = revisedQuery;
             Click(window, "Apply filter");
             await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(c => c.IsEffectivelyVisible &&
-                Avalonia.Automation.AutomationProperties.GetName(c) == "Indexed analysis status" && c.Text?.Contains(" 1 definite matches;", StringComparison.Ordinal) == true));
+                AutomationLabel(c) == "Indexed analysis status" && c.Text?.Contains(" 1 definite matches;", StringComparison.Ordinal) == true));
             Click(window, "Save named analysis"); await Until(() => HasFilename(window));
             IndexedPersistenceControl<TextBox>(window, "Inventory filename").Text = "roots-again.fcdsa"; Click(window, "Save new inventory");
             await Until(() => IndexedStatus(window, "Saved roots-again.fcdsa"));
@@ -111,8 +111,8 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal(source.Payload, File.ReadAllBytes(source.PayloadPath));
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
-        static bool HasFilename(Window w) => w.GetVisualDescendants().OfType<TextBox>().Any(c => c.IsEffectivelyVisible && Avalonia.Automation.AutomationProperties.GetName(c) == "Inventory filename");
-        static bool IndexedStatus(Window w, string prefix) => w.GetVisualDescendants().OfType<TextBlock>().Any(c => c.IsEffectivelyVisible && Avalonia.Automation.AutomationProperties.GetName(c) == "Indexed analysis status" && c.Text?.StartsWith(prefix, StringComparison.Ordinal) == true);
+        static bool HasFilename(Window w) => w.GetVisualDescendants().OfType<TextBox>().Any(c => c.IsEffectivelyVisible && AutomationLabel(c) == "Inventory filename");
+        static bool IndexedStatus(Window w, string prefix) => w.GetVisualDescendants().OfType<TextBlock>().Any(c => c.IsEffectivelyVisible && AutomationLabel(c) == "Indexed analysis status" && c.Text?.StartsWith(prefix, StringComparison.Ordinal) == true);
     }
 
     [AvaloniaFact]
@@ -127,10 +127,10 @@ public sealed partial class AnalysisRenderingTests
         {
             await window.AddIndexedSessionAsync(source.Lease!, cancellation: token, services: profile.Services); window.Show(); Frame(window);
             Click(window, "Save named analysis");
-            await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => t.IsEffectivelyVisible && Avalonia.Automation.AutomationProperties.GetName(t) == "Inventory filename"));
+            await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => t.IsEffectivelyVisible && AutomationLabel(t) == "Inventory filename"));
             IndexedPersistenceControl<TextBox>(window, "Inventory filename").Text = "refused.fcdsa"; Click(window, "Save new inventory");
             await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible &&
-                Avalonia.Automation.AutomationProperties.GetName(t) == "Indexed analysis status" && t.Text?.StartsWith("Inventory was not saved:", StringComparison.Ordinal) == true));
+                AutomationLabel(t) == "Indexed analysis status" && t.Text?.StartsWith("Inventory was not saved:", StringComparison.Ordinal) == true));
             Assert.Equal(original, File.ReadAllBytes(privatePath));
             Assert.True(window.GetVisualDescendants().OfType<Button>().Single(b => b.IsEffectivelyVisible && Equals(b.Content, "Save named analysis")).IsEnabled);
             Assert.Equal(source.Payload, File.ReadAllBytes(source.PayloadPath)); Assert.Equal(1, window.SessionCount);

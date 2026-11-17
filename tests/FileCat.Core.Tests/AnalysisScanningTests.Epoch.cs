@@ -11,16 +11,19 @@ public sealed partial class AnalysisScanningTests
     {
         Ordinary(); using var io = new DeviceIoScheduler(); var coordinator = new AnalysisCoordinator(io, "epoch-profile");
         var initial = new FakeBackend(3); using var first = coordinator.Start([initial]); await Done(first);
+        Assert.False(first.RuntimeHasSuccessor);
         using var retained = first.AcquireSnapshot(); var old = retained.Snapshot;
         var reports = new ConcurrentQueue<AnalysisProgress>();
         using var second = coordinator.Rescan(first, [new FakeBackend(7) { Root = initial.Root }], new CallbackProgress(reports.Enqueue));
         await Done(second); var next = second.Snapshot();
+        Assert.True(first.RuntimeHasSuccessor); Assert.False(second.RuntimeHasSuccessor);
         Assert.Equal(old.Identity.SessionId, next.Identity.SessionId); Assert.Equal(old.Identity.Epoch + 1, next.Identity.Epoch);
         Assert.True(next.Identity.Revision > old.Identity.Revision); Assert.Equal(old.Identity.TimeZoneId, next.Identity.TimeZoneId);
         Assert.Equal(4, old.Nodes.Length); Assert.Equal(8, next.Nodes.Length); Assert.Equal(old, first.Snapshot());
         Assert.NotEmpty(reports); Assert.All(reports, report => { Assert.Equal(next.Identity.SessionId, report.SessionId); Assert.Equal(2, report.Epoch); });
         first.Dispose(); Assert.Equal(old, retained.Snapshot);
         using var third = coordinator.Rescan(second, [new FakeBackend(1) { Root = initial.Root }]); await Done(third);
+        Assert.True(second.RuntimeHasSuccessor); Assert.False(third.RuntimeHasSuccessor);
         Assert.Equal(3, third.Snapshot().Identity.Epoch); Assert.True(third.Snapshot().Identity.Revision > next.Identity.Revision);
         AnalysisValidation.Validate(next, TestContext.Current.CancellationToken);
     }
@@ -102,6 +105,7 @@ public sealed partial class AnalysisScanningTests
             change == "root-kind" ? initial.RootEntry with { Kind = AnalysisKind.File } : initial.RootEntry;
         using var invalid = new EpochBackend(new FakeBackend(1), root, entry);
         Assert.Throws<InvalidOperationException>(() => coordinator.Rescan(first, change == "root-count" ? [invalid, invalid] : [invalid]));
+        Assert.False(first.RuntimeHasSuccessor);
         Assert.False(invalid.Inner.Disposed);
         using var second = coordinator.Rescan(first, [new FakeBackend(2) { Root = initial.Root }]); await Done(second);
         Assert.Equal(2, second.Snapshot().Identity.Epoch);
@@ -114,6 +118,7 @@ public sealed partial class AnalysisScanningTests
         var initial = new FakeBackend(1); using var first = coordinator.Start([initial]); await Done(first);
         using var invalid = new EpochBackend(new FakeBackend(1), initial.Root, initial.RootEntry) { ThrowOnRootRead = 2 };
         Assert.Throws<IOException>(() => coordinator.Rescan(first, [invalid])); Assert.False(invalid.Inner.Disposed);
+        Assert.False(first.RuntimeHasSuccessor);
         using var second = coordinator.Rescan(first, [new FakeBackend(2) { Root = initial.Root }]); await Done(second);
         Assert.Equal(2, second.Snapshot().Identity.Epoch);
     }

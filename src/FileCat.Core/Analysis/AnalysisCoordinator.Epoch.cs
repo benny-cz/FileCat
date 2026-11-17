@@ -43,6 +43,7 @@ public sealed partial class AnalysisSession
     // never populated from an imported inventory or decoded as filesystem capabilities.
     private readonly ImmutableArray<RootBinding> _selectedRoots;
     private bool _epochSuccessorReserved;
+    internal bool RuntimeHasSuccessor { get { lock (_sync) return _epochSuccessorReserved; } }
 
     internal SessionIdentity ReserveNextEpoch(DeviceIoScheduler io, string profile, IReadOnlyList<IAnalysisBackend> sources)
     {

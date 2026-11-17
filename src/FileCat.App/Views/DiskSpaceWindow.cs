@@ -229,7 +229,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly AnalysisSessionAdmission.Slot _admission;
         private readonly AnalysisViewWork _actualWork = new();
         public DiskSpaceViewModel Model { get; }
-        public bool HasTemporaryWork => Model.HasTemporaryWork;
+        public bool HasTemporaryWork => Model.HasTemporaryWork || _openingRecorded;
         public bool IsComparison => Model.Comparison is not null;
         private readonly StackPanel _setup = new() { Spacing = 6, Margin = new Thickness(10) };
         private readonly ScrollViewer _setupViewport;
@@ -350,6 +350,7 @@ public sealed partial class DiskSpaceWindow : Window
             AutomationProperties.SetName(_breadcrumbs, "Analysis location breadcrumbs");
             ToolTip.SetTip(_sort, new RichTip("Sort observed table rows", detail: "Numeric sorting uses exact recorded integers. Missing numeric values follow known amounts in either direction. Partial amounts rank by their known subtotal. Charts keep their accounting order; focus and marks keep their observation identities."));
             toolbar.Children.Add(nav); toolbar.Children.Add(_breadcrumbs); toolbar.Children.Add(_scope); toolbar.Children.Add(_summary); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(ordering); toolbar.Children.Add(_legend); toolbar.Children.Add(_error);
+            AddRecordedResultControls(toolbar);
             _dataControls.AddRange([_pause, _inspect, _save, _compare, _breadcrumbs, _scope, _summary, _coverage, filters, ordering]);
             Grid.SetRow(toolbar, 1); Children.Add(toolbar);
             _chartHost.Children.Add(_treemap); _chartHost.Children.Add(_sunburst); _explorer.Children.Add(_chartHost);
@@ -450,7 +451,7 @@ public sealed partial class DiskSpaceWindow : Window
             Model.Changed += Refresh;
             AutomationProperties.SetName(_list, "Ranked analysis entries"); AutomationProperties.SetName(_query, "Filter observations");
             AutomationProperties.SetName(_rootFilter, "Filter captured location"); AutomationProperties.SetName(_unknown, "Inspect uncertain query results");
-            AutomationProperties.SetName(_status, "Analysis status"); AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
+            AutomationProperties.SetAutomationId(_status, "Analysis status"); AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
             PropertyChanged += (_, e) => { if (e.Property == BoundsProperty) Refresh(); };
             if (Model.Comparison is { } comparison) ShowComparison(comparison);
             Refresh();

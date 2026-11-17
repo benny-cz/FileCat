@@ -129,6 +129,7 @@ public sealed class OperationsDrawerLayoutTests
             {
                 window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
                 window.KeyRelease(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+                Layout(window); // Let keyboard focus and virtualized row realization retire before the next input.
             }
             Layout(window);
             Assert.Same(center.Interrupted[^1], center.SelectedInterrupted);

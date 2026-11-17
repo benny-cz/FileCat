@@ -56,9 +56,9 @@ public sealed partial class AnalysisRenderingTests
                 // Reach this namespace boundary through the virtualized table, as the user does.
                 var table = window.GetVisualDescendants().OfType<ListBox>().Single();
                 table.ScrollIntoView(table.Items.OfType<AnalysisTreeItem>().Single(item => item.Key == "n:7"));
-                await Until(() => { Frame(window); return window.GetVisualDescendants().OfType<Grid>().Any(c => AutomationProperties.GetName(c)?.StartsWith("link-outside;", StringComparison.Ordinal) == true); });
-                var row = window.GetVisualDescendants().OfType<Grid>().Single(c => AutomationProperties.GetName(c)?.StartsWith("link-outside;", StringComparison.Ordinal) == true);
-                Assert.Contains("Not measured", AutomationProperties.GetName(row)); Assert.Contains("Link not followed", AutomationProperties.GetName(row));
+                await Until(() => { Frame(window); return window.GetVisualDescendants().OfType<Grid>().Any(c => AutomationLabel(c)?.StartsWith("link-outside;", StringComparison.Ordinal) == true); });
+                var row = window.GetVisualDescendants().OfType<Grid>().Single(c => AutomationLabel(c)?.StartsWith("link-outside;", StringComparison.Ordinal) == true);
+                Assert.Contains("Not measured", AutomationLabel(row)); Assert.Contains("Link not followed", AutomationLabel(row));
                 var tip = Assert.IsType<RichTip>(ToolTip.GetTip(row)); Assert.Contains("target was not followed or measured", tip.Text); Assert.DoesNotContain("Known active value", tip.Text);
                 model.Focus("n:7"); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
                 Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), c => c.Text?.Contains("target was not followed or measured", StringComparison.Ordinal) == true);

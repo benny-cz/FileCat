@@ -137,7 +137,7 @@ public sealed partial class AnalysisRenderingTests
             window.AddSession(model); window.Show(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             Assert.False(model.Tree!.Projection.Totals.CompatibleBasis);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("These locations report different allocation components", StringComparison.Ordinal) == true);
-            var root = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == "Filter captured location");
+            var root = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationLabel(c) == "Filter captured location");
             root.SelectedIndex = 2;
             for (int i = 0; i < 100 && model.Tree.ScopeValue(AnalysisTree.RootKey) != 4113; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
             Assert.Equal((UInt128)4113, model.Tree.ScopeValue(AnalysisTree.RootKey)); Assert.True(model.Tree.Projection.Totals.CompatibleBasis);
@@ -294,7 +294,7 @@ public sealed partial class AnalysisRenderingTests
                         {
                             var chart = window.GetVisualDescendants().OfType<AnalysisChartControl>().Single(c => c.IsVisible);
                             Assert.True(chart.Bounds.Height > 100);
-                            Assert.Contains("98304", AutomationProperties.GetName(chart));
+                            Assert.Contains("98304", AutomationLabel(chart));
                         }
                         using var bitmap = new RenderTargetBitmap(new PixelSize(width, 780)); bitmap.Render(window);
                         using var file = File.Create(Path.Combine(output, $"{currentTheme}-{width}-{index}.png")); bitmap.Save(file, new PngBitmapEncoderOptions());

@@ -39,7 +39,7 @@ public sealed partial class AnalysisRenderingTests
                 {
                     treemap.IsVisible = ReferenceEquals(chart, treemap); sunburst.IsVisible = ReferenceEquals(chart, sunburst);
                     chart.SetView(data, data.Scope, null, ImmutableHashSet<ulong>.Empty, color); Frame(window);
-                    Assert.Contains(AnalysisChartColors.Title(color), AutomationProperties.GetName(chart));
+                    Assert.Contains(AnalysisChartColors.Title(color), AutomationLabel(chart));
                     Assert.Equal(data.ScopeValue(data.Scope), data.ChildrenOf(data.Scope).Aggregate((UInt128)0, (sum, item) => sum + item.Value));
                     using var bitmap = new RenderTargetBitmap(new PixelSize(820, 580)); bitmap.Render(window);
                     chart.Focus(); activated = null;
@@ -51,9 +51,9 @@ public sealed partial class AnalysisRenderingTests
             treemap.IsVisible = true; sunburst.IsVisible = false; treemap.SetView(detail, detail.Scope, null, [], AnalysisColorDimension.FileType); Frame(window);
             window.MouseMove(new Point(24, 24)); window.MouseDown(new Point(24, 24), MouseButton.Left);
             treemap.SetView(overview, overview.Scope, null, [], AnalysisColorDimension.ModifiedAge); Frame(window);
-            Assert.Contains(AnalysisChartColors.Title(AnalysisColorDimension.FileType), AutomationProperties.GetName(treemap));
+            Assert.Contains(AnalysisChartColors.Title(AnalysisColorDimension.FileType), AutomationLabel(treemap));
             window.MouseUp(new Point(24, 24), MouseButton.Left); Frame(window);
-            Assert.Contains(AnalysisChartColors.Title(AnalysisColorDimension.ModifiedAge), AutomationProperties.GetName(treemap));
+            Assert.Contains(AnalysisChartColors.Title(AnalysisColorDimension.ModifiedAge), AutomationLabel(treemap));
             Assert.Equal(fixture.Payload, File.ReadAllBytes(fixture.PayloadPath));
         }
         finally { window.Close(); }

@@ -102,10 +102,10 @@ public sealed partial class AnalysisRenderingTests
             model.Query = "name:no-matches"; model.Grouping = AnalysisGroupingDimension.FolderHierarchy; model.CaseSensitive = true; await model.RebuildAsync(true);
             await fixture.FinishAsync(); await Until(() => model.CanReviewDeferredSelection); Assert.Equal(3, model.DeferredSelectionCount);
             Assert.Equal(new[] { current }, model.Selection.Marks.Order()); Assert.Equal(new[] { current }, model.Selection.Basket.Order());
-            Click(window, "Review deferred matches"); await Until(() => window.GetVisualDescendants().OfType<ListBox>().Any(list => AutomationProperties.GetName(list) == "Deferred captured matches")); Frame(window);
-            Assert.Equal(3, window.GetVisualDescendants().OfType<ListBox>().Single(list => AutomationProperties.GetName(list) == "Deferred captured matches").ItemCount);
+            Click(window, "Review deferred matches"); await Until(() => window.GetVisualDescendants().OfType<ListBox>().Any(list => AutomationLabel(list) == "Deferred captured matches")); Frame(window);
+            Assert.Equal(3, window.GetVisualDescendants().OfType<ListBox>().Single(list => AutomationLabel(list) == "Deferred captured matches").ItemCount);
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null); window.KeyRelease(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
-            await Until(() => !window.GetVisualDescendants().OfType<ListBox>().Any(list => AutomationProperties.GetName(list) == "Deferred captured matches"));
+            await Until(() => !window.GetVisualDescendants().OfType<ListBox>().Any(list => AutomationLabel(list) == "Deferred captured matches"));
             Assert.Single(model.Selection.Marks); Assert.True(model.CanReviewDeferredSelection);
             Click(window, "Review deferred matches"); await Until(() => window.GetVisualDescendants().OfType<Button>().Any(button => button.Content as string == "Add reviewed matches to marks"));
             Click(window, "Add reviewed matches to marks"); await Until(() => !model.HasDeferredSelection);
@@ -221,8 +221,8 @@ public sealed partial class AnalysisRenderingTests
         var window = new DiskSpaceWindow(); window.AddSession(model); window.Show(); Frame(window);
         try
         {
-            Click(window, "Review deferred matches"); await Until(() => window.GetVisualDescendants().OfType<ListBox>().Any(list => AutomationProperties.GetName(list) == "Deferred captured matches")); Frame(window);
-            var list = window.GetVisualDescendants().OfType<ListBox>().Single(list => AutomationProperties.GetName(list) == "Deferred captured matches");
+            Click(window, "Review deferred matches"); await Until(() => window.GetVisualDescendants().OfType<ListBox>().Any(list => AutomationLabel(list) == "Deferred captured matches")); Frame(window);
+            var list = window.GetVisualDescendants().OfType<ListBox>().Single(list => AutomationLabel(list) == "Deferred captured matches");
             Assert.Equal(128, list.ItemCount); Click(window, "Next deferred matches"); Assert.Equal(128, list.ItemCount); Click(window, "Next deferred matches"); Assert.Equal(15, list.ItemCount);
             Assert.Contains(list.Items.Cast<string>(), row => row.Contains("waiting/next-", StringComparison.Ordinal));
             Assert.Empty(model.Selection.Marks); Click(window, "Keep marks unchanged / Close review"); Assert.True(model.CanReviewDeferredSelection);

@@ -13,7 +13,7 @@ namespace FileCat.Rendering.Tests;
 public sealed partial class AnalysisRenderingTests
 {
     private static T IndexedPersistenceControl<T>(Window window, string name) where T : Control =>
-        window.GetVisualDescendants().OfType<T>().Single(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == name);
+        window.GetVisualDescendants().OfType<T>().Single(control => control.IsEffectivelyVisible && AutomationLabel(control) == name);
 
     [AvaloniaTheory]
     [InlineData(false)]
@@ -41,13 +41,13 @@ public sealed partial class AnalysisRenderingTests
             // A newer editor draft must not replace the query behind the published table.
             IndexedPersistenceControl<TextBox>(window, "Filter indexed observations").Text = "name:future-only.bin";
             File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(source.PayloadPath)!, "future-only.bin"), [5]);
-            Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => AutomationProperties.GetName(t) == "Inventory filename")); Frame(window);
+            Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => AutomationLabel(t) == "Inventory filename")); Frame(window);
             Assert.True(window.GetVisualDescendants().OfType<Button>().Single(b => b.IsEffectivelyVisible && Equals(b.Content, "Cancel")).IsDefault);
             Click(window, "Cancel"); await Until(() => window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && Equals(b.Content, "Save named analysis") && b.IsEnabled));
             Assert.False(Directory.Exists(profile.Services.Paths.AnalysisSnapshotsDirectory) && Directory.GetFiles(profile.Services.Paths.AnalysisSnapshotsDirectory, "*.fcdsa").Length != 0);
-            Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => AutomationProperties.GetName(t) == "Inventory filename"));
+            Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => AutomationLabel(t) == "Inventory filename"));
             IndexedPersistenceControl<TextBox>(window, "Inventory filename").Text = "streamed.fcdsa"; Click(window, "Save new inventory");
-            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => AutomationProperties.GetName(t) == "Indexed analysis status" && t.Text?.StartsWith("Saved streamed.fcdsa", StringComparison.Ordinal) == true));
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => AutomationLabel(t) == "Indexed analysis status" && t.Text?.StartsWith("Saved streamed.fcdsa", StringComparison.Ordinal) == true));
             AnalysisSavedEntry entry;
             await using (var prepared = await AnalysisIndexedAcquisition.PrepareAsync(profile.Services, token, indexedStorage: false))
             {
@@ -59,22 +59,22 @@ public sealed partial class AnalysisRenderingTests
             using (var loaded = AnalysisInventoryFormat.Read(bytes, token))
             { Assert.Equal(305, loaded.Snapshot.Nodes.Length); Assert.Contains(loaded.Snapshot.Nodes, node => node.Name == "match-target.bin"); Assert.DoesNotContain(loaded.Snapshot.Nodes, node => node.Name == "future-only.bin"); }
             byte[] before = File.ReadAllBytes(Path.Combine(profile.Services.Paths.AnalysisSnapshotsDirectory, entry.Name));
-            Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => AutomationProperties.GetName(t) == "Inventory filename"));
+            Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => AutomationLabel(t) == "Inventory filename"));
             IndexedPersistenceControl<TextBox>(window, "Inventory filename").Text = "STREAMED.fcdsa"; Click(window, "Save new inventory");
             await Until(() => window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.Content as string == "Keep existing"));
             var keep = window.GetVisualDescendants().OfType<Button>().Single(b => b.IsEffectivelyVisible && b.Content as string == "Keep existing");
             Assert.True(keep.IsDefault); Assert.True(keep.IsCancel); Click(window, "Keep existing");
-            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => AutomationProperties.GetName(t) == "Indexed analysis status" && t.Text?.Contains("The existing saved analysis was kept.", StringComparison.Ordinal) == true),
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => AutomationLabel(t) == "Indexed analysis status" && t.Text?.Contains("The existing saved analysis was kept.", StringComparison.Ordinal) == true),
                 () => string.Join(" | ", window.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible).Select(t => t.Text)));
             Assert.Equal(before, File.ReadAllBytes(Path.Combine(profile.Services.Paths.AnalysisSnapshotsDirectory, entry.Name)));
             Assert.Single(Directory.GetFiles(profile.Services.Paths.AnalysisSnapshotsDirectory, "*.fcdsa"));
             await Until(() => window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.Content as string == "Open saved analysis" && b.IsEnabled));
-            Click(window, "Open saved analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => AutomationProperties.GetName(t) == "Saved inventory filename"));
+            Click(window, "Open saved analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => AutomationLabel(t) == "Saved inventory filename"));
             Click(window, "Browse saved analyses");
-            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Saved analyses" && control.ItemCount == 1),
+            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control) == "Saved analyses" && control.ItemCount == 1),
                 () => string.Join(" | ", window.GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible).Select(text => text.Text)));
             IndexedPersistenceControl<ComboBox>(window, "Saved analyses").SelectedIndex = 0; Click(window, "Open inventory");
-            await Until(() => window.SessionCount == 2 && window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Filter indexed observations" && control.Text == "name:file-")); Frame(window);
+            await Until(() => window.SessionCount == 2 && window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control) == "Filter indexed observations" && control.Text == "name:file-")); Frame(window);
             Assert.True(IndexedSelectionCount(window, 0, 0)); Assert.Equal("Table", IndexedPersistenceControl<ComboBox>(window, "Indexed chart mode").SelectedItem);
             Assert.Equal(grouped ? (int)AnalysisGroupingDimension.Extension : 0, GroupingSelector(window).SelectedIndex);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text?.Contains("Offline imported observations", StringComparison.Ordinal) == true);

@@ -27,7 +27,7 @@ public sealed partial class AnalysisRenderingTests
                 await Until(() => !ReferenceEquals(model.Tree, prepared));
                 void Frame() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); AvaloniaHeadlessPlatform.ForceRenderTimerTick(2); }
                 Frame();
-                var list = window.GetVisualDescendants().OfType<ListBox>().Single(c => AutomationProperties.GetName(c) == "Ranked analysis entries");
+                var list = window.GetVisualDescendants().OfType<ListBox>().Single(c => AutomationLabel(c) == "Ranked analysis entries");
                 var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
                 var point = row.TranslatePoint(new Point(pointerX, row.Bounds.Height / 2), window)!.Value;
                 window.MouseMove(point); window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left);

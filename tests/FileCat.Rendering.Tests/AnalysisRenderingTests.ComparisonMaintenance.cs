@@ -29,19 +29,19 @@ public sealed partial class AnalysisRenderingTests
                 var model = new DiskSpaceViewModel(profile.Services, ImportedFixture(source.Memory!)); await model.RebuildAsync(true); window.AddSession(model);
             }
             window.Show(); Frame(window); Click(window, indexed ? "Save named analysis" : "Save…");
-            await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => t.IsEffectivelyVisible && AutomationProperties.GetName(t) == "Inventory filename"));
+            await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => t.IsEffectivelyVisible && AutomationLabel(t) == "Inventory filename"));
             IndexedPersistenceControl<TextBox>(window, "Inventory filename").Text = name;
             await Until(() => Visible("Save new inventory")?.IsEnabled == true); Click(window, "Save new inventory");
             string path = Path.Combine(profile.Services.Paths.AnalysisSnapshotsDirectory, name);
             await Until(() => File.Exists(path) && Visible(indexed ? "Open saved analysis" : "Open saved…")?.IsEnabled == true);
             Click(window, indexed ? "Open saved analysis" : "Open saved…"); await Until(() => Visible("Browse saved analyses") is not null); Click(window, "Browse saved analyses");
-            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsEffectivelyVisible && AutomationProperties.GetName(c) == "Saved analyses" && c.ItemCount == 1));
+            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsEffectivelyVisible && AutomationLabel(c) == "Saved analyses" && c.ItemCount == 1));
             IndexedPersistenceControl<ComboBox>(window, "Saved analyses").SelectedIndex = 0;
             await Until(() => Visible("Delete selected analysis…")?.IsEnabled == true); Click(window, "Delete selected analysis…");
             await Until(() => Visible("Keep analysis") is not null); Frame(window); Click(window, "Delete analysis");
             await Until(() => !File.Exists(path) && Visible(indexed ? "Open saved analysis" : "Open saved…")?.IsEnabled == true);
             Click(window, indexed ? "Save named analysis" : "Save…");
-            await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => t.IsEffectivelyVisible && AutomationProperties.GetName(t) == "Inventory filename"));
+            await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => t.IsEffectivelyVisible && AutomationLabel(t) == "Inventory filename"));
             Assert.NotEqual(name, IndexedPersistenceControl<TextBox>(window, "Inventory filename").Text);
             Click(window, "Cancel"); Assert.Equal(1, window.SessionCount); source.AssertPayloads();
             Button? Visible(string label) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(b => b.IsEffectivelyVisible && Equals(b.Content, label));
@@ -158,7 +158,7 @@ public sealed partial class AnalysisRenderingTests
             window.AddSession(model); window.Show(); Frame(window); Click(window, "Open comparison…");
             await Until(() => Visible("Browse saved comparisons") is not null); Assert.False(Visible("Delete selected comparison…")!.IsEnabled);
             Click(window, "Browse saved comparisons");
-            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsEffectivelyVisible && AutomationProperties.GetName(c) == "Saved comparisons" && c.ItemCount == 1));
+            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsEffectivelyVisible && AutomationLabel(c) == "Saved comparisons" && c.ItemCount == 1));
             IndexedPersistenceControl<ComboBox>(window, "Saved comparisons").SelectedIndex = 0;
             await Until(() => Visible("Delete selected comparison…")?.IsEnabled == true);
             Assert.Equal(!atCapacity, Visible("Open comparison observations")!.IsEnabled);
@@ -173,7 +173,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Contains("pair.fcdsc", text); Assert.Contains("both captured inventories", text); Assert.Contains("not secure erasure", text);
             Assert.Equal(privileged, text.Contains("administrator access", StringComparison.Ordinal)); Assert.Equal(original, File.ReadAllBytes(path));
             Click(window, delete ? "Delete comparison" : "Keep comparison");
-            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible && AutomationProperties.GetName(t) == "Analysis status" &&
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible && AutomationLabel(t) == "Analysis status" &&
                 t.Text?.Contains(delete ? "were deleted" : "was kept", StringComparison.Ordinal) == true));
             Assert.Equal(!delete, File.Exists(path)); if (!delete) Assert.Equal(original, File.ReadAllBytes(path));
             Assert.Equal(before, File.ReadAllBytes(Path.Combine(root, "before.fcdsa"))); Assert.Equal(atCapacity ? 8 : 1, window.SessionCount);

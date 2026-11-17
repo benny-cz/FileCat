@@ -76,7 +76,7 @@ public sealed partial class AnalysisRenderingTests
             // Cross the actual debounce interval while dispatching the initial queued notification.
             await Task.Delay(600, TestContext.Current.CancellationToken); Frame(window);
             Assert.Equal("name:b.txt", model.Query); Assert.Equal("n:8", Assert.Single(model.Rows).Key);
-            var query = window.GetVisualDescendants().OfType<TextBox>().Single(control => AutomationProperties.GetName(control) == "Filter observations");
+            var query = window.GetVisualDescendants().OfType<TextBox>().Single(control => AutomationLabel(control) == "Filter observations");
             query.Text = "name:c.txt";
             await Until(() => model.Query == "name:c.txt" && model.Rows.Length == 1 && model.Rows[0].Key == "n:9");
         }
@@ -144,7 +144,7 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Ranked analysis entries");
+            var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationLabel(l) == "Ranked analysis entries");
             Assert.Null(list.SelectedItem); list.Focus();
             var key = forward ? Key.Down : Key.Up; var physical = forward ? PhysicalKey.ArrowDown : PhysicalKey.ArrowUp;
             window.KeyPress(key, RawInputModifiers.Shift, physical, null); window.KeyRelease(key, RawInputModifiers.Shift, physical, null);
@@ -164,7 +164,7 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Ranked analysis entries");
+            var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationLabel(l) == "Ranked analysis entries");
             void Click(int index, RawInputModifiers modifiers, double x = 65)
             {
                 var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(index)); var point = RangeRowPoint(window, row, x);
@@ -209,7 +209,7 @@ public sealed partial class AnalysisRenderingTests
         var window = new DiskSpaceWindow { Height = 960 }; window.AddSession(model); await ShowRangeWindow(window, model);
         try
         {
-            var list = window.GetVisualDescendants().OfType<ListBox>().Single(control => AutomationProperties.GetName(control) == "Ranked analysis entries");
+            var list = window.GetVisualDescendants().OfType<ListBox>().Single(control => AutomationLabel(control) == "Ranked analysis entries");
             var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
             var point = RangeRowPoint(window, row);
             window.MouseMove(point); window.MouseDown(point, MouseButton.Left, RawInputModifiers.Shift);
@@ -230,7 +230,7 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            var list = window.GetVisualDescendants().OfType<ListBox>().Single(control => AutomationProperties.GetName(control) == "Ranked analysis entries");
+            var list = window.GetVisualDescendants().OfType<ListBox>().Single(control => AutomationLabel(control) == "Ranked analysis entries");
             var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
             bool handled = false;
             row.AddHandler(InputElement.PointerReleasedEvent, (_, args) => { handled = true; args.Handled = true; }, RoutingStrategies.Bubble, handledEventsToo: true);

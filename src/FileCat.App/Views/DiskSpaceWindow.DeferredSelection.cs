@@ -24,7 +24,7 @@ public sealed partial class DiskSpaceWindow
                 Children = { _deferSelection, _cancelDeferredSelection, _reviewDeferredSelection } };
             _deferredSelectionHost.Children.Add(bar); _deferredSelectionHost.Children.Add(_deferredSelectionSummary);
             _basketHost.Children.Add(_deferredSelectionHost);
-            AutomationProperties.SetName(_deferredSelectionSummary, "Deferred selection summary");
+            AutomationProperties.SetAutomationId(_deferredSelectionSummary, "Deferred selection summary");
             AutomationProperties.SetLiveSetting(_deferredSelectionSummary, AutomationLiveSetting.Polite);
             _deferSelection.Click += (_, _) => Model.RequestSelectionAfterScan();
             _cancelDeferredSelection.Click += (_, _) => Model.CancelDeferredSelection();

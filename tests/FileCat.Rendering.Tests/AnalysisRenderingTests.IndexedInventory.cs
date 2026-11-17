@@ -68,10 +68,10 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal(saved.Query, explorer.Filter!.Request.Text); Assert.Equal("1", explorer.Filter.Request.RootId); Assert.True(explorer.Filter.Request.CaseSensitive);
             Assert.Equal(AnalysisMetric.FileSize, explorer.Metric);
             var combos = window.GetVisualDescendants().OfType<ComboBox>().ToArray();
-            Assert.Equal(chart, combos.Single(c => AutomationProperties.GetName(c) == "Indexed chart mode").SelectedItem);
-            Assert.Equal("Name", combos.Single(c => AutomationProperties.GetName(c) == "Indexed table order").SelectedItem);
+            Assert.Equal(chart, combos.Single(c => AutomationLabel(c) == "Indexed chart mode").SelectedItem);
+            Assert.Equal("Name", combos.Single(c => AutomationLabel(c) == "Indexed table order").SelectedItem);
             Assert.Equal(descending, window.GetVisualDescendants().OfType<CheckBox>().Single(c => Equals(c.Content, "Descending")).IsChecked);
-            var provenance = window.GetVisualDescendants().OfType<TextBlock>().Single(t => (AutomationProperties.GetName(t) ?? "").StartsWith("Analysis provenance:", StringComparison.Ordinal));
+            var provenance = window.GetVisualDescendants().OfType<TextBlock>().Single(t => (AutomationLabel(t) ?? "").StartsWith("Analysis provenance:", StringComparison.Ordinal));
             Assert.Contains("Offline imported observations", provenance.Text); Assert.Contains("unverified", provenance.Text);
             Assert.Equal(privileged, provenance.Text!.Contains("Privileged-derived metadata", StringComparison.Ordinal));
             Assert.Equal(before, File.ReadAllBytes(input)); Assert.False(Directory.Exists(Path.Combine(fixture.Root, "source-must-not-be-created")));

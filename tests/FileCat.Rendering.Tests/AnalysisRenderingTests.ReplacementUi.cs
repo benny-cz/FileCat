@@ -99,7 +99,7 @@ public sealed partial class AnalysisRenderingTests
             else { var model = new DiskSpaceViewModel(profile.Services, ImportedFixture(source.Memory!)); await model.RebuildAsync(true); window.AddSession(model); }
             window.Show(); Frame(window); Click(window, indexed ? "Open saved analysis" : "Open saved…");
             await Until(() => Visible("Browse saved analyses") is not null); Click(window, "Browse saved analyses");
-            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsEffectivelyVisible && AutomationProperties.GetName(c) == "Saved analyses" && c.ItemCount == 2));
+            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsEffectivelyVisible && AutomationLabel(c) == "Saved analyses" && c.ItemCount == 2));
             var choices = IndexedPersistenceControl<ComboBox>(window, "Saved analyses");
             choices.SelectedIndex = choices.Items.Cast<object>().ToList().FindIndex(item => item.ToString()!.Contains("replacement pending", StringComparison.Ordinal));
             await Until(() => Visible("Review pending replacement…")?.IsEnabled == true);

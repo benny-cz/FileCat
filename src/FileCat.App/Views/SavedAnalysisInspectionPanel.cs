@@ -28,7 +28,7 @@ internal sealed class SavedAnalysisInspectionPanel : StackPanel
     {
         _directory = directory; _selection = selection; _read = read; _lifetime = lifetime; _recordCloseFailure = recordCloseFailure;
         Spacing = 6; Children.Add(_inspect); Children.Add(_details);
-        AutomationProperties.SetName(_details, "Saved analysis details"); AutomationProperties.SetLiveSetting(_details, AutomationLiveSetting.Polite);
+        AutomationProperties.SetAutomationId(_details, "Saved analysis details"); AutomationProperties.SetLiveSetting(_details, AutomationLiveSetting.Polite);
         _inspect.Click += async (_, _) => await InspectAsync();
     }
 

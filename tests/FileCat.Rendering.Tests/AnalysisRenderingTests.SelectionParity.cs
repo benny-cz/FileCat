@@ -12,7 +12,7 @@ namespace FileCat.Rendering.Tests;
 public sealed partial class AnalysisRenderingTests
 {
     private static string MemorySelectionText(Window window) => window.GetVisualDescendants().OfType<TextBlock>()
-        .Single(text => AutomationProperties.GetName(text) == "Captured selection summary").Text!;
+        .Single(text => AutomationLabel(text) == "Captured selection summary").Text!;
 
     [AvaloniaTheory]
     [InlineData(AnalysisGroupingDimension.FolderHierarchy)]
@@ -32,7 +32,7 @@ public sealed partial class AnalysisRenderingTests
             model.Selection.StageCaptured([4, 5, 6]); model.Selection.ToggleMark(999); model.Query = "name:source.cs"; await model.RebuildAsync(true); Frame(window);
             await Until(() => model.MarkVisibility is { HiddenByFilter: 2, Missing: 1 });
             Assert.Contains("1 in this scope", MemorySelectionText(window)); Assert.Contains("2 marked items hidden by filters", MemorySelectionText(window));
-            var summary = window.GetVisualDescendants().OfType<TextBlock>().Single(text => AutomationProperties.GetName(text) == "Captured selection summary");
+            var summary = window.GetVisualDescendants().OfType<TextBlock>().Single(text => AutomationLabel(text) == "Captured selection summary");
             int announcements = 0; summary.PropertyChanged += (_, args) => { if (args.Property == TextBlock.TextProperty) announcements++; };
             for (int count = 0; count < 5; count++) model.SetStatus("Unrelated status " + count);
             Assert.Equal(0, announcements);
@@ -68,13 +68,13 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             await Until(() => model.MarkVisibility is not null); Click(window, "Review marked entries");
-            await Until(() => window.GetVisualDescendants().OfType<ListBox>().Any(list => AutomationProperties.GetName(list) == "Captured marked entries")); Frame(window);
-            var list = window.GetVisualDescendants().OfType<ListBox>().Single(list => AutomationProperties.GetName(list) == "Captured marked entries"); Assert.Equal(128, list.ItemCount);
+            await Until(() => window.GetVisualDescendants().OfType<ListBox>().Any(list => AutomationLabel(list) == "Captured marked entries")); Frame(window);
+            var list = window.GetVisualDescendants().OfType<ListBox>().Single(list => AutomationLabel(list) == "Captured marked entries"); Assert.Equal(128, list.ItemCount);
             list.SelectedItem = list.Items.Cast<object>().Single(row => row.ToString()!.Contains("picture.png", StringComparison.Ordinal)); Click(window, "Unmark selected entry");
             Assert.Equal(269, model.Selection.Marks.Count); Assert.Contains(5UL, model.Selection.Basket); Assert.True(list.SelectedIndex >= 0);
             Click(window, "Next marked entries"); Assert.Equal(128, list.ItemCount); Click(window, "Next marked entries"); Assert.Equal(14, list.ItemCount);
             list.SelectedIndex = 0;
-            Assert.Contains("absent from the captured revision", window.GetVisualDescendants().OfType<TextBlock>().Single(text => AutomationProperties.GetName(text) == "Captured marked entry details").Text);
+            Assert.Contains("absent from the captured revision", window.GetVisualDescendants().OfType<TextBlock>().Single(text => AutomationLabel(text) == "Captured marked entry details").Text);
             Click(window, "Unmark selected entry"); Assert.Equal(268, model.Selection.Marks.Count); Assert.Contains(5UL, model.Selection.Basket);
             Click(window, "Keep files / Close review"); await Until(() => model.MarkVisibility is { Total: 268 });
         }
@@ -95,7 +95,7 @@ public sealed partial class AnalysisRenderingTests
             File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(fixture.PayloadPath)!, "future-matching.bin"), [1, 2, 3]);
             Click(window, "Mark matching files in this scope"); await Until(() => IndexedSelectionCount(window, 303, 0));
             Click(window, "Add to review basket"); Click(window, "Clear marks"); Assert.True(IndexedSelectionCount(window, 0, 303));
-            var query = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Filter indexed observations");
+            var query = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationLabel(text) == "Filter indexed observations");
             query.Text = "name:match-target.bin"; Click(window, "Apply filter");
             await Until(() => grouping == AnalysisGroupingDimension.FolderHierarchy ? list.Items.OfType<AnalysisHierarchyRow>().Any(row => row.Totals.MatchingPaths == 1) : GroupReady(window) && list.Items.OfType<AnalysisDatasetGroup>().Single().Members == 1);
             Click(window, "Mark matching files in this scope"); await Until(() => IndexedSelectionCount(window, 1, 303));

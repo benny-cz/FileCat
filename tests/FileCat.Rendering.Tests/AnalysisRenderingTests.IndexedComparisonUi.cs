@@ -39,8 +39,8 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Compare captured inventories");
             if (structural)
             {
-                await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control)?.StartsWith("Previous root for current ", StringComparison.Ordinal) == true));
-                window.GetVisualDescendants().OfType<ComboBox>().Single(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control)?.StartsWith("Previous root for current ", StringComparison.Ordinal) == true).SelectedIndex = 1;
+                await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control)?.StartsWith("Previous root for current ", StringComparison.Ordinal) == true));
+                window.GetVisualDescendants().OfType<ComboBox>().Single(control => control.IsEffectivelyVisible && AutomationLabel(control)?.StartsWith("Previous root for current ", StringComparison.Ordinal) == true).SelectedIndex = 1;
                 Click(window, "Compare mapped observations");
             }
             await Until(() => window.SessionCount == 2 && ComparisonControl<ListBox>(window, "Captured comparison rows")?.ItemCount > 0, () => ComparisonText(window)); Frame(window);
@@ -104,7 +104,7 @@ public sealed partial class AnalysisRenderingTests
             ComparisonControl<TextBox>(window, "Saved inventory filename")!.Text = "cancel.fcdsa";
             window.GetVisualDescendants().OfType<CheckBox>().Single(control => control.IsEffectivelyVisible && Equals(control.Content, "Review structural root mapping")).IsChecked = true;
             Click(window, "Compare captured inventories");
-            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control)?.StartsWith("Previous root for current ", StringComparison.Ordinal) == true));
+            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control)?.StartsWith("Previous root for current ", StringComparison.Ordinal) == true));
             Click(window, "Cancel"); await Until(() => window.GetVisualDescendants().OfType<Button>().Any(control => control.IsEffectivelyVisible && Equals(control.Content, "Compare…") && control.IsEnabled));
             Assert.Equal(1, window.SessionCount);
             using var cancel = new CancellationTokenSource(); cancel.Cancel();
@@ -126,7 +126,7 @@ public sealed partial class AnalysisRenderingTests
     }
 
     private static T? ComparisonControl<T>(Window window, string name) where T : Control =>
-        window.GetVisualDescendants().OfType<T>().SingleOrDefault(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == name);
+        window.GetVisualDescendants().OfType<T>().SingleOrDefault(control => control.IsEffectivelyVisible && AutomationLabel(control) == name);
     private static string ComparisonText(Window window) => string.Join(" | ", window.GetVisualDescendants().OfType<TextBlock>().Where(control => control.IsEffectivelyVisible).Select(control => control.Text));
 
     [AvaloniaTheory]
@@ -260,8 +260,8 @@ public sealed partial class AnalysisRenderingTests
         {
             Click(window, "Compare…"); await Until(() => ComparisonControl<TextBox>(window, "Saved inventory filename") is not null);
             ComparisonControl<TextBox>(window, "Saved inventory filename")!.Text = "different-policy.fcdsa"; Click(window, "Compare captured inventories");
-            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control)?.StartsWith("Previous root for current ", StringComparison.Ordinal) == true));
-            window.GetVisualDescendants().OfType<ComboBox>().Single(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control)?.StartsWith("Previous root for current ", StringComparison.Ordinal) == true).SelectedIndex = 1;
+            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control)?.StartsWith("Previous root for current ", StringComparison.Ordinal) == true));
+            window.GetVisualDescendants().OfType<ComboBox>().Single(control => control.IsEffectivelyVisible && AutomationLabel(control)?.StartsWith("Previous root for current ", StringComparison.Ordinal) == true).SelectedIndex = 1;
             Click(window, "Compare mapped observations");
             await Until(() => window.GetVisualDescendants().OfType<Button>().Any(control => control.IsEffectivelyVisible && Equals(control.Content, "Open limited comparison")), () => ComparisonText(window));
             Assert.True(window.GetVisualDescendants().OfType<Button>().Single(control => control.IsEffectivelyVisible && Equals(control.Content, "Cancel comparison")).IsDefault);

@@ -80,7 +80,7 @@ public sealed partial class AnalysisRenderingTests
             await Until(() => GroupOtherReady(window) && window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text?.EndsWith(" · Name · Ascending · exact geometry subset", StringComparison.Ordinal) == true));
             IndexedPersistenceControl<TextBox>(window, "Filter indexed observations").Text = "name:future-only.bin";
             File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(source.PayloadPath)!, "future-only.bin"), [5]);
-            Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Inventory filename"));
+            Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control) == "Inventory filename"));
             IndexedPersistenceControl<TextBox>(window, "Inventory filename").Text = "group-other.fcdsa"; Click(window, "Save new inventory");
             await Until(() => OtherStatus(window).StartsWith("Saved group-other.fcdsa", StringComparison.Ordinal), () => OtherViewDiagnostic(window));
             await using (var prepared = await AnalysisIndexedAcquisition.PrepareAsync(profile.Services, token, indexedStorage: false))
@@ -90,8 +90,8 @@ public sealed partial class AnalysisRenderingTests
             }
             using (var saved = await ReadOtherReference(profile, "group-other.fcdsa"))
             { Assert.Equal(snapshot.Nodes.Length, saved.Snapshot.Nodes.Length); Assert.DoesNotContain(saved.Snapshot.Nodes, row => row.Name == "future-only.bin"); }
-            Click(window, "Open saved analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Saved inventory filename"));
-            Click(window, "Browse saved analyses"); await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Saved analyses" && control.ItemCount == 2));
+            Click(window, "Open saved analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control) == "Saved inventory filename"));
+            Click(window, "Browse saved analyses"); await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control) == "Saved analyses" && control.ItemCount == 2));
             var choices = IndexedPersistenceControl<ComboBox>(window, "Saved analyses"); choices.SelectedItem = choices.Items.Cast<object>().Single(item => item.ToString()!.StartsWith("group-other.fcdsa ·", StringComparison.Ordinal)); Click(window, "Open inventory");
             await Until(() => window.SessionCount == 2 && GroupOtherReady(window), () => OtherViewDiagnostic(window)); Frame(window);
             Assert.True(expected.SetEquals(await GroupOtherTablePaths(window))); Assert.True(IndexedSelectionCount(window, 0, 0)); Assert.Equal((int)dimension, GroupingSelector(window).SelectedIndex);
@@ -178,7 +178,7 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Explore selected group"); await Until(() => GroupParentReady(window) && list.Items.OfType<AnalysisDatasetGroupRow>().Any(), () => OtherViewDiagnostic(window));
             Assert.Equal(category.Members, (ulong)list.Items.OfType<AnalysisDatasetGroupRow>().Count());
             Click(window, "Back"); await Until(() => GroupOtherReady(window), () => OtherViewDiagnostic(window)); Assert.True(expected.SetEquals(list.Items.OfType<AnalysisDatasetGroup>().Select(group => group.Definition.Key)));
-            Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Inventory filename"));
+            Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control) == "Inventory filename"));
             IndexedPersistenceControl<TextBox>(window, "Inventory filename").Text = "overview-other.fcdsa"; Click(window, "Save new inventory");
             await Until(() => OtherStatus(window).StartsWith("Saved overview-other.fcdsa", StringComparison.Ordinal));
             AnalysisSavedEntry saved;

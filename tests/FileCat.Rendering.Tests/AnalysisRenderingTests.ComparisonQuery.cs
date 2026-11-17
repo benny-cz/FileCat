@@ -25,7 +25,7 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            var rows = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Comparison rows");
+            var rows = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationLabel(l) == "Comparison rows");
             var item = Assert.IsType<ListBoxItem>(rows.ContainerFromIndex(0));
             var point = item.TranslatePoint(new Point(20, 20), window)!.Value;
             window.MouseMove(point); window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left);
@@ -48,10 +48,10 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            window.GetVisualDescendants().OfType<Expander>().Single(e => AutomationProperties.GetName(e) == "Comparison query and ranking controls").IsExpanded = true;
+            window.GetVisualDescendants().OfType<Expander>().Single(e => AutomationLabel(e) == "Comparison query and ranking controls").IsExpanded = true;
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            var query = window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Comparison query");
-            var rows = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Comparison rows");
+            var query = window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationLabel(t) == "Comparison query");
+            var rows = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationLabel(l) == "Comparison rows");
             var apply = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Apply comparison query");
             Assert.Equal(3, rows.ItemCount);
             async Task Run(string expression)
@@ -64,7 +64,7 @@ public sealed partial class AnalysisRenderingTests
             await Run("delta>"); Assert.Equal(1, rows.ItemCount);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.IsEffectivelyVisible && t.Text?.StartsWith("Filter not applied.", StringComparison.Ordinal) == true);
             await Run("allocated>0"); Assert.Equal(2, rows.ItemCount);
-            var unknown = window.GetVisualDescendants().OfType<CheckBox>().Single(c => AutomationProperties.GetName(c) == "Inspect uncertain comparison matches");
+            var unknown = window.GetVisualDescendants().OfType<CheckBox>().Single(c => AutomationLabel(c) == "Inspect uncertain comparison matches");
             Assert.True(unknown.IsEffectivelyVisible); unknown.IsChecked = true; Assert.Equal(1, rows.ItemCount);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("1 uncertain query matches", StringComparison.Ordinal) == true);
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Clear comparison query").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

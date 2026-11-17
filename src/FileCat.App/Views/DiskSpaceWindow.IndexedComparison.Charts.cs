@@ -30,7 +30,7 @@ public sealed partial class DiskSpaceWindow
         {
             AutomationProperties.SetName(_chartChoice, "Comparison chart"); AutomationProperties.SetName(_chartSide, "Comparison chart side");
             AutomationProperties.SetName(_chartRoot, "Recorded comparison chart location");
-            AutomationProperties.SetName(_chartCaption, "Comparison chart scope");
+            AutomationProperties.SetAutomationId(_chartCaption, "Comparison chart scope");
             AutomationProperties.SetLiveSetting(_chartCaption, AutomationLiveSetting.Polite);
             _chartApply = Button("Apply comparison chart", () => _ = ApplyChartAsync(), "Show Table, Treemap or Sunburst for the selected captured side. Area is its observed amount, never a signed difference.");
             _chartAll = Button("All comparison locations", () => _ = NavigateChartAsync(AnalysisTree.RootKey), "Show the full captured hierarchy on the applied chart side.");

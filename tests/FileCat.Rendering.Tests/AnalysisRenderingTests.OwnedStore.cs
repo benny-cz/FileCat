@@ -40,7 +40,7 @@ public sealed partial class AnalysisRenderingTests
             await Until(() => window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && Equals(b.Content, "Browse saved analyses")));
             var inspect = window.GetVisualDescendants().OfType<Button>().Single(b => b.IsEffectivelyVisible && Equals(b.Content, "Inspect selected analysis")); Assert.False(inspect.IsEnabled);
             Click(window, "Browse saved analyses");
-            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsEffectivelyVisible && AutomationProperties.GetName(c) == "Saved analyses" && c.ItemCount == 1));
+            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsEffectivelyVisible && AutomationLabel(c) == "Saved analyses" && c.ItemCount == 1));
             IndexedPersistenceControl<ComboBox>(window, "Saved analyses").SelectedIndex = 0; Assert.True(inspect.IsEnabled);
             string path = Path.Combine(profile.Services.Paths.AnalysisSnapshotsDirectory, name); byte[] original = File.ReadAllBytes(path);
             Click(window, "Inspect selected analysis");
@@ -60,10 +60,10 @@ public sealed partial class AnalysisRenderingTests
             Frame(window);
             Click(window, indexed ? "Open inventory" : "Open observations");
             await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible &&
-                AutomationProperties.GetName(t) == (indexed ? "Indexed analysis status" : "Analysis status") &&
+                AutomationLabel(t) == (indexed ? "Indexed analysis status" : "Analysis status") &&
                 t.Text?.StartsWith("Inventory was not opened:", StringComparison.Ordinal) == true));
             Assert.Equal(1, window.SessionCount); Assert.Equal(corrupted, File.ReadAllBytes(path)); source.AssertPayloads();
-            TextBlock Details() => window.GetVisualDescendants().OfType<TextBlock>().Single(t => t.IsEffectivelyVisible && AutomationProperties.GetName(t) == "Saved analysis details");
+            TextBlock Details() => window.GetVisualDescendants().OfType<TextBlock>().Single(t => t.IsEffectivelyVisible && AutomationLabel(t) == "Saved analysis details");
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
