@@ -58,10 +58,10 @@ public sealed class StorageHistoryStartupUiTests
                 Assert.Contains("no matching durable result", report.Text);
                 Assert.Single(report.GetVisualDescendants().OfType<Button>(), button => button.Content as string == "View recorded calls…");
                 calls = Assert.IsType<ReportWindow>(first.Vm.ShowStorageCallEvidence("Inactive history", leaf, prefix, activeAtCapture: false));
-                await Wait(() => calls.Reading?.IsCompleted == true && calls.Text.Contains("Displayed calls 1–64", StringComparison.Ordinal));
                 var next = calls.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Next recorded call page");
+                await Wait(() => calls.Reading?.IsCompleted == true && calls.Text.Contains("Displayed calls 1–64", StringComparison.Ordinal) && next.IsEnabled);
                 Assert.True(next.IsEnabled); next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await Wait(() => calls.Reading?.IsCompleted == true && calls.Text.Contains("Displayed calls 65–71", StringComparison.Ordinal));
+                await Wait(() => calls.Reading?.IsCompleted == true && calls.Text.Contains("Displayed calls 65–71", StringComparison.Ordinal) && !next.IsEnabled);
                 Assert.False(next.IsEnabled); Assert.DoesNotContain("Call 1;", calls.Text);
                 Assert.Contains("No result is recorded at this prefix", calls.Text); Assert.DoesNotContain("Pending at this active snapshot", calls.Text);
                 calls.Close();
@@ -80,11 +80,32 @@ public sealed class StorageHistoryStartupUiTests
                 await Wait(() => retainedReport.Reading?.IsCompleted == true);
                 Assert.Single(retainedReport.GetVisualDescendants().OfType<Button>(), button => button.Content as string == "View recorded calls…");
             }
-            finally { retainedReport?.Close(); calls?.Close(); report?.Close(); AccessibilityTests.Close(first.Services, first.Window, first.Root); }
+            finally
+            {
+                retainedReport?.Close(); calls?.Close(); report?.Close();
+                try
+                {
+                    // Reading the retained report invalidates the background census. Stop its
+                    // replacements before simulating retention on the same journal below.
+                    first.Vm.StopStorageHistoryDiscovery();
+                    await Wait(() => !first.Vm.Operations.IsStorageHistoryAccounting && !first.Vm.Operations.IsStorageHistoryLoading);
+                }
+                finally { AccessibilityTests.Close(first.Services, first.Window, first.Root); }
+            }
 
             // Simulate retention having removed this fixture's acknowledged inactive journal. The Core retention
             // deletion-order policy is tested separately; this fixture verifies the App's restart/read path.
-            File.Delete(path);
+            var release = System.Diagnostics.Stopwatch.StartNew();
+            while (true)
+            {
+                try { File.Delete(path); break; }
+                catch (IOException error) when ((error.HResult & 0xffff) == 32 && release.Elapsed < TimeSpan.FromSeconds(20))
+                {
+                    // Window closure requests cancellation; an admitted native reader still owns
+                    // its handle until it actually returns. Never force its handle closed.
+                    await Task.Delay(10, TestContext.Current.CancellationToken);
+                }
+            }
             var second = AccessibilityTests.OpenMainWindow(width: 640, height: 420, statePaths: paths);
             ReportWindow? restored = null;
             try

@@ -59,21 +59,42 @@ public sealed partial class WindowsArchiveTargetProbeTests : IDisposable
     // opening or recalling anything there. Runs where OneDrive is set up (the development machine, read-only); the
     // validation machines have none. Elevation does not matter.
     [Fact]
-    public void A_folder_OneDrive_syncs_is_refused_as_cloud_synced_and_a_junction_says_where_to_go()
+    public void A_junction_says_where_to_go_and_an_ordinary_folder_is_allowed()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows.");
         string real = Directory.CreateDirectory(Path.Combine(_root, "moved")).FullName, junction = Path.Combine(_root, "profile-folder");
         Junction(junction, real);
         Assert.Equal(WindowsArchiveJobBackend.LinkedFolder, WindowsArchiveJobBackend.FolderProblem(Path.Combine(junction, "inside")));
         Assert.Null(WindowsArchiveJobBackend.FolderProblem(real));
+    }
+
+    [Fact]
+    public void A_folder_named_OneDrive_without_a_registered_sync_provider_is_an_ordinary_folder()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows.");
+        string folder = Directory.CreateDirectory(Path.Combine(_root, "OneDrive")).FullName;
+        Assert.Null(WindowsArchiveJobBackend.FolderProblem(folder));
+    }
+
+    [Fact]
+    public void A_registered_OneDrive_sync_root_is_refused_as_cloud_synced()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows.");
         string? oneDrive = Environment.GetEnvironmentVariable("OneDrive");
         if (string.IsNullOrEmpty(oneDrive) || !Directory.Exists(oneDrive)) Assert.Skip("No OneDrive folder on this machine.");
+        // Windows can leave this environment variable and an empty folder after the provider
+        // signs out. Check the native registration independently of the product's probe.
+        int result = CfGetSyncRootInfoByPath(oneDrive, 0, out _, sizeof(long), out _);
+        if (result != 0) Assert.Skip($"The OneDrive folder is not an available registered sync root (0x{result:X8}).");
         Assert.Equal(WindowsArchiveJobBackend.CloudFolder, WindowsArchiveJobBackend.FolderProblem(oneDrive));
         // Inside it, a synced folder is cloud-synced, and a junction (a folder moved to another drive) is a link.
         foreach (string inside in Directory.EnumerateDirectories(oneDrive).Take(3))
             Assert.Equal(new DirectoryInfo(inside).LinkTarget is null ? WindowsArchiveJobBackend.CloudFolder : WindowsArchiveJobBackend.LinkedFolder,
                 WindowsArchiveJobBackend.FolderProblem(inside));
     }
+
+    [LibraryImport("cldapi.dll", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int CfGetSyncRootInfoByPath(string path, int infoClass, out long rootId, uint length, out uint returned);
 
     // A junction, made as any user can (mklink /J needs no privilege).
     private void Junction(string link, string target)
