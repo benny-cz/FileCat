@@ -27,6 +27,13 @@ internal static partial class AnalysisPrivateNames
         name.Length == 78 && name.StartsWith("catalog-", StringComparison.Ordinal) && name[40] == '-' && name.EndsWith(".json", StringComparison.Ordinal) &&
         Guid.TryParseExact(name.AsSpan(8, 32), "N", out var catalog) && catalog != Guid.Empty &&
         Guid.TryParseExact(name.AsSpan(41, 32), "N", out var inventory) && inventory != Guid.Empty && name == CatalogEntry(catalog, inventory);
+    internal static string Recipe(Guid id) => id != Guid.Empty ? $"recipe-{id:N}.json" : throw new ArgumentException("A generated recipe ID is required.", nameof(id));
+    internal static bool TryRecipe(string name, out Guid id)
+    {
+        id = Guid.Empty;
+        return name.Length == 44 && name.StartsWith("recipe-", StringComparison.Ordinal) && name.EndsWith(".json", StringComparison.Ordinal) &&
+            Guid.TryParseExact(name.AsSpan(7, 32), "N", out id) && id != Guid.Empty && name == Recipe(id);
+    }
     internal static bool NeedsReadLease(string name) => !IsMetadata(name) || IsCatalogEntry(name) || IsPendingDeletion(name) || IsPendingReplacement(name);
     internal static void Maintenance(string name)
     {
@@ -45,7 +52,7 @@ internal static partial class AnalysisPrivateNames
         throw new ArgumentException("Only one generated catalog entry can move to or from its pending-deletion name.");
     }
     internal static bool IsMetadata(string name) => name is Catalog or PrivateState or CatalogWriteLock || IsCapacityToken(name) ||
-        IsCatalogEntry(name) || IsPendingDeletion(name) || IsPendingReplacement(name);
+        IsCatalogEntry(name) || IsPendingDeletion(name) || IsPendingReplacement(name) || TryRecipe(name, out _);
     internal static void Metadata(string name)
     {
         if (name is null || !IsMetadata(name)) throw new ArgumentException("A reserved generated analysis metadata name is required.", nameof(name));

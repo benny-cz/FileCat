@@ -45,21 +45,37 @@ internal sealed partial class HarnessApp
             string recipeEvidence = Control<TextBlock>("Recorded candidate evidence")!.Text!;
             if (!recipeEvidence.Contains("RecipeProject/obj/project.assets.json", StringComparison.Ordinal) ||
                 recipeEvidence.Contains("RecipeLookalike", StringComparison.Ordinal)) throw new InvalidOperationException("The recipe included the wrong captured path.");
-            const string recipeFrame = "branch-recipe-evidence.png";
-            RenderNativeFrame(recipeFrame);
-            if (Program.ReplacementCompositorCapture)
-            {
-                string request = Path.Combine(_run, "capture.request"), response = Path.Combine(_run, "capture.response");
-                File.Delete(response);
-                await File.WriteAllTextAsync(request, recipeFrame, token);
-                await ReadyAsync(() => File.Exists(response));
-                if (await File.ReadAllTextAsync(response, token) != recipeFrame)
-                    throw new IOException("The compositor capture did not confirm the recipe preview frame.");
-                File.Delete(request);
-                File.Delete(response);
-            }
+            await RecipeFrameAsync("branch-recipe-evidence.png", !Program.SavedRecipeProbe, token);
             Click("Close preview");
             await ReadyAsync(() => Button("Close preview") is null && Marks(1, 1));
+            bool savedRecipe = false;
+            if (Program.SavedRecipeProbe)
+            {
+                Click("Candidate recipes…");
+                await ReadyAsync(() => Button("Saved recipes…")?.IsEnabled == true);
+                Click("Saved recipes…");
+                await ReadyAsync(() => Button("Create saved filter…")?.IsEnabled == true);
+                Click("Create saved filter…");
+                await ReadyAsync(() => Control<TextBox>("Saved recipe filter") is not null);
+                Control<TextBox>("Saved recipe name")!.Text = "Project restore evidence";
+                Control<TextBox>("Saved recipe filter")!.Text = "path:RecipeProject AND ext=json";
+                Control<ListBox>("Locations for saved recipe")!.SelectedIndex = 0;
+                Click("Save and preview filter");
+                await CheckSavedPreviewAsync();
+                Click("Close preview");
+                await ReadyAsync(() => Button("Close preview") is null);
+                Click("Candidate recipes…");
+                await ReadyAsync(() => Button("Saved recipes…")?.IsEnabled == true);
+                Click("Saved recipes…");
+                await ReadyAsync(() => Control<ListBox>("Saved filters for these observations")?.ItemCount == 1);
+                Control<ListBox>("Saved filters for these observations")!.SelectedIndex = 0;
+                Click("Preview saved filter");
+                await CheckSavedPreviewAsync();
+                await RecipeFrameAsync("branch-saved-recipe.png", true, token);
+                Click("Close preview");
+                await ReadyAsync(() => Button("Close preview") is null && Marks(1, 1));
+                savedRecipe = true;
+            }
 
             string external = Path.Combine(_fixture, "external-touch.txt");
             string added = Path.Combine(_fixture, "Photos", "after-scan.txt");
@@ -99,6 +115,7 @@ internal sealed partial class HarnessApp
                 hint = stale,
                 recipePreviewPassed = true,
                 recipeEvidence,
+                savedRecipePassed = savedRecipe,
                 originalMarksAndBasketKept = true,
                 newFilesPreserved = true,
                 input = "native window control events"
@@ -116,6 +133,16 @@ internal sealed partial class HarnessApp
             .SingleOrDefault(button => button.IsEffectivelyVisible && Equals(button.Content, name));
         T? Control<T>(string name) where T : Avalonia.Controls.Control => _window!.GetVisualDescendants().OfType<T>()
             .SingleOrDefault(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == name);
+        async Task CheckSavedPreviewAsync()
+        {
+            await ReadyAsync(() => Control<ListBox>("Captured recipe candidates")?.ItemCount == 1);
+            var candidate = Control<ListBox>("Captured recipe candidates")!.Items[0] as string;
+            if (candidate?.Contains("project.assets.json", StringComparison.Ordinal) != true)
+                throw new InvalidOperationException("The saved filter preview has the wrong captured file.");
+            Control<ListBox>("Captured recipe candidates")!.SelectedIndex = 0;
+            Click("Inspect recorded candidate");
+            await ReadyAsync(() => Control<TextBlock>("Recorded candidate evidence")?.Text?.Contains("RecipeProject/obj/project.assets.json", StringComparison.Ordinal) == true);
+        }
         void Click(string name)
         {
             var button = Button(name);
@@ -129,5 +156,19 @@ internal sealed partial class HarnessApp
         bool Marks(int marked, int basket) => _window!.GetVisualDescendants().OfType<TextBlock>()
             .Any(text => text.IsEffectivelyVisible && AutomationProperties.GetAutomationId(text) == "Indexed captured selection" &&
                 text.Text?.StartsWith($"{marked:N0} marked · {basket:N0} in review basket", StringComparison.Ordinal) == true);
+    }
+
+    private async Task RecipeFrameAsync(string frame, bool compositor, CancellationToken token)
+    {
+        RenderNativeFrame(frame);
+        if (!compositor || !Program.ReplacementCompositorCapture) return;
+        string request = Path.Combine(_run, "capture.request"), response = Path.Combine(_run, "capture.response");
+        File.Delete(response);
+        await File.WriteAllTextAsync(request, frame, token);
+        await ReadyAsync(() => File.Exists(response));
+        if (await File.ReadAllTextAsync(response, token) != frame)
+            throw new IOException("The compositor capture did not confirm the recipe preview frame.");
+        File.Delete(request);
+        File.Delete(response);
     }
 }

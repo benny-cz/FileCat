@@ -15856,5 +15856,18 @@
     "publicEntryEnabled": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "savedCustomRecipes": {
+    "status": "qualified-internal-slice",
+    "packet": "source-manifest-r1356-saved-recipes.json",
+    "document": "SAVED_RECIPE_QUALIFICATION.md",
+    "coreCasesPerPlatform": 20,
+    "dialogCasesPerPlatform": 5,
+    "nativeWindowRevision": "r1355",
+    "macActualCompositorQualified": true,
+    "candidateStagingAvailable": false,
+    "publicEntryEnabled": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }

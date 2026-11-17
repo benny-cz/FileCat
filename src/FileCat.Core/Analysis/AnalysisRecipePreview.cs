@@ -10,11 +10,12 @@ public sealed record AnalysisRecipePreview(SessionIdentity Identity, AnalysisRec
     AnalysisMetric Metric, NamespaceCoverage Coverage, UInt128? MinimumBytes, int? MinimumAgeDays, ulong Candidates, ulong Unknown,
     ulong Excluded, ImmutableArray<AnalysisRecipeCandidate> Rows);
 
-internal sealed class AnalysisRecipePreviews
+internal sealed partial class AnalysisRecipePreviews
 {
     internal const int MaximumRows = 128;
-    private readonly AnalysisRecipes _rules;
-    private readonly AnalysisRecipeRequest _request;
+    private readonly AnalysisRecipes? _rules;
+    private readonly AnalysisRecipeDefinition _definition;
+    private readonly ImmutableArray<string> _rootIds;
     private readonly PriorityQueue<AnalysisRecipeCandidate, (bool Known, UInt128 Bytes, ulong ReversePathId)> _rows = new();
     private ulong _candidates;
     private ulong _unknown;
@@ -22,17 +23,20 @@ internal sealed class AnalysisRecipePreviews
 
     internal AnalysisRecipePreviews(AnalysisRecipeRequest request, ImmutableArray<RootBinding> roots, SessionIdentity identity, AnalysisMetric metric)
     {
-        _request = request;
         _rules = new(request, roots, identity.ObservedUtc);
+        _definition = _rules.Definition;
+        _rootIds = request.RootIds;
         if (!Enum.IsDefined(metric) || request.Recipe == AnalysisMetadataRecipe.LargestFiles && metric == AnalysisMetric.Files)
             throw new ArgumentException("Choose a byte measure for this preview.", nameof(metric));
         Metric = request.Recipe == AnalysisMetadataRecipe.LargestFiles ? metric : AnalysisMetric.FileSize;
     }
 
     internal AnalysisMetric Metric { get; }
-    internal bool NeedsRankedAllocation => Metric == AnalysisMetric.OnDisk;
+    internal bool NeedsAllocation => Metric == AnalysisMetric.OnDisk || (_saved is not null && (_saved.Needs & AnalysisFilterNeeds.Allocation) != 0);
+    internal bool NeedsContextMarkers => _definition.Recipe is AnalysisMetadataRecipe.GeneratedBuildOutput or AnalysisMetadataRecipe.ApplicationCache;
+    internal bool NeedsRelativePath => _saved is not null && (_saved.Needs & AnalysisFilterNeeds.Path) != 0;
 
-    internal bool Includes(AnalysisNode node) => node.Kind == AnalysisKind.File && _rules.IncludesRoot(node.RootId);
+    internal bool Includes(AnalysisNode node) => node.Kind == AnalysisKind.File && (_rules?.IncludesRoot(node.RootId) ?? _saved!.Includes(node.RootId));
 
     internal void Add(AnalysisNode node, AnalysisObject? recordedObject, AnalysisMeasurement allocation,
         Func<ulong, AnalysisNode?> readPath, Func<AnalysisNode, string, AnalysisNode?> readChild)
@@ -43,7 +47,8 @@ internal sealed class AnalysisRecipePreviews
             AnalysisMetric.UniqueFileSize when recordedObject?.VerifiedIdentity is null => AnalysisMeasurement.Missing(MeasurementState.Unsupported),
             _ => recordedObject?.LogicalLength ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported)
         };
-        var finding = _rules.Evaluate(node, recordedObject, measured, readPath, readChild);
+        var finding = _rules?.Evaluate(node, recordedObject, measured, readPath, readChild) ??
+            EvaluateSaved(node, recordedObject, measured, allocation, readPath);
         switch (finding.Match)
         {
             case AnalysisRecipeMatch.Candidate:
@@ -63,20 +68,25 @@ internal sealed class AnalysisRecipePreviews
         }
     }
 
-    internal AnalysisRecipePreview Finish(SessionIdentity identity, NamespaceCoverage coverage) => new(identity, _rules.Definition,
-        _request.RootIds, Metric, coverage, _rules.MinimumBytes, _rules.MinimumAgeDays, _candidates, _unknown, _excluded,
+    internal AnalysisRecipePreview Finish(SessionIdentity identity, NamespaceCoverage coverage) => new(identity, _definition,
+        _rootIds, Metric, coverage, _rules?.MinimumBytes, _rules?.MinimumAgeDays, _candidates, _unknown, _excluded,
         [.. _rows.UnorderedItems.OrderByDescending(item => item.Priority).Select(item => item.Element)]);
 }
 
 public sealed partial class AnalysisDatasetLease
 {
     /// <summary>Runs a bounded, read-only top-candidate query against this captured revision.</summary>
-    public async Task<AnalysisRecipePreview> PreviewRecipeAsync(AnalysisRecipeRequest request, AnalysisMetric metric,
-        CancellationToken cancellation = default)
+    public Task<AnalysisRecipePreview> PreviewRecipeAsync(AnalysisRecipeRequest request, AnalysisMetric metric, CancellationToken cancellation = default) =>
+        PreviewRecipeCoreAsync(() => new(request, Descriptor.Roots, Descriptor.Identity, metric), cancellation);
+
+    internal Task<AnalysisRecipePreview> PreviewSavedRecipeAsync(AnalysisSavedRecipe recipe, CancellationToken cancellation) =>
+        PreviewRecipeCoreAsync(() => new(recipe, Descriptor.Roots, Descriptor.Identity, Descriptor.Freshness), cancellation);
+
+    private async Task<AnalysisRecipePreview> PreviewRecipeCoreAsync(Func<AnalysisRecipePreviews> prepare, CancellationToken cancellation)
     {
         cancellation.ThrowIfCancellationRequested();
         using var admission = AnalysisExplorerAdmission.Acquire();
-        var preview = new AnalysisRecipePreviews(request, Descriptor.Roots, Descriptor.Identity, metric);
+        var preview = await AnalysisIo.Run(_io, "analysis-filter-calendar", _ => prepare(), cancellation).ConfigureAwait(false);
         return await _owned.UseAsync(async reader =>
         {
             ulong next = 1;
@@ -98,7 +108,7 @@ public sealed partial class AnalysisDatasetLease
                         var obj = node is { MetadataState: MeasurementState.Known, IncludedByPolicy: true, Cloud: not true, ObjectId: { } id }
                             ? ReadRecipeObject(reader, id, token) : null;
                         if (obj is not null) bytes += 1024L + (obj.VerifiedIdentity?.Length ?? 0) * 2L + (obj.VersionEvidence?.Length ?? 0) * 2L;
-                        AnalysisMeasurement allocation = preview.NeedsRankedAllocation && obj is not null
+                        AnalysisMeasurement allocation = preview.NeedsAllocation && obj is not null
                             ? ReadRecipeAllocation(reader, obj.Id, ref bytes, token) : AnalysisMeasurement.Missing(MeasurementState.Unsupported);
                         preview.Add(node, obj, allocation, ReadPath, FindChild);
                     }

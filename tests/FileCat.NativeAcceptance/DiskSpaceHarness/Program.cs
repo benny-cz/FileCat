@@ -255,10 +255,11 @@ internal static class Program
     internal static bool ReplacementCompositorCapture { get; private set; }
     internal static bool IndexedDeferredProbe { get; private set; }
     internal static bool BranchRefreshProbe { get; private set; }
+    internal static bool SavedRecipeProbe { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture" or "--indexed-deferred-probe" or "--branch-refresh-probe"))) return 64;
+        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture" or "--indexed-deferred-probe" or "--branch-refresh-probe" or "--saved-recipe-probe"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
         Compact = args.Contains("--compact", StringComparer.Ordinal);
         WindowsInput = args.Contains("--windows-input", StringComparer.Ordinal);
@@ -275,6 +276,8 @@ internal static class Program
         ReplacementUiProbe = args.Contains("--replacement-ui-probe", StringComparer.Ordinal);
         IndexedDeferredProbe = args.Contains("--indexed-deferred-probe", StringComparer.Ordinal);
         BranchRefreshProbe = args.Contains("--branch-refresh-probe", StringComparer.Ordinal);
+        SavedRecipeProbe = args.Contains("--saved-recipe-probe", StringComparer.Ordinal);
+        if (SavedRecipeProbe && !BranchRefreshProbe) return 64;
         if (BranchRefreshProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe || IndexedDeferredProbe)) return 64;
         if (IndexedDeferredProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe)) return 64;
         ReplacementCompositorCapture = args.Contains("--replacement-compositor-capture", StringComparer.Ordinal);

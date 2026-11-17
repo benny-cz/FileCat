@@ -1,10 +1,32 @@
 param([Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$Revision,[Parameter(Mandatory=$true)][ValidateSet('mac','linux','windows')][string]$Platform,[switch]$InteractiveWindows,
- [ValidateRange(5,240)][int]$WindowsTaskLimitMinutes=30)
+ [ValidateRange(5,240)][int]$WindowsTaskLimitMinutes=30,[switch]$ReuseUploadedWindows)
 $ErrorActionPreference='Stop'
 function Check([string]$what){if($LASTEXITCODE){throw $what}}
+if($ReuseUploadedWindows-and($Platform-ne'windows'-or!$InteractiveWindows)){throw 'Uploaded desktop retries require the Windows interactive account'}
 $archive=Join-Path $PWD ('.tmp/dsa-batch-'+$Platform+'-'+$Revision+'.tgz')
 if($Platform-eq'windows'){
  $v='C:\Program Files\VMware\VMware Workstation\vmrun.exe';$vm='V:\Virtual Machines\Jamf\Windows 10 x64\Windows 10 x64.vmx';$guest='C:\FileCatDsa20261104R2\batch-'+$Revision
+ if($ReuseUploadedWindows){
+  $previous=Join-Path $PWD ('.tmp/windows-batch-'+$Revision+'-state.txt')
+  if(!(Test-Path -LiteralPath $previous)-or([IO.File]::ReadAllText($previous).Trim())-cne'BUSY phase=verify'){
+   throw 'Reuse requires a retained terminal busy refusal before launch and extraction'
+  }
+  $bundleHash=(Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
+  $runnerHash=(Get-FileHash -LiteralPath (Join-Path $PWD ('.tmp/batch-windows-'+$Revision+'.ps1')) -Algorithm SHA256).Hash
+  $verify=@'
+$ErrorActionPreference='Stop'
+$base='@BASE@'
+if(@(Get-Process -Name 'FileCat*',dotnet -ErrorAction SilentlyContinue).Count){exit 75}
+if(([IO.File]::ReadAllText((Join-Path $base 'state.txt')).Trim())-cne'BUSY phase=verify'){throw 'Uploaded batch state changed'}
+foreach($name in 'app','input','payload','owned.pid','driver'){if(Test-Path -LiteralPath (Join-Path $base $name)){throw 'The previous launch already created a payload'}}
+if((Get-FileHash -LiteralPath (Join-Path $base 'bundle.tgz') -Algorithm SHA256).Hash-ne'@BUNDLE@'){throw 'Uploaded bundle changed'}
+if((Get-FileHash -LiteralPath (Join-Path $base 'run.ps1') -Algorithm SHA256).Hash-ne'@RUNNER@'){throw 'Uploaded runner changed'}
+'@
+  $verify=$verify.Replace('@BASE@',$guest).Replace('@BUNDLE@',$bundleHash).Replace('@RUNNER@',$runnerHash)
+  $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($verify))
+  & $v -T ws -vp a -gu filecatdsa_r2 -gp a runProgramInGuest $vm 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoProfile -WindowStyle Hidden -EncodedCommand $encoded
+  Check 'Windows uploaded batch verification failed or the guest is busy'
+ }else{
  & $v -T ws -vp a -gu filecatdsa_r2 -gp a createDirectoryInGuest $vm $guest;Check 'Windows candidate directory failed'
  # Refuse a predictable reserve failure before copying/extracting a large payload.
  $stage=Join-Path $PWD ('.tmp/batch-'+$Revision+'-windows')
@@ -25,6 +47,7 @@ if($drive.FreeSpace-lt$required){exit 74}
  & $v -T ws -vp a -gu filecatdsa_r2 -gp a runProgramInGuest $vm 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoProfile -WindowStyle Hidden -EncodedCommand $encoded;Check 'Windows free-space preflight failed before transfer; inspect space-preflight.json'
  & $v -T ws -vp a -gu filecatdsa_r2 -gp a copyFileFromHostToGuest $vm $archive ($guest+'\bundle.tgz');Check 'Windows candidate copy failed'
  & $v -T ws -vp a -gu filecatdsa_r2 -gp a copyFileFromHostToGuest $vm (Join-Path $PWD ('.tmp/batch-windows-'+$Revision+'.ps1')) ($guest+'\run.ps1');Check 'Windows runner copy failed'
+ }
  if($InteractiveWindows){
   $hash=(Get-FileHash -LiteralPath (Join-Path $PWD ('.tmp/batch-windows-'+$Revision+'.ps1')) -Algorithm SHA256).Hash
   $launch=@'

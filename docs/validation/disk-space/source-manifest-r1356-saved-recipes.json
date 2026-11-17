@@ -1,0 +1,134 @@
+{
+  "sourceBase": "e25b1d3a126df9b4871564ab683aa7772381dd0b",
+  "focusedSourceSha256": "4e5c74b8b87cf0fb59707b7b27e00619911a0899f28bd443e01bbaf30fddff29",
+  "nativeSourceSha256": "c3b76efd5d49d485ffdb11815867a0835cfa1a51a707bdbc3eec958ca6889b1a",
+  "checks": {
+    "windows": {
+      "core": 20,
+      "renderedNativeFilesystem": 5,
+      "nativeJourney": {
+        "finished": true,
+        "passed": true,
+        "sessions": 3,
+        "branchRoot": "Photos",
+        "observed": [
+          "after-scan.txt",
+          "photo.png"
+        ],
+        "hint": "Possibly stale: fixture. Refresh a folder or rescan the locations to record new observations. Direct changes watched at 1 of 1 selected locations. Other changes can go undetected.",
+        "recipePreviewPassed": true,
+        "recipeEvidence": "Recorded path \u2014 fixture/RecipeProject/obj/project.assets.json\nContext folder \u2014 fixture/RecipeProject/obj\nContext record \u2014 fixture/RecipeProject/RecipeProject.csproj",
+        "savedRecipePassed": true,
+        "originalMarksAndBasketKept": true,
+        "newFilesPreserved": true,
+        "input": "native window control events"
+      }
+    },
+    "mac": {
+      "core": 20,
+      "renderedNativeFilesystem": 5,
+      "nativeJourney": {
+        "finished": true,
+        "passed": true,
+        "sessions": 3,
+        "branchRoot": "Photos",
+        "observed": [
+          "after-scan.txt",
+          "photo.png"
+        ],
+        "hint": "Possibly stale: fixture. Refresh a folder or rescan the locations to record new observations. Direct changes watched at 1 of 1 selected locations. Other changes can go undetected.",
+        "recipePreviewPassed": true,
+        "recipeEvidence": "Recorded path \u2014 fixture/RecipeProject/obj/project.assets.json\nContext folder \u2014 fixture/RecipeProject/obj\nContext record \u2014 fixture/RecipeProject/RecipeProject.csproj",
+        "savedRecipePassed": true,
+        "originalMarksAndBasketKept": true,
+        "newFilesPreserved": true,
+        "input": "native window control events"
+      }
+    },
+    "ubuntu": {
+      "core": 20,
+      "renderedNativeFilesystem": 5,
+      "nativeJourney": {
+        "finished": true,
+        "passed": true,
+        "sessions": 3,
+        "branchRoot": "Photos",
+        "observed": [
+          "after-scan.txt",
+          "photo.png"
+        ],
+        "hint": "Possibly stale: fixture. Refresh a folder or rescan the locations to record new observations. Direct changes watched at 1 of 1 selected locations. Other changes can go undetected.",
+        "recipePreviewPassed": true,
+        "recipeEvidence": "Recorded path \u2014 fixture/RecipeProject/obj/project.assets.json\nContext folder \u2014 fixture/RecipeProject/obj\nContext record \u2014 fixture/RecipeProject/RecipeProject.csproj",
+        "savedRecipePassed": true,
+        "originalMarksAndBasketKept": true,
+        "newFilesPreserved": true,
+        "input": "native window control events"
+      }
+    }
+  },
+  "receipts": {
+    "batch-linux-r1354.sh": "c389e714f1e96a3b3771022fa2264164a0aeab339e352d91ed269ebd5ed002c0",
+    "batch-linux-r1355.sh": "e79a0a8a0e0ce7fef1bcaffcf5cc88d653b42d73febbbdc62658d480658694ad",
+    "batch-mac-r1354.sh": "24c65ec54a94ea5b077b0e75524008d01eb341d2279add63638734f0a30a512d",
+    "batch-mac-r1355.sh": "63e8d6345ef23ef17e683175aafe32f4fed34ab0ed637e51717f71a34a49cccf",
+    "batch-windows-r1354.ps1": "0eb468176c27801dee454a5a32d8749d241b321a06dfa4a8c386f7c419f8e98a",
+    "batch-windows-r1355.ps1": "526530bfcd30e43809936d4cf7d37826cfeb7b7e845ad443606e6d705cb9f86e",
+    "mac-batch-r1354-post.json": "826b1bd50b4d17c5c430aa9da71bee4840cd9c4f14eb7c433988c546e44f17dc",
+    "mac-batch-r1354-results.tgz": "01412401d2902776799cba0e6749acbe6edb95d6d6498790eebc94d18b8d9c1e",
+    "mac-native-r1355-post.json": "369613d552b954446e474b646902b5a317b8cddb240419546fd0356c85e68847",
+    "native-branch-proof-r1355.json": "141526b0f52fb55c1ab3b70231911226d9bf376cef5ff653ef13a6a152b045e2",
+    "saved-recipe-core-final-build-r1354.txt": "d60b0b3426aa145063f949edc07fd7ec2e4cc585972e64d3ebc12807673b1948",
+    "saved-recipe-native-build-r1355.txt": "9fcb49f4a19e8f18828f5b0c36781ca079f3617bd00498dbcd5b30c7b15912a6",
+    "saved-recipe-proof-r1354.json": "b84a1be9129144a144eed21d6ed7924a39b36c54d007ddf220fdb548fa72520d",
+    "saved-recipe-render-build-r1354.txt": "8f3738683c6da24fbccdb0fdfa64b0e712a6899bbb278cba8b432746055c2c36",
+    "ubuntu-batch-r1354-post.json": "9fab40a0edad90f80f8a27aa9c4e7148c3f2acb5dd7fa1a469141cb2187d3020",
+    "ubuntu-batch-r1354-results.tgz": "a40ea569e05d0aa612c12273dce3c230b709b335daac71c98aed71fb21ee219d",
+    "ubuntu-native-r1355-post.json": "fef14870b904f125b24b963cef2bd4f73b69bc4fbeff11487e8927cf15cd7525",
+    "ubuntu-native-r1355-results.tgz": "caac063299d56661aca40a2cf6e6baddee4cd101635b4d68f2edacc77966f1e2",
+    "windows-batch-r1354-post.json": "7806eafc19a9161ed51520b54dc044cf2d7681eae2146836b28e3f5339700d04",
+    "windows-batch-r1354-results.tgz": "e801305a02edef7e7709836ba6b25b539f44bdbbb4f45a24b5f298b44306f2ce",
+    "windows-batch-r1355-post.json": "b92839577b158147601e95fb20aa8844cc8f5472ea941d788b3557c7bffad965",
+    "windows-batch-r1355-results.tgz": "65d90ecc5b33a3d1d9f4130609ec31184da85c69be23a341fb02c641d584e68a",
+    "windows-native-r1355-post.json": "ce1b5442eeaddaf9a5c1b3a244a988c82f971382341a407121e20c7aac5af9cf",
+    "windows-native-r1355-results.tgz": "03dfa7a4bb74bd9acd7819d3c7c8c4b6e07ff9bae75192f961ffbe9f8649b3dd",
+    "windows-native-r1355-task-outcome.json": "83a144fa7bce7543ef8da8c3f3d6dce0444f605707607a3a7838ed00cbf61c2a",
+    "mac-native-r1355-results-without-desktop.tgz": "5e5536e79ccd245964f1e908befd89175aca513d5c5c63a3dcb70f2dea31d780"
+  },
+  "archives": {
+    "exact-source-deltas-r1356-saved-recipes.tgz": "1b18d223e54c74b2402532cf6cb42c92c1147da15121d9cb7a72fc282ae9832a",
+    "exact-receipts-r1356-saved-recipes.tgz": "0ae7af64cee923998ba27be43ce3fb6c5360fe5a8ca61c79bd5cf21363c2d622"
+  },
+  "localMacDesktopCapture": {
+    "rawArchiveSha256": "e780052baa1e6ab00df88b0eae3509a36b9b00c589cb6b763abceb7fd22c6b91",
+    "capture": {
+      "frame": "branch-saved-recipe.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 791,
+          "Width": 1180,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 332,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 90652,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "5f484a3ea3fbec81b8c4fbea49f92457aea535b39a2f71ed58391cc2bcdb32a5",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    }
+  },
+  "physicalInputQualified": false,
+  "screenReaderQualified": false,
+  "fullGoalComplete": false,
+  "publicCommandEnabled": false,
+  "finalIndependentReviewPerformed": false
+}

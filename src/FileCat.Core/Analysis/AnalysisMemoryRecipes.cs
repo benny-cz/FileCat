@@ -6,36 +6,44 @@ public static class AnalysisMemoryRecipes
     private const long Budget = AnalysisLimits.PendingBytes * 2L;
     private static long s_reserved;
 
-    public static async Task<AnalysisRecipePreview> PreviewAsync(AnalysisSnapshotLease source, AnalysisRecipeRequest request,
-        AnalysisMetric metric, CancellationToken cancellation = default)
+    public static Task<AnalysisRecipePreview> PreviewAsync(AnalysisSnapshotLease source, AnalysisRecipeRequest request,
+        AnalysisMetric metric, CancellationToken cancellation = default) =>
+        PreviewCoreAsync(source, snapshot => new(request, snapshot.Roots, snapshot.Identity, metric), cancellation);
+
+    internal static Task<AnalysisRecipePreview> PreviewSavedAsync(AnalysisSnapshotLease source, AnalysisSavedRecipe recipe,
+        CancellationToken cancellation) => PreviewCoreAsync(source,
+        snapshot => new(recipe, snapshot.Roots, snapshot.Identity, snapshot.Freshness), cancellation);
+
+    private static async Task<AnalysisRecipePreview> PreviewCoreAsync(AnalysisSnapshotLease source,
+        Func<AnalysisSnapshot, AnalysisRecipePreviews> prepare, CancellationToken cancellation)
     {
         ArgumentNullException.ThrowIfNull(source);
         cancellation.ThrowIfCancellationRequested();
         using var retained = source.Retain();
         using var admission = AnalysisExplorerAdmission.Acquire();
         var snapshot = retained.Snapshot;
-        var preview = new AnalysisRecipePreviews(request, snapshot.Roots, snapshot.Identity, metric);
-        bool context = request.Recipe is AnalysisMetadataRecipe.GeneratedBuildOutput or AnalysisMetadataRecipe.ApplicationCache;
+        var preview = await Task.Run(() => prepare(snapshot), cancellation).ConfigureAwait(false);
+        bool ancestry = preview.NeedsContextMarkers || preview.NeedsRelativePath;
         long cost = 256 * 1024L + snapshot.Objects.Length * 160L +
-            (context ? snapshot.Nodes.Length * 256L : 0) + (preview.NeedsRankedAllocation ? snapshot.Facts.Length * 160L : 0);
+            (ancestry ? snapshot.Nodes.Length * 256L : 0) + (preview.NeedsAllocation ? snapshot.Facts.Length * 160L : 0);
         Reserve(cost);
         try
         {
-            return await Task.Run(() => Evaluate(snapshot, preview, context, cancellation), cancellation).ConfigureAwait(false);
+            return await Task.Run(() => Evaluate(snapshot, preview, ancestry, cancellation), cancellation).ConfigureAwait(false);
         }
         finally { Interlocked.Add(ref s_reserved, -cost); }
     }
 
-    private static AnalysisRecipePreview Evaluate(AnalysisSnapshot snapshot, AnalysisRecipePreviews preview, bool context, CancellationToken token)
+    private static AnalysisRecipePreview Evaluate(AnalysisSnapshot snapshot, AnalysisRecipePreviews preview, bool ancestry, CancellationToken token)
     {
         var byId = new Dictionary<ulong, AnalysisNode>();
         var children = new Dictionary<(ulong ParentId, string Name), AnalysisNode?>();
-        if (context)
+        if (ancestry)
             foreach (var node in snapshot.Nodes)
             {
                 token.ThrowIfCancellationRequested();
                 byId.Add(node.Id, node);
-                if (node.ParentId != 0)
+                if (preview.NeedsContextMarkers && node.ParentId != 0)
                 {
                     var key = (node.ParentId, node.Name);
                     if (!children.TryAdd(key, node)) children[key] = null;
@@ -48,7 +56,7 @@ public static class AnalysisMemoryRecipes
             objects.Add(obj.Id, obj);
         }
         var facts = new Dictionary<string, List<StorageFact>>(StringComparer.Ordinal);
-        if (preview.NeedsRankedAllocation)
+        if (preview.NeedsAllocation)
             foreach (var item in snapshot.Facts)
             {
                 token.ThrowIfCancellationRequested();

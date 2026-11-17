@@ -99,8 +99,8 @@ public sealed partial class AnalysisSavedCatalog
             foreach (string name in names)
             {
                 cancellation.ThrowIfCancellationRequested();
-                if (!AnalysisPrivateNames.IsMetadata(name) || name is AnalysisPrivateNames.Catalog or AnalysisPrivateNames.PrivateState or AnalysisPrivateNames.CatalogWriteLock || AnalysisPrivateNames.IsCapacityToken(name) || AnalysisPrivateNames.IsPendingReplacement(name)) continue;
                 bool deleting = AnalysisPrivateNames.TryPendingDeletion(name, out var deletingCatalog, out var deletingInventory, out var operation);
+                if (!deleting && !AnalysisPrivateNames.IsCatalogEntry(name)) continue;
                 if (catalog is null || (deleting ? deletingCatalog != catalog.Value : name.AsSpan(8, 32).ToString() != catalog.Value.ToString("N"))) throw Invalid("A catalog entry has no matching supported catalog header.");
                 if (entries.Count + pending.Count >= EntryLimit) throw Invalid("The saved analysis catalog entry limit was reached.");
                 byte[] data = store.ReadMetadata(name, cancellation, EntryBytes); bytes = checked(bytes + data.Length);

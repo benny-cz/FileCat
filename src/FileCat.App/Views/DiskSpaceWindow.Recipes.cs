@@ -1,12 +1,56 @@
+using System.Collections.Immutable;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using FileCat.App.Controls;
+using FileCat.App.Services;
 using FileCat.Core.Analysis;
 
 namespace FileCat.App.Views;
 
 public sealed partial class DiskSpaceWindow
 {
+    private async Task ShowCandidateRecipesAsync(SessionIdentity identity, ImmutableArray<RootBinding> roots, AnalysisMetric metric, string seedQuery,
+        AppServices? services, Func<AnalysisRecipeRequest, CancellationToken, Task<AnalysisRecipePreview>> builtIn,
+        Func<AnalysisSavedRecipe, CancellationToken, Task<AnalysisRecipePreview>> saved,
+        Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> readPath, CancellationToken lifetime)
+    {
+        var choice = await AnalysisRecipeDialog.ChooseAsync(_dialogs, roots, metric, services is { Io.IsStopped: false }, lifetime);
+        lifetime.ThrowIfCancellationRequested();
+        AnalysisRecipePreview result;
+        if (choice is AnalysisRecipeDialog.Choice.BuiltIn selected)
+        {
+            result = await IndexedComparisonProgressAsync("Reading captured recipe candidates", token => builtIn(selected.Request, token), lifetime);
+        }
+        else if (choice is AnalysisRecipeDialog.Choice.Saved && services is not null)
+        {
+            var recipe = await ChooseSavedRecipeAsync(services, identity, roots, metric, seedQuery, lifetime);
+            if (recipe is null) return;
+            result = await IndexedComparisonProgressAsync("Reading saved recipe candidates", token => saved(recipe, token), lifetime);
+        }
+        else return;
+        await AnalysisRecipeDialog.ShowAsync(_dialogs, result, roots, readPath, lifetime);
+    }
+
+    private async Task<AnalysisSavedRecipe?> ChooseSavedRecipeAsync(AppServices services, SessionIdentity identity, ImmutableArray<RootBinding> roots,
+        AnalysisMetric metric, string seedQuery, CancellationToken lifetime)
+    {
+        var saved = await IndexedComparisonProgressAsync("Reading saved recipes", async token =>
+        {
+            await using var prepared = await AnalysisIndexedAcquisition.PrepareAsync(services, token, indexedStorage: false);
+            return await prepared.ReadRecipesAsync(identity, roots, token);
+        }, lifetime);
+        var chosen = await AnalysisSavedRecipeDialog.ChooseAsync(_dialogs, saved, lifetime);
+        if (chosen is null || !chosen.Create) return chosen?.Recipe;
+        var recipe = await AnalysisSavedRecipeDialog.CreateAsync(_dialogs, identity, roots, metric, seedQuery, lifetime);
+        if (recipe is null) return null;
+        return await IndexedComparisonProgressAsync("Saving private recipe", async token =>
+        {
+            await using var prepared = await AnalysisIndexedAcquisition.PrepareAsync(services, token, indexedStorage: false);
+            await prepared.SaveRecipeAsync(recipe, identity, roots, token);
+            return recipe;
+        }, lifetime);
+    }
+
     private static Button CandidateRecipeButton(WrapPanel toolbar)
     {
         const string description = "Choose captured locations and a versioned rule. Review candidates using recorded metadata.";
@@ -31,13 +75,11 @@ public sealed partial class DiskSpaceWindow
                 try
                 {
                     using var source = Model.CaptureDisplayedRevision();
-                    var roots = source.Snapshot.Roots;
-                    var choice = await AnalysisRecipeDialog.ChooseAsync(_window._dialogs, roots, tree.Metric, lifetime);
-                    if (choice is null || _disposed) return;
-                    var result = await _window.IndexedComparisonProgressAsync("Reading captured recipe candidates",
-                        token => AnalysisMemoryRecipes.PreviewAsync(source, choice, tree.Metric, token), lifetime);
-                    if (!_disposed) await AnalysisRecipeDialog.ShowAsync(_window._dialogs, result, roots,
-                        (id, token) => ReadRecipeMemoryPathAsync(source.Snapshot, id, token), lifetime);
+                    var snapshot = source.Snapshot;
+                    await _window.ShowCandidateRecipesAsync(snapshot.Identity, snapshot.Roots, tree.Metric, Model.PublishedReportView.Query,
+                        Model.HistoryServices, (choice, token) => AnalysisMemoryRecipes.PreviewAsync(source, choice, tree.Metric, token),
+                        (recipe, token) => AnalysisMemoryRecipes.PreviewSavedAsync(source, recipe, token),
+                        (id, token) => ReadRecipeMemoryPathAsync(snapshot, id, token), lifetime);
                 }
                 catch (OperationCanceledException) { }
                 catch (Exception error) when (IndexedExpectedError(error) || error is FormatException or OverflowException)
@@ -77,13 +119,10 @@ public sealed partial class DiskSpaceWindow
                 var lifetime = _selectionLifetime.Token;
                 try
                 {
-                    var roots = _source.Descriptor.Roots;
+                    var descriptor = _source.Descriptor;
                     var metric = _explorer.Metric;
-                    var choice = await AnalysisRecipeDialog.ChooseAsync(_window._dialogs, roots, metric, lifetime);
-                    if (choice is null || _disposed) return;
-                    var result = await _window.IndexedComparisonProgressAsync("Reading captured recipe candidates",
-                        token => _source.PreviewRecipeAsync(choice, metric, token), lifetime);
-                    if (!_disposed) await AnalysisRecipeDialog.ShowAsync(_window._dialogs, result, roots, _source.ReadPathAsync, lifetime);
+                    await _window.ShowCandidateRecipesAsync(descriptor.Identity, descriptor.Roots, metric, _explorer.Filter?.Request.Text ?? "", _services,
+                        (choice, token) => _source.PreviewRecipeAsync(choice, metric, token), _source.PreviewSavedRecipeAsync, _source.ReadPathAsync, lifetime);
                 }
                 catch (OperationCanceledException) { }
                 catch (Exception error) when (Expected(error) || error is FormatException or OverflowException)

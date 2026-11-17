@@ -14,17 +14,27 @@ namespace FileCat.App.Views;
 
 internal static class AnalysisRecipeDialog
 {
+    internal abstract record Choice
+    {
+        internal sealed record BuiltIn(AnalysisRecipeRequest Request) : Choice;
+        internal sealed record Saved : Choice;
+    }
+
     private sealed record Location(string Id, string Label)
     {
         public override string ToString() => Label;
     }
 
-    internal static async Task<AnalysisRecipeRequest?> ChooseAsync(IDialogService dialogs, ImmutableArray<RootBinding> roots,
-        AnalysisMetric metric, CancellationToken lifetime)
+    internal static async Task<Choice?> ChooseAsync(IDialogService dialogs, ImmutableArray<RootBinding> roots,
+        AnalysisMetric metric, bool hasPrivateStore, CancellationToken lifetime)
     {
         var locations = roots.Where(root => root.Disposition == AnalysisRootDisposition.Active)
             .Select(root => new Location(root.Id, LocationLabel(root))).ToArray();
-        if (locations.Length == 0) return null;
+        if (locations.Length == 0)
+        {
+            await dialogs.AlertAsync("Candidate recipes", "This analysis has no recorded locations available for a preview.");
+            return null;
+        }
         var recipe = new ComboBox { ItemsSource = AnalysisRecipes.Definitions.Select(definition => definition.Title).ToArray(), SelectedIndex = 0 };
         var scope = new ListBox { ItemsSource = locations, SelectionMode = SelectionMode.Multiple, MaxHeight = 150,
             ItemTemplate = new FuncDataTemplate<Location>((location, _) => Text(location?.Label ?? "")) };
@@ -84,12 +94,14 @@ internal static class AnalysisRecipeDialog
         scope.SelectionChanged += (_, _) => Update();
         bytes.TextChanged += (_, _) => Update();
         days.TextChanged += (_, _) => Update();
-        preview.Click += (_, _) => { if (request is not null) closer.Close(request); };
+        preview.Click += (_, _) => { if (request is not null) closer.Close(new Choice.BuiltIn(request)); };
         Update();
         using var close = lifetime.Register(() => Dispatcher.UIThread.Post(() => closer.Close(null)));
         lifetime.ThrowIfCancellationRequested();
-        return await dialogs.ShowCustomAsync("Candidate recipes", body, [new DialogButton("Close", false, IsDefault: true, IsCancel: true)],
-            initialFocus: recipe, closer: closer, resizable: true) as AnalysisRecipeRequest;
+        var actions = new List<DialogButton> { new("Close", false, IsDefault: true, IsCancel: true) };
+        if (hasPrivateStore) actions.Add(new("Saved recipes…", new Choice.Saved()));
+        return await dialogs.ShowCustomAsync("Candidate recipes", body, actions,
+            initialFocus: recipe, closer: closer, resizable: true) as Choice;
     }
 
     internal static async Task ShowAsync(IDialogService dialogs, AnalysisRecipePreview preview, ImmutableArray<RootBinding> roots,
@@ -214,7 +226,7 @@ internal static class AnalysisRecipeDialog
 
     private static TextBlock Text(string value) => new() { Text = value, TextWrapping = TextWrapping.Wrap };
 
-    private static string LocationLabel(RootBinding root) => root.Label == root.DisplayLocator
+    internal static string LocationLabel(RootBinding root) => root.Label == root.DisplayLocator
         ? AnalysisNames.Display(root.Label, 240)
         : AnalysisNames.Display(root.Label, 120) + " · " + AnalysisNames.Display(root.DisplayLocator, 240, escapeTrailing: true);
 }
