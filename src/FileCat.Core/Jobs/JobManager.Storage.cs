@@ -12,8 +12,8 @@ public sealed partial class JobManager
 
     public InterruptedJob StorageHistoryCandidate(string fileName)
     {
-        string path = StorageHistoryPath(fileName);
-        return JournalRecovery.StoragePlaceholder(path);
+        _ = StorageHistoryPath(fileName);
+        return JournalRecovery.StoragePlaceholder(fileName) with { StorageJournalLeaf = fileName };
     }
 
     private void PublishStorageReview(Job job)
@@ -27,21 +27,40 @@ public sealed partial class JobManager
     {
         ArgumentNullException.ThrowIfNull(job);
         if (job.Kind != JobKind.StorageTransform) throw new ArgumentException("Select a storage operation.", nameof(job));
-        return JournalRecovery.StoragePlaceholder(Path.Join(_journalDirectory, StorageJournalPolicy.FileName(job.CreatedUtc, job.Id)))
+        return StorageHistoryCandidate(StorageJournalPolicy.FileName(job.CreatedUtc, job.Id))
             with { Title = job.Title, CreatedUtc = job.CreatedUtc, SourceCount = job.Request.Sources.Count };
     }
 
     public StorageHistoryDiscovery OpenStorageHistory(CancellationToken ct = default) => _storageEvidenceBackend is { } backend
         ? JournalRecovery.OpenStorageHistory(_journalDirectory, backend, ct) : JournalRecovery.OpenStorageHistory(_journalDirectory, ct);
 
+    public bool SupportsStorageHistory => _storageEvidenceBackend is not null;
+
+    public StorageHistoryPage ReadStorageHistoryPage(StorageHistoryBookmark? after = null, bool retainedReviews = false,
+        CancellationToken ct = default) => JournalRecovery.ReadStorageHistoryPage(_journalDirectory, after, retainedReviews, _storageEvidenceBackend, ct);
+
+    public StorageRetainedReviewSnapshot ReadRetainedStorageReview(string acknowledgmentLeaf, CancellationToken ct = default)
+    {
+        if (!StorageReviewNames.TryParse(acknowledgmentLeaf, out var association, out var kind, out _, out var temporary) || kind != "ack" || temporary)
+            throw new ArgumentException("Select one retained storage acknowledgment from this manager's history.", nameof(acknowledgmentLeaf));
+        var backend = _storageEvidenceBackend ?? throw new NotSupportedException("Private storage review is unavailable on this platform.");
+        using var evidence = backend.OpenArtifacts(_journalDirectory, ct);
+        var catalog = evidence.Artifacts(association, StorageReviewNames.ArtifactCount, ct);
+        if (catalog.Count > StorageReviewNames.ArtifactCount) throw new IOException("The bounded retained storage inventory was exceeded.");
+        var info = catalog.SingleOrDefault(i => i.Leaf == acknowledgmentLeaf) ?? throw new FileNotFoundException("This retained storage acknowledgment is no longer available.");
+        return JournalRecovery.ReadRetainedStorageReview(evidence, info, ct)
+            ?? throw new IOException("The retained storage acknowledgment/report pair could not be verified.");
+    }
+
     public StorageHistoryAccounting AccountStorageHistory(CancellationToken ct = default) =>
         StorageEvidenceAccounting.Census(_journalDirectory, null, ct, _storageEvidenceBackend);
 
     public bool IsInterrupted(InterruptedJob interrupted, CancellationToken ct = default)
     {
-        if (!interrupted.IsStorageTransform || _storageEvidenceBackend is null) return JournalRecovery.IsInterrupted(interrupted);
-        string leaf = Path.GetFileName(interrupted.JournalPath);
-        if (!StorageJournalPolicy.IsCandidate(leaf) || !string.Equals(Path.GetFullPath(interrupted.JournalPath),
+        if (!interrupted.IsStorageTransform) return JournalRecovery.IsInterrupted(interrupted);
+        if (_storageEvidenceBackend is null) return interrupted.StorageJournalLeaf is not null || JournalRecovery.IsInterrupted(interrupted);
+        string leaf = interrupted.StorageJournalLeaf ?? Path.GetFileName(interrupted.JournalPath);
+        if (!StoragePaths.IsChildName(leaf) || !StorageJournalPolicy.IsCandidate(leaf) || interrupted.StorageJournalLeaf is null && !string.Equals(Path.GetFullPath(interrupted.JournalPath),
             Path.GetFullPath(Path.Join(_journalDirectory, leaf)), StringComparison.Ordinal)) return true;
         try { return ReadStorageReview(leaf, ct).ReviewPending; }
         catch (IOException busy) when ((busy.HResult & 0xffff) is 32 or 33) { return false; }

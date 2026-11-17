@@ -12,8 +12,17 @@ public sealed record StorageHistorySnapshot(StorageJournalPrefix Prefix, Immutab
     StorageAction? Action, StorageScope? Scope, Guid? ReviewRevision, bool EffectUncertain, bool ReviewPending,
     bool Damaged, bool Ended, bool LimitReached, StorageResultSnapshot? Result, StorageHistoryCall? LastCall);
 public sealed record StorageHistoryRow(string FileName, Guid? JobId, StorageAction? Action, StorageScope? Scope,
-    int? RootCount, string Status);
-public sealed record StorageHistoryPage(ImmutableArray<StorageHistoryRow> Rows, bool More, int Examined, int HeaderBytes);
+    int? RootCount, string Status)
+{
+    public bool RetainedReview { get; init; }
+}
+/// <summary>Detached continuation only. It owns no cursor, evidence stream or mutation authority.</summary>
+public sealed record StorageHistoryBookmark(string? DirectoryIdentity, string FileName, string? EntryIdentity);
+public sealed record StorageHistoryPage(ImmutableArray<StorageHistoryRow> Rows, bool More, int Examined, int HeaderBytes)
+{
+    public StorageHistoryBookmark? Continuation { get; init; }
+    public int ReplayedEntries { get; init; }
+}
 
 public static partial class JournalRecovery
 {
@@ -28,7 +37,7 @@ public static partial class JournalRecovery
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024);
         Guid expected = StorageJournalPolicy.TryJobId(Path.GetFileName(path), out var named) ? named : Guid.Empty;
         var read = StorageTransformJournalReader.Read(stream, prefix?.JobId ?? expected, prefix?.ByteLength, prefix?.Sha256, ct);
-        if (expected != Guid.Empty && read.Collector.Header?.JobId != expected) read.Collector.Fault();
+        if (expected == Guid.Empty || read.Collector.Header?.JobId != expected) read.Collector.Fault();
         return DescribeStorageHistory(read);
     }
 
@@ -38,7 +47,7 @@ public static partial class JournalRecovery
             (Path.GetDirectoryName(path) ?? throw new IOException("Missing storage history directory."), Path.GetFileName(path), ct);
         Guid expected = StorageJournalPolicy.TryJobId(Path.GetFileName(path), out var named) ? named : Guid.Empty;
         var read = StorageTransformJournalReader.Read(evidence.Stream, prefix?.JobId ?? expected, prefix?.ByteLength, prefix?.Sha256, ct);
-        if (expected != Guid.Empty && read.Collector.Header?.JobId != expected) read.Collector.Fault();
+        if (expected == Guid.Empty || read.Collector.Header?.JobId != expected) read.Collector.Fault();
         return DescribeStorageHistory(read);
     }
 
@@ -73,6 +82,17 @@ public static partial class JournalRecovery
 
     public static StorageHistoryDiscovery OpenStorageHistory(string directory, CancellationToken ct = default) => new(directory, ct);
     internal static StorageHistoryDiscovery OpenStorageHistory(string directory, StorageEvidenceBackend backend, CancellationToken ct) => new(directory, ct, backend);
+
+    public static StorageHistoryPage ReadStorageHistoryPage(string directory, StorageHistoryBookmark? after = null,
+        bool retainedReviews = false, CancellationToken ct = default) => ReadStorageHistoryPage(directory, after, retainedReviews, null, ct);
+
+    internal static StorageHistoryPage ReadStorageHistoryPage(string directory, StorageHistoryBookmark? after,
+        bool retainedReviews, StorageEvidenceBackend? backend, CancellationToken ct)
+    {
+        using var discovery = new StorageHistoryDiscovery(directory, ct, backend, retainedReviews);
+        int replayed = after is null ? 0 : discovery.ResumeAfter(after, ct);
+        return discovery.ReadPage(ct) with { ReplayedEntries = replayed };
+    }
 }
 
 /// <summary>One bounded sequential storage page; no full-directory sorting or retained candidate array.</summary>
@@ -83,21 +103,25 @@ public sealed class StorageHistoryDiscovery : IDisposable
     private StorageEvidenceCursor? _nativeCursor;
     private readonly StorageEvidenceBackend? _backend;
     private readonly string _directory;
+    private readonly bool _retainedReviews;
     private IReadOnlyList<StorageReviewArtifactInfo> _batch = [];
     private int _batchIndex;
     private bool _complete, _disposed;
-    internal StorageHistoryDiscovery(string directory, CancellationToken ct, StorageEvidenceBackend? backend = null)
+    private StorageHistoryBookmark? _continuation;
+    internal StorageHistoryDiscovery(string directory, CancellationToken ct, StorageEvidenceBackend? backend = null, bool retainedReviews = false)
     {
         if (WindowsTokenAuthority.IsHighIntegrity) throw new IOException("Storage history must be reviewed in the normal user process.");
-        _backend = backend; _directory = directory;
+        _backend = backend; _retainedReviews = retainedReviews;
+        _directory = backend is null && retainedReviews ? Path.Join(directory, "reviewed") : directory;
         if (backend is not null)
         {
-            try { _nativeCursor = backend.OpenCursor(directory, false, ct); }
+            try { _nativeCursor = backend.OpenCursor(directory, retainedReviews, ct); }
             catch (FileNotFoundException) { _complete = true; }
             return;
         }
         _cursorCharge = StorageEvidenceLanes.EnterCursor(ct);
-        try { _entries = Directory.Exists(directory) ? Directory.EnumerateFileSystemEntries(directory, "job-*").Where(StorageJournalPolicy.IsCandidate).GetEnumerator() : Enumerable.Empty<string>().GetEnumerator(); }
+        try { _entries = Directory.Exists(_directory) ? Directory.EnumerateFileSystemEntries(_directory,
+            retainedReviews ? "storage-*" : "job-*").Where(p => retainedReviews || StorageJournalPolicy.IsCandidate(p)).GetEnumerator() : Enumerable.Empty<string>().GetEnumerator(); }
         catch { _cursorCharge.Dispose(); _cursorCharge = null; throw; }
     }
     public StorageHistoryPage ReadPage(CancellationToken ct = default)
@@ -112,6 +136,13 @@ public sealed class StorageHistoryDiscovery : IDisposable
             if (!MoveNext(ct, out var path, out var entry)) { _complete = true; break; }
             examined++;
             string name = Path.GetFileName(path);
+            _continuation = new(_nativeCursor?.DirectoryIdentity, name, entry?.Identity);
+            if (_retainedReviews)
+            {
+                if (StorageReviewNames.TryParse(name, out var association, out var kind, out _, out var temporary) && kind == "ack" && !temporary)
+                    rows.Add(new(name, association, null, null, null, "Retained storage review — verification required") { RetainedReview = true });
+                continue;
+            }
             if (!StorageJournalPolicy.IsCandidate(name)) continue;
             StorageJournalHeader? header = null; bool damaged = false;
             try
@@ -153,7 +184,26 @@ public sealed class StorageHistoryDiscovery : IDisposable
             rows.Add(new(name.Length <= 256 ? name : "Invalid storage journal name", header?.JobId, header?.Action, header?.Scope,
                 header?.Roots.Length, damaged ? "Unreadable or damaged storage header — review required" : "History accounting/verification still in progress"));
         }
-        return new(rows.ToImmutable(), !_complete, examined, headerBytes);
+        return new(rows.ToImmutable(), !_complete, examined, headerBytes) { Continuation = _continuation };
+    }
+    internal int ResumeAfter(StorageHistoryBookmark after, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(after);
+        if (!StoragePaths.IsChildName(after.FileName) || after.FileName.Length > 255 ||
+            _nativeCursor is not null && _nativeCursor.DirectoryIdentity != after.DirectoryIdentity)
+            throw new IOException("The storage history namespace changed; refresh history to start a new discovery.");
+        // Re-enumerate names only, without opening old headers or retaining a candidate array. New header work is
+        // still limited to 64 candidates/1 MiB. Replay is cancellable and has a separate finite observation bound.
+        for (int replayed = 1; replayed <= 1_000_000; replayed++)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (_complete || !MoveNext(ct, out var path, out var entry)) break;
+            if (Path.GetFileName(path) != after.FileName) continue;
+            if (_nativeCursor is not null && entry?.Identity != after.EntryIdentity)
+                throw new IOException("The storage history continuation object changed; refresh history.");
+            return replayed;
+        }
+        throw new IOException("The storage history continuation is no longer available or exceeded its replay bound; refresh history.");
     }
     private bool MoveNext(CancellationToken ct, out string path, out StorageReviewArtifactInfo? entry)
     {

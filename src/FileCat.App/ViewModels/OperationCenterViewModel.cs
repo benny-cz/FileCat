@@ -358,6 +358,7 @@ public enum RecoveryActionPhase { Idle, Reviewing, AwaitingApproval, Applying, S
 
 public sealed partial class InterruptedJobViewModel(InterruptedJob job, bool archiveCleanupAvailable = false) : ObservableObject
 {
+    internal long StorageOrder { get; init; }
     public InterruptedJob Job { get; } = job;
     public bool IsStorage => Job.IsStorageTransform;
     public string Title => IsStorage ? Formatters.SafeName(Job.Title) + " · needs review"
@@ -454,12 +455,14 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     private Job? _selectedIssueJob;
     private bool _issueRefreshQueued;
     private int _lastAnnouncedIssueCount;
+    private long _storageRowOrder;
 
     private readonly Func<Location, string>? _display;
 
     public OperationCenterViewModel(JobManager manager, Func<Location, string>? display = null)
     {
         Manager = manager;
+        StorageHistoryAvailable = manager.SupportsStorageHistory;
         _display = display;
         Interrupted.CollectionChanged += (_, _) =>
         {
@@ -475,6 +478,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
                     SelectedInterrupted = Interrupted[0];
             }, DispatcherPriority.Loaded);
         };
+        ReviewedRecovery.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasReviewedRecovery));
         _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background, (_, _) => Tick());
         manager.JobAdded += job => Dispatcher.UIThread.Post(() => Add(job));
         manager.StorageReviewRequired += candidate => Dispatcher.UIThread.Post(() => AddInterrupted(candidate));
@@ -509,6 +513,12 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     public ObservableCollection<InterruptedJobViewModel> Interrupted { get; } = [];
     public int InterruptedCount => Interrupted.Count;
     public bool HasInterrupted => Interrupted.Count > 0;
+    [ObservableProperty] private bool _storageHistoryAvailable;
+    [ObservableProperty] private bool _hasMoreStorageHistory;
+    [ObservableProperty] private bool _isStorageHistoryLoading;
+    [ObservableProperty] private string _storageHistoryStatus = string.Empty;
+    public bool StorageRowsOmitted { get; private set; }
+    internal void ResetStorageRowsOmitted() => StorageRowsOmitted = false;
     [ObservableProperty] private string _recoveryAnnouncement = "Recovery status is available when an action starts.";
     [ObservableProperty] private bool _hasRecoveryAnnouncement;
 
@@ -770,8 +780,16 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     }
     public void AddInterrupted(InterruptedJob job)
     {
+        if (job.IsStorageTransform)
+        {
+            string leaf = job.StorageJournalLeaf ?? Path.GetFileName(job.JournalPath);
+            job = new(leaf, nameof(JobKind.StorageTransform), ShortStorageTitle(job.Title), job.CreatedUtc, [], null, [], [], 0, Math.Clamp(job.SourceCount, 0, 64))
+                { StorageJournalLeaf = leaf };
+            if (StorageHistoryStatus.Length == 0) StorageHistoryStatus = "Storage history accounting/verification still in progress.";
+        }
         if (Interrupted.Any(row => PathUtil.SafetyComparer.Equals(row.Job.JournalPath, job.JournalPath))) return;
-        Interrupted.Add(new InterruptedJobViewModel(job, CanReviewArchiveCleanup?.Invoke(job) == true));
+        if (job.IsStorageTransform) MakeStorageRowSpace();
+        Interrupted.Add(new InterruptedJobViewModel(job, CanReviewArchiveCleanup?.Invoke(job) == true) { StorageOrder = ++_storageRowOrder });
         UpdateSummary();
     }
     internal Func<InterruptedJob, bool>? CanReviewArchiveCleanup { get; set; }
@@ -779,7 +797,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     public void LoadReviewedRecovery(IEnumerable<RecoveryReviewRecord> records)
     {
         // A current-session storage acknowledgment may finish while the legacy startup read is still running.
-        var storage = ReviewedRecovery.Where(r => r.StorageAcknowledgment is not null).ToArray();
+        var storage = ReviewedRecovery.Where(r => r.IsStorage).ToArray();
         ReviewedRecovery.Clear();
         foreach (var record in records.Take(RecoveryReviewStore.KeepRecords)) ReviewedRecovery.Add(record);
         foreach (var record in storage.Reverse()) AddReviewedRecovery(record);
@@ -788,11 +806,41 @@ public sealed partial class OperationCenterViewModel : ObservableObject
 
     public void AddReviewedRecovery(RecoveryReviewRecord record)
     {
-        var previous = ReviewedRecovery.FirstOrDefault(r => r.JournalPath == record.JournalPath);
+        if (record.IsStorage)
+        {
+            var ack = record.StorageAcknowledgment;
+            record = record with
+            {
+                JournalPath = Path.GetFileName(record.JournalPath), Title = ShortStorageTitle(record.Title), Report = string.Empty, Action = "Storage history",
+                StorageRetainedLeaf = record.StorageRetainedLeaf ?? ack?.FileName, StorageAcknowledgment = null,
+                StorageVerified = record.StorageVerified || ack is not null,
+                StorageEffectUncertain = record.StorageEffectUncertain || ack is not null && (ack.Reviewed.EffectUncertain || ack.Reviewed.Damaged || ack.Reviewed.LimitReached),
+                StorageOrder = ++_storageRowOrder,
+            };
+        }
+        var previous = ReviewedRecovery.FirstOrDefault(r => r.JournalPath == record.JournalPath ||
+            record.StorageRetainedLeaf is not null && r.StorageRetainedLeaf == record.StorageRetainedLeaf);
         if (previous is not null) ReviewedRecovery.Remove(previous);
+        if (record.IsStorage) MakeStorageRowSpace();
         ReviewedRecovery.Insert(0, record);
         while (ReviewedRecovery.Count > RecoveryReviewStore.KeepRecords) ReviewedRecovery.RemoveAt(ReviewedRecovery.Count - 1);
         OnPropertyChanged(nameof(HasReviewedRecovery));
+    }
+
+    public int StorageDescriptorCount => Interrupted.Count(r => r.IsStorage) + ReviewedRecovery.Count(r => r.IsStorage);
+    private static string ShortStorageTitle(string title) => title.Length <= 256 ? title : title[..256] + "…";
+    private void MakeStorageRowSpace()
+    {
+        while (StorageDescriptorCount >= 64)
+        {
+            var reviewed = ReviewedRecovery.Where(r => r.IsStorage).MinBy(r => r.StorageOrder);
+            var pending = Interrupted.Where(r => r.IsStorage && !ReferenceEquals(r, SelectedInterrupted)).MinBy(r => r.StorageOrder);
+            if (pending is not null && (reviewed is null || pending.StorageOrder < reviewed.StorageOrder)) Interrupted.Remove(pending);
+            else if (reviewed is not null) ReviewedRecovery.Remove(reviewed);
+            else throw new InvalidOperationException("The selected storage descriptor exhausted its bounded history allowance.");
+            HasMoreStorageHistory = true;
+            StorageRowsOmitted = true;
+        }
     }
 
     public void RemoveFinished()

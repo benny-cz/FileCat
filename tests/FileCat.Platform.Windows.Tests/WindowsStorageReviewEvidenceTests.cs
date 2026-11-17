@@ -53,6 +53,19 @@ public sealed partial class WindowsStorageReviewEvidenceTests
                 if (!page.More) break;
             }
             Assert.Equal(1, rows); Assert.True(pages >= 10);
+            discovery.Dispose();
+            StorageHistoryBookmark? after = null; pages = rows = 0;
+            while (true)
+            {
+                var page = JournalRecovery.ReadStorageHistoryPage(root, after, false, backend, Stop);
+                pages++; rows += page.Rows.Length; Assert.InRange(page.Examined, 0, 64);
+                if (!page.More) break;
+                after = Assert.IsType<StorageHistoryBookmark>(page.Continuation);
+                // Each detached page retired the only native cursor before a separate interactive owner can open.
+                using var evidence = backend.OpenJournal(root, journal, Stop);
+                Assert.True(JournalRecovery.ReadStorageReviewStatus(evidence, Stop).ReviewPending);
+            }
+            Assert.Equal(1, rows); Assert.True(pages >= 10);
         }
         finally { Directory.Delete(root, true); }
     }
@@ -115,6 +128,14 @@ public sealed partial class WindowsStorageReviewEvidenceTests
                 StorageReviewChoice.AcknowledgeReviewedHistory, Stop);
             Assert.False(acknowledged.ReviewPending); Assert.True(acknowledged.Current.History.EffectUncertain);
             Assert.False(manager.IsInterrupted(candidate, Stop));
+            var namedCandidate = manager.StorageHistoryCandidate(leaf);
+            Assert.Equal(leaf, namedCandidate.StorageJournalLeaf); Assert.False(manager.IsInterrupted(namedCandidate, Stop));
+            var page = manager.ReadStorageHistoryPage(retainedReviews: true, ct: Stop);
+            Assert.Contains(page.Rows, row => row.RetainedReview && row.FileName == acknowledged.RetainedAcknowledgmentLeaf);
+            var retained = manager.ReadRetainedStorageReview(acknowledged.RetainedAcknowledgmentLeaf!, Stop);
+            Assert.Equal(acknowledged.Current.Evidence, retained.Acknowledgment.Reviewed.Evidence); Assert.True(retained.JournalPresent);
+            using var export = new MemoryStream(); manager.CopyStorageReview(acknowledged.Current, export, Stop);
+            Assert.Equal(acknowledged.Current.Evidence.Sha256, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(export.ToArray())));
             Assert.Throws<ArgumentException>(() => manager.ReadStorageHistory(path, ct: Stop));
             Assert.Throws<ArgumentException>(() => manager.ReadStorageHistory("..\\" + leaf, ct: Stop));
             Assert.True(manager.AccountStorageHistory(Stop).Complete);

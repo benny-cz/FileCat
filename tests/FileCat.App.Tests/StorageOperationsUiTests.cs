@@ -81,7 +81,7 @@ public sealed class StorageOperationsUiTests
         Assert.DoesNotContain("No issues reported", center.IssueSummary); Assert.Contains("Result not confirmed", center.IssueSummary);
         var candidate = manager.StorageHistoryCandidate(job); center.AddInterrupted(candidate); var selected = Assert.Single(center.Interrupted);
         center.SelectedInterrupted = selected;
-        center.LoadInterrupted([candidate, candidate with { JournalPath = candidate.JournalPath + "-another" }]);
+        center.LoadInterrupted([candidate, candidate with { JournalPath = candidate.JournalPath + "-another", StorageJournalLeaf = candidate.JournalPath + "-another" }]);
         Assert.Equal(2, center.Interrupted.Count); Assert.Same(selected, center.SelectedInterrupted);
         Assert.True(row.CanReviewStorage); Assert.False(selected.CanCleanup); Assert.False(selected.CanMarkReviewed);
         Assert.False(selected.CanRunAgain); Assert.False(selected.CanReviewNewTransfer); Assert.Contains("Review storage changes", selected.ReportButtonText);
@@ -149,8 +149,34 @@ public sealed class StorageOperationsUiTests
         var record = new RecoveryReviewRecord("storage-history", "Storage", nameof(JobKind.StorageTransform), DateTime.UtcNow,
             "Acknowledged reviewed storage history", "immutable text", true) { StorageAcknowledgment = ack };
         center.AddReviewedRecovery(record); center.LoadReviewedRecovery([]);
-        Assert.Same(record, Assert.Single(center.ReviewedRecovery)); Assert.Contains("Reviewed; effect remains uncertain", record.Display);
+        var retained = Assert.Single(center.ReviewedRecovery); Assert.Empty(retained.Report); Assert.Equal(ack.FileName, retained.StorageRetainedLeaf);
+        Assert.True(retained.StorageVerified); Assert.Contains("Reviewed; effect remains uncertain", retained.Display);
         Assert.DoesNotContain("tracking closed", record.Display);
+    }
+
+    [AvaloniaFact]
+    public void Storage_history_shares_one_row_bound_preserves_selection_and_does_not_retain_report_bodies()
+    {
+        var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), Path.GetTempPath());
+        var center = new OperationCenterViewModel(manager); string large = new('x', 1_000_000);
+        for (int i = 0; i < 200; i++)
+        {
+            center.AddInterrupted(manager.StorageHistoryCandidate($"job-storage-20000101000000-{Guid.NewGuid():N}.fcj") with { Title = new string('漢', 10_000) });
+            Assert.InRange(center.StorageDescriptorCount, 1, 64);
+        }
+        var selected = center.Interrupted[0]; center.SelectedInterrupted = selected;
+        for (int i = 0; i < 80; i++)
+        {
+            string artifact = $"storage-{Guid.NewGuid():N}-ack-{Guid.NewGuid():N}.json";
+            center.AddReviewedRecovery(new(artifact, new string('漢', 10_000), nameof(JobKind.StorageTransform), DateTime.MinValue,
+                large, large, false) { StorageRetainedLeaf = artifact });
+            Assert.Equal(64, center.StorageDescriptorCount); Assert.Contains(selected, center.Interrupted);
+        }
+        Assert.Equal(63, center.ReviewedRecovery.Count); Assert.Same(selected, center.SelectedInterrupted);
+        Assert.True(center.HasMoreStorageHistory); Assert.True(center.StorageRowsOmitted);
+        Assert.All(center.ReviewedRecovery, r => { Assert.Empty(r.Report); Assert.True(r.Title.Length <= 257); Assert.Equal("Storage history", r.Action); });
+        Assert.DoesNotContain("0001", center.ReviewedRecovery[0].Display); Assert.Contains("verification required", center.ReviewedRecovery[0].Display);
+        center.LoadInterrupted([]); Assert.Contains(selected, center.Interrupted); Assert.Equal(64, center.StorageDescriptorCount);
     }
 
     [AvaloniaFact]

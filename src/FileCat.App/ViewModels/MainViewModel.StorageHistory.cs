@@ -10,7 +10,7 @@ namespace FileCat.App.ViewModels;
 public sealed partial class MainViewModel
 {
     private Task<T> StorageHistoryIoAsync<T>(InterruptedJob job, RecoveryActionScope scope, Func<CancellationToken, T> work) =>
-        Services.Io.RunOwned(PathUtil.GetDeviceKey(job.JournalPath), IoPriority.Interactive,
+        Services.Io.RunOwned(PathUtil.GetDeviceKey(Services.Paths.JournalDirectory), IoPriority.Interactive,
             ct => { scope.Check(); return work(ct); }, scope.StopSource.Token);
 
     private async Task<ReportWindow?> ShowStorageHistoryReportAsync(InterruptedJob job)
@@ -20,8 +20,16 @@ public sealed partial class MainViewModel
         {
             scope.SetPhase(RecoveryActionPhase.Reviewing, "Reading the exact retained storage history…");
             var status = await StorageHistoryIoAsync(job, scope,
-                ct => Services.Jobs.ReadStorageReview(Path.GetFileName(job.JournalPath), ct));
+                ct => Services.Jobs.ReadStorageReview(job.StorageJournalLeaf ?? Path.GetFileName(job.JournalPath), ct));
             scope.Check();
+            if (!status.ReviewPending)
+            {
+                var pending = Operations.Interrupted.FirstOrDefault(r => r.Job.JournalPath == job.JournalPath);
+                if (pending is not null) Operations.Interrupted.Remove(pending);
+                if (status.Acknowledgment is not null) Operations.AddReviewedRecovery(new(job.JournalPath, job.Title, job.Kind,
+                    status.Acknowledgment.AcknowledgedUtc, "Verified retained storage review", string.Empty, true) { StorageAcknowledgment = status.Acknowledgment });
+                Operations.UpdateSummary();
+            }
             string report = StorageHistoryReport.Format(status);
             var window = new ReportWindow("Storage history snapshot", Formatters.SafeName(job.Title), _ => Task.FromResult(report));
             window.ConfigureStorageReview(report, () => SaveStorageCallDetailsAsync(job, status.Current), status.ReviewPending
@@ -33,6 +41,30 @@ public sealed partial class MainViewModel
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         { if (EditSessionsActive) Notify("Storage history could not be reviewed: " + Formatters.SafeName(ex.Message), true); return null; }
         finally { EndRecoveryAction(scope); }
+    }
+
+    internal async Task<ReportWindow?> ShowRetainedStorageHistoryAsync(RecoveryReviewRecord row)
+    {
+        if (row.StorageRetainedLeaf is not { } leaf || !EditSessionsActive) return null;
+        try
+        {
+            var snapshot = await Services.Io.RunOwned(PathUtil.GetDeviceKey(Services.Paths.JournalDirectory), IoPriority.Interactive,
+                ct => Services.Jobs.ReadRetainedStorageReview(leaf, ct), Services.Io.StoppingToken);
+            if (!EditSessionsActive) return null;
+            var ack = snapshot.Acknowledgment;
+            string status = ack.Reviewed.EffectUncertain || ack.Reviewed.Damaged || ack.Reviewed.LimitReached
+                ? "Reviewed; effect remains uncertain." : "Retained reviewed storage snapshot.";
+            string text = status + "\nAcknowledged (UTC): " + ack.AcknowledgedUtc.ToString("O") + "\n" +
+                (snapshot.JournalPresent ? "The original journal still exists; this retained summary does not establish its current review status.\n" : "Detailed journal evidence is no longer present.\n") +
+                "\n" + snapshot.Report.ReviewText;
+            Operations.AddReviewedRecovery(row with { JournalPath = ack.Reviewed.JournalLeaf, CapturedUtc = ack.AcknowledgedUtc, StorageAcknowledgment = ack });
+            var window = new ReportWindow("Retained storage review", Formatters.SafeName(row.Title), _ => Task.FromResult(text));
+            window.Show(); return window;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        { if (EditSessionsActive) Notify("Retained storage history could not be verified: " + Formatters.SafeName(ex.Message), true); }
+        return null;
     }
 
     private async Task SaveStorageCallDetailsAsync(InterruptedJob job, StorageReviewedJournal reviewed)

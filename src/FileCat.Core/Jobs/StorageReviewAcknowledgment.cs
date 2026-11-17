@@ -30,10 +30,19 @@ public sealed record StorageReviewBinding(Guid AssociationId, string DirectoryId
 
 public sealed record StorageReviewAcknowledgment(int Version, Guid AcknowledgmentId, Guid ReportId,
     StorageReviewChoice Choice, StorageReviewBinding Reviewed, string ReportLeaf,
-    StorageEvidenceVersion ReportEvidence, DateTime AcknowledgedUtc);
+    StorageEvidenceVersion ReportEvidence, DateTime AcknowledgedUtc)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string FileName => StorageReviewNames.Published(Reviewed.AssociationId, "ack", AcknowledgmentId);
+}
 
 public sealed record StorageReviewStatus(StorageReviewedJournal Current, StorageReviewAcknowledgment? Acknowledgment,
-    bool ReviewPending, ImmutableArray<string> Issues);
+    bool ReviewPending, ImmutableArray<string> Issues)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? RetainedAcknowledgmentLeaf => Acknowledgment is { } ack
+        ? ack.FileName : null;
+}
 
 /// <summary>Selected retained detail, not a startup row descriptor. It preserves historical uncertainty after pruning.</summary>
 public sealed record StorageRetainedReviewSnapshot(string AcknowledgmentLeaf, StorageEvidenceVersion AcknowledgmentEvidence,

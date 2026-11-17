@@ -299,6 +299,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             { messages.Add("Reviewed recovery reports could not be loaded: " + Formatters.SafeName(ex.Message)); }
+            await _vm.LoadStorageHistoryPageAsync();
+            if (!_vm.EditSessionsActive) return;
             int hex = await Task.Run(() => Platform.Windows.HexSaveJournal.Pending(_vm.Services.Paths.HexRecoveryDirectory).Count);
             if (!_vm.EditSessionsActive) return;
             if (hex > 0) messages.Add($"{Formatters.Plural(hex, "hex save was", "hex saves were")} interrupted. Finish or roll back with Tools → Recover interrupted hex save.");

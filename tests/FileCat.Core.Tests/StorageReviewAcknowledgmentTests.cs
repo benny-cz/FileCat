@@ -56,6 +56,18 @@ public sealed class StorageReviewAcknowledgmentTests
     }
 
     [Fact]
+    public void An_unrecognized_journal_name_cannot_become_clean_from_an_otherwise_valid_terminal_sequence()
+    {
+        using var evidence = new MemoryEvidence(Journal(clean: true), "job-storage-unrecognized.fcj");
+        var status = JournalRecovery.ReadStorageReviewStatus(evidence, Stop);
+        Assert.True(status.Current.History.Damaged); Assert.True(status.ReviewPending);
+        Assert.False(JournalRecovery.PruneStorageJournal(evidence, status.Current, Stop));
+        var acknowledged = Acknowledge(evidence);
+        Assert.False(acknowledged.ReviewPending); Assert.True(acknowledged.Current.History.Damaged);
+        Assert.True(acknowledged.Acknowledgment!.Reviewed.Damaged);
+    }
+
+    [Fact]
     public void Exact_report_and_acknowledgment_clear_review_but_preserve_historical_uncertainty()
     {
         using var evidence = Evidence();

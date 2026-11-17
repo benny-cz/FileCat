@@ -36,7 +36,7 @@ public static partial class JournalRecovery
         evidence.Journal.Position = 0;
         bool named = StorageJournalPolicy.TryJobId(evidence.JournalLeaf, out var job);
         var read = StorageTransformJournalReader.Read(evidence.Journal, named ? job : Guid.Empty, ct: ct);
-        if (read.Collector.Header is null) read.Collector.Fault();
+        if (!named || read.Collector.Header is null) read.Collector.Fault();
         var after = InspectStorageEvidence(evidence.Journal, () => evidence.JournalIdentity, ct);
         if (version != after) throw new IOException("The owned journal changed during review; review its exact current contents again.");
         Guid association = named ? job : new Guid(SHA256.HashData(Encoding.UTF8.GetBytes(evidence.DirectoryIdentity + "\0" + evidence.JournalLeaf)).AsSpan(0, 16));

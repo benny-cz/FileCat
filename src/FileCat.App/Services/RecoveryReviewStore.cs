@@ -10,11 +10,18 @@ public sealed record RecoveryReviewRecord(string JournalPath, string Title, stri
     string Action, string Report, bool ClosureConfirmed)
 {
     public StorageReviewAcknowledgment? StorageAcknowledgment { get; init; }
-    public string Display => Formatters.SafeName(Title) + " · " + CapturedUtc.ToLocalTime().ToString("g") +
-                             (StorageAcknowledgment is { } storage ? storage.Reviewed.EffectUncertain || storage.Reviewed.Damaged || storage.Reviewed.LimitReached
+    public string? StorageRetainedLeaf { get; init; }
+    public bool StorageVerified { get; init; }
+    public bool StorageEffectUncertain { get; init; }
+    internal long StorageOrder { get; init; }
+    public bool IsStorage => Kind == nameof(JobKind.StorageTransform);
+    public string Display => Formatters.SafeName(Title) + (CapturedUtc == DateTime.MinValue ? "" : " · " + CapturedUtc.ToLocalTime().ToString("g")) +
+                             (StorageRetainedLeaf is not null ? !StorageVerified ? " · storage history verification required"
+                                 : StorageEffectUncertain ? " · Reviewed; effect remains uncertain" : " · storage history acknowledged"
+                                 : StorageAcknowledgment is { } storage ? storage.Reviewed.EffectUncertain || storage.Reviewed.Damaged || storage.Reviewed.LimitReached
                                  ? " · Reviewed; effect remains uncertain" : " · storage history acknowledged"
                                  : ClosureConfirmed ? " · recovery tracking closed" : " · closure not confirmed");
-    public string OpenLabel => "Open reviewed recovery report for " + Formatters.SafeName(Title);
+    public string OpenLabel => (IsStorage ? "Open retained storage history for " : "Open reviewed recovery report for ") + Formatters.SafeName(Title);
 }
 
 internal static class RecoveryReviewStore

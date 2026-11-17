@@ -674,9 +674,9 @@ public partial class OperationsView : UserControl
     {
         if (JobOf(sender) is not { } row || Main is not { } main || Center is not { } center) return;
         var candidate = center.Manager.StorageHistoryCandidate(row.Job);
-        if (center.ReviewedRecovery.FirstOrDefault(r => PathUtil.SafetyComparer.Equals(r.JournalPath, candidate.JournalPath) && r.StorageAcknowledgment is not null) is { } reviewed)
+        if (center.ReviewedRecovery.FirstOrDefault(r => PathUtil.SafetyComparer.Equals(r.JournalPath, candidate.JournalPath) && r.StorageRetainedLeaf is not null) is { } reviewed)
         {
-            new ReportWindow("Reviewed storage history", Formatters.SafeName(reviewed.Title), _ => Task.FromResult(reviewed.Report)).Show();
+            await main.ShowRetainedStorageHistoryAsync(reviewed);
             return;
         }
         center.AddInterrupted(candidate);
@@ -693,9 +693,18 @@ public partial class OperationsView : UserControl
         center.UpdateSummary();
     }
 
-    private void OnReviewedRecoveryReport(object? sender, RoutedEventArgs e)
+    private async void OnReviewedRecoveryReport(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is not RecoveryReviewRecord record) return;
+        if (record.IsStorage)
+        {
+            if (Main is { } main) await main.ShowRetainedStorageHistoryAsync(record);
+            return;
+        }
         new ReportWindow("Reviewed recovery report", Formatters.SafeName(record.Title), _ => Task.FromResult(record.Report)).Show();
     }
+
+    private async void OnMoreStorageHistory(object? sender, RoutedEventArgs e) { if (Main is { } main) await main.LoadStorageHistoryPageAsync(); }
+    private async void OnRefreshStorageHistory(object? sender, RoutedEventArgs e) { if (Main is { } main) await main.LoadStorageHistoryPageAsync(restart: true); }
+    private void OnStopStorageHistory(object? sender, RoutedEventArgs e) => Main?.StopStorageHistoryDiscovery();
 }

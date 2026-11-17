@@ -52,6 +52,17 @@ public sealed class StorageEvidenceCursorTests
         discovery.Dispose(); Assert.True(cursor.Closed);
     }
 
+    [Theory]
+    [InlineData("replacement-directory", "anchor-id")]
+    [InlineData("root", "replacement-anchor")]
+    public void Detached_native_continuations_refuse_replaced_namespace_or_anchor_before_opening_headers(string directory, string anchorId)
+    {
+        var cursor = new Cursor(directory, [new("anchor", anchorId, 12)]);
+        var backend = Backend((_, _, _) => cursor);
+        Assert.Throws<IOException>(() => JournalRecovery.ReadStorageHistoryPage("history", new("root", "anchor", "anchor-id"), false, backend, TestContext.Current.CancellationToken));
+        Assert.True(cursor.Closed);
+    }
+
     private static StorageEvidenceBackend Backend(Func<string, bool, CancellationToken, StorageEvidenceCursor> open) => new(
         (_, _, _) => throw new InvalidOperationException(), (_, _) => throw new InvalidOperationException(),
         (_, _, _) => throw new InvalidOperationException(), open);

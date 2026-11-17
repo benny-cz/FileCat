@@ -691,6 +691,8 @@ public sealed class JournalRecord(JsonObject node)
 public sealed record InterruptedJob(string JournalPath, string Kind, string Title, DateTime CreatedUtc,
     IReadOnlyList<string> Sources, string? Destination, IReadOnlyList<PendingIntent> OpenIntents, IReadOnlyList<string> StagingDirectories, int CompletedSteps, int SourceCount)
 {
+    /// <summary>Manager-scoped storage evidence name. JournalPath is then a bounded row key, not a user-file path.</summary>
+    public string? StorageJournalLeaf { get; init; }
     public bool IsStorageTransform => Kind == nameof(JobKind.StorageTransform) || StorageJournalPolicy.IsCandidate(JournalPath);
     /// <summary>Archive facts requiring their own object-bound review; generic stage cleanup cannot resolve these.</summary>
     public ArchiveTransactionRecovery ArchiveTransactions { get; init; } = new([], false, null);
