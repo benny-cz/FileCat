@@ -73,10 +73,10 @@ public static partial class AnalysisComparisonFormat
         return roots.ToImmutable();
         static bool Wire(string text) => int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int number) && number is > 0 and <= AnalysisLimits.Roots && number.ToString(CultureInfo.InvariantCulture) == text;
     }
-    private static ImmutableArray<string> RootDisplayIds(AnalysisSnapshot snapshot, IReadOnlyDictionary<string, string>? display)
+    private static ImmutableArray<string> RootDisplayIds(ImmutableArray<RootBinding> roots, IReadOnlyDictionary<string, string>? display)
     {
-        if (display is not null && (display.Count != snapshot.Roots.Length || snapshot.Roots.Any(root => !display.ContainsKey(root.Id)))) throw Invalid("Captured root identifiers do not match their input.");
-        var ids = snapshot.Roots.Select(root => display is null ? root.Id : display[root.Id]).ToImmutableArray();
+        if (display is not null && (display.Count != roots.Length || roots.Any(root => !display.ContainsKey(root.Id)))) throw Invalid("Captured root identifiers do not match their input.");
+        var ids = roots.Select(root => display is null ? root.Id : display[root.Id]).ToImmutableArray();
         ValidateRootIds(ids); return ids;
     }
     private static ImmutableArray<string> ReadRootIds(JsonElement value)
@@ -90,9 +90,9 @@ public static partial class AnalysisComparisonFormat
         if (ids.Length is < 1 or > AnalysisLimits.Roots || ids.Distinct(StringComparer.Ordinal).Count() != ids.Length ||
             ids.Any(id => string.IsNullOrEmpty(id) || !AnalysisPrivateInventoryStore.WellFormedText(id) || Utf8.GetByteCount(id) > 256)) throw Invalid("Invalid captured root identifiers.");
     }
-    private static ImmutableDictionary<string, string> BindRootDisplayIds(AnalysisSnapshot snapshot, ImmutableArray<string> ids)
+    private static ImmutableDictionary<string, string> BindRootDisplayIds(ImmutableArray<RootBinding> roots, ImmutableArray<string> ids)
     {
-        if (snapshot.Roots.Length != ids.Length) throw Invalid("Captured root identifier count does not match its input.");
-        return snapshot.Roots.Select((root, index) => new KeyValuePair<string, string>(root.Id, ids[index])).ToImmutableDictionary(StringComparer.Ordinal);
+        if (roots.Length != ids.Length) throw Invalid("Captured root identifier count does not match its input.");
+        return roots.Select((root, index) => new KeyValuePair<string, string>(root.Id, ids[index])).ToImmutableDictionary(StringComparer.Ordinal);
     }
 }

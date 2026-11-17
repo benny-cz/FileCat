@@ -12966,7 +12966,7 @@
     }
   },
   "nextWork": [
-    "Immediate W3: integrate indexed comparison human/CSV/PNG/SVG reports and streaming .fcdsc persistence/import over exact retained inputs and the applied query. Bind both input identities and joined privacy taint in chart exports before connecting commands; preserve whole accounting cohorts, qualifier/unknown semantics and bounded memory. Complete automatic chart-to-table location and full large interaction/aggregation parity.",
+    "Immediate W3: reports/charts and streaming .fcdsc engine have scoped all-three native/API evidence in r1157. Finish qualifying the newly wired indexed comparison save/open/import controls, applied view/root-ID/chart/focus restoration and bounded automatic chart-to-table cross-page location; current product candidate r1158 with helper-only r1161 preflight/broad tests pending. Full large interaction/aggregation, resource, physical input and negative matrices remain.",
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu normal native resize at480/1100 now passes (r978); maximize/restore and display changes remain unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: complete full native pointer/key qualification (runtime deferred materialization/review, memory scoped/hidden-mark review and matching-file capture now pass all3) (indexed captured-folder/scoped marks/cross-page range controls now pass all3), folder and grouped exact Other explorer/chart/history/selection/SaveOpen controls pass all3; complete the remaining geometry, raw-name, interaction and resource parity matrix; qualify full indexed Other-subset persistence parity, full native indexed Save/Open qualification and remaining dimensions (memory grouping/captured selection and schema4 saved grouping restoration now pass all3) (indexed selector/chart/table/navigation/inspection now pass all3) (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and full comparison-growth interaction/aggregation parity; indexed growth charts now have scoped r1147 all-three evidence (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
@@ -15589,5 +15589,21 @@
       "Bind both exact input identities and joined privacy taint in indexed chart export; the generic guard currently recognizes the memory comparison class only. Fix before connecting export commands.",
       "Complete automatic chart-to-table location across pages and applied filters, and qualify full interaction/aggregation parity."
     ]
+  },
+  "indexedComparisonStreamingOutputs": {
+    "qualification": "INDEXED_COMPARISON_OUTPUTS_QUALIFICATION.md",
+    "evidence": "source-manifest-r1157-indexed-comparison-bundle.json",
+    "productRevision": "r1155",
+    "coreFixtureRevision": "r1156",
+    "renderFixtureRevision": "r1157",
+    "newCoreCases": 48,
+    "newNativeFilesystemHeadlessCases": 41,
+    "outputArtifactsPerPlatform": 32,
+    "allThreeNativeApiSuitesPassed": true,
+    "comparisonPersistenceUiQualified": false,
+    "automaticCrossPageChartToTableLocationQualified": false,
+    "publicFeatureRegistered": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }

@@ -48,7 +48,7 @@ public sealed class AnalysisComparisonResult : IDisposable
     private readonly object _gate = new();
     private Payload? _payload;
     internal sealed class Payload(ImmutableArray<AnalysisComparisonRow> rows, IDisposable memory, AnalysisTaint taint,
-        AnalysisMetric metric, SessionIdentity previousIdentity, SessionIdentity currentIdentity)
+        AnalysisMetric metric, SessionIdentity previousIdentity, SessionIdentity currentIdentity, AnalysisComparisonChartContext context)
     {
         private readonly object _gate = new();
         internal TaskCompletionSource Closed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -58,6 +58,7 @@ public sealed class AnalysisComparisonResult : IDisposable
         internal AnalysisMetric Metric { get; } = metric;
         internal SessionIdentity PreviousIdentity { get; } = previousIdentity;
         internal SessionIdentity CurrentIdentity { get; } = currentIdentity;
+        internal AnalysisComparisonChartContext Context { get; } = context;
         internal void AddReference() { lock (_gate) { ObjectDisposedException.ThrowIf(_references == 0, this); checked { _references++; } } }
         internal void Release()
         {
@@ -76,6 +77,7 @@ public sealed class AnalysisComparisonResult : IDisposable
         public AnalysisTaint Taint { get { lock (_gate) return (_payload ?? throw new ObjectDisposedException(nameof(ReadLease))).Taint; } }
         public AnalysisMetric Metric { get { lock (_gate) return (_payload ?? throw new ObjectDisposedException(nameof(ReadLease))).Metric; } }
         public SessionIdentity Identity(bool previous) { lock (_gate) { var payload = _payload ?? throw new ObjectDisposedException(nameof(ReadLease)); return previous ? payload.PreviousIdentity : payload.CurrentIdentity; } }
+        internal AnalysisComparisonChartContext Context { get { lock (_gate) return (_payload ?? throw new ObjectDisposedException(nameof(ReadLease))).Context; } }
         public ReadLease Retain()
         {
             lock (_gate) { var payload = _payload ?? throw new ObjectDisposedException(nameof(ReadLease)); payload.AddReference(); return new(payload); }
@@ -84,9 +86,9 @@ public sealed class AnalysisComparisonResult : IDisposable
     }
     internal AnalysisComparisonResult(AnalysisMetric metric, AnalysisComparisonCompatibility compatibility, AnalysisTotals previous,
         AnalysisTotals current, ImmutableArray<AnalysisComparisonRow> rows, AnalysisTaint taint, IDisposable memory,
-        SessionIdentity previousIdentity, SessionIdentity currentIdentity)
+        SessionIdentity previousIdentity, SessionIdentity currentIdentity, AnalysisComparisonChartContext context)
     {
-        Metric = metric; Compatibility = compatibility; PreviousTotals = previous; CurrentTotals = current; _payload = new(rows, memory, taint, metric, previousIdentity, currentIdentity); Taint = taint;
+        Metric = metric; Compatibility = compatibility; PreviousTotals = previous; CurrentTotals = current; _payload = new(rows, memory, taint, metric, previousIdentity, currentIdentity, context); Taint = taint;
         CloseCompletion = _payload.Closed.Task;
         NetChange = compatibility.ComparableTotals && previous.CompatibleBasis && current.CompatibleBasis && previous.Missing.Count == 0 && current.Missing.Count == 0 &&
             previous.IdentityUnverified == 0 && current.IdentityUnverified == 0 ? AnalysisDelta.Between(previous.Known, current.Known) : null;
@@ -154,7 +156,9 @@ public static class AnalysisComparison
             var newEntities = Entities(current, metric, newProjection, mapping, old: false, ref pathBytes, cancellation);
             var rows = Match(oldEntities, newEntities, compatibility, metric, structuralRoots is not null, cancellation);
             var result = new AnalysisComparisonResult(metric, compatibility, oldProjection.Totals, newProjection.Totals, rows,
-                AnalysisPrivacy.Join(previous.Taint, current.Taint), memory, previous.Identity, current.Identity); memory = null; return result;
+                AnalysisPrivacy.Join(previous.Taint, current.Taint), memory, previous.Identity, current.Identity,
+                new(previous.Identity, current.Identity, false, previous.Coverage, current.Coverage, previous.Freshness, current.Freshness,
+                    AnalysisPrivacy.Join(previous.Taint, current.Taint), compatibility, structuralRoots is not null)); memory = null; return result;
         }
         finally { memory?.Dispose(); }
     }

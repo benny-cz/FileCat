@@ -17,6 +17,7 @@ internal sealed partial class AnalysisIndexedComparison
         private AnalysisScratchVectorCheckpoint? _fallback;
         internal AnalysisScratchVectorCheckpoint? Rows;
         internal AnalysisComparisonCompatibility Compatibility = null!;
+        internal bool Structural => structural;
         internal bool HasCurrentRows, HasPreviousOnlyRows;
         private uint _mappedPrevious, _mappedCurrent;
         private Exception? _closeFailure;

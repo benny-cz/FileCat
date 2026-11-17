@@ -1,0 +1,21 @@
+{
+  "observedUtc": "2026-11-16T21:08:43.620Z",
+  "authorization": "Cleanup only; goal remains paused",
+  "processesStopped": [],
+  "windows": {
+    "remainingFileCatOrDotnetProcesses": 0,
+    "scheduledTaskPresent": false,
+    "originalControllerExit": 1,
+    "originalControllerSession": 31176,
+    "inventory": ".tmp/windows-pre-r1150cleanup.json"
+  },
+  "ubuntu": {
+    "remainingFileCatOrDotnetProcesses": 0,
+    "originalControllerExit": 1,
+    "originalControllerSession": 24249,
+    "inventory": ".tmp/ubuntu-pre-r1150cleanup.json"
+  },
+  "testResultsCollected": false,
+  "testResultsValidated": false,
+  "implementationResumed": false
+}

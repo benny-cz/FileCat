@@ -1,0 +1,9 @@
+{
+  "revision": "r1157",
+  "productRevision": "r1155",
+  "coreFixtureRevision": "r1156",
+  "windowsPhases": "smoke17,preview28,core1963,native75,render754,settings36",
+  "macPhases": "InventoryDeath25 only",
+  "ubuntuPhases": "InventoryDeath25 + missing settings36",
+  "reason": "Test-only bounded kernel-release wait after exact owned child exit; reuse unchanged successful Core/render/settings phases"
+}

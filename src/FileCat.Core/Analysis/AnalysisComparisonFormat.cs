@@ -25,8 +25,8 @@ public static partial class AnalysisComparisonFormat
         ArgumentNullException.ThrowIfNull(destination); ArgumentNullException.ThrowIfNull(previous); ArgumentNullException.ThrowIfNull(current);
         if (!destination.CanWrite || id == Guid.Empty) throw new ArgumentException("A writable private stream and comparison identity are required.");
         AnalysisComparisonView.Validate(view); Label(previousLabel);
-        var roots = WireRoots(previous, current, structuralRoots);
-        var beforeRoots = RootDisplayIds(previous, previousRootDisplayIds); var nowRoots = RootDisplayIds(current, currentRootDisplayIds);
+        var roots = WireRoots(previous.Roots, current.Roots, structuralRoots);
+        var beforeRoots = RootDisplayIds(previous.Roots, previousRootDisplayIds); var nowRoots = RootDisplayIds(current.Roots, currentRootDisplayIds);
         Guid beforeId = Guid.NewGuid(), nowId = Guid.NewGuid();
         using var beforeCount = new Counter(cancellation); using var nowCount = new Counter(cancellation);
         // Measure without retaining serialized inventories or reading any source. The
@@ -71,28 +71,28 @@ public static partial class AnalysisComparisonFormat
                 throw Invalid("Saved comparison checksum or final boundary is invalid.");
             var joined = AnalysisPrivacy.Join(previous.Snapshot.Taint, current.Snapshot.Taint);
             if ((joined & taint) != taint) throw Invalid("Saved comparison privacy declarations disagree with their inputs.");
-            ValidateRoots(previous.Snapshot, current.Snapshot, roots);
+            ValidateRoots(previous.Snapshot.Roots, current.Snapshot.Roots, roots);
             if (view.FocusNode != 0 && !(view.PreviousFocus ? previous.Snapshot : current.Snapshot).Nodes.Any(n => n.Id == view.FocusNode))
                 throw Invalid("Saved comparison focus does not belong to its captured input.");
             cancellation.ThrowIfCancellationRequested();
             var result = new AnalysisSavedComparison(id, previous, current, view, roots, label, saved, taint,
-                BindRootDisplayIds(previous.Snapshot, beforeRoots), BindRootDisplayIds(current.Snapshot, nowRoots)); previous = current = null; return result;
+                BindRootDisplayIds(previous.Snapshot.Roots, beforeRoots), BindRootDisplayIds(current.Snapshot.Roots, nowRoots)); previous = current = null; return result;
         }
         finally { previous?.Dispose(); current?.Dispose(); }
     }
 
-    private static ImmutableDictionary<string, string>? WireRoots(AnalysisSnapshot previous, AnalysisSnapshot current, IReadOnlyDictionary<string, string>? roots)
+    private static ImmutableDictionary<string, string>? WireRoots(ImmutableArray<RootBinding> previous, ImmutableArray<RootBinding> current, IReadOnlyDictionary<string, string>? roots)
     {
         if (roots is null) return null;
         ValidateRoots(previous, current, roots);
-        string Wire(AnalysisSnapshot snapshot, string id) => (snapshot.Roots.Select((root, index) => (root, index)).Single(v => v.root.Id == id).index + 1).ToString(CultureInfo.InvariantCulture);
+        string Wire(ImmutableArray<RootBinding> input, string id) => (input.Select((root, index) => (root, index)).Single(v => v.root.Id == id).index + 1).ToString(CultureInfo.InvariantCulture);
         return roots.ToImmutableDictionary(pair => Wire(previous, pair.Key), pair => Wire(current, pair.Value), StringComparer.Ordinal);
     }
-    private static void ValidateRoots(AnalysisSnapshot previous, AnalysisSnapshot current, IReadOnlyDictionary<string, string>? roots)
+    private static void ValidateRoots(ImmutableArray<RootBinding> previous, ImmutableArray<RootBinding> current, IReadOnlyDictionary<string, string>? roots)
     {
         if (roots is null) return;
         if (roots.Count is < 1 or > AnalysisLimits.Roots || roots.Values.Distinct(StringComparer.Ordinal).Count() != roots.Count ||
-            roots.Any(pair => !previous.Roots.Any(root => root.Id == pair.Key) || !current.Roots.Any(root => root.Id == pair.Value)))
+            roots.Any(pair => !previous.Any(root => root.Id == pair.Key) || !current.Any(root => root.Id == pair.Value)))
             throw Invalid("Invalid saved structural root mapping.");
     }
     private static void Label(string value)

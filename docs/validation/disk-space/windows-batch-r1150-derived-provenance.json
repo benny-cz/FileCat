@@ -1,0 +1,8 @@
+{
+  "derivedResultArchive": ".tmp/windows-batch-r1150-results.tgz",
+  "sourceFullGuestArchive": ".tmp/windows-vm-reset-backup-20261117/batch-r1150-full.tgz",
+  "sourceSha256": "3f81f9f4143ff298a995fb81a302ec7d403c0105c5209b510215d34ea275dabc",
+  "derivedSha256": "60127fa8decc346caa44f5fe84532eed72c012d808a0a8a54c91e8527884052f",
+  "statePreserved": "FINISHED exit=1",
+  "reason": "Result-only archive derived after authorized Windows snapshot backup; raw original bytes unchanged"
+}

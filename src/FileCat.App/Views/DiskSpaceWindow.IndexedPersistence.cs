@@ -240,7 +240,7 @@ public sealed partial class DiskSpaceWindow
                         mapping = await _window.ReviewRootMappingAsync(previous.Descriptor.Roots, _source.Descriptor.Roots, mappingCloser);
                         if (mapping is null || _disposed) return;
                     }
-                    bool added = await InventoryProgressAsync("Comparing captured inventories", token => _window.AddIndexedComparisonSessionAsync(previous, _source, comparisonMetric, mapping, filename, token, ReviewLimitedAsync), cancel);
+                    bool added = await InventoryProgressAsync("Comparing captured inventories", token => _window.AddIndexedComparisonSessionAsync(previous, _source, comparisonMetric, mapping, filename, token, ReviewLimitedAsync, services: _services), cancel);
                     if (!added && !_disposed) _status.Text = "Comparison canceled. The original analysis is retained.";
                     async Task<bool> ReviewLimitedAsync(AnalysisComparisonCompatibility compatibility)
                     {

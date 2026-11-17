@@ -40,6 +40,11 @@ internal sealed class AnalysisCapturedChart : AnalysisCapturedOutput
         return CaptureCoreAsync(io, new ComparisonOwners(source, comparisonOwner), source.Header, chart, format, width, height, redact, comparison, cancellation);
     }
 
+    // The retained comparison source transfers only after complete encoding.
+    internal static Task<AnalysisCapturedChart> CaptureComparisonAsync(DeviceIoScheduler io, AnalysisIndexedComparison.ChartCapture source,
+        AnalysisChartControl chart, AnalysisChartFormat format, int width, int height, bool redact, CancellationToken cancellation) =>
+        CaptureCoreAsync(io, source, source.Header, chart, format, width, height, redact, source.Context, cancellation);
+
     private static async Task<AnalysisCapturedChart> CaptureCoreAsync(DeviceIoScheduler io, IAsyncDisposable source, AnalysisReportHeader header, AnalysisChartControl chart,
         AnalysisChartFormat format, int width, int height, bool redact, AnalysisComparisonChartContext? comparison, CancellationToken cancellation)
     {

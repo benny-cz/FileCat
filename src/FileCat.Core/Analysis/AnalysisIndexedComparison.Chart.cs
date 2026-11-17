@@ -63,12 +63,13 @@ internal sealed partial class AnalysisIndexedComparison
         }
     }
 
-    internal sealed class Chart : IAsyncDisposable
+    internal sealed partial class Chart : IAsyncDisposable
     {
         private readonly AnalysisIndexedComparison _owner;
         private readonly ReadLease _source;
         private readonly AnalysisDatasetHierarchy _hierarchy;
         private readonly AnalysisOwnedDatasetIo<ChartState> _owned;
+        private readonly object _projectionIdentity = new();
         private readonly object _gate = new(); private Task? _closed;
         internal bool Previous { get; }
         internal bool CombinedAreaAvailable => _hierarchy.Totals.CompatibleBasis;
@@ -123,7 +124,7 @@ internal sealed partial class AnalysisIndexedComparison
                         return true;
                     }, cancellation).ConfigureAwait(false);
                 cancellation.ThrowIfCancellationRequested();
-                return new AnalysisIndexedComparisonChartProjection(geometry.WithItems(items.ToImmutable()), Previous);
+                return new AnalysisIndexedComparisonChartProjection(geometry.WithItems(items.ToImmutable()), _projectionIdentity, _owner.ChartContext with { PreviousSide = Previous });
             });
         internal Task<AnalysisIndexedComparisonRow?> RowForAsync(AnalysisTreeItem item, CancellationToken cancellation = default) =>
             _owned.UseAsync(async state =>
@@ -285,11 +286,13 @@ internal sealed partial class AnalysisIndexedComparison
         ulong.TryParse(key.AsSpan(2), NumberStyles.None, CultureInfo.InvariantCulture, out ulong id) && id != 0 ? id : throw new ArgumentException("Choose a recorded folder chart scope.", nameof(key));
 }
 
-internal sealed class AnalysisIndexedComparisonChartProjection(AnalysisIndexedChart geometry, bool previous) : IAnalysisComparisonChartData
+internal sealed class AnalysisIndexedComparisonChartProjection(AnalysisIndexedChart geometry, object ownerIdentity, AnalysisComparisonChartContext context) : IAnalysisComparisonChartData
 {
     public AnalysisMetric Metric => geometry.Metric;
     public DateTimeOffset ObservedUtc => geometry.ObservedUtc;
-    public bool Previous => previous;
+    public bool Previous => context.PreviousSide;
+    public AnalysisComparisonChartContext Context => context;
+    internal bool BelongsTo(object identity) => ReferenceEquals(ownerIdentity, identity);
     public string Scope => geometry.Scope;
     public bool DetailLimited => geometry.DetailLimited;
     public ImmutableDictionary<string, AnalysisTreeItem> Items => geometry.Items;

@@ -18,4 +18,5 @@ public interface IAnalysisChartData
 public interface IAnalysisComparisonChartData : IAnalysisChartData
 {
     bool Previous { get; }
+    AnalysisComparisonChartContext Context { get; }
 }

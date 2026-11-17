@@ -67,6 +67,7 @@ internal sealed partial class AnalysisIndexedComparison
 
     internal sealed class Query : IAsyncDisposable
     {
+        private readonly AnalysisIndexedComparison _owner;
         private readonly AnalysisOwnedDatasetIo<QueryState> _owned;
         private readonly ReadLease _source;
         private readonly object _gate = new(); private Task? _closed;
@@ -77,7 +78,7 @@ internal sealed partial class AnalysisIndexedComparison
         internal ulong Unknown { get; }
         internal Query(AnalysisIndexedComparison owner, QueryState state, ReadLease source, AnalysisComparisonView view)
         {
-            _owned = new(state, owner._io, owner._devices); _source = source; View = view; Taint = owner.Taint;
+            _owner = owner; _owned = new(state, owner._io, owner._devices); _source = source; View = view; Taint = owner.Taint;
             Count = state.Order!.Count; Definite = state.Definite; Unknown = state.Unknown;
         }
         internal Task<AnalysisDatasetPage<AnalysisIndexedComparisonRow>> ReadAsync(ulong offset = 0, int maximum = 256, CancellationToken cancellation = default) =>
@@ -86,6 +87,24 @@ internal sealed partial class AnalysisIndexedComparison
             _owned.UseAsync(_ => _source.ReadMembersAsync(previous, entity, offset, maximum, cancellation));
         internal Task<AnalysisComparisonAccountingEntity> ReadSideAsync(bool previous, ulong entity, CancellationToken cancellation = default) =>
             _owned.UseAsync(_ => _source.ReadSideAsync(previous, entity, cancellation));
+        internal bool BelongsTo(AnalysisIndexedComparison owner) => ReferenceEquals(_owner, owner);
+        internal AnalysisDatasetDescriptor Descriptor(bool previous) => _source.Descriptor(previous);
+        internal Task<AnalysisPathMetadata> ReadPathAsync(bool previous, ulong path, CancellationToken cancellation = default) =>
+            _owned.UseAsync(_ => _source.ReadPathAsync(previous, path, cancellation));
+        internal Task<Query> RetainAsync(CancellationToken cancellation = default) => _owned.UseAsync(async state =>
+        {
+            cancellation.ThrowIfCancellationRequested(); ReadLease? reader = _source.Retain(); QueryState? clone = null;
+            try
+            {
+                clone = await AnalysisIo.Run(_owner._io, _owner._devices, _ => state.Retain(), cancellation).ConfigureAwait(false);
+                cancellation.ThrowIfCancellationRequested(); var result = new Query(_owner, clone, reader, View); clone = null; reader = null; return result;
+            }
+            finally
+            {
+                try { if (clone is not null) await AnalysisIo.ReleaseScratchAsync(_owner._io, _owner._devices, clone).ConfigureAwait(false); }
+                finally { if (reader is not null) await reader.DisposeAsync().ConfigureAwait(false); }
+            }
+        });
         public ValueTask DisposeAsync() { lock (_gate) return new(_closed ??= CloseAsync(_owned, _source)); }
     }
     internal sealed class QueryState(State source) : IAnalysisScratchOwned
@@ -99,6 +118,12 @@ internal sealed partial class AnalysisIndexedComparison
         private AnalysisScratchVectorCheckpoint? _input;
         private Exception? _closeFailure;
         private bool _disposed;
+        internal QueryState Retain()
+        {
+            var index = Order!.Retain();
+            try { return new(source) { Order = index, Definite = Definite, Unknown = Unknown }; }
+            catch { index.Dispose(); throw; }
+        }
         internal void Initialize()
         {
             Workspace = source.Current.Graph.BorrowWorkspace(); _arena = Workspace.CreateArena();

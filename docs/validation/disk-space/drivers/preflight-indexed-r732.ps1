@@ -2,9 +2,14 @@ param([ValidateSet('mac','linux','windows')][string]$Platform,[string]$Revision=
 $ErrorActionPreference='Stop'
 $tag=if($Platform-eq'linux'){'ubuntu'}else{$Platform}
 if($Platform-eq'windows'){
- $raw=@(& 'C:\Program Files\VMware\VMware Workstation\vmrun.exe' -T ws -vp a -gu Admin -gp a listProcessesInGuest 'V:\Virtual Machines\Jamf\Windows 10 x64\Windows 10 x64.vmx')
+ $inventoryAccount='filecatdsa_r2'
+ $raw=@(& 'C:\Program Files\VMware\VMware Workstation\vmrun.exe' -T ws -vp a -gu $inventoryAccount -gp a listProcessesInGuest 'V:\Virtual Machines\Jamf\Windows 10 x64\Windows 10 x64.vmx')
+ if($LASTEXITCODE){
+  $inventoryAccount='Admin'
+  $raw=@(& 'C:\Program Files\VMware\VMware Workstation\vmrun.exe' -T ws -vp a -gu $inventoryAccount -gp a listProcessesInGuest 'V:\Virtual Machines\Jamf\Windows 10 x64\Windows 10 x64.vmx')
+ }
  if($LASTEXITCODE){throw 'Windows inventory failed'}
- $data=[ordered]@{observedUtc=[DateTime]::UtcNow.ToString('o');exitCode=0;filecatOrDotnet=@($raw|Where-Object{$_-match '^pid=.*cmd=.*(FileCat|dotnet)'})}
+ $data=[ordered]@{observedUtc=[DateTime]::UtcNow.ToString('o');exitCode=0;inventoryAccount=$inventoryAccount;filecatOrDotnet=@($raw|Where-Object{$_-match '^pid=.*cmd=.*(FileCat|dotnet)'})}
  $json=$data|ConvertTo-Json -Depth 5
 }else{
  $probe=@'

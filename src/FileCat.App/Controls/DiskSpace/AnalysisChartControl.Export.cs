@@ -28,9 +28,9 @@ public abstract partial class AnalysisChartControl
         Dispatcher.UIThread.VerifyAccess();
         AnalysisChartScene.ValidateSize(width, height);
         if (_view is not { } view) throw new InvalidOperationException("Choose a captured chart first.");
-        if (view.Tree is AnalysisComparisonChart recorded)
+        if (view.Tree is IAnalysisComparisonChartData recorded)
         {
-            if (comparison is null || recorded.Previous != comparison.PreviousSide || recorded.Identity != (comparison.PreviousSide ? comparison.Previous : comparison.Current) ||
+            if (comparison is null || comparison != recorded.Context ||
                 comparison.Previous.ObservedUtc < comparison.Previous.StartedUtc || comparison.Current.ObservedUtc < comparison.Current.StartedUtc ||
                 !Enum.IsDefined(comparison.PreviousCoverage) || !Enum.IsDefined(comparison.CurrentCoverage) || !Enum.IsDefined(comparison.PreviousFreshness) || !Enum.IsDefined(comparison.CurrentFreshness) ||
                 comparison.Taint == 0 || (comparison.Taint & ~AnalysisPrivacy.All) != 0 || (comparison.Taint & header.Taint) != header.Taint)
@@ -57,8 +57,8 @@ public abstract partial class AnalysisChartControl
         var texts = ImmutableArray.CreateBuilder<AnalysisChartText>();
         var offset = new Vector(12, 142 + extra);
         string ink = ColorText(AnalysisChartPalette.On(AnalysisChartPalette.Panel(palette), Color.Parse(palette.Text)));
-        void Text(string value, double x, double y, double available, double size = 13, string? color = null) =>
-            texts.Add(new(AnalysisNames.Display(AnalysisChartScene.XmlText(AnalysisNames.Display(value, 512)), 512), new Rect(x, y, Math.Max(1, available), size + 6), color ?? ink, size));
+        void Text(string value, double x, double y, double available, double size = 13, string? color = null, bool centered = false) =>
+            texts.Add(new(AnalysisNames.Display(AnalysisChartScene.XmlText(AnalysisNames.Display(value, 512)), 512), new Rect(x, y, Math.Max(1, available), size + 6), color ?? ink, size, centered));
         Text((comparison is null ? "FileCat disk space · " : "FileCat comparison · ") + ViewName, 20, 16, width - 240, 22);
         if (header.Coverage != NamespaceCoverage.CompleteUnderPolicy) Text("PARTIAL", width - 200, 16, 180, 22);
         string metric = header.Metric switch { AnalysisMetric.FileSize => "File size (bytes)", AnalysisMetric.UniqueFileSize => "Unique file size (bytes)", AnalysisMetric.OnDisk => "On disk — reported (bytes)", _ => "Files (paths)" };
@@ -105,8 +105,12 @@ public abstract partial class AnalysisChartControl
         if (layout is SunburstControl)
         {
             var center = layout.PlotBounds.Center + offset;
-            Text(redact ? "Captured scope" : AnalysisNames.Display(view.Tree.NameOf(view.Scope), 24), center.X - 68, center.Y - 18, 136);
-            Text(total.ToString(CultureInfo.InvariantCulture), center.X - 68, center.Y + 4, 136);
+            double holeRadius = Math.Min(layout.PlotBounds.Width, layout.PlotBounds.Height) * layout.SunburstHoleRatio / 2;
+            // Keep both lines inside a square inscribed in the hole, including
+            // minimum-size comparison exports with their additional captions.
+            double captionWidth = Math.Min(136, Math.Max(1, (holeRadius - 2) * Math.Sqrt(2)));
+            Text(redact ? "Captured scope" : AnalysisNames.Display(view.Tree.NameOf(view.Scope), 24), center.X - captionWidth / 2, center.Y - 20, captionWidth, centered: true);
+            Text(total.ToString(CultureInfo.InvariantCulture), center.X - captionWidth / 2, center.Y + 2, captionWidth, centered: true);
         }
         Text("Colors: " + AnalysisChartColors.Title(view.Color), width - 250, 154 + extra, 230, 14);
         int legendRow = 0;
@@ -130,7 +134,7 @@ public abstract partial class AnalysisChartControl
 }
 
 internal sealed record AnalysisChartShape(Rect Bounds, string? Path, string Fill, string Border, bool Dashed);
-internal sealed record AnalysisChartText(string Value, Rect Bounds, string Color, double Size);
+internal sealed record AnalysisChartText(string Value, Rect Bounds, string Color, double Size, bool Centered = false);
 
 /// <summary>Only generated geometry, normalized colors and reviewed display text. No source keys or hidden payload.</summary>
 internal sealed record AnalysisChartScene(int Width, int Height, string Background, ImmutableArray<AnalysisChartShape> Shapes, ImmutableArray<AnalysisChartText> Texts)
@@ -174,7 +178,8 @@ internal sealed record AnalysisChartScene(int Width, int Height, string Backgrou
         {
             cancellation.ThrowIfCancellationRequested(); var text = Texts[i]; string id = "t" + i.ToString(CultureInfo.InvariantCulture);
             Start("defs"); Start("clipPath"); Attr("id", id); Start("rect"); Box(text.Bounds); xml.WriteEndElement(); xml.WriteEndElement(); xml.WriteEndElement();
-            Start("text"); Attr("x", N(text.Bounds.X)); Attr("y", N(text.Bounds.Y + text.Size)); Attr("font-family", "sans-serif"); Attr("font-size", N(text.Size));
+            Start("text"); Attr("x", N(text.Centered ? text.Bounds.Center.X : text.Bounds.X)); Attr("y", N(text.Bounds.Y + text.Size)); Attr("font-family", "sans-serif"); Attr("font-size", N(text.Size));
+            if (text.Centered) Attr("text-anchor", "middle");
             Attr("fill", text.Color); Attr("clip-path", "url(#" + id + ")"); xml.WriteString(XmlText(text.Value)); xml.WriteEndElement();
         }
         xml.WriteEndElement(); xml.Flush();
@@ -196,7 +201,8 @@ internal sealed class AnalysisChartCanvas(AnalysisChartScene scene) : Control
         {
             var formatted = new FormattedText(text.Value, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                 new Typeface(FontFamily.Default), text.Size, new SolidColorBrush(Color.Parse(text.Color)))
-            { MaxTextWidth = text.Bounds.Width, MaxLineCount = 1, Trimming = TextTrimming.CharacterEllipsis };
+            { MaxTextWidth = text.Bounds.Width, MaxLineCount = 1, Trimming = TextTrimming.CharacterEllipsis,
+                TextAlignment = text.Centered ? TextAlignment.Center : TextAlignment.Left };
             using (context.PushClip(text.Bounds)) context.DrawText(formatted, text.Bounds.TopLeft);
         }
     }

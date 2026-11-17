@@ -22,7 +22,7 @@ public sealed partial class DiskSpaceWindow
     internal async Task<bool> AddIndexedComparisonSessionAsync(AnalysisDatasetLease previous, AnalysisDatasetLease current,
         AnalysisMetric metric, IReadOnlyDictionary<string, string>? structuralRoots = null, string? previousName = null,
         CancellationToken cancellation = default, Func<AnalysisComparisonCompatibility, Task<bool>>? reviewLimited = null,
-        IndexedComparisonBuilder? compare = null)
+        IndexedComparisonBuilder? compare = null, AppServices? services = null)
     {
         Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
         AnalysisSessionAdmission.Slot? admission = _admissionPool.Acquire();
@@ -40,7 +40,7 @@ public sealed partial class DiskSpaceWindow
             if (!result.Compatibility.ComparableTotals && reviewLimited is not null && !await reviewLimited(result.Compatibility)) return false;
             var page = await IndexedComparisonView.ReadPageAsync(result, 0, linked.Token);
             linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
-            var view = new IndexedComparisonView(this, admission, a, b, result, mapping, previousName, page, compare);
+            var view = new IndexedComparisonView(this, admission, a, b, result, mapping, previousName, page, compare, services);
             a = b = null; result = null; admission = null;
             try { AddView(view); } catch { view.Dispose(); throw; }
             return true;
@@ -76,6 +76,7 @@ public sealed partial class DiskSpaceWindow
         private readonly AnalysisDatasetLease _previousSource, _currentSource;
         private readonly ImmutableDictionary<string, string>? _mapping;
         private readonly IndexedComparisonBuilder _compare;
+        private readonly AppServices? _services;
         private readonly AnalysisViewWork _work = new();
         private readonly CancellationTokenSource _lifetime = new();
         private AnalysisIndexedComparison? _result;
@@ -119,10 +120,10 @@ public sealed partial class DiskSpaceWindow
 
         internal IndexedComparisonView(DiskSpaceWindow window, AnalysisSessionAdmission.Slot admission,
             AnalysisDatasetLease previous, AnalysisDatasetLease current, AnalysisIndexedComparison result,
-            ImmutableDictionary<string, string>? mapping, string? previousName, DisplayPage page, IndexedComparisonBuilder compare)
+            ImmutableDictionary<string, string>? mapping, string? previousName, DisplayPage page, IndexedComparisonBuilder compare, AppServices? services)
         {
             _window = window; _admission = admission; _previousSource = previous; _currentSource = current;
-            _result = result; _mapping = mapping; _page = page; _publishedMetric = result.Metric; _compare = compare;
+            _result = result; _mapping = mapping; _page = page; _publishedMetric = result.Metric; _compare = compare; _services = services;
             _applied = new() { Metric = result.Metric };
             Spacing = 10; Margin = new Thickness(10);
             Children.Add(Text("Compare captured observations", true));
@@ -147,6 +148,7 @@ public sealed partial class DiskSpaceWindow
             Children.Add(_appliedDescription);
             Children.Add(_summary); Children.Add(_compatibility); Children.Add(_status);
             AddCharts();
+            AddOutputs();
             AutomationProperties.SetName(_summary, "Comparison totals"); AutomationProperties.SetName(_status, "Comparison status");
             AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
             AutomationProperties.SetName(_rows, "Captured comparison rows");
@@ -178,7 +180,8 @@ public sealed partial class DiskSpaceWindow
         private static TextBlock Text(string text, bool heading = false) => new() { Text = text, TextWrapping = TextWrapping.Wrap, FontWeight = heading ? FontWeight.SemiBold : FontWeight.Normal };
         private static Button Button(string text, Action run, string help)
         {
-            var button = new Button { Content = text }; AutomationProperties.SetHelpText(button, help); button.Click += (_, _) => run(); return button;
+            var button = new Button { Content = text }; AutomationProperties.SetHelpText(button, help);
+            ToolTip.SetTip(button, new FileCat.App.Controls.RichTip(text, detail: help)); button.Click += (_, _) => run(); return button;
         }
         private static string Interval(AnalysisDatasetDescriptor source) => source.Identity.StartedUtc.ToString("u") + " – " + source.Identity.ObservedUtc.ToString("u");
         private static string Value(AnalysisMeasurement? value, AnalysisMetric metric) => value is not { } measurement ? "No recorded side" : measurement.IsKnown
@@ -257,12 +260,13 @@ public sealed partial class DiskSpaceWindow
                 side.Next.IsEnabled = usable && _result is not null && side.Page?.HasMore == true;
             }
             RefreshCharts(usable);
+            RefreshOutputs(usable);
         }
         private async Task RunAsync(string activity, Func<CancellationToken, Task> run)
         {
             if (_disposed || _busy || _work.HasUnconfirmedClose) return;
             using var actual = _work.Enter(); _busy = true; _status.Text = activity; Refresh();
-            try { await run(_lifetime.Token); if (!_disposed) _status.Text = "Captured observations · offline."; }
+            try { await run(_lifetime.Token); if (!_disposed && _status.Text == activity) _status.Text = "Captured observations · offline."; }
             catch (OperationCanceledException) { if (!_disposed) _status.Text = "Canceled. No partial view was applied."; }
             catch (Exception error) when (IndexedExpectedError(error))
             {

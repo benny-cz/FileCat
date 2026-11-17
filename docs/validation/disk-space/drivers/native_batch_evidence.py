@@ -46,7 +46,7 @@ def assert_clean_build(path, projects):
         assert len(re.findall(pattern, text, re.M)) == projects
 
 
-def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, phase_revisions=None, expected_states=None, source_snapshot=None, foreign_post_processes=None, additional_skips=None):
+def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, phase_revisions=None, expected_states=None, source_snapshot=None, foreign_post_processes=None, additional_skips=None, source_expected_states=None):
     assert re.fullmatch(r'r[0-9]+[a-z]?', revision)
     temp = root / '.tmp'
     out = root / 'docs/validation/disk-space'
@@ -86,6 +86,7 @@ def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, pha
     expected_states = expected_states or {}
     foreign_post_processes = foreign_post_processes or {}
     additional_skips = additional_skips or {}
+    source_expected_states = source_expected_states or {}
     def check_processes(inventory, key):
         # A later foreign tester need not delay receipt verification for a
         # completed cohort. Any exception is an exact previously inspected
@@ -112,7 +113,11 @@ def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, pha
             if actual_revision != revision:
                 extra_path = temp / f'{platform}-batch-{actual_revision}-results.tgz'
                 actual_result = reports(extra_path)
-                assert actual_result['state.txt'].decode('utf-8-sig').strip() == 'FINISHED exit=0'
+                # A passing unchanged suite may come from a batch whose unrelated
+                # phase failed. Keep that original terminal state explicit; the
+                # caller must retain/verify those failures separately. This phase
+                # still requires zero failures/errors and exact counts below.
+                assert actual_result['state.txt'].decode('utf-8-sig').strip() == source_expected_states.get(f'{platform}/{actual_revision}', 'FINISHED exit=0')
                 extra_inventory = read(temp / f'{platform}-batch-{actual_revision}-post.json')
                 check_processes(extra_inventory, f'{platform}/{actual_revision}')
                 processes[f'{platform}/{actual_revision}'] = extra_inventory
@@ -131,15 +136,18 @@ def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, pha
                 row['additionalDeclaredPlatformSkips'] = extra_skips
             if phase in ('preview', 'render'):
                 cases = [test for test in a.findall('.//test') if (test.get('method') or '').startswith(prefixes)]
-                assert len(cases) == new_cases and all(case.get('result') == 'Pass' for case in cases)
+                case_count = new_cases[phase] if isinstance(new_cases, dict) else new_cases
+                assert len(cases) == case_count and all(case.get('result') == 'Pass' for case in cases)
                 row['newCases'] = sorted(case.get('name') for case in cases)
-                assert len(set(row['newCases'])) == new_cases
+                assert len(set(row['newCases'])) == case_count
             matrix[f'{platform}/{phase}'] = row
         files.add(archive_path)
         runners.add(temp / f'batch-{tag}-{revision}.{"ps1" if platform == "windows" else "sh"}')
     record = {'revision': revision, 'observedUtc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
               'gitBase': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
               'sources': sources, 'inputs': inputs, 'matrix': matrix, 'postRunProcesses': processes}
+    if source_expected_states:
+        record['reusedSourceBatchStates'] = source_expected_states
     if snapshot_path is not None:
         record['productSourceSnapshot'] = {'path': (out / snapshot_path.name).relative_to(root).as_posix(), 'sha256': sha(snapshot_path)}
     return record, files, runners, receipts

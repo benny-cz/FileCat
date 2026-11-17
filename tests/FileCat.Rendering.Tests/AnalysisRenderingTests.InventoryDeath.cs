@@ -47,7 +47,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal("preserve this independent neighbor", File.ReadAllText(foreign));
             Assert.Equal(ready.GetProperty("otherSha256").GetString(), Hash(Path.Combine(root, "other.fcdsa")));
             using var io = new DeviceIoScheduler(); string device = PathUtil.GetDeviceKey(parent);
-            await using var owned = await OwnedAnalysisStore.OpenAsync(io, device, () =>
+            await using var owned = await AfterOwnedChildExitAsync(child, () => OwnedAnalysisStore.OpenAsync(io, device, () =>
             {
                 AnalysisPrivateDirectory directory = OperatingSystem.IsWindows()
                     ? new WindowsAnalysisPrivateDirectory(parent, "scratch") : new UnixAnalysisPrivateDirectory(parent, "scratch");
@@ -70,7 +70,7 @@ public sealed partial class AnalysisRenderingTests
                     return directory;
                 }
                 catch { AnalysisIo.CloseOnWorker(directory); throw; }
-            }, cancellation);
+            }, cancellation), cancellation);
             var beforeRead = Directory.EnumerateFiles(root).Order(StringComparer.Ordinal).ToArray();
             using (var catalog = await owned.ReadCatalogAsync(cancellation))
             {
@@ -101,8 +101,32 @@ public sealed partial class AnalysisRenderingTests
             if (!child.HasExited) child.Kill();
             await child.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(15), CancellationToken.None);
             Assert.True(child.HasExited, "The exact owned child must exit before another tester uses the machine.");
-            Directory.Delete(parent, recursive: true);
+            await AfterOwnedChildExitAsync(child, () => { Directory.Delete(parent, recursive: true); return Task.FromResult(true); }, CancellationToken.None);
         }
         static string Hash(string path) { using var file = File.OpenRead(path); return Convert.ToHexStringLower(SHA256.HashData(file)); }
+    }
+    private static async Task<T> AfterOwnedChildExitAsync<T>(Process ownedChild, Func<Task<T>> readOrFixtureCleanup, CancellationToken cancellation)
+    {
+        Assert.True(ownedChild.HasExited, "Only the exact already-terminated fixture child may enter the kernel-release wait.");
+        var clock = Stopwatch.StartNew(); int retries = 0;
+        while (true)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            try
+            {
+                var result = await readOrFixtureCleanup();
+                if (retries != 0) Console.WriteLine($"Owned child {ownedChild.Id}: native sharing settled after {retries} checks / {clock.ElapsedMilliseconds} ms.");
+                return result;
+            }
+            catch (IOException error) when (OperatingSystem.IsWindows() && !AnalysisCloseUnconfirmedException.IsPresent(error) &&
+                clock.Elapsed < TimeSpan.FromSeconds(5) && ((error.HResult & 0xffff) is 32 or 33 || error.InnerException is System.ComponentModel.Win32Exception { NativeErrorCode: 32 or 33 }))
+            {
+                // Process exit can precede the filesystem's final close/delete
+                // completion. Never relax production sharing/identity guards;
+                // retry only this dead child's private fixture and keep the
+                // original failure if the bounded wait does not settle.
+                retries++; await Task.Delay(10, cancellation);
+            }
+        }
     }
 }

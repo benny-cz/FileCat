@@ -53,6 +53,7 @@ internal sealed partial class AnalysisIndexedComparison : IAsyncDisposable
     internal AnalysisTotals CurrentTotals => _current.Totals;
     internal AnalysisMetric Metric => _current.Metric;
     internal AnalysisTaint Taint { get; }
+    internal AnalysisComparisonChartContext ChartContext { get; }
     internal AnalysisDelta? NetChange { get; }
     internal ulong Count { get; }
     internal ImmutableDictionary<string, string> RootMapping => _paths.RootMapping;
@@ -61,6 +62,9 @@ internal sealed partial class AnalysisIndexedComparison : IAsyncDisposable
     {
         _owned = new(state, io, devices); _paths = paths; _previous = previous; _current = current; _io = io; _devices = devices;
         Count = state.Rows!.Count; Compatibility = compatibility; Taint = AnalysisPrivacy.Join(previous.Descriptor.Taint, current.Descriptor.Taint);
+        var oldDescriptor = previous.Descriptor; var currentDescriptor = current.Descriptor;
+        ChartContext = new(oldDescriptor.Identity, currentDescriptor.Identity, false, oldDescriptor.Coverage, currentDescriptor.Coverage,
+            oldDescriptor.Freshness, currentDescriptor.Freshness, Taint, compatibility, state.Structural);
         var a = previous.Totals; var b = current.Totals;
         NetChange = compatibility.ComparableTotals && a.CompatibleBasis && b.CompatibleBasis && a.Missing.Count == 0 && b.Missing.Count == 0 &&
             a.IdentityUnverified == 0 && b.IdentityUnverified == 0 ? AnalysisDelta.Between(a.Known, b.Known) : null;
@@ -109,6 +113,10 @@ internal sealed partial class AnalysisIndexedComparison : IAsyncDisposable
         private readonly AnalysisIndexedComparison owner;
         private bool _disposed;
         internal ReadLease(AnalysisIndexedComparison source) { owner = source; }
+        internal AnalysisDatasetDescriptor Descriptor(bool previous) => (previous ? owner._previous : owner._current).Descriptor;
+        internal Task<AnalysisPathMetadata> ReadPathAsync(bool previous, ulong path, CancellationToken cancellation = default) =>
+            UseAsync(state => AnalysisIo.Run(owner._io, owner._devices, token =>
+                AnalysisPathMetadata.From((previous ? state.Previous : state.Current).Graph.ReadPath(path, token)), cancellation));
         internal Task<T> UseAsync<T>(Func<State, Task<T>> use)
         { lock (owner._gate) { ObjectDisposedException.ThrowIf(_disposed, this); return owner._owned.UseAsync(use); } }
         internal Task<AnalysisDatasetPage<AnalysisIndexedComparisonRow>> ReadAsync(ulong offset = 0, int maximum = 256, CancellationToken cancellation = default) =>

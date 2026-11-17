@@ -17,6 +17,7 @@ public sealed class AnalysisComparisonChart : IAnalysisComparisonChartData, IDis
     public AnalysisMetric Metric { get; }
     public DateTimeOffset ObservedUtc { get; }
     public bool Previous { get; }
+    public AnalysisComparisonChartContext Context => (_reader ?? throw new ObjectDisposedException(nameof(AnalysisComparisonChart))).Context with { PreviousSide = Previous };
     internal SessionIdentity Identity => (_snapshot ?? throw new ObjectDisposedException(nameof(AnalysisComparisonChart))).Snapshot.Identity;
     public ImmutableDictionary<string, AnalysisTreeItem> Items { get; private set; }
     private AnalysisComparisonChart(AnalysisSnapshotLease snapshot, AnalysisComparisonResult.ReadLease reader,

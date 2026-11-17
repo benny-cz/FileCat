@@ -102,7 +102,9 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
         => BeginWrite(directory, name, replacement: false, cancellation, maximumBytes);
     internal static DatasetWrite BeginReplacementWrite(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
         => BeginWrite(directory, name, replacement: true, cancellation);
-    private static DatasetWrite BeginWrite(AnalysisPrivateDirectory directory, string name, bool replacement, CancellationToken cancellation, long? maximumBytes = null)
+    internal static DatasetWrite BeginComparisonWrite(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
+        => BeginWrite(directory, name, replacement: false, cancellation, comparison: true);
+    private static DatasetWrite BeginWrite(AnalysisPrivateDirectory directory, string name, bool replacement, CancellationToken cancellation, long? maximumBytes = null, bool comparison = false)
     {
         ArgumentNullException.ThrowIfNull(directory);
         var store = new AnalysisPrivateInventoryStore(directory);
@@ -113,6 +115,7 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
             {
                 if (!AnalysisPrivateNames.IsReplacementPayload(name)) throw new ArgumentException("A generated private replacement payload name is required.", nameof(name));
             }
+            else if (comparison) ValidateComparisonName(name);
             else ValidateName(name);
             store.Guard(); cancellation.ThrowIfCancellationRequested();
             var file = directory.CreateStaging();
@@ -234,7 +237,9 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
         => BeginRead(directory, name, replacement: false, cancellation);
     internal static DatasetRead BeginReplacementRead(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
         => BeginRead(directory, name, replacement: true, cancellation);
-    private static DatasetRead BeginRead(AnalysisPrivateDirectory directory, string name, bool replacement, CancellationToken cancellation)
+    internal static DatasetRead BeginComparisonRead(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
+        => BeginRead(directory, name, replacement: false, cancellation, comparison: true);
+    private static DatasetRead BeginRead(AnalysisPrivateDirectory directory, string name, bool replacement, CancellationToken cancellation, bool comparison = false)
     {
         ArgumentNullException.ThrowIfNull(directory);
         var store = new AnalysisPrivateInventoryStore(directory);
@@ -244,6 +249,7 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
             {
                 if (!AnalysisPrivateNames.IsReplacementPayload(name)) throw new ArgumentException("A generated private replacement payload is required.", nameof(name));
             }
+            else if (comparison) ValidateComparisonName(name);
             else ValidateName(name);
             store.Guard(); cancellation.ThrowIfCancellationRequested();
             var file = directory.OpenRead(name);
