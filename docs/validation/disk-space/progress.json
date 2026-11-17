@@ -15766,5 +15766,27 @@
     "physicalDesktopMatrixQualified": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "nativeMillionWithTimestamps": {
+    "qualification": "NATIVE_MILLION_TIMESTAMP_QUALIFICATION.md",
+    "evidence": "source-manifest-r1265-native-million-timestamps.json",
+    "productRevision": "r1250",
+    "fixtureRevision": "r1252",
+    "allThreeNativeMillionWideDeepPassed": true,
+    "allSourcePathsVerified": true,
+    "actualOwnerClosureAndZeroQuota": true,
+    "cachedProductUnchanged": true,
+    "windowsRetainedFixtureShape": "wide",
+    "strict256MiBReleaseBudgetQualified": false,
+    "ubuntuWideObservedPrivateIncrementMiB": 256.81,
+    "macCommittedPrivateBudgetQualified": false,
+    "globalMultiSessionBudgetQualified": false,
+    "completeTenMillionQualified": false,
+    "firstVisibleReleaseBudgetQualified": false,
+    "physicalDesktopMatrixQualified": false,
+    "mergedMainIntegrationIncluded": false,
+    "publicFeatureRegistered": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }
