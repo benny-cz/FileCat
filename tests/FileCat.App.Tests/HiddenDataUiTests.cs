@@ -83,22 +83,32 @@ public sealed class HiddenDataUiTests
             await Until(() => tab.Listing.State == ListingState.Complete && Rows(tab).Any(e => e.Name == "tool.bin"), "the file is listed");
             var fileEntry = Assert.Single(Rows(tab), e => e.Name == "tool.bin");
             services.Metadata.Forget("hidden", file);
-            await Until(() => services.Metadata.Get("hidden", file, fileEntry, "local", false).State == MetadataState.Available,
+            string device = Core.FileSystem.PathUtil.GetDeviceKey(file);
+            await Until(() => services.Metadata.Get("hidden", file, fileEntry, device, false).State == MetadataState.Available,
                 "the Streams/Attributes count is available");
-            int initialCount = Assert.IsType<int>(services.Metadata.Peek("hidden", file, fileEntry).Value);
-            Assert.True(initialCount >= 2);
+            var initialInventory = Assert.IsType<FileDetailsFields.Cell>(services.Metadata.Peek("hidden", file, fileEntry).Value);
+            Assert.StartsWith("2", initialInventory.Text);
             vm.Workspace.Activate(panels[0]);
             tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == "tool.bin") + (tab.Listing.HasParentRow ? 1 : 0));
-            Assert.Equal(initialCount.ToString(System.Globalization.CultureInfo.CurrentCulture),
+            Assert.Equal(initialInventory.Text,
                 tab.GetMetadataText(fileEntry, tab.Listing.FocusedStoreIndex, "hidden", out _));
 
             // Alt+Shift+Enter: its streams and attributes, each with what it says.
             vm.Execute(CommandIds.HiddenData);
-            await Until(() => tab.Location?.Scheme == Schemes.HiddenData && tab.Listing.State == ListingState.Complete && Rows(tab).Count >= 2, "the hidden data is listed");
+            await Until(() => tab.Location?.Scheme == Schemes.HiddenData && tab.Listing.State == ListingState.Complete && Rows(tab).Count >= 2,
+                () => $"the hidden data is listed (location: {tab.Location}; state: {tab.Listing.State}; inventory: {tab.SupplementaryInventoryText}; notification: {vm.Notification})");
             var markRow = Assert.Single(Rows(tab), e => e.Name == mark);
-            Assert.Matches("Mark of the Web|Quarantined|Downloaded from", tab.GetDetailsText(markRow));
+            Assert.StartsWith("Not read — F3 to view", tab.GetDetailsText(markRow));
             var payloadRow = Assert.Single(Rows(tab), e => e.Name == payload);
-            Assert.Equal("hidden payload", tab.GetDetailsText(payloadRow));
+            Assert.StartsWith("Not read — F3 to view", tab.GetDetailsText(payloadRow));
+            if (OperatingSystem.IsMacOS())
+            {
+                Assert.Contains("Compression backing: not inventoried", tab.SupplementaryInventoryText);
+                Assert.True(payloadRow.Has(EntryFlags.Unavailable));
+                Assert.Throws<NotSupportedException>(() => services.Providers.For(tab.Location!).OpenContent(
+                    services.Providers.For(tab.Location!).GetItemRef(tab.Location!, payloadRow)));
+                return;
+            }
 
             // F5: copied out as a file by a job.
             tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == payload) + (tab.Listing.HasParentRow ? 1 : 0));
@@ -125,10 +135,11 @@ public sealed class HiddenDataUiTests
             await Until(() => tab.Location?.IsFileSystem == true && tab.Listing.State == ListingState.Complete, "back in the folder");
             Assert.True(tab.Listing.TryGetFocused(out var focused));
             Assert.Equal("tool.bin", focused.Name);
-            await Until(() => services.Metadata.Get("hidden", file, focused, "local", false).State == MetadataState.Available,
+            await Until(() => services.Metadata.Get("hidden", file, focused, device, false).State == MetadataState.Available,
                 "the parent file's Streams/Attributes count refreshes");
-            Assert.Equal(initialCount - 1, Assert.IsType<int>(services.Metadata.Peek("hidden", file, focused).Value));
-            Assert.Equal((initialCount - 1).ToString(System.Globalization.CultureInfo.CurrentCulture),
+            var after = Assert.IsType<FileDetailsFields.Cell>(services.Metadata.Peek("hidden", file, focused).Value);
+            Assert.StartsWith("1", after.Text);
+            Assert.Equal(after.Text,
                 tab.GetMetadataText(focused, tab.Listing.FocusedStoreIndex, "hidden", out _));
         }
         finally

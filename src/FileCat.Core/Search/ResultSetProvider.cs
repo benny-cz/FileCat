@@ -268,7 +268,7 @@ public sealed class ResultSetProvider(ProviderRegistry providers, IFileSystemOpe
 
     public override ItemRef GetItemRef(Location listing, in EntryData entry) =>
         entry.Tag is ResultTag r
-            ? new ItemRef(r.Parent, entry.Name, entry.Kind, entry.Size, entry.Modified) { RelativeFolder = r.RelativeFolder, Flags = entry.Flags, Ordinal = r.Ordinal }
+            ? new ItemRef(r.Parent, entry.Name, entry.Kind, entry.Size, entry.Modified) { RelativeFolder = r.RelativeFolder, Flags = entry.Flags, Ordinal = r.Ordinal, NativeReparseTag = entry.NativeReparseTag, NativeAttributes = entry.Attributes }
             : base.GetItemRef(listing, entry);
 
     public override bool ItemsShareListingParent => false;

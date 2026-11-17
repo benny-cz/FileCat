@@ -18,6 +18,7 @@ public sealed partial class MainViewModel
         public readonly ConcurrentQueue<string> RenameEffects = new();
         public RecoveryActionPhase Phase { get; private set; } = RecoveryActionPhase.Reviewing;
         public string JournalPath => job.JournalPath;
+        public bool IsStorage => job.IsStorageTransform;
         public bool Stopped => StopSource.IsCancellationRequested;
         public void Check()
         {
@@ -83,7 +84,8 @@ public sealed partial class MainViewModel
         _recoveryReviews.Remove(scope.JournalPath);
         _interruptedActions.Remove(scope.JournalPath);
         scope.SetPhase(RecoveryActionPhase.Idle, scope.Phase == RecoveryActionPhase.Completed
-            ? "Recovery cleanup finished; the report is retained."
+            ? scope.IsStorage ? "Storage review finished; durable evidence is retained." : "Recovery cleanup finished; the report is retained."
+            : scope.IsStorage ? scope.Stopped ? "Storage review stopped. The retained evidence remains available." : "Storage review closed. No acknowledgment is implied."
             : scope.Phase == RecoveryActionPhase.Submitted
             ? "Recovery action submitted. Check its operation and tracking status above."
             : scope.Stopped ? "Review stopped. Any completed cleanup is kept; the recovery journal remains available."
@@ -186,7 +188,7 @@ public sealed partial class MainViewModel
         try
         {
             scope.Check();
-            if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), scope.Check)) return false;
+            if (!await MutationIoAsync(job.JournalPath, () => Services.Jobs.IsInterrupted(job, scope.StopSource.Token), scope.Check)) return false;
             job = await RefreshArchiveRecoveryAsync(job, scope);
             if (job.ArchiveTransactions.HasRecords) { Notify(ArchiveReviewRequired, true); return false; }
             if (job.Kind is not (nameof(JobKind.Copy) or nameof(JobKind.Move))) return false;
@@ -340,11 +342,12 @@ public sealed partial class MainViewModel
 
     internal async Task<bool> CleanupInterruptedAsync(InterruptedJob job)
     {
+        if (job.IsStorageTransform) { Notify("Use Review storage changes. Storage history cannot authorize partial-file cleanup."); return false; }
         if (!TryBeginRecoveryAction(job, out var scope)) return false;
         InterruptedReview? reviewed = null;
         try
         {
-            if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), scope.Check)) return false;
+            if (!await MutationIoAsync(job.JournalPath, () => Services.Jobs.IsInterrupted(job, scope.StopSource.Token), scope.Check)) return false;
             job = await RefreshArchiveRecoveryAsync(job, scope);
             if (job.ArchiveTransactions.HasRecords) return await CleanupArchiveRetainedAsync(job, scope);
             var review = reviewed = await ReviewInterruptedAsync(job, scope);
@@ -476,10 +479,11 @@ public sealed partial class MainViewModel
 
     internal async Task<ReportWindow?> ShowInterruptedReportAsync(InterruptedJob job)
     {
+        if (job.IsStorageTransform) return await ShowStorageHistoryReportAsync(job);
         if (!TryBeginRecoveryAction(job, out var scope)) return null;
         try
         {
-            if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), scope.Check))
+            if (!await MutationIoAsync(job.JournalPath, () => Services.Jobs.IsInterrupted(job, scope.StopSource.Token), scope.Check))
             { Notify("This recovery journal is no longer available for review.", true); return null; }
             job = await RefreshArchiveRecoveryAsync(job, scope);
             var review = await ReviewInterruptedAsync(job, scope);
@@ -500,6 +504,7 @@ public sealed partial class MainViewModel
 
     internal async Task<bool> MarkInterruptedReviewedAsync(InterruptedJob job)
     {
+        if (job.IsStorageTransform) { Notify("Use Review storage changes to inspect and acknowledge the exact retained history."); return false; }
         if (Dialogs.IsOpen)
         {
             Notify("Finish or cancel the open dialog before marking this recovery reviewed.");
@@ -508,7 +513,7 @@ public sealed partial class MainViewModel
         if (!TryBeginRecoveryAction(job, out var scope)) return false;
         try
         {
-            if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), scope.Check)) return false;
+            if (!await MutationIoAsync(job.JournalPath, () => Services.Jobs.IsInterrupted(job, scope.StopSource.Token), scope.Check)) return false;
             job = await RefreshArchiveRecoveryAsync(job, scope);
             if (job.ArchiveTransactions.RequiresReview) { Notify(ArchiveReviewRequired, true); return false; }
             var review = await ReviewInterruptedAsync(job, scope);
@@ -557,7 +562,7 @@ public sealed partial class MainViewModel
             scope.Check();
             if (!approved) return false;
             scope.SetPhase(RecoveryActionPhase.Applying, "Saving the reviewed report and closing recovery tracking…");
-            if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), scope.Check)) return false;
+            if (!await MutationIoAsync(job.JournalPath, () => Services.Jobs.IsInterrupted(job, scope.StopSource.Token), scope.Check)) return false;
             var record = new RecoveryReviewRecord(job.JournalPath, job.Title, job.Kind, DateTime.UtcNow,
                 "Marked reviewed without file changes", report, ClosureConfirmed: false);
             await MutationIoAsync(job.JournalPath, () => { RecoveryReviewStore.Save(Services.Paths.JournalDirectory, record); return true; }, scope.Check);

@@ -21,7 +21,7 @@ namespace FileCat.App.Views;
 /// fills in when ready, with Find (Ctrl+F, F3), Wrap (F2), source/display Copy (Ctrl+C: selection or visible lines), Copy all, Save as, and
 /// Refresh (F5) to read it again. None of the viewer's modes, encodings, or checksums: there is no file here.
 /// </summary>
-public sealed class ReportWindow : Window
+public sealed partial class ReportWindow : Window
 {
     // Screen readers follow a list's focused row and, on Linux, hear focus after window activation.
     protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
@@ -36,6 +36,11 @@ public sealed class ReportWindow : Window
     private readonly CheckBox _matchCase = new() { Content = "Aa", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _wrap = new() { Content = "Wrap", VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _refresh = new() { Content = "Refresh" };
+    private readonly Button _copyAll = new() { Content = "Copy all" };
+    private readonly Button _copyDisplayed = new() { Content = "Copy displayed text" };
+    private readonly Button _save = new() { Content = "Save as…" };
+    private readonly WrapPanel _actions = new() { Margin = new Thickness(8, 2), ItemSpacing = 8, LineSpacing = 4 };
+    private CancellationTokenSource? _saving;
     private readonly TextBlock _status = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
     private string? _searchNotice;
     private readonly CancellationTokenSource _closing = new();
@@ -84,17 +89,17 @@ public sealed class ReportWindow : Window
         ToolTip.SetTip(_refresh, "Read it again (F5)");
         ToolTip.SetTip(_wrap, "Wrap long lines (F2)");
         ToolTip.SetTip(_matchCase, "Match case");
-        var copy = new Button { Content = "Copy all" };
+        var copy = _copyAll;
         ToolTip.SetTip(copy, "Copy the complete original report text. Ctrl+C copies selected source text or the visible lines; Ctrl+Shift+C uses displayed text.");
-        var displayed = new Button { Content = "Copy displayed text" };
+        var displayed = _copyDisplayed;
         ToolTip.SetTip(displayed, "Copy selected text or visible lines with tabs expanded and controls shown as symbols. Visual wraps add no line endings.");
         _copyVisible.Click += async (_, _) => await CopyTextAsync(displayed: false, explicitVisible: true);
         displayed.Click += async (_, _) => await CopyTextAsync(displayed: true, explicitVisible: true);
-        var save = new Button { Content = "Save as…" };
+        var save = _save;
         ToolTip.SetTip(save, "Save the report as a text file");
         var toolbar = new WrapPanel { Margin = new Thickness(8, 4), ItemSpacing = 8, LineSpacing = 4 };
         foreach (var part in new Control[] { _refresh, _search, _matchCase, _wrap, copy, _copyVisible, displayed, save }) toolbar.Children.Add(part);
-        var lineActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var lineActions = new WrapPanel { ItemSpacing = 8, LineSpacing = 4 };
         lineActions.Children.Add(_previousLine);
         lineActions.Children.Add(_nextLine);
         var lineText = new ScrollViewer
@@ -116,6 +121,8 @@ public sealed class ReportWindow : Window
         DockPanel.SetDock(navigationSurface, Dock.Top);
         DockPanel.SetDock(statusBar, Dock.Bottom);
         root.Children.Add(toolbarSurface);
+        DockPanel.SetDock(_actions, Dock.Top);
+        root.Children.Add(_actions);
         root.Children.Add(navigationSurface);
         root.Children.Add(statusBar);
         DockPanel.SetDock(_copyNotice, Dock.Bottom);
@@ -184,6 +191,10 @@ public sealed class ReportWindow : Window
             _reading?.Cancel();
             _searching?.Cancel();
             _copying?.Cancel();
+            _saving?.Cancel();
+            _detailsReader?.Dispose();
+            _detailsReader = null;
+            _detailsObservation = null;
             var reader = _reader;
             _reader = null;
             _view.SetReader(null, new UTF8Encoding(false), 0);
@@ -207,7 +218,7 @@ public sealed class ReportWindow : Window
     internal Task? Reading { get; private set; }
 
 
-    private Task ReadAsync() => Reading = ReadCoreAsync();
+    private Task ReadAsync() => Reading = _detailsReader is null ? ReadCoreAsync() : ReadDetailsCoreAsync();
 
     private async Task ReadCoreAsync()
     {
@@ -261,6 +272,7 @@ public sealed class ReportWindow : Window
     {
         _searching?.Cancel();
         _copying?.Cancel();
+        _saving?.Cancel();
         _text = text;
         _lineCount = text.Length == 0 ? 0 : 1 + text.AsSpan(0, text[^1] == '\n' ? text.Length - 1 : text.Length).Count('\n');
         _lineIndex = _lineStart = _segmentIndex = 0;
@@ -354,6 +366,7 @@ public sealed class ReportWindow : Window
 
     private void UpdateStatus()
     {
+        if (_detailsReader is not null) { UpdateDetailsStatus(); return; }
         int lines = _text.Count(c => c == '\n');
         _status.Text = (_searchNotice is { } notice ? notice + " · " : "") +
             $"{_subject} · read at {_readAt.ToString("T", CultureInfo.CurrentCulture)} · {lines.ToString("N0", CultureInfo.CurrentCulture)} lines · F5 reads it again";
@@ -486,7 +499,7 @@ public sealed class ReportWindow : Window
     private async Task CopyAsync(bool all)
     {
         if (!all) { await CopyTextAsync(displayed: false, explicitVisible: false); return; }
-        if (_closing.IsCancellationRequested || Clipboard is not { } clipboard) return;
+        if (_closing.IsCancellationRequested || !CanPublishDetails || Clipboard is not { } clipboard) return;
         _copying?.Cancel();
         using var cts = _copying = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
@@ -527,7 +540,7 @@ public sealed class ReportWindow : Window
 
     internal async Task CopyTextAsync(bool displayed, bool explicitVisible, Avalonia.Input.Platform.IClipboard? targetClipboard = null)
     {
-        if (_closing.IsCancellationRequested || (targetClipboard ?? Clipboard) is not { } clipboard) return;
+        if (_closing.IsCancellationRequested || !CanPublishDetails || (targetClipboard ?? Clipboard) is not { } clipboard) return;
         _copying?.Cancel();
         using var cts = _copying = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
@@ -570,23 +583,31 @@ public sealed class ReportWindow : Window
 
     private async Task SaveAsync()
     {
-        string stem = Path.GetFileName(_subject.TrimEnd('\\', '/'));
-        var picked = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Save the report as a text file",
-            SuggestedFileName = $"{(stem.Length > 0 ? stem : "report")} - {_kind}.txt",
-            DefaultExtension = "txt",
-            FileTypeChoices = [new FilePickerFileType("Text") { Patterns = ["*.txt"] }],
-        });
-        if (picked?.TryGetLocalPath() is not { } target) return;
+        if (_closing.IsCancellationRequested || !CanPublishDetails) return;
+        _saving?.Cancel();
+        using var cts = _saving = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        var ct = cts.Token;
+        string capturedText = _text;
+        var capturedReader = _reader;
         try
         {
-            await File.WriteAllTextAsync(target, _text, new UTF8Encoding(true));
-            _status.Text = $"Saved as {target}.";
+            string stem = Path.GetFileName(_subject.TrimEnd('\\', '/'));
+            var picked = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save the report as a text file",
+                SuggestedFileName = $"{(stem.Length > 0 ? stem : "report")} - {_kind}.txt",
+                DefaultExtension = "txt",
+                FileTypeChoices = [new FilePickerFileType("Text") { Patterns = ["*.txt"] }],
+            });
+            if (ct.IsCancellationRequested || !ReferenceEquals(_reader, capturedReader) || picked?.TryGetLocalPath() is not { } target) return;
+            await File.WriteAllTextAsync(target, capturedText, new UTF8Encoding(true), ct);
+            if (!ct.IsCancellationRequested) _status.Text = $"Saved as {target}.";
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _status.Text = $"It could not be saved: {ex.Message}";
         }
+        finally { if (ReferenceEquals(_saving, cts)) _saving = null; }
     }
 }

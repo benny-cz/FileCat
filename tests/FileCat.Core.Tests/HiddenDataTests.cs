@@ -90,7 +90,7 @@ public sealed partial class HiddenDataTests
         "fpmc"u8.CopyTo(decmpfs);
         BitConverter.TryWriteBytes(decmpfs.AsSpan(4), 12u);
         BitConverter.TryWriteBytes(decmpfs.AsSpan(8), 1048576ul);
-        Assert.Equal("Compressed by the file system (LZFSE, in the resource fork), 1 MiB uncompressed", Summary("com.apple.decmpfs", HiddenKind.Attribute, decmpfs));
+        Assert.Equal("Header declares LZFSE, in the resource fork, 1 MiB uncompressed", Summary("com.apple.decmpfs", HiddenKind.Attribute, decmpfs));
 
         // Undocumented: provenance's identifier after a 3-byte header.
         Assert.Contains("id 0807060504030201", Summary("com.apple.provenance", HiddenKind.Attribute, [1, 2, 0, 1, 2, 3, 4, 5, 6, 7, 8]));
@@ -207,6 +207,19 @@ public sealed partial class HiddenDataTests
         }
 
         var items = hidden.List(file);
+        if (OperatingSystem.IsMacOS())
+        {
+            // The legacy path inventory is observational. The new route refuses values/actions until a safe
+            // held-object adapter is qualified, rather than reopening a mutable path or ..namedfork traversal.
+            var inventory = hidden.ReadInventory(file, new(), TestContext.Current.CancellationToken);
+            Assert.False(inventory.BoundToObject); Assert.Contains("Compression backing: not inventoried", inventory.Notice);
+            var ordinary = Assert.Single(items, i => i.Name == "org.filecat.payload");
+            Assert.Throws<NotSupportedException>(() => hidden.Read(file, ordinary, 64));
+            Assert.Throws<NotSupportedException>(() => hidden.Open(file, ordinary));
+            Assert.Throws<NotSupportedException>(() => hidden.Delete(file, ordinary));
+            Assert.Equal("contents", File.ReadAllText(file));
+            return;
+        }
         var mark = Assert.Single(items, i => i.Name is "Zone.Identifier" or "com.apple.quarantine" or "user.xdg.origin.url");
         var (summary, _) = HiddenDataDecoder.Describe(mark, hidden.Read(file, mark, 65536));
         Assert.Matches("Mark of the Web|Quarantined|Downloaded from", summary);

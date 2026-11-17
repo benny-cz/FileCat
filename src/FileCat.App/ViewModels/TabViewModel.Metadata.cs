@@ -33,12 +33,13 @@ public sealed partial class TabViewModel
     {
         Services.Metadata.ForgetFolder("owner", path);
         Services.Metadata.ForgetFolder("group", path);
+        foreach (var field in Services.Metadata.Fields.Where(f => f.ObservationLane)) Services.Metadata.ForgetFolder(field.Id, path);
     }
     internal bool CanAnalyzeMetadata(string fieldId) => Location is not null &&
+        !(Services.Metadata.Field(fieldId)?.ObservationLane == true && !Location.IsFileSystem) &&
         !(OperatingSystem.IsWindows() && fieldId == "owner" && !Location.IsFileSystem);
 
-    internal bool MetadataApplies(in EntryData entry, string fieldId) => Services.Metadata.Field(fieldId) is { } field &&
-        (entry.Kind == EntryKind.File || entry.Kind == EntryKind.Directory && field.Folders) && field.AppliesToName(entry.Name);
+    internal bool MetadataApplies(in EntryData entry, string fieldId) => Services.Metadata.Field(fieldId) is { } field && MetadataService.Applies(field, entry);
 
     internal MetadataRowContext? CaptureMetadataContext(in EntryData entry, int storeIndex)
     {
@@ -66,7 +67,7 @@ public sealed partial class TabViewModel
         if (context is not null && (!ReferenceEquals(context.Store, Listing.Store) || context.StoreIndex != storeIndex ||
             context.Name != entry.Name || context.Kind != entry.Kind)) context = null;
         if (context is null && demand) context = CaptureMetadataContext(entry, storeIndex);
-        if (context is null && Location.IsFileSystem && entry.Has(EntryFlags.Offline))
+        if (context is null && Location.IsFileSystem && entry.Has(EntryFlags.Offline) && !field.MetadataOnlyOnOffline)
         {
             var gated = Services.Metadata.Peek(fieldId, "", entry, slowLocation: false);
             return new(gated.State, "—", Formatters.SafeName(gated.Detail ?? ""), NeedsExplanation: true);

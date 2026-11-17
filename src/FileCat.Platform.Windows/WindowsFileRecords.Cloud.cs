@@ -9,8 +9,8 @@ namespace FileCat.Platform.Windows;
 /// <summary>
 /// A Cloud Files placeholder in its file-system record (D-56): what the Cloud Files API says of it — how much of it is on
 /// this device, its pin and in-sync states, its IDs, the identity its provider gave it — and of its sync root's provider
-/// and policies. Asked on the handle the record is read through, which only reads attributes: nothing is downloaded,
-/// its pin and in-sync states stay as they are, and no provider is started.
+/// and policies. Requested through the metadata handle. FileCat requests no content or state mutation; provider/OS
+/// network activity and side effects are not excluded by that contract.
 /// </summary>
 public sealed unsafe partial class WindowsFileRecords
 {
@@ -71,7 +71,7 @@ public sealed unsafe partial class WindowsFileRecords
         {
             if ((_attributes & 0x400) == 0 || !IsCloudTag(_reparseTag) || _remote) return null;
             const string Title = "Cloud placeholder (Cloud Files)";
-            var lines = Wrap("Its sync provider keeps its content, and Windows downloads it (hydrates it) when a program reads it. Read through the Cloud Files API on a handle that only reads attributes: nothing is downloaded, and its pin and in-sync states stay as they are.");
+            var lines = Wrap("Cloud Files metadata is requested through the item's metadata handle. FileCat requests no content or state mutation; providers may still perform network or OS activity. Pin policy, reported local data and synchronization are separate observations.");
             var problems = new List<string>();
             if (PlaceholderInfo(_item, problems, out string? failed) is not { } info)
                 return new InspectionSection(Title, []) { Lines = [.. lines, .. Wrap(failed ?? string.Join(" ", problems))] };

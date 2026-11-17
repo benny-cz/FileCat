@@ -702,13 +702,22 @@ public sealed partial class MainViewModel
         }
         // Permissions change without a new modification time: shown values are read again.
         if (job.Kind == JobKind.Attributes) Services.Metadata.Invalidate();
+        else if (job.Kind is not (JobKind.VerifyChecksums or JobKind.VerifyBeside or JobKind.ArchiveTest))
+            foreach (var field in Services.Metadata.Fields.Where(f => f.ObservationLane)) Services.Metadata.ForgetField(field.Id);
         // Verifying only reads: nothing to list again (the rows of the files it read ask for their new results).
         if (job.Kind == JobKind.Undo) RefreshAll();
         else if (job.Kind is not (JobKind.VerifyChecksums or JobKind.VerifyBeside)) RefreshAffected(job);
         // The job captured its sources; nothing reads them after this point.
         ItemSources.Release(job.Request.Sources);
         if (_editAfter.Remove(job, out var edit) && File.Exists(edit)) LaunchEditor(edit);
-        if (job.Kind == JobKind.Undo)
+        if (job.Kind == JobKind.StorageTransform)
+        {
+            var storage = job.StorageResult;
+            Notify($"{Formatters.SafeName(job.Title)}: {(storage is null ? "Storage result unavailable." : StorageOperationText.Details(storage))}" +
+                (storage?.ReviewPending == true || storage?.PersistenceFault == true ? " Review storage changes in Operations (Ctrl+J)." : ""),
+                StorageOperationText.Severity(storage, job.State) == "error");
+        }
+        else if (job.Kind == JobKind.Undo)
             Notify($"{Formatters.SafeName(job.Title)}: {job.Summary}. Open Undo report in Operations (Ctrl+J) for every outcome.", job.ItemsFailed > 0);
         else if (job.Kind is JobKind.VerifyChecksums or JobKind.VerifyBeside) _ = OnVerifyFinishedAsync(job);
         else switch (job.State)

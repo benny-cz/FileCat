@@ -7,7 +7,7 @@ internal sealed record FindFeedback(string Headline, string Qualifications, stri
     string EmptyExplanation, bool HasLog)
 {
     internal static FindFeedback Create(bool finished, bool complete, int resultCount, long folders, long files,
-        long matches, string? currentFolder, IReadOnlyList<SearchLogEntry> log, bool regexTimedOut, string scope)
+        long matches, string? currentFolder, IReadOnlyList<SearchLogEntry> log, bool regexTimedOut, string scope, long predicatesUnexamined = 0)
     {
         int inaccessible = log.Count(e => e.Kind == SearchLogKind.Inaccessible);
         int ignored = log.Count(e => e.Kind == SearchLogKind.Ignored);
@@ -19,6 +19,7 @@ internal sealed record FindFeedback(string Headline, string Qualifications, stri
 
         string headline = !finished
             ? resultCount == 0 ? "Searching · no matches yet" : "Searching · results are appearing"
+            : !complete && predicatesUnexamined > 0 ? resultCount == 0 ? "No matches in examined portion · coverage limited" : "Finished · coverage limited"
             : !complete ? resultCount == 0
                 ? "Stopped · no results yet · Only part of the scope was searched"
                 : "Stopped · partial results · Only part of the scope was searched"
@@ -32,6 +33,7 @@ internal sealed record FindFeedback(string Headline, string Qualifications, stri
         if (skipped > 0) reasons.Add($"{skipped:N0} skipped");
         if (gone > 0) reasons.Add($"{gone:N0} missing");
         var qualifications = new List<string>();
+        if (predicatesUnexamined > 0) qualifications.Add($"{predicatesUnexamined:N0} candidates unexamined for the requested predicates");
         if (notSearched > 0) qualifications.Add($"{notSearched:N0} not searched ({string.Join(", ", reasons)})");
         if (warnings > 0) qualifications.Add($"{warnings:N0} {Plural(warnings, "warning", "warnings")}");
         if (regexTimedOut) qualifications.Add("regular expression timed out for some files");
@@ -40,6 +42,7 @@ internal sealed record FindFeedback(string Headline, string Qualifications, stri
         if (!finished && !string.IsNullOrWhiteSpace(currentFolder)) activity += $" · {currentFolder}";
 
         string emptyHeadline = !finished ? "Searching… no matches yet"
+            : !complete && predicatesUnexamined > 0 ? "No matches in examined portion"
             : !complete ? "Search stopped with no results"
             : headline;
         string emptyExplanation = $"Criteria and scope: {scope}";

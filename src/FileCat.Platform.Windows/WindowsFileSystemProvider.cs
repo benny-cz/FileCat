@@ -8,7 +8,7 @@ namespace FileCat.Platform.Windows;
 /// Windows file-system provider: device keys per volume or SMB server (queues and hang isolation, §6.3)
 /// and Recycle Bin availability per location (none on UNC shares and most removable media, §5.3).
 /// </summary>
-public sealed class WindowsFileSystemProvider : LocalFileSystemProvider
+public sealed partial class WindowsFileSystemProvider : LocalFileSystemProvider
 {
     public override string GetDeviceKey(Location location)
     {

@@ -13,6 +13,7 @@ using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Commands;
 using FileCat.Core.Jobs;
+using FileCat.Core.FileSystem;
 
 namespace FileCat.App.Views;
 
@@ -632,9 +633,12 @@ public partial class OperationsView : UserControl
 
     private void RevealRecoveryAction()
     {
-        if (Center is not { IsOpen: true, Jobs.Count: 0 } center) return;
+        if (Center is not { IsOpen: true } center) return;
+        if (center.Jobs.Count > 0 && center.SelectedInterrupted?.IsStorage != true) return;
         var buttons = RecoveryScroll.GetVisualDescendants().OfType<Button>();
-        var action = center.SelectedInterrupted is { CanReviewArchiveCleanup: true, IsActionBusy: false } selected
+        var action = center.SelectedInterrupted is { IsStorage: true, IsActionBusy: false } storage
+            ? buttons.FirstOrDefault(button => ReferenceEquals(button.Tag, storage) && button.Content as string == storage.ReportButtonText && button.IsEffectivelyVisible)
+            : center.SelectedInterrupted is { CanReviewArchiveCleanup: true, IsActionBusy: false } selected
             ? buttons.FirstOrDefault(button => ReferenceEquals(button.Tag, selected) && button.Content as string == selected.CleanupLabel && button.IsEffectivelyVisible)
             : center.SelectedInterrupted is null && center.HasReviewedRecovery
                 ? buttons.FirstOrDefault(button => button.Tag is RecoveryReviewRecord && button.IsEffectivelyVisible) : null;
@@ -664,6 +668,21 @@ public partial class OperationsView : UserControl
     {
         if ((sender as Button)?.Tag is InterruptedJobViewModel item && Main is { } main)
             await main.ShowInterruptedReportAsync(item.Job);
+    }
+
+    private async void OnReviewStorageChanges(object? sender, RoutedEventArgs e)
+    {
+        if (JobOf(sender) is not { } row || Main is not { } main || Center is not { } center) return;
+        var candidate = center.Manager.StorageHistoryCandidate(row.Job);
+        if (center.ReviewedRecovery.FirstOrDefault(r => PathUtil.SafetyComparer.Equals(r.JournalPath, candidate.JournalPath) && r.StorageAcknowledgment is not null) is { } reviewed)
+        {
+            new ReportWindow("Reviewed storage history", Formatters.SafeName(reviewed.Title), _ => Task.FromResult(reviewed.Report)).Show();
+            return;
+        }
+        center.AddInterrupted(candidate);
+        center.SelectedInterrupted = center.Interrupted.First(r => PathUtil.SafetyComparer.Equals(r.Job.JournalPath, candidate.JournalPath));
+        center.IsOpen = true;
+        await main.ShowInterruptedReportAsync(center.SelectedInterrupted.Job);
     }
 
     private async void OnMarkInterruptedReviewed(object? sender, RoutedEventArgs e)

@@ -18,6 +18,7 @@ public sealed unsafe partial class WindowsHiddenData : IHiddenData
     private const int NoEas = unchecked((int)0xC0000052), NoMoreEas = unchecked((int)0x80000012), EaListInconsistent = unchecked((int)0x80000014);
 
     public bool IsSupported => true;
+    public bool SupportsEaValueQuery => true;
 
     public IReadOnlyList<HiddenItem> List(string path)
     {
@@ -49,30 +50,38 @@ public sealed unsafe partial class WindowsHiddenData : IHiddenData
 
     public byte[] Read(string path, HiddenItem item, int max)
     {
-        if (item.Kind == HiddenKind.NtfsAttribute)
-            return ReadEas(path).FirstOrDefault(e => e.Name.Equals(item.Name, StringComparison.OrdinalIgnoreCase)).Value is { } value
-                ? value[..Math.Min(value.Length, max)]
-                : throw new FileNotFoundException($"{path} has no attribute {item.Name}.");
+        if (max < 0) throw new ArgumentOutOfRangeException(nameof(max));
+        if (item.Kind == HiddenKind.NtfsAttribute) return ReadExactEa(path, item, max);
+        if (item.Kind != HiddenKind.Stream) throw new NotSupportedException("This supplementary category does not belong to the Windows adapter.");
         using var stream = Open(path, item);
-        var buffer = new byte[(int)Math.Min(max, Math.Max(0, item.Size))];
+        var buffer = new byte[(int)Math.Min(max, stream.Length)];
         int read = stream.ReadAtLeast(buffer, buffer.Length, throwOnEndOfStream: false);
         return buffer[..read];
     }
 
     public Stream Open(string path, HiddenItem item) => item.Kind == HiddenKind.NtfsAttribute
         ? new MemoryStream(Read(path, item, int.MaxValue), writable: false)
-        : new FileStream(path + ":" + item.Name, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16);
+        : item.Kind == HiddenKind.Stream ? new FileStream(OpenExactStream(path, item, 1 /* FILE_READ_DATA */), FileAccess.Read, 1 << 16)
+        : throw new NotSupportedException("This supplementary category does not belong to the Windows adapter.");
 
     public void Delete(string path, HiddenItem item)
     {
         if (item.Kind == HiddenKind.Stream)
         {
-            File.Delete(path + ":" + item.Name);
+            using var stream = OpenExactStream(path, item, 0x10000 /* DELETE */, deleting: true);
+            byte disposition = 1;
+            if (!SetInventoryInfo(stream, 4 /* FileDispositionInfo */, &disposition, 1)) throw Error(Marshal.GetLastPInvokeError(), path);
             return;
         }
+        if (item.Kind != HiddenKind.NtfsAttribute) throw new NotSupportedException("This supplementary category does not belong to the Windows adapter.");
         // An EA written with no value is removed; the kernel's own ($KERNEL.*) refuse.
-        using var handle = OpenForEas(path, FileWriteEa);
-        byte[] name = Encoding.ASCII.GetBytes(item.Name);
+        using var handle = OpenForEas(path, FileReadEa | FileWriteEa | 0x80 | 0x100000);
+        RefuseManagedObject(handle);
+        var inventory = ReadEaInventory(handle, default);
+        if (inventory.State != HiddenInventoryState.Complete) throw new IOException("The EA category could not be completely resolved; refresh required.");
+        var current = inventory.Items.SingleOrDefault(i => i.Name == item.Name) ?? throw new FileNotFoundException("The exact EA is missing; refresh required.");
+        if (HiddenMetadataRoles.DeleteRefusal(current) is { } refusal) throw new NotSupportedException(refusal);
+        byte[] name = EaName(item.Name);
         var buffer = new byte[(9 + name.Length + 1 + 3) & ~3];
         buffer[5] = (byte)name.Length;
         name.CopyTo(buffer, 8);

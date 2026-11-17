@@ -88,7 +88,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             var flags = Words(attributes & known, StatxAttributes);
             if (flags.Length > 0) item.Add(("Attributes", flags));
             var lines = new List<string>();
-            var inodeFlags = IsRegular || IsFolder ? InodeFlags(inode) : null;
+            var inodeFlags = IsRegular || IsFolder ? InodeFlags(inode, mount?.Type) : null;
             if (inodeFlags is { } f)
             {
                 item.Add(("Inode flags", f.Text));
@@ -185,7 +185,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
         private sealed record InodeInfo(string Text, uint? Generation, uint? Project, string? Problem, List<(long Logical, long Physical, long Length, uint Flags)>? Extents);
 
         /// <summary>The flags lsattr shows, the generation, the project ID, and the extents, through a descriptor opened only to read.</summary>
-        private InodeInfo? InodeFlags(ulong inode)
+        private InodeInfo? InodeFlags(ulong inode, string? fileSystem)
         {
             // O_RDONLY | O_NONBLOCK | O_NOCTTY | O_CLOEXEC | O_NOFOLLOW (whose value depends on the architecture).
             int noFollow = RuntimeInformation.ProcessArchitecture is Architecture.Arm64 or Architecture.Arm or Architecture.Ppc64le ? 0x8000 : 0x20000;
@@ -202,7 +202,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
                 if (Statx(fd, "", 0x1000 /* AT_EMPTY_PATH */, 0x100, check) != 0 || *(ulong*)(check + 32) != inode) return null;
                 string text = "not kept by this file system";
                 int flagsValue = 0;
-                if (Ioctl(fd, 0x8008_6601 /* FS_IOC_GETFLAGS */, &flagsValue) == 0) text = LsattrText((uint)flagsValue);
+                if (Ioctl(fd, 0x8008_6601 /* FS_IOC_GETFLAGS */, &flagsValue) == 0) text = LsattrText((uint)flagsValue, fileSystem);
                 uint generation = 0;
                 uint? gen = Ioctl(fd, 0x8008_7601 /* FS_IOC_GETVERSION */, &generation) == 0 ? generation : null;
                 byte* xattr = stackalloc byte[28];
@@ -328,7 +328,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             if (attrs.Backup is { Seconds: not 0 } backup) extra.Add(("Backed up", backup.ToString()));
             _sections.Add(timeSection with { Fields = extra });
             _sections.Add(ChecksSection(times));
-            var layout = LayoutSection(attrs.TotalSize ?? 0, attrs.AllocatedSize ?? -1, 0, null);
+            var layout = LayoutSection(attrs.TotalSize ?? -1, attrs.AllocatedSize ?? -1, 0, null);
             var layoutFields = new List<(string, string)>(layout.Fields);
             if (attrs.ResourceLength is > 0) layoutFields.Add(("Resource fork", RecordText.Bytes(attrs.ResourceLength.Value)));
             if (attrs.PrivateSize is { } own && attrs.CloneId is not (null or 0)) layoutFields.Add(("Its own blocks", RecordText.Bytes(own) + " (not shared with its clones)"));
@@ -385,25 +385,18 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             InspectionTable? table = null;
             if (extents is { Count: > 0 })
             {
-                int fragments = 0;
-                long end = -1;
-                foreach (var e in extents)
-                {
-                    if (e.Physical != end) fragments++;
-                    end = e.Physical + e.Length;
-                }
                 int shared = extents.Count(e => (e.Flags & 0x2000) != 0);
-                fields.Add(("Fragments", $"{fragments:N0} ({extents.Count:N0} extent{(extents.Count == 1 ? "" : "s")})" + (shared > 0 ? $", {shared:N0} shared with other files (reflinks or snapshots)" : "")));
+                fields.Add(("Returned extent records", $"{extents.Count:N0}; completeness not established" + (shared > 0 ? $", {shared:N0} report sharing (reflinks or snapshots)" : "")));
                 table = new InspectionTable(["Offset in file", "On the device", "Length", "Flags"], extents.Take(200).Select(e => new[]
                 {
-                    e.Logical.ToString("N0", CultureInfo.CurrentCulture), e.Physical.ToString("N0", CultureInfo.CurrentCulture),
+                    e.Logical.ToString("N0", CultureInfo.CurrentCulture), (e.Flags & (0x2u | 0x4u | 0x8u | 0x80u | 0x100u | 0x200u | 0x400u)) != 0 ? "Physical location unavailable" : e.Physical.ToString("N0", CultureInfo.CurrentCulture),
                     e.Length.ToString("N0", CultureInfo.CurrentCulture), Words(e.Flags & ~1u, ExtentFlagNames),
                 }).ToList())
                 {
                     More = extents.Count > 200 ? $"{extents.Count - 200:N0} more extents are not listed." : null,
                 };
             }
-            else if (extents is { Count: 0 } && size > 0) fields.Add(("Extents", "none mapped (its data is inline, or not yet written)"));
+            else if (extents is { Count: 0 } && size > 0) fields.Add(("Returned extent records", "none returned; storage representation not established"));
             return new InspectionSection("Layout on disk", fields) { Table = table };
         }
 
@@ -436,14 +429,14 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
                 if (Value("security.capability") is { } caps && HiddenDataDecoder.Capabilities(caps) is { } decoded)
                 {
                     fields.Add(("Capabilities", decoded.Item1["Capabilities: ".Length..]));
-                    findings.Add(new(false, $"It runs with capabilities ({decoded.Item1["Capabilities: ".Length..]}) for whoever starts it."));
+                    findings.Add(new(false, $"Recorded execution capabilities: {decoded.Item1["Capabilities: ".Length..]}. Execution policy, nosuid and no_new_privs can suppress privilege changes."));
                 }
             }
             else if (MacAcl(path) is { Count: > 0 } acl)
             {
                 children.Add(new InspectionSection("ACL", []) { Table = new InspectionTable(["Type", "Who", "Rights", "Flags"], acl.Select(e => new[] { e.Type, e.Who, e.Rights, e.Flags }).ToList()) });
                 foreach (var e in acl.Where(e => e.Type == "allow" && e.Who is "everyone" or "group:everyone" && e.Rights.Contains("write", StringComparison.Ordinal)))
-                    findings.Add(new(true, $"Everyone may {e.Rights} (an ACL entry)."));
+                    findings.Add(new(true, $"Recorded allow ACL entry for everyone: {e.Rights}. Other entries and policy affect effective access."));
             }
             Weak(findings, mode);
             var lines = new List<string>();
@@ -461,22 +454,22 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             bool otherWrite = (mode & UnixFileMode.OtherWrite) != 0;
             if (IsFolder && otherWrite)
                 findings.Add((mode & UnixFileMode.StickyBit) != 0
-                    ? new(false, "Anyone on this computer can add items to it; only their owners can delete or rename them (sticky bit).")
-                    : new(true, "Anyone on this computer can add, delete, and rename items in it: it is world-writable without the sticky bit."));
+                    ? new(false, "Other-user write bit is set. The sticky bit additionally restricts deletion and rename to the entry owner, directory owner or an appropriately privileged process, subject to other access checks.")
+                    : new(true, "Other-user write bit is set on a directory without the sticky bit. ACLs, search rights, mount options and policy still affect effective access."));
             else if (IsRegular && otherWrite)
-                findings.Add(new(true, "Anyone on this computer can change its content: it is world-writable."));
+                findings.Add(new(true, "Other-user write bit is set. ACLs, mount options, identity and policy still affect effective access."));
             else if ((_mode & TypeMask) == 0x6000 && (mode & (UnixFileMode.OtherRead | UnixFileMode.OtherWrite)) != 0)
-                findings.Add(new(true, $"Anyone on this computer can {((mode & UnixFileMode.OtherWrite) != 0 ? "read and write" : "read")} this whole device, past every file system on it."));
+                findings.Add(new(true, "Other-user read/write permission bits are recorded on a block device; effective access depends on other checks."));
             else if ((_mode & TypeMask) is 0x1000 or 0xC000 && otherWrite)
-                findings.Add(new(false, "Anyone on this computer can write to it."));
+                findings.Add(new(false, "Other-user write bit is set; effective access depends on other checks."));
             if (IsRegular && (mode & UnixFileMode.SetUser) != 0)
             {
                 bool othersWrite = (mode & (UnixFileMode.GroupWrite | UnixFileMode.OtherWrite)) != 0;
-                string runs = $"It runs as {UnixPermissions.UserName(_uid)} for whoever starts it (set-user-ID)";
-                findings.Add(new RecordFinding(othersWrite, runs + (othersWrite ? ", and others can change it." : ".")));
+                string runs = $"Recorded set-user-ID execution attribute for {UnixPermissions.UserName(_uid)}; nosuid, no_new_privs and other execution rules can suppress privilege changes.";
+                findings.Add(new RecordFinding(othersWrite, runs + (othersWrite ? " Group/other write bits are also set." : "")));
             }
             if (IsRegular && (mode & UnixFileMode.SetGroup) != 0)
-                findings.Add(new(false, $"It runs with the group {UnixPermissions.GroupName(_gid)} for whoever starts it (set-group-ID)."));
+                findings.Add(new(false, $"Recorded set-group-ID execution attribute for {UnixPermissions.GroupName(_gid)}; nosuid, no_new_privs and other execution rules can suppress privilege changes."));
         }
 
         private static T? Try<T>(Func<T> read) where T : class
@@ -563,19 +556,21 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
     }
 
     /// <summary>The flags as lsattr prints them ("----i---------e-----"), then in words.</summary>
-    internal static string LsattrText(uint flags)
+    internal static string LsattrText(uint flags, string? fileSystem = null)
     {
         (uint Flag, char Letter, string Word)[] all =
         [
-            (0x1, 's', "secure deletion"), (0x2, 'u', "undeletable"), (0x8, 'S', "synchronous updates"), (0x10000, 'D', "synchronous folder updates"),
+            (0x1, 's', "recorded s flag"), (0x2, 'u', "recorded u flag"), (0x8, 'S', "synchronous updates"), (0x10000, 'D', "synchronous folder updates"),
             (0x10, 'i', "immutable"), (0x20, 'a', "append only"), (0x40, 'd', "no dump"), (0x80, 'A', "no access time"),
-            (0x4, 'c', "compressed"), (0x800, 'E', "encrypted"), (0x4000, 'j', "data journaling"), (0x1000, 'I', "indexed folder"),
+            (0x4, 'c', "recorded c flag"), (0x800, 'E', "file encryption flag"), (0x4000, 'j', "data journaling"), (0x1000, 'I', "indexed folder"),
             (0x8000, 't', "no tail merging"), (0x20000, 'T', "top of a hierarchy"), (0x80000, 'e', "extents"), (0x800000, 'C', "no copy on write"),
             (0x2000000, 'x', "DAX"), (0x40000000, 'F', "case-insensitive"), (0x10000000, 'N', "inline data"), (0x20000000, 'P', "project inherit"),
             (0x100000, 'V', "fs-verity"), (0x400, 'm', "no compression"),
         ];
         string letters = new(all.Select(a => (flags & a.Flag) != 0 ? a.Letter : '-').ToArray());
         var words = all.Where(a => (flags & a.Flag) != 0).Select(a => a.Word).ToList();
+        if ((flags & 7) != 0) words.Add(fileSystem is "ext2" or "ext3" or "ext4"
+            ? "Recorded flag; behavior not implemented by this filesystem" : "Behavior not qualified");
         return words.Count > 0 ? $"{letters} · {string.Join(", ", words)}" : letters + " · none";
     }
 
@@ -585,10 +580,10 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
         (uint Flag, string Name, string Word)[] all =
         [
             (0x1, "nodump", "not dumped"), (0x2, "uchg", "immutable"), (0x4, "uappnd", "append only"), (0x8, "opaque", "opaque in a union mount"),
-            (0x20, "compressed", "compressed by the file system"), (0x40, "tracked", "tracked for document IDs"), (0x80, "datavault", "data vault"),
+            (0x20, "compressed", "compressed representation flag"), (0x40, "tracked", "tracked for document IDs"), (0x80, "datavault", "data vault"),
             (0x8000, "hidden", "hidden in the Finder"), (0x10000, "arch", "archived"), (0x20000, "schg", "system immutable"),
             (0x40000, "sappnd", "system append only"), (0x80000, "restricted", "protected by System Integrity Protection"),
-            (0x100000, "sunlnk", "cannot be deleted"), (0x800000, "firmlink", "a firmlink"), (0x40000000, "dataless", "dataless (its content is in the cloud)"),
+            (0x100000, "sunlnk", "unlink restriction flag"), (0x800000, "firmlink", "a firmlink"), (0x40000000, "dataless", "provider-managed/dataless; local content not established"),
         ];
         var set = all.Where(a => (flags & a.Flag) != 0).ToList();
         uint known = all.Aggregate(0u, (acc, a) => acc | a.Flag);
@@ -639,17 +634,21 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             }
             catch (Exception ex) when (ex is EntryPointNotFoundException or DllNotFoundException) { return null; }
             if (result != 0) return null;
-            int length = (int)Math.Min(BinaryPrimitives.ReadUInt32LittleEndian(buffer), (uint)buffer.Length);
+            uint reported = BinaryPrimitives.ReadUInt32LittleEndian(buffer);
+            if (reported < 24 || reported > buffer.Length) throw new InvalidDataException("Invalid getattrlist result length.");
+            int length = (int)reported;
             int at = 4;
             uint U32()
             {
-                uint v = at + 4 <= length ? BinaryPrimitives.ReadUInt32LittleEndian(buffer.AsSpan(at)) : 0;
+                if (at > length - 4) throw new InvalidDataException("Truncated getattrlist scalar slot.");
+                uint v = BinaryPrimitives.ReadUInt32LittleEndian(buffer.AsSpan(at));
                 at += 4;
                 return v;
             }
             ulong U64()
             {
-                ulong v = at + 8 <= length ? BinaryPrimitives.ReadUInt64LittleEndian(buffer.AsSpan(at)) : 0;
+                if (at > length - 8) throw new InvalidDataException("Truncated getattrlist scalar slot.");
+                ulong v = BinaryPrimitives.ReadUInt64LittleEndian(buffer.AsSpan(at));
                 at += 8;
                 return v;
             }

@@ -93,7 +93,7 @@ public sealed partial class UnixFileRecordTests
             string file = Path.Combine(dir, "shared.txt");
             File.WriteAllText(file, "x");
             File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.OtherRead | UnixFileMode.OtherWrite);
-            Assert.Contains(Read(file).Warnings, w => w == "Permissions: Anyone on this computer can change its content: it is world-writable.");
+            Assert.Contains(Read(file).Warnings, w => w.StartsWith("Permissions: Other-user write bit is set.", StringComparison.Ordinal));
 
             string open = Directory.CreateDirectory(Path.Combine(dir, "open")).FullName;
             File.SetUnixFileMode(open, (UnixFileMode)0x1FF);

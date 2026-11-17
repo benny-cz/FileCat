@@ -190,6 +190,11 @@ public sealed class MetadataOrderSnapshot : IDisposable
             case Principal p: chars = p.Id.Length + (long)p.Authority.Length; bytes += 64 + 2 * chars; return true;
             case PrincipalOrderKey p: chars = p.RetainedCharacters; bytes += 96 + 2 * chars; return true;
             case MetadataTextKey text: chars = text.RetainedCharacters; bytes += 64 + 2 * chars; return true;
+            case FileDetailsFields.Cell cell:
+                if (!Payload(cell.Key, out long keyBytes, out long keyChars)) return false;
+                chars = cell.Text.Length + (long)cell.Explanation.Length + keyChars;
+                bytes = 96 + 2 * chars + keyBytes;
+                return true;
             case Version: bytes = 64; return true;
             case bool or byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal
                 or DateTime or DateTimeOffset or TimeSpan or UnixFileMode or ValueTuple<int, int>: return true;

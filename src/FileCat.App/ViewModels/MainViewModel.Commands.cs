@@ -48,6 +48,16 @@ public sealed partial class MainViewModel
         }
         switch (id)
         {
+            case CommandIds.FileRecord:
+            case CommandIds.HiddenData:
+                if (id == CommandIds.FileRecord && !Services.Platform.FileRecords.IsSupported)
+                    return CommandAvailability.No("File-system details are unsupported on this system.");
+                if (id == CommandIds.HiddenData && (!Services.Providers.TryGet(Schemes.HiddenData, out var supplementaryProvider) ||
+                    supplementaryProvider is not Core.HiddenData.HiddenDataProvider { Data.IsSupported: true }))
+                    return CommandAvailability.No("Supplementary file data is unsupported on this system.");
+                return tab is not null && tab.Listing.TryGetFocused(out var detailsItem) && detailsItem.Kind != EntryKind.Parent &&
+                    tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex).FileSystemPath is not null
+                    ? CommandAvailability.Yes : CommandAvailability.No("Focus a file or folder on a filesystem; archive, remote and virtual display paths are not local objects.");
             case CommandIds.RemoveFromSet:
                 return (caps & LocationCapabilities.ReferenceContainer) != 0 && hasItem
                     ? CommandAvailability.Yes

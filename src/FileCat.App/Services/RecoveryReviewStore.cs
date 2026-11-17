@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using FileCat.Core.Jobs;
 
 namespace FileCat.App.Services;
 
@@ -8,8 +9,11 @@ namespace FileCat.App.Services;
 public sealed record RecoveryReviewRecord(string JournalPath, string Title, string Kind, DateTime CapturedUtc,
     string Action, string Report, bool ClosureConfirmed)
 {
+    public StorageReviewAcknowledgment? StorageAcknowledgment { get; init; }
     public string Display => Formatters.SafeName(Title) + " · " + CapturedUtc.ToLocalTime().ToString("g") +
-                             (ClosureConfirmed ? " · recovery tracking closed" : " · closure not confirmed");
+                             (StorageAcknowledgment is { } storage ? storage.Reviewed.EffectUncertain || storage.Reviewed.Damaged || storage.Reviewed.LimitReached
+                                 ? " · Reviewed; effect remains uncertain" : " · storage history acknowledged"
+                                 : ClosureConfirmed ? " · recovery tracking closed" : " · closure not confirmed");
     public string OpenLabel => "Open reviewed recovery report for " + Formatters.SafeName(Title);
 }
 
@@ -34,6 +38,7 @@ internal static class RecoveryReviewStore
                 using var stream = file.OpenRead();
                 var record = JsonSerializer.Deserialize<RecoveryReviewRecord>(stream);
                 if (record is null || string.IsNullOrWhiteSpace(record.Title) ||
+                    record.Kind == nameof(JobKind.StorageTransform) || record.StorageAcknowledgment is not null ||
                     record.Report is null || record.Report.Length > MaxReportCharacters ||
                     record.JournalPath is null || record.Action is null) continue;
                 records.Add(record);
@@ -45,6 +50,8 @@ internal static class RecoveryReviewStore
 
     internal static void Save(string journalDirectory, RecoveryReviewRecord record)
     {
+        if (record.Kind == nameof(JobKind.StorageTransform) || record.StorageAcknowledgment is not null)
+            throw new InvalidOperationException("Storage review reports must use the exact-snapshot Core acknowledgment path.");
         ArgumentException.ThrowIfNullOrWhiteSpace(record.JournalPath);
         if (record.Report.Length > MaxReportCharacters)
             throw new InvalidDataException("The recovery report exceeds the retained-detail budget; its journal remains open.");

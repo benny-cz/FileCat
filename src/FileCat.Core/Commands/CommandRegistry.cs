@@ -306,8 +306,8 @@ public sealed class CommandRegistry
         Add(CommandIds.Open, "Open", F, null, CommandContext.Panel, "Enter");
         Add(CommandIds.OpenWithSystem, "Open with system application", F, null, CommandContext.Panel, "Shift+Enter");
         Add(CommandIds.Properties, "Properties", F, null, CommandContext.Panel, "Alt+Enter");
-        Add(CommandIds.HiddenData, "Streams and attributes", F, null, CommandContext.Panel, "Alt+Shift+Enter");
-        Add(CommandIds.FileRecord, "File-system record", F, null, CommandContext.Panel, "Ctrl+Alt+Enter");
+        Add(CommandIds.HiddenData, OperatingSystem.IsWindows() ? "Streams and attributes" : OperatingSystem.IsMacOS() ? "Extended attributes and resource fork" : "Extended attributes", F, null, CommandContext.Panel, "Alt+Shift+Enter");
+        Add(CommandIds.FileRecord, "File-system details…", F, null, CommandContext.Panel, "Ctrl+Alt+Enter");
         Add(CommandIds.ContextMenu, "Context menu", F, "Context", CommandContext.Panel, "Shift+F10", "Apps");
         Add(CommandIds.Reveal, OperatingSystem.IsWindows() ? "Reveal in Explorer" : "Reveal in file manager", F, "Reveal", CommandContext.Panel, "Shift+F3");
         Add(CommandIds.Checksum, "Calculate checksums…", F);
@@ -494,6 +494,7 @@ public sealed class CommandRegistry
     private static void AddSearchWords(CommandRegistry r)
     {
         void K(string id, params string[] words) => r.AddKeywords(id, words);
+        K(CommandIds.FileRecord, "file-system record", "reparse", "junction", "symlink", "mount", "streams", "xattr", "resource fork", "hard links", "sparse", "allocation", "WOF", "inode", "APFS");
         // What a title cannot say: which items a command takes, and where its result goes.
         r.Describe(CommandIds.CompareFiles, "Two marked files, one marked in each panel, or the file under the cursor and the file of the same name in the other panel.");
         r.Describe(CommandIds.ChangeJournal, "Lists what the drive's change journal records, newest first: each item made, changed, renamed, or deleted, when, and in which folder. Enter goes to an item, F3 shows the whole entry. Needs administrator rights (NTFS and ReFS).");
@@ -521,7 +522,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.MakeDirectory, "Creates a new folder in this panel's folder.");
         r.Describe(CommandIds.Delete, $"Moves the marked items (or the one under the cursor) to {FileCat.Core.Jobs.RecycleText.Destination}; Shift+Del deletes permanently.");
         r.Describe(CommandIds.Properties, "Shows the properties of the item under the cursor.");
-        r.Describe(CommandIds.FileRecord, "Shows what the file system itself records about the item: its IDs, every time it keeps with checks for times set by a program, the change journal, hard links, object ID, reparse data (cloud placeholders too), who can decrypt an encrypted item, clusters, and security. As administrator on NTFS also its MFT record with every attribute's runs, its $ObjId and $Reparse index entries, and its history in the change journal; as root on Linux and macOS, its raw FAT or exFAT entry, ext4's inode as the disk keeps it, and HFS+'s journal.");
+        r.Describe(CommandIds.FileRecord, "Shows filesystem metadata for the captured focused item. Summary reads no content or target contents; Read full record explicitly adds bounded metadata. Unqualified payload previews, extent collectors and raw-volume sections are omitted.");
         r.Describe(CommandIds.HiddenData, "Lists what the item carries beside its contents: alternate data streams and NTFS attributes on Windows, extended attributes (and the resource fork) on Linux and macOS, each decoded. F3 views one, F5 saves it as a file, F8 deletes it.");
         r.Describe(CommandIds.Pack, "Packs the marked items (or the one under the cursor) into a new ZIP file.");
         r.Describe(CommandIds.Unpack, "Unpacks the archive under the cursor, or the marked archives.");

@@ -154,7 +154,7 @@ public class LocalFileSystemProvider : ResourceProvider
     /// Settings"…) deny everyone "List folder" so that programs walking a profile do not loop through them, yet paths
     /// through them work. Only Windows gives a link permissions of its own.
     /// </summary>
-    internal static string? ListableTargetOfRefusedLink(string path)
+    protected internal static string? ListableTargetOfRefusedLink(string path)
     {
         if (!OperatingSystem.IsWindows()) return null;
         try

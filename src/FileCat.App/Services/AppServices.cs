@@ -100,8 +100,10 @@ public sealed class AppServices : IDisposable
         Zip.SpoolForeignMember = Archives.Spool;
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = new ContainerDetectors(Zip, Archives);
         Formatters.DateFormat = Settings.DateFormat;
-        Jobs = archiveBackends is null ? new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory)
-            : new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory, archiveBackends);
+        Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory,
+            archiveBackends ?? Core.Archives.ArchiveJobBackends.Empty, Platform.StorageTransforms,
+            OperatingSystem.IsWindows() ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateJournal : null,
+            OperatingSystem.IsWindows() ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Backend : null);
         Archives.MutationAvailability = plan => Jobs.CanReviewArchive(plan) ? Jobs.ArchiveAvailability(plan)
             : Core.Archives.ArchiveJobAvailability.Unqualified;
         // A ZIP route composed here moves ZIP changes to the worker profile, available or refused with its reason; without
@@ -138,7 +140,7 @@ public sealed class AppServices : IDisposable
         var ownership = ownershipOverride ?? Platform.Ownership;
         PrincipalNames = new PrincipalNames(ownership);
         Metadata = new Core.Metadata.MetadataService(Io, metadataClock ?? (() => Environment.TickCount64),
-            maxCache: metadataCacheSize, ownership: ownership, names: PrincipalNames);
+            maxCache: metadataCacheSize, ownership: ownership, names: PrincipalNames, fileRecords: Platform.FileRecords);
         // Checksums and signatures beside files (D-57): results kept in the cache folder; trusted minisign keys in the keys
         // folder (made now, so the advice that names it points to a folder that is there).
         try { Directory.CreateDirectory(KeyDirectory); }

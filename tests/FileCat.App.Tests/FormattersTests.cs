@@ -34,7 +34,7 @@ public sealed class FormattersTests
             Attributes = (uint)attributes,
             Flags = Core.Resources.EntryFlags.Offline,
         };
-        Assert.Equal("RHSACELO", Formatters.Attributes(entry));
+        Assert.Equal(OperatingSystem.IsWindows() ? "RHSACEPO" : "LO", Formatters.Attributes(entry));
         Assert.Equal(string.Empty, Formatters.Attributes(new Core.Resources.EntryData("..", Core.Resources.EntryKind.Parent)));
     }
 

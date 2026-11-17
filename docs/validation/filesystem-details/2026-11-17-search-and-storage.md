@@ -1,0 +1,49 @@
+# Search scope and reviewed storage ownership — 2026-11-17
+
+This continues the [column checkpoint](2026-11-17-columns.md) on `main`. The overall filesystem and NTFS plans remain incomplete. The user explicitly requires EFS alongside the other features; its identity/key/output prerequisites remain unresolved work, rather than a scope omission.
+
+## Find predicate scope
+
+NativeSearchPredicates is a shared, pure admission/meaning layer. Fresh, saved and refinement requests validate both required-set and required-clear bits before path lookup. The advanced dialog preserves unsupported saved bits visibly, disables their controls and requires explicit removal. Unknown bits are retained until removed. Windows compressed/EFS/sparse/offline/reparse criteria name their actual native-bit meaning; they do not infer Unix compression, volume encryption, residency, savings or target state.
+
+Archive/provider-only scopes refuse native predicates before lookup. Mixed refinement and archive discovery count inapplicable members as unexamined for either polarity, instead of allowing negative predicates to match them. Exact aggregate coverage survives the bounded log. A naturally finished incomplete search says coverage is limited; it is not described as canceled. An incomplete refinement does not silently replace the original set.
+
+The focused Core selection passed **35 tests** on the host, Ubuntu and macOS. The final focused App selection passed **29 tests on each of Windows, Ubuntu and macOS**, zero failures/skips. The first Unix App runs found a fixture lacking product styles; the corrected styled fixture passed. Windows ran at medium integrity. The native Windows search fixture passed **one test**, qualifying actual sparse, offline and symbolic-link attribute set/clear predicates without content search. This is a focused result, not completion of every F-FIND or F6 gate.
+
+## Compression request and ownership foundation
+
+JobKind.StorageTransform is appended after Undo. AppServices composes IPlatform.StorageTransforms through JobManager and typed executor dispatch. The default adapter remains unsupported. C-only fakes require no EFS, ADS or key service.
+
+Preparation validates every captured Windows unnamed-stream path and the bounded metadata before any native pin acquisition. The path grammar is independent of the test host's Path.Join. Original sources, root-to-pin mappings and observations remain immutable/readable after native retirement. Action/scope/revision approvals are explicit. Invalid enums, EFS actions awaiting qualification, stale reviews, wrong adapters, missing pins, stream spellings, unsupported kinds and generic payload reconstruction refuse before transfer/job/journal.
+
+ReviewedStorageRoots separates immutable facts from a one-shot opaque native owner. Preparation reserves the whole requested root allowance from the fixed 256-pin pool. One independent native preparation owns the 188-slot allowance through its synchronous return; blocked native work does not release that allowance merely because cancellation was requested. Simultaneously held same-volume/object pins may be deduplicated while every original mapping survives. This is not textual ancestry pruning. Queued jobs retain their pins, and cancellation/admission failure retire them exactly once. Storage worker ownership retires after journal finalization/disposal and before terminal publication.
+
+Scheduler cancellation retirement now occurs outside the manager lock. Candidates are rechecked, launch claims have one consumer, and active/starting ownership wins independently of queue ordering. Paused-before-start requests clear stale blocker references. Storage jobs declare exclusive scheduling and explain that wait. Registration/JobAdded remain abortable admission boundaries; afterward each notification subscriber is contained independently. A throwing Running notification does not abort the admitted archive backend or erase its live password early. The corresponding earlier regression assertion was updated to this intentional contract change.
+
+The typed storage dispatch currently reports an explicit execution refusal and NotProcessed counts. It performs no mutation. Held traversal, atomic call/Pause/Stop admission, durable per-call evidence/recovery, full resource accounting and review UI are still required before enabling execution. The fixed preparation allowance is not yet evidence for the full 448-handle worker/history/export bound.
+
+The initial focused deterministic storage contracts/owners/scheduler selection passed **38 tests**, zero failures/skips. Core/App/Windows test builds passed with zero warnings/errors. Broader native lifecycle regression results are recorded below after completion.
+
+## Held compression ABI qualification
+
+WindowsCompression is an internal held-stream primitive, not an enabled storage adapter. GET and SET use the supplied handle and expose the exact native result/postcondition. There is no pathname fallback, cancellation gap inside an admitted call, EFS action or interpretation of DEFAULT as a returned enabled state. The caller must establish eligibility, rights, ownership and durable intent before invoking SET.
+
+Constants were checked against installed Windows SDK headers (`10.0.22000.0/km/ntifs.h` and `10.0.22621.0/um/winioctl.h`, `winnt.h`): GET `0x9003C`, SET `0x9C040`, formats NONE=0, DEFAULT=1, LZNT1=2. Microsoft documents [synchronous SET and folder defaults](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_set_compression) and [per-stream GET with DEFAULT excluded from observed states](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_compression).
+
+The disposable Windows fixtures exercise a live metadata-only pin alongside a read/write, share-read mutation handle; main and named streams with different compression states and SHA-256 preservation; directory GET/SET/GET plus bounded same-handle enumeration and relative child mutation; preservation of the directory ReadOnly marker; and native SET refusal on an attributes-only handle followed by a successful postcondition query. The first directory fixture reached cleanup with its ReadOnly marker preserved, and cleanup failed because it had not removed its own fixture marker. Cleanup now explicitly clears that test marker after the preservation assertion. Final rerun results follow below.
+
+These tests qualify only the held-call ABI and prepared fixture sequence. They do not establish protected ancestry, local-volume policy, full bounded identity-bearing traversal, churn handling, atomic job control, journaling/recovery, cloud eligibility, large-file limits or UI acceptance. N-C1/N-C2/N-ID remain open in their full scope. No compression/EFS command is enabled by this checkpoint.
+
+The final held-ABI/native-search run passed **4 tests**, zero failures/skips: three WindowsCompressionNativeTests and NativeSearchAttributeTests. The directory fixture now orders expected names ordinally; Czech guest collation orders the `ch` digraph differently. The final pass includes the directory assertions and cleanup, rather than treating an earlier cleanup exception as evidence of those assertions.
+
+Primitive source SHA-256: `D9E48883BC1952400D816CA9C7D8D167EF4B9621300FD18D5089458D32466BC5`. The Windows platform binary used for that primitive qualification was `E5AE5F91C31F7A017F687F0E0E23DCCE54AEE78124A8BFA983D7887CC0850DC4`. Later Core ownership corrections do not change the primitive source; build hashes are checkpoint-specific.
+
+## Broader lifecycle regression results
+
+The focused lifecycle selection comprises StorageReviewOwnershipTests, StorageContractTests, JobSchedulerClaimTests, JobEngineTests, JobRetirementOwnershipTests, SyncGroupTests, UndoLifecycleTests, UndoSafetyTests and ArchiveJobBackendTests. Its completed run passed **180 Core tests on Windows** with one mounted-filesystem fixture skipped, and **179 Core tests on each of Ubuntu and macOS** with two platform/fixture skips each. The Operations/Undo/exit/progress selection passed **74 App tests on Windows**, **73 on Ubuntu** and **72 on macOS**, with one/two/three platform/filesystem skips respectively. No failures remained in those runs.
+
+The Windows Core recovery selection must run at medium integrity (`S-1-16-8192`). An earlier high-integrity run had eight recovery-scan failures because JournalRecovery.Scan deliberately refuses elevated scanning. The normal-user rerun passed; the product guard was preserved. The isolated Windows binary fixture reproduces the test/harness directory layout and supplies the actual repository solution marker. An initial packaging script that constructed a wrong archive path was corrected before the successful run.
+
+A final rollback-notification correction also seals failed admission cleanup and notifies each removal subscriber separately, so one failed observer cannot prevent another owner's cleanup. Its updated failure fixtures verify that every pin has retired and the failed job is Canceled before the later removal observer runs. The final Core reruns after this correction again passed **180 Windows / 179 Ubuntu / 179 macOS tests**, with the same one/two/two skips. The final host contracts/owners/scheduler run passed **38 tests**, zero failures/skips. The final App test build passed with zero warnings/errors, `git diff --check` is clean, and the branch is `main`.
+
+The later [held traversal checkpoint](2026-11-17-held-traversal.md) adds verified volume bindings, charged native handles, the Windows inspection/traversal adapter, separated prepare/admitted-call methods and further native qualification. This document's hashes and test totals retain their earlier checkpoint scope.

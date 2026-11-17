@@ -1,0 +1,159 @@
+using System.Security.AccessControl;
+using System.Security.Principal;
+using FileCat.Core.Archives;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
+using FileCat.Core.Resources;
+using FileCat.Core.State;
+
+namespace FileCat.Platform.Windows.Tests;
+
+public sealed class WindowsStorageExecutorTests
+{
+    private static CancellationToken Stop => TestContext.Current.CancellationToken;
+    private static void RequireNormal()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity, "Storage jobs must run in the normal user process.");
+    }
+    private static JobManager Manager(string root) => new(new PortableFileOperations(), new ProviderRegistry(),
+        Directory.CreateDirectory(Path.Join(root, "journals")).FullName, ArchiveJobBackends.Empty, new WindowsStorageTransforms(),
+        WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend);
+    private static Job Run(JobManager manager, StorageScope scope, params ItemRef[] sources) => RunAction(manager, StorageAction.Compress, scope, sources);
+    private static Job RunAction(JobManager manager, StorageAction action, StorageScope scope, params ItemRef[] sources)
+    {
+        using var review = manager.PrepareStorageReview(sources, action, Stop);
+        using var finished = new ManualResetEventSlim();
+        void Finished(Job _) => finished.Set();
+        manager.JobFinished += Finished;
+        try
+        {
+            var job = manager.SubmitStorage(review, review.Approve(action, scope), _ => { });
+            Assert.True(finished.Wait(TimeSpan.FromSeconds(45), Stop)); return job;
+        }
+        finally { manager.JobFinished -= Finished; }
+    }
+    private static bool Compressed(string path) => (File.GetAttributes(path) & FileAttributes.Compressed) != 0;
+
+    [Fact]
+    public void Recursive_job_covers_reverse_order_overlaps_hidden_files_and_named_streams_without_double_counts()
+    {
+        RequireNormal(); string temp = Directory.CreateTempSubdirectory("filecat-storage-job-tree-").FullName;
+        try
+        {
+            string folder = Directory.CreateDirectory(Path.Join(temp, "folder")).FullName;
+            string nested = Directory.CreateDirectory(Path.Join(folder, "nested")).FullName;
+            string file = Path.Join(nested, "file"), hidden = Path.Join(folder, "hidden");
+            File.WriteAllText(file, "main bytes remain available"); File.WriteAllText(file + ":sentinel:$DATA", "named-stream bytes remain available");
+            File.WriteAllText(hidden, "hidden bytes remain available"); File.SetAttributes(hidden, FileAttributes.Hidden);
+            var manager = Manager(temp);
+            Assert.Equal(JobState.Completed, Run(manager, StorageScope.SelectedItems, ItemRef.ForFileSystemPath(folder, EntryKind.Directory)).State);
+            var job = Run(manager, StorageScope.ExistingDescendants, ItemRef.ForFileSystemPath(file, EntryKind.File),
+                ItemRef.ForFileSystemPath(folder, EntryKind.Directory), ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
+            Assert.Equal(JobState.Completed, job.State); Assert.Equal(3, job.StorageResult!.Counts.Changed); Assert.Equal(1, job.StorageResult.Counts.AlreadySatisfied);
+            Assert.Equal(4, job.ItemsDone); Assert.Equal(4, job.ItemsTotal); Assert.Equal(3, job.StorageResult.Roots.Length);
+            Assert.All(job.StorageResult.Roots, root => Assert.Equal(StorageCompleteness.Complete, root.Completeness));
+            Assert.True(Compressed(folder) && Compressed(nested) && Compressed(file) && Compressed(hidden));
+            Assert.Equal("main bytes remain available", File.ReadAllText(file));
+            Assert.Equal("named-stream bytes remain available", File.ReadAllText(file + ":sentinel:$DATA"));
+            Assert.Equal("hidden bytes remain available", File.ReadAllText(hidden));
+            var status = manager.ReadStorageReview(StorageJournalPolicy.FileName(job.CreatedUtc, job.Id), Stop);
+            Assert.True(status.Current.History.Ended); Assert.False(status.ReviewPending); Assert.NotNull(job.StorageResult.DurablePrefix);
+            var removed = RunAction(manager, StorageAction.RemoveCompression, StorageScope.ExistingDescendants,
+                ItemRef.ForFileSystemPath(file, EntryKind.File), ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
+            Assert.Equal(JobState.Completed, removed.State); Assert.Equal(4, removed.StorageResult!.Counts.Changed);
+            Assert.False(Compressed(folder) || Compressed(nested) || Compressed(file) || Compressed(hidden));
+            Assert.Equal("main bytes remain available", File.ReadAllText(file)); Assert.Equal("named-stream bytes remain available", File.ReadAllText(file + ":sentinel:$DATA"));
+        }
+        finally { Directory.Delete(temp, true); }
+    }
+
+    [Fact]
+    public void Readonly_file_and_reparse_subtree_are_skipped_while_independent_siblings_are_changed()
+    {
+        RequireNormal(); string temp = Directory.CreateTempSubdirectory("filecat-storage-job-exclusions-").FullName;
+        string? readonlyFile = null, link = null;
+        try
+        {
+            string folder = Directory.CreateDirectory(Path.Join(temp, "folder")).FullName;
+            string outside = Directory.CreateDirectory(Path.Join(temp, "outside")).FullName;
+            string sentinel = Path.Join(outside, "sentinel"), allowed = Path.Join(folder, "allowed");
+            File.WriteAllText(sentinel, "outside scope"); File.WriteAllText(allowed, "allowed bytes");
+            readonlyFile = Path.Join(folder, "readonly"); File.WriteAllText(readonlyFile, "readonly bytes"); File.SetAttributes(readonlyFile, FileAttributes.ReadOnly);
+            link = Path.Join(folder, "redirect"); Directory.CreateSymbolicLink(link, outside);
+            var job = Run(Manager(temp), StorageScope.ExistingDescendants, ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
+            Assert.Equal(JobState.CompletedWithIssues, job.State); Assert.Equal(2, job.StorageResult!.Counts.Changed); Assert.Equal(2, job.StorageResult.Counts.Skipped);
+            Assert.Equal(StorageCompleteness.UnknownRemainder, job.StorageResult.Discovery);
+            Assert.True(Compressed(allowed)); Assert.False(Compressed(readonlyFile)); Assert.False(Compressed(sentinel));
+            Assert.Equal("outside scope", File.ReadAllText(sentinel)); Assert.Equal("readonly bytes", File.ReadAllText(readonlyFile));
+        }
+        finally
+        {
+            if (readonlyFile is not null && File.Exists(readonlyFile)) File.SetAttributes(readonlyFile, FileAttributes.Normal);
+            if (link is not null && Directory.Exists(link)) Directory.Delete(link);
+            Directory.Delete(temp, true);
+        }
+    }
+
+    [Fact]
+    public void Native_access_denial_preserves_independent_siblings()
+    {
+        RequireNormal(); string temp = Directory.CreateTempSubdirectory("filecat-storage-job-denial-").FullName;
+        string? denied = null; FileSecurity? original = null;
+        try
+        {
+            string folder = Directory.CreateDirectory(Path.Join(temp, "folder")).FullName;
+            denied = Path.Join(folder, "denied"); string allowed = Path.Join(folder, "allowed");
+            File.WriteAllText(denied, "denied bytes"); File.WriteAllText(allowed, "allowed bytes");
+            var info = new FileInfo(denied); original = info.GetAccessControl();
+            var security = info.GetAccessControl();
+            using var identity = WindowsIdentity.GetCurrent();
+            security.AddAccessRule(new FileSystemAccessRule(identity.User!, FileSystemRights.FullControl, AccessControlType.Deny));
+            info.SetAccessControl(security);
+            Assert.Throws<UnauthorizedAccessException>(() => { using var refused = File.OpenRead(denied); });
+            var job = Run(Manager(temp), StorageScope.ExistingDescendants, ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
+            Assert.Equal(JobState.CompletedWithIssues, job.State); Assert.Equal(2, job.StorageResult!.Counts.Changed); Assert.Equal(1, job.StorageResult.Counts.Failed);
+            Assert.True(Compressed(allowed));
+            Restore(info, original); original = null;
+            Assert.False(Compressed(denied)); Assert.Equal("denied bytes", File.ReadAllText(denied));
+        }
+        finally
+        {
+            if (denied is not null && original is not null) Restore(new FileInfo(denied), original);
+            Directory.Delete(temp, true);
+        }
+    }
+
+    private static void Restore(FileInfo file, FileSecurity original)
+    {
+        var restored = new FileSecurity();
+        restored.SetSecurityDescriptorBinaryForm(original.GetSecurityDescriptorBinaryForm(), AccessControlSections.Access);
+        file.SetAccessControl(restored);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Sharing_conflict_can_retry_the_same_held_file_or_skip_without_any_native_intent(bool retry)
+    {
+        RequireNormal(); string temp = Directory.CreateTempSubdirectory("filecat-storage-job-sharing-").FullName;
+        try
+        {
+            string file = Path.Join(temp, "file"); File.WriteAllText(file, "preserved sharing bytes");
+            using var blocker = File.OpenHandle(file, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+            var manager = Manager(temp); int decisions = 0;
+            manager.DecisionRequested += pending =>
+            {
+                decisions++; if (retry) blocker.Dispose(); pending.Resolve(new(retry ? DecisionAction.Retry : DecisionAction.Skip));
+            };
+            var job = Run(manager, StorageScope.SelectedItems, ItemRef.ForFileSystemPath(file, EntryKind.File)); blocker.Dispose();
+            Assert.Equal(1, decisions); Assert.Equal(retry ? JobState.Completed : JobState.CompletedWithIssues, job.State);
+            Assert.Equal(retry ? 1 : 0, job.StorageResult!.Counts.Changed); Assert.Equal(retry ? 0 : 1, job.StorageResult.Counts.Skipped);
+            Assert.Equal(retry, Compressed(file)); Assert.Equal("preserved sharing bytes", File.ReadAllText(file));
+            var status = manager.ReadStorageReview(StorageJournalPolicy.FileName(job.CreatedUtc, job.Id), Stop);
+            Assert.False(status.ReviewPending); Assert.True(status.Current.History.Ended);
+            if (!retry) Assert.Null(status.Current.History.LastCall);
+        }
+        finally { Directory.Delete(temp, true); }
+    }
+}

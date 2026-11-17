@@ -26,18 +26,23 @@ internal static class FindDialogs
     /// Attributes as three-state boxes (checked: set, empty: not set, filled: either), size bounds with units, and
     /// modification and creation times. Returns the edited criteria, or null when canceled.
     /// </summary>
-    public static async Task<AdvancedSearchCriteria?> AdvancedAsync(IDialogService dialogs, AdvancedSearchCriteria current)
+    public static async Task<AdvancedSearchCriteria?> AdvancedAsync(IDialogService dialogs, AdvancedSearchCriteria current, bool nativeScope = true)
     {
         var attributes = AdvancedSearchCriteria.Attributes.Select(a =>
         {
-            var box = new CheckBox { Content = a.Attribute == FileAttributes.Directory ? "Folder" : char.ToUpperInvariant(a.Name[0]) + a.Name[1..], IsThreeState = true };
-            ToolTip.SetTip(box, a.Attribute == FileAttributes.Directory
-                ? "Checked finds folders only, empty finds files only, filled finds both"
-                : $"Checked finds only {a.Name} items, empty only items that are not {a.Name}, filled finds both");
+            var box = new CheckBox { Content = NativeSearchPredicates.Name(a.Attribute), IsThreeState = true,
+                IsEnabled = (NativeSearchPredicates.Supported(OperatingSystem.IsWindows(), nativeScope) & a.Attribute) != 0 };
+            string help = a.Attribute == FileAttributes.Directory ? "Checked finds folders only, empty finds files only, filled finds both"
+                : NativeSearchPredicates.Help(a.Attribute) + " Checked requires the bit; empty requires it clear; filled accepts either.";
+            ToolTip.SetTip(box, help);
+            Avalonia.Automation.AutomationProperties.SetHelpText(box, help);
             return (a.Attribute, Box: box);
         }).ToList();
         var attributeRow = new WrapPanel { ItemSpacing = 14, LineSpacing = 4 };
         foreach (var (_, box) in attributes) attributeRow.Children.Add(box);
+        var unavailableCriteria = new StackPanel { Spacing = 4 };
+        FileAttributes offered = attributes.Aggregate((FileAttributes)0, (mask, a) => mask | a.Attribute);
+        FileAttributes unmappedSet = 0, unmappedClear = 0;
 
         TextBox Number(string name) => new() { Width = 90, HorizontalContentAlignment = HorizontalAlignment.Right, [Avalonia.Automation.AutomationProperties.NameProperty] = name };
         ComboBox Units(string[] units, string name) => new() { ItemsSource = units, Width = 110, [Avalonia.Automation.AutomationProperties.NameProperty] = name };
@@ -61,8 +66,9 @@ internal static class FindDialogs
         };
 
         // D-55: streams and attributes beside the file (the download mark alone does not count: every download has one).
-        var hidden = new CheckBox { Content = OperatingSystem.IsWindows() ? "Carries streams or attributes besides its download mark" : "Carries extended attributes besides its download mark" };
-        ToolTip.SetTip(hidden, "Finds what alternate data streams, NTFS attributes, or extended attributes carry: hidden notes and payloads, WSL's metadata, programs' own marks. Checked last, so other criteria keep it quick.");
+        var hidden = new CheckBox { Content = Core.HiddenData.HiddenSearch.Label };
+        ToolTip.SetTip(hidden, Core.HiddenData.HiddenSearch.Help);
+        string? hiddenScope = current.HiddenDataScope;
         var modified = new TimeEditor("Modified");
         var created = new TimeEditor("Created");
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
@@ -70,6 +76,8 @@ internal static class FindDialogs
 
         void Load(AdvancedSearchCriteria c)
         {
+            unmappedSet = c.AttributesSet & ~offered;
+            unmappedClear = c.AttributesClear & ~offered;
             foreach (var (attribute, box) in attributes)
                 box.IsChecked = (c.AttributesSet & attribute) != 0 ? true : (c.AttributesClear & attribute) != 0 ? false : null;
             atLeast.Text = c.SizeAtLeast?.ToString("0.##", CultureInfo.CurrentCulture) ?? string.Empty;
@@ -79,18 +87,28 @@ internal static class FindDialogs
             modified.Load(c.Modified);
             created.Load(c.Created);
             hidden.IsChecked = c.CarriesHiddenData;
+            hidden.IsEnabled = nativeScope || c.CarriesHiddenData;
+            hiddenScope = c.HiddenDataScope;
+            ToolTip.SetTip(hidden, Core.HiddenData.HiddenSearch.Help + (c.CarriesHiddenData && hiddenScope != Core.HiddenData.HiddenSearch.ScopeId
+                ? " This saved criterion needs replacement: uncheck it and check it again to select the displayed scope." : ""));
         }
 
         // The criteria as edited, or the reason they cannot be used.
         AdvancedSearchCriteria? Read(out string? problem)
         {
             problem = null;
-            var c = new AdvancedSearchCriteria { CarriesHiddenData = hidden.IsChecked == true };
+            var c = new AdvancedSearchCriteria { CarriesHiddenData = hidden.IsChecked == true, HiddenDataScope = hiddenScope,
+                AttributesSet = unmappedSet, AttributesClear = unmappedClear };
+            if (c.CarriesHiddenData && hiddenScope != Core.HiddenData.HiddenSearch.ScopeId)
+                problem = "This older criterion needs replacement. Uncheck the extra-data criterion and check it again to choose the displayed scope, or leave it cleared.";
             foreach (var (attribute, box) in attributes)
             {
                 if (box.IsChecked == true) c.AttributesSet |= attribute;
                 else if (box.IsChecked == false) c.AttributesClear |= attribute;
             }
+            var unavailable = NativeSearchPredicates.Issues(c.AttributesSet | c.AttributesClear, OperatingSystem.IsWindows(), nativeScope);
+            if (!unavailable.IsEmpty) problem = string.Join(" ", unavailable.Select(i => i.Name + ": " + i.Reason)) + " Use Remove this criterion below.";
+            if (c.CarriesHiddenData && !nativeScope) problem = "The extra-data criterion is unavailable for archive/provider-only scope; clear it before running.";
             if (!Size(atLeast.Text, out var least)) problem = "At least: enter a number, such as 10 or 1.5.";
             else if (!Size(atMost.Text, out var most)) problem = "At most: enter a number, such as 10 or 1.5.";
             else
@@ -108,12 +126,29 @@ internal static class FindDialogs
 
         void Validate()
         {
+            FileAttributes active = unmappedSet | unmappedClear;
+            foreach (var (attribute, box) in attributes) if (box.IsChecked is not null) active |= attribute;
+            unavailableCriteria.Children.Clear();
+            foreach (var issue in NativeSearchPredicates.Issues(active, OperatingSystem.IsWindows(), nativeScope))
+            {
+                var remove = new Button { Content = "Remove this criterion: " + issue.Name, HorizontalAlignment = HorizontalAlignment.Left };
+                Avalonia.Automation.AutomationProperties.SetName(remove, "Remove this criterion: " + issue.Name);
+                remove.Click += (_, _) =>
+                {
+                    unmappedSet &= ~issue.Attribute; unmappedClear &= ~issue.Attribute;
+                    attributes.FirstOrDefault(a => a.Attribute == issue.Attribute).Box?.SetCurrentValue(CheckBox.IsCheckedProperty, null);
+                    Validate();
+                };
+                unavailableCriteria.Children.Add(Muted(issue.Name + ": " + issue.Reason));
+                unavailableCriteria.Children.Add(remove);
+            }
             Read(out var problem);
             error.Text = problem ?? string.Empty;
             error.IsVisible = problem is not null;
         }
 
         Load(current);
+        hidden.IsCheckedChanged += (_, _) => { hiddenScope = hidden.IsChecked == true ? Core.HiddenData.HiddenSearch.ScopeId : null; hidden.IsEnabled = nativeScope || hidden.IsChecked == true; Validate(); };
         foreach (var (_, box) in attributes) box.IsCheckedChanged += (_, _) => Validate();
         foreach (var box in new[] { atLeast, atMost }) box.TextChanged += (_, _) => Validate();
         foreach (var combo in new[] { atLeastUnit, atMostUnit }) combo.SelectionChanged += (_, _) => Validate();
@@ -130,7 +165,7 @@ internal static class FindDialogs
             Spacing = 4,
             Children =
             {
-                Heading("Attributes"), attributeRow,
+                Heading("Attributes"), attributeRow, unavailableCriteria,
                 Muted("Checked: the item has it · empty: it does not · filled: either"),
                 hidden,
                 Heading("Size"), sizes,
@@ -140,6 +175,7 @@ internal static class FindDialogs
                 error, reset,
             },
         };
+        Validate();
         var answer = await dialogs.ShowCustomAsync("Advanced criteria", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true)],
             attributes[0].Box, canConfirm: () => Read(out _) is not null, resizable: true);

@@ -1,0 +1,9 @@
+# EFS API candidate investigation — 2026-11-17
+
+EFS encryption/decryption remains required by the active implementation goal. This note records one eliminated candidate; it does not close WP6 or treat EFS deferral as task completion.
+
+The documented request named FSCTL_SET_ENCRYPTION initially appears to offer a handle-based alternative to path-based EncryptFileW. Microsoft's Windows-specific protocol notes state that this request is private to EFS: the buffer's private portion needs information available only to EFS, which uses EFSRPC for encryption state changes. Consequently, a small ENCRYPTION_BUFFER passed through DeviceIoControl is not a supported application encryption protocol. No production interop or native experiment using that private request was added. [Microsoft Windows product behavior, notes 64 and 70–71](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/d4bc551b-7aaf-4b4f-ba0e-3a75e7c528f0), [request layout](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/bf78ff7e-b0a4-4ba9-8825-4af43682eb0d).
+
+EncryptFileW remains a pathname API. Its documented behavior includes exclusive access, encryption of all data streams, and decompression of a compressed input. These contracts do not establish the required continuous object binding and compression-conflict exclusion for FileCat's rejected share-only candidate. This is a contract assessment, not an observed race result. [Microsoft EncryptFileW](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-encryptfilew).
+
+Continue investigating a supported binding/conflict protocol before enabling native EFS mutation. Key/setup and output-route qualification remain separate obligations; neither an encrypted attribute nor an encryption return code establishes their acceptance.

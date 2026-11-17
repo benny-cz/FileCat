@@ -1,0 +1,82 @@
+using FileCat.Core.Inspect;
+using FileCat.Core.Records;
+using FileCat.Core.Threading;
+
+namespace FileCat.Core.Tests;
+
+public sealed class FileDetailsOwnershipTests
+{
+    private sealed class BlockedRecords : IFileRecords, IDisposable
+    {
+        public bool IsSupported => true;
+        public ManualResetEventSlim Entered { get; } = new();
+        public ManualResetEventSlim Release { get; } = new();
+        public int Calls;
+        public InspectionReport Read(string path, CancellationToken ct) => throw new InvalidOperationException("Legacy reader must never run.");
+        public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct)
+        {
+            int call = Interlocked.Increment(ref Calls);
+            if (call == 1) { Entered.Set(); Release.Wait(TestContext.Current.CancellationToken); }
+            return new(path, DateTimeOffset.UtcNow, Guid.NewGuid());
+        }
+        public FileDetailsReport ReadFull(string path, FileDetailsPolicy policy, CancellationToken ct) => FileDetailsReport.Metadata(ReadSummary(path, ct));
+        public void Dispose() { Release.Set(); Entered.Dispose(); Release.Dispose(); }
+    }
+
+    [Fact]
+    public async Task Cancellation_retains_the_native_permit_and_refreshes_coalesce_to_one_latest_request()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        string device = Guid.NewGuid().ToString();
+        using var io = new DeviceIoScheduler(threadsPerDevice: 1, maxThreadsPerDevice: 1);
+        using var records = new BlockedRecords();
+        using var first = await DetailsAdmission.AcquireAsync(device, ct);
+        using var second = await DetailsAdmission.AcquireAsync(device, ct);
+        using var third = await DetailsAdmission.AcquireAsync(device, ct);
+        using var reader = new FileDetailsReader(records, io, device, "captured");
+        var running = reader.ReadAsync(FileDetailsTier.Summary, ct);
+        Assert.True(records.Entered.Wait(TimeSpan.FromSeconds(10), ct));
+        Task<FileDetailsObservation>? latest = null;
+        var superseded = new List<Task<FileDetailsObservation>> { running };
+        for (int i = 0; i < 50; i++)
+        {
+            if (latest is not null) superseded.Add(latest);
+            latest = reader.ReadAsync(FileDetailsTier.Full, ct);
+        }
+        Assert.Equal(1, Volatile.Read(ref records.Calls));
+        var fifth = DetailsAdmission.AcquireAsync(device, ct);
+        Assert.False(fifth.IsCompleted); // cancellation has not released the real running owner
+        records.Release.Set();
+        using var admitted = await fifth.WaitAsync(TimeSpan.FromSeconds(10), ct);
+        admitted.Dispose();
+        var result = await latest!.WaitAsync(TimeSpan.FromSeconds(10), ct);
+        Assert.Equal("captured", result.Summary.Path);
+        Assert.NotNull(result.Full);
+        Assert.Equal(2, records.Calls);
+        foreach (var old in superseded) await Assert.ThrowsAnyAsync<OperationCanceledException>(() => old);
+    }
+
+    [Fact]
+    public async Task Device_and_process_admission_are_reserved_together_and_leases_are_idempotent()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var leases = new List<IDisposable>();
+        string device = Guid.NewGuid().ToString();
+        try
+        {
+            for (int i = 0; i < 4; i++) leases.Add(await DetailsAdmission.AcquireAsync(device, ct));
+            using var cancel = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var blocked = DetailsAdmission.AcquireAsync(device, cancel.Token);
+            Assert.False(blocked.IsCompleted);
+            for (int i = 0; i < 4; i++) leases.Add(await DetailsAdmission.AcquireAsync(device + i, ct));
+            cancel.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => blocked);
+            using var globalCancel = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var ninth = DetailsAdmission.AcquireAsync("ninth", globalCancel.Token);
+            Assert.False(ninth.IsCompleted);
+            leases[0].Dispose(); leases[0].Dispose();
+            using var next = await ninth.WaitAsync(TimeSpan.FromSeconds(10), ct);
+        }
+        finally { foreach (var lease in leases) lease.Dispose(); }
+    }
+}

@@ -48,9 +48,10 @@ public static class JobExecutors
         => Create(job, fs, providers, journal, Archives.ArchiveJobBackends.Empty, null);
 
     internal static IJobExecutor Create(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal,
-        Archives.ArchiveJobBackends archiveBackends, Archives.ArchiveJobOperation? archiveOperation)
+        Archives.ArchiveJobBackends archiveBackends, Archives.ArchiveJobOperation? archiveOperation,
+        IStorageTransforms? storageTransforms = null, StorageReviewOwner? storageOwner = null)
     {
-        var executor = CreateFor(job, fs, providers, journal, archiveBackends, archiveOperation);
+        var executor = CreateFor(job, fs, providers, journal, archiveBackends, archiveOperation, storageTransforms, storageOwner);
         bool transfer = job.Request.Kind is JobKind.Copy or JobKind.Move or JobKind.Extract;
         if (transfer && job.Request.Options.Filter is not null && executor is not IHonorsTransferFilter)
             return new RefusedExecutor(job, fs, journal,
@@ -61,13 +62,20 @@ public static class JobExecutors
     }
 
     private static IJobExecutor CreateFor(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal,
-        Archives.ArchiveJobBackends archiveBackends, Archives.ArchiveJobOperation? archiveOperation)
+        Archives.ArchiveJobBackends archiveBackends, Archives.ArchiveJobOperation? archiveOperation,
+        IStorageTransforms? storageTransforms, StorageReviewOwner? storageOwner)
     {
         var r = job.Request;
+        if (r.Kind != JobKind.StorageTransform && r.StorageTransform is not null)
+            throw new ArgumentException("Storage approval does not match this operation kind.");
         r.EditUpload?.RequireRequest(r);
         bool fsSources = r.Sources.All(s => s.Parent.IsFileSystem);
         switch (r.Kind)
         {
+            case JobKind.StorageTransform:
+                if (storageTransforms is null || storageOwner is null) throw new InvalidOperationException("Storage dispatch requires its live reviewed owner and platform adapter.");
+                ReviewedStorageRoots.RequireAction(storageTransforms, r.StorageTransform?.Action ?? throw new ArgumentException("Missing storage action."));
+                return new StorageTransformExecutor(job, storageTransforms, storageOwner, journal.Storage);
             case JobKind.Copy or JobKind.Move when fsSources && r.Destination is { IsFileSystem: true }:
                 return new TransferExecutor(job, fs, journal);
             case JobKind.Copy or JobKind.Extract when r.Destination is { IsFileSystem: true } && StreamTransferExecutor.CanHandle(r, providers):

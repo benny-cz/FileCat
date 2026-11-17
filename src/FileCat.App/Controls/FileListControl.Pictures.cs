@@ -121,10 +121,18 @@ public sealed partial class FileListControl
                 {
                     string extension = NameParts.GetExtension(entry.Name).ToUpperInvariant();
                     string badge = entry.Kind == EntryKind.Parent ? "UP" : entry.IsContainer ? "FOLDER"
-                        : entry.Has(EntryFlags.Offline) ? "ONLINE ONLY"
+                        : entry.Has(EntryFlags.Offline) ? "OFFLINE"
                         : extension.Length is > 0 and <= 6 ? extension : "FILE";
                     using var label = MakeText(badge, _muted, _typeface, Math.Max(1, imageBox.Width - 8));
                     label.Draw(dc, new Point(imageBox.Center.X - label.Width / 2, imageBox.Bottom - label.Height - 4));
+                }
+                if (Tab?.Services.Icons is { } overlays)
+                {
+                    if (Core.FileSystem.EntryPresentation.IsLink(entry, Tab.Location) || IconProvider.IsShortcut(entry))
+                        dc.DrawImage(overlays.LinkOverlay, new Rect(imageBox.X + 2, imageBox.Bottom - 18, 16, 16));
+                    if (Core.FileSystem.EntryPresentation.IsWindowsFileSystem(entry, Tab.Location) &&
+                        overlays.CloudOverlay(Core.FileSystem.CloudFiles.Observe((FileAttributes)entry.Attributes, _inCloudRoot).Indicator) is { } cloud)
+                        dc.DrawImage(cloud, new Rect(imageBox.X + 2, imageBox.Y + 2, 16, 16));
                 }
 
                 // NTFS-encrypted and compressed names keep their colors here as in the list (green and blue).
@@ -136,7 +144,7 @@ public sealed partial class FileListControl
                     marked ? _boldTypeface : _typeface, Math.Max(1, tile.Width - 16));
                 name.Draw(dc, new Point(tile.X + 8, tile.Bottom - 43));
                 string detail = entry.Kind == EntryKind.Parent ? "Parent folder" : entry.IsContainer ? "Folder"
-                    : entry.Has(EntryFlags.Offline) ? "Open to download"
+                    : entry.Has(EntryFlags.Offline) ? "Opening may require a download"
                     : entry.Size >= 0 ? Formatters.SizeWithUnit(entry.Size) : "File";
                 using var secondary = MakeText(detail, _muted, _typeface, Math.Max(1, tile.Width - 16));
                 secondary.Draw(dc, new Point(tile.X + 8, tile.Bottom - 23));

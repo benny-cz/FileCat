@@ -145,7 +145,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var column = Columns.FirstOrDefault(c => c.SortField == sort.Field &&
             (sort.Field != SortField.Metadata || c.MetadataId == sort.MetadataId));
         string field = sort.Field == SortField.None ? "Unsorted" :
-            column is not null ? Formatters.SafeName(column.Header) : sort.Field == SortField.Metadata && sort.MetadataId is { } id
+            column is not null ? Formatters.SafeName(column.DisplayHeader) : sort.Field == SortField.Metadata && sort.MetadataId is { } id
                 ? Formatters.SafeName(Services.Metadata.Field(id)?.Title ?? id) : sort.Field.ToString();
         string next = sort.Field == SortField.None ? "Sort files: Unsorted" :
             $"Sort files: {field}, {(sort.Descending ? "descending" : "ascending")}";
@@ -927,6 +927,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
         // The focused item is described with items marked too (the marked ones are summed on the left).
         if ((change & (ListingChange.Rows | ListingChange.Marks | ListingChange.State | ListingChange.Reset | ListingChange.Focus)) != 0) UpdateStatus();
+        if ((change & (ListingChange.Rows | ListingChange.State | ListingChange.Reset)) != 0) NotifySupplementaryInventory();
     }
 
     public void UpdateTitle()
@@ -1080,6 +1081,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             StatusLeft = rest.Count > 0 ? " · " + string.Join(" · ", rest) : string.Empty;
             CanCountMarked = (unsized > 0 || lowerBound) && SizingFolders == 0 && fileSystem;
         }
+        if (IsSupplementaryData) StatusLeft = l.SupplementaryInventory?.Description ?? "Inventory pending / not inspected";
         StatusRight = l.TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? DescribeFocused(f) + FocusedVerification(f, l.FocusedStoreIndex) : string.Empty;
     }
 
@@ -1109,7 +1111,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         _ => string.Empty,
     };
 
-    public string GetKindText(in EntryData e) => e.Tag is IDisplayDetails d ? d.KindText : string.Empty;
+    public string GetKindText(in EntryData e) => EntryPresentation.Kind(e, Location);
 
     // ---- Metadata columns (plan §10) --------------------------------------------------------------------
 

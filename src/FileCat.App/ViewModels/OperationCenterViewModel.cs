@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using FileCat.App.Services;
 using FileCat.Core.Jobs;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using TaskbarProgressState = FileCat.Platform.Windows.TaskbarProgressState;
@@ -28,7 +29,8 @@ public sealed partial class JobViewModel : ObservableObject
     /// </summary>
     public override string ToString() => string.IsNullOrEmpty(StateText) ? Title : $"{Title}, {StateText}";
 
-    public string CancelLabel => SyncGroup is null ? "Cancel" : "Cancel this step";
+    public bool IsStorage => Job.Kind == JobKind.StorageTransform;
+    public string CancelLabel => IsStorage ? "Stop" : SyncGroup is null ? "Cancel" : "Cancel this step";
     /// <summary>The plan's publication boundary (§11.5): no Cancel while an archive update is being saved and finished.</summary>
     public const string FinishingSafelyHelp = "Finishing this archive update safely.";
     [ObservableProperty] private bool _canCancel = true;
@@ -86,7 +88,9 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private string _currentItem = string.Empty;
     [ObservableProperty] private double _percent;
     [ObservableProperty] private bool _isIndeterminate;
-    [ObservableProperty] private bool _isActive;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowsHistoryProgress))] private bool _isActive;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowsHistoryProgress))] private bool _showsOverallProgress = true;
+    public bool ShowsHistoryProgress => IsActive && ShowsOverallProgress;
     [ObservableProperty] private bool _isFinished;
     [ObservableProperty] private bool _isQueued;
     [ObservableProperty] private bool _canMoveUpInQueue;
@@ -97,6 +101,7 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private string _resumeLabel = "Resume";
     [ObservableProperty] private bool _canUndo;
     [ObservableProperty] private bool _canShowUndoReport;
+    [ObservableProperty] private bool _canReviewStorage;
     [ObservableProperty] private string _undoStatus = string.Empty;
     [ObservableProperty] private bool _canRetryElevated;
     /// <summary>A finished check of checksums and signatures whose results are still kept (D-57): they can be shown again.</summary>
@@ -154,7 +159,7 @@ public sealed partial class JobViewModel : ObservableObject
             UndoAttemptState.Consumed => "Undo attempt consumed; its result is on the inverse operation",
             _ => string.Empty,
         };
-        CanRetryElevated = OperatingSystem.IsWindows() && Platform.Windows.Elevation.ElevationPlanBuilder.OffersRetry(j);
+        CanRetryElevated = !IsStorage && OperatingSystem.IsWindows() && Platform.Windows.Elevation.ElevationPlanBuilder.OffersRetry(j);
         CanShowResults = IsFinished && j.Kind is (JobKind.VerifyChecksums or JobKind.VerifyBeside) && j.VerificationReport is not null;
         // State only: whether the file is still there is checked when the action runs, never on this refresh path.
         CanOpenArchive = j.State is JobState.Completed or JobState.CompletedWithIssues && j.Kind == JobKind.ArchiveUpdate &&
@@ -162,6 +167,13 @@ public sealed partial class JobViewModel : ObservableObject
         int issues = j.IssueCount;
         HasIssues = issues > 0;
         Severity = j.State == JobState.Failed || j.ItemsFailed > 0 ? "error" : j.State == JobState.CompletedWithIssues ? "warning" : j.State == JobState.Completed ? "ok" : "info";
+
+        if (IsStorage)
+        {
+            RefreshStorage(j.StorageResult);
+            return;
+        }
+        ShowsOverallProgress = true;
 
         long bt = j.BytesTotal, bd = j.BytesDone, it = j.ItemsTotal, id = j.ItemsDone + j.ItemsSkipped + j.ItemsFailed;
         IsIndeterminate = IsActive && !j.TotalsFinal && bt == 0 && it == 0;
@@ -347,8 +359,11 @@ public enum RecoveryActionPhase { Idle, Reviewing, AwaitingApproval, Applying, S
 public sealed partial class InterruptedJobViewModel(InterruptedJob job, bool archiveCleanupAvailable = false) : ObservableObject
 {
     public InterruptedJob Job { get; } = job;
-    public string Title => $"{Formatters.SafeName(Job.Title)} (interrupted {Job.CreatedUtc.ToLocalTime():g})";
-    public string Details => Job.ArchiveTransactions.HasRecords ? ArchiveDetails :
+    public bool IsStorage => Job.IsStorageTransform;
+    public string Title => IsStorage ? Formatters.SafeName(Job.Title) + " · needs review"
+        : $"{Formatters.SafeName(Job.Title)} (interrupted {Job.CreatedUtc.ToLocalTime():g})";
+    public string Details => IsStorage ? "Result not confirmed. Review the recorded storage changes and uncertainty before acknowledging this history. Historical paths are evidence; this action does not replay changes or delete user files."
+        : Job.ArchiveTransactions.HasRecords ? ArchiveDetails :
         $"{Job.SourceCount:N0} source items · " + (Job.OpenIntents.Count == 0
         ? $"{Job.CompletedSteps:N0} steps had finished. No step was in progress."
         : $"{Job.CompletedSteps:N0} steps had finished; {Job.OpenIntents.Count} step(s) were in progress and are inspected before anything is changed.") +
@@ -371,12 +386,14 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job, bool arc
         : Job.OpenIntents.Any(i => i.Operation == JobJournal.RenameViaOp) ? "Finish renaming…"
         : InterruptedRecoveryReport.HasUnreviewedRemoteUpload(Job) ? "Review local cleanup…"
         : "Clean up partial files";
-    public string ReviewReportLabel => "Review retained recovery report for " + Formatters.SafeName(Job.Title);
-    public string MarkReviewedLabel => "Mark interrupted recovery reviewed for " + Formatters.SafeName(Job.Title);
+    public string ReportButtonText => IsStorage ? "Review storage changes" : "Review report";
+    public string MarkReviewedButtonText => IsStorage ? "Acknowledge reviewed history…" : "Mark reviewed…";
+    public string ReviewReportLabel => (IsStorage ? "Review storage changes for " : "Review retained recovery report for ") + Formatters.SafeName(Job.Title);
+    public string MarkReviewedLabel => (IsStorage ? "Acknowledge reviewed storage history for " : "Mark interrupted recovery reviewed for ") + Formatters.SafeName(Job.Title);
     public string HideLabel => "Hide interrupted recovery notice for " + Formatters.SafeName(Job.Title);
-    public bool CanCleanup => !Job.ArchiveTransactions.HasRecords || archiveCleanupAvailable;
+    public bool CanCleanup => !IsStorage && (!Job.ArchiveTransactions.HasRecords || archiveCleanupAvailable);
     public bool CanReviewArchiveCleanup => Job.ArchiveTransactions.HasRecords && archiveCleanupAvailable;
-    public bool CanMarkReviewed => !Job.ArchiveTransactions.RequiresReview;
+    public bool CanMarkReviewed => !IsStorage && !Job.ArchiveTransactions.RequiresReview;
 
     /// <summary>Continuation requires complete, supported original meaning as well as known source paths.</summary>
     public bool CanRunAgain => !Job.ArchiveTransactions.HasRecords && Job.CanContinueTransfer;
@@ -460,6 +477,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         };
         _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background, (_, _) => Tick());
         manager.JobAdded += job => Dispatcher.UIThread.Post(() => Add(job));
+        manager.StorageReviewRequired += candidate => Dispatcher.UIThread.Post(() => AddInterrupted(candidate));
         manager.SyncGroupAdded += group => Dispatcher.UIThread.Post(() => Add(group));
         manager.SyncGroupRemoved += group => Dispatcher.UIThread.Post(() => Remove(group));
         manager.JobRemoved += job => Dispatcher.UIThread.Post(() =>
@@ -606,6 +624,12 @@ public sealed partial class OperationCenterViewModel : ObservableObject
             IssueSummary = string.Empty;
             return;
         }
+        if (job.Kind == JobKind.StorageTransform)
+        {
+            IssueSummary = job.StorageResult is { } storage ? StorageOperationText.Details(storage)
+                : "Storage observations are not yet available.";
+            return;
+        }
         var totals = job.IssueTotals;
         IssueSummary = totals.Total == 0 ? "No issues reported."
             : $"Showing first {SelectedIssues.Count:N0} of {totals.Total:N0} issues · {totals.Retained:N0} details retained · " +
@@ -617,7 +641,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     public void Refresh(Job job)
     {
         if (_map.TryGetValue(job, out var vm)) vm.Refresh();
-        if (ReferenceEquals(Selected?.Job, job)) QueueIssueRefresh();
+        if (ReferenceEquals(Selected?.Job, job)) { QueueIssueRefresh(); UpdateIssueSummary(); }
     }
 
     private void Add(JobViewModel vm)
@@ -686,7 +710,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
             }
         }
         foreach (var group in SyncGroups) group.Refresh();
-        if (Selected is not null) QueueIssueRefresh();
+        if (Selected is not null) { QueueIssueRefresh(); UpdateIssueSummary(); }
         UpdateSummary();
         if (!any) _timer.Stop();
     }
@@ -717,7 +741,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         (TaskbarState, TaskbarFraction) = TaskbarFor(shown, Primary);
         Summary = active.Count switch
         {
-            0 => Interrupted.Count > 0 ? Formatters.Plural(Interrupted.Count, "interrupted operation needs", "interrupted operations need") + " attention" : string.Empty,
+            0 => Interrupted.Count > 0 ? Formatters.Plural(Interrupted.Count, "operation needs", "operations need") + " review" : string.Empty,
             1 => string.Empty,
             _ => $"+{active.Count - 1} more",
         };
@@ -726,6 +750,11 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     internal static (TaskbarProgressState State, double Fraction) TaskbarFor(JobViewModel? shown, JobViewModel? primary) =>
         shown switch
         {
+            { IsStorage: true, NeedsDecision: true } or { IsStorage: true, Job: { State: JobState.Paused or JobState.Pausing } } => (TaskbarProgressState.Paused, 0),
+            { IsStorage: true, IsIndeterminate: true } => (TaskbarProgressState.Indeterminate, 0),
+            { IsStorage: true } => (TaskbarProgressState.None, 0),
+            null when primary is { IsStorage: true, IsFinished: true, Severity: "error" } => (TaskbarProgressState.Error, 0),
+            null when primary is { IsStorage: true } => (TaskbarProgressState.None, 0),
             { NeedsDecision: true } or { Job: { State: JobState.Paused } } => (TaskbarProgressState.Paused, shown.Percent / 100),
             { IsIndeterminate: true } => (TaskbarProgressState.Indeterminate, 0),
             not null => (TaskbarProgressState.Normal, shown.Percent / 100),
@@ -735,16 +764,25 @@ public sealed partial class OperationCenterViewModel : ObservableObject
 
     public void LoadInterrupted(IEnumerable<InterruptedJob> jobs)
     {
-        Interrupted.Clear();
-        foreach (var j in jobs) Interrupted.Add(new InterruptedJobViewModel(j, CanReviewArchiveCleanup?.Invoke(j) == true));
+        // Startup discovery can finish after a current-session job retires. Never replace that pending collection.
+        foreach (var j in jobs) AddInterrupted(j);
+        UpdateSummary();
+    }
+    public void AddInterrupted(InterruptedJob job)
+    {
+        if (Interrupted.Any(row => PathUtil.SafetyComparer.Equals(row.Job.JournalPath, job.JournalPath))) return;
+        Interrupted.Add(new InterruptedJobViewModel(job, CanReviewArchiveCleanup?.Invoke(job) == true));
         UpdateSummary();
     }
     internal Func<InterruptedJob, bool>? CanReviewArchiveCleanup { get; set; }
 
     public void LoadReviewedRecovery(IEnumerable<RecoveryReviewRecord> records)
     {
+        // A current-session storage acknowledgment may finish while the legacy startup read is still running.
+        var storage = ReviewedRecovery.Where(r => r.StorageAcknowledgment is not null).ToArray();
         ReviewedRecovery.Clear();
         foreach (var record in records.Take(RecoveryReviewStore.KeepRecords)) ReviewedRecovery.Add(record);
+        foreach (var record in storage.Reverse()) AddReviewedRecovery(record);
         OnPropertyChanged(nameof(HasReviewedRecovery));
     }
 
