@@ -183,8 +183,8 @@ public sealed partial class AnalysisRenderingTests
         using var styles = new ProductStyles(); using var ui = new HistoryDialogFixture(480, 620, 20);
         var pending = DiskSpaceWindow.ReviewComparisonReportOptionsAsync(ui.Dialogs, TestContext.Current.CancellationToken, available);
         await Until(() => ui.Dialogs.IsOpen); Frame(ui.Window);
-        var format = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == "Comparison report format");
-        var scope = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == "Comparison report scope");
+        var format = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationLabel(c) == "Comparison report format");
+        var scope = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationLabel(c) == "Comparison report scope");
         scope.SelectedIndex = 1; format.SelectedIndex = png ? 4 : 3; Frame(ui.Window);
         if (!available) { ui.Click("Choose destination…"); Assert.False(pending.IsCompleted); }
         await Until(() => ui.Find("Choose destination…").IsEffectivelyEnabled == available);

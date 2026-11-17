@@ -144,8 +144,8 @@ public sealed partial class AnalysisRenderingTests
         using var styles = new ProductStyles(); using var ui = new HistoryDialogFixture(480, 620, 20); var token = TestContext.Current.CancellationToken;
         var pending = DiskSpaceWindow.ReviewReportOptionsAsync(ui.Dialogs, folderView, marks, token);
         await Until(() => ui.Dialogs.IsOpen); Frame(ui.Window); Assert.True(ui.Find("Cancel").IsDefault);
-        var format = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationProperties.GetName(value) == "Report format");
-        var scope = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationProperties.GetName(value) == "Report scope");
+        var format = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationLabel(value) == "Report format");
+        var scope = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationLabel(value) == "Report scope");
         Assert.Equal(folderView ? 2 + (marks == 0 ? 0 : 1) : 1 + (marks == 0 ? 0 : 1), scope.ItemCount);
         Assert.Equal(folderView, scope.Items.Cast<string>().Any(value => value.Contains("filtered folder", StringComparison.Ordinal)));
         format.SelectedIndex = 2; scope.SelectedIndex = scope.ItemCount - 1;
@@ -162,8 +162,8 @@ public sealed partial class AnalysisRenderingTests
         using var styles = new ProductStyles(); using var ui = new HistoryDialogFixture(480, 620, 20);
         var pending = DiskSpaceWindow.ReviewReportOptionsAsync(ui.Dialogs, true, 2, TestContext.Current.CancellationToken, kind);
         await Until(() => ui.Dialogs.IsOpen); Frame(ui.Window); Assert.True(ui.Find("Cancel").IsDefault);
-        var format = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationProperties.GetName(value) == "Report format");
-        var scope = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationProperties.GetName(value) == "Report scope");
+        var format = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationLabel(value) == "Report format");
+        var scope = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationLabel(value) == "Report scope");
         Assert.Equal(3, scope.ItemCount); Assert.Equal(0, scope.SelectedIndex); format.SelectedIndex = 2;
         ui.Click("Choose destination…"); var result = Assert.IsType<DiskSpaceWindow.ReportOptions>(await pending);
         Assert.Equal(AnalysisReportScope.FilteredView, result.Scope); Assert.Equal(kind, result.ViewKind); Assert.True(result.RedactPaths);
@@ -180,7 +180,7 @@ public sealed partial class AnalysisRenderingTests
         var options = new DiskSpaceWindow.ReportOptions(AnalysisReportFormat.Csv, AnalysisReportScope.SelectedRows, true);
         var pending = DiskSpaceWindow.ReviewExternalOutputAsync(ui.Dialogs, "captured/folder", "Partial observations remain partial.", "report.html", options, TestContext.Current.CancellationToken);
         await Until(() => ui.Dialogs.IsOpen); Frame(ui.Window); Assert.True(ui.Find("Cancel").IsDefault); Assert.False(ui.Find("Export new report").IsEnabled);
-        var name = ui.Window.GetVisualDescendants().OfType<TextBox>().Single(value => AutomationProperties.GetName(value) == "Report filename");
+        var name = ui.Window.GetVisualDescendants().OfType<TextBox>().Single(value => AutomationLabel(value) == "Report filename");
         name.Text = "report.csv"; await Until(() => ui.Find("Export new report").IsEnabled); Frame(ui.Window);
         ui.Click(accept ? "Export new report" : "Cancel"); Assert.Equal(accept ? "report.csv" : null, await pending);
     }

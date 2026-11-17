@@ -47,7 +47,7 @@ public sealed partial class DiskSpaceWindow
         }
         private void AddSelectionControls()
         {
-            AutomationProperties.SetName(_selectionSummary, "Indexed captured selection");
+            AutomationProperties.SetAutomationId(_selectionSummary, "Indexed captured selection");
             AutomationProperties.SetLiveSetting(_selectionSummary, AutomationLiveSetting.Polite);
             var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             foreach (var button in new[] { _markFocused, _markMembers, _markMatches, _clearMarks, _reviewMarked, _stageBasket, _reviewBasket, _clearBasket, _recountMarks }) bar.Children.Add(button);

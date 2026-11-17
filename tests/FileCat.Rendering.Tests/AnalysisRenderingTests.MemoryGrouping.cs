@@ -18,7 +18,7 @@ namespace FileCat.Rendering.Tests;
 
 public sealed partial class AnalysisRenderingTests
 {
-    private static ComboBox MemoryGroupingSelector(Window window) => window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Analysis grouping");
+    private static ComboBox MemoryGroupingSelector(Window window) => window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Analysis grouping");
     [AvaloniaTheory]
     [InlineData(AnalysisGroupingDimension.FileType)]
     [InlineData(AnalysisGroupingDimension.Extension)]
@@ -155,7 +155,7 @@ public sealed partial class AnalysisRenderingTests
             foreach (int mode in new[] { 0, 1, 2 })
             {
                 ThemeManager.Apply(theme.Name); window.Width = width;
-                window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Chart view").SelectedIndex = mode;
+                window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Chart view").SelectedIndex = mode;
                 Frame(window); Assert.Equal((UInt128)98304, model.Tree!.ScopeValue(AnalysisTree.RootKey));
                 Assert.Equal(new ulong[] { 4, 5, 6 }, model.Tree.CaptureMembers(AnalysisTree.RootKey));
                 var list = window.GetVisualDescendants().OfType<ListBox>().Single(); Assert.True(list.Bounds.Width > 100 && list.Bounds.Height > 40);

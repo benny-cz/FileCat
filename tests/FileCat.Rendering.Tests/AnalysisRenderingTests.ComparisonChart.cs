@@ -139,7 +139,7 @@ public sealed partial class AnalysisRenderingTests
         var window = new DiskSpaceWindow(); window.AddSession(comparison); window.Show();
         try
         {
-            ComboBox Choice(string name) => window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == name);
+            ComboBox Choice(string name) => window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationLabel(c) == name);
             async Task Until(Func<bool> condition)
             {
                 var deadline = DateTime.UtcNow.AddSeconds(20);
@@ -147,7 +147,7 @@ public sealed partial class AnalysisRenderingTests
                 Assert.True(condition()); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             }
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Choice("Comparison chart").SelectedIndex = 1;
-            await Until(() => window.GetVisualDescendants().OfType<TreemapControl>().Any(c => c.IsEffectivelyVisible && (AutomationProperties.GetName(c) ?? "").Contains("Observed growth", StringComparison.OrdinalIgnoreCase)));
+            await Until(() => window.GetVisualDescendants().OfType<TreemapControl>().Any(c => c.IsEffectivelyVisible && (AutomationLabel(c) ?? "").Contains("Observed growth", StringComparison.OrdinalIgnoreCase)));
             Choice("Comparison chart").SelectedIndex = 2;
             Choice("Comparison chart side").SelectedIndex = 1;
             await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text?.StartsWith("Previous recorded amounts", StringComparison.Ordinal) == true));
@@ -173,7 +173,7 @@ public sealed partial class AnalysisRenderingTests
                 }
             }
             Choice("Comparison metric").SelectedIndex = (int)AnalysisMetric.Files;
-            await Until(() => comparison.Comparison?.Metric == AnalysisMetric.Files && window.GetVisualDescendants().OfType<ListBox>().Any(c => AutomationProperties.GetName(c) == "Comparison rows"));
+            await Until(() => comparison.Comparison?.Metric == AnalysisMetric.Files && window.GetVisualDescendants().OfType<ListBox>().Any(c => AutomationLabel(c) == "Comparison rows"));
             Assert.Equal(0, Choice("Comparison chart").SelectedIndex);
             Assert.Equal((int)AnalysisMetric.Files, Choice("Comparison metric").SelectedIndex);
         }

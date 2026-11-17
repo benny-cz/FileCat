@@ -36,7 +36,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal(files, bucket.ReferenceLogical.Files); Assert.Equal((UInt128)source.Payload.Length * files, bucket.ReferenceLogical.KnownBytes); Assert.Equal(0UL, bucket.ReferenceLogical.UnknownFiles);
             var projection = AnalysisIndexedChart.Bucket(bucket, metric); Assert.Equal(0UL, projection.Files); Assert.Equal((UInt128)0, projection.LogicalSize);
             Assert.Equal(files + " references", DiskSpaceViewModel.FilePathsText(projection));
-            var inspect = window.GetVisualDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Inspect Shared hard-linked files");
+            var inspect = window.GetVisualDescendants().OfType<Button>().Single(button => AutomationLabel(button) == "Inspect Shared hard-linked files");
             Click(window, inspect.Content!.ToString()!); Assert.Contains("Matching reference paths: " + files + " references", IndexedDetails(window).Text);
             Assert.Contains(bucket.ReferenceLogical.KnownBytes + " bytes (references)", IndexedDetails(window).Text);
             var chart = explorer.Chart!; var actualChildren = chart.ChildrenOf(chart.Scope);

@@ -72,8 +72,8 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal(descending ? new[] { "beta.bin", "alpha.bin" } : ["alpha.bin", "beta.bin"], rows.Select(row => row.Member.Path.Name));
             Assert.Equal(AnalysisOrigin.ImportedInventory, explorer.Descriptor.Origin); Assert.False(Directory.Exists(Path.Combine(fixture.Root, "source-must-not-be-created")));
             var combos = window.GetVisualDescendants().OfType<ComboBox>().ToArray();
-            Assert.Equal("Sunburst", combos.Single(combo => AutomationProperties.GetName(combo) == "Indexed chart mode").SelectedItem);
-            Assert.Equal((int)AnalysisColorDimension.ModifiedAge, combos.Single(combo => AutomationProperties.GetName(combo) == "Chart color dimension").SelectedIndex);
+            Assert.Equal("Sunburst", combos.Single(combo => AutomationLabel(combo) == "Indexed chart mode").SelectedItem);
+            Assert.Equal((int)AnalysisColorDimension.ModifiedAge, combos.Single(combo => AutomationLabel(combo) == "Chart color dimension").SelectedIndex);
             Assert.Equal(before, File.ReadAllBytes(path));
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }

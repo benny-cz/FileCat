@@ -157,7 +157,7 @@ public sealed partial class DiskSpaceWindow
             Children.Add(_summary); Children.Add(_compatibility); Children.Add(_status);
             AddCharts();
             AddOutputs();
-            AutomationProperties.SetName(_summary, "Comparison totals"); AutomationProperties.SetName(_status, "Comparison status");
+            AutomationProperties.SetName(_summary, "Comparison totals"); AutomationProperties.SetAutomationId(_status, "Comparison status");
             AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
             AutomationProperties.SetName(_rows, "Captured comparison rows");
             _rows.ItemTemplate = new FuncDataTemplate<DisplayRow>((item, _) => Text(item?.Text ?? ""));

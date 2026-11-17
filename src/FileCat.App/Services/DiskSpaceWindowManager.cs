@@ -20,9 +20,16 @@ public sealed class DiskSpaceWindowManager(AppServices services) : IDisposable
         if (!_window.CanAddSession) { _window.ExplainSessionLimit(); _window.Show(); _window.Activate(); return; }
         _window.AddSession(new DiskSpaceViewModel(snapshot)); _window.Show(); _window.Activate();
     }
-    private DiskSpaceWindow Create()
+    internal void OpenIndexedPreview(IReadOnlyList<string> roots)
     {
-        var window = new DiskSpaceWindow(() => Open([]), () => services.Keymap); window.Closed += (_, _) => _window = null; return window;
+        _window ??= Create(indexedPreview: true);
+        if (!_window.CanAddSession) { _window.ExplainSessionLimit(); _window.Show(); _window.Activate(); return; }
+        _window.AddSession(new DiskSpaceViewModel(services, indexedStorage: true), roots); _window.Show(); _window.Activate();
+    }
+    private DiskSpaceWindow Create(bool indexedPreview = false)
+    {
+        var window = new DiskSpaceWindow(() => { if (indexedPreview) OpenIndexedPreview([]); else Open([]); }, () => services.Keymap);
+        window.Closed += (_, _) => _window = null; return window;
     }
     public void Dispose() { _window?.ForceClose(); _window = null; }
 }

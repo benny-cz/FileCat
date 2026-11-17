@@ -47,15 +47,15 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            var second = window.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "Analysis location 2");
+            var second = window.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationLabel(box) == "Analysis location 2");
             Assert.IsType<Grid>(second.Parent).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Add location").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            var editors = window.GetVisualDescendants().OfType<TextBox>().Where(box => AutomationProperties.GetName(box)?.StartsWith("Analysis location ", StringComparison.Ordinal) == true).ToArray();
+            var editors = window.GetVisualDescendants().OfType<TextBox>().Where(box => AutomationLabel(box)?.StartsWith("Analysis location ", StringComparison.Ordinal) == true).ToArray();
             Assert.Equal(3, editors.Length); Assert.Equal(3, editors.Select(AutomationProperties.GetName).Distinct().Count());
-            Assert.Equal(fixture.Root + "-A", editors.Single(box => AutomationProperties.GetName(box) == "Analysis location 1").Text);
-            Assert.Equal(fixture.Root + "-C", editors.Single(box => AutomationProperties.GetName(box) == "Analysis location 2").Text);
-            Assert.Equal("", editors.Single(box => AutomationProperties.GetName(box) == "Analysis location 3").Text);
+            Assert.Equal(fixture.Root + "-A", editors.Single(box => AutomationLabel(box) == "Analysis location 1").Text);
+            Assert.Equal(fixture.Root + "-C", editors.Single(box => AutomationLabel(box) == "Analysis location 2").Text);
+            Assert.Equal("", editors.Single(box => AutomationLabel(box) == "Analysis location 3").Text);
             var removes = window.GetVisualDescendants().OfType<Button>().Where(b => b.Content as string == "Remove").ToArray();
             Assert.Equal(3, removes.Length); Assert.Equal(3, removes.Select(AutomationProperties.GetName).Distinct().Count());
         }

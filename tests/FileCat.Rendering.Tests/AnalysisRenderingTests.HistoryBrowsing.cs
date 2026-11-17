@@ -123,8 +123,8 @@ public sealed partial class AnalysisRenderingTests
         await using var source = await NativeNamesFixture.CreateAsync(false); var row = await SeedHistoryAsync(profile, source); var token = TestContext.Current.CancellationToken;
         using var ui = new HistoryDialogFixture(480, 620, 20);
         var browser = AnalysisHistoryBrowser.ShowAsync(profile.Services, ui.Dialogs, token);
-        await Until(() => ui.Window.GetVisualDescendants().OfType<ListBox>().Any(list => Avalonia.Automation.AutomationProperties.GetName(list) == "Rolling history entries"));
-        var list = ui.Window.GetVisualDescendants().OfType<ListBox>().Single(list => Avalonia.Automation.AutomationProperties.GetName(list) == "Rolling history entries");
+        await Until(() => ui.Window.GetVisualDescendants().OfType<ListBox>().Any(list => AutomationLabel(list) == "Rolling history entries"));
+        var list = ui.Window.GetVisualDescendants().OfType<ListBox>().Single(list => AutomationLabel(list) == "Rolling history entries");
         list.SelectedIndex = 0; Frame(ui.Window); ui.Click("Review removal");
         await Until(() => ui.Window.GetVisualDescendants().OfType<Button>().Any(button => button.Content as string == "Keep history entry")); Frame(ui.Window);
         var keep = ui.Find("Keep history entry"); var erase = ui.Find("Remove history entry");

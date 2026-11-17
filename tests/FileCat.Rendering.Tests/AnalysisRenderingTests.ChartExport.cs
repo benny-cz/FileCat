@@ -175,8 +175,8 @@ public sealed partial class AnalysisRenderingTests
         using var styles = new ProductStyles(); using var ui = new HistoryDialogFixture(480, 620, 20);
         var pending = DiskSpaceWindow.ReviewReportOptionsAsync(ui.Dialogs, true, 2, TestContext.Current.CancellationToken);
         await Until(() => ui.Dialogs.IsOpen); Frame(ui.Window);
-        var format = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationProperties.GetName(value) == "Report format");
-        var scope = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationProperties.GetName(value) == "Report scope");
+        var format = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationLabel(value) == "Report format");
+        var scope = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationLabel(value) == "Report scope");
         scope.SelectedIndex = scope.ItemCount - 1; format.SelectedIndex = png ? 4 : 3; Frame(ui.Window);
         Assert.Equal(0, scope.SelectedIndex); Assert.False(scope.IsEnabled); Assert.True(ui.Find("Cancel").IsDefault);
         ui.Click("Choose destination…"); var reviewed = Assert.IsType<DiskSpaceWindow.ReportOptions>(await pending);

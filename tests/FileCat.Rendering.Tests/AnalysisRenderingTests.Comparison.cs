@@ -53,7 +53,7 @@ public sealed partial class AnalysisRenderingTests
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare…" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs();
-            window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Previous inventory filename").Text = "mapped.fcdsa";
+            window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationLabel(t) == "Previous inventory filename").Text = "mapped.fcdsa";
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare observations" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var deadline = DateTime.UtcNow.AddSeconds(10); Button? compare = null;
             while (DateTime.UtcNow < deadline)
@@ -64,7 +64,7 @@ public sealed partial class AnalysisRenderingTests
             }
             Assert.NotNull(compare); Assert.False(compare.IsEnabled);
             Assert.True(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Cancel" && b.IsEffectivelyVisible).IsDefault);
-            var root = window.GetVisualDescendants().OfType<ComboBox>().Single(c => (AutomationProperties.GetName(c) ?? "").StartsWith("Previous root for current ", StringComparison.Ordinal));
+            var root = window.GetVisualDescendants().OfType<ComboBox>().Single(c => (AutomationLabel(c) ?? "").StartsWith("Previous root for current ", StringComparison.Ordinal));
             Assert.Equal(0, root.SelectedIndex); root.SelectedIndex = 1;
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.StartsWith("Selected Previous [", StringComparison.Ordinal) == true && t.Text.EndsWith(": /previous", StringComparison.Ordinal));
             deadline = DateTime.UtcNow.AddSeconds(5); while (!compare.IsEnabled && DateTime.UtcNow < deadline) await Task.Delay(10);
@@ -93,7 +93,7 @@ public sealed partial class AnalysisRenderingTests
                 {
                     window.Width = width; window.Height = width == 380 ? 430 : 780; window.FontSize = width == 380 ? 20 : 13;
                     Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-                    var rows = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Comparison rows");
+                    var rows = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationLabel(l) == "Comparison rows");
                     Assert.True(rows.Bounds.Width > 100 && double.IsFinite(rows.Bounds.Height)); Assert.Equal(3, rows.ItemCount);
                     using var bitmap = new RenderTargetBitmap(new PixelSize(width, width == 380 ? 430 : 780)); bitmap.Render(window);
                     bitmap.Save(Path.Combine(output, $"{theme}-{width}.png"), new PngBitmapEncoderOptions());
@@ -116,7 +116,7 @@ public sealed partial class AnalysisRenderingTests
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare…" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs();
-            window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Previous inventory filename").Text = "before.fcdsa";
+            window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationLabel(t) == "Previous inventory filename").Text = "before.fcdsa";
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare observations" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var deadline = DateTime.UtcNow.AddSeconds(10); Button? mapped = null;
             while (DateTime.UtcNow < deadline)
@@ -126,7 +126,7 @@ public sealed partial class AnalysisRenderingTests
                 if (mapped is not null) break; await Task.Delay(10);
             }
             Assert.NotNull(mapped); Assert.False(mapped.IsEnabled);
-            window.GetVisualDescendants().OfType<ComboBox>().Single(c => (AutomationProperties.GetName(c) ?? "").StartsWith("Previous root for current ", StringComparison.Ordinal)).SelectedIndex = 1;
+            window.GetVisualDescendants().OfType<ComboBox>().Single(c => (AutomationLabel(c) ?? "").StartsWith("Previous root for current ", StringComparison.Ordinal)).SelectedIndex = 1;
             deadline = DateTime.UtcNow.AddSeconds(5); while (!mapped.IsEnabled && DateTime.UtcNow < deadline) await Task.Delay(10);
             Assert.True(mapped.IsEnabled); mapped.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             deadline = DateTime.UtcNow.AddSeconds(10); while (window.SessionCount != 2 && DateTime.UtcNow < deadline) await Task.Delay(10);
@@ -189,16 +189,16 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            var rows = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Comparison rows");
+            var rows = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationLabel(l) == "Comparison rows");
             Assert.Equal(3, rows.ItemCount); Assert.True(double.IsFinite(rows.Bounds.Height)); Assert.InRange(rows.Bounds.Height, 100, 1600);
-            window.GetVisualDescendants().OfType<Expander>().Single(e => AutomationProperties.GetName(e) == "Comparison query and ranking controls").IsExpanded = true;
+            window.GetVisualDescendants().OfType<Expander>().Single(e => AutomationLabel(e) == "Comparison query and ranking controls").IsExpanded = true;
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            var status = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == "Comparison status");
+            var status = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationLabel(c) == "Comparison status");
             status.SelectedIndex = 1; Dispatcher.UIThread.RunJobs(); Assert.Equal(1, rows.ItemCount); rows.SelectedIndex = 0;
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Inspect comparison entry" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("No current source or content proof", StringComparison.Ordinal) == true);
-            Assert.Contains(window.GetVisualDescendants().OfType<ListBox>(), l => AutomationProperties.GetName(l) == "Previous observed paths");
+            Assert.Contains(window.GetVisualDescendants().OfType<ListBox>(), l => AutomationLabel(l) == "Previous observed paths");
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Close" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs(); window.Close(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             var keep = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Keep open" && b.IsEffectivelyVisible);

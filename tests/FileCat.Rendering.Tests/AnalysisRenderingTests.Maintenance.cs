@@ -116,7 +116,7 @@ public sealed partial class AnalysisRenderingTests
             window.Show(); Frame(window); Click(window, indexed ? "Open saved analysis" : "Open saved…");
             await Until(() => Visible("Browse saved analyses") is not null); Assert.False(Visible("Delete selected analysis…")!.IsEnabled);
             Click(window, "Browse saved analyses");
-            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsEffectivelyVisible && AutomationProperties.GetName(c) == "Saved analyses" && c.ItemCount == 1));
+            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsEffectivelyVisible && AutomationLabel(c) == "Saved analyses" && c.ItemCount == 1));
             IndexedPersistenceControl<ComboBox>(window, "Saved analyses").SelectedIndex = 0;
             await Until(() => Visible("Delete selected analysis…")?.IsEnabled == true);
             Assert.True(Visible("Delete selected analysis…")!.IsEnabled); Assert.False(Visible("Restore pending analysis…")!.IsEnabled);
@@ -176,7 +176,7 @@ public sealed partial class AnalysisRenderingTests
             }, token);
             window.Show(); Frame(window); Click(window, indexed ? "Open saved analysis" : "Open saved…");
             await Until(() => Visible("Browse saved analyses") is not null); Click(window, "Browse saved analyses");
-            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsEffectivelyVisible && AutomationProperties.GetName(c) == "Saved analyses" && c.ItemCount == 1));
+            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsEffectivelyVisible && AutomationLabel(c) == "Saved analyses" && c.ItemCount == 1));
             IndexedPersistenceControl<ComboBox>(window, "Saved analyses").SelectedIndex = 0;
             await Until(() => Visible("Delete selected analysis…")?.IsEnabled == true);
             Assert.Equal(payloadPresent, Visible("Restore pending analysis…")!.IsEnabled); Assert.Equal(payloadPresent, File.Exists(path));
@@ -186,7 +186,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.True(Visible(preserve)!.IsDefault); Assert.True(Visible(preserve)!.IsCancel); Assert.Equal(payloadPresent, File.Exists(path));
             Click(window, payloadPresent ? "Restore named analysis" : "Delete analysis");
             await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible &&
-                AutomationProperties.GetName(t) == (indexed ? "Indexed analysis status" : "Analysis status") &&
+                AutomationLabel(t) == (indexed ? "Indexed analysis status" : "Analysis status") &&
                 t.Text?.Contains(payloadPresent ? "was restored" : "were deleted", StringComparison.Ordinal) == true));
             await using var owned = await AnalysisOwnedStoreAccess.OpenAsync(profile.Services, token);
             using var after = await owned.ReadCatalogAsync(token); Assert.Empty(after.PendingDeletions); Assert.Equal(payloadPresent ? 1 : 0, after.Entries.Length);

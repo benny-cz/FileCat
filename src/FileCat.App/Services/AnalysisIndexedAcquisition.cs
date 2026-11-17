@@ -13,6 +13,7 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
 {
     private readonly AppServices _services;
     private readonly bool _indexedStorage;
+    internal bool IndexedStorage => _indexedStorage;
     private readonly string[] _privatePaths;
     private readonly IAnalysisBackend?[] _protection = new IAnalysisBackend?[3];
     private readonly bool[] _ancestorGuard = new bool[3];

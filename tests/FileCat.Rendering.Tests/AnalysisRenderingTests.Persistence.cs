@@ -44,16 +44,16 @@ public sealed partial class AnalysisRenderingTests
             while (DateTime.UtcNow < deadline)
             {
                 Dispatcher.UIThread.RunJobs();
-                list = window.GetVisualDescendants().OfType<ComboBox>().Single(c => Avalonia.Automation.AutomationProperties.GetName(c) == "Saved analyses");
+                list = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationLabel(c) == "Saved analyses");
                 if (list.ItemCount > 0) break; await Task.Delay(10);
             }
             Assert.NotNull(list); Assert.Equal(1, list.ItemCount); list.SelectedIndex = 0;
-            Assert.Equal(receipt.Name, window.GetVisualDescendants().OfType<TextBox>().Single(t => Avalonia.Automation.AutomationProperties.GetName(t) == "Saved inventory filename").Text);
+            Assert.Equal(receipt.Name, window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationLabel(t) == "Saved inventory filename").Text);
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open observations").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             deadline = DateTime.UtcNow.AddSeconds(10);
             while (window.SessionCount != 2 && DateTime.UtcNow < deadline) await Task.Delay(10);
             Assert.Equal(2, window.SessionCount); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            Assert.Equal("name:*.bin", window.GetVisualDescendants().OfType<TextBox>().Single(t => Avalonia.Automation.AutomationProperties.GetName(t) == "Filter observations" && t.IsEffectivelyVisible).Text);
+            Assert.Equal("name:*.bin", window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationLabel(t) == "Filter observations" && t.IsEffectivelyVisible).Text);
             Assert.Contains(window.GetVisualDescendants().OfType<ComboBox>(), c => c.IsEffectivelyVisible && c.SelectedItem as string == "Table");
             Assert.Contains(window.GetVisualDescendants().OfType<ComboBox>(), c => c.IsEffectivelyVisible && c.SelectedItem as string == "Name");
             Assert.Contains(window.GetVisualDescendants().OfType<ComboBox>(), c => c.IsEffectivelyVisible && c.SelectedItem as string == "Ascending");
@@ -103,7 +103,7 @@ public sealed partial class AnalysisRenderingTests
             var open = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open observations");
             Assert.True(open.IsDefault); Assert.False(open.IsEnabled);
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("Parameter", StringComparison.Ordinal) == true);
-            window.GetVisualDescendants().OfType<TextBox>().Single(t => Avalonia.Automation.AutomationProperties.GetName(t) == "Saved inventory filename").Text = "../bad.fcdsa";
+            window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationLabel(t) == "Saved inventory filename").Text = "../bad.fcdsa";
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.StartsWith("Use a portable filename", StringComparison.Ordinal) == true);
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("Parameter", StringComparison.Ordinal) == true);
@@ -125,7 +125,7 @@ public sealed partial class AnalysisRenderingTests
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open saved…").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            var field = window.GetVisualDescendants().OfType<TextBox>().Single(t => Avalonia.Automation.AutomationProperties.GetName(t) == "Saved inventory filename");
+            var field = window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationLabel(t) == "Saved inventory filename");
             Assert.Equal(receipt.Name, field.Text);
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open observations").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var deadline = DateTime.UtcNow.AddSeconds(10);

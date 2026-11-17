@@ -21,7 +21,7 @@ public sealed partial class DiskSpaceWindow
         private DialogCloser? _markReviewCloser;
         private void AddMemorySelectionControls()
         {
-            AutomationProperties.SetName(_basket, "Captured selection summary");
+            AutomationProperties.SetAutomationId(_basket, "Captured selection summary");
             AutomationProperties.SetLiveSetting(_basket, AutomationLiveSetting.Polite);
             _basketHost.Children.Add(_markMatches); _basketHost.Children.Add(_clearMemoryMarks); _basketHost.Children.Add(_reviewMarks); _basketHost.Children.Add(_retryMarkCounts);
             ToolTip.SetTip(_markMatches, new RichTip("Capture matching files", detail: "Marks regular-file matches in the displayed scope and revision. Focus does not narrow this scope. Context folders, hidden aliases and future observations are excluded. At most 100,000 distinct paths can be marked."));

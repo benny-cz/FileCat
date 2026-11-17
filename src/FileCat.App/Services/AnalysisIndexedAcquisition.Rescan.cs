@@ -16,8 +16,9 @@ internal sealed partial class AnalysisIndexedAcquisition
     }
     internal bool HasRuntimeRescanContext
     {
-        get { lock (_gate) return _close is null && _session is { Completion.IsCompletedSuccessfully: true, SourceCloseFailures: 0 } && _runtimeLocations.Length != 0; }
+        get { lock (_gate) return _close is null && _session is { Completion.IsCompletedSuccessfully: true, SourceCloseFailures: 0, RuntimeHasSuccessor: false } && _runtimeLocations.Length != 0; }
     }
+    internal bool RuntimeHasSuccessor { get { lock (_gate) return _session?.RuntimeHasSuccessor == true; } }
     internal (string[] Locations, AnalysisComponentPreset Components) RuntimeSettings
     {
         get { lock (_gate) { ObjectDisposedException.ThrowIf(_close is not null, this); return (_runtimeLocations.ToArray(), _runtimeComponents); } }

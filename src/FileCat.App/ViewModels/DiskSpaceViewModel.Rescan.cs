@@ -82,7 +82,7 @@ public sealed partial class DiskSpaceViewModel
             await session.Completion; // Stop retains a partial successor; actual native work remains owned.
             if (_disposed) return null;
             var snapshot = session.Snapshot();
-            result = new(services, _prepareSource)
+            result = new(services, _prepareSource, _indexedStorage)
             {
                 _session = session, _acquisition = next, _runtimeRoots = _runtimeRoots, _runtimeComponents = _runtimeComponents,
                 Components = _runtimeComponents, Phase = snapshot.Phase, SourceCloseFailures = session.SourceCloseFailures,

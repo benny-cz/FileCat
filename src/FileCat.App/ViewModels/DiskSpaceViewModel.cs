@@ -59,8 +59,9 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         !DisplayedRevisionSaved && (_savedCopyLost || _session is not null || _observation is { Origin: AnalysisOrigin.LiveSession, Persistence: AnalysisPersistence.Temporary }));
     public event Action? Changed;
     public DiskSpaceViewModel(AppServices services) : this(services, Prepare) { }
-    internal DiskSpaceViewModel(AppServices services, Func<string, IAnalysisBackend> prepare)
-    { _services = services; services.AnalysisSavedReferences.Track(this); _zone = TimeZoneInfo.Local; _prepareSource = prepare; }
+    internal DiskSpaceViewModel(AppServices services, bool indexedStorage) : this(services, Prepare, indexedStorage) { }
+    internal DiskSpaceViewModel(AppServices services, Func<string, IAnalysisBackend> prepare, bool indexedStorage = false)
+    { _services = services; services.AnalysisSavedReferences.Track(this); _zone = TimeZoneInfo.Local; _prepareSource = prepare; _indexedStorage = indexedStorage; }
     public DiskSpaceViewModel(AnalysisSnapshot observations)
     {
         _observation = observations;
@@ -96,7 +97,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     }
     private void UpdateProgress(AnalysisProgress progress)
     {
-        if (_disposed || IsRescanning) return;
+        if (_disposed || IsRescanning || _capturedPreviewNotice is not null) return;
         Phase = progress.Phase; Dirty = true;
         SourceCloseFailures = progress.SourceCloseFailures;
         SetStatus($"{progress.Phase} · {progress.ObservedPaths:N0} observed paths · {progress.Issues:N0} issues. Values are observations over time." +
@@ -185,7 +186,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         try { Selection.BindIdentity(tree.Snapshot.Identity); }
         catch { lease?.Dispose(); order.Dispose(); throw; }
         if (_session is not null)
-            AcquisitionNotice = (_acquisition?.MemoryPreparationNotice ?? "This analysis uses bounded memory. It stops with partial results if the memory limit is reached.") +
+            AcquisitionNotice = (IsIndexedRuntimePreview ? "A bounded preview is displayed while the scan records its results. Open the recorded result after scanning to explore every recorded entry." :
+                _acquisition?.MemoryPreparationNotice ?? "This analysis uses bounded memory. It stops with partial results if the memory limit is reached.") +
                 (PrivateBoundaryNotice(tree.Snapshot) is { } notice ? " " + notice : "");
         if (Tree is not null && Tree.GroupingDimension != tree.GroupingDimension || Selection.Scope != scope) Selection.ResetNavigation(scope);
         if (focus is not null) Selection.SetFocus(focus);

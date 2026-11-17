@@ -8,6 +8,7 @@ namespace FileCat.App.ViewModels;
 
 public sealed partial class DiskSpaceViewModel
 {
+    private readonly bool _indexedStorage;
     private AnalysisIndexedAcquisition? _acquisition;
     private TaskCompletionSource? _bindingCompletion;
     private Exception? _bindingCloseError;
@@ -25,7 +26,7 @@ public sealed partial class DiskSpaceViewModel
         if (!session.Completion.IsCompletedSuccessfully || session.DatasetDescriptor is not null)
             throw new InvalidOperationException("Adopt only a completed bounded-memory acquisition here.");
         var settings = acquisition.RuntimeSettings;
-        var model = new DiskSpaceViewModel(services)
+        var model = new DiskSpaceViewModel(services, acquisition.IndexedStorage)
         {
             _acquisition = acquisition, _session = session, _runtimeRoots = settings.Locations.ToImmutableArray(),
             _runtimeComponents = settings.Components, Components = settings.Components, Phase = session.Snapshot().Phase,
@@ -85,12 +86,12 @@ public sealed partial class DiskSpaceViewModel
             {
                 await ReleaseUnstartedAsync();
                 preparation.Token.ThrowIfCancellationRequested();
-                // The public lifecycle remains bounded-memory until indexed resource/native gates
-                // qualify. It nevertheless uses the SAME native private-state exclusion boundary.
+                // Indexed preview is internal until its complete lifecycle/resource gates qualify.
+                // Both paths use the SAME native private-state exclusion boundary.
                 // Prepare private directories before capturing sources so those writes cannot stale
                 // a selected source directory version. No decoded inventory configures this mode.
                 _acquisition = await AnalysisIndexedAcquisition.PrepareAsync(_services, preparation.Token,
-                    indexedStorage: false, preparationDeviceChanged: key => _preparationDevice = key);
+                    indexedStorage: _indexedStorage, preparationDeviceChanged: key => _preparationDevice = key);
                 SetContinuityNotice(_acquisition.Profile);
                 _privateStorageUnavailable = _acquisition.MemoryPreparationNotice is not null;
                 AcquisitionNotice = _acquisition.MemoryPreparationNotice ?? "This analysis uses bounded memory. It stops with partial results if the memory limit is reached.";

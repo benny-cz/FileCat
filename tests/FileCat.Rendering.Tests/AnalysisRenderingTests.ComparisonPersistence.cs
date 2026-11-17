@@ -93,10 +93,10 @@ public sealed partial class AnalysisRenderingTests
         }
         Button Button(string text) => window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible && button.Content as string == text);
         void Click(string text) { Button(text).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent)); Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
-        ComboBox Choice(string name) => window.GetVisualDescendants().OfType<ComboBox>().Single(box => AutomationProperties.GetName(box) == name);
+        ComboBox Choice(string name) => window.GetVisualDescendants().OfType<ComboBox>().Single(box => AutomationLabel(box) == name);
         void ExpandQuery()
         {
-            window.GetVisualDescendants().OfType<Expander>().Single(expander => AutomationProperties.GetName(expander) == "Comparison query and ranking controls").IsExpanded = true;
+            window.GetVisualDescendants().OfType<Expander>().Single(expander => AutomationLabel(expander) == "Comparison query and ranking controls").IsExpanded = true;
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
         }
         try
@@ -106,10 +106,10 @@ public sealed partial class AnalysisRenderingTests
             Choice("Comparison sort").SelectedIndex = (int)AnalysisComparisonOrder.Path;
             Choice("Comparison query side").SelectedIndex = (int)AnalysisComparisonSide.Current;
             window.GetVisualDescendants().OfType<CheckBox>().Single(box => box.IsEffectivelyVisible && box.Content as string == "Case sensitive").IsChecked = true;
-            var query = window.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "Comparison query");
+            var query = window.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationLabel(box) == "Comparison query");
             query.Text = "name=source.cs"; Click("Apply comparison query");
             await Wait(() => comparison.ComparisonView.Query == "name=source.cs" && Button("Apply comparison query").IsEnabled);
-            var rows = window.GetVisualDescendants().OfType<ListBox>().Single(box => AutomationProperties.GetName(box) == "Comparison rows");
+            var rows = window.GetVisualDescendants().OfType<ListBox>().Single(box => AutomationLabel(box) == "Comparison rows");
             Assert.Equal(1, rows.ItemCount); rows.SelectedIndex = 0;
             Choice("Comparison chart").SelectedIndex = (int)AnalysisComparisonChartMode.Sunburst;
             Choice("Comparison chart side").SelectedIndex = 1;
@@ -117,7 +117,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal(4UL, comparison.ComparisonView.FocusNode);
             Click("Save comparison…");
             Assert.True(Button("Cancel").IsDefault);
-            window.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "Comparison filename").Text = "dialog-pair.fcdsc";
+            window.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationLabel(box) == "Comparison filename").Text = "dialog-pair.fcdsc";
             Click("Save new comparison"); await Wait(() => comparison.SavedComparisonName == "dialog-pair.fcdsc");
             query.Text = "name=picture.png"; Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             Assert.True(comparison.HasTemporaryWork); Click("Close analysis");
@@ -125,8 +125,8 @@ public sealed partial class AnalysisRenderingTests
             query.Text = "name=source.cs"; Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Assert.False(comparison.HasTemporaryWork);
             Click("Close analysis"); await Wait(() => window.SessionCount == 1); Assert.False(comparison.HasTemporaryWork);
             Click("Open comparison…"); Click("Browse saved comparisons");
-            await Wait(() => window.GetVisualDescendants().OfType<ComboBox>().Any(box => AutomationProperties.GetName(box) == "Saved comparisons" && box.ItemCount == 1));
-            window.GetVisualDescendants().OfType<ComboBox>().Single(box => AutomationProperties.GetName(box) == "Saved comparisons").SelectedIndex = 0;
+            await Wait(() => window.GetVisualDescendants().OfType<ComboBox>().Any(box => AutomationLabel(box) == "Saved comparisons" && box.ItemCount == 1));
+            window.GetVisualDescendants().OfType<ComboBox>().Single(box => AutomationLabel(box) == "Saved comparisons").SelectedIndex = 0;
             Click("Open comparison observations"); await Wait(() => window.SessionCount == 2);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), label => label.IsEffectivelyVisible && label.Text?.Contains("Sources are disconnected", StringComparison.OrdinalIgnoreCase) == true);
             ExpandQuery();
@@ -135,8 +135,8 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal((int)AnalysisComparisonSide.Current, Choice("Comparison query side").SelectedIndex);
             Assert.Equal((int)AnalysisComparisonChartMode.Sunburst, Choice("Comparison chart").SelectedIndex);
             Assert.Equal(1, Choice("Comparison chart side").SelectedIndex);
-            Assert.Equal("name=source.cs", window.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == "Comparison query").Text);
-            rows = window.GetVisualDescendants().OfType<ListBox>().Single(box => AutomationProperties.GetName(box) == "Comparison rows");
+            Assert.Equal("name=source.cs", window.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationLabel(box) == "Comparison query").Text);
+            rows = window.GetVisualDescendants().OfType<ListBox>().Single(box => AutomationLabel(box) == "Comparison rows");
             Assert.Equal(1, rows.ItemCount); Assert.Contains(4UL, Assert.IsType<AnalysisComparisonRow>(rows.SelectedItem).Current!.NodeIds);
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }

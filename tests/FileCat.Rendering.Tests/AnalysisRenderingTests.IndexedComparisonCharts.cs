@@ -36,24 +36,24 @@ public sealed partial class AnalysisRenderingTests
             await Until(() => apply.IsEnabled && ComparisonControl<TextBlock>(window, "Comparison chart scope")!.Text!.StartsWith("Current recorded amounts", StringComparison.Ordinal), () => ComparisonText(window));
             Frame(window);
             var tree = window.GetVisualDescendants().OfType<TreemapControl>().Single(control => control.IsEffectivelyVisible);
-            string initial = AutomationProperties.GetName(tree)!;
+            string initial = AutomationLabel(tree)!;
             Assert.Contains("Current", initial); Assert.Contains("Observed growth", initial);
             Assert.Contains("filters apply to the table", ComparisonControl<TextBlock>(window, "Comparison chart scope")!.Text!);
             ComparisonControl<TextBox>(window, "Comparison query")!.Text = "name:never-a-match"; Click(window, "Apply comparison view");
             await Until(() => apply.IsEnabled && ComparisonControl<ListBox>(window, "Captured comparison rows")!.ItemCount == 0);
-            Assert.Equal(initial, AutomationProperties.GetName(tree));
+            Assert.Equal(initial, AutomationLabel(tree));
             // Exercise the same routed Enter used by the native control. Geometry is
             // rendered first, so keyboard targets are its bounded visible fragments.
             using (var bitmap = new RenderTargetBitmap(new PixelSize(1180, 780))) bitmap.Render(window);
             tree.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
             await Until(() => apply.IsEnabled && window.GetVisualDescendants().OfType<Button>().Single(control => Equals(control.Content, "Up comparison chart")).IsEnabled, () => ComparisonText(window));
-            Click(window, "All comparison locations"); await Until(() => apply.IsEnabled && AutomationProperties.GetName(tree) == initial);
+            Click(window, "All comparison locations"); await Until(() => apply.IsEnabled && AutomationLabel(tree) == initial);
             foreach (int mode in new[] { 2, 1 })
             {
                 choice.SelectedIndex = mode; side.SelectedIndex = 1; Click(window, "Apply comparison chart");
                 await Until(() => apply.IsEnabled && ComparisonControl<TextBlock>(window, "Comparison chart scope")!.Text!.StartsWith("Previous recorded amounts", StringComparison.Ordinal));
                 Frame(window); var chart = window.GetVisualDescendants().OfType<AnalysisChartControl>().Single(control => control.IsEffectivelyVisible);
-                Assert.Contains("Previous", AutomationProperties.GetName(chart)!);
+                Assert.Contains("Previous", AutomationLabel(chart)!);
                 Assert.Contains("Removed area is shown on Previous only", ComparisonControl<TextBlock>(window, "Comparison chart scope")!.Text!);
             }
             Click(window, "Reset comparison view"); await Until(() => apply.IsEnabled && ComparisonControl<ListBox>(window, "Captured comparison rows")!.ItemCount > 0);

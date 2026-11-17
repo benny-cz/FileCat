@@ -25,7 +25,7 @@ public sealed partial class DiskSpaceWindow
             _comparisonSave = ActionButton("Save comparison…", () => _ = SaveComparisonAsync(),
                 "Save both captured inventories and applied metric, query, ranking, focus and chart settings in one private comparison bundle. Source files are not opened.");
             _comparisonPersistenceStatus = SessionText(Model.SavedComparisonName is { } name ? "Opened " + AnalysisNames.Display(name, 240) + ". Captured inputs remain disconnected." : Model.Status);
-            AutomationProperties.SetName(_comparisonPersistenceStatus, "Comparison storage status");
+            AutomationProperties.SetAutomationId(_comparisonPersistenceStatus, "Comparison storage status");
             AutomationProperties.SetLiveSetting(_comparisonPersistenceStatus, AutomationLiveSetting.Polite);
             _comparisonExport = ActionButton("Export comparison bundle…", () => _ = ExportComparisonBundleAsync(),
                 "Export both complete captured inventories and applied comparison settings to a reviewed local folder. Exact raw names and locations are included; source files are not opened.");

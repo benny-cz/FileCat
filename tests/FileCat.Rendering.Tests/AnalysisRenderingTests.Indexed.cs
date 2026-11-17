@@ -32,8 +32,8 @@ public sealed partial class AnalysisRenderingTests
         {
             var list = IndexedList(window); list.SelectedItem = Assert.Single(list.Items.OfType<AnalysisHierarchyRow>());
             Click(window, "Explore selected folder"); await Until(() => IndexedReady(window, explorer, 1)); Frame(window);
-            var order = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed table order");
-            var direction = window.GetVisualDescendants().OfType<CheckBox>().Single(check => AutomationProperties.GetName(check) == "Indexed descending table order");
+            var order = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Indexed table order");
+            var direction = window.GetVisualDescendants().OfType<CheckBox>().Single(check => AutomationLabel(check) == "Indexed descending table order");
             order.SelectedIndex = 2;
             await Until(() => explorer.Page?.Sort == AnalysisHierarchySort.FileSize && IndexedReady(window, explorer, 1)); Frame(window);
             var before = list.Items.OfType<AnalysisHierarchyRow>().ToArray();
@@ -88,8 +88,8 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Next entries"); await Until(() => explorer.Page!.Children.Offset != 0 && IndexedReady(window, explorer, 1)); Frame(window);
             Assert.DoesNotContain(list.Items.OfType<AnalysisHierarchyRow>(), row => firstIds.Contains(row.Path.Id));
             var selected = list.Items.OfType<AnalysisHierarchyRow>().First(); list.SelectedItem = selected;
-            await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(text => AutomationProperties.GetName(text) == "Captured metadata inspector" && text.Text?.Contains("captured path ID: " + selected.Path.Id, StringComparison.Ordinal) == true)); Frame(window);
-            var inspector = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Captured metadata inspector");
+            await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(text => AutomationLabel(text) == "Captured metadata inspector" && text.Text?.Contains("captured path ID: " + selected.Path.Id, StringComparison.Ordinal) == true)); Frame(window);
+            var inspector = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationLabel(text) == "Captured metadata inspector");
             Assert.Contains("captured path ID: " + selected.Path.Id, inspector.Text); Assert.True(inspector.IsReadOnly);
             Click(window, "Focus inspector"); Frame(window); Assert.Same(inspector, window.FocusManager?.GetFocusedElement());
             Click(window, "Previous entries"); await Until(() => explorer.Page!.Children.Offset == 0 && IndexedReady(window, explorer, 1)); Frame(window);
@@ -114,12 +114,12 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             var list = IndexedList(window);
-            var editor = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Filter indexed observations");
+            var editor = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationLabel(text) == "Filter indexed observations");
             Assert.True(editor.Focus()); editor.Text = "name:match-target.bin"; Click(window, "Apply filter");
             await Until(() => list.Items.OfType<AnalysisHierarchyRow>().Single().Logical.Files == 1); Frame(window);
             Assert.Same(editor, window.FocusManager?.GetFocusedElement());
             var shown = list.ItemsSource; editor.Text = "size:nope"; Click(window, "Apply filter");
-            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => AutomationProperties.GetName(text) == "Indexed analysis status" && text.Text?.StartsWith("The previous view remains displayed.", StringComparison.Ordinal) == true));
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => AutomationLabel(text) == "Indexed analysis status" && text.Text?.StartsWith("The previous view remains displayed.", StringComparison.Ordinal) == true));
             Assert.Same(shown, list.ItemsSource);
             Click(window, "Clear filter"); await Until(() => list.Items.OfType<AnalysisHierarchyRow>().Single().Logical.Files == 303);
             window.Close(); Frame(window); Assert.True(window.IsVisible);
@@ -144,16 +144,16 @@ public sealed partial class AnalysisRenderingTests
             foreach (int width in new[] { 1180, 380 })
             {
                 ThemeManager.Apply(theme); window.Width = width; window.Height = 780; window.FontSize = width == 380 ? 20 : 14;
-                var mode = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed chart mode");
+                var mode = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Indexed chart mode");
                 for (int index = 0; index < 3; index++)
                 {
                     mode.SelectedIndex = index; Frame(window);
                     if (width == 1180)
                     {
-                        var inspector = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Captured metadata inspector");
+                        var inspector = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationLabel(text) == "Captured metadata inspector");
                         var list = IndexedList(window); Assert.True(inspector.TranslatePoint(default, window)!.Value.X > list.TranslatePoint(default, window)!.Value.X + list.Bounds.Width);
                     }
-                    Assert.Contains(window.GetVisualDescendants().OfType<ListBox>(), list => list.IsEffectivelyVisible && AutomationProperties.GetName(list) == "Indexed analysis entries");
+                    Assert.Contains(window.GetVisualDescendants().OfType<ListBox>(), list => list.IsEffectivelyVisible && AutomationLabel(list) == "Indexed analysis entries");
                     using var frame = window.CaptureRenderedFrame(); Assert.NotNull(frame);
                     frame.Save(Path.Combine(output, $"{theme}-{width}-{index}.png"), new PngBitmapEncoderOptions());
                 }
@@ -164,9 +164,9 @@ public sealed partial class AnalysisRenderingTests
 
     private static void Frame(Window window)
     { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); AvaloniaHeadlessPlatform.ForceRenderTimerTick(2); }
-    private static ListBox IndexedList(Window window) => window.GetVisualDescendants().OfType<ListBox>().Single(list => AutomationProperties.GetName(list) == "Indexed analysis entries");
+    private static ListBox IndexedList(Window window) => window.GetVisualDescendants().OfType<ListBox>().Single(list => AutomationLabel(list) == "Indexed analysis entries");
     private static bool IndexedReady(Window window, AnalysisDatasetExplorer explorer, ulong parent) => explorer.Page?.ParentId == parent &&
-        window.GetVisualDescendants().OfType<TextBlock>().Any(text => AutomationProperties.GetName(text) == "Indexed analysis status" &&
+        window.GetVisualDescendants().OfType<TextBlock>().Any(text => AutomationLabel(text) == "Indexed analysis status" &&
             (text.Text?.StartsWith("Complete under captured policy.", StringComparison.Ordinal) == true || text.Text?.StartsWith("Partial namespace observations;", StringComparison.Ordinal) == true));
     private static void Click(Window window, string label) => window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible && button.Content as string == label).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
@@ -181,12 +181,12 @@ public sealed partial class AnalysisRenderingTests
         {
             var list = IndexedList(window); var original = list.ItemsSource;
             window.MouseMove(point); window.MouseDown(point, MouseButton.Left); pressed = true;
-            window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Filter indexed observations").Text = "name:match-target.bin";
+            window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationLabel(text) == "Filter indexed observations").Text = "name:match-target.bin";
             Click(window, "Apply filter");
             await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Query ready. Finish the current interaction to display it."));
             Assert.Same(original, list.ItemsSource); Assert.Equal(303UL, Assert.Single(list.Items.OfType<AnalysisHierarchyRow>()).Logical.Files);
-            window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed table order").SelectedIndex = 2;
-            window.GetVisualDescendants().OfType<CheckBox>().Single(check => AutomationProperties.GetName(check) == "Indexed descending table order").IsChecked = false;
+            window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Indexed table order").SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<CheckBox>().Single(check => AutomationLabel(check) == "Indexed descending table order").IsChecked = false;
             await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Query ready. Finish the current interaction to display it."));
             Assert.Same(original, list.ItemsSource);
             window.MouseUp(point, MouseButton.Left); pressed = false;
@@ -205,7 +205,7 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.Contains("identity-unverified path bytes are excluded from unique chart area", StringComparison.Ordinal) == true);
-            var metric = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed metric");
+            var metric = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Indexed metric");
             metric.SelectedIndex = (int)AnalysisMetric.OnDisk;
             await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text?.Contains("reported for paths with unverified identities; aliases may repeat", StringComparison.Ordinal) == true));
         }

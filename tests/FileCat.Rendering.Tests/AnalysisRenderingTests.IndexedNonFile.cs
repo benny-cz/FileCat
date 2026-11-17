@@ -28,12 +28,12 @@ public sealed partial class AnalysisRenderingTests
             }
             var link = list.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Name == "namespace-link");
             list.SelectedItem = link; list.ScrollIntoView(link);
-            await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(text => AutomationProperties.GetName(text) == "Captured metadata inspector" && text.Text?.Contains("target was not followed or measured", StringComparison.Ordinal) == true));
+            await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(text => AutomationLabel(text) == "Captured metadata inspector" && text.Text?.Contains("target was not followed or measured", StringComparison.Ordinal) == true));
             foreach (int width in new[] { 1180, 380 })
             {
                 window.Width = width; Frame(window); list.ScrollIntoView(link); Frame(window);
-                var grid = window.GetVisualDescendants().OfType<Grid>().Single(control => AutomationProperties.GetName(control)?.StartsWith("namespace-link;", StringComparison.Ordinal) == true);
-                string name = AutomationProperties.GetName(grid)!; Assert.Contains("Not counted", name); Assert.Contains("Link not followed", name); Assert.DoesNotContain("; 0;", name);
+                var grid = window.GetVisualDescendants().OfType<Grid>().Single(control => AutomationLabel(control)?.StartsWith("namespace-link;", StringComparison.Ordinal) == true);
+                string name = AutomationLabel(grid)!; Assert.Contains("Not counted", name); Assert.Contains("Link not followed", name); Assert.DoesNotContain("; 0;", name);
                 Assert.True(grid.Bounds.Height >= 32); Assert.True(grid.Bounds.Width <= list.Bounds.Width, $"Row {grid.Bounds.Width}, pane {list.Bounds.Width}.");
                 foreach (var cell in grid.Children.OfType<TextBlock>()) Assert.True(cell.Bounds.Right <= grid.Bounds.Width + 0.5);
                 var filePaths = Assert.Single(grid.Children.OfType<TextBlock>(), cell => cell.Text?.Contains("Not counted", StringComparison.Ordinal) == true);

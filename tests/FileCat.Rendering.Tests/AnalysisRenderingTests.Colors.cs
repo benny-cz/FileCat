@@ -47,7 +47,7 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             var tree = model.Tree!; var color = ColorSelector(window); Assert.Equal(3, color.ItemCount);
-            var mode = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Chart view");
+            var mode = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Chart view");
             string output = Path.Combine(AppContext.BaseDirectory, "analysis-renders"); Directory.CreateDirectory(output);
             foreach (var theme in ThemePalette.All)
             foreach (var dimension in new[] { AnalysisColorDimension.FileType, AnalysisColorDimension.HierarchyDepth, AnalysisColorDimension.ModifiedAge })
@@ -59,12 +59,12 @@ public sealed partial class AnalysisRenderingTests
                     Assert.Same(tree, model.Tree); Assert.Equal("n:4", model.Selection.Focus); Assert.Contains(4UL, model.Selection.Marks);
                     Assert.Equal(dimension, model.ColorDimension);
                     var legend = window.GetVisualDescendants().OfType<AnalysisColorLegend>().Single();
-                    Assert.True(legend.IsVisible); Assert.Contains(AnalysisChartColors.Title(dimension), AutomationProperties.GetName(legend));
+                    Assert.True(legend.IsVisible); Assert.Contains(AnalysisChartColors.Title(dimension), AutomationLabel(legend));
                     Assert.Contains(legend.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.StartsWith("Colors: ", StringComparison.Ordinal) == true && text.IsEffectivelyVisible);
                     var labels = legend.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ToArray();
                     foreach (var category in AnalysisChartColors.Legend(dimension)) Assert.Contains(category.Label, labels);
                     var chart = window.GetVisualDescendants().OfType<AnalysisChartControl>().Single(c => c.IsVisible);
-                    Assert.Contains(AnalysisChartColors.Title(dimension), AutomationProperties.GetName(chart));
+                    Assert.Contains(AnalysisChartColors.Title(dimension), AutomationLabel(chart));
                     Assert.True(chart.Bounds.Height > 100);
                     if (chartMode == 0)
                     {
@@ -92,9 +92,9 @@ public sealed partial class AnalysisRenderingTests
         {
             window.MouseMove(new Point(24, 24)); window.MouseDown(new Point(24, 24), MouseButton.Left);
             chart.SetView(model.Tree!, AnalysisTree.RootKey, "n:1", [], AnalysisColorDimension.ModifiedAge); Frame(window);
-            Assert.Contains(AnalysisChartColors.Title(AnalysisColorDimension.FileType), AutomationProperties.GetName(chart));
+            Assert.Contains(AnalysisChartColors.Title(AnalysisColorDimension.FileType), AutomationLabel(chart));
             window.MouseUp(new Point(24, 24), MouseButton.Left); Frame(window);
-            Assert.Contains(AnalysisChartColors.Title(AnalysisColorDimension.ModifiedAge), AutomationProperties.GetName(chart));
+            Assert.Contains(AnalysisChartColors.Title(AnalysisColorDimension.ModifiedAge), AutomationLabel(chart));
         }
         finally { window.Close(); }
     }
@@ -111,16 +111,16 @@ public sealed partial class AnalysisRenderingTests
             foreach (var dimension in new[] { AnalysisColorDimension.FileType, AnalysisColorDimension.HierarchyDepth, AnalysisColorDimension.ModifiedAge })
             {
                 selector.SelectedIndex = (int)dimension; Frame(window); Assert.Same(chart, explorer.Chart);
-                Assert.Contains(AnalysisChartColors.Title(dimension), AutomationProperties.GetName(window.GetVisualDescendants().OfType<AnalysisColorLegend>().Single()));
+                Assert.Contains(AnalysisChartColors.Title(dimension), AutomationLabel(window.GetVisualDescendants().OfType<AnalysisColorLegend>().Single()));
                 foreach (var control in window.GetVisualDescendants().OfType<AnalysisChartControl>())
-                    Assert.Contains(AnalysisChartColors.Title(dimension), AutomationProperties.GetName(control));
+                    Assert.Contains(AnalysisChartColors.Title(dimension), AutomationLabel(control));
             }
             Assert.Equal(AnalysisMetric.Files, explorer.Metric); Assert.Equal(fixture.Payload, File.ReadAllBytes(fixture.PayloadPath));
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
     private static ComboBox ColorSelector(Window window) => window.GetVisualDescendants().OfType<ComboBox>()
-        .Single(combo => AutomationProperties.GetName(combo) == "Chart color dimension");
+        .Single(combo => AutomationLabel(combo) == "Chart color dimension");
 
     [AvaloniaFact]
     public async Task FocusedChartDetailsTrackTheCurrentColorAndEntryWithoutPointerMotion()

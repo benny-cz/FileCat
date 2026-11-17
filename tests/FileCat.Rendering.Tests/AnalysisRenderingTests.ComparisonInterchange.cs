@@ -195,8 +195,8 @@ public sealed partial class AnalysisRenderingTests
         await Until(() => ui.Dialogs.IsOpen); Frame(ui.Window); Assert.True(ui.Find("Cancel").IsDefault); ui.Click("Cancel"); Assert.False(await opening);
         var pending = DiskSpaceWindow.ReviewComparisonReportOptionsAsync(ui.Dialogs, token);
         await Until(() => ui.Dialogs.IsOpen); Frame(ui.Window); Assert.True(ui.Find("Cancel").IsDefault);
-        var format = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == "Comparison report format");
-        var scope = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == "Comparison report scope");
+        var format = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationLabel(c) == "Comparison report format");
+        var scope = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationLabel(c) == "Comparison report scope");
         format.SelectedIndex = 2; scope.SelectedIndex = 1; ui.Click("Choose destination…"); var options = Assert.IsType<DiskSpaceWindow.ReportOptions>(await pending);
         Assert.True(options.ComparisonReport); Assert.True(options.RedactPaths); Assert.Equal(AnalysisReportScope.EntireResult, options.Scope);
         Assert.Contains("previous and current", options.Description); Assert.Contains("all accounting rows", options.Description);

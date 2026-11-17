@@ -17,9 +17,9 @@ namespace FileCat.Rendering.Tests;
 
 public sealed partial class AnalysisRenderingTests
 {
-    private static ComboBox GroupingSelector(Window window) => window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed grouping");
-    private static bool GroupReady(Window window) => window.GetVisualDescendants().OfType<TextBlock>().Any(text => AutomationProperties.GetName(text) == "Indexed analysis status" && text.Text?.StartsWith("Grouped view ready.", StringComparison.Ordinal) == true);
-    private static TextBox IndexedDetails(Window window) => window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Captured metadata inspector");
+    private static ComboBox GroupingSelector(Window window) => window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Indexed grouping");
+    private static bool GroupReady(Window window) => window.GetVisualDescendants().OfType<TextBlock>().Any(text => AutomationLabel(text) == "Indexed analysis status" && text.Text?.StartsWith("Grouped view ready.", StringComparison.Ordinal) == true);
+    private static TextBox IndexedDetails(Window window) => window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationLabel(text) == "Captured metadata inspector");
     private static bool MemberReady(Window window) => GroupReady(window) && IndexedList(window).Items.OfType<AnalysisDatasetGroupRow>().Any();
     private static Task SelectGrouping(Window window, AnalysisGroupingDimension dimension)
     { GroupingSelector(window).SelectedIndex = (int)dimension; return Until(() => GroupReady(window) && IndexedList(window).Items.OfType<AnalysisDatasetGroup>().Any()); }
@@ -60,7 +60,7 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "First charges"); await Until(() => IndexedDetails(window).Text?.Contains("Charges 0", StringComparison.Ordinal) == true);
             foreach (var mode in new[] { "Treemap", "Sunburst" })
             {
-                window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed chart mode").SelectedIndex = mode == "Treemap" ? 0 : 1;
+                window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Indexed chart mode").SelectedIndex = mode == "Treemap" ? 0 : 1;
                 Frame(window); var chart = window.GetVisualDescendants().OfType<AnalysisChartControl>().Single(chart => chart.IsVisible);
                 chart.Focus(); window.KeyPress(Key.Home, RawInputModifiers.None, PhysicalKey.Home, null); window.KeyRelease(Key.Home, RawInputModifiers.None, PhysicalKey.Home, null);
                 await Until(() => IndexedDetails(window).Text?.Contains("Accounting group", StringComparison.Ordinal) == true);
@@ -97,8 +97,8 @@ public sealed partial class AnalysisRenderingTests
             list.SelectedItem = Assert.Single(list.Items.OfType<AnalysisDatasetGroup>()); Click(window, "Explore selected group"); await Until(() => MemberReady(window)); Frame(window);
             var selected = list.Items.OfType<AnalysisDatasetGroupRow>().Single(row => row.Member.Path.Name == "match-target.bin");
             list.SelectedItem = selected; await Until(() => IndexedDetails(window).Text?.Contains("match-target.bin", StringComparison.Ordinal) == true);
-            var order = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed table order");
-            var descending = window.GetVisualDescendants().OfType<CheckBox>().Single(check => AutomationProperties.GetName(check) == "Indexed descending table order");
+            var order = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Indexed table order");
+            var descending = window.GetVisualDescendants().OfType<CheckBox>().Single(check => AutomationLabel(check) == "Indexed descending table order");
             foreach (int sort in new[] { 2, 3, 1, 4, 0 })
             foreach (bool direction in new[] { false, true })
             {
@@ -161,10 +161,10 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             await SelectGrouping(window, AnalysisGroupingDimension.Extension); var list = IndexedList(window);
-            var query = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Filter indexed observations");
+            var query = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationLabel(text) == "Filter indexed observations");
             query.Text = "name:match-target.bin"; Click(window, "Apply filter");
             await Until(() => GroupReady(window) && list.Items.OfType<AnalysisDatasetGroup>().Single().Members == 1); Frame(window);
-            var metricSelector = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed metric");
+            var metricSelector = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Indexed metric");
             foreach (var metric in new[] { AnalysisMetric.Files, AnalysisMetric.UniqueFileSize, AnalysisMetric.OnDisk, AnalysisMetric.FileSize })
             {
                 var old = list.ItemsSource; metricSelector.SelectedIndex = (int)metric;
@@ -222,14 +222,14 @@ public sealed partial class AnalysisRenderingTests
             foreach (int mode in new[] { 0, 1 })
             {
                 ThemeManager.Apply(theme.Name); window.Width = width;
-                window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed chart mode").SelectedIndex = mode;
+                window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationLabel(combo) == "Indexed chart mode").SelectedIndex = mode;
                 Frame(window); list.ScrollIntoView(target); Frame(window);
-                var grid = window.GetVisualDescendants().OfType<Grid>().Single(grid => AutomationProperties.GetName(grid)?.StartsWith("match-target.bin;", StringComparison.Ordinal) == true);
+                var grid = window.GetVisualDescendants().OfType<Grid>().Single(grid => AutomationLabel(grid)?.StartsWith("match-target.bin;", StringComparison.Ordinal) == true);
                 Assert.True(grid.Bounds.Width <= list.Bounds.Width + 0.5);
                 Assert.All(grid.Children.OfType<TextBlock>(), cell => Assert.True(cell.Bounds.Right <= grid.Bounds.Width + 0.5));
-                Assert.Contains("3 B", AutomationProperties.GetName(grid));
+                Assert.Contains("3 B", AutomationLabel(grid));
                 var chart = window.GetVisualDescendants().OfType<AnalysisChartControl>().Single(chart => chart.IsVisible);
-                Assert.Contains(AnalysisChartColors.Title(AnalysisColorDimension.FileType), AutomationProperties.GetName(chart));
+                Assert.Contains(AnalysisChartColors.Title(AnalysisColorDimension.FileType), AutomationLabel(chart));
                 using var bitmap = new RenderTargetBitmap(new PixelSize(width, 900)); bitmap.Render(window);
             }
         }
@@ -252,13 +252,13 @@ public sealed partial class AnalysisRenderingTests
             Assert.Same(original, list.ItemsSource);
             window.MouseUp(point, MouseButton.Left); pressed = false; await Until(() => GroupReady(window)); Frame(window);
             original = list.ItemsSource;
-            var query = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Filter indexed observations");
+            var query = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationLabel(text) == "Filter indexed observations");
             query.Text = "size:>"; Click(window, "Apply filter");
             await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text?.StartsWith("The previous view remains displayed.", StringComparison.Ordinal) == true));
             Assert.Same(original, list.ItemsSource);
             query.Text = "name:match-target.bin"; Click(window, "Apply filter");
             await Until(() => GroupReady(window) && list.Items.OfType<AnalysisDatasetGroup>().Single().Members == 1,
-                () => string.Join(" | ", window.GetVisualDescendants().OfType<TextBlock>().Where(text => AutomationProperties.GetName(text) == "Indexed analysis status").Select(text => text.Text)) +
+                () => string.Join(" | ", window.GetVisualDescendants().OfType<TextBlock>().Where(text => AutomationLabel(text) == "Indexed analysis status").Select(text => text.Text)) +
                     " Groups: " + string.Join(", ", list.Items.OfType<AnalysisDatasetGroup>().Select(group => group.Definition.Label + ": " + group.Members))); Frame(window);
             GroupingSelector(window).SelectedIndex = (int)AnalysisGroupingDimension.ModifiedAge;
             window.ForceClose(); await window.WaitForIndexedCloseAsync();
