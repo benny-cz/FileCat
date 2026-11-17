@@ -437,13 +437,19 @@ public partial class OperationsView : UserControl
     {
         if (Center?.Selected?.Job is not { } job) return;
         var snapshot = OperationReport.Capture(job);
-        new ReportWindow("Operation report", Formatters.SafeName(job.Title), ct => Task.Run(() =>
+        var report = new ReportWindow("Operation report", Formatters.SafeName(job.Title), ct => Task.Run(() =>
         {
             ct.ThrowIfCancellationRequested();
             return OperationReport.ForClipboard(snapshot) ??
                 "This retained report exceeds the window's 4 million character reading limit. " +
                 "Use Save report in the operations drawer to export every retained detail.";
-        }, ct)).Show();
+        }, ct));
+        if (job.Kind == FileCat.Core.Jobs.JobKind.StorageTransform && snapshot.Storage?.DurablePrefix is { } prefix && Main is { } main)
+            report.ConfigureStorageCalls(() =>
+            {
+                main.ShowStorageCallEvidence(job, prefix, !snapshot.State.IsFinished()); return Task.CompletedTask;
+            });
+        report.Show();
     }
 
     private async void OnCopyReport(object? sender, RoutedEventArgs e)

@@ -50,10 +50,10 @@ internal static partial class OperationReport
             line("Recorded through sequence: " + Count(prefix.Sequence));
             line("Durable byte endpoint: " + Count(prefix.ByteLength));
             line("Durable snapshot SHA-256: " + prefix.Sha256);
-            line("Exact native intent/result records remain in the retained storage evidence. This summary does not contain those records.");
+            line("Exact native intent/result records remain in the retained storage evidence. Choose View recorded calls in the operation report to browse this prefix. This summary does not contain those records.");
         }
         else line("No durable call-record snapshot is available in this summary.");
-        if (!snapshot.State.IsFinished()) line("An in-flight intent is pending; it does not establish an uncertain completed effect.");
+        if (!snapshot.State.IsFinished()) line("If this active prefix ends with an intent without a result, that call is pending; it does not establish an uncertain completed effect.");
 
         line(""); line("Examples");
         line("Bounded no-call examples; these are not a complete per-item log. Reason totals above cover all recorded observations.");

@@ -259,6 +259,9 @@ public sealed partial class WindowsStorageReviewEvidenceTests
             Assert.Equal(prefix, prior.Prefix); Assert.False(prior.Damaged); Assert.Null(prior.LastCall);
             var bound = JournalRecovery.ReadStorageHistory(Path.Join(root, leaf), prefix, WindowsStorageReviewEvidence.Backend, Stop);
             Assert.Equal(prefix, bound.Prefix); Assert.False(bound.Damaged); Assert.Null(bound.LastCall);
+            var calls = JournalRecovery.ReadStorageCalls(Path.Join(root, leaf), Assert.IsType<StorageJournalPrefix>(prefix), 0,
+                WindowsStorageReviewEvidence.Backend, Stop);
+            Assert.Empty(calls.Calls); Assert.False(calls.More); Assert.Equal(prefix, calls.Prefix);
             var account = StorageEvidenceAccounting.Census(root, null, Stop, WindowsStorageReviewEvidence.Backend);
             Assert.True(account.Complete, account.Problem); Assert.Equal(1, account.PendingHistories);
         }

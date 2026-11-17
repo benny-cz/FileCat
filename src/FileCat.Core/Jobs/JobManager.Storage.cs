@@ -83,6 +83,14 @@ public sealed partial class JobManager
         return JournalRecovery.ReadStorageReviewStatus(owner, ct);
     }
 
+    public StorageCallEvidencePage ReadStorageCalls(string fileName, StorageJournalPrefix prefix, long afterCall = 0,
+        CancellationToken ct = default)
+    {
+        string path = StorageHistoryPath(fileName);
+        var backend = _storageEvidenceBackend ?? throw new NotSupportedException("Private storage call evidence is unavailable on this platform.");
+        return JournalRecovery.ReadStorageCalls(path, prefix, afterCall, backend, ct);
+    }
+
     public StorageReviewStatus AcknowledgeStorageReview(StorageReviewedJournal reviewed, string reviewText,
         StorageReviewChoice choice, CancellationToken ct = default)
     {

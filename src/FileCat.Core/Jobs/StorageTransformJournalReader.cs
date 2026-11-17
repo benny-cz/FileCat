@@ -10,7 +10,10 @@ internal sealed record StorageJournalReadResult(StorageTransformJournalCollector
 internal static class StorageTransformJournalReader
 {
     internal static StorageJournalReadResult Read(Stream input, Guid expectedJob = default, long? prefixLength = null,
-        string? prefixDigest = null, CancellationToken ct = default)
+        string? prefixDigest = null, CancellationToken ct = default) => Read(input, expectedJob, prefixLength, prefixDigest, ct, null);
+
+    internal static StorageJournalReadResult Read(Stream input, Guid expectedJob, long? prefixLength,
+        string? prefixDigest, CancellationToken ct, Action<StorageTransformJournalCollector>? acceptedRecord)
     {
         var collector = new StorageTransformJournalCollector();
         using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -41,6 +44,7 @@ internal static class StorageTransformJournalReader
                     using var document = StorageTransformJournalWriter.Decode(line.WrittenSpan);
                     collector.Read(document.RootElement); line.Clear();
                     if (collector.Damaged) return Result();
+                    acceptedRecord?.Invoke(collector);
                 }
             }
             if (line.WrittenCount != 0 || prefixLength is { } expected && bytes != expected) collector.Fault();

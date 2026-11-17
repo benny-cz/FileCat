@@ -90,6 +90,16 @@ public sealed class StorageOperationsUiTests
     }
 
     [Fact]
+    public void Active_summary_does_not_invent_a_pending_call_when_no_call_prefix_is_available()
+    {
+        var job = MakeJob(); job.SetStorageResult(Result(job)); job.SetState(JobState.Running);
+        string report = Assert.IsType<string>(OperationReport.ForClipboard(OperationReport.Capture(job)));
+        Assert.Contains("If this active prefix ends with an intent without a result", report);
+        Assert.DoesNotContain("An in-flight intent is pending", report);
+        Assert.Contains("No durable call-record snapshot", report);
+    }
+
+    [Fact]
     public void Summary_capture_keeps_one_snapshot_all_roots_and_no_transfer_claims()
     {
         var job = MakeJob(); var first = Result(job) with { DurablePrefix = new(job.Id, 7, 1024, "EXACT-DIGEST"), ObservedUtc = DateTime.UnixEpoch };
