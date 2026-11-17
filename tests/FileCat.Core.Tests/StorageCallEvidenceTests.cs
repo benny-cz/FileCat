@@ -108,4 +108,73 @@ public sealed class StorageCallEvidenceTests
         File.Delete(fixture.Path);
         Assert.Throws<FileNotFoundException>(() => JournalRecovery.ReadStorageCalls(fixture.Path, Prefix(writer), ct: Stop));
     }
+
+    [Fact]
+    public void Export_copies_the_entire_captured_prefix_including_pending_intent_and_excludes_later_appends()
+    {
+        using var temp = new TempDir(); using var data = new MemoryStream(); var fixture = Create(temp, data);
+        using var writer = fixture.Writer; for (int i = 1; i <= 130; i++) Call(writer, i);
+        var pending = writer.FlushIntent(0, @"C:\source\pending", Before); var prefix = Prefix(writer);
+        byte[] expected = data.ToArray();
+        writer.FlushNotAttempted(pending, StorageNoCallReason.Canceled); Call(writer, 132);
+        File.WriteAllBytes(fixture.Path, data.ToArray());
+        using var output = new MemoryStream();
+        JournalRecovery.CopyStorageCalls(fixture.Path, prefix, () => output, Stop);
+        Assert.Equal(expected, output.ToArray());
+        Assert.Equal(prefix.ByteLength, output.ToArray().LongLength);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(Stop); deadline.CancelAfter(TimeSpan.FromSeconds(5));
+        using (StorageEvidenceLanes.EnterEnvelope(deadline.Token)) { }
+    }
+
+    [Theory]
+    [InlineData("bytes")]
+    [InlineData("short")]
+    [InlineData("digest")]
+    [InlineData("sequence")]
+    public void Export_validates_every_record_and_digest_before_creating_any_output(string damage)
+    {
+        using var temp = new TempDir(); using var data = new MemoryStream(); var fixture = Create(temp, data);
+        using var writer = fixture.Writer; for (int i = 1; i <= 70; i++) Call(writer, i);
+        var prefix = Prefix(writer); byte[] bytes = data.ToArray();
+        switch (damage)
+        {
+            case "bytes": bytes[^12] ^= 1; break;
+            case "short": bytes = bytes[..^10]; break;
+            case "digest": prefix = prefix with { Sha256 = new string('0', 64) }; break;
+            case "sequence": prefix = prefix with { Sequence = prefix.Sequence + 1 }; break;
+        }
+        File.WriteAllBytes(fixture.Path, bytes); bool created = false;
+        Assert.Throws<IOException>(() => JournalRecovery.CopyStorageCalls(fixture.Path, prefix, () => { created = true; return new MemoryStream(); }, Stop));
+        Assert.False(created);
+    }
+
+    [Fact]
+    public void Export_rechecks_copied_bytes_when_source_changes_after_validation()
+    {
+        using var temp = new TempDir(); using var data = new MemoryStream(); var fixture = Create(temp, data);
+        using var writer = fixture.Writer;
+        for (int i = 1; i <= 100; i++) Call(writer, i, @"C:\source\" + new string('x', 1200) + i);
+        var prefix = Prefix(writer); File.WriteAllBytes(fixture.Path, data.ToArray());
+        Assert.True(prefix.ByteLength > 2 * 64 * 1024);
+        using var output = new MemoryStream();
+        Assert.Throws<IOException>(() => JournalRecovery.CopyStorageCalls(fixture.Path, prefix, () =>
+        {
+            using var competing = new FileStream(fixture.Path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+            competing.WriteByte((byte)'!'); competing.Flush(true); return output;
+        }, Stop));
+        Assert.Equal(prefix.ByteLength, output.ToArray().LongLength); // Tentative staging bytes must not be published.
+    }
+
+    [Fact]
+    public void Export_cancellation_after_factory_creation_closes_output_and_releases_its_envelope()
+    {
+        using var temp = new TempDir(); using var data = new MemoryStream(); var fixture = Create(temp, data);
+        using var writer = fixture.Writer; Call(writer, 1); File.WriteAllBytes(fixture.Path, data.ToArray());
+        using var stop = new CancellationTokenSource(); using var output = new MemoryStream();
+        Assert.ThrowsAny<OperationCanceledException>(() => JournalRecovery.CopyStorageCalls(fixture.Path, Prefix(writer), () =>
+        { stop.Cancel(); return output; }, stop.Token));
+        Assert.Empty(output.ToArray()); Assert.False(output.CanWrite);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(Stop); deadline.CancelAfter(TimeSpan.FromSeconds(5));
+        using (StorageEvidenceLanes.EnterEnvelope(deadline.Token)) { }
+    }
 }

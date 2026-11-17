@@ -38,6 +38,7 @@ public sealed partial class MainViewModel
             var window = new ReportWindow("Storage history snapshot", Formatters.SafeName(job.Title), _ => Task.FromResult(report));
             window.ConfigureStorageReview(report, () => SaveStorageCallDetailsAsync(job, status.Current), status.ReviewPending
                 ? async () => { if (await AcknowledgeStorageHistoryAsync(job, status, report)) window.Close(); } : null);
+            ConfigureInactiveStorageCalls(window, job.Title, status.Current);
             window.Show();
             return window;
         }
@@ -65,12 +66,23 @@ public sealed partial class MainViewModel
                 "\n" + snapshot.Report.ReviewText;
             Operations.AddReviewedRecovery(row with { JournalPath = ack.Reviewed.JournalLeaf, CapturedUtc = ack.AcknowledgedUtc, StorageAcknowledgment = ack });
             var window = new ReportWindow("Retained storage review", Formatters.SafeName(row.Title), _ => Task.FromResult(text));
+            if (snapshot.JournalPresent) ConfigureInactiveStorageCalls(window, row.Title, snapshot.Report.Reviewed);
             window.Show(); return window;
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         { if (EditSessionsActive) Notify("Retained storage history could not be verified: " + Formatters.SafeName(ex.Message), true); }
         return null;
+    }
+
+    private void ConfigureInactiveStorageCalls(ReportWindow window, string title, StorageReviewedJournal reviewed)
+    {
+        if (reviewed.History is { Damaged: false, LimitReached: false, Action: not null } history)
+            window.ConfigureStorageCalls(() =>
+            {
+                ShowStorageCallEvidence(title, reviewed.JournalLeaf, history.Prefix, activeAtCapture: false);
+                return Task.CompletedTask;
+            });
     }
 
     private async Task SaveStorageCallDetailsAsync(InterruptedJob job, StorageReviewedJournal reviewed)

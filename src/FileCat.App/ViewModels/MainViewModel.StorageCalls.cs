@@ -12,9 +12,17 @@ public sealed partial class MainViewModel
     {
         if (!EditSessionsActive || !Services.Jobs.SupportsStorageHistory || job.Kind != JobKind.StorageTransform || prefix.JobId != job.Id)
         { Notify("Recorded storage calls are unavailable for this operation on this host.", true); return null; }
+        return ShowStorageCallEvidence(job.Title, StorageJournalPolicy.FileName(job.CreatedUtc, job.Id), prefix, activeAtCapture);
+    }
+
+    internal ReportWindow? ShowStorageCallEvidence(string title, string leaf, StorageJournalPrefix prefix, bool activeAtCapture)
+    {
+        if (!EditSessionsActive || !Services.Jobs.SupportsStorageHistory || !StoragePaths.IsChildName(leaf) ||
+            !StorageJournalPolicy.TryJobId(leaf, out var id) || id != prefix.JobId)
+        { Notify("Recorded storage calls are unavailable for this history on this host.", true); return null; }
         var accounting = StorageAccounting; // compose on the UI thread before a report producer starts
-        string leaf = StorageJournalPolicy.FileName(job.CreatedUtc, job.Id), device = PathUtil.GetDeviceKey(Services.Paths.JournalDirectory);
-        var report = ReportWindow.CreateStorageCalls(Formatters.SafeName(job.Title), prefix, activeAtCapture, async (after, ct) =>
+        string device = PathUtil.GetDeviceKey(Services.Paths.JournalDirectory);
+        var report = ReportWindow.CreateStorageCalls(Formatters.SafeName(title), prefix, activeAtCapture, async (after, ct) =>
         {
             try
             {

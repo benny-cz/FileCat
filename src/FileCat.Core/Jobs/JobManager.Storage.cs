@@ -94,6 +94,14 @@ public sealed partial class JobManager
         return JournalRecovery.ReadStorageCalls(path, prefix, afterCall, backend, ct);
     }
 
+    /// <summary>Writes the whole verified captured prefix to a caller-owned staging output; never publishes it.</summary>
+    public void CopyStorageCalls(string fileName, StorageJournalPrefix prefix, Func<Stream> createOutput, CancellationToken ct = default)
+    {
+        string path = StorageHistoryPath(fileName);
+        var backend = _storageEvidenceBackend ?? throw new NotSupportedException("Private storage call evidence is unavailable on this platform.");
+        JournalRecovery.CopyStorageCalls(path, prefix, createOutput, backend, ct);
+    }
+
     public StorageReviewStatus AcknowledgeStorageReview(StorageReviewedJournal reviewed, string reviewText,
         StorageReviewChoice choice, CancellationToken ct = default)
     {
