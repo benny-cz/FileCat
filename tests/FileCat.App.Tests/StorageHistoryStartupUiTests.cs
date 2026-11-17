@@ -58,10 +58,10 @@ public sealed class StorageHistoryStartupUiTests
                 Assert.Contains("no matching durable result", report.Text);
                 Assert.Single(report.GetVisualDescendants().OfType<Button>(), button => button.Content as string == "View recorded calls…");
                 calls = Assert.IsType<ReportWindow>(first.Vm.ShowStorageCallEvidence("Inactive history", leaf, prefix, activeAtCapture: false));
-                await Wait(() => calls.Reading?.IsCompleted == true && calls.Text.Contains("Displayed calls 1–64", StringComparison.Ordinal));
                 var next = calls.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Next recorded call page");
+                await Wait(() => calls.Reading?.IsCompleted == true && calls.Text.Contains("Displayed calls 1–64", StringComparison.Ordinal) && next.IsEnabled);
                 Assert.True(next.IsEnabled); next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await Wait(() => calls.Reading?.IsCompleted == true && calls.Text.Contains("Displayed calls 65–71", StringComparison.Ordinal));
+                await Wait(() => calls.Reading?.IsCompleted == true && calls.Text.Contains("Displayed calls 65–71", StringComparison.Ordinal) && !next.IsEnabled);
                 Assert.False(next.IsEnabled); Assert.DoesNotContain("Call 1;", calls.Text);
                 Assert.Contains("No result is recorded at this prefix", calls.Text); Assert.DoesNotContain("Pending at this active snapshot", calls.Text);
                 calls.Close();
