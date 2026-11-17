@@ -21,8 +21,15 @@ public sealed class AppServices : IDisposable
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
-        Settings = JsonFileStore.Load(paths.SettingsFile, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema,
-            () => new AppSettings(), out var settingsStatus);
+        StateLoadStatus settingsStatus;
+        if (OperatingSystem.IsWindows() && !WindowsTokenAuthority.IsHighIntegrity)
+        {
+            _windowsSettings = new WindowsSettingsFile(paths.SettingsFile);
+            Settings = _windowsSettings.Load(out settingsStatus);
+        }
+        else
+            Settings = JsonFileStore.Load(paths.SettingsFile, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema,
+                () => new AppSettings(), out settingsStatus);
         SettingsStatus = settingsStatus;
         Settings.Terminal.Upgrade();
         History = JsonFileStore.Load(paths.HistoryFile, StateJsonContext.Default.HistoryState, HistoryState.CurrentSchema,
@@ -451,11 +458,28 @@ public sealed class AppServices : IDisposable
             : $"FileCat could not save its {what}: {ex.Message} It keeps trying; until it can, changes to them will not survive a restart.");
     }
 
+    private readonly WindowsSettingsFile? _windowsSettings;
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    internal WindowsSettingsFile NormalAppearanceSettings => _windowsSettings
+        ?? throw new IOException("Open FileCat normally to access saved appearance settings.");
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    internal string TryReplaceNormalAppearance(WindowsSettingsFile.Review review)
+    {
+        if (SettingsReadOnly) throw new IOException("The normal settings are read-only.");
+        return NormalAppearanceSettings.ReplaceAppearance(review, Settings);
+    }
+
     public void SaveSettings()
     {
         if (!SettingsReadOnly)
         {
-            try { JsonFileStore.Save(Paths.SettingsFile, Settings, StateJsonContext.Default.AppSettings); }
+            try
+            {
+                if (OperatingSystem.IsWindows() && _windowsSettings is not null) _windowsSettings.Save(Settings);
+                else JsonFileStore.Save(Paths.SettingsFile, Settings, StateJsonContext.Default.AppSettings);
+            }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { ReportSaveFailure("settings", ex); }
         }
         Saved?.Invoke();

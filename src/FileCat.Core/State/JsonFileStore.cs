@@ -33,11 +33,17 @@ public interface IVersionedState
 /// </summary>
 public static class JsonFileStore
 {
-    private const int MaxStateBytes = 8 * 1024 * 1024;
+    internal const int MaxStateBytes = 8 * 1024 * 1024;
 
     public static T Load<T>(string path, JsonTypeInfo<T> typeInfo, int currentSchema, Func<T> defaults, out StateLoadStatus status)
+        where T : class, IVersionedState =>
+        Load(path, typeInfo, currentSchema, defaults, out status, out _);
+
+    internal static T Load<T>(string path, JsonTypeInfo<T> typeInfo, int currentSchema, Func<T> defaults,
+        out StateLoadStatus status, out byte[]? primary)
         where T : class, IVersionedState
     {
+        primary = null;
         if (WindowsTokenAuthority.IsHighIntegrity)
         {
             status = StateLoadStatus.UnavailableReadOnly;
@@ -48,12 +54,12 @@ public static class JsonFileStore
             status = StateLoadStatus.Missing;
             return defaults();
         }
-        if (TryRead(path, typeInfo, out var value, out bool primaryOversized, out bool primaryUnavailable))
+        if (TryRead(path, typeInfo, out var value, out bool primaryOversized, out bool primaryUnavailable, out primary))
         {
             status = value!.SchemaVersion > currentSchema ? StateLoadStatus.NewerSchemaReadOnly : StateLoadStatus.Loaded;
             return value;
         }
-        bool backupLoaded = TryRead(path + ".bak", typeInfo, out var backup, out bool backupOversized, out bool backupUnavailable);
+        bool backupLoaded = TryRead(path + ".bak", typeInfo, out var backup, out bool backupOversized, out bool backupUnavailable, out _);
         if (primaryUnavailable || backupUnavailable || primaryOversized || backupOversized)
         {
             // A state we cannot safely read may be valid or from a newer release. Never overwrite it automatically.
@@ -72,8 +78,9 @@ public static class JsonFileStore
     }
 
     private static bool TryRead<T>(string path, JsonTypeInfo<T> typeInfo, out T? value, out bool oversized,
-        out bool unavailable) where T : class
+        out bool unavailable, out byte[]? bytes) where T : class
     {
+        bytes = null;
         value = null;
         oversized = false;
         unavailable = false;
@@ -84,9 +91,10 @@ public static class JsonFileStore
                 ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)
                 : new FileStream(UnixFiles.OpenRegularFileForRead(path), FileAccess.Read);
             if (fs.Length > MaxStateBytes) { oversized = true; return false; }
-            byte[] bytes = new byte[checked((int)fs.Length)];
-            fs.ReadExactly(bytes);
+            byte[] read = new byte[checked((int)fs.Length)];
+            fs.ReadExactly(read);
             if (fs.ReadByte() != -1) { oversized = true; return false; }
+            bytes = read;
             using var bounded = new MemoryStream(bytes, writable: false);
             value = JsonSerializer.Deserialize(bounded, typeInfo);
             return value is not null;
@@ -120,13 +128,16 @@ public static class JsonFileStore
 
     /// <summary>Writes to a temporary sibling, flushes, then replaces the target keeping the previous version as .bak.</summary>
     public static void Save<T>(string path, T value, JsonTypeInfo<T> typeInfo, Func<bool>? mayReplace = null) =>
-        SaveCore(path, value, typeInfo, createNew: false, mayReplace);
+        SaveCore(path, fs => JsonSerializer.Serialize(fs, value, typeInfo), createNew: false, mayReplace);
 
     /// <summary>Publishes a new state file atomically; a newly occupied name is never replaced.</summary>
     public static void SaveNew<T>(string path, T value, JsonTypeInfo<T> typeInfo) =>
-        SaveCore(path, value, typeInfo, createNew: true, mayReplace: null);
+        SaveCore(path, fs => JsonSerializer.Serialize(fs, value, typeInfo), createNew: true, mayReplace: null);
 
-    private static void SaveCore<T>(string path, T value, JsonTypeInfo<T> typeInfo, bool createNew, Func<bool>? mayReplace)
+    internal static void SaveSettingsBytes(string path, byte[] bytes, Func<bool> mayReplace) =>
+        SaveCore(path, fs => fs.Write(bytes), createNew: false, mayReplace);
+
+    private static void SaveCore(string path, Action<FileStream> write, bool createNew, Func<bool>? mayReplace)
     {
         if (WindowsTokenAuthority.IsHighIntegrity)
             throw new IOException("FileCat does not save user-profile state while running as administrator. Reopen it without elevation to save changes.");
@@ -154,7 +165,7 @@ public static class JsonFileStore
             long writtenBytes;
             using (var fs = new FileStream(tmp, options))
             {
-                JsonSerializer.Serialize(fs, value, typeInfo);
+                write(fs);
                 writtenBytes = fs.Length;
                 if (writtenBytes <= MaxStateBytes) fs.Flush(flushToDisk: true);
             }
