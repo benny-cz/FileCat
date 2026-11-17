@@ -17,6 +17,38 @@ public sealed class SharedThemeStateCollection;
 public sealed class MotionPreferenceTests
 {
     [AvaloniaFact]
+    public async Task Closing_the_last_tracked_window_stops_effects_without_a_deactivation_notification()
+    {
+        string prior = ThemeManager.RequestedName;
+        var originalReader = ThemeAnimation.PreferenceReader;
+        var viewer = new Window();
+        try
+        {
+            ThemeAnimation.SetAllowed(false);
+            ThemeAnimation.PreferenceReader = _ => Task.FromResult<bool?>(false);
+            ThemeManager.Apply("Psychedelic");
+            viewer.Show();
+            // A bare viewer has no Deactivated handler that calls ThemeAnimation.
+            ThemeAnimation.SetWindowActive(viewer, true);
+            ThemeAnimation.SetAllowed(true);
+            await ThemeAnimation.RefreshPreferenceAsync();
+            Assert.True(ThemeAnimation.IsRunning);
+            viewer.Close();
+            Assert.False(ThemeAnimation.IsRunning);
+        }
+        finally
+        {
+            viewer.Close();
+            ThemeAnimation.SetAllowed(false);
+            ThemeAnimation.SetWindowActive(viewer, false);
+            ThemeAnimation.PreferenceReader = originalReader;
+            ThemeManager.Apply(prior);
+            ThemeAnimation.SetActive(true);
+            ThemeAnimation.SetAllowed(true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Viewer_activation_keeps_effects_running_after_main_window_deactivates()
     {
         string prior = ThemeManager.RequestedName;
