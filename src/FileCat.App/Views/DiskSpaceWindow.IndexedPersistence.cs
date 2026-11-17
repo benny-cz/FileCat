@@ -56,7 +56,7 @@ public sealed partial class DiskSpaceWindow
             _saveInventory.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _openInventory.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _compareInventory.IsEnabled = HasInventoryStore && !_persistenceBusy && _window.CanAddSession;
-            _openIndexedComparison.IsEnabled = HasInventoryStore && !_persistenceBusy && _window.CanAddSession;
+            _openIndexedComparison.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _importExternal.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _exportExternal.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _exportReport.IsEnabled = HasInventoryStore && !_persistenceBusy;

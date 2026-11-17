@@ -31,7 +31,7 @@ public sealed partial class DiskSpaceWindow
         finally { closer.Close(null); }
     }
 
-    private async Task OpenIndexedComparisonAsync(AppServices services, CancellationToken lifetime)
+    private async Task OpenIndexedComparisonAsync(AppServices services, CancellationToken lifetime, AnalysisViewWork owner)
     {
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(lifetime, _indexedLifetime.Token);
         var browsing = new AnalysisViewWork(); bool closed = false, busy = false;
@@ -71,13 +71,53 @@ public sealed partial class DiskSpaceWindow
             } };
             var accepted = await _dialogs.ShowCustomAsync("Open saved comparison", body,
                 [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Open comparison observations", true)
-                    { IsAvailable = () => !busy && !browsing.HasUnconfirmedClose && CanAddSession && IndexedComparisonNameError(name.Text) is null }], name, closer: closer);
+                    { IsAvailable = () => !busy && !browsing.HasUnconfirmedClose && CanAddSession && IndexedComparisonNameError(name.Text) is null },
+                 new DialogButton("Delete selected comparison…", SavedAnalysisMaintenanceAction.Delete)
+                    { HelpText = "Review removal of the selected private comparison copy. Open observations and source files are kept.",
+                      IsAvailable = () => !busy && !browsing.HasUnconfirmedClose && choices.SelectedItem is string selected && selected == name.Text }], name, closer: closer);
             closed = true; cancel.Token.ThrowIfCancellationRequested();
+            if (accepted is SavedAnalysisMaintenanceAction.Delete && choices.SelectedItem is string selectedName && selectedName == name.Text)
+            {
+                await browsing.CloseAsync();
+                await DeleteIndexedComparisonAsync(services, selectedName, owner, cancel.Token); return;
+            }
             if (accepted is not true) return;
             await IndexedComparisonProgressAsync("Opening comparison", async token =>
             { await AddSavedIndexedComparisonSessionAsync(services, name.Text!, token); return true; }, cancel.Token);
         }
         finally { closed = true; cancel.Cancel(); await browsing.CloseAsync(); }
+    }
+
+    private async Task DeleteIndexedComparisonAsync(AppServices services, string name, AnalysisViewWork owner, CancellationToken cancellation)
+    {
+        try
+        {
+            var captured = await IndexedComparisonProgressAsync("Checking saved comparison",
+                token => AnalysisOwnedStoreAccess.PrepareComparisonAsync(services, name, owner, token), cancellation);
+            OwnedAnalysisComparisonDeletionOutcome outcome;
+            try
+            {
+                if (!await SavedComparisonMaintenanceDialog.ConfirmAsync(_dialogs, captured.Review, services.Paths.AnalysisSnapshotsDirectory, cancellation)) return;
+                cancellation.ThrowIfCancellationRequested();
+                outcome = await IndexedComparisonProgressAsync("Deleting saved comparison", captured.DeleteAsync, cancellation);
+            }
+            finally { await captured.DisposeAsync(); }
+            cancellation.ThrowIfCancellationRequested();
+            await ShowComparisonMaintenanceOutcomeAsync("Saved comparison", outcome.Detail, cancellation);
+        }
+        catch (OwnedAnalysisComparisonDeletionException error)
+        {
+            owner.RecordUnconfirmedClose(error);
+            if (!cancellation.IsCancellationRequested) await ShowComparisonMaintenanceOutcomeAsync("Saved comparison removal", error.Outcome.Detail, cancellation);
+            throw;
+        }
+    }
+    private async Task ShowComparisonMaintenanceOutcomeAsync(string title, string detail, CancellationToken cancellation)
+    {
+        var closer = new DialogCloser();
+        using var close = cancellation.Register(() => Dispatcher.UIThread.Post(() => closer.Close(false)));
+        await _dialogs.ShowCustomAsync(title, new TextBlock { Text = detail, TextWrapping = TextWrapping.Wrap },
+            [new DialogButton("OK", true, IsDefault: true, IsCancel: true)], closer: closer);
     }
 
     private sealed partial class IndexedComparisonView : IAnalysisSavedReferenceTarget
@@ -104,7 +144,7 @@ public sealed partial class DiskSpaceWindow
             _saveBundle = Button("Save named comparison…", () => _ = SaveBundleAsync(), "Save both complete captured inventories, their root mapping and the applied comparison view. Names and metadata are sensitive. Existing saved files are kept.");
             _exportBundle = Button("Export comparison bundle…", () => _ = ExportBundleAsync(), "Export both complete captured inventories and the applied comparison view to a new .fcdsc file. The current filter does not reduce the saved data.");
             _openBundle = Button("Open comparison…", () => _ = RunAsync("Opening saved comparison…", async token =>
-            { if (_services is { } services) await _window.OpenIndexedComparisonAsync(services, token); }), "Open a saved comparison from this profile. Both inputs stay offline.");
+            { if (_services is { } services) await _window.OpenIndexedComparisonAsync(services, token, _work); }), "Open or manage a saved comparison from this profile. Both inputs stay offline.");
             Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { _saveBundle, _exportBundle, _openBundle } });
         }
         private AnalysisComparisonView CaptureAppliedComparisonView()
@@ -173,7 +213,7 @@ public sealed partial class DiskSpaceWindow
         {
             if (_disposed || _persistenceBusy || !HasInventoryStore) return;
             using var actual = _actualWork.Enter(); _persistenceBusy = true; RefreshIndexedPersistence();
-            try { await _window.OpenIndexedComparisonAsync(_services!, _selectionLifetime.Token); }
+            try { await _window.OpenIndexedComparisonAsync(_services!, _selectionLifetime.Token, _actualWork); }
             catch (OperationCanceledException) { }
             catch (Exception exception) when (Expected(exception))
             { RememberViewCloseFailure(exception); if (!_disposed) _status.Text = "Comparison was not opened: " + AnalysisNames.Display(exception.Message, 400); }

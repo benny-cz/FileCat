@@ -1,0 +1,29 @@
+{
+  "revision": "r1165",
+  "mode": "verified-app-ui-with-frozen-dependencies",
+  "fullFreshBuild": false,
+  "baseline": "r1164",
+  "buildLog": ".tmp/indexed-comparison-maintenance-build-r1165.txt",
+  "sourceManifest": ".tmp/source-candidate-r1165.json",
+  "archiveCount": 3,
+  "archives": [
+    {
+      "platform": "windows",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r1165.tgz",
+      "sha256": "cff7151e3c9534e376f8b2b73537ee15d228b7e33cf8e09f64a5f1d757273761",
+      "bytes": 95685824
+    },
+    {
+      "platform": "mac",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r1165.tgz",
+      "sha256": "8f20740c2ff2288556afaa3b9e66941632d4c9d12d21b626507b69c9d4a5c8a5",
+      "bytes": 3265769
+    },
+    {
+      "platform": "linux",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r1165.tgz",
+      "sha256": "17f6fd7438daea2deb8d5214a56d170ef111407df6941641ff6ad927a41fdb11",
+      "bytes": 3265747
+    }
+  ]
+}

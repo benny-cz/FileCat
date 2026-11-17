@@ -1,0 +1,14 @@
+{
+  "revision": "r1165",
+  "observedUtc": "2026-11-17T04:28:37.5955630Z",
+  "controls": [
+    {
+      "source": "src/FileCat.Core/Analysis/AnalysisIndexedComparison.cs",
+      "refusedBeforeStaging": true
+    },
+    {
+      "source": "src/FileCat.App/FileCat.App.csproj",
+      "refusedBeforeStaging": true
+    }
+  ]
+}

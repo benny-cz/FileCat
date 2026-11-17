@@ -158,7 +158,7 @@ public sealed partial class DiskSpaceWindow
             try
             {
                 await using var captured = await WithInventoryProgress("Checking saved comparison", token => Model.PrepareSavedComparisonMaintenanceAsync(name, token));
-                if (_disposed || !await SavedComparisonMaintenanceDialog.ConfirmAsync(_window._dialogs, captured.Review, Model.SavedDirectory ?? ""))
+                if (_disposed || !await SavedComparisonMaintenanceDialog.ConfirmAsync(_window._dialogs, captured.Review, Model.SavedDirectory ?? "", Model.HistoryLifetime))
                 { Model.SetStatus("The saved comparison was kept."); return; }
                 if (_disposed || !_window.IsVisible) return;
                 var outcome = await WithInventoryProgress("Deleting saved comparison", token => captured.DeleteAsync(token));

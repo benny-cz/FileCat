@@ -21,7 +21,7 @@ public sealed partial class DiskSpaceWindow
         {
             bool enabled = usable && !_chartInteracting && _result is not null && _services is { Io.IsStopped: false };
             _exportReport.IsEnabled = _saveBundle.IsEnabled = _exportBundle.IsEnabled = enabled;
-            _openBundle.IsEnabled = enabled && _window.CanAddSession;
+            _openBundle.IsEnabled = enabled;
         }
         private Task ExportReportAsync() => RunAsync("Exporting captured comparison observations…", async token =>
         {
