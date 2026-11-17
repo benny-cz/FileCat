@@ -8,7 +8,11 @@ namespace FileCat.Core.State;
 public sealed class AppearanceTransferV1
 {
     public const int MaxCharacters = 1024;
-    private const string Prefix = "FileCat-Appearance-1 ";
+    private const string Header = "FileCat-Appearance-";
+    private const string Prefix = Header + "1 ";
+
+    /// <summary>Identifies the appearance transfer family for input guidance.</summary>
+    public static bool HasHeader(string? text) => text.AsSpan().TrimStart().StartsWith(Header, StringComparison.Ordinal);
 
     public static IReadOnlyList<string> DateFormats { get; } =
         Array.AsReadOnly(new[] { "Culture", "yyyy-MM-dd HH:mm:ss", "dd.MM.yyyy HH:mm:ss", "MM/dd/yyyy h:mm:ss tt",

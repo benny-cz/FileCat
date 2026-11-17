@@ -74,6 +74,19 @@ public sealed class WorkspaceTransferTests
             Assert.False(packet.Layout.Children[0].Stacked);
             Assert.Equal(3, packet.Layout.Children[0].Size);
             Assert.Equal(2, packet.Panels[0].Target);
+            Assert.True(Shows(window, "Use copied workspace for this session"));
+
+            Click(window, "Copy saved appearance for administrator");
+            Assert.True(Field(window, "Appearance text to copy").IsEffectivelyVisible);
+            double size = vm.Workspace.LayoutTree.Size;
+            try
+            {
+                vm.Workspace.LayoutTree.Size = 0;
+                Click(window, "Copy current workspace for administrator");
+                Assert.False(Field(window, "Appearance text to copy").IsEffectivelyVisible);
+                Assert.True(Shows(window, "Could not copy the workspace."));
+            }
+            finally { vm.Workspace.LayoutTree.Size = size; }
             Click(window, "Close");
             Click(window, "Cancel");
             await settings.WaitAsync(TimeSpan.FromSeconds(5));
@@ -108,7 +121,13 @@ public sealed class WorkspaceTransferTests
                 var settings = SettingsDialog.ShowAsync(vm);
                 Click(window, AppearanceTransferDialog.ActionLabel);
                 Click(window, "Use copied workspace for this session");
-                Field(window, "Workspace text").Text = packet.Encode();
+                var input = Field(window, "Workspace text");
+                input.Text = AppearanceTransferV1.Export(new AppSettings { Theme = "Psychedelic" }, ThemeManager.Names);
+                Click(window, "Review");
+                Assert.True(Shows(window, "This is appearance text."));
+                Assert.True(Shows(window, "Copy current workspace for administrator"));
+                Assert.Equal(original, vm.Workspace.Panels.Select(p => p.Id).ToArray());
+                input.Text = packet.Encode();
                 Click(window, "Review");
                 Assert.Equal(original, vm.Workspace.Panels.Select(p => p.Id).ToArray());
                 Click(window, "Apply workspace for this session");
@@ -167,6 +186,9 @@ public sealed class WorkspaceTransferTests
 
     private static TextBox Field(Window window, string name) => window.GetVisualDescendants().OfType<TextBox>()
         .Single(box => AutomationProperties.GetName(box) == name);
+
+    private static bool Shows(Window window, string text) => window.GetVisualDescendants().OfType<TextBlock>()
+        .Any(label => label.IsEffectivelyVisible && label.Text?.Contains(text, StringComparison.Ordinal) == true);
 
     private static void Click(Window window, string text)
     {

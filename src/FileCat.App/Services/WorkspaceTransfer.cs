@@ -12,7 +12,8 @@ internal sealed record WorkspaceTransfer(WorkspaceTransfer.Panel[] Panels, Works
 {
     internal const int MaxCharacters = 64 * 1024;
     private const int MaxTabs = 512;
-    private const string Prefix = "FileCat-Workspace-1 ";
+    private const string Header = "FileCat-Workspace-";
+    private const string Prefix = Header + "1 ";
     private static readonly WorkspaceTransferJsonContext Json = new(new JsonSerializerOptions
     {
         AllowDuplicateProperties = false,
@@ -22,6 +23,8 @@ internal sealed record WorkspaceTransfer(WorkspaceTransfer.Panel[] Panels, Works
 
     internal sealed record Panel(string[] Folders, int ActiveTab, int? Target);
     internal sealed record Node(int? Panel, bool Stacked, double Size, Node[] Children);
+
+    internal static bool HasHeader(string? text) => text.AsSpan().TrimStart().StartsWith(Header, StringComparison.Ordinal);
 
     internal static WorkspaceTransfer Capture(WorkspaceViewModel workspace)
     {

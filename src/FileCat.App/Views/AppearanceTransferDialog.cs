@@ -14,6 +14,12 @@ internal static class AppearanceTransferDialog
 {
     internal const string ActionLabel = "Copy appearance or workspace between sessions…";
     private const string Keep = "Keep my settings";
+    private const string CopyWorkspace = "Copy current workspace for administrator";
+    private const string UseWorkspace = "Use copied workspace for this session";
+    private const string CopyAppearance = "Copy saved appearance for administrator";
+    private const string UseAppearance = "Use copied appearance for this session";
+    private const string CopyBackAppearance = "Copy this session’s appearance";
+    private const string ReviewBackAppearance = "Review administrator appearance";
     private static readonly DialogBehavior Modal = new() { DismissOnBackdrop = false };
 
     internal static async Task<bool> ShowAsync(MainViewModel vm, bool hasDraftChanges)
@@ -32,15 +38,15 @@ internal static class AppearanceTransferDialog
         var copied = new TextBox { IsReadOnly = true, IsVisible = false, TextWrapping = TextWrapping.Wrap };
         var primary = new Button
         {
-            Content = elevated ? "Use copied appearance for this session" : "Copy saved appearance for administrator",
+            Content = elevated ? UseAppearance : CopyAppearance,
         };
         var reverse = new Button
         {
-            Content = elevated ? "Copy this session’s appearance" : "Review administrator appearance",
+            Content = elevated ? CopyBackAppearance : ReviewBackAppearance,
         };
         var workspace = new Button
         {
-            Content = elevated ? "Use copied workspace for this session" : "Copy current workspace for administrator",
+            Content = elevated ? UseWorkspace : CopyWorkspace,
         };
         var reverseActions = new StackPanel { Spacing = 6, Children = { reverse } };
         var rememberedActions = new StackPanel { Spacing = 6 };
@@ -52,22 +58,30 @@ internal static class AppearanceTransferDialog
             Content = "Remember for future administrator launches",
         };
 
-        void ShowCopy(string text, string kind)
+        void ClearCopy()
+        {
+            copied.Text = null;
+            copied.IsVisible = false;
+        }
+
+        void ShowCopy(string text, string kind, string nextAction)
         {
             AutomationProperties.SetName(copied, $"{kind} text to copy");
             copied.Text = text;
             copied.IsVisible = true;
             status.Text = WindowsClipboardFileDrop.WriteText(vm.NativeOwner(), text)
-                ? $"{kind} copied. Open the other FileCat window to use it."
-                : $"The clipboard is unavailable. You can select and copy the {kind.ToLowerInvariant()} text below.";
+                ? $"{kind} copied. Choose “{nextAction}” in the other FileCat window."
+                : $"Clipboard copy failed. Select and copy the {kind.ToLowerInvariant()} text below, then choose “{nextAction}” in the other FileCat window.";
         }
 
         void Copy()
         {
+            ClearCopy();
             try
             {
                 var source = elevated ? services.Settings : services.NormalAppearanceSettings.ReadSaved();
-                ShowCopy(AppearanceTransferV1.Export(source, ThemeManager.Names), "Appearance");
+                ShowCopy(AppearanceTransferV1.Export(source, ThemeManager.Names), "Appearance",
+                    elevated ? ReviewBackAppearance : UseAppearance);
             }
             catch (FileNotFoundException) { status.Text = "This profile has no saved settings yet. Save them in a normal FileCat window first."; }
             catch (Exception ex) when (IsSettingsError(ex)) { status.Text = ex.Message; }
@@ -109,7 +123,7 @@ internal static class AppearanceTransferDialog
             workspace.Click += async (_, _) =>
             {
                 var value = await ReadTransferAsync(vm, "Use copied workspace", "workspace",
-                    WorkspaceTransfer.MaxCharacters, WorkspaceTransfer.Decode);
+                    WorkspaceTransfer.MaxCharacters, WorkspaceTransfer.Decode, CopyWorkspace, "normal");
                 if (value is null) return;
                 var folders = value.Panels.SelectMany((panel, index) => panel.Folders.Length > 0
                     ? new[] { $"Panel {index + 1}" }.Concat(panel.Folders)
@@ -150,12 +164,12 @@ internal static class AppearanceTransferDialog
             primary.Click += (_, _) => Copy();
             workspace.Click += (_, _) =>
             {
+                ClearCopy();
                 try
                 {
-                    ShowCopy(WorkspaceTransfer.Capture(vm.Workspace).Encode(), "Workspace");
-                    status.Text += " This includes the current panel layout and local-folder tabs.";
+                    ShowCopy(WorkspaceTransfer.Capture(vm.Workspace).Encode(), "Workspace", UseWorkspace);
                 }
-                catch (Exception ex) when (IsSettingsError(ex)) { status.Text = ex.Message; }
+                catch (Exception ex) when (IsSettingsError(ex)) { status.Text = "Could not copy the workspace. " + ex.Message; }
             };
             var undo = new Button { Content = "Undo appearance replacement" };
             reverseActions.Children.Add(undo);
@@ -173,7 +187,7 @@ internal static class AppearanceTransferDialog
             }
             try
             {
-                var value = undo ? null : await ReadAppearanceAsync(vm, "Review administrator appearance");
+                var value = undo ? null : await ReadAppearanceAsync(vm, ReviewBackAppearance, copyBack: true);
                 if (!undo && value is null) return;
                 var saved = services.NormalAppearanceSettings;
                 var review = undo ? saved.ReviewUndo() : saved.ReviewReplacement(value!);
@@ -211,27 +225,46 @@ internal static class AppearanceTransferDialog
             initialFocus: primary, closer: closer, behavior: Modal) is true;
     }
 
-    private static Task<AppearanceTransferV1?> ReadAppearanceAsync(MainViewModel vm, string title) =>
-        ReadTransferAsync(vm, title, "appearance", AppearanceTransferV1.MaxCharacters, text =>
-            AppearanceTransferV1.TryParse(text, ThemeManager.Names, out var value) ? value : null);
+    private static Task<AppearanceTransferV1?> ReadAppearanceAsync(MainViewModel vm, string title, bool copyBack = false) =>
+        ReadTransferAsync(vm, title, "appearance", AppearanceTransferV1.MaxCharacters,
+            text => AppearanceTransferV1.TryParse(text, ThemeManager.Names, out var value) ? value : null,
+            copyBack ? CopyBackAppearance : CopyAppearance, copyBack ? "administrator" : "normal");
 
     private static async Task<T?> ReadTransferAsync<T>(MainViewModel vm, string title, string kind, int limit,
-        Func<string?, T?> decode) where T : class
+        Func<string?, T?> decode, string copyAction, string sourceWindow) where T : class
     {
         var input = new TextBox { MaxLength = limit, PlaceholderText = $"Paste or enter {kind} text" };
         AutomationProperties.SetName(input, $"{char.ToUpperInvariant(kind[0])}{kind[1..]} text");
-        var status = Note("");
+        string copyHelp = $"In the {sourceWindow} FileCat window, choose “{copyAction}”, then paste the text here.";
+        var status = Note(copyHelp);
         AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Assertive);
         var paste = new Button { Content = $"Paste {kind} text" };
+        string? Mismatch(string? text)
+        {
+            if (kind == "workspace" && AppearanceTransferV1.HasHeader(text)) return "This is appearance text.";
+            if (kind == "appearance" && WorkspaceTransfer.HasHeader(text)) return "This is workspace text.";
+            return null;
+        }
+
         void Paste()
         {
-            string? text = WindowsClipboardFileDrop.ReadBoundedText(limit);
-            if (text is null) status.Text = $"No readable {kind} text is available on the clipboard.";
-            else
+            // Read up to the larger format's limit so the appearance dialog can recognize a workspace paste.
+            string? text = WindowsClipboardFileDrop.ReadBoundedText(WorkspaceTransfer.MaxCharacters);
+            if (text is null)
             {
-                input.Text = text;
-                status.Text = "";
+                status.Text = $"No readable text is available on the clipboard. {copyHelp}";
+                return;
             }
+            string? error = Mismatch(text);
+            if (error is null && text.Length > limit) error = $"The {kind} text exceeds the size limit.";
+            if (error is not null)
+            {
+                input.Text = null;
+                status.Text = $"{error} {copyHelp}";
+                return;
+            }
+            input.Text = text;
+            status.Text = copyHelp;
         }
         paste.Click += (_, _) => Paste();
         input.PastingFromClipboard += (_, e) =>
@@ -244,7 +277,8 @@ internal static class AppearanceTransferDialog
         {
             value = decode(input.Text);
             if (value is not null) return true;
-            status.Text = $"Enter {kind} text copied from FileCat. This text is invalid or uses an unsupported version.";
+            string message = Mismatch(input.Text) ?? $"Enter valid {kind} text copied from FileCat.";
+            status.Text = $"{message} {copyHelp}";
             input.Focus();
             return false;
         }
