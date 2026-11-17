@@ -39,7 +39,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         Func<string, StorageAction, EfsNativeReturn>? invoke = null, int sourceIndex = 0)
         => OpenEfsBinding(root, consent, null, requireRecovery: false, ct, invoke ?? InvokeEfs, sourceIndex);
 
-    private IStorageObjectLease OpenEfsBinding(IStorageReviewLease root, StorageEfsConsent consent, StorageEfsRecoveryApproval? recovery,
+    private EfsPathBinding OpenEfsBinding(IStorageReviewLease root, StorageEfsConsent consent, StorageEfsRecoveryApproval? recovery,
         bool requireRecovery, CancellationToken ct, Func<string, StorageAction, EfsNativeReturn> invoke, int sourceIndex,
         Func<CancellationToken, StorageEfsRecoveryApproval>? resolveRecovery = null)
     {
@@ -63,7 +63,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             windows = ProtectedWindowsPath(ct);
             var observation = Inspect(path, windows.LeafFacts.Identity, ct, compressionPolicy: false).For(consent.Action);
             if (observation.Ineligible is { } excluded) throw new StorageInspectionException(excluded);
-            var binding = new EfsPathBinding(pin, path, windows, consent, sourceIndex, invoke, recovery, requireRecovery, resolveRecovery);
+            var binding = new EfsPathBinding(pin, path, windows, consent, invoke, recovery, requireRecovery, resolveRecovery);
             path = null; windows = null;
             return binding;
         }
@@ -98,7 +98,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         int prefix = raw.StartsWith("Volume{", StringComparison.OrdinalIgnoreCase) ? 45 : 3;
         string[] names = raw[prefix..].TrimEnd('\\').Split('\\');
         string deviceRoot = EfsDeviceRoot(path);
-        for (int i = 0; i < path.Nodes.Count; i++)
+        for (int i = path.OwnedFrom; i < path.Nodes.Count; i++)
         {
             var node = path.Nodes[i];
             var facts = Facts(node.Handle.File, path.Volume.Binding, ct);
@@ -122,16 +122,20 @@ internal sealed unsafe partial class WindowsStorageTransforms
         }
     }
 
-    private sealed class EfsPathBinding : IStorageEfsObjectLease
+    private sealed partial class EfsPathBinding : IStorageEfsObjectLease
     {
         private readonly Pin _pin;
         private readonly NativePath _path, _windows;
+        private readonly EfsPathBinding? _parent;
+        private readonly EfsPathBinding _root;
+        private readonly NodeFacts _reviewedRoot;
+        private readonly StorageProblem? _cursorProblem;
+        private readonly HashSet<EfsPathBinding> _children = [];
         private readonly StorageNativeAllowance _allowance;
         private readonly StorageEfsConsent _consent;
         private StorageEfsRecoveryApproval? _recovery;
         private readonly bool _requireRecovery;
         private readonly Func<CancellationToken, StorageEfsRecoveryApproval>? _resolveRecovery;
-        private readonly StorageObjectIdentity _identity;
         private readonly Func<string, StorageAction, EfsNativeReturn> _invoke;
         private readonly string _apiPath;
         private StorageObservation? _prepared;
@@ -140,20 +144,27 @@ internal sealed unsafe partial class WindowsStorageTransforms
         private bool _disposed;
         internal ImmutableArray<WindowsEfsStream> PreparedStreams { get; private set; } = [];
         // The containing type owns construction; callers receive no unpinned ID-to-path authority.
-        internal EfsPathBinding(Pin pin, NativePath path, NativePath windows, StorageEfsConsent consent, int sourceIndex,
+        internal EfsPathBinding(Pin pin, NativePath path, NativePath windows, StorageEfsConsent consent,
             Func<string, StorageAction, EfsNativeReturn> invoke, StorageEfsRecoveryApproval? recovery, bool requireRecovery,
-            Func<CancellationToken, StorageEfsRecoveryApproval>? resolveRecovery)
+            Func<CancellationToken, StorageEfsRecoveryApproval>? resolveRecovery,
+            EfsPathBinding? parent = null, string? capturedPath = null, StorageProblem? cursorProblem = null)
         {
             _pin = pin; _path = path; _windows = windows; _consent = consent; _invoke = invoke;
-            _identity = consent.RootIdentities[sourceIndex];
+            _parent = parent;
+            _root = parent?._root ?? this;
+            _reviewedRoot = parent?._reviewedRoot ?? path.LeafFacts;
+            _cursorProblem = cursorProblem;
             _recovery = recovery;
             _requireRecovery = requireRecovery;
             _resolveRecovery = resolveRecovery;
             _allowance = StorageNativeAllowance.RequireCurrent();
-            _apiPath = EfsApiPath(path, pin.Target.Path);
+            Path = capturedPath ?? pin.Target.Path;
+            Identity = path.LeafFacts.Identity;
+            _apiPath = EfsApiPath(path, Path);
+            parent?._children.Add(this);
         }
-        public string Path => _pin.Target.Path;
-        public StorageObjectIdentity Identity => _identity;
+        public string Path { get; }
+        public StorageObjectIdentity Identity { get; }
         public StorageEfsRecoveryApproval? RecoveryApproval => _recovery;
         internal bool IsFrom(WindowsStorageTransforms adapter) => ReferenceEquals(_pin.Adapter, adapter);
         internal StorageEfsAssociationSnapshot ReadAssociations(CancellationToken ct)
@@ -161,7 +172,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             Check(); var before = Observe(ct);
             if (before.Ineligible is { } excluded) throw new StorageInspectionException(excluded);
             if (before.Efs != StorageObservationState.Enabled) throw Refuse("efs-association-state", "The held item is not known to be EFS encrypted.");
-            if (!_guards) { PromoteEfsGuards(_path, Path, ct); _guards = true; }
+            EnsureGuards(ct);
             return WindowsEfsAssociations.Read(_apiPath, Identity, _pin.InvokerSid!, token =>
             {
                 var observed = Observe(token);
@@ -172,13 +183,22 @@ internal sealed unsafe partial class WindowsStorageTransforms
         private void Check()
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!_pin.IsAlive || !ReferenceEquals(StorageNativeAllowance.RequireCurrent(), _allowance))
+            if (!_pin.IsAlive || _parent is { _disposed: true } || !ReferenceEquals(StorageNativeAllowance.RequireCurrent(), _allowance))
                 throw Changed("review-pin", "The EFS path requires its original live review pin and native owner.");
             if (EfsInvoker() != _pin.InvokerSid) throw Changed("efs-invoker", "The invoking EFS user changed.");
         }
         public StorageObservation Observe(CancellationToken ct)
         {
-            Check(); ValidateSpelling(ct);
+            Check();
+            if (_cursorProblem is { } problem)
+                return new(StorageObservationState.Unknown, StorageObservationState.Unknown, Identity, _path.LeafFacts.IsDirectory, problem);
+            if (_parent is not null)
+            {
+                var child = Inspect(_path, _windows.LeafFacts.Identity, ct, compressionPolicy: false).For(_consent.Action);
+                if (child.Ineligible is null || child.Ineligible.Code == "read-only-file") ValidateSpelling(ct);
+                return child;
+            }
+            ValidateSpelling(ct);
             return Inspect(_path, _windows.LeafFacts.Identity, ct, compressionPolicy: false).For(_consent.Action);
         }
         public StorageObservation PrepareMutation(StorageAction action, CancellationToken ct)
@@ -194,7 +214,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             if (before.Ineligible is null && NeedsChange(before.Efs, action))
             {
                 RequireRecoveryKey(action, ct);
-                if (!_guards) { PromoteEfsGuards(_path, Path, ct); _guards = true; before = Observe(ct); }
+                if (!_guards) { EnsureGuards(ct); before = Observe(ct); }
                 PreparedStreams = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, ct, includeSparseLayouts: true);
                 RequireNativeStatus(before, ct);
                 before = Observe(ct);
@@ -271,6 +291,13 @@ internal sealed unsafe partial class WindowsStorageTransforms
         private void RequireAction(StorageAction action)
         { if (action != _consent.Action) throw new ArgumentException("This EFS binding belongs to one acknowledged action.", nameof(action)); }
 
+        private void EnsureGuards(CancellationToken ct)
+        {
+            if (_guards) return;
+            PromoteEfsGuards(_path, Path, ct);
+            _guards = true;
+        }
+
         private void RequireRecoveryKey(StorageAction action, CancellationToken ct)
         {
             if (!_requireRecovery || action != StorageAction.EncryptEfs) return;
@@ -292,7 +319,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         private void ValidateSpelling(CancellationToken ct)
         {
             ValidateCapturedEfsPath(_path, Path, ct);
-            ValidateNode(Facts(_pin.Handle.File, _path.Volume.Binding, ct), _path.LeafFacts);
+            ValidateNode(Facts(_pin.Handle.File, _path.Volume.Binding, ct), _reviewedRoot);
             foreach (var node in _windows.Nodes) ValidateNode(Facts(node.Handle.File, _windows.Volume.Binding, ct), node.Facts);
         }
         internal static void ValidateNode(NodeFacts current, NodeFacts original)
@@ -302,7 +329,16 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 throw Changed("efs-path-changed", "A held EFS item or ancestor changed identity, case mode, links or storage backing; stop and review the scope.");
         }
         public void Dispose()
-        { if (_disposed) return; _disposed = true; try { _path.Dispose(); } finally { _windows.Dispose(); } }
+        {
+            if (_disposed) return;
+            _disposed = true;
+            try { foreach (var child in _children.ToArray()) child.Dispose(); }
+            finally
+            {
+                try { _path.Dispose(); }
+                finally { if (_parent is null) _windows.Dispose(); else _parent._children.Remove(this); }
+            }
+        }
     }
 
     private static void ValidateCapturedEfsPath(NativePath path, string captured, CancellationToken ct)

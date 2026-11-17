@@ -78,10 +78,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             {
                 child = Open(parent.Handle.File, entry.Name, directory: false, pin: false, ct);
                 var facts = Facts(child.File, _path.Volume.Binding, ct);
-                StorageProblem? cursorProblem = entry.ObjectId is null || facts.Identity.ObjectId != entry.ObjectId || facts.IsDirectory != entry.IsDirectory
-                    ? Problem(StorageReasonKind.IdentityChanged, "cursor-entry-changed", "The discovered name no longer has its cursor identity and kind; it will not be changed.") : null;
-                if ((facts.Attributes & (uint)FileAttributes.ReparsePoint) != (entry.Attributes & (uint)FileAttributes.ReparsePoint))
-                    cursorProblem = Problem(StorageReasonKind.IdentityChanged, "cursor-entry-changed", "The discovered reparse state changed; it will not be changed.");
+                var cursorProblem = CompareCursorEntry(facts, entry);
                 var result = new Frame(this, parent, path, entry.Name, child, facts, parent.Depth + 1, cursorProblem);
                 child = null; return new(path, facts.IsDirectory, result, null);
             }
@@ -288,5 +285,13 @@ internal sealed unsafe partial class WindowsStorageTransforms
             internal IDisposable Take() => Interlocked.Exchange(ref _charge, null) ?? throw new InvalidOperationException();
             public void Dispose() => Interlocked.Exchange(ref _charge, null)?.Dispose();
         }
+    }
+
+    private static StorageProblem? CompareCursorEntry(NodeFacts facts, WindowsStorageDirectoryCursor.Entry entry)
+    {
+        if ((facts.Attributes & (uint)FileAttributes.ReparsePoint) != (entry.Attributes & (uint)FileAttributes.ReparsePoint))
+            return Problem(StorageReasonKind.IdentityChanged, "cursor-entry-changed", "The discovered reparse state changed; it will not be changed.");
+        return entry.ObjectId is null || facts.Identity.ObjectId != entry.ObjectId || facts.IsDirectory != entry.IsDirectory
+            ? Problem(StorageReasonKind.IdentityChanged, "cursor-entry-changed", "The discovered name no longer has its cursor identity and kind; it will not be changed.") : null;
     }
 }

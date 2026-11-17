@@ -231,13 +231,15 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
     private sealed record NodeFacts(StorageObjectIdentity Identity, uint Attributes, uint Links, long Size, bool IsDirectory, bool DeletePending, uint CaseFlags);
     private sealed record VolumeFacts(string Binding, uint Flags, ulong AllocationUnit);
     private sealed record Node(Held Handle, NodeFacts Facts);
-    private sealed class NativePath(List<Node> nodes, VolumeFacts volume) : IDisposable
+    private sealed class NativePath(List<Node> nodes, VolumeFacts volume, int ownedFrom = 0) : IDisposable
     {
         internal List<Node> Nodes => nodes;
         internal VolumeFacts Volume => volume;
+        internal int OwnedFrom => ownedFrom;
         internal Held Leaf => nodes[^1].Handle;
         internal NodeFacts LeafFacts => nodes[^1].Facts;
         internal Held TakeLeaf() { var handle = Leaf; nodes.RemoveAt(nodes.Count - 1); return handle; }
-        public void Dispose() { for (int i = nodes.Count - 1; i >= 0; i--) nodes[i].Handle.Dispose(); nodes.Clear(); }
+        internal NativePath BorrowAncestorsAndAppend(Node child) => new([.. nodes, child], volume, nodes.Count);
+        public void Dispose() { for (int i = nodes.Count - 1; i >= ownedFrom; i--) nodes[i].Handle.Dispose(); nodes.Clear(); }
     }
 }

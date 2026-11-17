@@ -234,13 +234,7 @@ public sealed class WindowsEfsSetupTests
                 using var evidence = new MemoryStream();
                 using var writer = new StorageTransformJournalWriter(evidence, () => { }, header);
                 var call = writer.FlushIntent(0, path, prepared, recovery);
-                if (changeKey)
-                {
-                    using var cipher = Process.Start(new ProcessStartInfo(Path.Join(Environment.SystemDirectory, "cipher.exe"), "/k") { CreateNoWindow = true, UseShellExecute = false });
-                    Assert.NotNull(cipher);
-                    Assert.True(cipher.WaitForExit(30_000));
-                    Assert.Equal(0, cipher.ExitCode);
-                }
+                if (changeKey) RotateDisposableDefaultKey();
                 Assert.True(call.TryAdmit());
                 var result = item.ApplyAdmitted(StorageAction.EncryptEfs);
                 writer.FlushResult(call, result);
@@ -275,5 +269,15 @@ public sealed class WindowsEfsSetupTests
             Assert.Equal("synthetic test content", File.ReadAllText(path));
         }
         finally { if (File.Exists(path)) File.Decrypt(path); Directory.Delete(directory, true); }
+    }
+
+    internal static void RotateDisposableDefaultKey()
+    {
+        Assert.Equal("1", Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_ROTATE_KEY"));
+        using var cipher = Process.Start(new ProcessStartInfo(Path.Join(Environment.SystemDirectory, "cipher.exe"), "/k")
+            { CreateNoWindow = true, UseShellExecute = false });
+        Assert.NotNull(cipher);
+        Assert.True(cipher.WaitForExit(30_000));
+        Assert.Equal(0, cipher.ExitCode);
     }
 }
