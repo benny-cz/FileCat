@@ -9,15 +9,30 @@ namespace FileCat.Core.Tests;
 public sealed class MetadataOrderingSnapshotTests
 {
     [Fact]
-    public void Canonical_principal_comparison_does_not_allocate_for_each_comparison()
+    public async Task Canonical_principal_comparison_does_not_allocate_for_each_comparison()
     {
+        if (!MetadataOrderingAllocationProbe.IsChild)
+        {
+            string measured = await MetadataOrderingAllocationProbe.RunAsync(allocatingControl: false);
+            string rejected = await MetadataOrderingAllocationProbe.RunAsync(allocatingControl: true);
+            TestContext.Current.TestOutputHelper?.WriteLine(measured.Trim());
+            TestContext.Current.TestOutputHelper?.WriteLine("Rejected allocating control: " + rejected.Trim());
+            return;
+        }
+        Assert.Equal("0", Environment.GetEnvironmentVariable("DOTNET_TieredCompilation"));
+        bool allocatingControl = MetadataOrderingAllocationProbe.AllocatingControl;
         var left = new Principal(PrincipalKind.WindowsSid, "S-1-5-21-1-2-3-10");
         var right = new Principal(PrincipalKind.WindowsSid, "S-1-5-21-1-2-3-11");
         for (int i = 0; i < 1000; i++) left.CompareTo(right);
         long before = GC.GetAllocatedBytesForCurrentThread();
         int sum = 0;
-        for (int i = 0; i < 10_000; i++) sum += left.CompareTo(right);
+        for (int i = 0; i < 10_000; i++)
+        {
+            sum += left.CompareTo(right);
+            if (allocatingControl) GC.KeepAlive(left.Id.Split('-'));
+        }
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        TestContext.Current.TestOutputHelper?.WriteLine($"PRINCIPAL_ALLOCATION comparisons=10000 allocatedBytes={allocated} allocatingControl={allocatingControl}");
         Assert.True(sum < 0);
         Assert.InRange(allocated, 0, 128);
     }
