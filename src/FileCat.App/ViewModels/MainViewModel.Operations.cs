@@ -712,6 +712,7 @@ public sealed partial class MainViewModel
         if (_editAfter.Remove(job, out var edit) && File.Exists(edit)) LaunchEditor(edit);
         if (job.Kind == JobKind.StorageTransform)
         {
+            InvalidateStorageAccounting();
             var storage = job.StorageResult;
             Notify($"{Formatters.SafeName(job.Title)}: {(storage is null ? "Storage result unavailable." : StorageOperationText.Details(storage))}" +
                 (storage?.ReviewPending == true || storage?.PersistenceFault == true ? " Review storage changes in Operations (Ctrl+J)." : ""),

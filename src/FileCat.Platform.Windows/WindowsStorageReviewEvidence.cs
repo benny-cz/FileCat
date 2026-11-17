@@ -14,6 +14,7 @@ namespace FileCat.Platform.Windows;
 /// envelope. It never borrows the storage worker allowance, follows a reparse point, or operates on a historical user path.</summary>
 internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEvidence
 {
+    internal static bool IsSupportedHost => WindowsStorageTransforms.IsQualifiedHost && !WindowsTokenAuthority.IsHighIntegrity;
     internal static readonly StorageEvidenceBackend Backend = new(Open, OpenRetained, ObserveJournal, OpenCursor, OpenHistory);
     private const uint ReadControl = 0x20000, NoRecall = 0x400000;
     private readonly string _path, _owner, _binding;
@@ -346,7 +347,7 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
     private static string OrdinaryOwner(Func<IDisposable> claim)
     {
         using var charge = claim();
-        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) || RuntimeInformation.ProcessArchitecture != Architecture.X64 || WindowsTokenAuthority.IsHighIntegrity)
+        if (!IsSupportedHost)
             throw new UnauthorizedAccessException("Storage evidence requires a normal-user Windows 11 process.");
         using var identity = WindowsIdentity.GetCurrent(); return identity.User?.Value ?? throw new UnauthorizedAccessException("The invoking storage evidence identity is unavailable.");
     }

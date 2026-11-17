@@ -102,8 +102,8 @@ public sealed class AppServices : IDisposable
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory,
             archiveBackends ?? Core.Archives.ArchiveJobBackends.Empty, Platform.StorageTransforms,
-            OperatingSystem.IsWindows() ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateJournal : null,
-            OperatingSystem.IsWindows() ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Backend : null);
+            FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateJournal : null,
+            FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Backend : null);
         Archives.MutationAvailability = plan => Jobs.CanReviewArchive(plan) ? Jobs.ArchiveAvailability(plan)
             : Core.Archives.ArchiveJobAvailability.Unqualified;
         // A ZIP route composed here moves ZIP changes to the worker profile, available or refused with its reason; without

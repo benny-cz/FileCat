@@ -186,7 +186,10 @@ public sealed partial class UnixFileRecordTests
                 return;
             }
             var section = Section(Read(file), "Streams and attributes");
-            Assert.Contains(section.Table!.Rows, r => r[0] == name && r[3] == "a hidden note");
+            var row = Assert.Single(section.Table!.Rows, r => r[0] == name);
+            if (OperatingSystem.IsMacOS())
+                Assert.StartsWith("not read: A held-object attribute value/action adapter is not qualified", row[3], StringComparison.Ordinal);
+            else Assert.Equal("a hidden note", row[3]);
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

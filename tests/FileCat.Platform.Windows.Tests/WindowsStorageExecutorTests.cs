@@ -13,7 +13,7 @@ public sealed class WindowsStorageExecutorTests
     private static CancellationToken Stop => TestContext.Current.CancellationToken;
     private static void RequireNormal()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity, "Storage jobs must run in the normal user process.");
     }
     private static JobManager Manager(string root) => new(new PortableFileOperations(), new ProviderRegistry(),

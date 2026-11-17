@@ -16,7 +16,7 @@ public sealed class StorageHistoryStartupUiTests
     [AvaloniaFact]
     public async Task Private_Windows_history_is_acknowledged_through_UI_and_retained_summary_survives_restart_without_its_journal()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Native Windows private storage evidence and normal-user ACL fixture.");
+        Assert.SkipWhen(!FileCat.Platform.Windows.WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client private storage evidence and normal-user ACL fixture.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity, "Run this fixture in the disposable normal-user Windows test process.");
         string state = Directory.CreateTempSubdirectory("filecat-storage-startup-").FullName;
         var paths = AppPaths.Resolve(overrideRoot: state); string journalDirectory = Directory.CreateDirectory(paths.JournalDirectory).FullName;
@@ -37,6 +37,8 @@ public sealed class StorageHistoryStartupUiTests
             try
             {
                 await Wait(() => !first.Vm.Operations.IsStorageHistoryLoading && first.Vm.Operations.Interrupted.Any(r => r.IsStorage));
+                await Wait(() => first.Vm.Operations.StorageAccounting is { Complete: true, PendingHistories: 1 });
+                Assert.Equal(2L * 1024 * 1024, first.Vm.Operations.StorageAccounting!.ReservedReviewBytes);
                 var pending = Assert.Single(first.Vm.Operations.Interrupted, r => r.IsStorage);
                 Assert.Equal(leaf, pending.Job.StorageJournalLeaf); Assert.Equal(leaf, pending.Job.JournalPath);
                 report = Assert.IsType<ReportWindow>(await first.Vm.ShowInterruptedReportAsync(pending.Job));
@@ -51,6 +53,8 @@ public sealed class StorageHistoryStartupUiTests
                 var retained = Assert.Single(first.Vm.Operations.ReviewedRecovery, r => r.IsStorage);
                 Assert.Empty(retained.Report); Assert.True(retained.StorageEffectUncertain); Assert.NotNull(retained.StorageRetainedLeaf);
                 Assert.False(await Task.Run(() => first.Services.Jobs.IsInterrupted(pending.Job, TestContext.Current.CancellationToken)));
+                await Wait(() => first.Vm.Operations.StorageAccounting is { Complete: true, PendingHistories: 0 } && !first.Vm.Operations.IsStorageHistoryAccounting);
+                Assert.Equal(0, first.Vm.Operations.StorageAccounting!.ReservedReviewBytes);
             }
             finally { report?.Close(); AccessibilityTests.Close(first.Services, first.Window, first.Root); }
 
@@ -62,6 +66,7 @@ public sealed class StorageHistoryStartupUiTests
             try
             {
                 await Wait(() => !second.Vm.Operations.IsStorageHistoryLoading && second.Vm.Operations.ReviewedRecovery.Any(r => r.IsStorage));
+                await Wait(() => second.Vm.Operations.StorageAccounting is { Complete: true, Journals: 0, Artifacts: 2 });
                 var row = Assert.Single(second.Vm.Operations.ReviewedRecovery, r => r.IsStorage);
                 Assert.False(row.StorageVerified); Assert.Empty(row.Report);
                 restored = Assert.IsType<ReportWindow>(await second.Vm.ShowRetainedStorageHistoryAsync(row));

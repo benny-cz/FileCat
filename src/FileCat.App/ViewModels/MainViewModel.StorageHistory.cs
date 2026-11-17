@@ -9,9 +9,12 @@ namespace FileCat.App.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private Task<T> StorageHistoryIoAsync<T>(InterruptedJob job, RecoveryActionScope scope, Func<CancellationToken, T> work) =>
-        Services.Io.RunOwned(PathUtil.GetDeviceKey(Services.Paths.JournalDirectory), IoPriority.Interactive,
+    private async Task<T> StorageHistoryIoAsync<T>(InterruptedJob job, RecoveryActionScope scope, Func<CancellationToken, T> work)
+    {
+        using var interactive = await StorageAccounting.EnterInteractiveAsync(scope.StopSource.Token);
+        return await Services.Io.RunOwned(PathUtil.GetDeviceKey(Services.Paths.JournalDirectory), IoPriority.Interactive,
             ct => { scope.Check(); return work(ct); }, scope.StopSource.Token);
+    }
 
     private async Task<ReportWindow?> ShowStorageHistoryReportAsync(InterruptedJob job)
     {
@@ -22,6 +25,7 @@ public sealed partial class MainViewModel
             var status = await StorageHistoryIoAsync(job, scope,
                 ct => Services.Jobs.ReadStorageReview(job.StorageJournalLeaf ?? Path.GetFileName(job.JournalPath), ct));
             scope.Check();
+            InvalidateStorageAccounting();
             if (!status.ReviewPending)
             {
                 var pending = Operations.Interrupted.FirstOrDefault(r => r.Job.JournalPath == job.JournalPath);
@@ -48,9 +52,11 @@ public sealed partial class MainViewModel
         if (row.StorageRetainedLeaf is not { } leaf || !EditSessionsActive) return null;
         try
         {
+            using var interactive = await StorageAccounting.EnterInteractiveAsync(Services.Io.StoppingToken);
             var snapshot = await Services.Io.RunOwned(PathUtil.GetDeviceKey(Services.Paths.JournalDirectory), IoPriority.Interactive,
                 ct => Services.Jobs.ReadRetainedStorageReview(leaf, ct), Services.Io.StoppingToken);
             if (!EditSessionsActive) return null;
+            StorageAccounting.Invalidate();
             var ack = snapshot.Acknowledgment;
             string status = ack.Reviewed.EffectUncertain || ack.Reviewed.Damaged || ack.Reviewed.LimitReached
                 ? "Reviewed; effect remains uncertain." : "Retained reviewed storage snapshot.";
@@ -122,6 +128,7 @@ public sealed partial class MainViewModel
             var acknowledged = await StorageHistoryIoAsync(job, scope, ct => Services.Jobs.AcknowledgeStorageReview(status.Current,
                 report, StorageReviewChoice.AcknowledgeReviewedHistory, ct));
             if (acknowledged.ReviewPending || acknowledged.Acknowledgment is null) throw new IOException("Durable acknowledgment was not verified; history remains pending.");
+            InvalidateStorageAccounting();
             // Core owns the durable pair. Never send it through generic Save/Close/rewrite recovery.
             Operations.AddReviewedRecovery(new(job.JournalPath, job.Title, job.Kind, DateTime.UtcNow,
                 "Acknowledged reviewed storage history", report, true) { StorageAcknowledgment = acknowledged.Acknowledgment });

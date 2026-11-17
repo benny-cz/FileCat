@@ -11,7 +11,7 @@ public sealed partial class WindowsStorageTraversalTests
     [InlineData(false)]
     public void A_real_held_call_obeys_durable_intent_and_Stop_on_both_sides_of_admission(bool stopBeforeAdmission)
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-call-journal-").FullName;
         try
         {

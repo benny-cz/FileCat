@@ -12,7 +12,7 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void A_deleted_child_returns_a_failure_entry_without_losing_remaining_cursor_siblings()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-entry-failure-").FullName;
         try
         {
@@ -39,7 +39,7 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Overlap_planning_uses_held_native_ancestry_and_original_source_mappings_without_mutating_defaults()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-overlap-").FullName;
         try
         {
@@ -94,7 +94,7 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Preorder_directory_mutation_and_recursion_reuse_the_mutation_handles_with_live_review_pins()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-held-traversal-").FullName;
         try
         {
@@ -144,7 +144,7 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Noop_ReadOnly_file_needs_no_write_handle_even_with_an_existing_writer()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string path = Path.GetTempFileName();
         try
         {
@@ -166,7 +166,7 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Renamed_review_path_replaced_by_another_object_never_chases_the_original_or_changes_the_replacement()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-stale-storage-").FullName;
         try
         {
@@ -186,7 +186,7 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Conflicting_writer_refuses_before_call_then_fresh_preparation_can_change_the_same_held_object()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string path = Path.GetTempFileName();
         try
         {
@@ -209,7 +209,7 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public unsafe void Case_sensitive_siblings_keep_distinct_IDs_and_drive_extended_and_volume_paths_keep_one_physical_pin()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS case-sensitive fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS case-sensitive fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-case-").FullName;
         try
         {
@@ -243,7 +243,7 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Discovered_reparse_entry_is_policy_skipped_without_mutating_its_target()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-reparse-child-").FullName;
         try
         {
@@ -272,7 +272,7 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Canceled_preparation_is_not_authority_for_a_call_and_admitted_call_has_no_cancellation_gap()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string path = Path.GetTempFileName();
         try
         {
@@ -297,7 +297,7 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Depth_limit_includes_ancestors_above_the_selected_root_and_refuses_further_descent()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-depth-").FullName;
         try
         {

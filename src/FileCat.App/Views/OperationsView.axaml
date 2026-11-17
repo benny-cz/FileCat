@@ -76,12 +76,14 @@
           <TextBlock Text="{Binding RecoveryAnnouncement}" IsVisible="{Binding HasRecoveryAnnouncement}" Margin="8,4" Classes="small recoveryAnnouncement"
                      TextWrapping="Wrap" AutomationProperties.Name="{Binding RecoveryAnnouncement}"
                      AutomationProperties.LiveSetting="Polite" />
-          <StackPanel Margin="8,4" Spacing="4" IsVisible="{Binding StorageHistoryStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <StackPanel Margin="8,4" Spacing="4" IsVisible="{Binding ShowsStorageHistory}">
             <TextBlock Text="{Binding StorageHistoryStatus}" Classes="small muted" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding StorageAccountingStatus}" Classes="small muted" TextWrapping="Wrap"
+                       IsVisible="{Binding StorageAccountingStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             <WrapPanel ItemSpacing="6" LineSpacing="4">
               <Button Content="More storage history" Click="OnMoreStorageHistory" IsVisible="{Binding HasMoreStorageHistory}" IsEnabled="{Binding !IsStorageHistoryLoading}" />
               <Button Content="Refresh storage history" Click="OnRefreshStorageHistory" IsEnabled="{Binding !IsStorageHistoryLoading}" />
-              <Button Content="Stop history discovery" Click="OnStopStorageHistory" IsVisible="{Binding IsStorageHistoryLoading}" />
+              <Button x:Name="StorageHistoryStop" Content="Stop history work" Click="OnStopStorageHistory" IsVisible="{Binding CanStopStorageHistory}" />
             </WrapPanel>
           </StackPanel>
           <ItemsControl ItemsSource="{Binding SyncGroups}" Margin="8,4" AutomationProperties.Name="Synchronization plans">

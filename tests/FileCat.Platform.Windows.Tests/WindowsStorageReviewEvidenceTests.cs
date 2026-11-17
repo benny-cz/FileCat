@@ -102,7 +102,7 @@ public sealed partial class WindowsStorageReviewEvidenceTests
     }
     private static void RequireNormalWindows()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS evidence fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS evidence fixture.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity, "This persistence fixture must run in the normal user process.");
     }
 

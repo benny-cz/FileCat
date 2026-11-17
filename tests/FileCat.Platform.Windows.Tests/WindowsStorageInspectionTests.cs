@@ -10,6 +10,19 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed partial class WindowsStorageInspectionTests
 {
+    [Fact]
+    public void Unqualified_hosts_refuse_storage_before_opening_any_path_and_do_not_offer_private_history()
+    {
+        var adapter = new WindowsStorageTransforms();
+        Assert.Equal(!WindowsStorageTransforms.IsQualifiedHost,
+            adapter.Unavailable(StorageAction.Compress)?.Code == "target-unqualified");
+        Assert.Equal("efs-unqualified", adapter.Unavailable(StorageAction.EncryptEfs)?.Code);
+        if (WindowsStorageTransforms.IsQualifiedHost) return;
+        Assert.False(WindowsStorageReviewEvidence.IsSupportedHost);
+        Assert.Throws<UnauthorizedAccessException>(() => WindowsStorageReviewEvidence.Backend.OpenCursor(
+            Path.Join(Path.GetTempPath(), "filecat-must-not-create-" + Guid.NewGuid().ToString("N")), false, TestContext.Current.CancellationToken));
+    }
+
     private static JobManager Manager(string root, Func<string>? windows = null) => new(new PortableFileOperations(), new ProviderRegistry(),
         new WindowsStorageTransforms(windows), Path.Join(root, "journal"));
     private static ReviewedStorageRoots Inspect(JobManager manager, string path, StorageAction action, EntryKind kind = EntryKind.File) =>
@@ -18,7 +31,7 @@ public sealed partial class WindowsStorageInspectionTests
     [Fact]
     public void Ordinary_objects_have_bound_volume_IDs_and_ReadOnly_files_only_refuse_when_a_change_is_needed()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-inspection-").FullName;
         try
         {
@@ -49,7 +62,7 @@ public sealed partial class WindowsStorageInspectionTests
     [Fact]
     public void Protected_tree_uses_live_ancestry_while_a_lookalike_name_and_System_ancestor_do_not_create_a_denylist()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-policy-").FullName;
         try
         {
@@ -78,7 +91,7 @@ public sealed partial class WindowsStorageInspectionTests
     [Fact]
     public unsafe void Reparse_ancestors_and_leaves_sparse_and_multiple_names_are_refused_without_following_targets()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-exclusions-").FullName;
         try
         {
@@ -109,7 +122,7 @@ public sealed partial class WindowsStorageInspectionTests
     [Fact]
     public void Bounded_cursor_reuses_a_held_directory_across_batches_and_returns_native_child_IDs()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-cursor-").FullName;
         try
         {

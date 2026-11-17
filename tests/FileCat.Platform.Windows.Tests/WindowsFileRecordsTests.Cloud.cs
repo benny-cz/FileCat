@@ -80,7 +80,7 @@ public sealed partial class WindowsFileRecordsTests
                 var cloud = Section(report, "Cloud placeholder (Cloud Files)");
                 Assert.Equal($"{RecordText.Bytes(0)} of {RecordText.Bytes(5000)}: none of it (only in the cloud)", Field(cloud, "On this device"));
                 Assert.Equal(CloudPlaceholderInfo.PinStateText(0), Field(cloud, "Pin state"));
-                Assert.Equal("yes", Field(cloud, "In sync"));
+                Assert.Equal("in sync (provider-reported)", Field(cloud, "In sync"));
                 Assert.EndsWith("(its own)", Field(cloud, "File ID"), StringComparison.Ordinal);
                 Assert.StartsWith($"0x{(ulong)sequence << 48 | (ulong)record:X16} ", Field(cloud, "File ID"), StringComparison.Ordinal);
                 Assert.EndsWith($"· file ID 0x{(ulong)rootSequence << 48 | (ulong)rootRecord:X16}", Field(cloud, "Sync root"), StringComparison.Ordinal);

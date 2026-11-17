@@ -288,13 +288,7 @@ public sealed partial class TabViewModel
             bool Analyze(CancellationToken ct)
             {
                 using var scan = new EntryStore.Scan(store, count);
-                for (int i = 0; i < count; i++)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    var e = scan.Materialize(i);
-                    if (MetadataApplies(e, fieldId) &&
-                        provider.GetItemRef(location, e).FileSystemPath is not null) counts.Considered++;
-                }
+                counts.Considered = count;
                 counts.Prepared = true;
                 long last = Environment.TickCount64;
                 for (int i = 0; i < count; i++)
@@ -302,9 +296,13 @@ public sealed partial class TabViewModel
                     ct.ThrowIfCancellationRequested();
                     if (!claim.IsCurrent) { metadataChanged = true; throw new OperationCanceledException(); }
                     var e = scan.Materialize(i);
-                    if (!MetadataApplies(e, fieldId) ||
-                        provider.GetItemRef(location, e).FileSystemPath is not { } path) continue;
-                    var value = Services.Metadata.Compute(fieldId, path, e, ct, slow, origin);
+                    bool applicable = MetadataApplies(e, fieldId);
+                    var path = applicable ? provider.GetItemRef(location, e).FileSystemPath : null;
+                    // Inapplicability is a completed missing value, retained in the same order snapshot.
+                    // It must not start a metadata read or disappear from the folder's result count.
+                    var value = !applicable ? new MetadataValue(MetadataState.Absent)
+                        : path is null ? new MetadataValue(MetadataState.Unsupported)
+                        : Services.Metadata.Compute(fieldId, path, e, ct, slow, origin);
                     ct.ThrowIfCancellationRequested();
                     if (value.State is MetadataState.NotRequested or MetadataState.Pending) throw new OperationCanceledException();
                     if (!claim.IsCurrent) { metadataChanged = true; throw new OperationCanceledException(); }

@@ -10,6 +10,13 @@ namespace FileCat.Platform.Windows;
 /// <summary>Qualification-stage C adapter. WindowsPlatform keeps the unsupported adapter until execution gates close.</summary>
 internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransforms
 {
+    // The qualification target is the Windows 11 client, not a Server product with the same build number.
+    internal static bool IsQualifiedHost => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) &&
+        RuntimeInformation.ProcessArchitecture == Architecture.X64 && !IsOS(29 /* OS_ANYSERVER */);
+    [LibraryImport("shlwapi.dll")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsOS(uint feature);
     private readonly Func<string> _windowsDirectory;
     internal WindowsStorageTransforms(Func<string>? windowsDirectory = null) =>
         _windowsDirectory = windowsDirectory ?? (() => Environment.GetFolderPath(Environment.SpecialFolder.Windows));
@@ -19,7 +26,7 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
         if (!Enum.IsDefined(action)) return Problem(StorageReasonKind.FileCatBoundary, "action", "Choose an explicit storage action.");
         if (action is StorageAction.EncryptEfs or StorageAction.DecryptEfs)
             return Problem(StorageReasonKind.FileCatBoundary, "efs-unqualified", "EFS requires its qualified identity, key and output protocol.");
-        return !OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) || RuntimeInformation.ProcessArchitecture != Architecture.X64
+        return !IsQualifiedHost
             ? Problem(StorageReasonKind.WindowsLimitation, "target-unqualified", "This storage adapter requires a qualified Windows 11 x64 target.") : null;
     }
 

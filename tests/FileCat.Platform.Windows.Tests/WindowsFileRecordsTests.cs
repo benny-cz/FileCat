@@ -278,7 +278,7 @@ public sealed partial class WindowsFileRecordsTests
             var report = Read(junction, privileged: false);
             Assert.Equal("junction (mount point)", Field(Section(report, "Item"), "Kind"));
             var reparse = Section(report, "Reparse point");
-            Assert.StartsWith("0xA0000003 mount point (junction)", Field(reparse, "Tag"), StringComparison.Ordinal);
+            Assert.StartsWith("0xA0000003 junction or volume mount", Field(reparse, "Tag"), StringComparison.Ordinal);
             Assert.Equal(target, Field(reparse, "Says"));
 
             string sparse = Path.Combine(dir, "sparse.bin");

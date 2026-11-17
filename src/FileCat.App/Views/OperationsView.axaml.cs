@@ -170,7 +170,8 @@ public partial class OperationsView : UserControl
             ObserveSelected(Center?.Selected);
         if (e.PropertyName is nameof(OperationCenterViewModel.Selected) or nameof(OperationCenterViewModel.IsOpen)
             or nameof(OperationCenterViewModel.HasInterrupted) or nameof(OperationCenterViewModel.HasReviewedRecovery)
-            or nameof(OperationCenterViewModel.SelectedInterrupted))
+            or nameof(OperationCenterViewModel.SelectedInterrupted) or nameof(OperationCenterViewModel.CanStopStorageHistory)
+            or nameof(OperationCenterViewModel.StorageAccountingStatus))
             QueueDrawerHeightRefresh();
     }
 
@@ -634,9 +635,11 @@ public partial class OperationsView : UserControl
     private void RevealRecoveryAction()
     {
         if (Center is not { IsOpen: true } center) return;
-        if (center.Jobs.Count > 0 && center.SelectedInterrupted?.IsStorage != true) return;
+        if (center.Jobs.Count > 0 && center.SelectedInterrupted?.IsStorage != true && !center.CanStopStorageHistory) return;
         var buttons = RecoveryScroll.GetVisualDescendants().OfType<Button>();
-        var action = center.SelectedInterrupted is { IsStorage: true, IsActionBusy: false } storage
+        var action = center.CanStopStorageHistory && center.SelectedInterrupted?.CanStopReview != true
+            ? buttons.FirstOrDefault(button => button.Name == "StorageHistoryStop" && button.IsEffectivelyVisible)
+            : center.SelectedInterrupted is { IsStorage: true, IsActionBusy: false } storage
             ? buttons.FirstOrDefault(button => ReferenceEquals(button.Tag, storage) && button.Content as string == storage.ReportButtonText && button.IsEffectivelyVisible)
             : center.SelectedInterrupted is { CanReviewArchiveCleanup: true, IsActionBusy: false } selected
             ? buttons.FirstOrDefault(button => ReferenceEquals(button.Tag, selected) && button.Content as string == selected.CleanupLabel && button.IsEffectivelyVisible)

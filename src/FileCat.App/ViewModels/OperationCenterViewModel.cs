@@ -358,6 +358,14 @@ public enum RecoveryActionPhase { Idle, Reviewing, AwaitingApproval, Applying, S
 
 public sealed partial class InterruptedJobViewModel(InterruptedJob job, bool archiveCleanupAvailable = false) : ObservableObject
 {
+    internal void UpdateArchiveCleanupAvailability(bool available)
+    {
+        if (archiveCleanupAvailable == available) return;
+        archiveCleanupAvailable = available;
+        OnPropertyChanged(nameof(CanCleanup));
+        OnPropertyChanged(nameof(CanReviewArchiveCleanup));
+        OnPropertyChanged(nameof(Details));
+    }
     internal long StorageOrder { get; init; }
     public InterruptedJob Job { get; } = job;
     public bool IsStorage => Job.IsStorageTransform;
@@ -515,8 +523,13 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     public bool HasInterrupted => Interrupted.Count > 0;
     [ObservableProperty] private bool _storageHistoryAvailable;
     [ObservableProperty] private bool _hasMoreStorageHistory;
-    [ObservableProperty] private bool _isStorageHistoryLoading;
-    [ObservableProperty] private string _storageHistoryStatus = string.Empty;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowsStorageHistory)), NotifyPropertyChangedFor(nameof(CanStopStorageHistory))] private bool _isStorageHistoryLoading;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowsStorageHistory))] private string _storageHistoryStatus = string.Empty;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowsStorageHistory)), NotifyPropertyChangedFor(nameof(CanStopStorageHistory))] private bool _isStorageHistoryAccounting;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowsStorageHistory))] private string _storageAccountingStatus = string.Empty;
+    [ObservableProperty] private StorageHistoryAccounting? _storageAccounting;
+    public bool ShowsStorageHistory => IsStorageHistoryLoading || IsStorageHistoryAccounting || StorageHistoryStatus.Length > 0 || StorageAccountingStatus.Length > 0;
+    public bool CanStopStorageHistory => IsStorageHistoryLoading || IsStorageHistoryAccounting;
     public bool StorageRowsOmitted { get; private set; }
     internal void ResetStorageRowsOmitted() => StorageRowsOmitted = false;
     [ObservableProperty] private string _recoveryAnnouncement = "Recovery status is available when an action starts.";
@@ -787,7 +800,11 @@ public sealed partial class OperationCenterViewModel : ObservableObject
                 { StorageJournalLeaf = leaf };
             if (StorageHistoryStatus.Length == 0) StorageHistoryStatus = "Storage history accounting/verification still in progress.";
         }
-        if (Interrupted.Any(row => PathUtil.SafetyComparer.Equals(row.Job.JournalPath, job.JournalPath))) return;
+        if (Interrupted.FirstOrDefault(row => PathUtil.SafetyComparer.Equals(row.Job.JournalPath, job.JournalPath)) is { } existing)
+        {
+            existing.UpdateArchiveCleanupAvailability(CanReviewArchiveCleanup?.Invoke(job) == true);
+            return;
+        }
         if (job.IsStorageTransform) MakeStorageRowSpace();
         Interrupted.Add(new InterruptedJobViewModel(job, CanReviewArchiveCleanup?.Invoke(job) == true) { StorageOrder = ++_storageRowOrder });
         UpdateSummary();

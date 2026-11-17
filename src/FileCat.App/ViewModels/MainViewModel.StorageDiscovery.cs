@@ -11,7 +11,11 @@ public sealed partial class MainViewModel
     private bool _storageRetainedPhase, _storageHistoryAtEnd;
     private CancellationTokenSource? _storageHistoryReading;
 
-    internal void StopStorageHistoryDiscovery() => _storageHistoryReading?.Cancel();
+    internal void StopStorageHistoryDiscovery()
+    {
+        _storageHistoryReading?.Cancel(); _storageAccounting?.Stop();
+        if (Operations.IsStorageHistoryLoading) Operations.StorageHistoryStatus = "Stopping history work; waiting for the current read to retire…";
+    }
 
     internal async Task LoadStorageHistoryPageAsync(bool restart = false)
     {
@@ -26,6 +30,8 @@ public sealed partial class MainViewModel
         Operations.StorageHistoryStatus = "Reading a bounded storage history page; accounting/verification is still in progress…";
         try
         {
+            using var interactive = await StorageAccounting.EnterInteractiveAsync(stop.Token);
+            if (restart) StorageAccounting.Invalidate(refresh: true);
             // The worker owns and closes its cursor before returning. Only this small detached bookmark crosses
             // the UI wait; a replay opens names only, never old headers or a full candidate array.
             var after = _storageHistoryAfter; bool retained = _storageRetainedPhase;
@@ -61,7 +67,7 @@ public sealed partial class MainViewModel
             Operations.HasMoreStorageHistory = !_storageHistoryAtEnd || Operations.StorageRowsOmitted;
             Operations.StorageHistoryStatus = Operations.StorageDescriptorCount == 0 && _storageHistoryAtEnd ? string.Empty
                 : $"{Operations.StorageDescriptorCount:N0} storage history rows retained (maximum 64). " +
-                  "History accounting/verification still in progress; opening a row verifies its exact evidence." +
+                  "Opening a row verifies its exact evidence; the accounting result is shown separately." +
                   (Operations.StorageRowsOmitted ? " Older rows remain in evidence; use More or Refresh to browse again." : "");
             if (Operations.StorageDescriptorCount > 0) Operations.IsOpen = true;
             Operations.UpdateSummary();
@@ -76,6 +82,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
+            _storageAccounting?.Invalidate();
             if (EditSessionsActive)
             {
                 Operations.HasMoreStorageHistory = true;
@@ -86,6 +93,7 @@ public sealed partial class MainViewModel
         {
             if (ReferenceEquals(_storageHistoryReading, stop)) _storageHistoryReading = null;
             Operations.IsStorageHistoryLoading = false;
+            StartStorageAccounting();
         }
     }
 }
