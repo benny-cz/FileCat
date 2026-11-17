@@ -1,5 +1,12 @@
 # Native Windows acceptance runner
 
+`win-nvda-owner-inspection.ps1 -AppPath <Git-built FileCat.exe> -NvdaPath <existing signed portable nvda.exe>
+-ReportPath <fresh JSON>` is the focused column-ownership GA1 readout check. It requires an idle interactive VMware
+guest and private paths under the current user's FileCatValidation directory. It reads an owned file's real owner
+and a controlled Offline-attribute fixture through the existing Inspect dialog, requiring NVDA's own speech log to
+contain the identity/detail and unavailable reason. It preserves both files' bytes and closes only its own processes.
+Coordinate the shared guest desktop with other workers before running; do not run it on the owner's workstation.
+
 `win-ax-fractional-list-wheel.ps1 -AppPath <Git-built FileCat.exe>
 -ReportPath <fresh guest JSON>` sends native Win32 12-unit fractional and
 120-unit conventional wheel messages over an owned 200-file panel. It reads

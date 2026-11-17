@@ -1,0 +1,498 @@
+{
+  "utc": "2026-11-16T22:17:02.51269+01:00",
+  "sourceCommit": "dc22579ad923a39db1f881be4dafba93aae1116e",
+  "projects": [
+    {
+      "path": "_temp/filecat-high-token-results/high-state-results.trx",
+      "total": 1,
+      "outcomes": {
+        "Passed": 1
+      },
+      "featureChecks": {},
+      "platform": "Windows ARM64"
+    },
+    {
+      "path": "app-test-results-ubuntu-24.04/tests/FileCat.App.Tests/TestResults/app-results.trx",
+      "total": 3441,
+      "outcomes": {
+        "Passed": 3212,
+        "NotExecuted": 229
+      },
+      "featureChecks": {
+        "Verification_report_graphs_keep_their_scalar_order_without_retaining_the_report": {
+          "Passed": 2
+        }
+      },
+      "platform": "Ubuntu x64"
+    },
+    {
+      "path": "app-test-results-ubuntu-24.04/tests/FileCat.Core.Tests/TestResults/core-results.trx",
+      "total": 9593,
+      "outcomes": {
+        "Passed": 9329,
+        "NotExecuted": 264
+      },
+      "featureChecks": {
+        "Mac_policy_is_scoped_and_a_failed_restore_retires_the_worker": {
+          "Passed": 5
+        }
+      },
+      "platform": "Ubuntu x64"
+    },
+    {
+      "path": "app-test-results-ubuntu-24.04/tests/FileCat.Remote.Tests/TestResults/remote-results.trx",
+      "total": 2669,
+      "outcomes": {
+        "Passed": 2638,
+        "NotExecuted": 31
+      },
+      "featureChecks": {},
+      "platform": "Ubuntu x64"
+    },
+    {
+      "path": "app-test-results-ubuntu-24.04/tests/FileCat.Rendering.Tests/TestResults/rendering-results.trx",
+      "total": 28,
+      "outcomes": {
+        "NotExecuted": 5,
+        "Passed": 23
+      },
+      "featureChecks": {},
+      "platform": "Ubuntu x64"
+    },
+    {
+      "path": "FileCat/FileCat/tests/FileCat.App.Tests/TestResults/app-results.trx",
+      "total": 3441,
+      "outcomes": {
+        "Passed": 3023,
+        "NotExecuted": 418
+      },
+      "featureChecks": {
+        "Verification_report_graphs_keep_their_scalar_order_without_retaining_the_report": {
+          "Passed": 2
+        }
+      },
+      "platform": "Windows ARM64"
+    },
+    {
+      "path": "FileCat/FileCat/tests/FileCat.Core.Tests/TestResults/core-results.trx",
+      "total": 9598,
+      "outcomes": {
+        "Passed": 8509,
+        "NotExecuted": 1089
+      },
+      "featureChecks": {
+        "Mac_policy_is_scoped_and_a_failed_restore_retires_the_worker": {
+          "Passed": 5
+        }
+      },
+      "platform": "Windows ARM64"
+    },
+    {
+      "path": "FileCat/FileCat/tests/FileCat.Platform.Windows.Tests/TestResults/platform-results.trx",
+      "total": 1816,
+      "outcomes": {
+        "Passed": 1144,
+        "NotExecuted": 672
+      },
+      "featureChecks": {
+        "WindowsOwnershipTests.": {
+          "Passed": 40,
+          "NotExecuted": 11
+        }
+      },
+      "platform": "Windows ARM64"
+    },
+    {
+      "path": "FileCat/FileCat/tests/FileCat.Remote.Tests/TestResults/remote-results.trx",
+      "total": 2669,
+      "outcomes": {
+        "Passed": 2499,
+        "NotExecuted": 170
+      },
+      "featureChecks": {},
+      "platform": "Windows ARM64"
+    },
+    {
+      "path": "FileCat/FileCat/tests/FileCat.Rendering.Tests/TestResults/rendering-results.trx",
+      "total": 28,
+      "outcomes": {
+        "Passed": 25,
+        "NotExecuted": 3
+      },
+      "featureChecks": {},
+      "platform": "Windows ARM64"
+    },
+    {
+      "path": "macos-attempt2/app-test-results-macos-26/tests/FileCat.App.Tests/TestResults/app-results.trx",
+      "total": 3441,
+      "outcomes": {
+        "Passed": 3210,
+        "NotExecuted": 231
+      },
+      "featureChecks": {
+        "Verification_report_graphs_keep_their_scalar_order_without_retaining_the_report": {
+          "Passed": 2
+        }
+      },
+      "platform": "macOS ARM64"
+    },
+    {
+      "path": "macos-attempt2/app-test-results-macos-26/tests/FileCat.Core.Tests/TestResults/core-results.trx",
+      "total": 9593,
+      "outcomes": {
+        "Passed": 9308,
+        "NotExecuted": 285
+      },
+      "featureChecks": {
+        "Mac_policy_is_scoped_and_a_failed_restore_retires_the_worker": {
+          "Passed": 5
+        }
+      },
+      "platform": "macOS ARM64"
+    },
+    {
+      "path": "macos-attempt2/app-test-results-macos-26/tests/FileCat.Remote.Tests/TestResults/remote-results.trx",
+      "total": 2669,
+      "outcomes": {
+        "Passed": 2638,
+        "NotExecuted": 31
+      },
+      "featureChecks": {},
+      "platform": "macOS ARM64"
+    },
+    {
+      "path": "macos-attempt2/app-test-results-macos-26/tests/FileCat.Rendering.Tests/TestResults/rendering-results.trx",
+      "total": 28,
+      "outcomes": {
+        "Passed": 23,
+        "NotExecuted": 5
+      },
+      "featureChecks": {},
+      "platform": "macOS ARM64"
+    },
+    {
+      "path": "test-results-windows/FileCat/FileCat/tests/FileCat.App.Tests/TestResults/results.trx",
+      "total": 3441,
+      "outcomes": {
+        "Passed": 3023,
+        "NotExecuted": 418
+      },
+      "featureChecks": {
+        "Verification_report_graphs_keep_their_scalar_order_without_retaining_the_report": {
+          "Passed": 2
+        }
+      },
+      "platform": "Windows x64"
+    },
+    {
+      "path": "test-results-windows/FileCat/FileCat/tests/FileCat.Core.Tests/TestResults/results.trx",
+      "total": 9598,
+      "outcomes": {
+        "Passed": 8509,
+        "NotExecuted": 1089
+      },
+      "featureChecks": {
+        "Mac_policy_is_scoped_and_a_failed_restore_retires_the_worker": {
+          "Passed": 5
+        }
+      },
+      "platform": "Windows x64"
+    },
+    {
+      "path": "test-results-windows/FileCat/FileCat/tests/FileCat.Platform.Windows.Tests/TestResults/page-view-results.trx",
+      "total": 9,
+      "outcomes": {
+        "Passed": 9
+      },
+      "featureChecks": {},
+      "platform": "Windows x64"
+    },
+    {
+      "path": "test-results-windows/FileCat/FileCat/tests/FileCat.Platform.Windows.Tests/TestResults/results.trx",
+      "total": 1807,
+      "outcomes": {
+        "Passed": 1147,
+        "NotExecuted": 660
+      },
+      "featureChecks": {
+        "WindowsOwnershipTests.": {
+          "Passed": 51
+        }
+      },
+      "platform": "Windows x64"
+    },
+    {
+      "path": "test-results-windows/FileCat/FileCat/tests/FileCat.Remote.Tests/TestResults/results.trx",
+      "total": 2669,
+      "outcomes": {
+        "NotExecuted": 170,
+        "Passed": 2499
+      },
+      "featureChecks": {},
+      "platform": "Windows x64"
+    },
+    {
+      "path": "test-results-windows/FileCat/FileCat/tests/FileCat.Rendering.Tests/TestResults/results.trx",
+      "total": 28,
+      "outcomes": {
+        "NotExecuted": 3,
+        "Passed": 25
+      },
+      "featureChecks": {},
+      "platform": "Windows x64"
+    }
+  ],
+  "buildProvenance": [
+    {
+      "path": "build-provenance-portable-Linux-X64/build.json",
+      "sha256": "056535d7a94269fe2045a164eff008a1616c95e4e0afc479d3b84fc0e19f8a35",
+      "SourceCommit": "dc22579ad923a39db1f881be4dafba93aae1116e",
+      "SourceTreeDirty": false,
+      "ExactSDK": "10.0.101",
+      "GlobalJsonSHA256": "eca6c6111fa5bd50008791f7f5eb89c6b427121d195707bb5dd05672b0863664",
+      "CompilerFiles": [
+        {
+          "Path": "dotnet.dll",
+          "Bytes": 3922696,
+          "SHA256": "b947cf36479df5c0e60b54ac71b3921f439570424d203a844c85a4fbb76fc74b"
+        },
+        {
+          "Path": "MSBuild.dll",
+          "Bytes": 885048,
+          "SHA256": "09ae5c848bd4ebec2dce286a5f4b3884705ef9e3961e01135044cfa6a17f5cfc"
+        },
+        {
+          "Path": "Roslyn/bincore/csc.dll",
+          "Bytes": 131344,
+          "SHA256": "f6b30d95060a66595d664badc25833a1487d185c412631340c47934ba0655095"
+        }
+      ],
+      "OS": "Unix 7.0.0.1017",
+      "Runner": {
+        "RUNNER_OS": "Linux",
+        "RUNNER_ARCH": "X64",
+        "ImageOS": "ubuntu24",
+        "ImageVersion": "20261111.370.1",
+        "GITHUB_RUN_ID": "43936482729",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_REF": "refs/heads/codex/column-ownership",
+        "GITHUB_SHA": "dc22579ad923a39db1f881be4dafba93aae1116e"
+      }
+    },
+    {
+      "path": "build-provenance-portable-macOS-ARM64/build.json",
+      "sha256": "5bc445bc26a25203938b48f3774dd00e83d660c947be70321671424fc079e721",
+      "SourceCommit": "dc22579ad923a39db1f881be4dafba93aae1116e",
+      "SourceTreeDirty": false,
+      "ExactSDK": "10.0.101",
+      "GlobalJsonSHA256": "eca6c6111fa5bd50008791f7f5eb89c6b427121d195707bb5dd05672b0863664",
+      "CompilerFiles": [
+        {
+          "Path": "dotnet.dll",
+          "Bytes": 4494088,
+          "SHA256": "a23ed26407649524450577465ce99975b6f9796909abc64cfd995894bd871ef0"
+        },
+        {
+          "Path": "MSBuild.dll",
+          "Bytes": 986896,
+          "SHA256": "505ec8697f94f7235495333a8ee9c04a7437328d9f6fb5d5bb096baef8cff936"
+        },
+        {
+          "Path": "Roslyn/bincore/csc.dll",
+          "Bytes": 142608,
+          "SHA256": "d5f8e719ea73f7aba3e291e59e4b796ac1504b574efc70cf233f44fb67fb4a6b"
+        }
+      ],
+      "OS": "Unix 26.7.2",
+      "Runner": {
+        "RUNNER_OS": "macOS",
+        "RUNNER_ARCH": "ARM64",
+        "ImageOS": "macos26",
+        "ImageVersion": "20261112.0504.1",
+        "GITHUB_RUN_ID": "43936482729",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_REF": "refs/heads/codex/column-ownership",
+        "GITHUB_SHA": "dc22579ad923a39db1f881be4dafba93aae1116e"
+      }
+    },
+    {
+      "path": "build-provenance-windows-arm64-Windows-ARM64/build.json",
+      "sha256": "eb910b9fd2342982167233bd56fab242596a3048f7e916837c31dc0c87f18a2a",
+      "SourceCommit": "dc22579ad923a39db1f881be4dafba93aae1116e",
+      "SourceTreeDirty": false,
+      "ExactSDK": "10.0.101",
+      "GlobalJsonSHA256": "c142f33d9fb7cda22f0d0d79d7de7e672883b264b6aa1d15df38842de40a9452",
+      "CompilerFiles": [
+        {
+          "Path": "dotnet.dll",
+          "Bytes": 4507912,
+          "SHA256": "f1722e977d577261983daf51f7d838fb5e3c03ac1ced728982814e715638a9a8"
+        },
+        {
+          "Path": "MSBuild.dll",
+          "Bytes": 997648,
+          "SHA256": "909f2f9ba1d9dccd63ad460ae0a4b47b89bec80f74934f2cd71d70ba9edb74c3"
+        },
+        {
+          "Path": "Roslyn/bincore/csc.dll",
+          "Bytes": 153872,
+          "SHA256": "483c94526d872d59a2e0ab31e7239ad360fc3552ae0999dc99d9482c34af6886"
+        }
+      ],
+      "OS": "Microsoft Windows NT 10.0.26200.0",
+      "Runner": {
+        "RUNNER_OS": "Windows",
+        "RUNNER_ARCH": "ARM64",
+        "ImageOS": "win11-vs2026-arm64",
+        "ImageVersion": "20261112.217.1",
+        "GITHUB_RUN_ID": "43936482729",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_REF": "refs/heads/codex/column-ownership",
+        "GITHUB_SHA": "dc22579ad923a39db1f881be4dafba93aae1116e"
+      }
+    },
+    {
+      "path": "build-provenance-windows-Windows-X64/build.json",
+      "sha256": "308d4d1c8cf699b83cf4fefe9a2e015b0845ba34458a24ed2f3f6c69f1e9ad64",
+      "SourceCommit": "dc22579ad923a39db1f881be4dafba93aae1116e",
+      "SourceTreeDirty": false,
+      "ExactSDK": "10.0.101",
+      "GlobalJsonSHA256": "c142f33d9fb7cda22f0d0d79d7de7e672883b264b6aa1d15df38842de40a9452",
+      "CompilerFiles": [
+        {
+          "Path": "dotnet.dll",
+          "Bytes": 3922184,
+          "SHA256": "f62f05eec30d91deba095a48fc10ca5f4ec91f585fe92af0ff0a0b0b3df0549d"
+        },
+        {
+          "Path": "MSBuild.dll",
+          "Bytes": 891192,
+          "SHA256": "ee9200235c4d169151e51dd58ed8abdc31660a47dc4a736869bb75c8bb316b76"
+        },
+        {
+          "Path": "Roslyn/bincore/csc.dll",
+          "Bytes": 137480,
+          "SHA256": "7c5f885d3807cb16dc5746d826d053563c2898f27d6aebb166d6d115176dfaa5"
+        }
+      ],
+      "OS": "Microsoft Windows NT 10.0.26100.0",
+      "Runner": {
+        "RUNNER_OS": "Windows",
+        "RUNNER_ARCH": "X64",
+        "ImageOS": "win25-vs2026",
+        "ImageVersion": "20261103.298.1",
+        "GITHUB_RUN_ID": "43936482729",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_REF": "refs/heads/codex/column-ownership",
+        "GITHUB_SHA": "dc22579ad923a39db1f881be4dafba93aae1116e"
+      }
+    },
+    {
+      "path": "macos-attempt2/build-provenance-portable-macOS-ARM64/build.json",
+      "sha256": "705aa1d58c7b5a5555ece77993bb6766579b132895d0ef9877df42e9cae07a50",
+      "SourceCommit": "dc22579ad923a39db1f881be4dafba93aae1116e",
+      "SourceTreeDirty": false,
+      "ExactSDK": "10.0.101",
+      "GlobalJsonSHA256": "eca6c6111fa5bd50008791f7f5eb89c6b427121d195707bb5dd05672b0863664",
+      "CompilerFiles": [
+        {
+          "Path": "dotnet.dll",
+          "Bytes": 4494088,
+          "SHA256": "a23ed26407649524450577465ce99975b6f9796909abc64cfd995894bd871ef0"
+        },
+        {
+          "Path": "MSBuild.dll",
+          "Bytes": 986896,
+          "SHA256": "505ec8697f94f7235495333a8ee9c04a7437328d9f6fb5d5bb096baef8cff936"
+        },
+        {
+          "Path": "Roslyn/bincore/csc.dll",
+          "Bytes": 142608,
+          "SHA256": "d5f8e719ea73f7aba3e291e59e4b796ac1504b574efc70cf233f44fb67fb4a6b"
+        }
+      ],
+      "OS": "Unix 26.7.2",
+      "Runner": {
+        "RUNNER_OS": "macOS",
+        "RUNNER_ARCH": "ARM64",
+        "ImageOS": "macos26",
+        "ImageVersion": "20261102.0473.1",
+        "GITHUB_RUN_ID": "43936482729",
+        "GITHUB_RUN_ATTEMPT": "2",
+        "GITHUB_REF": "refs/heads/codex/column-ownership",
+        "GITHUB_SHA": "dc22579ad923a39db1f881be4dafba93aae1116e"
+      }
+    }
+  ],
+  "ci": {
+    "run": 43936482729,
+    "attempt": 2,
+    "url": "https://github.com/benny-cz/FileCat/actions/runs/43936482729",
+    "requiredPlatformTests": "All passed",
+    "dependentPackages": "Passed - Linux and macOS build/start/inventory checks",
+    "earlierCrashReceipt": "20261116-ci-macos-remote-crash.json",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "Producer reference policy (stable blocked)",
+        "status": "completed",
+        "conclusion": "success",
+        "jobId": 133572777219
+      },
+      {
+        "name": "macos-26 (build, portable tests)",
+        "status": "completed",
+        "conclusion": "success",
+        "jobId": 133572777258
+      },
+      {
+        "name": "ubuntu-24.04 (build, portable tests)",
+        "status": "completed",
+        "conclusion": "success",
+        "jobId": 133572778803
+      },
+      {
+        "name": "Windows (build, all tests)",
+        "status": "completed",
+        "conclusion": "success",
+        "jobId": 133572778939
+      },
+      {
+        "name": "Windows ARM64 (build, tests, package start)",
+        "status": "completed",
+        "conclusion": "success",
+        "jobId": 133572778983
+      },
+      {
+        "name": "Package Linux (tags and manual runs)",
+        "status": "completed",
+        "conclusion": "success",
+        "jobId": 133618431943
+      },
+      {
+        "name": "Package macOS (tags and manual runs)",
+        "status": "completed",
+        "conclusion": "success",
+        "jobId": 133618431956
+      },
+      {
+        "name": "Package (tags only)",
+        "status": "completed",
+        "conclusion": "skipped",
+        "jobId": 133618435374
+      },
+      {
+        "name": "Draft preview (consume this run's artifacts only)",
+        "status": "completed",
+        "conclusion": "skipped",
+        "jobId": 133621104094
+      }
+    ]
+  },
+  "totals": {
+    "passed": 60794,
+    "notExecuted": 5773,
+    "trxFiles": 20,
+    "runnerErrors": 0
+  }
+}

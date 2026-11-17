@@ -146,18 +146,26 @@ public sealed class UnixPermissionTests : IDisposable
     }
 
     [Fact]
-    public void Permission_columns_cover_files_and_folders()
+    public async Task Permission_columns_cover_files_and_folders()
     {
         if (OperatingSystem.IsWindows()) Assert.Skip("POSIX permissions are a Linux and macOS feature.");
         var folder = _dir.Dir("shared");
         File.SetUnixFileMode(folder, (UnixFileMode)0x1E8); // rwxr-x---
         var entry = new EntryData { Name = "shared", Kind = EntryKind.Directory };
         using var io = new Core.Threading.DeviceIoScheduler();
-        var service = new MetadataService(io);
-        var value = service.Compute("permissions", folder, entry, CancellationToken.None);
+        using var service = new MetadataService(io);
+        var value = service.Compute("permissions", folder, entry, TestContext.Current.CancellationToken);
         Assert.Equal(MetadataState.Available, value.State);
         Assert.Equal("rwxr-x---", BuiltInFields.Permissions.Format(value.Value));
-        Assert.Equal(Environment.UserName, service.Compute("owner", folder, entry, CancellationToken.None).Value);
+        var owner = service.Compute("owner", folder, entry, TestContext.Current.CancellationToken);
+        if (!new UnixOwnership().IsSupported)
+            Assert.Equal(MetadataState.Unsupported, owner.State); // guarded route withheld pending GM1
+        else
+        {
+            Assert.IsType<Principal>(owner.Value);
+            Assert.True(await service.Names!.WhenIdle(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            Assert.Equal(Environment.UserName, service.Field("owner")!.Format(owner.Value));
+        }
         Assert.Contains(BuiltInFields.All, f => f.Id == "group");
         Assert.DoesNotContain(BuiltInFields.All, f => f.Id == "version");
     }

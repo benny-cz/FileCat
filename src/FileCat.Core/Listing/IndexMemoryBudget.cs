@@ -3,9 +3,11 @@ namespace FileCat.Core.Listing;
 /// <summary>Shared reservation for transient and retained integer listing indexes.</summary>
 public sealed class IndexMemoryBudget
 {
+    public static IndexMemoryBudget Shared { get; } = new();
     private readonly object _gate = new();
     private readonly Dictionary<object, long> _reservations = new();
     private long _used;
+    private long _peak;
 
     public IndexMemoryBudget(long limitBytes = 512L * 1024 * 1024)
     {
@@ -15,6 +17,7 @@ public sealed class IndexMemoryBudget
 
     public long LimitBytes { get; }
     public long ReservedBytes { get { lock (_gate) return _used; } }
+    public long PeakReservedBytes { get { lock (_gate) return _peak; } }
 
     public bool TryReserve(object owner, long bytes)
     {
@@ -24,6 +27,7 @@ public sealed class IndexMemoryBudget
             long previous = _reservations.GetValueOrDefault(owner);
             if (bytes > previous && bytes - previous > LimitBytes - _used) return false;
             _used += bytes - previous;
+            _peak = Math.Max(_peak, _used);
             if (bytes == 0) _reservations.Remove(owner);
             else _reservations[owner] = bytes;
             return true;

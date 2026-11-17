@@ -48,6 +48,16 @@ public sealed class EntryStore : IDisposable
     }
 
     public int Count => Volatile.Read(ref _count);
+    /// <summary>Attaches only memory state while the captured append boundary is still current.</summary>
+    public bool TryAtCount(int count, Action publish)
+    {
+        lock (_gate)
+        {
+            if (_disposed || _count != count) return false;
+            publish();
+            return true;
+        }
+    }
     public (int Directories, int Files, long KnownFileBytes) Totals
     {
         get { lock (_gate) return (_directories, _files, _knownFileBytes); }
@@ -397,6 +407,15 @@ public sealed class EntryStore : IDisposable
 
         public EntryView this[int index] =>
             _spill is { } s && (uint)index < (uint)s.Count ? s.Get(index) : new EntryView(_store[index]);
+
+        /// <summary>Materializes a captured row for an existing provider/metadata API; in-memory payloads survive.</summary>
+        public EntryData Materialize(int index)
+        {
+            if (_spill is not { } spill || (uint)index >= (uint)spill.Count) return _store[index];
+            var view = spill.Get(index);
+            return new EntryData(view.Name.ToString(), view.Kind, view.Size, view.Modified)
+            { Flags = view.Flags, Created = view.Created, Attributes = view.Attributes };
+        }
 
         public void Dispose() => _spill?.Dispose();
     }

@@ -234,6 +234,7 @@ public sealed partial class MainViewModel
                 tab?.GoForward();
                 break;
             case CommandIds.Refresh:
+                Services.PrincipalNames.Invalidate();
                 Services.Metadata.Invalidate(); // Reread means every column, permissions and versions too
                 if (tab?.Location is { Scheme: Schemes.Recovery } scanned) Services.Recovery.Forget(scanned); // and a fresh scan
                 tab?.Refresh();

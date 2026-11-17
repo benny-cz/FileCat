@@ -1,5 +1,17 @@
 # Severity-ordered UX/UI audit implementation
 
+<a id="evidence-owner-inspection-nvda-20261116"></a>
+**16 November 2026, column ownership GA1 (new content check):** Git-built `d62b8f24`, FileCat.dll SHA-256
+`BC8AAC70…557C6F`, ran in the disposable Windows VMware guest's existing `filecatdsa_r2` console session 2 with an
+ordinary token, .NET 10.0.15 and the existing signed NVDA 2026.3.1. The [focused runner](../../tests/FileCat.NativeAcceptance/win-nvda-owner-inspection.ps1)
+opened Inspect with Ctrl+Shift+I on two owned files. NVDA's own speech log contains the first file's qualified Owner,
+account type and full SID; the controlled Offline-attribute fixture's readout contains the unavailable reason.
+Both source hashes stayed exact. The test coordinated the shared desktop with the disk-space worker, closed its
+owned app/reader and removed its exact temporary Interactive/Limited launch task; both prior sessions were preserved.
+See [method and qualification](column-ownership/GA1-20261116.md), [actual speech receipt](column-ownership/20261116-GA1-nvda.json)
+and [cleanup](column-ownership/20261116-GA1-cleanup.json). This changes no accepted dialog structure/focus or row-summary
+journey, reopens no ledger row, and establishes no real-cloud materialization or native compositor claim.
+
 <a id="evidence-git-badge-check-20261028"></a>
 **28 October 2026, Git panel badge follow-up:** The [focused check](GIT_BADGE_UX_CHECK_20261028.md)
 found that watcher and manual folder rereads completed with `RefreshComplete`

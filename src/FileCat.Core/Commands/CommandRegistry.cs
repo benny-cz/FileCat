@@ -529,7 +529,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.ChangeJournal, "Lists what the drive's change journal records, newest first: each item made, changed, renamed, or deleted, when, and in which folder. Enter goes to an item, F3 shows the whole entry. Needs administrator rights (NTFS and ReFS).");
         r.Describe(CommandIds.FindDeleted, "Choose a drive or a disk image: its deleted files open in a new tab, to copy (F5) to another drive.");
         r.Describe(CommandIds.ChooseTarget, "Where F5 and F6 copy and move to, with three or more panels; “Set as target” on a panel's header does the same.");
-        r.Describe(CommandIds.AnalyzeFolder, "Reads one column (versions, picture sizes, link targets, where files came from) for every item, then sorts by it.");
+        r.Describe(CommandIds.AnalyzeFolder, "Reads one column (versions, picture sizes, link targets, owners, where files came from) for items in the folder, then sorts by it.");
         r.Describe(CommandIds.PictureView, "Toggle a thumbnail grid in this tab. Folders and every file remain available for selection and file operations.");
         r.Describe(CommandIds.CompareDirectories, "Marks what differs between the two panels' folders; Include subfolders lists every difference below and can synchronize.");
         // The toolbar's commands (D-49): their tooltips say this under the title and key.
@@ -582,7 +582,7 @@ public sealed class CommandRegistry
         K(CommandIds.ChangeJournal, "USN", "UsnJrnl", "$J", "journal", "recent changes", "what changed", "forensics", "timeline");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");
         K(CommandIds.FindFiles, "search", "locate", "look for", "grep", "find in files");
-        K(CommandIds.Settings, "options", "preferences", "configuration", "configure", "setup");
+        K(CommandIds.Settings, "options", "preferences", "configuration", "configure", "setup", "columns", "owner");
         K(CommandIds.BulkRename, "multi rename", "mass rename", "batch rename", "renamer");
         K(CommandIds.CompareDirectories, "diff", "differences", "synchronize", "sync", "compare folders");
         K(CommandIds.CompareFiles, "diff", "differences", "compare two files", "same name", "text compare", "binary compare");
@@ -648,7 +648,7 @@ public sealed class CommandRegistry
         K(CommandIds.FileHistory, "recent files");
         K(CommandIds.WorkingSets, "collections", "basket");
         K(CommandIds.Undo, "revert", "take back");
-        K(CommandIds.AnalyzeFolder, "metadata", "versions", "picture sizes", "dimensions", "link targets", "origin");
+        K(CommandIds.AnalyzeFolder, "metadata", "versions", "picture sizes", "dimensions", "link targets", "origin", "owner", "ownership");
         K(CommandIds.PictureView, "photo", "photos", "images", "thumbnails", "gallery");
         K(CommandIds.MarkToggle, "folder size", "folder sizes", "calculate size");
         K(CommandIds.MoveTabLeft, "reorder tabs", "tab order", "drag tab");
