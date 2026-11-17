@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 
@@ -102,6 +103,22 @@ public sealed partial class JobManager
         JournalRecovery.CopyStorageCalls(path, prefix, createOutput, backend, ct);
     }
 
+    /// <summary>Publishes a complete captured prefix through a qualified same-object output owner.</summary>
+    public StorageExportResult ExportStorageCalls(string fileName, StorageJournalPrefix prefix, string destination, CancellationToken ct = default)
+    {
+        string path = StorageHistoryPath(fileName);
+        var backend = _storageEvidenceBackend ?? throw new NotSupportedException("Private storage call evidence is unavailable on this platform.");
+        return JournalRecovery.ExportStorageCalls(path, prefix, destination, backend, ct);
+    }
+
+    public StorageExportResult ExportStorageReview(StorageReviewedJournal reviewed, string destination, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(reviewed); _ = StorageHistoryPath(reviewed.JournalLeaf);
+        var backend = _storageEvidenceBackend ?? throw new NotSupportedException("Private storage review is unavailable on this platform.");
+        using var owner = backend.OpenJournal(_journalDirectory, reviewed.JournalLeaf, ct);
+        return JournalRecovery.ExportStorageReview(owner, reviewed, destination, ct);
+    }
+
     public StorageReviewStatus AcknowledgeStorageReview(StorageReviewedJournal reviewed, string reviewText,
         StorageReviewChoice choice, CancellationToken ct = default)
     {
@@ -143,7 +160,7 @@ public sealed partial class JobManager
         var request = new JobRequest
         {
             Kind = JobKind.StorageTransform, Sources = reviewed.Sources, Mode = mode,
-            StorageTransform = new(approval.Action, approval.Scope, approval.ReviewRevision) { Roots = reviewed.Roots },
+            StorageTransform = new(approval.Action, approval.Scope, approval.ReviewRevision) { Roots = reviewed.Roots, EfsConsent = approval.EfsConsent },
         };
         _ = JobJournal.CaptureStorageHeader(request, Guid.NewGuid(), DateTime.UnixEpoch); // before owner transfer/job creation
         return Submit(request, null, register, storageOwner: reviewed.Transfer(_storageTransforms, approval));
@@ -164,6 +181,8 @@ public sealed partial class JobManager
         if (owner is null || !owner.IsAlive) throw new InvalidOperationException("Submit storage changes through their live reviewed owner.");
         if (payload.Roots.IsDefault || payload.Roots.Length != request.Sources.Count)
             throw new ArgumentException("The original-root mappings are missing.", nameof(request));
+        StorageEfsConsent.Require(payload.EfsConsent, payload.ReviewRevision, payload.Action, payload.Scope,
+            payload.Roots.Select(r => r.Observation.Identity).ToImmutableArray());
         for (int i = 0; i < payload.Roots.Length; i++)
         {
             var root = payload.Roots[i];

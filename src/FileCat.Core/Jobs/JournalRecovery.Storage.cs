@@ -7,10 +7,18 @@ namespace FileCat.Core.Jobs;
 public sealed record StorageHistoryRoot(int SourceIndex, int PinIndex, string Path, StorageObservation Observation);
 public sealed record StorageHistoryCall(long Call, int SourceIndex, string Path, StorageObjectIdentity Identity,
     StorageObservation Before, StorageObservationState Desired, StorageCallDisposition? Disposition, StorageNoCallReason? NoCallReason,
-    StorageMutationResult? Result);
+    StorageMutationResult? Result)
+{
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? EfsConsentId { get; init; }
+}
 public sealed record StorageHistorySnapshot(StorageJournalPrefix Prefix, ImmutableArray<StorageHistoryRoot> Roots,
     StorageAction? Action, StorageScope? Scope, Guid? ReviewRevision, bool EffectUncertain, bool ReviewPending,
-    bool Damaged, bool Ended, bool LimitReached, StorageResultSnapshot? Result, StorageHistoryCall? LastCall);
+    bool Damaged, bool Ended, bool LimitReached, StorageResultSnapshot? Result, StorageHistoryCall? LastCall)
+{
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StorageEfsConsent? EfsConsent { get; init; }
+}
 public sealed record StorageHistoryRow(string FileName, Guid? JobId, StorageAction? Action, StorageScope? Scope,
     int? RootCount, string Status)
 {
@@ -60,7 +68,8 @@ public static partial class JournalRecovery
             c.Header?.Action, c.Header?.Scope, c.Header?.ReviewRevision, c.EffectUncertain, c.ReviewPending, c.Damaged, c.Ended,
             read.LimitReached, c.Summary is { } summary ? c.ToSnapshot(summary) with { DurablePrefix = read.Prefix } : null,
             intent is null ? null : new(intent.Call, intent.SourceIndex, intent.Path, intent.Identity, intent.Before, intent.Desired,
-                outcome?.Disposition, outcome?.NoCallReason, outcome?.Result));
+                outcome?.Disposition, outcome?.NoCallReason, outcome?.Result) { EfsConsentId = intent.EfsConsentId })
+            { EfsConsent = c.Header?.EfsConsent };
     }
 
     internal static bool HasStorageRecords(string path)

@@ -60,6 +60,10 @@ public sealed class StorageHistoryStartupUiTests
                 calls = Assert.IsType<ReportWindow>(first.Vm.ShowStorageCallEvidence("Inactive history", leaf, prefix, activeAtCapture: false));
                 var next = calls.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Next recorded call page");
                 await Wait(() => calls.Reading?.IsCompleted == true && calls.Text.Contains("Displayed calls 1–64", StringComparison.Ordinal) && next.IsEnabled);
+                Assert.Single(calls.GetVisualDescendants().OfType<Button>(), button => button.Content as string == "Save all recorded calls…");
+                string exportedPath = Path.Join(first.Root, "captured-storage-calls.fcj");
+                var exported = await first.Vm.ExportStorageCallsAsync(leaf, prefix, exportedPath, TestContext.Current.CancellationToken);
+                Assert.Equal(exportedPath, exported.Destination); Assert.Equal(File.ReadAllBytes(path), File.ReadAllBytes(exportedPath));
                 Assert.True(next.IsEnabled); next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await Wait(() => calls.Reading?.IsCompleted == true && calls.Text.Contains("Displayed calls 65–71", StringComparison.Ordinal) && !next.IsEnabled);
                 Assert.False(next.IsEnabled); Assert.DoesNotContain("Call 1;", calls.Text);

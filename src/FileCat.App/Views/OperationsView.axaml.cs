@@ -445,10 +445,14 @@ public partial class OperationsView : UserControl
                 "Use Save report in the operations drawer to export every retained detail.";
         }, ct));
         if (job.Kind == FileCat.Core.Jobs.JobKind.StorageTransform && snapshot.Storage?.DurablePrefix is { } prefix && Main is { } main)
+        {
             report.ConfigureStorageCalls(() =>
             {
                 main.ShowStorageCallEvidence(job, prefix, !snapshot.State.IsFinished()); return Task.CompletedTask;
             });
+            report.ConfigureStorageCallExport(ct => main.SaveStorageCallsAsync(
+                FileCat.Core.Jobs.StorageJournalPolicy.FileName(job.CreatedUtc, job.Id), prefix, ct));
+        }
         report.Show();
     }
 

@@ -21,6 +21,7 @@ internal static class StorageHistoryReport
         Line($"Exact evidence: {reviewed.Evidence.ByteLength:N0} bytes; SHA-256 {reviewed.Evidence.Sha256}");
         Line("Requested action: " + (h.Action is { } action ? StorageOperationText.Action(action) : "unavailable"));
         Line("Scope: " + (h.Scope is { } scope ? StorageOperationText.Scope(scope) : "unavailable"));
+        StorageCallEvidenceText.EfsConsent(h.EfsConsent, value => Line(value));
         Line("Recorded through sequence: " + h.Prefix.Sequence);
         if (h.Damaged) Line("Evidence is damaged or has an unknown schema. Missing facts remain unavailable; acknowledgment does not validate them.");
         if (h.LimitReached) Line("Evidence inspection reached a limit. Additional facts remain unavailable.");

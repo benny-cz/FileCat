@@ -8,6 +8,16 @@ namespace FileCat.Core.Jobs;
 
 public static partial class JournalRecovery
 {
+    internal static StorageExportResult ExportStorageReview(StorageReviewEvidence evidence, StorageReviewedJournal reviewed,
+        string destination, CancellationToken ct)
+    {
+        if (!SameStorageReview(ReadStorageReview(evidence, ct), reviewed))
+            throw new IOException("The storage evidence changed; review the current snapshot before exporting.");
+        using var output = evidence.CreateExport(destination, ct);
+        CopyStorageReview(evidence, reviewed, output.Stream, ct);
+        return output.Publish(ct);
+    }
+
     internal static void CopyStorageReview(StorageReviewEvidence evidence, StorageReviewedJournal reviewed, Stream destination, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(destination);

@@ -31,10 +31,13 @@ public static partial class HexSaveAs
         string full = Path.GetFullPath(destination);
         if (File.Exists(full) || Directory.Exists(full)) throw new IOException("Save As requires a new file name; this one already exists.");
         string directory = Path.GetDirectoryName(full) ?? throw new IOException("Choose a destination inside a folder.");
-        var ranges = overlay.FreezeForSave();
+        overlay.IncludeContributor(source.CaptureHexOrigin());
+        var snapshot = overlay.FreezeForPersistence(); var ranges = snapshot.Ranges;
         string temp = Path.Combine(directory, ".filecat-hex-" + Guid.NewGuid().ToString("N") + ".tmp");
+        bool created = false;
         try
         {
+            snapshot.RequireUnprotectedOutput("Save As");
             source.ValidateForSave(ranges);
             // Linux and macOS cannot keep other programs from writing the file meanwhile: a copy taken while one did would
             // mix its old and new bytes, so its length and time must be the same at the end.
@@ -49,6 +52,7 @@ public static partial class HexSaveAs
             long written = 0;
             using (var output = File.OpenHandle(temp, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
             {
+                created = true;
                 if (allocated is not null) sparse = TrySetSparse(output);
                 if (!sparse && allocated is not null)
                 {
@@ -92,7 +96,7 @@ public static partial class HexSaveAs
         finally
         {
             overlay.FinishSave(false);
-            if (File.Exists(temp)) File.Delete(temp);
+            if (created && File.Exists(temp)) File.Delete(temp);
         }
     }
 

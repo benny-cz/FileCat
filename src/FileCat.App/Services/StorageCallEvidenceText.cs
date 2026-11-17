@@ -26,6 +26,7 @@ internal static class StorageCallEvidenceText
         Line("Quoted strings use JSON escaping; decoding restores their exact value.");
         Line("Action: " + StorageOperationText.Action(page.Action)); Line("Scope: " + StorageOperationText.Scope(page.Scope));
         Line("Review revision: " + page.ReviewRevision.ToString("D"));
+        EfsConsent(page.EfsConsent, Line);
         Line("Journal: " + page.Prefix.JobId.ToString("D"));
         Line("Recorded through sequence: " + page.Prefix.Sequence);
         Line("Durable byte endpoint: " + page.Prefix.ByteLength); Line("Durable snapshot SHA-256: " + page.Prefix.Sha256);
@@ -35,7 +36,8 @@ internal static class StorageCallEvidenceText
         {
             Line(); Line($"Call {call.Call}; selected root {call.SourceIndex + 1}"); Line("Path: " + Q(call.Path));
             Line($"Held identity: volume {call.Identity.Volume:X16}; binding {Q(call.Identity.VolumeBinding)}; object {Q(call.Identity.ObjectId)}");
-            Observation("Before", call.Before); Line("Desired compression state: " + call.Desired);
+            Observation("Before", call.Before); Line((page.Action is StorageAction.EncryptEfs or StorageAction.DecryptEfs ? "Desired EFS state: " : "Desired compression state: ") + call.Desired);
+            if (call.EfsConsentId is { } consentId) Line("EFS scope consent: " + consentId.ToString("D"));
             if (call.Disposition is null)
                 Line(activeAtCapture ? "Pending at this active snapshot: an intent is durable; no result is recorded. This does not establish a completed uncertain effect."
                     : "No result is recorded at this prefix. The effect is not established by this call record.");
@@ -58,5 +60,16 @@ internal static class StorageCallEvidenceText
             : $"Displayed calls {page.Calls[0].Call}–{page.Calls[^1].Call}. " +
               (page.More ? "More exact records remain; choose Next recorded call page." : "End of the captured call records."));
         return text.ToString();
+    }
+
+    internal static void EfsConsent(StorageEfsConsent? consent, Action<string> line)
+    {
+        if (consent is null) return;
+        line("Recorded EFS scope consent: " + consent.ConsentId.ToString("D"));
+        line("Concurrent in-place link-change limitation accepted: " + consent.Acknowledgments.AcceptConcurrentLinkChange);
+        line(consent.Action == StorageAction.EncryptEfs
+            ? "Removal of compression from all main/named streams, including streams added before completion, accepted: " + consent.Acknowledgments.AcceptAllStreamDecompression
+            : "All-stream decompression consent: not applicable to EFS decryption.");
+        line("These acknowledgments do not establish key recovery, output approval or prevention of concurrent link redirection.");
     }
 }

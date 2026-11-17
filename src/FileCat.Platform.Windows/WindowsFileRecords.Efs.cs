@@ -13,7 +13,8 @@ namespace FileCat.Platform.Windows;
 public sealed unsafe partial class WindowsFileRecords
 {
     /// <summary>The most entries of a list read (a file has a handful), and the longest hash and text taken from one.</summary>
-    private const int MaxEfsEntries = 256, MaxEfsHash = 64, MaxEfsText = 1024;
+    internal const int MaxEfsEntries = 256;
+    private const int MaxEfsHash = 64, MaxEfsText = 1024;
 
     /// <summary>One entry of an EFS certificate hash list: a user who can decrypt the item, or a recovery agent.</summary>
     /// <param name="Sid">The account's SID, or null when the entry names none (recovery agents often do not) or an invalid one.</param>

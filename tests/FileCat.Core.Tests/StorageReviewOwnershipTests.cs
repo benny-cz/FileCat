@@ -115,6 +115,20 @@ public sealed class StorageReviewOwnershipTests
     }
 
     [Fact]
+    public void Efs_metadata_cannot_be_smuggled_into_a_compression_approval_or_enable_reserved_Efs_admission()
+    {
+        using var temp = new TempDir(); var adapter = new Adapter(); var manager = Manager(temp, adapter);
+        using var review = manager.PrepareStorageReview([Source()], StorageAction.Compress, TestContext.Current.CancellationToken);
+        var approval = review.Approve(StorageAction.Compress, StorageScope.SelectedItems);
+        var consent = new StorageEfsConsent(Guid.NewGuid(), review.Revision, StorageAction.EncryptEfs, approval.Scope,
+            [review.Roots[0].Observation.Identity], new(true, true));
+        Assert.Throws<ArgumentException>(() => manager.SubmitStorage(review, approval with { EfsConsent = consent }, _ => { }));
+        Assert.Throws<NotSupportedException>(() => manager.SubmitStorage(review, approval with { Action = StorageAction.EncryptEfs, EfsConsent = consent }, _ => { }));
+        Assert.True(review.OwnsPins); Assert.All(adapter.Pins, pin => Assert.True(pin.IsAlive)); Assert.Empty(manager.Jobs);
+        Assert.False(Directory.Exists(Path.Join(temp.Path, "journal")));
+    }
+
+    [Fact]
     public void Queued_job_consumes_once_keeps_pins_and_retires_before_terminal_observers_without_losing_sources()
     {
         using var temp = new TempDir(); var adapter = new Adapter(); var manager = Manager(temp, adapter);

@@ -29,13 +29,35 @@ public static partial class JournalRecovery
     private static void CopyCallPrefix(Stream source, StorageJournalPrefix prefix, Func<Stream> createOutput,
         Func<IDisposable> claimOutput, CancellationToken ct)
     {
+        ValidateCallPrefix(source, prefix, ct);
+        using var outputCharge = claimOutput();
+        using var destination = createOutput() ?? throw new IOException("No storage evidence export stream was created.");
+        CopyVerifiedCallPrefix(source, prefix, destination, ct);
+    }
+
+    internal static StorageExportResult ExportStorageCalls(string path, StorageJournalPrefix prefix, string destination,
+        StorageEvidenceBackend backend, CancellationToken ct)
+    {
+        ValidateCallPageRequest(path, prefix, 0);
+        using var owner = (backend.OpenHistory ?? throw new IOException("Bound storage history is unavailable."))
+            (Path.GetDirectoryName(path) ?? throw new IOException("Missing storage history directory."), Path.GetFileName(path), ct);
+        ValidateCallPrefix(owner.Stream, prefix, ct);
+        using var output = owner.CreateExport(destination, ct);
+        CopyVerifiedCallPrefix(owner.Stream, prefix, output.Stream, ct);
+        return output.Publish(ct);
+    }
+
+    private static void ValidateCallPrefix(Stream source, StorageJournalPrefix prefix, CancellationToken ct)
+    {
         var read = StorageTransformJournalReader.Read(source, prefix.JobId, prefix.ByteLength, prefix.Sha256, ct);
         if (read.Collector.Damaged || read.LimitReached || read.Prefix != prefix)
             throw new IOException("The captured storage prefix is missing, damaged or changed; no export was created.");
         ct.ThrowIfCancellationRequested();
-        using var outputCharge = claimOutput();
-        using var destination = createOutput() ?? throw new IOException("No storage evidence export stream was created.");
-        if (!destination.CanWrite || ReferenceEquals(source, destination)) throw new ArgumentException("A separate writable staging stream is required.", nameof(createOutput));
+    }
+
+    private static void CopyVerifiedCallPrefix(Stream source, StorageJournalPrefix prefix, Stream destination, CancellationToken ct)
+    {
+        if (!destination.CanWrite || ReferenceEquals(source, destination)) throw new ArgumentException("A separate writable staging stream is required.", nameof(destination));
         source.Position = 0;
         using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         byte[] buffer = new byte[64 * 1024]; long remaining = prefix.ByteLength;

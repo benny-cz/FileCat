@@ -24,7 +24,7 @@ internal static unsafe partial class WindowsArchiveNative
         public byte DeletePending, Directory;
     }
 
-    internal static WindowsArchiveVolume Volume(SafeFileHandle directory)
+    internal static WindowsArchiveVolume Volume(SafeFileHandle directory, bool requirePrivateNtfs = true)
     {
         DeviceInfo device;
         IoStatus io;
@@ -37,8 +37,9 @@ internal static unsafe partial class WindowsArchiveNative
         if (!GetVolumeInformationByHandle(directory, null, 0, out _, out _, out uint flags, name, 261))
             throw new Win32Exception(Marshal.GetLastPInvokeError());
         string fileSystem = new(name);
-        if (fileSystem != "NTFS" || (flags & 0x8 /* PERSISTENT_ACLS */) == 0 || (flags & 0x80000 /* READ_ONLY_VOLUME */) != 0)
+        if (requirePrivateNtfs && (fileSystem != "NTFS" || (flags & 0x8 /* PERSISTENT_ACLS */) == 0 || (flags & 0x80000 /* READ_ONLY_VOLUME */) != 0))
             throw new NotSupportedException("Private archive storage is currently implemented only for writable local NTFS.");
+        if ((flags & 0x80000 /* READ_ONLY_VOLUME */) != 0) throw new NotSupportedException("The held output volume is read-only.");
         return new(fileSystem, flags, device.Type, device.Characteristics);
     }
 

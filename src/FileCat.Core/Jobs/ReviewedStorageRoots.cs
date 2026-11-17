@@ -6,10 +6,16 @@ using FileCat.Core.Resources;
 
 namespace FileCat.Core.Jobs;
 
-public sealed record StorageReviewApproval(StorageAction Action, StorageScope Scope, Guid ReviewRevision);
+public sealed record StorageReviewApproval(StorageAction Action, StorageScope Scope, Guid ReviewRevision)
+{
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StorageEfsConsent? EfsConsent { get; init; }
+}
 public sealed record StorageTransformRequest(StorageAction Action, StorageScope Scope, Guid ReviewRevision)
 {
     public ImmutableArray<StorageReviewedRoot> Roots { get; init; } = [];
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StorageEfsConsent? EfsConsent { get; init; }
 }
 public sealed record StorageReviewedRoot(int SourceIndex, int PinIndex, StorageObservation Observation);
 
@@ -110,6 +116,7 @@ public sealed class ReviewedStorageRoots : IDisposable
             throw new InvalidOperationException("The action or review changed; inspect this exact selection again.");
         if (_owner is null || !_owner.IsAlive) throw new InvalidOperationException("The reviewed lifetime pins were released or already consumed.");
         if (Roots.Any(r => r.Observation.Ineligible is not null)) throw new InvalidOperationException("Every selected root must be eligible before submission.");
+        StorageEfsConsent.Require(approval.EfsConsent, Revision, approval.Action, approval.Scope, Roots.Select(r => r.Observation.Identity).ToImmutableArray());
         var captured = StoragePaths.Capture(Sources);
         if (!captured.SequenceEqual(Targets)) throw new InvalidOperationException("The captured storage sources no longer match the review.");
     }

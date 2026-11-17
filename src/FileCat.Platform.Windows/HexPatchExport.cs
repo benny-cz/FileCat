@@ -1,10 +1,14 @@
+using System.Collections.Immutable;
 using System.Text.Json;
 using FileCat.Core.Content;
 
 namespace FileCat.Platform.Windows;
 
 /// <summary>A parsed patch file: fixed-length ranges with the bytes they expect and the bytes they write.</summary>
-public sealed record HexPatchFile(string SourcePath, string SourceIdentity, long SourceLength, IReadOnlyList<HexPatchRange> Ranges);
+public sealed record HexPatchFile(string SourcePath, string SourceIdentity, long SourceLength, IReadOnlyList<HexPatchRange> Ranges)
+{
+    public ImmutableArray<HexContentContributor> Contributors { get; init; } = [HexContentContributor.Unknown];
+}
 
 /// <summary>
 /// Portable record of exact modified ranges. Export never changes the source; applying a patch only stages its
@@ -20,13 +24,17 @@ public static class HexPatchExport
         string full = Path.GetFullPath(destination);
         if (File.Exists(full) || Directory.Exists(full)) throw new IOException("Patch export requires a new file name; this one already exists.");
         string temp = Path.Combine(Path.GetDirectoryName(full)!, ".filecat-patch-" + Guid.NewGuid().ToString("N") + ".tmp");
-        var ranges = overlay.FreezeForSave();
+        overlay.IncludeContributor(source.CaptureHexOrigin());
+        var snapshot = overlay.FreezeForPersistence(); var ranges = snapshot.Ranges;
+        bool created = false;
         try
         {
             if (ranges.Count == 0) throw new IOException("There are no modified bytes to export.");
+            snapshot.RequireUnprotectedOutput("Patch export");
             source.ValidateForSave(ranges);
             using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024))
             {
+                created = true;
                 JsonSerializer.Serialize(stream, new
                 {
                     format = Format,
@@ -43,7 +51,7 @@ public static class HexPatchExport
         finally
         {
             overlay.FinishSave(false);
-            if (File.Exists(temp)) File.Delete(temp);
+            if (created && File.Exists(temp)) File.Delete(temp);
         }
     }
 
@@ -52,11 +60,13 @@ public static class HexPatchExport
     {
         var info = new FileInfo(path);
         if (!info.Exists) throw new FileNotFoundException("The patch file no longer exists.", path);
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var before = ProtectedHexFile.CaptureHexOrigin(stream.SafeFileHandle, stream.Name);
         if (stream.Length > MaxPatchFileBytes) throw new InvalidDataException("The patch file is larger than 64 MiB.");
         byte[] bytes = new byte[checked((int)stream.Length)];
         stream.ReadExactly(bytes);
         if (stream.ReadByte() != -1) throw new InvalidDataException("The patch file is larger than 64 MiB.");
+        var after = ProtectedHexFile.CaptureHexOrigin(stream.SafeFileHandle, stream.Name);
         using var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 8 });
         var root = document.RootElement;
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("format", out var format) || format.GetString() != Format)
@@ -78,7 +88,7 @@ public static class HexPatchExport
         }
         if (ranges.Count == 0) throw new InvalidDataException("The patch contains no ranges.");
         return new HexPatchFile(root.GetProperty("sourcePath").GetString() ?? "", root.GetProperty("sourceIdentity").GetString() ?? "",
-            length, ranges);
+            length, ranges) { Contributors = before == after ? [before] : [before, after] };
     }
 
     /// <summary>
@@ -108,6 +118,11 @@ public static class HexPatchExport
         const int MaxAction = 1024 * 1024;
         int staged = 0;
         bool partOfNext = false;
+        if (pending.Count > 0)
+        {
+            var contributors = patch.Contributors.IsDefaultOrEmpty ? [HexContentContributor.Unknown] : patch.Contributors;
+            foreach (var contributor in contributors) overlay.IncludeContributor(contributor);
+        }
         try
         {
             foreach (var range in pending)

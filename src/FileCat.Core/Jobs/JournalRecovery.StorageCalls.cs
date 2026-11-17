@@ -11,6 +11,7 @@ public sealed record StorageCallEvidencePage(StorageJournalPrefix Prefix, Immuta
     public StorageAction Action { get; init; }
     public StorageScope Scope { get; init; }
     public Guid ReviewRevision { get; init; }
+    public StorageEfsConsent? EfsConsent { get; init; }
 }
 
 public static partial class JournalRecovery
@@ -51,11 +52,17 @@ public static partial class JournalRecovery
     private static StorageCallEvidencePage ReadCallPage(Stream stream, StorageJournalPrefix prefix, long afterCall, CancellationToken ct)
     {
         var calls = ImmutableArray.CreateBuilder<StorageHistoryCall>();
-        long settled = 0, retained = 0; bool more = false;
+        long settled = 0, retained = 0; bool more = false, consentCharged = false;
         // Validate the entire captured prefix on every page. Appended, unflushed or newer evidence is never read.
         // Tentative rows are local until the final digest, sequence and complete framing have all been checked.
         var read = StorageTransformJournalReader.Read(stream, prefix.JobId, prefix.ByteLength, prefix.Sha256, ct, collector =>
         {
+            if (!consentCharged && collector.Header is { } header)
+            {
+                retained = header.EfsConsent is { } consent ? 256 + consent.RootIdentities.Sum(Id) : 0;
+                consentCharged = true;
+                if (retained > StorageCallPageBytes) throw new IOException("The EFS scope consent exceeds the bounded evidence page allowance.");
+            }
             if (collector.LastOutcome is not { } outcome || outcome.Call <= settled) return;
             settled = outcome.Call;
             Add(collector.LastIntent!, outcome);
@@ -68,13 +75,13 @@ public static partial class JournalRecovery
         ct.ThrowIfCancellationRequested();
         var header = read.Collector.Header!;
         return new(prefix, calls.ToImmutable(), more, afterCall, calls.Count == 0 ? afterCall : calls[^1].Call, retained)
-            { Action = header.Action, Scope = header.Scope, ReviewRevision = header.ReviewRevision };
+            { Action = header.Action, Scope = header.Scope, ReviewRevision = header.ReviewRevision, EfsConsent = header.EfsConsent };
 
         void Add(StorageJournalIntent intent, StorageJournalOutcome? outcome)
         {
             if (intent.Call <= afterCall || more) return;
             var call = new StorageHistoryCall(intent.Call, intent.SourceIndex, intent.Path, intent.Identity, intent.Before,
-                intent.Desired, outcome?.Disposition, outcome?.NoCallReason, outcome?.Result);
+                intent.Desired, outcome?.Disposition, outcome?.NoCallReason, outcome?.Result) { EfsConsentId = intent.EfsConsentId };
             long bytes = CallCharge(call);
             if (bytes > StorageCallPageBytes) throw new IOException("One call exceeds the bounded evidence page allowance.");
             if (calls.Count == StorageCallPageEntries || bytes > StorageCallPageBytes - retained) { more = true; return; }
@@ -83,7 +90,7 @@ public static partial class JournalRecovery
     }
 
     // Conservative charges for all retained strings and record objects, including duplicated observations.
-    private static long CallCharge(StorageHistoryCall call) => 256 + Text(call.Path) + Id(call.Identity) + Observation(call.Before) +
+    private static long CallCharge(StorageHistoryCall call) => 256 + (call.EfsConsentId is null ? 0 : 32) + Text(call.Path) + Id(call.Identity) + Observation(call.Before) +
         (call.Result is { } result ? 128 + Observation(result.Before) + (result.After is { } after ? Observation(after) : 0) + Problem(result.Problem) : 0);
     private static long Text(string? value) => value is null ? 0 : 32L + 2L * value.Length;
     private static long Id(StorageObjectIdentity identity) => 96 + Text(identity.ObjectId) + Text(identity.VolumeBinding);
