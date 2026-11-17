@@ -23,8 +23,13 @@ source-close failures. All final process inventories were clear.
 These are case timings and observed memory increments, not a controlled comparative benchmark.
 Windows/Linux private memory was sampled every 50 ms. Mac uses the separately validated
 `proc_pid_rusage` current footprint and kernel lifetime peak; it is not committed-private memory.
-The tests use a 512 MiB reference ceiling. Ubuntu wide exceeded 256 MiB, so the strict 256 MiB
-release gate remains open. Mac committed-private, global multi-session memory, first-visible
+The tests use the plan's 512 MiB process-private reference ceiling. Windows and Ubuntu samples
+meet that ceiling. The separate 256 MiB limit applies to shared in-memory stores before spill,
+not process-private memory; Ubuntu's 256.81 MiB sample does not violate the process-private target.
+The immutable packet's auxiliary `strict256MiBReleaseBudgetQualified: false` field does not
+describe a plan requirement; the [scope correction](source-manifest-r1265-memory-scope-correction.json)
+records this distinction without changing the original receipts. Mac committed-private,
+global multi-session memory, first-visible
 latency, ten-million paths and the physical desktop/accessibility matrix remain unqualified.
 
 All cases reused retained source trees and verified the existing r1250 guest inputs; no product

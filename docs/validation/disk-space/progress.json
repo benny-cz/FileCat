@@ -15777,7 +15777,6 @@
     "actualOwnerClosureAndZeroQuota": true,
     "cachedProductUnchanged": true,
     "windowsRetainedFixtureShape": "wide",
-    "strict256MiBReleaseBudgetQualified": false,
     "ubuntuWideObservedPrivateIncrementMiB": 256.81,
     "macCommittedPrivateBudgetQualified": false,
     "globalMultiSessionBudgetQualified": false,
@@ -15787,6 +15786,10 @@
     "mergedMainIntegrationIncluded": false,
     "publicFeatureRegistered": false,
     "fullGoalComplete": false,
-    "finalIndependentReviewPerformed": false
+    "finalIndependentReviewPerformed": false,
+    "memoryScopeCorrection": "source-manifest-r1265-memory-scope-correction.json",
+    "windowsAndUbuntuSampledPrivateReferencePassed": true,
+    "processPrivateReferenceCeilingMiB": 512,
+    "sharedActiveStoreSoftBudgetMiB": 256
   }
 }

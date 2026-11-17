@@ -1,0 +1,11 @@
+{
+  "originalManifestSha256": "9dd610241aa7c248833cc4b939fb4fae282da1e63fb9352d7b18432cf2b94713",
+  "plan": "docs/design/FILECAT_DISK_SPACE_ANALYSIS_PLAN.md sections 20 and 27.12",
+  "sharedActiveStoreSoftBudgetBytes": 268435456,
+  "processPrivateReferenceCeilingBytes": 536870912,
+  "windowsAndUbuntuSampledPrivateReferencePassed": true,
+  "auxiliaryStrict256MiBPrivateFieldIsNotAPlanRequirement": true,
+  "macCommittedPrivateBudgetQualified": false,
+  "globalMultiSessionMemoryQualified": false,
+  "originalReceiptsUnchanged": true
+}
