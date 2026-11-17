@@ -40,6 +40,7 @@ public sealed partial class DiskSpaceViewModel
             model.Sort = view.Sort; model.SortDescending = view.SortDescending;
             // Numeric IDs from an indexed predecessor are never reused for a memory fallback.
         }
+        model.SetStatus("Viewing the captured result. Rescan all opens refreshed observations in another tab.");
         return model;
     }
 

@@ -9,6 +9,7 @@ internal sealed class AnalysisSessionAdmission
     private readonly object _gate = new();
     private int _reserved;
     private bool _failedClose;
+    internal event Action? Changed;
     internal const string FailedCloseMessage = "An analysis could not close completely. Its place remains reserved until FileCat restarts.";
     internal bool HasFailedClose { get { lock (_gate) return _failedClose; } }
     internal bool HasCapacity { get { lock (_gate) return _reserved < AnalysisLimits.Sessions; } }
@@ -21,11 +22,19 @@ internal sealed class AnalysisSessionAdmission
         {
             if (_reserved >= AnalysisLimits.Sessions)
                 throw new InvalidOperationException(Refusal);
-            _reserved++; return new(this);
+            _reserved++;
         }
+        NotifyChanged(); return new(this);
     }
-    private void Release() { lock (_gate) _reserved--; }
-    private void FailedClose() { lock (_gate) _failedClose = true; }
+    private void Release() { lock (_gate) _reserved--; NotifyChanged(); }
+    private void FailedClose() { lock (_gate) _failedClose = true; NotifyChanged(); }
+    private void NotifyChanged()
+    {
+        // UI notifications cannot acquire authority over successful admission or actual closure.
+        // One stale/closed subscriber must not strand a place or suppress other windows.
+        foreach (Action observer in Changed?.GetInvocationList() ?? [])
+            try { observer(); } catch (Exception) { }
+    }
     internal sealed class Slot(AnalysisSessionAdmission owner)
     {
         private int _closing;

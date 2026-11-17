@@ -1,0 +1,187 @@
+{
+  "baseCommit": "26204a80e4f22e6979ce97720bc55a2a0183d012",
+  "productRevision": "r1250",
+  "matrix": {
+    "windows/app-rescan": {
+      "total": 29,
+      "passed": 29,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "41.905",
+      "skippedNames": []
+    },
+    "windows/render": {
+      "total": 814,
+      "passed": 813,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 1,
+      "seconds": "669.526",
+      "skippedNames": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RestoredUnixPrivatePathCannotAcceptAReplacementExclusionCapability"
+      ]
+    },
+    "mac/app-rescan": {
+      "total": 29,
+      "passed": 29,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "24.891",
+      "skippedNames": []
+    },
+    "mac/render": {
+      "total": 814,
+      "passed": 814,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "276.978",
+      "skippedNames": []
+    },
+    "ubuntu/app-rescan": {
+      "total": 29,
+      "passed": 29,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "30.320",
+      "skippedNames": []
+    },
+    "ubuntu/render": {
+      "total": 814,
+      "passed": 814,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": "462.704",
+      "skippedNames": []
+    }
+  },
+  "unchangedCoreSourceProof": "Exact source hashes match the previously qualified r1233/r1248 Core inputs.",
+  "crossWindowCapacityUpdatesQualified": true,
+  "observerFailureCannotStrandAdmission": true,
+  "memoryAdoptionStatusQualified": true,
+  "rescanBindingWatchdogQualified": true,
+  "publicFeatureRegistered": false,
+  "fullW1LifecycleComplete": false,
+  "physicalDesktopAccessibilityQualified": false,
+  "fullGoalComplete": false,
+  "finalIndependentReviewPerformed": false,
+  "sourceDeltas": [
+    {
+      "path": "src/FileCat.App/Services/AnalysisSessionAdmission.cs",
+      "sha256": "5f760bc0321567d54c6d5975b8a5f5a4477cd3d6383509d1d95861edd367dd7f"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Acquisition.cs",
+      "sha256": "4ec08f1f0a78250d3121434e50cc88d7e2e3b1b19647a78a7599b1c8c4c11ba6"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedRescan.cs",
+      "sha256": "17cdcbb86a6c87370a8032827d72acb7aaea6f90b361ca361b21f456bd9f6eb4"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "b23c57e50d8ec928f777ec3f4de0bfe4b545dd4baff78af59ad4a07033814a45"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.OwnedRuntimeView.cs",
+      "sha256": "52cd6316f6b7521fa442652931d1c3bceecb6133a52721f565de96151dbc850c"
+    }
+  ],
+  "receiptFiles": [
+    {
+      "path": "mac-batch-r1250-post.json",
+      "sha256": "2310ff3cffa16e8ed2ad75613d8287b89140fd84c05cbbc21546503a716918de"
+    },
+    {
+      "path": "mac-batch-r1250-results.tgz",
+      "sha256": "b686e42bdd7211b22739ee5a79a70b7e8033e0695060d1fb7540c495b92490fa"
+    },
+    {
+      "path": "ubuntu-batch-r1250-post.json",
+      "sha256": "2901dbc1ef460b77de7b48863342b862e5e68df6590571df738b85da26bce56d"
+    },
+    {
+      "path": "ubuntu-batch-r1250-results.tgz",
+      "sha256": "6500044c091b2174408ebd45fd250b5c7889b9967b942cf306c1cfaaa86bec9c"
+    },
+    {
+      "path": "windows-batch-r1250-post.json",
+      "sha256": "66d17ce43c24cd779d25e297028a18fb6bde332561465de5afd62c8d75998464"
+    },
+    {
+      "path": "windows-batch-r1250-results.tgz",
+      "sha256": "0115444111a41f26821583f0951d6e9e1d2624444dd1093f1c2b65437b60ff1b"
+    }
+  ],
+  "workflowFiles": [
+    {
+      "path": ".tmp/batch-linux-r1250.sh",
+      "sha256": "1c89263f62c0310d13164ad344a2d290c80536e6def067f92f70aa8192d8cebb"
+    },
+    {
+      "path": ".tmp/batch-mac-r1250.sh",
+      "sha256": "f909e077be29b58879eaa46d4b964864e549548aff38f7af32f62450ba7d1179"
+    },
+    {
+      "path": ".tmp/batch-windows-r1250.ps1",
+      "sha256": "d8f0c68b268a9f12a32f75d43f7d6d5463e19e52a794a4f632ab745f2cdfd690"
+    },
+    {
+      "path": ".tmp/indexed-runtime-capacity-health-build-r1249.txt",
+      "sha256": "51c3f9dc97323f72d3581fa7591c7ae691aa340f9a7866655917628988dc2276"
+    },
+    {
+      "path": ".tmp/runtime-capacity-health-proof-r1250.json",
+      "sha256": "8c4285ab671c1c027f38126f6070a9849b0a5ca7036cddb1ac17260644c983d6"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-rescan-ui-r1216.ps1",
+      "sha256": "bdca709787ec4f638bb9fbb1a2fbfd348617d953b7f20b772803d864d008901f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/deploy-batch.ps1",
+      "sha256": "a268e46a28e72314f96501cf3b4afd9642b7dc745f1d220f8b76df41f4089000"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/epoch-app-unix-template-r1194.sh",
+      "sha256": "d6daf238edc60c82b8f6ad721bd7773141ec8d7729c3e63ef2782439cf315c81"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/epoch-app-windows-template-r1195.ps1",
+      "sha256": "24b2cd15076ed939eccdc73f30ac976c03d337b67f38ec3dd612cdf6edc2ccbd"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/finalize-runtime-capacity-health-r1253.py",
+      "sha256": "18a7750e8b40b860cee25fe03bdb9cfe2cb2470ade1318e71f78666a84644a5c"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/preflight-indexed-r732.ps1",
+      "sha256": "bb69544f9c7e1309400c9f771c15fc74d11fab070cd51b8f1da6d0f2d0995d40"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/prepare-runtime-capacity-health-r1250.py",
+      "sha256": "055fa7ef95be2a499b27de8bba0e8ce83645b8b143a85bed1fd4403018388fdc"
+    }
+  ],
+  "archives": [
+    {
+      "path": "exact-source-deltas-r1253-runtime-capacity-health.tgz",
+      "sha256": "dabba85caa62842a1c1faacf7653cf4f84ed83c1647e51f63712cab45f02c9f2",
+      "bytes": 25166
+    },
+    {
+      "path": "exact-receipts-r1253-runtime-capacity-health.tgz",
+      "sha256": "ce2bb3fbf19a1a8b8eb6df03328770f7b72691dd1aed08bc9a1dfb2c9b5a243d",
+      "bytes": 208965
+    },
+    {
+      "path": "exact-workflow-r1253-runtime-capacity-health.tgz",
+      "sha256": "098f9b1601fbce3b6b37f79cb366c05f1279e412e79516696806b23823cca106",
+      "bytes": 261647
+    }
+  ]
+}

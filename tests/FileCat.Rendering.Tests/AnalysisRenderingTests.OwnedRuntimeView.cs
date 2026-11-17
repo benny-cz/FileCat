@@ -7,6 +7,8 @@ using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Analysis;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Threading;
 
 namespace FileCat.Rendering.Tests;
 
@@ -41,7 +43,11 @@ public sealed partial class AnalysisRenderingTests
             var view = await window.AddOwnedAcquisitionAsync(fixture.Services, async _ => owner = await PrepareOwnedRuntimeAsync(fixture, input, indexed));
             window.Show(); Frame(window); Assert.Equal(1, window.SessionCount);
             if (indexed) { Assert.NotNull(view.Indexed); Assert.Null(view.Memory); }
-            else { Assert.Null(view.Indexed); Assert.NotNull(view.Memory); Assert.True(view.Memory.CanRescan); }
+            else
+            {
+                Assert.Null(view.Indexed); Assert.NotNull(view.Memory); Assert.True(view.Memory.CanRescan);
+                Assert.StartsWith("Viewing the captured result.", view.Memory.Status);
+            }
             Assert.True(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Rescan all").IsEnabled);
             window.ForceClose(); await window.WaitForIndexedCloseAsync();
             Assert.NotNull(owner); Assert.Throws<ObjectDisposedException>(() => owner.RuntimeSession);
@@ -198,5 +204,62 @@ public sealed partial class AnalysisRenderingTests
         }
         finally { foreach (var reservation in reservations) reservation.Dispose(); window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
         Assert.Equal(handles, AnalysisNativeHandles.Count);
+    }
+
+    [AvaloniaFact]
+    public async Task NativeOwnedRuntimeViewCapacityTracksOtherWindowsAndTheirActualClosure()
+    {
+        OrdinaryPreparation(); using var styles = new ProductStyles(); using var fixture = new PreparationFixture();
+        string input = Path.Combine(fixture.Root, "input"); Directory.CreateDirectory(input);
+        var pool = new AnalysisSessionAdmission(); var window = new DiskSpaceWindow(null, null, pool); var other = new DiskSpaceWindow(null, null, pool);
+        try
+        {
+            await window.AddOwnedAcquisitionAsync(fixture.Services, _ => PrepareOwnedRuntimeAsync(fixture, input)); window.Show(); other.Show(); Frame(window);
+            var rescan = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Rescan all"); Assert.True(rescan.IsEnabled);
+            for (int n = 1; n < AnalysisLimits.Sessions; n++) other.AddSession(new DiskSpaceViewModel(fixture.Services, ImportedFixture()));
+            await Until(() => !rescan.IsEnabled);
+            other.ForceClose(); await other.WaitForIndexedCloseAsync(); await Until(() => rescan.IsEnabled);
+            Assert.Equal(1, window.SessionCount);
+        }
+        finally { other.ForceClose(); window.ForceClose(); await Task.WhenAll(window.WaitForIndexedCloseAsync(), other.WaitForIndexedCloseAsync()); }
+        await AssertAllRuntimePlacesAvailableAsync(pool);
+    }
+
+    [AvaloniaFact]
+    public async Task NativeOwnedRuntimeViewCapacityObserverFailuresDoNotStrandAdmissionsOrHideOtherNotifications()
+    {
+        var pool = new AnalysisSessionAdmission(); int notifications = 0;
+        pool.Changed += () => throw new InvalidOperationException("Closed notification receiver"); pool.Changed += () => notifications++;
+        var held = new List<AnalysisSessionAdmission.Slot>();
+        for (int n = 0; n < AnalysisLimits.Sessions; n++) held.Add(pool.Acquire());
+        Assert.Equal(AnalysisLimits.Sessions, notifications); Assert.False(pool.HasCapacity);
+        foreach (var slot in held) await slot.CloseAfterAsync(Task.CompletedTask);
+        Assert.Equal(AnalysisLimits.Sessions * 2, notifications); Assert.True(pool.HasCapacity); Assert.False(pool.HasFailedClose);
+        await AssertAllRuntimePlacesAvailableAsync(pool);
+    }
+
+    [AvaloniaFact]
+    public async Task NativeOwnedRuntimeViewUnresponsiveBindingStopsBeforePublishingAnotherEpoch()
+    {
+        OrdinaryPreparation(); using var styles = new ProductStyles(); using var fixture = new PreparationFixture();
+        string input = Path.Combine(fixture.Root, "input"); Directory.CreateDirectory(input);
+        var window = new DiskSpaceWindow(null, null, new AnalysisSessionAdmission());
+        using var gate = new ManualResetEventSlim(); using var entered = new CountdownEvent(fixture.Services.Io.ThreadsPerDevice);
+        var blocked = new List<Task>();
+        try
+        {
+            var old = await window.AddOwnedAcquisitionAsync(fixture.Services, _ => PrepareOwnedRuntimeAsync(fixture, input)); window.Show(); Frame(window);
+            var identity = old.Indexed!.Descriptor.Identity; string device = PathUtil.GetDeviceKey(input);
+            for (int n = 0; n < fixture.Services.Io.ThreadsPerDevice; n++)
+                blocked.Add(fixture.Services.Io.RunOwned(device, IoPriority.Background, _ => { entered.Signal(); gate.Wait(TimeSpan.FromSeconds(25)); return true; }));
+            await Task.Run(() => Assert.True(entered.Wait(TimeSpan.FromSeconds(5))));
+            Click(window, "Rescan all");
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text?.Contains("device is not responding", StringComparison.Ordinal) == true),
+                () => ComparisonText(window), TimeSpan.FromSeconds(18));
+            gate.Set(); await Task.WhenAll(blocked);
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text?.StartsWith("Rescan unavailable:", StringComparison.Ordinal) == true));
+            Assert.Equal(1, window.SessionCount); Assert.Equal(identity, old.Indexed.Descriptor.Identity);
+        }
+        finally { gate.Set(); await Task.WhenAll(blocked); window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 }

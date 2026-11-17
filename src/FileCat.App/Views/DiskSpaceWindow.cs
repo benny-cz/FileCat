@@ -69,6 +69,7 @@ public sealed partial class DiskSpaceWindow : Window
         foreach (var session in _sessions.OfType<SessionView>()) session.RefreshRescanAvailability();
         foreach (var session in _sessions.OfType<IndexedSessionView>()) session.RefreshRuntimeRescanControls();
     }
+    private void AdmissionChanged() => Dispatcher.UIThread.Post(() => { if (!_closed) RefreshIndexedCloseNotice(); });
     private readonly Panel _overlay = new() { IsVisible = false };
     private readonly OverlayDialogService _dialogs;
     private readonly Action? _newAnalysis;
@@ -118,7 +119,8 @@ public sealed partial class DiskSpaceWindow : Window
                 if (!_askingClose) _ = ConfirmCloseAsync();
             }
         };
-        Closed += (_, _) => { _closed = true; _indexedLifetime.Cancel(); _dialogs.CancelAll(); foreach (var session in _sessions) session.Dispose(); _sessions.Clear(); if (_pendingIndexed == 0) _indexedLifetime.Dispose(); };
+        Closed += (_, _) => { _closed = true; _admissionPool.Changed -= AdmissionChanged; _indexedLifetime.Cancel(); _dialogs.CancelAll(); foreach (var session in _sessions) session.Dispose(); _sessions.Clear(); if (_pendingIndexed == 0) _indexedLifetime.Dispose(); };
+        _admissionPool.Changed += AdmissionChanged;
     }
     public void AddSession(DiskSpaceViewModel model, IReadOnlyList<string>? roots = null)
     {

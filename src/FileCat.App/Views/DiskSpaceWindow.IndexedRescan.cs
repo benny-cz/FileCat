@@ -4,6 +4,7 @@ using Avalonia.Threading;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.Core.Analysis;
+using FileCat.Core.Threading;
 
 namespace FileCat.App.Views;
 
@@ -73,6 +74,19 @@ public sealed partial class DiskSpaceWindow
             _runtimeRescanCancel = cancel; _runtimePhase = AnalysisPhase.Scanning;
             var captured = CapturePublishedView(); ulong scope = _scope, focus = _focus;
             ulong? restored = null;
+            string? preparingDevice = null; bool bindingUnresponsive = false;
+            void HealthChanged(string device, DeviceHealth health)
+            {
+                if (health != DeviceHealth.NotResponding) return;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (_disposed || !ReferenceEquals(_runtimeRescanCancel, cancel) || _runtimeRefresh is not null ||
+                        !StringComparer.OrdinalIgnoreCase.Equals(device, Volatile.Read(ref preparingDevice))) return;
+                    bindingUnresponsive = true; cancel.Cancel();
+                    _status.Text = "Rescan binding stopped because the device is not responding. Waiting for its outstanding request to return. Previous observations remain available.";
+                });
+            }
+            _services.Io.HealthChanged += HealthChanged;
             var progress = new Progress<AnalysisProgress>(update => Dispatcher.UIThread.Post(() =>
             {
                 if (_disposed || !ReferenceEquals(_runtimeRescanCancel, cancel) || update.SessionId != _source.Descriptor.Identity.SessionId ||
@@ -86,7 +100,7 @@ public sealed partial class DiskSpaceWindow
             {
                 await _window.AddOwnedAcquisitionAsync(_services, async token =>
                 {
-                    var next = await original.BeginRescanAsync(progress, token);
+                    var next = await original.BeginRescanAsync(progress, token, device => Volatile.Write(ref preparingDevice, device));
                     _runtimeRefresh = next; _runtimeRescanIssued = true;
                     if (_disposed) { await next.DisposeAsync(); token.ThrowIfCancellationRequested(); throw new ObjectDisposedException(nameof(IndexedSessionView)); }
                     RefreshRuntimeRescanControls(); return next;
@@ -102,10 +116,13 @@ public sealed partial class DiskSpaceWindow
             catch (Exception error) when (Expected(error))
             {
                 RememberViewCloseFailure(error);
-                if (!_disposed) _status.Text = "Rescan unavailable: " + AnalysisNames.Display(error.Message, 400) + " Previous observations were kept.";
+                if (!_disposed) _status.Text = bindingUnresponsive
+                    ? "Rescan unavailable: the device is not responding. Wait for its outstanding work to finish. Previous observations were kept."
+                    : "Rescan unavailable: " + AnalysisNames.Display(error.Message, 400) + " Previous observations were kept.";
             }
             finally
             {
+                _services.Io.HealthChanged -= HealthChanged;
                 _runtimeRescanCancel = null; _runtimeRefresh = null;
                 if (!_disposed) RefreshRuntimeRescanControls();
             }
