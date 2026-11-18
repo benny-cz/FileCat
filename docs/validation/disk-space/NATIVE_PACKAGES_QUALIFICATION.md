@@ -21,3 +21,15 @@ On the Ubuntu VM, r1601 ran Orca with an isolated preferences directory, accessi
 On the Mac, r1605 used the operating system accessibility API to inspect the owned indexed Resource limits dialog. The title and reservation amount were exposed, and the enabled Close limits button held native focus. The native compositor captured the dialog at 2× scale. The app exited normally, the fixture was unchanged and the process inventory was empty. The result JSON SHA-256 is `2a43aae72fe2e21bb854c71e956a52f21720c5f27a159342684076a623f04a61`. The toolchain selected the installed macOS 15.2 SDK for the probe because the default SDK's framework stubs could not be read by the installed linker. VoiceOver speech and physical keyboard input on the Mac remain open.
 
 On the Windows VM, r1614 ran the desktop harness on the branch synced through `ef79336b` with a signed NVDA 2026.3.1 executable and a fresh reader profile. NVDA announced “Close limits, button.” Windows UI Automation confirmed the enabled button held focus in the owned process. Native Return and Escape dismissed the indexed resource dialog and restored focus to its launcher. The eight-theme compact run preserved its fixture and exited normally with an empty FileCat and NVDA process inventory. The tested application SHA-256 is `16eea8d35c2ba301ec8e09dbee085bd913facbaeb06ed3dbe4a73707a29a336b`. The result JSON SHA-256 is `625f57ed1171ac10b28caa01486290fb0af5e6a28c70fa2846dafd86e060f0bc`.
+
+## Warm Tools entry timing
+
+The r1627 native desktop harness called the Tools entry in an already-running FileCat process. It timed each open until the setup contained a laid-out, enabled Start analysis button, then closed the window before the next open. Each platform recorded one first open and 20 subsequent opens. The Windows VM reused the verified r1614 application. Mac and Ubuntu used the verified development package assemblies above.
+
+| Platform | First open | Warm p95 | Result JSON SHA-256 |
+|---|---:|---:|---|
+| Windows VM | 185 ms | 171 ms | `5b1f9f3f15f5fb16e274c87f59072a78f95b257316b091841d59c74b58bd4294` |
+| Mac | 68 ms | 64 ms | `dbe37f223910191356e0159e3624be844eaca7dfbb69b32809c741bc38cabd37` |
+| Ubuntu VM | 53 ms | 73 ms | `dd7eccaa5607628a64f528685188204edc3f6f1edcf7c9e3c95e01d09d59115c` |
+
+All three measured warm p95 values met the proposed 500 ms target for setup readiness. The source fixtures stayed intact and the test processes exited. Cold process startup and physical input-to-paint latency remain separate measurements.

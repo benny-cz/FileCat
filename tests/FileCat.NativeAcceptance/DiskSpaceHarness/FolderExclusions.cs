@@ -181,7 +181,7 @@ internal sealed partial class HarnessApp
             Click("Close");
             await ReadyAsync(() => VisibleButton("Close") is null);
             string photo = AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "photo.png").Id);
-            await CheckPanelRevealAsync(window, model, packageScope, photo);
+            var warmShell = await CheckPanelRevealAsync(window, model, packageScope, photo);
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
                 sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
@@ -189,7 +189,7 @@ internal sealed partial class HarnessApp
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
                 readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
                 standardIndexChoice = true, scratchThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true,
-                packageTier = Program.PackageTier, packageFastNtfsReason };
+                packageTier = Program.PackageTier, packageFastNtfsReason, warmShell };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }
@@ -201,7 +201,7 @@ internal sealed partial class HarnessApp
         }
     }
 
-    private async Task CheckPanelRevealAsync(DiskSpaceWindow window, DiskSpaceViewModel model, string folder, string file)
+    private async Task<WarmShellTiming?> CheckPanelRevealAsync(DiskSpaceWindow window, DiskSpaceViewModel model, string folder, string file)
     {
         var vm = new MainViewModel(_services!);
         var main = new MainWindow(vm, null);
@@ -231,6 +231,8 @@ internal sealed partial class HarnessApp
             if (results.Listing.Store.Count != 1 || !results.Listing.Store[0].Name.EndsWith("photo.png", StringComparison.Ordinal) ||
                 results.Listing.GetItemRef(0).FileSystemPath is not null)
                 throw new InvalidOperationException("The workspace results did not preserve the marked observation as read-only metadata.");
+            return Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_WARM_SHELL") == "1"
+                ? await MeasureWarmShellAsync(vm, _indexedLifetime.Token) : null;
 
             async Task<TabViewModel> RevealAsync(string key)
             {
