@@ -305,18 +305,33 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             if (current.ParentId == 0) break;
         }
         var root = tree.Snapshot.Roots.First(r => r.Id == node.RootId);
+        string locator = root.CanonicalLocator;
+        if (locator.Length == 0) return null;
+        if (node.ParentId == 0) return locator;
         string relative = RelativePath(node, nodes);
-        bool windows = root.CanonicalLocator.StartsWith("\\\\", StringComparison.Ordinal) || root.CanonicalLocator.Length > 1 && root.CanonicalLocator[1] == ':';
-        if (windows) relative = relative.Replace('/', '\\');
-        return root.CanonicalLocator.TrimEnd('/', '\\') + (relative.Length == 0 ? "" : (windows ? "\\" : "/") + relative);
+        bool windows = root.NameRules == AnalysisNameRules.Windows || root.NameRules == AnalysisNameRules.Provider &&
+            (locator.StartsWith("\\\\", StringComparison.Ordinal) || locator.Length > 1 && locator[1] == ':');
+        return windows ? locator.TrimEnd('/', '\\') + "\\" + relative.Replace('/', '\\') : locator.TrimEnd('/') + "/" + relative;
     }
-    public string FocusedDisplayPath()
+    public string FocusedDisplayPath() => FocusedDisplayPath(out _);
+
+    internal string FocusedDisplayPath(out string? boundary)
     {
+        boundary = null;
         if (Tree is not { } tree || tree.Items.GetValueOrDefault(Selection.Focus ?? "")?.NodeId is not { } id) return "Accounting group";
-        if (FocusedPath() is not { } path) return "Raw name has no lossless clipboard path.";
         var node = tree.Snapshot.Nodes.First(n => n.Id == id);
+        boundary = node.IssueCodes.Select(DescribeBoundary).FirstOrDefault(description => description is not null);
+        if (FocusedPath() is not { } path) return "Raw name has no lossless clipboard path.";
         return AnalysisNames.DisplayPath(path, tree.Snapshot.Roots.First(r => r.Id == node.RootId).NameRules);
     }
+    internal static string? DescribeBoundary(string code) => code switch
+    {
+        AnalysisFolderExclusions.IssueCode => "This folder and its contents were skipped under the captured folder exclusion rules.",
+        "private-analysis-state-excluded" => "The scan excluded FileCat’s private analysis state.",
+        "source-mount-boundary" or "source-volume-boundary" => "The scan stopped at this filesystem boundary.",
+        "cloud-directory-not-enumerated" => "The scan recorded this cloud directory as a boundary and skipped its contents.",
+        _ => null
+    };
     public static string RelativePath(AnalysisNode node, IReadOnlyDictionary<ulong, AnalysisNode> nodes)
     {
         var names = new Stack<string>(); int depth = 0;

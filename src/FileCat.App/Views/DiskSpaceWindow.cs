@@ -316,7 +316,7 @@ public sealed partial class DiskSpaceWindow : Window
             _components.SelectionChanged += (_, _) => Model.Components = (AnalysisComponentPreset)Math.Clamp(_components.SelectedIndex, 0, 1);
             AutomationProperties.SetName(_components, "Allocation components");
             ToolTip.SetTip(_components, new RichTip("Allocation components", detail: "Standard records reported file allocation. Detailed also records supported directory self-allocation. " + AnalysisComponents.UnmeasuredExplanation));
-            _setup.Children.Add(_components);
+            _setup.Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _components, ResourceLimitsButton() } });
             _setup.Children.Add(new TextBlock { Text = "Scans stay within each filesystem and record links as boundaries. Cloud files use local metadata.", TextWrapping = TextWrapping.Wrap });
             AddFolderExclusionSetup();
             if (Model.OfferedPanelFilter is not null)
@@ -434,8 +434,16 @@ public sealed partial class DiskSpaceWindow : Window
                 EndTablePress();
             };
             string[] headings = ["Mark", "Name", "Active metric", "File size", "Files", "State"];
-            for (int i = 0; i < headings.Length; i++) { var h = new TextBlock { Text = headings[i], TextTrimming = TextTrimming.CharacterEllipsis }; Grid.SetColumn(h, i); _tableHeader.Children.Add(h); }
-            _tableHeader.SizeChanged += (_, _) => FitColumns(_tableHeader);
+            for (int i = 0; i < headings.Length; i++)
+            {
+                var heading = new TextBlock { Text = i == 0 ? "" : headings[i], TextTrimming = TextTrimming.CharacterEllipsis };
+                AutomationProperties.SetName(heading, headings[i]); Grid.SetColumn(heading, i); _tableHeader.Children.Add(heading);
+            }
+            _tableHeader.SizeChanged += (_, _) =>
+            {
+                FitColumns(_tableHeader);
+                ((TextBlock)_tableHeader.Children[2]).Text = _tableHeader.Bounds.Width < 750 ? "Value" : headings[2];
+            };
             _table.Children.Add(_tableHeader); Grid.SetRow(_list, 1); _table.Children.Add(_list);
             Grid.SetRow(_table, 2); _explorer.Children.Add(_table);
             _inspectorPanel.Children.Add(new TextBlock { Text = "Selection inspector", FontSize = 18 }); _inspectorPanel.Children.Add(_inspector);
@@ -753,8 +761,10 @@ public sealed partial class DiskSpaceWindow : Window
                     _treemap.SetView(tree, Model.Selection.Scope, Model.Selection.Focus, Model.Selection.Marks, Model.ColorDimension);
                     _sunburst.SetView(tree, Model.Selection.Scope, Model.Selection.Focus, Model.Selection.Marks, Model.ColorDimension);
                     var selected = tree.Items.GetValueOrDefault(Model.Selection.Focus ?? "");
+                    var displayPath = Model.FocusedDisplayPath(out var boundary);
                     _inspector.Text = selected is null ? "Choose an entry in either chart or the table. Marks and the review basket are separate." :
-                        AnalysisNames.Display(selected.Name) + "\n" + Model.FocusedDisplayPath() + "\n" + DiskSpaceViewModel.StatusText(selected) +
+                        AnalysisNames.Display(selected.Name) + "\n" + DiskSpaceViewModel.StatusText(selected) + "\n" +
+                        (boundary is not null ? boundary + "\n" : "") + displayPath +
                         $"\n\nActive metric: {DiskSpaceViewModel.ValueText(selected, tree.Projection.Metric, true)}\nFile size: {DiskSpaceViewModel.LogicalText(selected, true)}\nFile paths: {DiskSpaceViewModel.FilePathsText(selected)}\n" +
                         (DiskSpaceViewModel.EntryExplanation(selected) is { } explanation ? explanation + "\n" : "") +
                         (selected.NameEvidence is { } evidence ? evidence + "\n" : "") +

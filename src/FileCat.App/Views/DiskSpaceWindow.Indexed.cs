@@ -703,6 +703,9 @@ public sealed partial class DiskSpaceWindow
                 var item = _selectedGroupedItem?.NodeId == path ? _selectedGroupedItem : AnalysisIndexedChart.Row(detail.Row, explorer.Metric);
                 var metric = _grouping?.Metric ?? explorer.Metric;
                 var text = new System.Text.StringBuilder();
+                var boundary = detail.Issues.Rows.Select(issue => DiskSpaceViewModel.DescribeBoundary(issue.Code))
+                    .FirstOrDefault(description => description is not null);
+                if (boundary is not null) text.AppendLine(boundary);
                 text.AppendLine((detail.AncestorsComplete ? "" : "… / ") + string.Join(" / ", detail.Ancestors.Select(p => AnalysisNames.DisplayName(p, 128)).Append(AnalysisNames.DisplayName(detail.Row.Path, 256))));
                 bool basketOnly = _basketInspection == path;
                 if (basketOnly)

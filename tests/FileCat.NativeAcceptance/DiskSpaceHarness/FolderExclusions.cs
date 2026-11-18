@@ -16,12 +16,32 @@ internal sealed partial class HarnessApp
             if (OperatingSystem.IsWindows()) WindowsGuestInput.DesktopGuard();
             var window = _window!;
             var model = _models.Single();
+            Button? VisibleButton(string caption) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+                button.IsEffectivelyVisible && button.Content as string == caption);
+            void Click(string caption) => (VisibleButton(caption) ?? throw new InvalidOperationException($"Missing button {caption}."))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var limits = VisibleButton("Resource limits…") ?? throw new InvalidOperationException("Missing resource limits in setup.");
+            var setup = limits.GetVisualAncestors().OfType<ScrollViewer>().First();
+            await ReadyAsync(() => setup.Viewport.Height > 0 && limits.Bounds.Height > 0);
+            var limitsTop = limits.TranslatePoint(default, setup) ?? throw new InvalidOperationException("Resource limits are outside the setup view.");
+            setup.Offset = new Vector(setup.Offset.X, Math.Max(0, setup.Offset.Y + limitsTop.Y + limits.Bounds.Height - setup.Viewport.Height));
+            await ReadyAsync(() => limits.TranslatePoint(default, setup) is { } top && top.Y >= 0 &&
+                top.Y + limits.Bounds.Height <= setup.Viewport.Height + 1);
+            Click("Resource limits…");
+            await ReadyAsync(() => VisibleButton("Close limits") is { IsDefault: true, IsCancel: true });
+            var closeLimits = VisibleButton("Close limits")!;
+            if (closeLimits.TranslatePoint(default, window) is not { } closeTop || closeTop.Y < 0 ||
+                closeTop.Y + closeLimits.Bounds.Height > window.ClientSize.Height)
+                throw new InvalidOperationException("The resource limits close button was clipped.");
+            RenderNativeFrame("folder-exclusions-limits.png");
+            Click("Close limits");
+            await ReadyAsync(() => VisibleButton("Close limits") is null);
+            if (model.Tree is not null) throw new InvalidOperationException("Viewing the limits started a scan.");
             var expander = window.GetVisualDescendants().OfType<Expander>().Single(item => item.Header as string == "Exclude folders…");
             expander.IsExpanded = true;
             TextBox? Editor() => window.GetVisualDescendants().OfType<TextBox>().SingleOrDefault(box =>
                 box.IsEffectivelyVisible && AutomationProperties.GetName(box) == "Excluded folders for location 1");
-            Button? StartButton() => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
-                button.IsEffectivelyVisible && button.Content as string == "Start analysis");
+            Button? StartButton() => VisibleButton("Start analysis");
             await ReadyAsync(() => Editor() is not null);
             var editor = Editor()!;
             editor.Text = "Small files";
@@ -65,16 +85,29 @@ internal sealed partial class HarnessApp
             var tableTop = table.TranslatePoint(default, window);
             if (tableTop is null || table.Bounds.Height < 30 || tableTop.Value.Y + 30 > window.ClientSize.Height)
                 throw new InvalidOperationException("The ranked table was below the compact window viewport.");
+            if (!window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Value" &&
+                AutomationProperties.GetName(text) == "Active metric"))
+                throw new InvalidOperationException("The compact table did not keep a complete value heading and its accessible name.");
             RenderNativeFrame("folder-exclusions-result.png");
-            var newAnalysis = window.GetVisualDescendants().OfType<Button>().Single(button =>
-                button.IsEffectivelyVisible && button.Content as string == "New analysis");
-            newAnalysis.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            Click("Clear filter");
+            await ReadyAsync(() => !model.PanelFilterApplied);
+            model.NavigateToScope(AnalysisTree.Key(snapshot.Nodes.Single(node => node.ParentId == 0).Id));
+            model.Focus(AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "Small files").Id));
+            Click("Inspect selection");
+            await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+                text.Text?.StartsWith("Small files\nExcluded by policy\nThis folder and its contents were skipped under the captured folder exclusion rules.",
+                    StringComparison.Ordinal) == true));
+            RenderNativeFrame("folder-exclusions-inspector.png");
+            Click("Close details");
+            await ReadyAsync(() => !window.GetVisualDescendants().OfType<Button>().Any(button =>
+                button.IsEffectivelyVisible && button.Content as string == "Close details"));
+            Click("New analysis");
             await ReadyAsync(() => window.SessionCount == 2 && _tabs?.SelectedIndex == 1);
             window.SelectTemporaryWork();
             await ReadyAsync(() => _tabs?.SelectedIndex == 0);
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
                 sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
-                panelFilterViewApplied = true };
+                panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }
