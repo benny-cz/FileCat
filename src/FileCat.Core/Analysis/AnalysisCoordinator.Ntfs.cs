@@ -10,7 +10,7 @@ internal interface IAnalysisNtfsScan
     void ValidateVolume(CancellationToken cancellation);
     // Null means the protection root was proved to be on a different volume. Uncertain identity must throw.
     UInt128? GetPrivateBoundaryId(IAnalysisBackend protection);
-    Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, CancellationToken cancellation);
+    Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, Action<uint> progress, CancellationToken cancellation);
     /// <summary>Ordinary, independently anchored observations. Null leaves that discovery row unmeasured.</summary>
     AnalysisEntry?[] Measure(IReadOnlyList<AnalysisNtfsObservation> ancestors, IReadOnlyList<AnalysisNtfsObservation> children,
         bool detailed, CancellationToken cancellation);
@@ -37,7 +37,20 @@ public sealed partial class AnalysisCoordinator
 public sealed partial class AnalysisSession
 {
     private readonly IAnalysisNtfsScan? _ntfs;
+    private bool _ntfsDiscoveryPending;
+    private uint? _ntfsDiscoveryRecords;
+    internal bool CanPause { get { lock (_sync) return !_ntfsDiscoveryPending; } }
     private AnalysisTaint SourceTaint => _ntfs is null ? AnalysisTaint.OrdinarySensitive : AnalysisPrivacy.Join(AnalysisTaint.PrivilegedDerived);
+
+    private void ReportNtfsDiscovery(uint records)
+    {
+        lock (_sync)
+        {
+            if (_phase == AnalysisPhase.Stopped || _ntfsDiscoveryRecords == records) return;
+            _ntfsDiscoveryRecords = records;
+        }
+        Report();
+    }
 
     private void FailNtfsDiscovery(MeasurementState state)
     {
@@ -68,7 +81,10 @@ public sealed partial class AnalysisSession
         ulong rootPath = await AppendObservationAsync(scan.Source.RootEntry, 0, root.Id, scan.Source.Basis).ConfigureAwait(false)
             ?? throw new IOException("The private analysis store could not record the approved NTFS root.");
         await using var catalog = await OnStorageDeviceAsync(() => _writer!.CreateNtfsDiscoveryAsync(scan.RootId, token)).ConfigureAwait(false);
-        var capture = await OnStorageDeviceAsync(() => scan.CaptureAsync(catalog, token)).ConfigureAwait(false);
+        AnalysisNtfsOutcome capture;
+        try { capture = await OnStorageDeviceAsync(() => scan.CaptureAsync(catalog, ReportNtfsDiscovery, token)).ConfigureAwait(false); }
+        finally { lock (_sync) _ntfsDiscoveryPending = false; }
+        Report();
         if (capture == AnalysisNtfsOutcome.Canceled) { Stop(); return; }
         if (capture == AnalysisNtfsOutcome.Partial) Issue("ntfs-discovery-record-limit", rootPath, MeasurementState.Unsupported, root.Id);
         Issue("ntfs-discovery-alias-coverage-incomplete", rootPath, MeasurementState.Unsupported, root.Id);

@@ -3,6 +3,7 @@ using FileCat.App.Services;
 using FileCat.Core.Analysis;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Threading;
+using FileCat.Platform.Windows.Analysis;
 
 namespace FileCat.App.ViewModels;
 
@@ -52,7 +53,9 @@ public sealed partial class DiskSpaceViewModel
             string.Join(", ", unavailable.Select(r => AnalysisNames.Display(r.Label, 120) + " [" + AnalysisNames.Display(r.Id, 64) + "]")) + ". Other verified locations remain available.";
     }
 
-    public async Task StartAsync(IReadOnlyList<string> roots)
+    public Task StartAsync(IReadOnlyList<string> roots) => StartAnalysisAsync(roots, null);
+
+    private async Task StartAnalysisAsync(IReadOnlyList<string> roots, FastNtfsRequest? fast)
     {
         if (_disposed || IsPreparing || Running || _services is null) return;
         if (_bindingCloseError is not null) { SetStatus("Analysis handles could not be closed. Close this analysis before starting another."); return; }
@@ -65,6 +68,13 @@ public sealed partial class DiskSpaceViewModel
         if (roots.Count is < 1 or > AnalysisLimits.Roots || roots.Any(string.IsNullOrWhiteSpace))
         { SetStatus("Choose between one and 32 explicit locations."); return; }
         if (AnalysisAdmission.Refusal() is { } refusal) { SetStatus(refusal); return; }
+        string? selection = null;
+        if (fast is not null)
+        {
+            if (FastNtfsUnavailableReason is { } unavailable) { SetStatus(unavailable); return; }
+            if (roots.Count != 1 || (selection = NtfsMetadataVolume.NormalizeSelection(roots[0])) is null)
+            { SetStatus("Fast NTFS scan needs one whole local NTFS volume. Enter a drive root such as C:\\ or its volume GUID. Use standard analysis for files and folders."); return; }
+        }
         using var preparation = new CancellationTokenSource(); _preparationCancel = preparation;
         var binding = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously); _bindingCompletion = binding;
         bool keepReview = false;
@@ -82,7 +92,9 @@ public sealed partial class DiskSpaceViewModel
         _services.Io.HealthChanged += HealthChanged;
         try
         {
-            if (!_preparedInput.SequenceEqual(roots, StringComparer.Ordinal) || _prepared.Count != roots.Count)
+            WindowsAnalysisBackend.NtfsScan? ntfs = null;
+            var components = Components;
+            if (fast is not null || !_preparedInput.SequenceEqual(roots, StringComparer.Ordinal) || _prepared.Count != roots.Count)
             {
                 await ReleaseUnstartedAsync();
                 preparation.Token.ThrowIfCancellationRequested();
@@ -94,46 +106,65 @@ public sealed partial class DiskSpaceViewModel
                     indexedStorage: _indexedStorage, preparationDeviceChanged: key => _preparationDevice = key);
                 SetContinuityNotice(_acquisition.Profile);
                 _privateStorageUnavailable = _acquisition.MemoryPreparationNotice is not null;
-                AcquisitionNotice = _acquisition.MemoryPreparationNotice ?? "This analysis uses bounded memory. It stops with partial results if the memory limit is reached.";
-                foreach (string path in roots)
+                AcquisitionNotice = _acquisition.MemoryPreparationNotice ?? (_indexedStorage
+                    ? "A private index retains recorded paths. The live preview is bounded."
+                    : "This analysis uses bounded memory. It stops with partial results if the memory limit is reached.");
+                if (fast is not null)
                 {
+                    _preparationDevice = PathUtil.GetDeviceKey(selection!);
+                    ntfs = await _acquisition.PrepareNtfsAsync(selection!, fast.Owner, preparation.Token);
+                    _prepared.Add(ntfs.Source);
                     preparation.Token.ThrowIfCancellationRequested();
-                    string requested = Path.GetFullPath(path);
-                    _preparationDevice = PathUtil.GetDeviceKey(requested);
-                    var source = await AnalysisIo.Run(_services.Io, _preparationDevice, _ => _prepareSource(requested), preparation.Token);
-                    if (_disposed || preparation.IsCancellationRequested)
-                    { await ReleasePreparedSourceAsync(source); preparation.Token.ThrowIfCancellationRequested(); return; }
-                    _prepared.Add(source);
+                    if (_disposed) return;
+                    var scope = new FastNtfsScopeReview(selection!, ntfs.Volume.GuidPath, components);
+                    if (!await fast.Confirm(scope, preparation.Token))
+                    { SetStatus("Fast NTFS scan canceled. Standard analysis is available."); return; }
                 }
-                _preparedInput = roots.ToImmutableArray();
-                ResolvedTargets = string.Join(Environment.NewLine, _prepared.Select(p => AnalysisNames.Display(p.Root.CanonicalLocator)));
-                bool changed = _prepared.Where((p, i) => !SameLocator(p.Root.CanonicalLocator, Path.GetFullPath(roots[i]))).Any();
-                if (changed)
+                else
                 {
-                    keepReview = true;
-                    SetStatus("Review the resolved locations shown below, then choose Start analysis again to use those captured targets."); return;
+                    foreach (string path in roots)
+                    {
+                        preparation.Token.ThrowIfCancellationRequested();
+                        string requested = Path.GetFullPath(path);
+                        _preparationDevice = PathUtil.GetDeviceKey(requested);
+                        var source = await AnalysisIo.Run(_services.Io, _preparationDevice, _ => _prepareSource(requested), preparation.Token);
+                        if (_disposed || preparation.IsCancellationRequested)
+                        { await ReleasePreparedSourceAsync(source); preparation.Token.ThrowIfCancellationRequested(); return; }
+                        _prepared.Add(source);
+                    }
+                    _preparedInput = roots.ToImmutableArray();
+                    ResolvedTargets = string.Join(Environment.NewLine, _prepared.Select(p => AnalysisNames.Display(p.Root.CanonicalLocator)));
+                    if (_prepared.Where((p, i) => !SameLocator(p.Root.CanonicalLocator, Path.GetFullPath(roots[i]))).Any())
+                    {
+                        keepReview = true;
+                        SetStatus("Review the resolved locations shown below, then choose Start analysis again to use those captured targets."); return;
+                    }
                 }
             }
             preparation.Token.ThrowIfCancellationRequested();
             if (_disposed) return;
             // Publish the initial state before Start can dispatch a fast terminal progress report.
             Phase = AnalysisPhase.Scanning; SourceCloseFailures = 0; Dirty = true;
-            SetStatus("Scanning metadata. Known results so far; allocation can share physical blocks.");
+            SetStatus(ntfs is null ? "Scanning metadata. Known results so far; allocation can share physical blocks." :
+                "Waiting for authorization to read the approved NTFS volume. You can stop the scan.");
             // Changed subscribers may synchronously stop/close the tab at this notification.
             // That request must win before any source ownership or scan work transfers.
             preparation.Token.ThrowIfCancellationRequested();
             if (_disposed) return;
-            var runtimeRoots = _prepared.Select(RuntimeReopenLocator).ToImmutableArray();
-            _session = _acquisition!.Start(_prepared.ToArray(), new LatestProgress(_services.Ui, UpdateProgress), Components);
+            var runtimeRoots = ntfs is null ? _prepared.Select(RuntimeReopenLocator).ToImmutableArray() : [];
+            var progress = new LatestProgress(_services.Ui, UpdateProgress);
+            _fastNtfs = ntfs is not null;
+            _session = ntfs is null ? _acquisition!.Start(_prepared.ToArray(), progress, components) :
+                _acquisition!.StartNtfs(ntfs, progress, components);
             _runtimeRoots = runtimeRoots;
-            _runtimeComponents = Components;
+            _runtimeComponents = components;
             HistoryObservation = ObserveHistoryAsync(_acquisition);
             _prepared.Clear(); _preparedInput = [];
         }
         catch (OperationCanceledException) when (preparation.IsCancellationRequested)
         { if (_session is null) Phase = AnalysisPhase.Ready; SetStatus("Location binding stopped. No new scan was started."); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException)
-        { if (_session is null) Phase = AnalysisPhase.Ready; SetStatus("Analysis could not start: " + AnalysisNames.Display(ex.Message, 500)); }
+        { if (_session is null) Phase = AnalysisPhase.Ready; SetStatus("Analysis could not start: " + AnalysisNames.Display(ex.Message, 500) + (fast is null ? "" : " Standard analysis is available.")); }
         finally
         {
             try

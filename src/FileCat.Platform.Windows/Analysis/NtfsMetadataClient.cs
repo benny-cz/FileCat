@@ -79,11 +79,11 @@ internal sealed class NtfsMetadataClient : IAsyncDisposable
     internal ValueTask ResumeAsync(CancellationToken cancellation) => _channel.SendAsync(Empty(NtfsMetadataMessage.Resume), cancellation);
     internal ValueTask CancelAsync(CancellationToken cancellation) => _channel.SendAsync(Empty(NtfsMetadataMessage.Cancel), cancellation);
 
-    internal Task<NtfsMetadataCompletion> CaptureAsync(AnalysisNtfsDiscovery discovery, IProgress<NtfsMetadataFrame>? status,
+    internal Task<NtfsMetadataCompletion> CaptureAsync(AnalysisNtfsDiscovery discovery, Action<NtfsMetadataFrame>? status,
         CancellationToken cancellation) => CaptureAsync(ReceiveAsync, discovery, status, cancellation);
 
     internal static async Task<NtfsMetadataCompletion> CaptureAsync(Func<CancellationToken, ValueTask<NtfsMetadataFrame>> receive,
-        AnalysisNtfsDiscovery discovery, IProgress<NtfsMetadataFrame>? status, CancellationToken cancellation)
+        AnalysisNtfsDiscovery discovery, Action<NtfsMetadataFrame>? status, CancellationToken cancellation)
     {
         var pending = ImmutableArray.CreateBuilder<AnalysisNtfsObservation>(AnalysisNtfsDiscovery.PageRecords);
         uint captured = 0;
@@ -105,10 +105,10 @@ internal sealed class NtfsMetadataClient : IAsyncDisposable
                 case NtfsMetadataMessage.Issue:
                 case NtfsMetadataMessage.Paused:
                     // These closed frame kinds contain counts, issue codes or empty acknowledgments.
-                    status?.Report(frame);
+                    status?.Invoke(frame);
                     break;
                 case NtfsMetadataMessage.Refused:
-                    status?.Report(frame);
+                    status?.Invoke(frame);
                     throw new IOException("The NTFS metadata helper refused to complete the approved scan.");
                 case NtfsMetadataMessage.Complete:
                     if (NtfsMetadataProtocol.ReadCount(frame.Payload.GetProperty("Seen")) != captured)

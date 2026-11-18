@@ -20,6 +20,13 @@ internal sealed partial record NtfsMetadataVolume(string GuidPath, string Serial
         return GuidPrefix + id.ToString("D") + "}\\";
     }
 
+    internal static string? NormalizeSelection(string? selected)
+    {
+        if (selected is { Length: 3 } && char.IsAsciiLetter(selected[0]) && selected[1] == ':' && selected[2] is '\\' or '/')
+            return char.ToUpperInvariant(selected[0]) + ":\\";
+        return CanonicalGuid(selected);
+    }
+
     internal static NtfsMetadataVolume CaptureSelection(string selected, CancellationToken cancellation)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();

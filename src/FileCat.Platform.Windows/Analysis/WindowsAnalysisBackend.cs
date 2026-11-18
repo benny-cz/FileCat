@@ -28,18 +28,21 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend, IA
     internal WindowsAnalysisBackend(string selectedRoot, Func<nint, bool>? nativeClose) : this(selectedRoot, nativeClose, null, null) { }
 
     internal WindowsAnalysisBackend(string selectedRoot, Func<nint, bool>? nativeClose,
-        Action<AnalysisEntry, CancellationToken>? beforeChildren, Func<AnalysisEntry, AnalysisEntry>? observe)
+        Action<AnalysisEntry, CancellationToken>? beforeChildren, Func<AnalysisEntry, AnalysisEntry>? observe,
+        NtfsMetadataVolume? discoveryVolume = null)
     {
         _nativeClose = nativeClose; _beforeChildren = beforeChildren; _observe = observe;
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
-        string full = Path.GetFullPath(selectedRoot);
-        if (full.StartsWith("\\\\", StringComparison.Ordinal) || full.StartsWith("\\?", StringComparison.Ordinal))
+        string full = discoveryVolume is null ? Path.GetFullPath(selectedRoot) :
+            NtfsMetadataVolume.NormalizeSelection(selectedRoot) ?? throw new NotSupportedException("Choose a whole local NTFS volume.");
+        bool volumeGuid = discoveryVolume is not null && full == discoveryVolume.GuidPath;
+        if (!volumeGuid && (full.StartsWith("\\\\", StringComparison.Ordinal) || full.StartsWith("\\?", StringComparison.Ordinal)))
             throw new NotSupportedException("Select a local file or folder. This adapter does not qualify network or device paths.");
-        if (GetDriveType(Path.GetPathRoot(full)!) == 4) throw new NotSupportedException("Mounted network sources require a separately qualified analysis adapter.");
+        if (!volumeGuid && GetDriveType(Path.GetPathRoot(full)!) == 4) throw new NotSupportedException("Mounted network sources require a separately qualified analysis adapter.");
         var rootLease = AnalysisNativeHandles.Acquire();
         // Bind with metadata rights first. FILE_LIST_DIRECTORY would request FILE_READ_DATA on a file root.
-        try { _root = new(CreateFile("\\\\?\\" + full, 0x100080, 3, 0, 3, 0x02000000 | 0x00200000 | 0x00100000, 0), rootLease, RecordCloseFailure, _nativeClose); }
+        try { _root = new(CreateFile(volumeGuid ? full : "\\\\?\\" + full, 0x100080, 3, 0, 3, 0x02000000 | 0x00200000 | 0x00100000, 0), rootLease, RecordCloseFailure, _nativeClose); }
         catch { rootLease.Dispose(); throw; }
         if (_root.Value.IsInvalid) { _root.Dispose(); throw new IOException("The selected directory could not be opened."); }
         try
@@ -47,9 +50,11 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend, IA
             var buffer = new char[32768];
             uint length;
             fixed (char* p = buffer) length = GetFinalPathNameByHandle(_root.Value, p, (uint)buffer.Length, 0);
-            if (length == 0 || length >= buffer.Length) throw new IOException("The captured source path is unavailable.");
-            string canonical = new(buffer, 0, (int)length);
+            string canonical = length != 0 && length < buffer.Length ? new(buffer, 0, (int)length) :
+                discoveryVolume?.GuidPath ?? throw new IOException("The captured source path is unavailable.");
             if (canonical.StartsWith("\\\\?\\UNC\\", StringComparison.OrdinalIgnoreCase)) throw new NotSupportedException("The captured source is a network location.");
+            if (discoveryVolume is not null && NtfsMetadataVolume.Native.Capture(discoveryVolume.GuidPath, _root.Value) != discoveryVolume)
+                throw new AnalysisSourceChangedException();
             fixed (char* p = buffer) length = GetFinalPathNameByHandle(_root.Value, p, (uint)buffer.Length, 2);
             if (length == 0 || length >= buffer.Length) throw new IOException("The source volume namespace is unavailable.");
             string ntPath = new(buffer, 0, (int)length);
@@ -57,10 +62,11 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend, IA
             if (parts.Length < 2 || parts[0] != "Device" || !parts[1].StartsWith("HarddiskVolume", StringComparison.Ordinal)) throw new NotSupportedException("This source namespace is unqualified.");
             _namespace = parts[1];
             _nativeTimePrecisionTicks = QualifiedTimePrecision(_root.Value);
-            var entry = Observe(_root.Value, [], Raw(Path.GetFileName(full.TrimEnd('\\')) is { Length: > 0 } label ? label : full), _namespace, _nativeTimePrecisionTicks);
+            var entry = Observe(_root.Value, [], Raw(discoveryVolume is not null ? full :
+                Path.GetFileName(full.TrimEnd('\\')) is { Length: > 0 } label ? label : full), _namespace, _nativeTimePrecisionTicks);
             if (entry.Kind is not (AnalysisKind.Directory or AnalysisKind.File)) throw new IOException("Select a file or folder, or explicitly select the resolved target of a link.");
             if (entry.Identity is null) throw new IOException("The source does not expose a qualified root identity.");
-            if (entry.Kind == AnalysisKind.Directory && entry.Cloud != true)
+            if (discoveryVolume is null && entry.Kind == AnalysisKind.Directory && entry.Cloud != true)
             {
                 // An empty NT relative name reopens the held object. A dot is a literal invalid NT child name,
                 // and Win32 ReOpenFile is refused on qualified directory handles on some Windows builds.

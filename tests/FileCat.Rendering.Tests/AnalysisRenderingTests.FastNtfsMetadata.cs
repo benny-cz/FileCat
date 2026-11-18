@@ -91,6 +91,9 @@ public sealed partial class AnalysisRenderingTests
         using var heldRoot = new WindowsAnalysisBackend(root);
         Assert.Equal(scope, heldRoot.CaptureDiscoveryVolume(ct));
         Assert.Equal(NtfsMetadataProtocol.ParseId(scope.RootFileId), heldRoot.DiscoveryPrivateBoundaryId(heldRoot));
+        using var heldGuid = new WindowsAnalysisBackend(scope.GuidPath, null, null, null, scope);
+        Assert.Equal(scope, heldGuid.CaptureDiscoveryVolume(ct));
+        Assert.Equal(scope.GuidPath, heldGuid.Root.DisplayLocator);
     }
 
     [Fact]

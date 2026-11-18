@@ -303,6 +303,7 @@ public sealed partial class DiskSpaceWindow : Window
             ToolTip.SetTip(_components, new RichTip("Allocation components", detail: "Standard records reported file allocation. Detailed also records supported directory self-allocation. " + AnalysisComponents.UnmeasuredExplanation));
             _setup.Children.Add(_components);
             _setup.Children.Add(new TextBlock { Text = "Stay within each filesystem. Links and cloud contents are not followed. Detailed adds directory allocation; separate streams, forks and xattrs are not measured.", TextWrapping = TextWrapping.Wrap });
+            AddFastNtfsSetup();
             _setup.Children.Add(_resolved);
             _setupViewport = new ScrollViewer { Content = _setup, MaxHeight = 250, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
             Children.Add(_setupViewport);
@@ -610,6 +611,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _setupViewport.IsVisible = configuring; _setupViewport.MaxHeight = setupOnly ? double.PositiveInfinity : 250;
                 _setupViewport.MinHeight = setupOnly ? 80 : 0;
                 _roots.IsEnabled = !Model.IsPreparing; _start.IsEnabled = !Model.IsPreparing; _start.IsVisible = configuring;
+                RefreshFastNtfsSetup();
                 RowDefinitions[0].Height = setupOnly ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
                 RowDefinitions[2].Height = setupOnly ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
                 _explorer.IsVisible = _basketFooter.IsVisible = _basketHost.IsVisible = !setupOnly;
@@ -617,7 +619,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _stop.IsVisible = !setupOnly || Model.IsPreparing;
                 _components.IsEnabled = !Model.IsPreparing && Model.Phase == AnalysisPhase.Ready;
                 _resolved.Text = Model.ResolvedTargets; _status.Text = Model.Status; _error.Text = Model.FilterError; _error.IsVisible = Model.FilterError is not null;
-                _pause.IsEnabled = Model.Running; _stop.IsEnabled = Model.Running || Model.IsPreparing;
+                _pause.IsEnabled = Model.CanPause; _stop.IsEnabled = Model.Running || Model.IsPreparing;
                 _rescanHelp.IsVisible = !setupOnly;
                 RefreshRescanAvailability();
                 _save.IsEnabled = Model.CanSave && !_persistenceBusy;

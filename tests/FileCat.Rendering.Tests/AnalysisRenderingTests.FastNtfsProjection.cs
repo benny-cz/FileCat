@@ -221,13 +221,14 @@ public sealed partial class AnalysisRenderingTests
             }
             return measured;
         }
-        public async Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, CancellationToken cancellation)
+        public async Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, Action<uint> progress, CancellationToken cancellation)
         {
             Captures++;
             ImmutableArray<AnalysisNtfsObservation> rows = [Row(4, 2, "file"), Row(5, 3, "private-child"), Row(6, 7, "target"),
                 Row(7, 1, "link", FileAttributes.Directory | FileAttributes.ReparsePoint), Row(3, 1, "private-name", FileAttributes.Directory),
                 Row(2, 1, "folder", FileAttributes.Directory), Row(8, 1, "dup"), Row(9, 1, "dup"), Row(10, 99, "orphan")];
             await discovery.AppendAsync(rows, cancellation);
+            progress((uint)rows.Length);
             await discovery.SealAsync((ulong)rows.Length, cancellation);
             return AnalysisNtfsOutcome.Finished;
         }

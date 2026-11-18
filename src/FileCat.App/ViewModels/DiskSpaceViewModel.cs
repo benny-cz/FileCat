@@ -100,7 +100,14 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         if (_disposed || IsRescanning || _capturedPreviewNotice is not null) return;
         Phase = progress.Phase; Dirty = true;
         SourceCloseFailures = progress.SourceCloseFailures;
-        SetStatus($"{progress.Phase} · {progress.ObservedPaths:N0} observed paths · {progress.Issues:N0} issues. Values are observations over time." +
+        string brief = FastNtfsInUse ? progress.Phase switch
+        {
+            AnalysisPhase.Failed => "Fast NTFS scan could not finish. Standard analysis is available in a new tab.",
+            AnalysisPhase.Stopped => "Fast NTFS scan stopped. Standard analysis is available in a new tab.",
+            _ when progress.NtfsDiscoveryRecords is { } records => $"Reading approved NTFS metadata · {records:N0} discovery records.",
+            _ => $"Fast NTFS · {progress.Phase} · {progress.ObservedPaths:N0} observed paths · {progress.Issues:N0} issues. Coverage is partial."
+        } : $"{progress.Phase} · {progress.ObservedPaths:N0} observed paths · {progress.Issues:N0} issues. Values are observations over time.";
+        SetStatus(brief +
             (progress.MemoryFallback ? " Using bounded memory; analysis stops with partial results if the memory limit is reached." : "") +
             (SourceCloseFailures == 0 ? "" : $" Source cleanup reported {SourceCloseFailures:N0} " + (SourceCloseFailures == 1 ? "failure" : "failures") + "; close was not retried."));
     }

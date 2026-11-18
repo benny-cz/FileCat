@@ -13,6 +13,7 @@ public sealed record AnalysisProgress(int ObservedPaths, ulong Issues, AnalysisP
     public bool PreviewLimited { get; init; }
     public bool DatasetReady { get; init; }
     public bool MemoryFallback { get; init; }
+    internal uint? NtfsDiscoveryRecords { get; init; }
 }
 
 public sealed partial class AnalysisCoordinator(DeviceIoScheduler io, string? profileIdentity = null)
@@ -59,6 +60,7 @@ public sealed partial class AnalysisSession : IDisposable
         IAnalysisNtfsScan? ntfs = null)
     {
         _storage = storage; _io = io; _sources = sources; _progress = progress; _ntfs = ntfs;
+        _ntfsDiscoveryPending = ntfs is not null;
         AnalysisStore? created = null; bool subscribed = false;
         try
         {
@@ -145,7 +147,7 @@ public sealed partial class AnalysisSession : IDisposable
     {
         lock (_sync)
         {
-            if (_disposed || _workerFinished || _phase is not (AnalysisPhase.Scanning or AnalysisPhase.Refreshing)) return;
+            if (_disposed || _workerFinished || _ntfsDiscoveryPending || _phase is not (AnalysisPhase.Scanning or AnalysisPhase.Refreshing)) return;
             _resume = new(TaskCreationOptions.RunContinuationsAsynchronously); _phase = AnalysisPhase.Pausing;
         }
         Report();
@@ -482,7 +484,7 @@ public sealed partial class AnalysisSession : IDisposable
         AnalysisProgress p;
         lock (_sync) { if (_disposed) return; p = new(_storage is null || _memoryFallback ? _store.Count : _capturedPaths, _store.IssueCount, _phase) { SourceCloseFailures = _sourceCloseFailures,
             PreviewPaths = _store.Count, PreviewLimited = _previewLimited, DatasetReady = _dataset is not null, MemoryFallback = _memoryFallback,
-            SessionId = _identity.SessionId, Epoch = _identity.Epoch }; }
+            SessionId = _identity.SessionId, Epoch = _identity.Epoch, NtfsDiscoveryRecords = _ntfsDiscoveryPending ? _ntfsDiscoveryRecords : null }; }
         // Observers do not own traversal or handle lifetimes. A released/broken UI subscription cannot
         // skip independent closes, strand a scan reservation or turn valid observations into a producer failure.
         try { _progress?.Report(p); } catch (Exception) { }

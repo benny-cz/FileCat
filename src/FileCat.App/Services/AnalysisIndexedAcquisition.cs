@@ -157,16 +157,18 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
     internal AnalysisSession Start(IReadOnlyList<IAnalysisBackend> sources, IProgress<AnalysisProgress>? progress = null,
         AnalysisComponentPreset components = AnalysisComponentPreset.Standard) => Start(sources, progress, components, null);
 
-    internal async Task<AnalysisSession> StartNtfsAsync(FileCat.Platform.Windows.Analysis.WindowsAnalysisBackend source, nint owner,
-        IProgress<AnalysisProgress>? progress, AnalysisComponentPreset components, CancellationToken cancellation)
+    internal Task<FileCat.Platform.Windows.Analysis.WindowsAnalysisBackend.NtfsScan> PrepareNtfsAsync(string selection, nint owner,
+        CancellationToken cancellation)
     {
         if (!_indexedStorage || MemoryPreparationNotice is not null || _services.Paths.IsPortable)
             throw new NotSupportedException("Fast NTFS analysis requires installed FileCat and verified private scratch. Use standard analysis here.");
-        var scan = await AnalysisIo.Run(_services.Io, ((IAnalysisBackend)source).IoDeviceKey, token =>
-            source.PrepareNtfsDiscovery(_services.Paths.IsPortable, _services.Paths.ElevationExchangeDirectory, owner, token), cancellation).ConfigureAwait(false);
-        cancellation.ThrowIfCancellationRequested();
-        return Start([source], progress, components, scan);
+        return AnalysisIo.Run(_services.Io, PathUtil.GetDeviceKey(selection), token =>
+            FileCat.Platform.Windows.Analysis.WindowsAnalysisBackend.PrepareNtfsDiscovery(selection, _services.Paths.IsPortable,
+                _services.Paths.ElevationExchangeDirectory, owner, token), cancellation);
     }
+
+    internal AnalysisSession StartNtfs(FileCat.Platform.Windows.Analysis.WindowsAnalysisBackend.NtfsScan scan,
+        IProgress<AnalysisProgress>? progress, AnalysisComponentPreset components) => Start([scan.Source], progress, components, scan);
 
     private AnalysisSession Start(IReadOnlyList<IAnalysisBackend> sources, IProgress<AnalysisProgress>? progress,
         AnalysisComponentPreset components, IAnalysisNtfsScan? ntfs)

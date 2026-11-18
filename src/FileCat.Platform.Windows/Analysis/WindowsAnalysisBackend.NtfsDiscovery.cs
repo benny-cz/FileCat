@@ -8,13 +8,20 @@ namespace FileCat.Platform.Windows.Analysis;
 
 public sealed partial class WindowsAnalysisBackend
 {
-    internal IAnalysisNtfsScan PrepareNtfsDiscovery(bool portable, string exchangeRoot, nint owner, CancellationToken cancellation)
+    internal static NtfsScan PrepareNtfsDiscovery(string selection, bool portable, string exchangeRoot, nint owner, CancellationToken cancellation)
     {
-        Guard();
-        if (ElevationBroker.Locate(portable, out _) is null)
-            throw new NotSupportedException("The installed read-only NTFS helper is unavailable. Use standard analysis.");
-        var volume = CaptureDiscoveryVolume(cancellation);
-        return new NtfsScan(this, volume, portable, exchangeRoot, owner);
+        if (owner == 0) throw new NotSupportedException("Fast NTFS scan needs a Windows window to own the authorization prompt.");
+        if (ElevationBroker.Locate(portable, out var reason) is null)
+            throw new NotSupportedException(reason ?? "The installed read-only NTFS helper is unavailable.");
+        var volume = NtfsMetadataVolume.CaptureSelection(selection, cancellation);
+        var source = new WindowsAnalysisBackend(selection, null, null, null, volume);
+        try
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (source.RootEntry.Kind != AnalysisKind.Directory || source.RootEntry.Cloud == true) throw new AnalysisSourceChangedException();
+            return new NtfsScan(source, volume, portable, exchangeRoot, owner);
+        }
+        catch { source.Dispose(); throw; }
     }
 
     internal NtfsMetadataVolume CaptureDiscoveryVolume(CancellationToken cancellation)
@@ -156,8 +163,9 @@ public sealed partial class WindowsAnalysisBackend
     private static AnalysisEntry ChangedDiscoveryEntry(AnalysisNtfsObservation row) =>
         AnalysisEntry.Unavailable([], row.RawName, "utf16le", UnavailableKind(row.Attributes), MeasurementState.Changed, "ntfs-discovery-entry-changed");
 
-    private sealed class NtfsScan(WindowsAnalysisBackend source, NtfsMetadataVolume volume, bool portable, string exchange, nint owner) : IAnalysisNtfsScan
+    internal sealed class NtfsScan(WindowsAnalysisBackend source, NtfsMetadataVolume volume, bool portable, string exchange, nint owner) : IAnalysisNtfsScan
     {
+        internal NtfsMetadataVolume Volume => volume;
         public IAnalysisBackend Source => source;
         public UInt128 RootId { get; } = NtfsMetadataProtocol.ParseId(volume.RootFileId);
 
@@ -170,12 +178,16 @@ public sealed partial class WindowsAnalysisBackend
         public AnalysisEntry?[] Measure(IReadOnlyList<AnalysisNtfsObservation> ancestors, IReadOnlyList<AnalysisNtfsObservation> children,
             bool detailed, CancellationToken cancellation) => source.MeasureDiscoveryChildren(ancestors, children, detailed, cancellation);
 
-        public async Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, CancellationToken cancellation)
+        public async Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, Action<uint> progress, CancellationToken cancellation)
         {
             try
             {
                 await using var client = await NtfsMetadataClient.StartAsync(volume, portable, exchange, owner, cancellation).ConfigureAwait(false);
-                return await client.CaptureAsync(discovery, status: null, cancellation).ConfigureAwait(false) switch
+                progress(0);
+                return await client.CaptureAsync(discovery, frame =>
+                {
+                    if (frame.Kind == NtfsMetadataMessage.Progress) progress(NtfsMetadataProtocol.ReadCount(frame.Payload.GetProperty("Seen")));
+                }, cancellation).ConfigureAwait(false) switch
                 {
                     NtfsMetadataCompletion.Finished => AnalysisNtfsOutcome.Finished,
                     NtfsMetadataCompletion.Partial => AnalysisNtfsOutcome.Partial,
