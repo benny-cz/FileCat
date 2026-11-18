@@ -54,6 +54,7 @@ public sealed partial class AnalysisRenderingTests
         Directory.CreateDirectory(root);
         var phases = new List<object>(); var timer = Stopwatch.StartNew();
         string phase = "fixture"; string? failure = null; bool completed = false, cleanup = false;
+        bool logicalBaselineMeasured = false;
         long baselinePrivate = 0, peakPrivate = 0, baselineWorking = 0, peakWorking = 0;
         long peakScratchReserved = 0;
         AnalysisProgress? acquisitionProgress = null;
@@ -108,7 +109,7 @@ public sealed partial class AnalysisRenderingTests
             sampledPeakWorkingSetIncrementBytes = Math.Max(0, peakWorking - baselineWorking),
             nativePhysicalMemory = physical?.Describe(), sampledPeakScratchReservedBytes = peakScratchReserved,
             remainingSharedQuotaBytes = AnalysisScratchBudget.Shared.ReservedBytes, acquisitionOutcome,
-            failure,
+            logicalBaselineMeasured, failure,
         }, new JsonSerializerOptions { WriteIndented = true }));
         void Mark(string name)
         {
@@ -144,10 +145,17 @@ public sealed partial class AnalysisRenderingTests
             }
             availableAfterFixture = fixtureDrive?.AvailableFreeSpace;
             fixtureComplete = true;
-            Mark("logical-baseline");
-            var logical = await Task.Run(() => DirectorySizer.Compute(selected, null, token), token);
-            Assert.True(logical.Complete); Assert.Equal(0, logical.Inaccessible);
-            Assert.Equal(count, logical.Files); Assert.Equal(directories, logical.Directories); Assert.Equal(expectedBytes, (ulong)logical.Bytes);
+            if (Environment.GetEnvironmentVariable("FILECAT_TEST_NATIVE_SCALE_SKIP_LOGICAL_BASELINE") == "1")
+                Assert.True(requirement == NativeScaleRequirement.ScratchBudget && reusedSource,
+                    "Omit the separate logical benchmark only when retesting scratch-budget handling on a retained fixture.");
+            else
+            {
+                Mark("logical-baseline");
+                var logical = await Task.Run(() => DirectorySizer.Compute(selected, null, token), token);
+                Assert.True(logical.Complete); Assert.Equal(0, logical.Inaccessible);
+                Assert.Equal(count, logical.Files); Assert.Equal(directories, logical.Directories); Assert.Equal(expectedBytes, (ulong)logical.Bytes);
+                logicalBaselineMeasured = true;
+            }
             Mark("native-acquisition");
             using var styles = new ProductStyles();
             services = AppServices.CreateForPaths(AppPaths.Resolve(dataRoot: Path.Combine(root, "profile")));
