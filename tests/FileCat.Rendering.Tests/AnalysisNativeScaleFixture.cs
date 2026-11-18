@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -20,37 +18,80 @@ internal static class AnalysisNativeScaleFixture
             retained.Name != "retained-fixtures" || !Regex.IsMatch(batch.Name, "^(dsa-batch-20261107-r|batch-r)[0-9]+[a-z]?$", RegexOptions.CultureInvariant))
             throw new IOException("The reused source is outside a generated retained fixture container.");
         foreach (string path in new[] { source, container.FullName, retained.FullName, batch.FullName })
-            if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) throw new IOException("A reused fixture cannot use a reparse point.");
+            if ((File.GetAttributes(path) & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != FileAttributes.Directory)
+                throw new IOException("A reused fixture must use ordinary directories.");
         string marker = Path.Combine(container.FullName, "fixture.json");
-        if (new FileInfo(marker).Length is < 1 or > 32 * 1024) throw new IOException("Invalid retained fixture marker size.");
+        var markerInfo = new FileInfo(marker);
+        if ((markerInfo.Attributes & FileAttributes.ReparsePoint) != 0 || markerInfo.Length is < 1 or > 32 * 1024)
+            throw new IOException("Invalid retained fixture marker.");
         using var json = JsonDocument.Parse(File.ReadAllText(marker), new JsonDocumentOptions { MaxDepth = 8 }); var root = json.RootElement;
         if (root.GetProperty("kind").GetString() != MarkerKind || root.GetProperty("count").GetInt32() != count || root.GetProperty("shape").GetString() != shape ||
             !string.Equals(Path.GetFullPath(root.GetProperty("source").GetString()!), source, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             throw new IOException("The retained fixture does not match the requested case.");
         bool complete = !root.TryGetProperty("sourceCreationComplete", out var created) || created.GetBoolean();
         if (!complete)
+            CompleteSource(source, container.FullName, count, shape, checkCancellation);
+        return source;
+    }
+
+    private static void CompleteSource(string source, string container, int count, string shape, Action checkCancellation)
+    {
+        string bottom = source;
+        if (shape == "deep")
         {
-            string bottom = source;
-            if (shape == "deep") for (int depth = 0; depth < 32; depth++) bottom = Path.Combine(bottom, "d");
-            var seen = new BitArray(count);
-            foreach (var file in new DirectoryInfo(bottom).EnumerateFiles())
+            for (int depth = 0; depth < 32; depth++)
             {
-                checkCancellation();
-                if (file.Name == "anchor.bin" && shape == "wide" || file.Name == "anchor-alias.txt") continue;
-                string name = file.Name;
-                if (name.Length != 16 || !name.StartsWith("row-", StringComparison.Ordinal) || name[12] != '.' ||
-                    !int.TryParse(name.AsSpan(4, 8), NumberStyles.None, CultureInfo.InvariantCulture, out int at) || at < 2 || at >= count ||
-                    name[13..] != (at % 2 == 0 ? "bin" : "txt") || seen[at]) throw new IOException("Unexpected row in an incomplete generated fixture.");
-                seen[at] = true;
-                if (file.Length != at % 17) File.WriteAllBytes(file.FullName, new byte[at % 17]);
-            }
-            for (int at = 2; at < count; at++)
-            {
-                if (at % 128 == 0) checkCancellation();
-                if (!seen[at]) File.WriteAllBytes(Path.Combine(bottom, $"row-{at:D8}." + (at % 2 == 0 ? "bin" : "txt")), new byte[at % 17]);
+                bottom = Path.Combine(bottom, "d");
+                if ((File.GetAttributes(bottom) & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != FileAttributes.Directory)
+                    throw new IOException("A retained fixture directory changed.");
             }
         }
-        return source;
+
+        const string kind = "FileCat retained native scale progress v1";
+        const int checkpointInterval = 16_384;
+        string progress = Path.Combine(container, "fixture-progress.json");
+        int next = 2;
+        if (File.Exists(progress))
+        {
+            var info = new FileInfo(progress);
+            if ((info.Attributes & FileAttributes.ReparsePoint) != 0 || info.Length is < 1 or > 32 * 1024)
+                throw new IOException("Invalid retained fixture progress.");
+            using var json = JsonDocument.Parse(File.ReadAllText(progress), new JsonDocumentOptions { MaxDepth = 4 });
+            var cursor = json.RootElement;
+            next = cursor.GetProperty("next").GetInt32();
+            if (cursor.GetProperty("kind").GetString() != kind || cursor.GetProperty("source").GetString() != source ||
+                cursor.GetProperty("count").GetInt32() != count || cursor.GetProperty("shape").GetString() != shape || next < 2 || next > count)
+                throw new IOException("The retained fixture progress does not match this source.");
+        }
+
+        Span<byte> zeroes = stackalloc byte[16];
+        zeroes.Clear();
+        while (next < count)
+        {
+            checkCancellation();
+            int end = Math.Min(count, next + checkpointInterval);
+            for (; next < end; next++)
+            {
+                if ((next & 127) == 0) checkCancellation();
+                var row = new FileInfo(Path.Combine(bottom, $"row-{next:D8}." + (next % 2 == 0 ? "bin" : "txt")));
+                int expectedLength = next % 17;
+                if (row.Exists)
+                {
+                    if ((row.Attributes & FileAttributes.ReparsePoint) != 0 || row.Length != expectedLength)
+                        throw new IOException($"Generated row {next} does not match the retained fixture.");
+                }
+                else
+                {
+                    using var stream = new FileStream(row.FullName, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                    stream.Write(zeroes[..expectedLength]);
+                }
+            }
+
+            string staging = Path.Combine(container, $"fixture-progress-{Guid.NewGuid():N}.tmp");
+            using (var stream = new FileStream(staging, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                JsonSerializer.Serialize(stream, new { kind, source, count, shape, next });
+            File.Move(staging, progress, overwrite: true);
+        }
     }
 
     internal static string? RetainCreatedSource(string source, string owner, string @case, int count, string shape, bool complete)

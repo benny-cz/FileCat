@@ -25,3 +25,9 @@ Original interrupted million-file baselines remain failures. An initial verifier
 Retaining fixtures avoids repeated creation. Windows completed its partial wide fixture, then moved that closed, fully checked tree under the deep hierarchy. The focused deep run reused all 121 verified rendering inputs, transferred an 8 KB driver bundle and reused the source in 0.205 seconds. Its path/marker guards and negative control are retained. The original Windows batch deliberately stops at a recorded deep-case boundary; its nonzero result is preserved, and the separate deep batch passes. Only owned fixtures and instances were modified.
 
 Complete ten-million-entry workflows, global multi-session resource limits, native desktop/theme/DPI/accessibility/package matrices, remaining lifecycle/actions/helper/recipe work and the final independent UX/UI/functional/security review remain open.
+
+## Retained-fixture restart on the merged build
+
+The fixture runner writes an atomic checkpoint outside the scan source after each verified batch of generated rows. During the directory-size baseline, a separate watcher also passes withdrawal to the running test so the guest can yield to another tester.
+
+On the Mac, r1572 deliberately stopped generation after the first checkpoint at row 16,386. The retry kept that row's inode and modification time, completed the 65,541-file fixture and captured 65,542 paths, including the root. The acquisition and exploration case passed and closed its owners. The post-run FileCat and test-process inventory was empty. The render.xml SHA-256 is 656e41ad372fad012ccbbb89251bd3c391c7c0ab5061d677c625dffe85204c4d. The combined interruption and resumed receipt log SHA-256 is ef112a9f65b21ab5ec151b14cbaF4c8d6e4dcce4cce70bfd23008ec08c2f6716.

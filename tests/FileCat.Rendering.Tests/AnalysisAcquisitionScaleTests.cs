@@ -43,8 +43,22 @@ public sealed partial class AnalysisRenderingTests
         using var process = Process.GetCurrentProcess(); using var samplingStop = new CancellationTokenSource();
         Task sampling = Task.CompletedTask; AnalysisPhysicalMemory? physical = null;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        timeout.CancelAfter(TimeSpan.FromMinutes(60)); var token = timeout.Token;
+        timeout.CancelAfter(TimeSpan.FromMinutes(count >= 5_000_000 ? 180 : 60)); var token = timeout.Token;
         string cancelPath = Path.Combine(parent, "cancel.txt");
+        var cancellationWatch = Task.Run(async () =>
+        {
+            try
+            {
+                using var ticks = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
+                while (await ticks.WaitForNextTickAsync(samplingStop.Token))
+                {
+                    if (!File.Exists(cancelPath)) continue;
+                    timeout.Cancel();
+                    break;
+                }
+            }
+            catch (OperationCanceledException) when (samplingStop.IsCancellationRequested) { }
+        });
         void CheckCancellation()
         {
             if (File.Exists(cancelPath)) timeout.Cancel();
@@ -107,7 +121,6 @@ public sealed partial class AnalysisRenderingTests
             {
                 while (!samplingStop.IsCancellationRequested)
                 {
-                    if (File.Exists(cancelPath)) timeout.Cancel();
                     process.Refresh(); peakPrivate = Math.Max(peakPrivate, process.PrivateMemorySize64);
                     peakWorking = Math.Max(peakWorking, process.WorkingSet64); physical.Observe();
                     try { await Task.Delay(50, samplingStop.Token); } catch (OperationCanceledException) { break; }
@@ -214,7 +227,7 @@ public sealed partial class AnalysisRenderingTests
             }
             finally
             {
-                samplingStop.Cancel(); await sampling; physical?.Observe();
+                samplingStop.Cancel(); await cancellationWatch; await sampling; physical?.Observe();
                 phases.Add(new { phase, seconds = timer.Elapsed.TotalSeconds }); phase = "closed"; Save();
             }
         }
