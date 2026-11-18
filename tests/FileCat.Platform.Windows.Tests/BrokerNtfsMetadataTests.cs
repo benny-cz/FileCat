@@ -13,6 +13,12 @@ public sealed class BrokerNtfsMetadataTests
     [InlineData("approved")]
     [InlineData("declined")]
     [InlineData("expired")]
+    [InlineData("stopped-before-consent")]
+    [InlineData("stopped-during-consent")]
+    [InlineData("stopped-during-final-check")]
+    [InlineData("requester-exited-before-consent")]
+    [InlineData("requester-exited-during-consent")]
+    [InlineData("no-metadata-dialog")]
     [InlineData("changed")]
     [InlineData("replayed")]
     [InlineData("wrong-hash")]
@@ -34,12 +40,17 @@ public sealed class BrokerNtfsMetadataTests
             RequesterProcessId = Environment.ProcessId, Title = ElevationPlanCodec.MetadataTitle,
             Steps = scenario == "mixed" ? [metadata, new(ElevatedVerb.ReadDevice) { Path = @"\\.\PhysicalDrive0", Name = "FileCat-read-" + ElevationPlanCodec.NewNonce() }] : [metadata],
         };
-        var lease = new OwnedAdmission(scenario == "changed");
+        var lease = new OwnedAdmission(scenario == "changed")
+        {
+            ConsentIsCurrent = scenario != "requester-exited-before-consent",
+        };
         int prepare = 0, asked = 0, claimed = 0;
         try
         {
             using var request = ElevationExchange.Create(Path.Combine(root, "exchange"), plan);
             using var exchange = BrokerExchange.Open(request.VolumePlanPath);
+            if (scenario == "stopped-before-consent") request.RequestStop();
+            if (scenario == "stopped-during-final-check") lease.OnVerify = request.RequestStop;
             var services = new BrokerProgram.RunServices(
                 () => now,
                 (_, _) => throw new InvalidOperationException("The generic requester check ran."),
@@ -47,24 +58,36 @@ public sealed class BrokerNtfsMetadataTests
                 (_, _, _, _) => throw new InvalidOperationException("The generic consent ran."),
                 _ => { }, (_, _, _, _) => throw new InvalidOperationException("The raw device route ran."),
                 (approved, _) => { Assert.Equal(scope, Assert.Single(approved.Steps).NtfsMetadata); prepare++; return lease; },
-                (_, _, pages, summary) =>
+                (_, _, pages, summary, isCurrent, stopRequested) =>
                 {
                     asked++;
                     Assert.Contains("whole volume", Assert.Single(pages), StringComparison.Ordinal);
                     Assert.Contains(selected.GuidPath.TrimEnd('\\'), pages[0], StringComparison.OrdinalIgnoreCase);
                     Assert.Contains("no cleanup", summary, StringComparison.Ordinal);
-                    if (scenario == "expired") now = now.AddMinutes(16);
+                    Assert.True(isCurrent());
+                    Assert.False(stopRequested());
+                    if (scenario == "expired") now = now.Add(ElevationPlanCodec.MaxAge);
+                    if (scenario == "requester-exited-during-consent") lease.ConsentIsCurrent = false;
+                    if (scenario == "stopped-during-consent") request.RequestStop();
+                    Assert.Equal(scenario is not ("expired" or "requester-exited-during-consent"), isCurrent());
+                    Assert.Equal(scenario == "stopped-during-consent", stopRequested());
+                    // Return approval on purpose to exercise the broker's post-dialog recheck too.
                     return scenario != "declined";
                 });
+            if (scenario == "no-metadata-dialog") services = services with { AskMetadata = null };
             int code = BrokerProgram.Run(exchange, scenario == "wrong-hash" ? new string('0', 64) : request.Hash, root, services);
             bool ran = scenario == "approved", considered = scenario is not ("wrong-hash" or "mixed");
-            Assert.Equal(ran ? 0 : scenario == "declined" ? 1 : 2, code);
+            bool declined = scenario is "declined" or "expired" or "stopped-before-consent" or "stopped-during-consent" or "stopped-during-final-check" or
+                "requester-exited-before-consent" or "requester-exited-during-consent" or "no-metadata-dialog";
+            Assert.Equal(ran ? 0 : declined ? 1 : 2, code);
             var report = request.ReadResult();
             Assert.NotNull(report);
             Assert.Equal(ran, report.Consented);
+            if (declined) Assert.Equal(ElevationMessages.Declined, report.Refused);
             Assert.Equal(considered ? 1 : 0, prepare);
             Assert.Equal(considered ? 1 : 0, claimed);
-            Assert.Equal(considered && scenario != "replayed" ? 1 : 0, asked);
+            Assert.Equal(considered && scenario is not ("replayed" or "stopped-before-consent" or
+                "requester-exited-before-consent" or "no-metadata-dialog") ? 1 : 0, asked);
             Assert.Equal(ran ? 1 : 0, lease.Runs);
             Assert.Equal(considered, lease.Disposed);
             if (ran) Assert.Equal(ElevatedOutcome.Committed, Assert.Single(report.Steps).Outcome);
@@ -173,9 +196,15 @@ public sealed class BrokerNtfsMetadataTests
 
     private sealed class OwnedAdmission(bool changed) : INtfsMetadataAdmission
     {
+        public bool ConsentIsCurrent { get; set; } = true;
+        internal Action? OnVerify { get; set; }
         internal int Runs { get; private set; }
         internal bool Disposed { get; private set; }
-        public void Verify() { if (changed) throw new IOException("Owned source witness changed."); }
+        public void Verify()
+        {
+            OnVerify?.Invoke();
+            if (changed) throw new IOException("Owned source witness changed.");
+        }
         public ElevatedStepResult Run(Func<bool> stopRequested)
         {
             Assert.False(stopRequested());

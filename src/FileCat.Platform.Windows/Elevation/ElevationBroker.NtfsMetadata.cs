@@ -7,6 +7,7 @@ namespace FileCat.Platform.Windows.Elevation;
 
 internal interface INtfsMetadataAdmission : IDisposable
 {
+    bool ConsentIsCurrent { get; }
     void Verify();
     ElevatedStepResult Run(Func<bool> stopRequested);
 }
@@ -65,9 +66,12 @@ public static partial class ElevationBroker
         private readonly ulong _remaining = Remaining(plan);
         private int _used;
 
+        private bool Expired => NtfsMetadataChannel.MonotonicMilliseconds() - _started >= _remaining;
+        public bool ConsentIsCurrent => !Expired && requester.IsAlive;
+
         public void Verify()
         {
-            if (NtfsMetadataChannel.MonotonicMilliseconds() - _started >= _remaining)
+            if (Expired)
                 throw new IOException("The NTFS metadata consent has expired.");
             requester.RequireIdentity(imagePath, requester.Session, elevated: false);
             if (ImageId(image) != plan.Steps[0].NtfsMetadata!.RequesterImageId ||

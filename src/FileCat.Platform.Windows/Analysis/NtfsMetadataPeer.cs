@@ -28,6 +28,8 @@ internal sealed unsafe partial class NtfsMetadataPeer : IDisposable
     internal SecurityIdentifier UserSid => _captured.User;
     internal SecurityIdentifier LogonSid => _captured.Logon;
     internal bool Elevated => _captured.Elevated;
+    internal bool IsAlive => !_process.IsInvalid && _pid != 0 &&
+        WaitForSingleObject(_process, 0) == 0x102 /* WAIT_TIMEOUT */;
 
     internal static NtfsMetadataPeer Hold(uint pid) =>
         Take(OpenProcess(0x00101000 /* SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION */, false, pid));
@@ -51,8 +53,7 @@ internal sealed unsafe partial class NtfsMetadataPeer : IDisposable
 
     internal void VerifyAlive()
     {
-        if (_process.IsInvalid || _pid == 0 || WaitForSingleObject(_process, 0) != 0x102 /* WAIT_TIMEOUT */)
-            throw Unverified();
+        if (!IsAlive) throw Unverified();
     }
 
     internal void RequireIdentity(string installedImage, uint localSession, bool elevated)
