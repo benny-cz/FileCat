@@ -35,6 +35,8 @@ internal sealed partial class HarnessApp
                 button.IsEffectivelyVisible && button.Content as string == caption);
             void Click(string caption) => (VisibleButton(caption) ?? throw new InvalidOperationException($"Missing button {caption}."))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var windowTransitions = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_WINDOW_TRANSITIONS") == "1"
+                ? await CheckWindowTransitionsAsync(window, () => VisibleButton("Start analysis")) : null;
             var limits = VisibleButton("Resource limits…") ?? throw new InvalidOperationException("Missing resource limits in setup.");
             var setup = limits.GetVisualAncestors().OfType<ScrollViewer>().First();
             await ReadyAsync(() => setup.Viewport.Height > 0 && limits.Bounds.Height > 0);
@@ -205,7 +207,7 @@ internal sealed partial class HarnessApp
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
                 readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
                 standardIndexChoice = true, scratchThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true,
-                packageTier = Program.PackageTier, packageFastNtfsReason, warmShell, firstResultMilliseconds, chartFrames };
+                packageTier = Program.PackageTier, packageFastNtfsReason, warmShell, firstResultMilliseconds, chartFrames, windowTransitions };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
 

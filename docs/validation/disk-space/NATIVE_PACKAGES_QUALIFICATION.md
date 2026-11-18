@@ -78,7 +78,7 @@ Ubuntu r1683 measured the flat and hierarchy fixtures in one native application 
 
 The chart renderer now computes the focused item's ancestors once per frame and reuses immutable fills and borders for the active theme. The eight-step ancestry boundary and border selection for focus, ancestors, marks and dashed entries are preserved. Revision r1687 measured the original dense Ubuntu Treemap at 37.41 ms focus p95 and 39.90 ms revised-layout p95 on the merged product overlay. The ancestry change alone measured 36.65 ms and 40.41 ms. The combined fix in r1690 measured 19.91 ms and 25.53 ms. All four Ubuntu workload and chart combinations met the 33 ms target in that run.
 
-The same fixed assembly on the Mac measured 10.89 ms and 10.37 ms for the dense Treemap. All four Mac combinations passed, and all eight focused renderer checks passed across themes, chart modes, grouping and input. Both guests closed their application instances with source fixtures unchanged. Windows and the matching Ubuntu focused renderer repeat remain queued.
+The same fixed assembly on the Mac measured 10.89 ms and 10.37 ms for the dense Treemap. All four Mac combinations passed, and all eight focused renderer checks passed across themes, chart modes, grouping and input. Both guests closed their application instances with source fixtures unchanged. The matching Ubuntu focused renderer repeat also passed all eight checks. The Windows repeat remains queued.
 
 | Verification | Result SHA-256 |
 |---|---|
@@ -86,3 +86,8 @@ The same fixed assembly on the Mac measured 10.89 ms and 10.37 ms for the dense 
 | Ubuntu r1690 combined fix | `646925b802321b9067a9fe3b52014e503998ec72d9fe8f27c079ce5162cac8d1` |
 | Mac r1690 combined fix | `d450394ed16c8ec48c14acd50e44885289570d44da9b65de70c1d5758880f693` |
 | Mac r1692 focused renderer XML | `74ff888d8181260ca6d976d5b2461ee492fdcac962cbd00a7522fe39a7aa9072` |
+| Ubuntu r1692 focused renderer XML | `fb1dfae9a8b47db20bdb4c6338e78da85a44f2f334f1216fd020c2eb3741ba72` |
+
+### Native window transitions
+
+On the Mac in r1700, the 2× Disk space setup window expanded from 380 × 430 DIP to 1,440 × 766 DIP and restored to 380 × 430 DIP. The enabled Start analysis button fit inside the window in each state. Native compositor captures recorded the maximized and restored windows. The rest of the folder and chart workflow completed, the source stayed unchanged and the app exited. The raw result SHA-256 is `75bfbbf4cc67dda0e905089ff55ad3d447b1b1b77bac5e192d06525b166b1252`.

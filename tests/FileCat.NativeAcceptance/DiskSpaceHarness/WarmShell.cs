@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -10,6 +11,34 @@ internal sealed partial class HarnessApp
 {
     private sealed record WarmShellTiming(double FirstManagerOpenMilliseconds, double[] WarmOpenMilliseconds,
         double P95WarmOpenMilliseconds);
+    private sealed record WindowFrame(string State, double Width, double Height, double Scale);
+
+    private async Task<WindowFrame[]> CheckWindowTransitionsAsync(Window window, Func<Button?> startButton)
+    {
+        await ReadyAsync(() => window.WindowState == WindowState.Normal && SetupFits());
+        var initial = RecordFrame();
+        WindowFrame maximized;
+        try
+        {
+            window.WindowState = WindowState.Maximized;
+            await ReadyAsync(() => window.WindowState == WindowState.Maximized &&
+                window.ClientSize.Width > initial.Width && window.ClientSize.Height > initial.Height && SetupFits());
+            maximized = RecordFrame();
+            await RecipeFrameAsync("setup-window-maximized.png", true, _indexedLifetime.Token);
+        }
+        finally { window.WindowState = WindowState.Normal; }
+        await ReadyAsync(() => window.WindowState == WindowState.Normal &&
+            Math.Abs(window.ClientSize.Width - initial.Width) <= 2 &&
+            Math.Abs(window.ClientSize.Height - initial.Height) <= 2 && SetupFits());
+        await RecipeFrameAsync("setup-window-restored.png", true, _indexedLifetime.Token);
+        return [initial, maximized, RecordFrame()];
+
+        WindowFrame RecordFrame() => new(window.WindowState.ToString(), window.ClientSize.Width, window.ClientSize.Height, window.RenderScaling);
+        bool SetupFits() => startButton() is { IsEnabled: true } start &&
+            start.Bounds.Width > 0 && start.Bounds.Height > 0 && start.TranslatePoint(default, window) is { } position &&
+            position.X >= 0 && position.Y >= 0 && position.X + start.Bounds.Width <= window.ClientSize.Width + 1 &&
+            position.Y + start.Bounds.Height <= window.ClientSize.Height + 1;
+    }
 
     private async Task<WarmShellTiming> MeasureWarmShellAsync(MainViewModel main, CancellationToken cancellation)
     {
