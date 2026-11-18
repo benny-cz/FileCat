@@ -74,6 +74,7 @@ public static class ElevationConsent
             ElevatedVerb.CreateDirectory => one ? "new folder" : "new folders",
             ElevatedVerb.SetAttributes => one ? "attribute change" : "attribute changes",
             ElevatedVerb.ReadDevice => one ? "drive read" : "drive reads",
+            ElevatedVerb.EnumerateNtfsMetadata => "whole-volume metadata reads",
             _ => verb.ToString(),
         };
     }

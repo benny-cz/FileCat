@@ -150,12 +150,18 @@ internal static class NtfsMetadataProtocol
             !Convert.TryFromBase64String(name, bytes, out int written) || written is 0 or 1 || (written & 1) != 0 ||
             !string.Equals(name, Convert.ToBase64String(bytes[..written]), StringComparison.Ordinal))
             throw InvalidFrame();
-        for (int index = 0; index < written; index += 2)
+        if (!ValidRawName(bytes[..written])) throw InvalidFrame();
+    }
+
+    internal static bool ValidRawName(ReadOnlySpan<byte> bytes)
+    {
+        if (bytes.Length is 0 or > MaximumNameBytes || (bytes.Length & 1) != 0 ||
+            bytes.Length == 2 && BinaryPrimitives.ReadUInt16LittleEndian(bytes) == '.' ||
+            bytes.Length == 4 && BinaryPrimitives.ReadUInt32LittleEndian(bytes) == 0x002E002E) return false;
+        for (int index = 0; index < bytes.Length; index += 2)
             if (BinaryPrimitives.ReadUInt16LittleEndian(bytes[index..]) is 0 or (ushort)'/' or (ushort)'\\' or (ushort)':')
-                throw InvalidFrame();
-        if (written == 2 && BinaryPrimitives.ReadUInt16LittleEndian(bytes) == '.' ||
-            written == 4 && BinaryPrimitives.ReadUInt32LittleEndian(bytes) == 0x002E002E)
-            throw InvalidFrame();
+                return false;
+        return true;
     }
 
     internal static uint ReadCount(JsonElement count) =>

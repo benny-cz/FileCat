@@ -50,6 +50,12 @@ internal static unsafe partial class ConsentDialog
     /// plan of several pages gets Earlier and Later buttons, so no step is ever left out of view (release issue I17).
     /// </summary>
     public static bool Ask(string instruction, string content, IReadOnlyList<string> pages, string footer)
+        => AskCore(instruction, content, pages, footer, metadata: false);
+
+    internal static bool AskMetadata(string instruction, string content, IReadOnlyList<string> pages, string footer)
+        => AskCore(instruction, content, pages, footer, metadata: true);
+
+    private static bool AskCore(string instruction, string content, IReadOnlyList<string> pages, string footer, bool metadata)
     {
         instruction = ElevationConsent.DisplayText(instruction);
         content = ElevationConsent.DisplayText(content);
@@ -73,7 +79,7 @@ internal static unsafe partial class ConsentDialog
                     new() { Id = LaterButton, Text = S("Later steps") },
                     new() { Id = RunButton, Text = S("Run as administrator") },
                 }
-                : stackalloc TaskDialogButton[] { new() { Id = RunButton, Text = S("Run as administrator") } };
+                : stackalloc TaskDialogButton[] { new() { Id = RunButton, Text = S(metadata ? "Read metadata" : "Run as administrator") } };
             fixed (TaskDialogButton* first = buttons)
             {
                 var config = new TaskDialogConfig
@@ -81,7 +87,7 @@ internal static unsafe partial class ConsentDialog
                     Size = (uint)sizeof(TaskDialogConfig),
                     Flags = AllowCancellation | ExpandedByDefault | SizeToContent,
                     CommonButtons = CancelButtonFlag,
-                    WindowTitle = S("FileCat — administrator operation"),
+                    WindowTitle = S(metadata ? "FileCat — read NTFS metadata" : "FileCat — administrator operation"),
                     MainIcon = ShieldIcon,
                     MainInstruction = S(instruction),
                     Content = S(content),

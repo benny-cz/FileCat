@@ -48,12 +48,13 @@ public static partial class ElevationBroker
         return true;
     }
 
-    private static bool IsNonce(string nonce) => nonce.Length == 32 && nonce.All(Uri.IsHexDigit);
+    private static bool IsNonce(string nonce) => nonce.Length == 32 && nonce.All(Uri.IsHexDigit) ||
+        Analysis.NtfsMetadataProtocol.ValidNonce(nonce);
 
     private static void ValidateNonce(string nonce)
     {
         ArgumentNullException.ThrowIfNull(nonce);
-        if (!IsNonce(nonce)) throw new ArgumentException("A plan identifier must contain 32 hexadecimal characters.", nameof(nonce));
+        if (!IsNonce(nonce)) throw new ArgumentException("The plan identifier is malformed.", nameof(nonce));
     }
 
     [LibraryImport("advapi32.dll", EntryPoint = "RegCreateKeyExW", StringMarshalling = StringMarshalling.Utf16)]

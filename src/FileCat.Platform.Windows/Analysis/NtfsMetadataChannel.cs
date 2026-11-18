@@ -21,6 +21,7 @@ internal sealed partial class NtfsMetadataChannel : IDisposable
     private Phase _phase;
     private int _disposed, _reading, _writing;
     private uint _inbound, _outbound, _delivered, _lastProgress;
+    internal bool IsClosed => Volatile.Read(ref _disposed) != 0;
 
     internal NtfsMetadataChannel(Stream authenticated, string nonce, bool helper, Func<ulong>? ticks = null)
     {
