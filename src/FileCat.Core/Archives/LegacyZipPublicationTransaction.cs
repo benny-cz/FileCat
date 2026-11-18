@@ -10,6 +10,7 @@ internal interface ILegacyZipBackupRestorer
     bool TryRestoreLegacyZipBackup(string backup, string archive, string originalIdentity);
     LegacyZipRollbackResult RollbackLegacyZip(string archive, string backup, string stage,
         LegacyZipRollbackFile published, LegacyZipRollbackFile original);
+    string? CleanupLegacyZipBackup(string archive, string backup, LegacyZipRollbackFile published, LegacyZipRollbackFile original);
 }
 
 internal sealed record LegacyZipRollbackFile(ArchiveObjectVersion Version, string? Origin, bool Encrypted);
@@ -167,6 +168,8 @@ internal sealed class LegacyZipPublicationTransaction
             RequireCreatedStage(Fs.GetFileIdentity(temp));
             RequireClearPath(temp, ArchiveOuterEfs.UpdateStageUnavailable);
             RequireClearPath(archive, ArchiveOuterEfs.UpdateUnavailable);
+            if (OperatingSystem.IsWindows() && openedSourceIdentity is not null && Fs.GetFileIdentity(archive) != openedSourceIdentity)
+                throw new IOException("A different file now has the archive name. The ZIP update was stopped before replacement.");
             // ReplaceFile keeps the original's security, attributes, and creation time on the rebuilt file.
             // Keep the actual original even when it was unmarked at the earlier read. Another
             // process can add a download mark without changing ZIP bytes or last-write time.
@@ -190,6 +193,8 @@ internal sealed class LegacyZipPublicationTransaction
                 // The backup is the pathname's actual file at replacement time. It may differ
                 // from the opened source even when a late check of path metadata passed.
                 replacedOriginalIdentity = Fs.GetFileIdentity(backup!);
+                if (OperatingSystem.IsWindows() && openedSourceIdentity is not null && replacedOriginalIdentity != openedSourceIdentity)
+                    throw new IOException("The retained ZIP is a different file from the archive reviewed for update.");
                 using (var original = new ArchiveMutationReadStream(backup!, ArchiveOuterEfs.UpdateUnavailable))
                 {
                     if (OperatingSystem.IsWindows() && replacedOriginalIdentity is not null &&
@@ -252,9 +257,11 @@ internal sealed class LegacyZipPublicationTransaction
                 throw new IOException("The archive source or download mark changed; the original was restored.", integrityError);
             }
         }
-        Journal.Done(step, StepOutcome.Committed);
+        bool nativeCleanup = backup is not null && Fs is ILegacyZipBackupRestorer;
+        if (nativeCleanup) CleanupWindowsZipBackup((ILegacyZipBackupRestorer)Fs, backup!);
+        if (!recoveryRequired) Journal.Done(step, StepOutcome.Committed);
         onCommitted();
-        if (backup is not null) CleanupOriginalBackup(backup);
+        if (backup is not null && !nativeCleanup) CleanupPortableBackup(backup);
     }
 
     private bool RollbackWindowsZip(string? publishedIdentity, bool encryptedBackup)
@@ -294,7 +301,29 @@ internal sealed class LegacyZipPublicationTransaction
             throw new IOException("The archive's bytes or protection could not be verified after restoration.");
     }
 
-    private void CleanupOriginalBackup(string backup)
+    private void CleanupWindowsZipBackup(ILegacyZipBackupRestorer native, string backup)
+    {
+        string? reason;
+        if (openedSourceIdentity is null || replacedOriginalIdentity != openedSourceIdentity || intendedPublishedIdentity is null ||
+            replacedOriginalDigest is null || !originalMarkReadable)
+            reason = "The published ZIP and the original backup could not both be bound to reviewed files.";
+        else
+        {
+            var original = new LegacyZipRollbackFile(new(openedSourceIdentity, replacedOriginalLength,
+                Convert.ToHexString(replacedOriginalDigest)), replacedOriginalMark, Encrypted: false);
+            var rebuild = new LegacyZipRollbackFile(new(intendedPublishedIdentity, intendedPublishedLength, PreparedSha256),
+                requiredOrigin, Encrypted: false);
+            reason = native.CleanupLegacyZipBackup(archive, backup, rebuild, original);
+        }
+        if (reason is null) return;
+
+        recoveryRequired = true;
+        Journal.RequireRecovery();
+        Issue(IssueSeverity.Warning, backup, $"The rebuilt ZIP was published. Review the retained original backup at {backup}. {reason}",
+            StepOutcome.Committed, "security");
+    }
+
+    private void CleanupPortableBackup(string backup)
     {
         string retainedBackup = backup;
         try

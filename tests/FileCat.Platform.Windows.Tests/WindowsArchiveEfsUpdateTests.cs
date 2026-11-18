@@ -390,6 +390,164 @@ public sealed class WindowsArchiveEfsUpdateTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Theory]
+    [InlineData("unchanged")]
+    [InlineData("encrypted backup")]
+    [InlineData("new stream")]
+    [InlineData("new mark")]
+    [InlineData("substituted backup")]
+    [InlineData("substituted publication")]
+    public void Legacy_cleanup_removes_only_the_reviewed_backup_and_records_retained_evidence(string change)
+    {
+        RequireLocalNtfs();
+        if (change == "encrypted backup") RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-legacy-zip-cleanup-").FullName;
+        string target = Path.Join(root, "original.zip");
+        string journals = Path.Join(root, "journals");
+        string moved = Path.Join(root, "moved-during-review.zip");
+        const string mark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        const string lateMark = "[ZoneTransfer]\r\nZoneId=4\r\n";
+        const string lateStream = "new named-stream data";
+        try
+        {
+            using (var zip = ZipFile.Open(target, ZipArchiveMode.Create)) zip.CreateEntry("original.txt");
+            byte[] original = File.ReadAllBytes(target);
+            var files = new ChangeBeforeBackupCleanup((published, backup, fs) =>
+            {
+                switch (change)
+                {
+                    case "encrypted backup": File.Encrypt(backup); break;
+                    case "new stream":
+                        using (var stream = new FileStream(backup + ":fixture", FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                        using (var writer = new StreamWriter(stream)) writer.Write(lateStream);
+                        break;
+                    case "new mark": Assert.True(fs.WriteOriginMark(backup, lateMark)); break;
+                    case "substituted backup":
+                    case "substituted publication":
+                        string path = change == "substituted backup" ? backup : published;
+                        File.Move(path, moved, overwrite: false);
+                        File.Copy(moved, path, overwrite: false);
+                        Assert.True(fs.WriteOriginMark(path, mark));
+                        Assert.NotEqual(fs.GetFileIdentity(moved), fs.GetFileIdentity(path));
+                        break;
+                }
+            });
+            Assert.True(files.WriteOriginMark(target, mark));
+            string id = Assert.IsType<string>(files.GetFileIdentity(target));
+            var plan = new ArchivePlan(target, ArchiveBaseline.Of(target), [new(ArchiveChangeKind.CreateFolderEntry, "new-folder")]);
+            var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan }, "Legacy ZIP backup cleanup", "", [], []);
+            bool kept = change != "unchanged";
+            using (var journal = JobJournal.Create(journals, job))
+            {
+                new ZipUpdateExecutor(job, files, journal).Execute();
+                Assert.Equal(kept, journal.NeedsRecovery);
+                if (!kept) journal.Finish(JobState.Completed, "Published owned ZIP and removed reviewed backup.");
+            }
+
+            string retained = Assert.IsType<string>(files.Backup);
+            using var output = ZipFile.OpenRead(target);
+            Assert.NotNull(output.GetEntry("new-folder/"));
+            Assert.Equal(mark, files.ReadOriginMark(target));
+            if (!kept)
+            {
+                Assert.False(File.Exists(retained));
+                Assert.Empty(JournalRecovery.Scan(journals));
+                return;
+            }
+
+            Assert.Equal(original, File.ReadAllBytes(retained));
+            Assert.Equal(id, files.GetFileIdentity(change == "substituted backup" ? moved : retained));
+            Assert.Equal(change == "encrypted backup", File.GetAttributes(retained).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(change == "new mark" ? lateMark : mark, files.ReadOriginMark(retained));
+            if (change == "new stream") Assert.Equal(lateStream, File.ReadAllText(retained + ":fixture"));
+            Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Committed && issue.Severity == IssueSeverity.Warning &&
+                issue.Message.Contains(retained, StringComparison.Ordinal));
+            var interrupted = Assert.Single(JournalRecovery.Scan(journals));
+            Assert.True(interrupted.HasLegacyZipRecovery);
+            var pending = Assert.Single(interrupted.OpenIntents);
+            Assert.Equal(target, pending.Path);
+            Assert.Equal(retained, pending.RecoveryPath);
+            Assert.Empty(JournalRecovery.FindStagedLeftovers(interrupted));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Legacy_update_checks_a_same_byte_archive_replacement_at_the_publication_boundary(bool insideCall)
+    {
+        RequireLocalNtfs();
+        string root = Directory.CreateTempSubdirectory("filecat-legacy-zip-publish-identity-").FullName;
+        string target = Path.Join(root, "original.zip"), moved = Path.Join(root, "moved.zip");
+        try
+        {
+            using (var zip = ZipFile.Open(target, ZipArchiveMode.Create)) zip.CreateEntry("original.txt");
+            byte[] original = File.ReadAllBytes(target);
+            var files = new WindowsFileOperations();
+            string id = Assert.IsType<string>(files.GetFileIdentity(target));
+            var plan = new ArchivePlan(target, ArchiveBaseline.Of(target), []);
+            var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan }, "ZIP file identity", "", [], []);
+            using var journal = JobJournal.Create(Path.Join(root, "journals"), job);
+            string? backup = null;
+            void Substitute()
+            {
+                File.Move(target, moved, overwrite: false);
+                File.Copy(moved, target, overwrite: false);
+                Assert.NotEqual(id, files.GetFileIdentity(target));
+                Assert.Equal(original, File.ReadAllBytes(target));
+            }
+            var publication = new LegacyZipPublicationTransaction(job, files, journal, plan, target, root,
+                replaceFile: (stage, path, retained) =>
+                {
+                    Assert.True(insideCall);
+                    Substitute();
+                    File.Replace(stage, path, retained);
+                    backup = retained;
+                });
+            using (var reader = new ArchiveMutationReadStream(target)) publication.CaptureOpenedSource(reader);
+            using (var stage = publication.CreateStage())
+            using (var zip = new ZipArchive(stage, ZipArchiveMode.Create, leaveOpen: true)) zip.CreateEntry("rebuilt.txt");
+            using (var stage = publication.OpenStageRead()) publication.CaptureVerifiedStage(stage);
+            publication.Prepare();
+            if (!insideCall) Substitute();
+
+            var failure = Assert.Throws<IOException>(() => publication.Publish(() => throw new InvalidOperationException("Unexpected commit.")));
+            publication.RecordFailure(failure);
+            publication.CleanupUnpublishedStage();
+            Assert.Equal(insideCall, journal.NeedsRecovery);
+            Assert.Equal(id, files.GetFileIdentity(moved));
+            Assert.Equal(original, File.ReadAllBytes(moved));
+            if (insideCall)
+            {
+                string retained = Assert.IsType<string>(backup);
+                Assert.Equal(original, File.ReadAllBytes(retained));
+                Assert.Contains(job.Issues, issue => issue.Message.Contains("a different file", StringComparison.Ordinal));
+            }
+            else
+            {
+                Assert.Null(backup);
+                Assert.Contains("before replacement", failure.Message, StringComparison.Ordinal);
+                Assert.Equal(original, File.ReadAllBytes(target));
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private sealed class ChangeBeforeBackupCleanup(Action<string, string, WindowsFileOperations> change) : WindowsFileOperations, ILegacyZipBackupRestorer
+    {
+        private readonly ILegacyZipBackupRestorer native = new WindowsFileOperations();
+        public string? Backup { get; private set; }
+
+        string? ILegacyZipBackupRestorer.CleanupLegacyZipBackup(string archive, string backup,
+            LegacyZipRollbackFile published, LegacyZipRollbackFile original)
+        {
+            Backup = backup;
+            change(archive, backup, this);
+            return native.CleanupLegacyZipBackup(archive, backup, published, original);
+        }
+    }
+
     private sealed class RemovePublishedMark(string target) : WindowsFileOperations
     {
         public bool Removed { get; private set; }
@@ -457,6 +615,14 @@ public sealed class WindowsArchiveEfsUpdateTests
             }
             return base.ReadOriginMark(path);
         }
+    }
+
+    private static void RequireLocalNtfs()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Requires Windows native ZIP publication.");
+        var drive = new DriveInfo(Path.GetPathRoot(Path.GetTempPath())!);
+        Assert.SkipUnless(drive.DriveType is DriveType.Fixed or DriveType.Removable && drive.DriveFormat == "NTFS",
+            "Requires a local NTFS test directory.");
     }
 
     private static void RequireEfs()
