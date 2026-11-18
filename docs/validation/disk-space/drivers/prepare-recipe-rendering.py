@@ -1,4 +1,4 @@
-"""Stage recipe UI or growth tests over the verified reusable rendering build."""
+"""Stage recipe, growth, or duplicate review tests over the verified rendering build."""
 import argparse
 import hashlib
 import json
@@ -9,7 +9,9 @@ import tarfile
 
 parser = argparse.ArgumentParser()
 parser.add_argument("revision")
-parser.add_argument("--growth", action="store_true")
+scope = parser.add_mutually_exclusive_group()
+scope.add_argument("--growth", action="store_true")
+scope.add_argument("--duplicates", action="store_true")
 options = parser.parse_args()
 revision = options.revision
 methods = ["*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*"]
@@ -22,6 +24,17 @@ if options.growth:
                "*NativeIndexedComparisonCatalogRouteUsesEntireRevisionsAndPagesBothRecordedSides*"]
     expected = 12
     log = (Path.cwd() / ".tmp/growth-insight-render-build-r1357.txt").read_text(encoding="utf-8-sig")
+    assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
+if options.duplicates:
+    methods = ["*DuplicateReview*",
+               "*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*",
+               "*NativeSavedRecipeStorePreservesCapturedScopeAcrossPrivateOpens*",
+               "*NativeSavedRecipeDialogKeepsExplicitRootsWhenTheQueryMentionsAnotherLocation*",
+               "*ComparisonPaneFiltersGrowthInspectsBothSidesAndKeepsItsCloseDefault*",
+               "*NativeIndexedGrowthRecipeShowsOnlyKnownPositiveDifferencesInTheMappedScope*",
+               "*IndexedSelectionBasketPagesItsCapturedSnapshotAndAllowsRemovalWithoutChangingMarksOrSource*"]
+    expected = 12
+    log = (Path.cwd() / f".tmp/duplicate-estimate-render-build-{revision}-serial.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
 root = Path.cwd()
 temp = root / ".tmp"
@@ -85,15 +98,16 @@ for platform in ("windows", "mac", "linux"):
     proof[platform] = {"archive": sha(archive), "runner": sha(runner_path), "size": archive.stat().st_size, "patch": sorted(changes)}
 (temp / f"cache-input-{revision}").mkdir()
 (temp / f"recipe-rendering-proof-{revision}.json").write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
-if options.growth:
+if options.growth or options.duplicates:
+    slice_name = "growth" if options.growth else "duplicate-estimate"
     source_changes = set(subprocess.check_output(["git", "diff", "--name-only", "HEAD", "--", "src", "tests"], text=True).splitlines())
     source_changes.update(subprocess.check_output(["git", "ls-files", "--others", "--exclude-standard", "src", "tests"], text=True).splitlines())
-    source_archive = temp / f"source-{revision}-growth-delta.tgz"
+    source_archive = temp / f"source-{revision}-{slice_name}-delta.tgz"
     assert not source_archive.exists()
     with tarfile.open(source_archive, "w:gz") as archive:
         for name in sorted(source_changes):
             archive.add(root / name, arcname=name, recursive=False)
     origin = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-    (temp / f"growth-source-proof-{revision}.json").write_text(json.dumps({"head": origin, "archive": sha(source_archive),
+    (temp / f"{slice_name}-source-proof-{revision}.json").write_text(json.dumps({"head": origin, "archive": sha(source_archive),
         "changes": {name: sha(root / name) for name in sorted(source_changes)}}, indent=2) + "\n", encoding="utf-8")
 print(json.dumps(proof))

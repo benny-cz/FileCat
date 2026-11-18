@@ -106,7 +106,7 @@ public sealed partial class AnalysisDatasetLease
                         if (!preview.Includes(node)) continue;
                         rootOrdinal = path.RootIndex;
                         var obj = node is { MetadataState: MeasurementState.Known, IncludedByPolicy: true, Cloud: not true, ObjectId: { } id }
-                            ? ReadRecipeObject(reader, id, token) : null;
+                            ? ReadRequiredObservedObject(reader, id, token) : null;
                         if (obj is not null) bytes += 1024L + (obj.VerifiedIdentity?.Length ?? 0) * 2L + (obj.VersionEvidence?.Length ?? 0) * 2L;
                         AnalysisMeasurement allocation = preview.NeedsAllocation && obj is not null
                             ? ReadRecipeAllocation(reader, obj.Id, ref bytes, token) : AnalysisMeasurement.Missing(MeasurementState.Unsupported);
@@ -147,7 +147,7 @@ public sealed partial class AnalysisDatasetLease
 
     private static readonly ImmutableArray<string> RecipeNameEncodings = ["utf8", "utf16le", "unix-bytes"];
 
-    private static AnalysisObject ReadRecipeObject(AnalysisIndexedGraphReader reader, string id, CancellationToken token)
+    private static AnalysisObject ReadRequiredObservedObject(AnalysisIndexedGraphReader reader, string id, CancellationToken token)
     {
         var range = reader.Find(AnalysisIndexedGraphRevision.ObjectIds, AnalysisGraphKeys.Text(id), cancellation: token);
         if (range.Count != 1) throw new InvalidDataException("The recorded object index is ambiguous.");

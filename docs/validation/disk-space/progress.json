@@ -15882,5 +15882,19 @@
     "publicEntryEnabled": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "duplicateReadEstimate": {
+    "status": "qualified-internal-slice",
+    "packet": "source-manifest-r1371-duplicate-estimate.json",
+    "document": "DUPLICATE_ESTIMATE_QUALIFICATION.md",
+    "focusedCasesPassedPerPlatform": 12,
+    "nativeWindowRevision": "r1370",
+    "macActualCompositorQualified": true,
+    "contentReadsEnabled": false,
+    "stableHashQualified": false,
+    "physicalInputQualified": false,
+    "publicEntryEnabled": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }

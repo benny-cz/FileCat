@@ -23,12 +23,14 @@ public sealed partial class DiskSpaceWindow
         {
             AutomationProperties.SetAutomationId(_basket, "Captured selection summary");
             AutomationProperties.SetLiveSetting(_basket, AutomationLiveSetting.Polite);
-            _basketHost.Children.Add(_markMatches); _basketHost.Children.Add(_clearMemoryMarks); _basketHost.Children.Add(_reviewMarks); _basketHost.Children.Add(_retryMarkCounts);
+            _basketHost.Children.Add(_markMatches); _basketHost.Children.Add(_clearMemoryMarks); _basketHost.Children.Add(_reviewMarks);
+            _basketHost.Children.Add(_reviewDuplicates); _basketHost.Children.Add(_retryMarkCounts);
             ToolTip.SetTip(_markMatches, new RichTip("Capture matching files", detail: "Marks regular-file matches in the displayed scope and revision. Focus does not narrow this scope. Context folders, hidden aliases and future observations are excluded. At most 100,000 distinct paths can be marked."));
             ToolTip.SetTip(_reviewMarks, new RichTip("Review captured marks", detail: "Inspect marked entries across locations and filters. Unmarking an entry leaves the independent review basket unchanged."));
             _markMatches.Click += async (_, _) => await Model.MarkMatchingFilesAsync();
             _clearMemoryMarks.Click += (_, _) => Model.ClearMarks();
             _reviewMarks.Click += async (_, _) => await ReviewMarksAsync();
+            _reviewDuplicates.Click += (_, _) => _ = ReviewDuplicatesAsync();
             _retryMarkCounts.Click += (_, _) => { Model.ScheduleMarkVisibility(retry: true); Refresh(); };
             AddDeferredSelectionControls();
         }
@@ -37,6 +39,7 @@ public sealed partial class DiskSpaceWindow
             Model.ScheduleMarkVisibility();
             RefreshDeferredSelection();
             _reviewMarks.IsEnabled = Model.Tree is not null && Model.Selection.Marks.Count != 0 && !_reviewingMarks;
+            _reviewDuplicates.IsEnabled = _reviewMarks.IsEnabled;
             _markMatches.IsEnabled = Model.Tree is not null && !Model.IsCapturingMatches;
             _clearMemoryMarks.IsEnabled = Model.Selection.Marks.Count != 0 || Model.IsCapturingMatches;
             _retryMarkCounts.IsVisible = Model.MarkVisibilityError is not null;

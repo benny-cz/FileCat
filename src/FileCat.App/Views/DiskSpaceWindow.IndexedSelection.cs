@@ -51,7 +51,7 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetAutomationId(_selectionSummary, "Indexed captured selection");
             AutomationProperties.SetLiveSetting(_selectionSummary, AutomationLiveSetting.Polite);
             var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
-            foreach (var button in new[] { _markFocused, _markMembers, _markMatches, _clearMarks, _reviewMarked, _stageBasket, _reviewBasket, _clearBasket, _recountMarks }) bar.Children.Add(button);
+            foreach (var button in new[] { _markFocused, _markMembers, _markMatches, _clearMarks, _reviewMarked, _reviewDuplicates, _stageBasket, _reviewBasket, _clearBasket, _recountMarks }) bar.Children.Add(button);
             _main.Children.Add(_selectionSummary); _main.Children.Add(bar);
             var deferred = new Button { Content = "Select all after scan completes", IsEnabled = false };
             const string deferredReason = "This is a captured inventory. Use Mark matching files in this scope, or start a new live analysis to request selection after its scan.";
@@ -74,6 +74,7 @@ public sealed partial class DiskSpaceWindow
             };
             _reviewBasket.Click += (_, _) => _ = ReviewCapturedAsync(basket: true);
             _reviewMarked.Click += (_, _) => _ = ReviewCapturedAsync(basket: false);
+            _reviewDuplicates.Click += (_, _) => _ = ReviewDuplicatesAsync();
             _recountMarks.Click += (_, _) => { _visibilityOwner = null; RefreshSelection(); };
             _clearBasket.Click += (_, _) => { _selection.ClearBasket(); RefreshSelection(); };
             _list.AddHandler(KeyDownEvent, (_, args) =>
@@ -124,6 +125,7 @@ public sealed partial class DiskSpaceWindow
             _stageBasket.IsEnabled = _selection.Marks.Count != 0 || _focus != 0;
             _reviewBasket.IsEnabled = _selection.Basket.Count != 0 && !_reviewingBasket;
             _reviewMarked.IsEnabled = _selection.Marks.Count != 0 && !_reviewingBasket;
+            _reviewDuplicates.IsEnabled = _reviewMarked.IsEnabled;
             _clearBasket.IsEnabled = _selection.Basket.Count != 0;
             _updatingMarks = true;
             try { foreach (var check in _list.GetVisualDescendants().OfType<CheckBox>()) if (check.Tag is ulong path) check.IsChecked = _selection.Marks.Contains(path); }
