@@ -116,7 +116,11 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
     /// The local file of the archive a location is inside. For an archive nested in an archive, the location's container
     /// is the member location in the outer archive, and the inner archive is read from a private spool (plan §15).
     /// </summary>
-    private ArchiveSourceLease ZipPath(Location l) => ArchiveFile(l, 0);
+    private ArchiveSourceLease ZipPath(Location location)
+    {
+        ArchiveNesting.RequireWithinLimit(location);
+        return ArchiveFile(location);
+    }
 
     /// <summary>What users see: "C:\x\outer.zip\dir\inner.zip\sub", never a spool path.</summary>
     private static string DisplayArchive(Location l)
@@ -165,12 +169,12 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
     // ---- Nested archives ------------------------------------------------------------------------------------
 
     public const int MaxNestedSpools = 4;
-    public const int MaxNestingDepth = 8;
+    public const int MaxNestingDepth = ArchiveNesting.MaximumDepth;
     // A nested key also contains an archive member name, which is always case-sensitive.
     private readonly ConcurrentDictionary<string, ArchiveSpool> _nested = new(StringComparer.Ordinal);
     private readonly object _nestedLock = new();
 
-    private ArchiveSourceLease ArchiveFile(Location location, int depth)
+    private ArchiveSourceLease ArchiveFile(Location location)
     {
         var container = location.Container ?? throw new InvalidOperationException("ZIP location without its archive.");
         if (container.IsFileSystem) return new ArchiveSourceLease(container.Path);
@@ -182,8 +186,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
             if (OperatingSystem.IsWindows()) throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnknown);
             return new ArchiveSourceLease(SpoolForeignMember?.Invoke(container) ?? throw new NotSupportedException("This archive is inside a location FileCat cannot read archives from."));
         }
-        if (depth >= MaxNestingDepth) throw new InvalidDataException($"Archives are nested more than {MaxNestingDepth} levels deep.");
-        using var outerSource = ArchiveFile(container, depth + 1);
+        using var outerSource = ArchiveFile(container);
         string outer = outerSource.Path;
         var info = new FileInfo(outer);
         // A nested spool must not survive an in-place rewrite with restored mtime and unchanged file identity.

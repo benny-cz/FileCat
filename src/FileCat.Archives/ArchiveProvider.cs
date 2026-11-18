@@ -39,7 +39,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
     public const long MaxExpansionRatio = 1000;
     public const long MaxSpooledMember = 8L * 1024 * 1024 * 1024;
     public const int MaxNestedSpools = 4;
-    public const int MaxNestingDepth = 8;
+    public const int MaxNestingDepth = ArchiveNesting.MaximumDepth;
 
     // One owner builds/publishes or retires indexes; concurrent misses must not abandon a competing build.
     private readonly object _cacheLock = new();
@@ -235,7 +235,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
     private IContentSource? OpenContent(ItemRef item, ContentOutputKind? output)
     {
         var root = item.Parent.WithPath(string.Empty);
-        using var source = ArchiveFile(root, 0);
+        using var source = ArchiveFile(root);
         string path = source.Path;
         // Resolve nested paths before taking the cache lock; cross-provider spool locks stay ordered.
         // Admission owns the index until extraction has copied bytes or acquired its progressive lease.
@@ -264,7 +264,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
     void IUnprotectedContentOutput.RequireClearOutputSource(Location location, ContentOutputKind kind)
     {
         var root = location.WithPath(string.Empty);
-        using var source = ArchiveFile(root, 0);
+        using var source = ArchiveFile(root);
         lock (_cacheLock) GetIndex(root, source, CancellationToken.None).RequireClearOutputSource(kind);
     }
 
@@ -273,7 +273,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
     private ArchiveIndex GetIndex(Location location, CancellationToken ct)
     {
         var root = location.WithPath(string.Empty);
-        using var source = ArchiveFile(root, 0);
+        using var source = ArchiveFile(root);
         string path = source.Path;
         lock (_cacheLock) return GetIndex(root, source, ct);
     }
@@ -395,11 +395,10 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
     public int RetainedIndexes => _cache.Count;
 
     /// <summary>The local file holding the archive: the file itself, or a private spool of a member of another archive.</summary>
-    private ArchiveSourceLease ArchiveFile(Location location, int depth)
+    private ArchiveSourceLease ArchiveFile(Location location)
     {
         var container = location.Container ?? throw new InvalidOperationException("Archive location without its archive.");
         if (container.IsFileSystem) return new ArchiveSourceLease(container.Path);
-        if (depth >= MaxNestingDepth) throw new InvalidDataException($"Archives are nested more than {MaxNestingDepth} levels deep.");
         return OpenSpool(container);
     }
 
@@ -415,6 +414,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
 
     public ArchiveSourceLease OpenSpool(Location member)
     {
+        ArchiveNesting.RequireWithinLimit(member, additionalDepth: 1);
         int slash = member.Path.LastIndexOf('/');
         var folder = member.WithPath(slash < 0 ? string.Empty : member.Path[..slash]);
         string name = member.Path[(slash + 1)..];
