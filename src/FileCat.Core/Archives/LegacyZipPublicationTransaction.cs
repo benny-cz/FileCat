@@ -8,12 +8,16 @@ namespace FileCat.Core.Archives;
 internal interface ILegacyZipBackupRestorer
 {
     bool TryRestoreLegacyZipBackup(string backup, string archive, string originalIdentity);
+    LegacyZipRollbackResult RollbackLegacyZip(string archive, string backup, string stage,
+        LegacyZipRollbackFile published, LegacyZipRollbackFile original);
 }
 
+internal sealed record LegacyZipRollbackFile(ArchiveObjectVersion Version, string? Origin, bool Encrypted);
+internal sealed record LegacyZipRollbackResult(bool Restored, bool RebuildRetained, string? Reason = null);
+
 /// <summary>
-/// Compatibility boundary for the existing ZIP publication/rollback/cleanup protocol. This deliberately retains its
-/// pathname-based semantics, metadata behavior and journal ordering. It is not a qualified publication adapter for new
-/// profiles; those require reviewed object-bound operations, typed provenance and durable archive transaction facts.
+/// Legacy ZIP publication and metadata handling, with recovery recorded before replacement.
+/// Windows rollback uses the qualified held-file adapter. New archive profiles use their own publication transactions.
 /// </summary>
 internal sealed class LegacyZipPublicationTransaction
 {
@@ -31,10 +35,12 @@ internal sealed class LegacyZipPublicationTransaction
     private byte[]? openedSourceDigest;
     private string? openedSourceIdentity;
     private byte[]? intendedPublishedDigest;
+    private long intendedPublishedLength;
     private string? createdStageIdentity;
     private string? intendedPublishedIdentity;
     private string? replacedOriginalIdentity;
     private byte[]? replacedOriginalDigest;
+    private long replacedOriginalLength;
     private string? replacedOriginalMark;
     private bool originalMarkReadable;
     private bool published;
@@ -120,6 +126,7 @@ internal sealed class LegacyZipPublicationTransaction
     {
         if (updating || move is not null)
         {
+            intendedPublishedLength = stage.Length;
             intendedPublishedDigest = DigestOpened(stage);
             intendedPublishedIdentity = createdStageIdentity ?? Fs.GetFileIdentity(temp);
         }
@@ -183,7 +190,14 @@ internal sealed class LegacyZipPublicationTransaction
                 // The backup is the pathname's actual file at replacement time. It may differ
                 // from the opened source even when a late check of path metadata passed.
                 replacedOriginalIdentity = Fs.GetFileIdentity(backup!);
-                replacedOriginalDigest = DigestClearFile(backup!, ArchiveOuterEfs.UpdateUnavailable);
+                using (var original = new ArchiveMutationReadStream(backup!, ArchiveOuterEfs.UpdateUnavailable))
+                {
+                    if (OperatingSystem.IsWindows() && replacedOriginalIdentity is not null &&
+                        Fs.GetOpenedFileIdentity(original.Handle) != replacedOriginalIdentity)
+                        throw new IOException("The retained ZIP's name changed before its bytes were verified.");
+                    replacedOriginalLength = original.Length;
+                    replacedOriginalDigest = DigestOpened(original, checkCancellation: false);
+                }
                 replacedOriginalMark = Fs.ReadOriginMark(backup!);
                 originalMarkReadable = true;
                 encryptedBackup = OperatingSystem.IsWindows() && File.GetAttributes(backup!).HasFlag(FileAttributes.Encrypted);
@@ -209,53 +223,28 @@ internal sealed class LegacyZipPublicationTransaction
             if (integrityError is not null)
             {
                 Exception? restoreError = null;
+                bool rebuildRetained = false;
                 try
                 {
                     if (integrityError is ArchiveWriteException { Message: ArchiveOuterEfs.UpdateOutputUnavailable })
                         throw new IOException("Automatic restoration would remove a ZIP observed with EFS protection.");
-                    // A different inode can carry identical ZIP bytes and a different origin
-                    // mark. Never roll back over a pathname that is no longer our publication.
-                    if (publishedIdentity is not null &&
-                        !string.Equals(Fs.GetFileIdentity(archive), publishedIdentity, StringComparison.Ordinal))
-                        throw new IOException("The published archive pathname changed before restoration.");
-                    if (intendedPublishedIdentity is not null &&
-                        !string.Equals(publishedIdentity, intendedPublishedIdentity, StringComparison.Ordinal))
-                        throw new IOException("The published archive pathname changed before restoration.");
-                    RequireClearPath(archive, ArchiveOuterEfs.UpdateOutputUnavailable);
-                    // A newly added or changed Internet mark belongs to a concurrent change,
-                    // even when bytes and inode are unchanged. If a mark disappeared, rolling
-                    // back to the marked backup is still the safe result.
-                    if (Fs.ReadOriginMark(archive) is { } currentMark &&
-                        !string.Equals(currentMark, requiredOrigin, StringComparison.Ordinal))
-                        throw new IOException("The published archive's download mark changed before restoration.");
-                    if (!DigestClearFile(archive, ArchiveOuterEfs.UpdateOutputUnavailable).AsSpan().SequenceEqual(intendedPublishedDigest))
-                        throw new IOException("The published archive pathname changed before restoration.");
-                    RequireClearPath(archive, ArchiveOuterEfs.UpdateOutputUnavailable);
-                    if (replacedOriginalDigest is null || !originalMarkReadable)
-                        throw new IOException("The original archive backup could not be verified before restoration.");
-                    if (replacedOriginalIdentity is not null &&
-                        !string.Equals(Fs.GetFileIdentity(backup!), replacedOriginalIdentity, StringComparison.Ordinal))
-                        throw new IOException("The original archive backup pathname changed before restoration.");
-                    // Restore the whole file that occupied the pathname at replacement time,
-                    // including its bytes and attached metadata.
-                    File.Move(backup!, archive, overwrite: true);
+                    if (OperatingSystem.IsWindows())
+                        rebuildRetained = RollbackWindowsZip(publishedIdentity, encryptedBackup);
+                    else
+                        RollbackPortableZip(publishedIdentity);
                     backup = null;
-                    if (!DigestRestoredFile(archive, encryptedBackup).AsSpan().SequenceEqual(replacedOriginalDigest) ||
-                        encryptedBackup && !File.GetAttributes(archive).HasFlag(FileAttributes.Encrypted) ||
-                        !string.Equals(Fs.ReadOriginMark(archive), replacedOriginalMark, StringComparison.Ordinal))
-                        throw new IOException("The archive's bytes or protection could not be verified after restoration.");
                 }
                 catch (Exception ex) { restoreError = ex; }
                 if (restoreError is not null)
                 {
-                    string guidance = backup is null
-                        ? "Restoration could not be verified; inspect the archive before using it."
-                        : $"Restoration would overwrite changed archive bytes or could not be verified. The backup remains at {backup}; inspect both files before using them.";
-                    guidance = integrityError.Message + " " + guidance;
+                    string guidance = integrityError.Message + " " + restoreError.Message +
+                        $" Inspect the archive at {archive}, the possible backup at {backup}, and the temporary ZIP at {temp}.";
                     RetainForRecovery(archive, guidance);
                     throw new IOException("The archive changed and restoration could not be verified.",
                         new AggregateException(integrityError, restoreError));
                 }
+                if (rebuildRetained)
+                    RetainForRecovery(temp, $"FileCat restored the original archive. The rebuilt ZIP was kept for review at {temp}.");
                 published = false;
                 if (encryptedBackup)
                     throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
@@ -265,46 +254,74 @@ internal sealed class LegacyZipPublicationTransaction
         }
         Journal.Done(step, StepOutcome.Committed);
         onCommitted();
-        if (backup is not null)
+        if (backup is not null) CleanupOriginalBackup(backup);
+    }
+
+    private bool RollbackWindowsZip(string? publishedIdentity, bool encryptedBackup)
+    {
+        if (Fs is not ILegacyZipBackupRestorer native || intendedPublishedIdentity is null || publishedIdentity != intendedPublishedIdentity ||
+            openedSourceIdentity is null || replacedOriginalIdentity != openedSourceIdentity ||
+            replacedOriginalDigest is null || !originalMarkReadable)
+            throw new IOException("The exact Windows ZIP publication and original backup could not both be verified.");
+        var original = new LegacyZipRollbackFile(new(openedSourceIdentity, replacedOriginalLength,
+            Convert.ToHexString(replacedOriginalDigest)), replacedOriginalMark, encryptedBackup);
+        var rebuild = new LegacyZipRollbackFile(new(intendedPublishedIdentity, intendedPublishedLength, PreparedSha256),
+            requiredOrigin, Encrypted: false);
+        var result = native.RollbackLegacyZip(archive, backup!, temp, rebuild, original);
+        if (!result.Restored)
+            throw new IOException(result.Reason ?? "Windows could not return the reviewed original ZIP to its name.");
+        return result.RebuildRetained;
+    }
+
+    private void RollbackPortableZip(string? publishedIdentity)
+    {
+        // A different inode can carry identical ZIP bytes and a different origin mark.
+        if (publishedIdentity is not null && !string.Equals(Fs.GetFileIdentity(archive), publishedIdentity, StringComparison.Ordinal) ||
+            intendedPublishedIdentity is not null && !string.Equals(publishedIdentity, intendedPublishedIdentity, StringComparison.Ordinal))
+            throw new IOException("The published archive pathname changed before restoration.");
+        // A newly added or changed mark belongs to a concurrent change. Restoring a missing mark from the backup is allowed.
+        if (Fs.ReadOriginMark(archive) is { } currentMark && !string.Equals(currentMark, requiredOrigin, StringComparison.Ordinal))
+            throw new IOException("The published archive's download mark changed before restoration.");
+        if (!DigestClearFile(archive, ArchiveOuterEfs.UpdateOutputUnavailable).AsSpan().SequenceEqual(intendedPublishedDigest))
+            throw new IOException("The published archive pathname changed before restoration.");
+        if (replacedOriginalDigest is null || !originalMarkReadable)
+            throw new IOException("The original archive backup could not be verified before restoration.");
+        if (replacedOriginalIdentity is not null && !string.Equals(Fs.GetFileIdentity(backup!), replacedOriginalIdentity, StringComparison.Ordinal))
+            throw new IOException("The original archive backup pathname changed before restoration.");
+        File.Move(backup!, archive, overwrite: true);
+        if (!DigestClearFile(archive, ArchiveOuterEfs.UpdateUnavailable).AsSpan().SequenceEqual(replacedOriginalDigest) ||
+            !string.Equals(Fs.ReadOriginMark(archive), replacedOriginalMark, StringComparison.Ordinal))
+            throw new IOException("The archive's bytes or protection could not be verified after restoration.");
+    }
+
+    private void CleanupOriginalBackup(string backup)
+    {
+        string retainedBackup = backup;
+        try
         {
-            string retainedBackup = backup;
-            try
-            {
-                // This path is visible to other processes. A later replacement or in-place
-                // change is not our original backup and must not be deleted as cleanup.
-                if (replacedOriginalIdentity is not null &&
-                    !string.Equals(Fs.GetFileIdentity(backup), replacedOriginalIdentity, StringComparison.Ordinal))
-                    throw new IOException("The original archive backup pathname changed before cleanup.");
-                if (replacedOriginalDigest is null ||
-                    !DigestClearFile(backup, ArchiveOuterEfs.UpdateUnavailable).AsSpan().SequenceEqual(replacedOriginalDigest) ||
-                    !originalMarkReadable ||
-                    !string.Equals(Fs.ReadOriginMark(backup), replacedOriginalMark, StringComparison.Ordinal))
-                    throw new IOException("The original archive backup bytes or download mark changed before cleanup.");
-                if (OperatingSystem.IsWindows())
-                    ArchiveOuterEfs.RequireClear(File.GetAttributes(backup), ArchiveOuterEfs.UpdateUnavailable);
-                // A concurrent rename can happen after that last mark read. Move the
-                // pathname to a fresh same-folder name, then verify the file actually
-                // moved before deleting it. If the move captured someone else's file,
-                // keep that file at the new name and report exactly where it remains.
-                string cleanupPath = backup + ".held-" + Guid.NewGuid().ToString("N") + ".bak";
-                File.Move(backup, cleanupPath);
-                retainedBackup = cleanupPath;
-                if (replacedOriginalIdentity is not null &&
-                    !string.Equals(Fs.GetFileIdentity(cleanupPath), replacedOriginalIdentity, StringComparison.Ordinal))
-                    throw new IOException("The original archive backup pathname changed during cleanup.");
-                if (!DigestClearFile(cleanupPath, ArchiveOuterEfs.UpdateUnavailable).AsSpan().SequenceEqual(replacedOriginalDigest) ||
-                    !string.Equals(Fs.ReadOriginMark(cleanupPath), replacedOriginalMark, StringComparison.Ordinal))
-                    throw new IOException("The original archive backup bytes or download mark changed during cleanup.");
-                if (OperatingSystem.IsWindows())
-                    ArchiveOuterEfs.RequireClear(File.GetAttributes(cleanupPath), ArchiveOuterEfs.UpdateUnavailable);
-                File.Delete(cleanupPath);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                Issue(IssueSeverity.Warning, retainedBackup, "The original archive backup was kept at " +
-                    retainedBackup + ": " + ex.Message,
-                    StepOutcome.Committed);
-            }
+            if (replacedOriginalIdentity is not null && !string.Equals(Fs.GetFileIdentity(backup), replacedOriginalIdentity, StringComparison.Ordinal))
+                throw new IOException("The original archive backup pathname changed before cleanup.");
+            if (replacedOriginalDigest is null ||
+                !DigestClearFile(backup, ArchiveOuterEfs.UpdateUnavailable).AsSpan().SequenceEqual(replacedOriginalDigest) ||
+                !originalMarkReadable || !string.Equals(Fs.ReadOriginMark(backup), replacedOriginalMark, StringComparison.Ordinal))
+                throw new IOException("The original archive backup bytes or download mark changed before cleanup.");
+            RequireClearPath(backup, ArchiveOuterEfs.UpdateUnavailable);
+            // Recheck after moving to a fresh name. A concurrent replacement must be kept, wherever the move put it.
+            string cleanupPath = backup + ".held-" + Guid.NewGuid().ToString("N") + ".bak";
+            File.Move(backup, cleanupPath);
+            retainedBackup = cleanupPath;
+            if (replacedOriginalIdentity is not null && !string.Equals(Fs.GetFileIdentity(cleanupPath), replacedOriginalIdentity, StringComparison.Ordinal))
+                throw new IOException("The original archive backup pathname changed during cleanup.");
+            if (!DigestClearFile(cleanupPath, ArchiveOuterEfs.UpdateUnavailable).AsSpan().SequenceEqual(replacedOriginalDigest) ||
+                !string.Equals(Fs.ReadOriginMark(cleanupPath), replacedOriginalMark, StringComparison.Ordinal))
+                throw new IOException("The original archive backup bytes or download mark changed during cleanup.");
+            RequireClearPath(cleanupPath, ArchiveOuterEfs.UpdateUnavailable);
+            File.Delete(cleanupPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Issue(IssueSeverity.Warning, retainedBackup, "The original archive backup was kept at " + retainedBackup + ": " + ex.Message,
+                StepOutcome.Committed);
         }
     }
 
@@ -386,15 +403,6 @@ internal sealed class LegacyZipPublicationTransaction
     private byte[] DigestClearFile(string path, string efsRefusal)
     {
         using var stream = new ArchiveMutationReadStream(path, efsRefusal);
-        return DigestOpened(stream, checkCancellation: false);
-    }
-
-    private byte[] DigestRestoredFile(string path, bool encryptedBackup)
-    {
-        if (!encryptedBackup) return DigestClearFile(path, ArchiveOuterEfs.UpdateUnavailable);
-        // This known EFS object went back to its original name with its protection intact. Compare
-        // the previously captured digest in memory, without creating a clear copy.
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.SequentialScan);
         return DigestOpened(stream, checkCancellation: false);
     }
 

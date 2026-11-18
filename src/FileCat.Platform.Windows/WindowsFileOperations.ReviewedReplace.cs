@@ -322,14 +322,16 @@ public partial class WindowsFileOperations : ILegacyZipBackupRestorer
             Core.Diagnostics.AppLog.Warn($"A replacement in a folder could not be written through (Win32 error {System.Runtime.InteropServices.Marshal.GetLastPInvokeError()}).");
     }
 
-    private static bool DigestMatches(SafeFileHandle handle, string expected, long length, CancellationToken ct)
+    private static bool DigestMatches(SafeFileHandle handle, string expected, long length, CancellationToken ct, Action? verify = null)
     {
         using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         byte[] buffer = new byte[1024 * 1024];
         for (long at = 0; at < length;)
         {
             ct.ThrowIfCancellationRequested();
+            verify?.Invoke();
             int read = RandomAccess.Read(handle, buffer.AsSpan(0, (int)Math.Min(buffer.Length, length - at)), at);
+            verify?.Invoke();
             if (read <= 0) return false;
             digest.AppendData(buffer.AsSpan(0, read));
             at += read;
