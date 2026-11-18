@@ -6,6 +6,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.HiddenData;
 using FileCat.Core.Jobs;
@@ -107,6 +108,12 @@ public sealed class HiddenDataUiTests
 
             // F5: copied out as a file by a job.
             tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == payload) + (tab.Listing.HasParentRow ? 1 : 0));
+            if (OperatingSystem.IsWindows())
+            {
+                var report = await OpenSelectedValueReport(window);
+                try { Assert.Contains("hidden payload", report.Text); }
+                finally { report.Close(); }
+            }
             vm.Execute(CommandIds.Copy);
             await Click(window, "Copy");
             await Until(() => services.Jobs.Jobs.Count > 0 && services.Jobs.Jobs[^1].State.IsFinished(), "the copy finishes");
@@ -168,6 +175,15 @@ public sealed class HiddenDataUiTests
                 () => "the protected stream is listed. " + tab.SupplementaryInventoryText);
             tab.Listing.SetFocus(Rows(tab).FindIndex(row => row.Name == "payload") + (tab.Listing.HasParentRow ? 1 : 0));
 
+            var report = await OpenSelectedValueReport(window);
+            try
+            {
+                Assert.Contains("Windows EFS", report.Text);
+                Assert.DoesNotContain("protected supplementary data", report.Text);
+                Assert.False(Assert.Single(report.GetVisualDescendants().OfType<Button>(), button => button.Content as string == "Copy all").IsEnabled);
+            }
+            finally { report.Close(); }
+
             vm.Execute(CommandIds.Copy);
             await Click(window, "Copy");
             await Until(() => services.Jobs.Jobs.Count > 0 && services.Jobs.Jobs[^1].State.IsFinished(), "the EFS copy refusal finishes");
@@ -180,6 +196,17 @@ public sealed class HiddenDataUiTests
             Assert.Equal("protected supplementary data", File.ReadAllText(file + ":payload"));
         }
         finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    private static async Task<ReportWindow> OpenSelectedValueReport(Window window)
+    {
+        await Until(() => window.GetVisualDescendants().OfType<Button>().Any(ReportButton), "the focused supplementary-report action is enabled");
+        Assert.Single(window.GetVisualDescendants().OfType<Button>(), ReportButton).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        var report = Assert.Single(window.OwnedWindows.OfType<ReportWindow>());
+        await Until(() => report.Reading?.IsCompleted == true, "the supplementary report finishes");
+        return report;
+
+        static bool ReportButton(Button button) => button.Content as string == "Report selected value…" && button.IsEffectivelyEnabled;
     }
 
     private static void UseWindowsFileOperations(JobManager jobs)

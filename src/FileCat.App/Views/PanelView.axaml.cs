@@ -9,7 +9,10 @@ using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Commands;
+using FileCat.Core.HiddenData;
 using FileCat.Core.Listing;
+using FileCat.Core.Records;
+using FileCat.Core.Threading;
 
 namespace FileCat.App.Views;
 
@@ -1088,6 +1091,19 @@ public partial class PanelView : UserControl
             "Windows returns extended attribute names and value bytes in the same query. FileCat will acquire a bounded buffer, retain names, flags and lengths, and discard the values. The inventory does not display or export value excerpts.", "Read extended attributes");
         if (!admitted || !ReferenceEquals(Panel?.ActiveTab, tab) || tab.Location != location || tab.NavigationGeneration != generation || !tab.CanReadSupplementaryEas) return;
         tab.Listing.AdmitSupplementaryEaQuery();
+    }
+
+    private void OnReadSupplementaryReport(object? sender, RoutedEventArgs e)
+    {
+        if (_main is not { } main || Panel?.ActiveTab is not { CanReadSupplementaryReport: true } tab ||
+            tab.Listing.Provider is not HiddenDataProvider provider || tab.Listing.SupplementaryInventory?.Identity is not { } identity ||
+            TopLevel.GetTopLevel(this) is not Window owner) return;
+        var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        string device = provider.GetDeviceKey(item.Parent);
+        var report = ReportWindow.ForSupplementaryValue(item.Name, ct =>
+            FileObservationRequests.RunOwned(main.Services.Io, device, IoPriority.Interactive,
+                token => provider.ReadValueReport(item, identity, token), ct));
+        report.Show(owner);
     }
 
     /// <summary>Count in the status line: this panel's marked folders are counted, and the keyboard stays in its list.</summary>

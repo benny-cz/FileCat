@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using FileCat.Core.FileSystem;
 using FileCat.Core.HiddenData;
+using FileCat.Core.Records;
 using FileCat.Core.Resources;
 using Microsoft.Win32.SafeHandles;
 
@@ -80,6 +81,50 @@ public sealed partial class WindowsHiddenDataTests
             Assert.Contains("Windows EFS", Assert.Throws<NotSupportedException>(() => output.Read(1, next)).Message);
             Assert.Equal((byte)1, next[0]);
             Assert.Equal(OutputEfsObservation.State.Encrypted, origin!.Freeze().Protection);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(HiddenKind.Stream)]
+    [InlineData(HiddenKind.NtfsAttribute)]
+    public void A_value_report_retains_the_selected_identity_and_refuses_a_replacement(HiddenKind kind)
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Requires Windows supplementary data.");
+        string dir = NewFolder();
+        try
+        {
+            string file = Path.Combine(dir, "source.bin"), previous = Path.Combine(dir, "previous.bin");
+            var native = new WindowsHiddenData();
+            var provider = new HiddenDataProvider(native);
+            var ct = TestContext.Current.CancellationToken;
+            const string name = "FILECAT.REPORT";
+            var request = new ItemRef(HiddenDataProvider.Of(file), name, EntryKind.File) { Ordinal = HiddenIdentities.Ordinal(kind) };
+            Seed("original value");
+            var original = native.ReadInventory(file, new(IncludeEaValues: kind == HiddenKind.NtfsAttribute), ct).Identity!.Value;
+            var report = provider.ReadValueReport(request, original, ct);
+            Assert.Equal(ReportContentKind.Payload, report.ContentKind);
+            Assert.True(report.CanPublish);
+            Assert.Equal(original, Assert.Single(report.Origin.Contributors).Identity);
+            Assert.Contains("original value", report.Text);
+
+            File.Move(file, previous);
+            Seed("another value");
+            var refusal = Assert.Throws<IOException>(() => provider.ReadValueReport(request, original, ct));
+            Assert.Contains("different file", refusal.Message);
+            Assert.True(report.CanPublish);
+            Assert.Contains("original value", report.Text);
+            var replacement = native.ReadInventory(file, new(IncludeEaValues: kind == HiddenKind.NtfsAttribute), ct).Identity!.Value;
+            var fresh = provider.ReadValueReport(request, replacement, ct);
+            Assert.Contains("another value", fresh.Text);
+            Assert.NotEqual(report.Revision, fresh.Revision);
+
+            void Seed(string value)
+            {
+                File.WriteAllText(file, "main contents");
+                if (kind == HiddenKind.Stream) File.WriteAllText(file + ":" + name, value);
+                else WriteEa(file, name, Encoding.UTF8.GetBytes(value));
+            }
         }
         finally { Directory.Delete(dir, recursive: true); }
     }

@@ -12,6 +12,9 @@ using Avalonia.Threading;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.Core.Content;
+using FileCat.Core.FileSystem;
+using FileCat.Core.HiddenData;
+using FileCat.Core.Records;
 using FileCat.Core.Resources;
 
 namespace FileCat.App.Views;
@@ -28,6 +31,8 @@ public sealed partial class ReportWindow : Window
         new FileCat.App.Controls.DescendantFocusWindowAutomationPeer(this);
 
     private Func<CancellationToken, Task<string>>? _produce;
+    private Func<CancellationToken, Task<SupplementaryValueReport>>? _produceSupplementary;
+    private SupplementaryValueReport? _supplementaryReport;
     private readonly string _subject;
     private readonly string _kind;
     private readonly TextViewer _view = new() { Wrap = false, ReportStyle = true };
@@ -201,6 +206,8 @@ public sealed partial class ReportWindow : Window
             _text = "";
             Reading = null;
             _produce = null;
+            _produceSupplementary = null;
+            _supplementaryReport = null;
             reader?.Dispose();
         };
     }
@@ -217,6 +224,23 @@ public sealed partial class ReportWindow : Window
     /// <summary>The reading in progress, if any (tests wait for it).</summary>
     internal Task? Reading { get; private set; }
 
+    internal static ReportWindow ForSupplementaryValue(string subject, Func<CancellationToken, Task<SupplementaryValueReport>> produce)
+    {
+        var window = new ReportWindow("Supplementary value report", subject, _ => Task.FromResult(string.Empty))
+        { _produceSupplementary = produce };
+        window._save.Content = "Save as new file…";
+        window.SetSupplementaryOutputActions();
+        return window;
+    }
+
+    private bool CanPublishReport => CanPublishDetails && (_produceSupplementary is null ||
+        _supplementaryReport is { ContentKind: ReportContentKind.Payload, CanPublish: true });
+
+    private void SetSupplementaryOutputActions()
+    {
+        if (_produceSupplementary is not null)
+            _copyAll.IsEnabled = _copyVisible.IsEnabled = _copyDisplayed.IsEnabled = _save.IsEnabled = CanPublishReport;
+    }
 
     private Task ReadAsync() => Reading = _detailsReader is null ? ReadCoreAsync() : ReadDetailsCoreAsync();
 
@@ -226,10 +250,12 @@ public sealed partial class ReportWindow : Window
         _searchNotice = null;
         // An active producer owns this snapshot until it returns, even if its window closes meanwhile.
         var produce = _produce;
-        if (produce is null) return;
+        var supplementary = _produceSupplementary;
+        if (produce is null && supplementary is null) return;
         _reading?.Cancel();
         _searching?.Cancel();
         _copying?.Cancel();
+        if (supplementary is not null) _saving?.Cancel();
         using var cts = _reading = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
         _refresh.IsEnabled = false;
@@ -238,9 +264,15 @@ public sealed partial class ReportWindow : Window
         try
         {
             string text;
+            SupplementaryValueReport? captured = null;
             try
             {
-                text = await Task.Run(() => produce(ct), ct);
+                if (supplementary is null) text = await Task.Run(() => produce!(ct), ct);
+                else
+                {
+                    captured = await Task.Run(() => supplementary(ct), ct);
+                    text = captured.Text;
+                }
             }
             catch (Exception) when (ct.IsCancellationRequested)
             {
@@ -253,7 +285,7 @@ public sealed partial class ReportWindow : Window
             if (ct.IsCancellationRequested || _closing.IsCancellationRequested || !ReferenceEquals(_reading, cts)) return;
             _readAt = DateTime.Now;
             long top = _view.TopOffset;
-            Show(text);
+            Show(text, captured);
             // Refresh keeps the place in the report.
             if (top > 0 && top < Encoding.UTF8.GetByteCount(text)) _view.ScrollToOffset(top);
             UpdateStatus();
@@ -268,11 +300,12 @@ public sealed partial class ReportWindow : Window
         }
     }
 
-    private void Show(string text)
+    private void Show(string text, SupplementaryValueReport? supplementary = null)
     {
         _searching?.Cancel();
         _copying?.Cancel();
         _saving?.Cancel();
+        _supplementaryReport = supplementary;
         _text = text;
         _lineCount = text.Length == 0 ? 0 : 1 + text.AsSpan(0, text[^1] == '\n' ? text.Length - 1 : text.Length).Count('\n');
         _lineIndex = _lineStart = _segmentIndex = 0;
@@ -286,6 +319,7 @@ public sealed partial class ReportWindow : Window
         old?.Dispose();
         _lastHit = -1;
         ViewerSearchFeedback.Set(_search, null);
+        SetSupplementaryOutputActions();
         ScheduleFind();
     }
 
@@ -499,7 +533,7 @@ public sealed partial class ReportWindow : Window
     private async Task CopyAsync(bool all)
     {
         if (!all) { await CopyTextAsync(displayed: false, explicitVisible: false); return; }
-        if (_closing.IsCancellationRequested || !CanPublishDetails || Clipboard is not { } clipboard) return;
+        if (_closing.IsCancellationRequested || !CanPublishReport || Clipboard is not { } clipboard) return;
         _copying?.Cancel();
         using var cts = _copying = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
@@ -540,7 +574,7 @@ public sealed partial class ReportWindow : Window
 
     internal async Task CopyTextAsync(bool displayed, bool explicitVisible, Avalonia.Input.Platform.IClipboard? targetClipboard = null)
     {
-        if (_closing.IsCancellationRequested || !CanPublishDetails || (targetClipboard ?? Clipboard) is not { } clipboard) return;
+        if (_closing.IsCancellationRequested || !CanPublishReport || (targetClipboard ?? Clipboard) is not { } clipboard) return;
         _copying?.Cancel();
         using var cts = _copying = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
@@ -583,30 +617,49 @@ public sealed partial class ReportWindow : Window
 
     private async Task SaveAsync()
     {
-        if (_closing.IsCancellationRequested || !CanPublishDetails) return;
+        if (_closing.IsCancellationRequested || !CanPublishReport) return;
         _saving?.Cancel();
         using var cts = _saving = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
         string capturedText = _text;
         var capturedReader = _reader;
+        var supplementary = _supplementaryReport;
+        string? startedNewFile = null;
         try
         {
             string stem = Path.GetFileName(_subject.TrimEnd('\\', '/'));
-            var picked = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            using var picked = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Save the report as a text file",
+                Title = supplementary is null ? "Save the report as a text file" : "Save the report to a new text file",
                 SuggestedFileName = $"{(stem.Length > 0 ? stem : "report")} - {_kind}.txt",
                 DefaultExtension = "txt",
                 FileTypeChoices = [new FilePickerFileType("Text") { Patterns = ["*.txt"] }],
             });
             if (ct.IsCancellationRequested || !ReferenceEquals(_reader, capturedReader) || picked?.TryGetLocalPath() is not { } target) return;
-            await File.WriteAllTextAsync(target, capturedText, new UTF8Encoding(true), ct);
+            if (supplementary is null) await File.WriteAllTextAsync(target, capturedText, new UTF8Encoding(true), ct);
+            else await Task.Run(async () =>
+            {
+                ct.ThrowIfCancellationRequested();
+                if (OperatingSystem.IsWindows() && (!StoragePaths.IsOrdinaryLocalPath(target) || PathUtil.IsOnNetwork(target)))
+                    throw new IOException("Choose a new local file to save this report.");
+                ct.ThrowIfCancellationRequested();
+                await using var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.Asynchronous);
+                startedNewFile = target;
+                await output.WriteAsync(new UTF8Encoding(true).GetPreamble(), ct);
+                await output.WriteAsync(Encoding.UTF8.GetBytes(supplementary.Text), ct);
+                await output.FlushAsync(ct);
+            }, ct);
             if (!ct.IsCancellationRequested) _status.Text = $"Saved as {target}.";
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            if (startedNewFile is not null && !_closing.IsCancellationRequested)
+                _status.Text = $"Save canceled after creating {startedNewFile}. The file may be incomplete.";
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _status.Text = $"It could not be saved: {ex.Message}";
+            _status.Text = startedNewFile is null ? $"It could not be saved: {ex.Message}"
+                : $"The new report at {startedNewFile} may be incomplete. {ex.Message}";
         }
         finally { if (ReferenceEquals(_saving, cts)) _saving = null; }
     }
