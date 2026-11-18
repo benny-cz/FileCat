@@ -408,6 +408,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             new FileStream(addition.Source!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, BufferSize, FileOptions.SequentialScan);
         var rawSource = from as FileStream;
         CheckSourceProtection();
+        using var protection = rawSource is null ? null : Fs.HoldArchivePackingInput(rawSource.SafeFileHandle);
         var entry = target.CreateEntry(name, level);
         int attributes = replaced?.ExternalAttributes ?? (int)(addition.Attributes & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive));
         if (addition.Move is { } input)

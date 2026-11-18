@@ -22,6 +22,7 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
     private bool rebuildClaimed, evidenceClaimed;
     private bool writable, disposed, removed, namespaceChanged;
     private string? protectedSourceRefusal;
+    private IDisposable? packingProtection;
     private long position;
     public FileIdentity Identity { get; }
     public string KnownName { get; private set; }
@@ -125,7 +126,15 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
         }
     }
 
-    internal void BindPackingSource() => BindClearSource(ArchiveOuterEfs.PackUnavailable);
+    internal void BindPackingSource()
+    {
+        lock (parent.Gate)
+        {
+            EnsureLive();
+            packingProtection = WindowsFileOperations.HoldClearFileInput(handle, ArchiveOuterEfs.PackUnavailable);
+            protectedSourceRefusal = ArchiveOuterEfs.PackUnavailable;
+        }
+    }
 
     internal void BindUpdateSource() => BindClearSource(ArchiveOuterEfs.UpdateUnavailable);
 
@@ -136,7 +145,7 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
         lock (parent.Gate)
         {
             EnsureLive();
-            return WindowsFileOperations.HoldClearEditInput(handle, ArchiveOuterEfs.UpdateUnavailable);
+            return WindowsFileOperations.HoldClearFileInput(handle, ArchiveOuterEfs.UpdateUnavailable);
         }
     }
 
@@ -248,7 +257,12 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
     {
         lock (parent.Gate)
         {
-            if (!disposed) { disposed = true; handle.Dispose(); parent.ReleaseChild(); }
+            if (!disposed)
+            {
+                disposed = true;
+                try { packingProtection?.Dispose(); }
+                finally { handle.Dispose(); parent.ReleaseChild(); }
+            }
         }
         base.Dispose(disposing);
     }

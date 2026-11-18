@@ -1,8 +1,10 @@
+using System.IO.Compression;
 using FileCat.Core.Archives;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
 using FileCat.Platform.Windows.Archives;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows.Tests;
 
@@ -95,8 +97,59 @@ public sealed class WindowsArchiveEfsPackTests
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Legacy_packing_holds_clear_inputs_through_worker_reads(bool move)
+    {
+        RequireFixture();
+        string root = Directory.CreateTempSubdirectory("filecat-efs-legacy-pack-held-").FullName;
+        try
+        {
+            string source = Path.Join(root, "input.bin"), target = Path.Join(root, "output.zip");
+            byte[] payload = [1, 2, 3, 4];
+            File.WriteAllBytes(source, payload);
+            if (move) File.WriteAllText(source + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
+            var plan = new ArchivePlan(target, null, [new(ArchiveChangeKind.AddFile, "selected", source)]) { MoveSources = move };
+            var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan,
+                Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)] }, "Held EFS packing fixture", "", [], []);
+            using var journal = JobJournal.Create(Path.Join(root, "journals"), job);
+            var files = new EncryptHeldPackingInput(source);
+            new ZipUpdateExecutor(job, files, journal).Execute();
+
+            Assert.NotEmpty(files.Attempts);
+            Assert.All(files.Attempts, AssertBlockedEncryption);
+            Assert.Equal(!move, File.Exists(source));
+            if (move) Assert.Contains("ZoneId=3", File.ReadAllText(target + ":Zone.Identifier"));
+            else
+            {
+                File.Encrypt(source);
+                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+            }
+
+            using var zip = ZipFile.OpenRead(target);
+            using var entry = Assert.Single(zip.Entries).Open();
+            using var content = new MemoryStream();
+            entry.CopyTo(content);
+            Assert.Equal(payload, content.ToArray());
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private sealed class EncryptHeldPackingInput(string source) : WindowsFileOperations
+    {
+        internal List<Exception?> Attempts { get; } = [];
+
+        public override IDisposable? HoldArchivePackingInput(SafeFileHandle file)
+        {
+            var held = base.HoldArchivePackingInput(file);
+            Attempts.Add(Record.Exception(() => File.Encrypt(source)));
+            return held;
+        }
+    }
+
     [Fact]
-    public void A_retained_packing_view_refuses_a_new_EFS_state_before_returning_payload()
+    public void A_retained_packing_view_holds_the_source_clear_until_release()
     {
         RequireFixture();
         string root = Directory.CreateTempSubdirectory("filecat-efs-pack-held-").FullName;
@@ -106,19 +159,30 @@ public sealed class WindowsArchiveEfsPackTests
             File.WriteAllBytes(file, [1, 2, 3, 4]);
             var ct = TestContext.Current.CancellationToken;
             using var directory = WindowsArchiveDirectory.Open(root);
-            using var packing = directory.OpenPackingSource("input.bin");
-            var source = (IArchiveRetainedFile)packing;
-            var observed = source.Observe(ct);
-            using var view = source.OpenReadView(observed, ct);
+            using (var packing = directory.OpenPackingSource("input.bin"))
+            {
+                var source = (IArchiveRetainedFile)packing;
+                var observed = source.Observe(ct);
+                using var view = source.OpenReadView(observed, ct);
+                AssertBlockedEncryption(Record.Exception(() => File.Encrypt(file)));
+                byte[] bytes = new byte[4];
+                view.ReadExactly(bytes);
+                Assert.Equal(new byte[] { 1, 2, 3, 4 }, bytes);
+            }
             File.Encrypt(file);
-            byte[] untouched = [0xe1, 0xe2];
-            var error = Assert.Throws<ArchiveWriteException>(() => view.Read(untouched));
-            Assert.Equal(ArchiveOuterEfs.PackUnavailable, error.Message);
-            Assert.Equal(new byte[] { 0xe1, 0xe2 }, untouched);
+            Assert.True(File.GetAttributes(file).HasFlag(FileAttributes.Encrypted));
             using var readOnly = directory.OpenSource("input.bin");
             Assert.Equal(1, readOnly.ReadByte());
         }
         finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private static void AssertBlockedEncryption(Exception? error)
+    {
+        const int efsInTransaction = unchecked((int)0x80071AAF);
+        const int sharingViolation = unchecked((int)0x80070020);
+        const int transactionConflict = unchecked((int)0x80071A90);
+        Assert.True(error is IOException { HResult: efsInTransaction or sharingViolation or transactionConflict }, error?.ToString());
     }
 
     private static void RequireFixture()

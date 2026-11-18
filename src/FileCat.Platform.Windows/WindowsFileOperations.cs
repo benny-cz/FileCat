@@ -148,6 +148,8 @@ public partial class WindowsFileOperations : PortableFileOperations
 
     public override string? ReadOriginMark(string path) => ReadOriginMark(path, verify: null, CancellationToken.None);
 
+    public override IDisposable? HoldArchivePackingInput(SafeFileHandle source) => HoldClearFileInput(source, ArchiveOuterEfs.PackUnavailable);
+
     public override string? ReadArchiveSourceOriginMark(string path, string? identity, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -160,6 +162,8 @@ public partial class WindowsFileOperations : PortableFileOperations
         if (identity is not null && bound.ToString() != identity)
             throw new IOException("The archive source changed before its download mark could be checked.");
         ArchiveOuterEfs.RequireClear(file, ArchiveOuterEfs.PackUnavailable);
+        using var protection = (File.GetAttributes(file) & FileAttributes.Directory) == 0
+            ? HoldArchivePackingInput(file) : null;
         string? mark = ReadOriginMark(path, stream =>
         {
             if (ProtectedHexFile.Identity(stream) != bound)
