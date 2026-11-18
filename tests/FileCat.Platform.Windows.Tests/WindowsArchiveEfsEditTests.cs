@@ -112,9 +112,11 @@ public sealed class WindowsArchiveEfsEditTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void An_efs_change_after_open_leaves_no_captured_working_payload(bool nativeStorage)
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void An_open_working_file_cannot_be_encrypted_during_capture(bool nativeStorage, bool saveCopy)
     {
         RequireEfs();
         var ct = TestContext.Current.CancellationToken;
@@ -128,21 +130,29 @@ public sealed class WindowsArchiveEfsEditTests
                 nativeStorage ? WindowsEditDirectoryLease.OpenRoot : null);
             var record = store.Create(provider, Member(provider, archive), ct);
             string output = Directory.CreateDirectory(Path.Join(path, "temporary")).FullName;
-            string search = nativeStorage ? store.SessionDirectory(record) : output;
+            string search = nativeStorage && !saveCopy ? store.SessionDirectory(record) : output;
             string? stage = null;
-            int stageChecks = 0;
+            Exception? rejectedEncryption = null;
             void EncryptAfterStageCreation()
             {
                 stage ??= Directory.EnumerateFiles(search, Path.GetFileName(record.WorkingPath), SearchOption.AllDirectories)
                     .FirstOrDefault(candidate => candidate != record.WorkingPath);
-                // Native capture creates the payload file before entering the initial two revision checks.
-                if (stage is not null && ++stageChecks == (nativeStorage ? 3 : 1)) File.Encrypt(record.WorkingPath);
+                if (stage is not null && rejectedEncryption is null)
+                    rejectedEncryption = Record.Exception(() => File.Encrypt(record.WorkingPath));
             }
 
-            var error = Assert.Throws<ArchiveWriteException>(() => store.PrepareCommit(record, output, ct, EncryptAfterStageCreation));
-            Assert.Equal(ArchiveOuterEfs.WorkingCopyUnavailable, error.Message);
-            Assert.NotNull(stage);
-            if (File.Exists(stage)) Assert.Equal(0, new FileInfo(stage).Length);
+            using (var copy = saveCopy
+                ? store.CaptureSaveCopy(record, output, new LocalFileSystemProvider(), EncryptAfterStageCreation)
+                : store.PrepareCommit(record, output, ct, EncryptAfterStageCreation))
+            {
+                Assert.Equal(copy.Path, stage);
+                AssertBlockedEncryption(rejectedEncryption);
+                using var reader = new StreamReader(new FileStream(copy.Path, FileMode.Open, FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete));
+                Assert.Equal(Contents, reader.ReadToEnd());
+                Assert.False(File.GetAttributes(record.WorkingPath).HasFlag(FileAttributes.Encrypted));
+            }
+            File.Encrypt(record.WorkingPath);
             Assert.Equal(Contents, File.ReadAllText(record.WorkingPath));
             Assert.True(File.GetAttributes(record.WorkingPath).HasFlag(FileAttributes.Encrypted));
         }
@@ -221,23 +231,41 @@ public sealed class WindowsArchiveEfsEditTests
             }
             if (placement == "destination stage") File.Encrypt(destination);
 
-            var failure = Assert.Throws<ArchiveWriteException>(() => restarted.SaveRecoveredNativeCopy(record, capture, target, ct, () =>
+            if (placement == "late source")
             {
-                if (placement != "late source" || sourceProtected || !Directory.EnumerateFiles(destination).Any()) return;
-                File.Encrypt(copy.Path);
-                sourceProtected = true;
-            }));
-            Assert.Equal(placement == "destination stage" ? ArchiveOuterEfs.EditTemporaryOutputUnavailable
-                : ArchiveOuterEfs.EditSnapshotUnavailable, failure.Message);
-            Assert.Equal(placement != "destination stage", sourceProtected);
-            Assert.False(File.Exists(target));
+                Exception? rejectedEncryption = null;
+                using var published = restarted.SaveRecoveredNativeCopy(record, capture, target, ct, () =>
+                {
+                    if (rejectedEncryption is null && Directory.EnumerateFiles(destination).Any())
+                        rejectedEncryption = Record.Exception(() => File.Encrypt(copy.Path));
+                });
+                AssertBlockedEncryption(rejectedEncryption);
+                Assert.NotNull(published.Published);
+                Assert.Null(published.Issue);
+                Assert.Equal(Contents, File.ReadAllText(target));
+            }
+            else
+            {
+                var failure = Assert.Throws<ArchiveWriteException>(() => restarted.SaveRecoveredNativeCopy(record, capture, target, ct));
+                Assert.Equal(placement == "destination stage" ? ArchiveOuterEfs.EditTemporaryOutputUnavailable
+                    : ArchiveOuterEfs.EditSnapshotUnavailable, failure.Message);
+                Assert.False(File.Exists(target));
+                Assert.All(Directory.EnumerateFiles(destination), file => Assert.Equal(0, new FileInfo(file).Length));
+            }
             Assert.Equal(placement != "initial source", File.Exists(Path.Combine(capture, EditSaveCopyIntent.FileName)));
-            Assert.All(Directory.EnumerateFiles(destination), file => Assert.Equal(0, new FileInfo(file).Length));
             Assert.Equal(Contents, File.ReadAllText(copy.Path));
             Assert.Equal(Contents, File.ReadAllText(record.WorkingPath));
             Assert.Equal(sourceProtected, File.GetAttributes(copy.Path).HasFlag(FileAttributes.Encrypted));
         }
         finally { provider.Release(archive); Directory.Delete(root, recursive: true); }
+    }
+
+    private static void AssertBlockedEncryption(Exception? error)
+    {
+        const int efsInTransaction = unchecked((int)0x80071AAF);
+        const int sharingViolation = unchecked((int)0x80070020);
+        const int transactionConflict = unchecked((int)0x80071A90);
+        Assert.True(error is IOException { HResult: efsInTransaction or sharingViolation or transactionConflict }, error?.ToString());
     }
 
     [Theory]

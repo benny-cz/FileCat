@@ -16,6 +16,19 @@ public partial class WindowsFileOperations : IEditCopyPublisher
 {
     private const string EditCopyMarkLost = "Its download mark was not kept: the destination cannot store it, so the system may not warn when the copy is opened.";
 
+    IDisposable? IEditCopyPublisher.HoldClearEditInput(SafeFileHandle source, string refusal) => HoldClearEditInput(source, refusal);
+
+    private static WindowsFileTransaction? HoldClearEditInput(SafeFileHandle source, string refusal)
+    {
+        ArchiveOuterEfs.RequireClear(source, refusal);
+        try { return WindowsFileTransaction.PinSource(source, refusal); }
+        catch (Win32Exception error)
+        {
+            ArchiveOuterEfs.RequireClear(source, refusal);
+            throw new IOException("FileCat could not hold the edit input's EFS state. " + error.Message, error);
+        }
+    }
+
     string? IEditCopyPublisher.PublishEditCopy(SafeFileHandle capture, string sha256, long length, string destination, Action checkpoint) =>
         PublishEditCopyCore(capture, sha256, length, destination, checkpoint, beforeCommit: null);
 
@@ -33,7 +46,7 @@ public partial class WindowsFileOperations : IEditCopyPublisher
             checkpoint();
             CheckEditCapture(capture);
             WindowsArchiveNative.Regular(capture, length, artifact: false, mayRename: false);
-            using var heldSource = WindowsFileTransaction.PinSource(capture, ArchiveOuterEfs.EditSnapshotUnavailable);
+            using var heldSource = HoldClearEditInput(capture, ArchiveOuterEfs.EditSnapshotUnavailable);
             CheckEditCapture(capture);
 
             using var local = LocalIconFileLease.TryOpenPlainDirectory(folder);

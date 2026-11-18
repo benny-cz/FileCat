@@ -905,7 +905,7 @@ public sealed partial class EditSessionStore
         if(record.StorageRootIdentity.Length!=0)return PrepareNativeSnapshot(record,ct,check);
         // The held file denies ordinary writers while its approved content is captured.
         using var source = new CommitContent(record.WorkingPath);
-        source.RequireClearWorkingFile();
+        using var protection = HoldClearEditInput(source.HeldFile, ArchiveOuterEfs.WorkingCopyUnavailable);
         void CheckSource()
         {
             check?.Invoke();
@@ -954,7 +954,7 @@ public sealed partial class EditSessionStore
         check();
         using var legacyPin = OperatingSystem.IsWindows() && record.StorageRootIdentity.Length == 0
             ? new CommitContent(record.WorkingPath) : null;
-        legacyPin?.RequireClearWorkingFile();
+        using var protection = legacyPin is null ? null : HoldClearEditInput(legacyPin.HeldFile, ArchiveOuterEfs.WorkingCopyUnavailable);
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
         CreatePrivateDirectory(directory);
         string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
@@ -980,12 +980,15 @@ public sealed partial class EditSessionStore
             {
                 using var source = Content.ProgressiveContent.Sequential(provider.OpenContent(ItemRef.ForFileSystemPath(record.WorkingPath, EntryKind.File)))
                     ?? throw new IOException("The working copy cannot be read completely.");
+                if (legacyPin is not null && source is FileContentSource file && fs is IEditCopyPublisher &&
+                    (fs.GetOpenedFileIdentity(legacyPin.HeldFile) is not { } heldIdentity || fs.GetOpenedFileIdentity(file.HeldFile) != heldIdentity))
+                    throw new IOException("The working copy's opened identity changed before it could be captured.");
                 void CheckSource()
                 {
                     check();
                     legacyPin?.RequireClearWorkingFile();
                     if (OperatingSystem.IsWindows() && source is FileContentSource local)
-                        ArchiveOuterEfs.RequireClear(local.AttributesFromHeldFile(), ArchiveOuterEfs.WorkingCopyUnavailable);
+                        ArchiveOuterEfs.RequireClear(local.HeldFile, ArchiveOuterEfs.WorkingCopyUnavailable);
                 }
                 bytes = WriteWorkingCopy(source, path, default, check: CheckSource);
                 CheckSource();
@@ -1096,7 +1099,8 @@ public sealed partial class EditSessionStore
             _path = path;
             _stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.RandomAccess);
         }
-        internal void RequireClearWorkingFile() => ArchiveOuterEfs.RequireClear(_stream.SafeFileHandle, ArchiveOuterEfs.WorkingCopyUnavailable);
+        internal Microsoft.Win32.SafeHandles.SafeFileHandle HeldFile => _stream.SafeFileHandle;
+        internal void RequireClearWorkingFile() => ArchiveOuterEfs.RequireClear(HeldFile, ArchiveOuterEfs.WorkingCopyUnavailable);
         public string DisplayName => _path;
         public long Length => _stream.Length;
         public bool CanSeek => true;

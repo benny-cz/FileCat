@@ -47,6 +47,7 @@ public sealed partial class EditSessionStore
         if(start.Session!=end.Session||start.SessionRecord!=end.SessionRecord||start.Directory!=end.Directory||
             start.Files!=end.Files||start.Leaf!=end.Leaf)throw RecoveredChanged();
         using var payload=files.OpenFile(start.Leaf,end.Identity,ct);
+        using var protection = HoldClearEditInput(payload.SafeFileHandle, ArchiveOuterEfs.EditSnapshotUnavailable);
         var observed=files.ObserveSnapshot(payload,start.Leaf,ct, protectionRefusal: ArchiveOuterEfs.EditSnapshotUnavailable);
         if(observed.Version.Length!=end.Length||observed.Version.Sha256!=end.Sha256||
             observed.MetadataDigest!=end.Metadata||observed.Origin.Digest!=end.Origin)throw RecoveredChanged();
