@@ -59,6 +59,11 @@
     "rawNames": { "run": "r1494", "windowsVm": 12, "mac": 12, "ubuntuVm": 12 },
     "coverage": "Copies a bounded, literal recorded path after a native source move. Desktop checks verified the control was reachable without replacing the system clipboard contents."
   },
+  "clipboardSummaryAndDetails": {
+    "tests": { "windowsVm": { "run": "r1495", "passed": 129 }, "mac": { "run": "r1495", "passed": 129 }, "ubuntuVm": { "run": "r1497", "passed": 129 } },
+    "desktop": { "run": "r1496", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
+    "coverage": "Copies displayed summary and coverage text and current inspector details in memory and indexed analyses. Compact memory review remains pinned to displayed details."
+  },
   "completedBehaviors": [
     "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",
     "Canonical integer-string policy golden vector, precision-aware three-valued filters, root-label disambiguation and unknown sparse/compressed/cloud states.",

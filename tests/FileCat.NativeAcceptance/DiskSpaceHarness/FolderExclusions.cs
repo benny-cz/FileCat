@@ -92,6 +92,8 @@ internal sealed partial class HarnessApp
             if (!window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Value" &&
                 AutomationProperties.GetName(text) == "Active metric"))
                 throw new InvalidOperationException("The compact table did not keep a complete value heading and its accessible name.");
+            if (VisibleButton("Copy summary") is not { IsEnabled: true })
+                throw new InvalidOperationException("The compact result did not offer its summary as text.");
             RenderNativeFrame("folder-exclusions-result.png");
             Click("Clear filter");
             await ReadyAsync(() => !model.PanelFilterApplied);
@@ -117,6 +119,8 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
                 text.Text?.StartsWith("Small files\nExcluded by policy\nThis folder and its contents were skipped under the captured folder exclusion rules.",
                     StringComparison.Ordinal) == true));
+            if (VisibleButton("Copy details") is not { IsEnabled: true })
+                throw new InvalidOperationException("The compact inspector did not offer its selected details as text.");
             await RecipeFrameAsync("folder-exclusions-inspector.png", true, _indexedLifetime.Token);
             Click("Close details");
             await ReadyAsync(() => !window.GetVisualDescendants().OfType<Button>().Any(button =>
@@ -129,7 +133,7 @@ internal sealed partial class HarnessApp
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
                 sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
-                packageHint, packageContentsReachable = true, indexedCopyPathReachable = true };
+                packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }

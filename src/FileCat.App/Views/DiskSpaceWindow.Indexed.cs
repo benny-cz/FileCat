@@ -256,6 +256,8 @@ public sealed partial class DiskSpaceWindow
             filters.Children.Add(ActionButton("Apply filter", () => _ = RebuildAsync(), "Apply this query to the captured observations."));
             filters.Children.Add(ActionButton("Clear filter", () => { _query.Text = ""; _unknown.IsChecked = false; _panelFilter = null; _ = RebuildAsync(); }, "Clear the query, panel display filter and uncertain-results cohort."));
             var navigation = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
+            navigation.Children.Add(ActionButton("Copy summary", () => _ = CopyCapturedTextAsync($"{_summary.Text}\n{_status.Text}"),
+                "Copy the displayed totals and coverage as text."));
             AddIndexedPersistenceControls(navigation);
             AddRuntimeRescanControls(navigation);
             AddRecipeControls(navigation);
@@ -342,6 +344,7 @@ public sealed partial class DiskSpaceWindow
             _inspector.Children.Add(_previewFile);
             _copyCapturedPath.Click += (_, _) => _ = CopyCapturedPathAsync();
             _inspector.Children.Add(_copyCapturedPath);
+            _inspector.Children.Add(ActionButton("Copy details", () => _ = CopyCapturedTextAsync(_details.Text), "Copy the information shown in the inspector."));
             SetClipboardInspection(null);
             var evidence = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             string[] captions = ["First aliases", "More aliases", "First facts", "More facts", "First issues", "More issues"];

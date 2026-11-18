@@ -61,6 +61,14 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Copy path");
             Frame(window);
             Assert.Equal("/fixture/Projects/source.cs", await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
+            Click(window, "Copy details");
+            Assert.StartsWith("source.cs\n", await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
+            Click(window, "Close details");
+            Frame(window);
+            Click(window, "Copy summary");
+            var summary = await ClipboardExtensions.TryGetTextAsync(window.Clipboard!);
+            Assert.Contains("On disk", summary);
+            Assert.Contains("Traversal complete under the captured policy", summary);
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
@@ -83,15 +91,22 @@ public sealed partial class AnalysisRenderingTests
             var list = IndexedList(window);
             list.SelectedItem = Assert.Single(list.Items.OfType<AnalysisHierarchyRow>());
             Click(window, "Explore selected folder");
-            await Until(() => IndexedReady(window, explorer, 1));
-            list.SelectedItem = list.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Name == "folder");
+            AnalysisHierarchyRow? Row(string name) => list.Items.OfType<AnalysisHierarchyRow>().SingleOrDefault(row => row.Path.Name == name);
+            await Until(() => IndexedReady(window, explorer, 1) && Row("folder") is not null);
+            list.SelectedItem = Row("folder");
             Click(window, "Explore selected folder");
-            await Until(() => explorer.Page?.Scope?.Path.Name == "folder");
-            list.SelectedItem = list.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Name == "match-target.bin");
+            await Until(() => explorer.Page?.Scope?.Path.Name == "folder" && Row("match-target.bin") is not null);
+            list.SelectedItem = Row("match-target.bin");
             await Until(() => copy.IsEnabled && explorer.Inspection?.Row.Path.Name == "match-target.bin");
             Click(window, "Copy path"); Frame(window);
             string expected = Path.Combine(source.CanonicalLocator, "folder", "match-target.bin");
             Assert.Equal(expected, await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
+            Click(window, "Copy details");
+            Assert.Contains("match-target.bin", await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
+            Click(window, "Copy summary");
+            var summary = await ClipboardExtensions.TryGetTextAsync(window.Clipboard!);
+            Assert.Contains("Files:", summary);
+            Assert.Contains("Complete under captured policy", summary);
             Assert.False(File.Exists(fixture.PayloadPath));
             Assert.Equal(fixture.Payload, File.ReadAllBytes(Path.Combine(fixture.Root, "moved", "folder", "match-target.bin")));
         }

@@ -244,6 +244,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly ScrollViewer _setupViewport;
         private readonly ScrollViewer _toolbarViewport;
         private readonly StackPanel _viewSummary;
+        private readonly Button _copyDetails;
         private readonly StackPanel _roots = new() { Spacing = 5 };
         private readonly List<TextBox> _rootEditors = [];
         private readonly List<Control> _dataControls = [];
@@ -365,6 +366,8 @@ public sealed partial class DiskSpaceWindow : Window
             ToolTip.SetTip(_exportExternal, new RichTip("Export entire captured inventory", detail: "Choose a folder and new filename, then review sensitive paths and metadata. Display filters do not limit this inventory; existing files are preserved."));
             _exportReport.IsVisible = Model.HistoryServices is not null; _exportReport.Click += async (_, _) => await ExportReportAsync(); nav.Children.Add(_exportReport);
             ToolTip.SetTip(_exportReport, new RichTip("Export a captured report (individual analysis)", detail: "Choose Markdown, HTML, spreadsheet-safe CSV or the current PNG/SVG chart, the explicit captured scope, and whether to omit names and locations. Existing files are kept."));
+            DataNavigation("Copy summary", () => _ = CopyCapturedTextAsync(($"{_scope.Text}\n{_summary.Text}\n{_coverage.Text}", "")),
+                "Copy the displayed scope, totals and measurement coverage as text.");
             var history = ActionButton("History…", () => _ = ShowHistoryAsync(), "Browse, open, pin and review removal of this profile's rolling analysis history.");
             history.IsEnabled = Model.HistoryServices is not null; nav.Children.Add(history);
             _openComparison = ActionButton("Open comparison…", () => _ = OpenComparisonSavedAsync(), "Open both captured inventories and saved comparison settings from this private profile. Sources remain disconnected.");
@@ -450,7 +453,9 @@ public sealed partial class DiskSpaceWindow : Window
             _previewFile.Click += (_, _) => _ = PreviewFocusedAsync();
             _inspectorPanel.Children.Add(_previewFile);
             _inspectorPanel.Children.Add(Unavailable("Reveal in panel", "A historical path is not a current source binding. Explicit live rebinding is required."));
-            _inspectorPanel.Children.Add(ActionButton("Copy path", () => _ = CopyPathAsync(Model.FocusedClipboardPath()), "Copy the selected path as literal text; it is not opened or executed."));
+            _inspectorPanel.Children.Add(ActionButton("Copy path", () => _ = CopyCapturedTextAsync(Model.FocusedClipboardPath()), "Copy the selected path as literal text."));
+            _copyDetails = ActionButton("Copy details", () => _ = CopyCapturedTextAsync((_inspector.Text, "")), "Copy the information shown in the selection inspector.");
+            _inspectorPanel.Children.Add(_copyDetails);
             _showHierarchy = ActionButton("Show in captured folder", () => _ = Model.ShowFocusedInHierarchyAsync(), "Show this observed entry in the captured folder hierarchy. This does not open or reconnect its current filesystem location.");
             _inspectorPanel.Children.Add(_showHierarchy);
             _inspectorPanel.Children.Add(ActionButton("Mark current members", Model.MarkCurrentMembers, "Capture this group's current real members. Future observations are not selected."));
@@ -763,6 +768,7 @@ public sealed partial class DiskSpaceWindow : Window
                     _treemap.SetView(tree, Model.Selection.Scope, Model.Selection.Focus, Model.Selection.Marks, Model.ColorDimension);
                     _sunburst.SetView(tree, Model.Selection.Scope, Model.Selection.Focus, Model.Selection.Marks, Model.ColorDimension);
                     var selected = tree.Items.GetValueOrDefault(Model.Selection.Focus ?? "");
+                    _copyDetails.IsEnabled = selected is not null;
                     var displayPath = Model.FocusedDisplayPath(out var boundary);
                     _inspector.Text = selected is null ? "Choose an entry in either chart or the table. Marks and the review basket are separate." :
                         AnalysisNames.Display(selected.Name) + "\n" + DiskSpaceViewModel.StatusText(selected) + "\n" +
@@ -787,12 +793,12 @@ public sealed partial class DiskSpaceWindow : Window
             }
             finally { _updating = false; }
         }
-        private async Task CopyPathAsync((string? Path, string Refusal) captured)
+        private async Task CopyCapturedTextAsync((string? Text, string Refusal) captured)
         {
             if (_disposed) return;
             using var actualWork = _actualWork.Enter();
-            if (captured.Path is not { } path) Model.SetStatus(captured.Refusal);
-            else if (_window.Clipboard is { } clipboard) await clipboard.SetTextAsync(path);
+            if (captured.Text is not { } text) Model.SetStatus(captured.Refusal);
+            else if (_window.Clipboard is { } clipboard) await clipboard.SetTextAsync(text);
             else Model.SetStatus("The clipboard is unavailable.");
         }
         private async Task InspectAsync()
@@ -800,10 +806,13 @@ public sealed partial class DiskSpaceWindow : Window
             if (_disposed) return;
             using var actualWork = _actualWork.Enter();
             var body = new StackPanel { Spacing = 8 }; var closer = new DialogCloser();
-            body.Children.Add(new TextBlock { Text = _inspector.Text, TextWrapping = TextWrapping.Wrap });
+            string? displayedDetails = _inspector.Text;
+            body.Children.Add(new TextBlock { Text = displayedDetails, TextWrapping = TextWrapping.Wrap });
             var clipboardPath = Model.FocusedClipboardPath();
             body.Children.Add(clipboardPath.Path is null ? Unavailable("Copy path", clipboardPath.Refusal) :
-                ActionButton("Copy path", () => _ = CopyPathAsync(clipboardPath), "Copy the literal observation path shown here."));
+                ActionButton("Copy path", () => _ = CopyCapturedTextAsync(clipboardPath), "Copy the literal observation path shown here."));
+            if (Model.Tree?.Items.ContainsKey(Model.Selection.Focus ?? "") == true)
+                body.Children.Add(ActionButton("Copy details", () => _ = CopyCapturedTextAsync((displayedDetails, "")), "Copy the information shown in this inspector."));
             if (Model.Tree?.GroupingDimension != AnalysisGroupingDimension.FolderHierarchy && Model.Tree?.Items.GetValueOrDefault(Model.Selection.Focus ?? "")?.NodeId is not null)
                 body.Children.Add(ActionButton("Show in captured folder", () => { _ = Model.ShowFocusedInHierarchyAsync(); closer.Close(true); }, "Navigate within these captured observations; the live source is not opened."));
             body.Children.Add(ActionButton("Mark current members", Model.MarkCurrentMembers, "Capture current real members; future observations are not selected."));

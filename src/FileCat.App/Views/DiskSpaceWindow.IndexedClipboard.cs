@@ -37,8 +37,14 @@ public sealed partial class DiskSpaceWindow
         private async Task CopyCapturedPathAsync()
         {
             if (!_copyCapturedPath.IsEnabled || _shownInspection?.Row.Path.Id != _focus || _clipboardPath is not { } path) return;
+            await CopyCapturedTextAsync(path);
+        }
+
+        private async Task CopyCapturedTextAsync(string? text)
+        {
+            if (_disposed || string.IsNullOrEmpty(text)) return;
             using var work = _actualWork.Enter();
-            if (_window.Clipboard is { } clipboard) await clipboard.SetTextAsync(path);
+            if (_window.Clipboard is { } clipboard) await clipboard.SetTextAsync(text);
             else _inspectorStatus.Text = "The clipboard is unavailable.";
         }
 
