@@ -4,4 +4,4 @@ Hex patch export freezes the edited ranges and input contributor evidence togeth
 
 The Windows 11 x64 VM passed 30 native hex tests and 23 application tests. The fixtures checked the Cancel default with Enter, confirmed an empty destination before approval, and published an approved patch to a clear NTFS file while the original stayed encrypted. They also verified that a competing destination remains intact, the reviewed folder cannot be renamed during the review, and a known EFS patch can be exported after partial apply and Undo/Redo only through reviewed approval. Ubuntu and macOS each passed the two portable contributor tests, with three Windows EFS fixtures skipped. Local evidence is in `.tmp/filecat-efs-patch-export-tests.xml` and `.tmp/filecat-efs-patch-export-ui.xml`.
 
-This covers patch export within E-OUT3. The full edited-file Save As path still refuses EFS-derived input pending its own staging, download-mark and publication qualification.
+This checkpoint covers patch export within E-OUT3. The later [Save As checkpoint](2026-11-18-efs-hex-save-as.md) covers full edited-file output, including the shared review owner.

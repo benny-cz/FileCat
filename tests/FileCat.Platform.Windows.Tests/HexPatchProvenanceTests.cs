@@ -76,7 +76,7 @@ public sealed class HexPatchProvenanceTests
             {
                 Assert.True(review.NeedsEfsConsent);
                 review.ApproveEfsExport();
-                review.Export(TestContext.Current.CancellationToken);
+                HexPatchExport.Export(review, TestContext.Current.CancellationToken);
                 Assert.False(File.Exists(review.Temporary));
             }
             var exported = Assert.Single(HexPatchExport.Read(reviewedPath).Ranges);
@@ -113,19 +113,19 @@ public sealed class HexPatchProvenanceTests
                 Assert.Equal(output, Path.GetDirectoryName(review.Temporary));
                 Assert.Throws<IOException>(() => Directory.Move(output, Path.Join(root, "renamed")));
                 Assert.Empty(Directory.EnumerateFileSystemEntries(output));
-                Assert.Contains("approval", Assert.Throws<IOException>(() => review.Export(TestContext.Current.CancellationToken)).Message);
+                Assert.Contains("approval", Assert.Throws<IOException>(() => HexPatchExport.Export(review, TestContext.Current.CancellationToken)).Message);
             }
             using (var review = HexPatchExport.Prepare(file, overlay, destination))
             {
                 review.ApproveEfsExport();
-                Assert.ThrowsAny<OperationCanceledException>(() => review.Export(new CancellationToken(canceled: true)));
+                Assert.ThrowsAny<OperationCanceledException>(() => HexPatchExport.Export(review, new CancellationToken(canceled: true)));
                 Assert.Empty(Directory.EnumerateFileSystemEntries(output));
             }
             using (var review = HexPatchExport.Prepare(file, overlay, destination))
             {
                 review.ApproveEfsExport();
                 File.WriteAllText(destination, "competing creation");
-                Assert.Throws<IOException>(() => review.Export(TestContext.Current.CancellationToken));
+                Assert.Throws<IOException>(() => HexPatchExport.Export(review, TestContext.Current.CancellationToken));
                 Assert.Equal("competing creation", File.ReadAllText(destination));
                 Assert.False(File.Exists(review.Temporary));
             }
@@ -133,13 +133,50 @@ public sealed class HexPatchProvenanceTests
             using (var review = HexPatchExport.Prepare(file, overlay, destination))
             {
                 review.ApproveEfsExport();
-                review.Export(TestContext.Current.CancellationToken);
+                HexPatchExport.Export(review, TestContext.Current.CancellationToken);
                 Assert.False(File.Exists(review.Temporary));
             }
             Assert.False(File.GetAttributes(destination).HasFlag(FileAttributes.Encrypted));
             Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
             Assert.Equal(new byte[] { 9 }, Assert.Single(HexPatchExport.Read(destination).Ranges).Replacement);
             Assert.Equal(1, overlay.DirtyBytes);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Efs_save_as_publishes_a_clear_copy_and_preserves_the_download_mark(bool marked)
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Disposable normal-user Windows EFS input qualification.");
+        string root = Directory.CreateTempSubdirectory("filecat-hex-reviewed-saveas-").FullName;
+        string target = Path.Join(root, "input"), destination = Path.Join(root, "copy");
+        const string downloadMark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        File.WriteAllBytes(target, [1, 2, 3, 4]);
+        if (marked) File.WriteAllText(target + ":Zone.Identifier", downloadMark);
+        File.Encrypt(target);
+        try
+        {
+            using var file = new ProtectedHexFile(target);
+            using var overlay = new HexPatchOverlay(file);
+            overlay.Write(1, [9]);
+            var ct = TestContext.Current.CancellationToken;
+            Assert.Contains("approval", Assert.Throws<IOException>(() => HexSaveAs.CreateNew(file, overlay, destination, ct)).Message);
+            Assert.False(File.Exists(destination));
+            Assert.Empty(Directory.EnumerateFiles(root, ".filecat-hex-*.tmp"));
+            using var review = HexSaveAs.Prepare(file, overlay, destination);
+            Assert.True(review.NeedsEfsConsent);
+            review.ApproveEfsExport();
+            var result = HexSaveAs.CreateNew(review, ct);
+            Assert.Equal(4, result.BytesWritten);
+            Assert.Equal(marked ? HexOriginMark.Copied : HexOriginMark.None, result.OriginMark);
+            Assert.Equal(new byte[] { 1, 9, 3, 4 }, File.ReadAllBytes(destination));
+            if (marked) Assert.Equal(downloadMark, File.ReadAllText(destination + ":Zone.Identifier"));
+            Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            Assert.False(File.GetAttributes(destination).HasFlag(FileAttributes.Encrypted));
+            Assert.False(File.Exists(review.Temporary));
         }
         finally { Directory.Delete(root, recursive: true); }
     }

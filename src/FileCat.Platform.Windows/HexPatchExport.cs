@@ -14,7 +14,7 @@ public sealed record HexPatchFile(string SourcePath, string SourceIdentity, long
 /// Portable record of exact modified ranges. Export never changes the source; applying a patch only stages its
 /// ranges in an editor's overlay after every expected original byte matches.
 /// </summary>
-public static partial class HexPatchExport
+public static class HexPatchExport
 {
     public const string Format = "FileCat fixed-length hex patch v1";
     private const long MaxPatchFileBytes = 64L * 1024 * 1024;
@@ -22,7 +22,47 @@ public static partial class HexPatchExport
     public static void Export(ProtectedHexFile source, HexPatchOverlay overlay, string destination)
     {
         using var review = Prepare(source, overlay, destination);
-        review.Export();
+        Export(review);
+    }
+
+    internal static HexOutputReview Prepare(ProtectedHexFile source, HexPatchOverlay overlay, string destination) =>
+        HexOutputReview.Prepare(source, overlay, destination, HexOutputKind.Patch);
+
+    internal static int Export(HexOutputReview review, CancellationToken ct = default)
+    {
+        review.Begin(HexOutputKind.Patch, ct);
+        int Write(FileStream stream)
+        {
+            ct.ThrowIfCancellationRequested();
+            review.RequireSourceProtection();
+            JsonSerializer.Serialize(stream, new
+            {
+                format = Format,
+                sourcePath = review.Source.LocalPath,
+                sourceIdentity = review.Source.FileIdentity.ToString(),
+                sourceLength = review.Source.Length,
+                ranges = review.Ranges.Select(r => new { offset = r.Offset, originalBase64 = Convert.ToBase64String(r.Original),
+                    replacementBase64 = Convert.ToBase64String(r.Replacement) }).ToArray(),
+            }, new JsonSerializerOptions { WriteIndented = true });
+            return review.Ranges.Count;
+        }
+        if (review.NeedsEfsConsent) return review.PublishBound(Write, ct);
+        bool created = false;
+        try
+        {
+            using (var stream = new FileStream(review.Temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024))
+            {
+                created = true;
+                Write(stream);
+                stream.Flush(flushToDisk: true);
+            }
+            review.RequireSourceProtection();
+            ct.ThrowIfCancellationRequested();
+            File.Move(review.Temporary, review.Destination, overwrite: false);
+            created = false;
+            return review.Ranges.Count;
+        }
+        finally { if (created && File.Exists(review.Temporary)) File.Delete(review.Temporary); }
     }
 
     /// <summary>Parses and bounds-checks a patch file; content is untrusted input.</summary>

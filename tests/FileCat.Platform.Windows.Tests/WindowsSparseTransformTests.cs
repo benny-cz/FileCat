@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using FileCat.Core.Archives;
+using FileCat.Core.Content;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -17,6 +18,36 @@ public sealed unsafe partial class WindowsSparseTransformTests
     private const string NamedStream = ":fixture";
     private const uint SetSparse = 0x000900C4;
     private const uint QueryAllocatedRanges = 0x000940CF;
+
+    [Fact]
+    public void Reviewed_hex_save_as_keeps_sparse_ranges_in_an_approved_clear_copy()
+    {
+        RequireFixture();
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1", "Requires the explicit EFS fixture opt-in.");
+        Run("main-holes", (path, before) =>
+        {
+            File.Encrypt(path);
+            byte[] expected = File.ReadAllBytes(path);
+            expected[64 * 1024] = 0x6d;
+            string destination = Path.Join(Path.GetDirectoryName(path)!, "copy.bin");
+            using var source = new ProtectedHexFile(path);
+            using var overlay = new HexPatchOverlay(source);
+            overlay.Write(64 * 1024, [0x6d]);
+            using var review = HexSaveAs.Prepare(source, overlay, destination);
+            Assert.True(review.NeedsEfsConsent);
+            review.ApproveEfsExport();
+            var result = HexSaveAs.CreateNew(review, TestContext.Current.CancellationToken);
+            Assert.True(result.Sparse);
+            Assert.InRange(result.BytesWritten, 1, Length / 2);
+            using var copy = new FileStream(destination, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var observed = ObserveStream(copy);
+            Assert.Equal(Length, observed.Length);
+            Assert.Equal(before.Main.Ranges, observed.Ranges);
+            Assert.Equal(Convert.ToHexString(SHA256.HashData(expected)), observed.Digest);
+            Assert.False(observed.Attributes.HasFlag(FileAttributes.Encrypted));
+            Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+        });
+    }
 
     [Theory]
     [InlineData("all-hole")]
