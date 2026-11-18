@@ -1,4 +1,4 @@
-"""Stage recipe, growth, or duplicate review tests over the verified rendering build."""
+"""Stage insight and recipe tests over the verified rendering build."""
 import argparse
 import hashlib
 import json
@@ -13,6 +13,7 @@ scope = parser.add_mutually_exclusive_group()
 scope.add_argument("--growth", action="store_true")
 scope.add_argument("--duplicates", action="store_true")
 scope.add_argument("--duplicate-content", action="store_true")
+scope.add_argument("--recorded-insights", action="store_true")
 options = parser.parse_args()
 revision = options.revision
 methods = ["*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*"]
@@ -26,7 +27,7 @@ if options.growth:
     expected = 12
     log = (Path.cwd() / ".tmp/growth-insight-render-build-r1357.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
-if options.duplicates or options.duplicate_content:
+if options.duplicates or options.duplicate_content or options.recorded_insights:
     methods = ["*DuplicateReview*",
                "*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*",
                "*NativeSavedRecipeStorePreservesCapturedScopeAcrossPrivateOpens*",
@@ -36,10 +37,14 @@ if options.duplicates or options.duplicate_content:
                "*IndexedSelectionBasketPagesItsCapturedSnapshotAndAllowsRemovalWithoutChangingMarksOrSource*"]
     expected = 12
     name = f"duplicate-estimate-render-build-{revision}-serial"
-    if options.duplicate_content:
+    if options.duplicate_content or options.recorded_insights:
         methods.extend(("*NativeDuplicateReadConsent*", "*DuplicateReadPlanBindsConfirmedMembersCostAndOneRun*"))
         expected = 16
         name = f"duplicate-read-render-build-{revision}"
+    if options.recorded_insights:
+        methods.append("*RecordedInsight*")
+        expected = 20
+        name = f"recorded-insight-render-build-{revision}"
     log = (Path.cwd() / f".tmp/{name}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
 root = Path.cwd()
@@ -104,8 +109,9 @@ for platform in ("windows", "mac", "linux"):
     proof[platform] = {"archive": sha(archive), "runner": sha(runner_path), "size": archive.stat().st_size, "patch": sorted(changes)}
 (temp / f"cache-input-{revision}").mkdir()
 (temp / f"recipe-rendering-proof-{revision}.json").write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
-if options.growth or options.duplicates or options.duplicate_content:
-    slice_name = "growth" if options.growth else "duplicate-content" if options.duplicate_content else "duplicate-estimate"
+if options.growth or options.duplicates or options.duplicate_content or options.recorded_insights:
+    slice_name = ("growth" if options.growth else "recorded-insights" if options.recorded_insights else
+                  "duplicate-content" if options.duplicate_content else "duplicate-estimate")
     source_changes = set(subprocess.check_output(["git", "diff", "--name-only", "HEAD", "--", "src", "tests"], text=True).splitlines())
     source_changes.update(subprocess.check_output(["git", "ls-files", "--others", "--exclude-standard", "src", "tests"], text=True).splitlines())
     source_archive = temp / f"source-{revision}-{slice_name}-delta.tgz"

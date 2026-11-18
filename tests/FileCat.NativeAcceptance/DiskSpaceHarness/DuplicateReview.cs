@@ -56,7 +56,7 @@ internal sealed partial class HarnessApp
                 window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
                     text.Text?.Contains("8 B for 2 distinct candidate objects", StringComparison.Ordinal) == true);
             if (!correct || !preservingDefault) throw new IOException("Duplicate review changed its exact cost, alias treatment or preserving default.");
-            await RecipeFrameAsync("duplicate-review-estimate.png", true, _indexedLifetime.Token);
+            RenderNativeFrame("duplicate-review-estimate.png");
             int contentGroups = 0;
             bool contentAvailable = Button("Review content reads…")?.IsEnabled == true;
             if (OperatingSystem.IsWindows())
@@ -88,11 +88,30 @@ internal sealed partial class HarnessApp
                 Click("Close review");
             }
             await ReadyAsync(() => Control<ListBox>("Captured duplicate candidates and exclusions") is null && Marks(4, 4));
+            await OpenInsightAsync("Folders with many small files");
+            await ReadyAsync(() => Control<ListBox>("Captured recipe candidates") is { ItemCount: > 0 } small &&
+                small.Items.Any(item => item?.ToString()?.Contains("500 small file paths", StringComparison.Ordinal) == true));
+            await RecipeFrameAsync("recorded-insights-small-files.png", true, _indexedLifetime.Token);
+            Click("Close preview");
+            await ReadyAsync(() => Control<ListBox>("Captured recipe candidates") is null);
+
+            await OpenInsightAsync("Logical and allocated size differences");
+            await ReadyAsync(() => Control<ListBox>("Captured recipe candidates") is { ItemCount: > 0 } &&
+                HasText("ranked by absolute difference"));
+            Click("Close preview");
+            await ReadyAsync(() => Control<ListBox>("Captured recipe candidates") is null);
+
+            await OpenInsightAsync("Large extra data");
+            await ReadyAsync(() => HasText("Extra-data size is unavailable"));
+            if (Control<ListBox>("Captured recipe candidates") is not null)
+                throw new IOException("The unavailable extra-data preview displayed a measured candidate.");
+            Click("Close preview");
+            await ReadyAsync(() => Button("Close preview") is null && Marks(4, 4));
             _duplicateReviewProbe = new
             {
                 finished = true, passed = true, sessions = window.SessionCount, candidateObjects = 2, knownReadBytes = 8,
                 capturedMarks = 4, additionalHardLinkNames = 1, preservingDefault, retainedHiddenMarksAndBasket = true,
-                contentAvailable, contentGroups
+                contentAvailable, contentGroups, recordedInsightsPassed = true
             };
         }
         catch (Exception error)
@@ -113,6 +132,17 @@ internal sealed partial class HarnessApp
         bool Marks(int marked, int basket) => _window!.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
             AutomationProperties.GetAutomationId(text) == "Indexed captured selection" &&
             text.Text?.StartsWith($"{marked:N0} marked · {basket:N0} in review basket", StringComparison.Ordinal) == true);
+        bool HasText(string value) => _window!.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+            text.Text?.Contains(value, StringComparison.Ordinal) == true);
+        async Task OpenInsightAsync(string title)
+        {
+            Click("Candidate recipes…");
+            await ReadyAsync(() => Control<ListBox>("Locations for candidate preview") is not null);
+            Control<ComboBox>("Candidate recipe")!.SelectedItem = title;
+            Control<ListBox>("Locations for candidate preview")!.SelectedIndex = 0;
+            await ReadyAsync(() => Button("View candidates")?.IsEnabled == true);
+            Click("View candidates");
+        }
         void Click(string name)
         {
             var button = Button(name);

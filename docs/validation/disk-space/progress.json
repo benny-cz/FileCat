@@ -15921,5 +15921,19 @@
     "publicEntryEnabled": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "recordedMetadataInsights": {
+    "status": "qualified-internal-slice",
+    "packet": "source-manifest-r1381-recorded-insights.json",
+    "document": "RECORDED_INSIGHTS_QUALIFICATION.md",
+    "focusedCasesPassedPerPlatform": 20,
+    "nativeWindowRevision": "r1380",
+    "nativeSmallFileCount": 500,
+    "streamAndForkMeasurementsQualified": false,
+    "largestFolderInsightQualified": false,
+    "physicalInputQualified": false,
+    "publicEntryEnabled": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }

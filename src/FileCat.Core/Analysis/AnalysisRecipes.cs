@@ -3,7 +3,11 @@ using System.Globalization;
 
 namespace FileCat.Core.Analysis;
 
-public enum AnalysisMetadataRecipe { LargestFiles, OldLargeFiles, DownloadsInstallers, GeneratedBuildOutput, ApplicationCache, CustomFilter, GrowthSinceAnalysis }
+public enum AnalysisMetadataRecipe
+{
+    LargestFiles, OldLargeFiles, DownloadsInstallers, GeneratedBuildOutput, ApplicationCache, CustomFilter, GrowthSinceAnalysis,
+    AllocationDifference, ManySmallFiles, UnmeasuredLocations, LargeExtraData
+}
 
 public sealed record AnalysisRecipeDefinition(AnalysisMetadataRecipe Recipe, string Id, int Version, string Title,
     string Rule, string Limitations);
@@ -40,7 +44,19 @@ public sealed class AnalysisRecipes
             "A same-named C#, F#, or Visual Basic project file supplies context. Review the exact files and whether they can be rebuilt."),
         new(AnalysisMetadataRecipe.ApplicationCache, "app-cache", 1, "Chrome HTTP cache records",
             "Look for known cache entry names in Google/Chrome/User Data/Default/Cache/Cache_Data, with recorded Local State and Preferences files.",
-            "The rule covers the Default profile in this recorded layout. The browser may use these files. Synchronized or offline content can have other side effects.")
+            "The rule covers the Default profile in this recorded layout. The browser may use these files. Synchronized or offline content can have other side effects."),
+        new(AnalysisMetadataRecipe.AllocationDifference, "allocation-difference", 1, "Logical and allocated size differences",
+            "Rank files by the absolute difference between their logical size and reported primary allocation.",
+            "Sparse data, compression, sharing, and measurement basis can affect the difference. Shared objects can appear under more than one name."),
+        new(AnalysisMetadataRecipe.ManySmallFiles, "many-small-files", 1, "Folders with many small files",
+            "Rank folders with at least 32 directly observed files of 64 KiB or less by their small-file count.",
+            "Allocation shown is the known reported portion for verified single-link files. Folder metadata, shared objects, and unmeasured allocation stay outside that portion."),
+        new(AnalysisMetadataRecipe.UnmeasuredLocations, "unmeasured-locations", 1, "Unmeasured and unreadable locations",
+            "Show recorded issues for failed, unsupported, pending, or changed observations in the selected locations.",
+            "Issue records can be sampled. Unknown size remains unknown, and a measurement issue alone gives no reason to remove an entry."),
+        new(AnalysisMetadataRecipe.LargeExtraData, "large-extra-data", 1, "Large extra data",
+            "Review separately qualified stream or fork measurements.",
+            "Extra data may be required by the application or record its provenance.")
     ];
 
     public AnalysisRecipeDefinition Definition { get; }

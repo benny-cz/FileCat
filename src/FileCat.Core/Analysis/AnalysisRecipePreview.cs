@@ -8,7 +8,10 @@ public sealed record AnalysisRecipeCandidate(ulong PathId, string RootId, string
 
 public sealed record AnalysisRecipePreview(SessionIdentity Identity, AnalysisRecipeDefinition Definition, ImmutableArray<string> RootIds,
     AnalysisMetric Metric, NamespaceCoverage Coverage, UInt128? MinimumBytes, int? MinimumAgeDays, ulong Candidates, ulong Unknown,
-    ulong Excluded, ImmutableArray<AnalysisRecipeCandidate> Rows);
+    ulong Excluded, ImmutableArray<AnalysisRecipeCandidate> Rows)
+{
+    public string? CoverageNote { get; init; }
+}
 
 internal sealed partial class AnalysisRecipePreviews
 {
@@ -32,15 +35,23 @@ internal sealed partial class AnalysisRecipePreviews
     }
 
     internal AnalysisMetric Metric { get; }
-    internal bool NeedsAllocation => Metric == AnalysisMetric.OnDisk || (_saved is not null && (_saved.Needs & AnalysisFilterNeeds.Allocation) != 0);
+    internal AnalysisMetadataRecipe Recipe => _definition.Recipe;
+    internal bool NeedsAllocation => Metric == AnalysisMetric.OnDisk || Recipe is AnalysisMetadataRecipe.AllocationDifference or AnalysisMetadataRecipe.ManySmallFiles ||
+        (_saved is not null && (_saved.Needs & AnalysisFilterNeeds.Allocation) != 0);
     internal bool NeedsContextMarkers => _definition.Recipe is AnalysisMetadataRecipe.GeneratedBuildOutput or AnalysisMetadataRecipe.ApplicationCache;
     internal bool NeedsRelativePath => _saved is not null && (_saved.Needs & AnalysisFilterNeeds.Path) != 0;
 
-    internal bool Includes(AnalysisNode node) => node.Kind == AnalysisKind.File && (_rules?.IncludesRoot(node.RootId) ?? _saved!.Includes(node.RootId));
+    internal bool IncludesRoot(string id) => _rules?.IncludesRoot(id) ?? _saved!.Includes(id);
+    internal bool Includes(AnalysisNode node) => node.Kind == AnalysisKind.File && IncludesRoot(node.RootId);
 
     internal void Add(AnalysisNode node, AnalysisObject? recordedObject, AnalysisMeasurement allocation,
         Func<ulong, AnalysisNode?> readPath, Func<AnalysisNode, string, AnalysisNode?> readChild)
     {
+        if (Recipe == AnalysisMetadataRecipe.AllocationDifference)
+        {
+            AddDifference(node, recordedObject, allocation);
+            return;
+        }
         AnalysisMeasurement measured = Metric switch
         {
             AnalysisMetric.OnDisk => allocation,
@@ -52,12 +63,7 @@ internal sealed partial class AnalysisRecipePreviews
         switch (finding.Match)
         {
             case AnalysisRecipeMatch.Candidate:
-                _candidates++;
-                var priority = (measured.IsKnown, measured.Value.GetValueOrDefault(), ulong.MaxValue - node.Id);
-                if (_rows.Count == MaximumRows && _rows.TryPeek(out _, out var lowest) && priority.CompareTo(lowest) <= 0) break;
-                var row = new AnalysisRecipeCandidate(node.Id, node.RootId, AnalysisNames.DisplayName(node, 256), measured, finding);
-                if (_rows.Count == MaximumRows) _rows.DequeueEnqueue(row, priority);
-                else _rows.Enqueue(row, priority);
+                AddPathRow(node, measured, finding, measured.IsKnown, measured.Value.GetValueOrDefault());
                 break;
             case AnalysisRecipeMatch.Unknown:
                 _unknown++;
@@ -68,9 +74,29 @@ internal sealed partial class AnalysisRecipePreviews
         }
     }
 
-    internal AnalysisRecipePreview Finish(SessionIdentity identity, NamespaceCoverage coverage) => new(identity, _definition,
+    private void AddPathRow(AnalysisNode node, AnalysisMeasurement measurement, AnalysisRecipeFinding finding, bool known, UInt128 order)
+    {
+        var priority = (known, order, ulong.MaxValue - node.Id);
+        if (!AdmitRow(priority)) return;
+        Enqueue(new(node.Id, node.RootId, AnalysisNames.DisplayName(node, 256), measurement, finding), priority);
+    }
+
+    private bool AdmitRow((bool Known, UInt128 Bytes, ulong ReversePathId) priority)
+    {
+        _candidates++;
+        return _rows.Count < MaximumRows || !_rows.TryPeek(out _, out var lowest) || priority.CompareTo(lowest) > 0;
+    }
+
+    private void Enqueue(AnalysisRecipeCandidate row, (bool Known, UInt128 Bytes, ulong ReversePathId) priority)
+    {
+        if (_rows.Count == MaximumRows) _rows.DequeueEnqueue(row, priority);
+        else _rows.Enqueue(row, priority);
+    }
+
+    internal AnalysisRecipePreview Finish(SessionIdentity identity, NamespaceCoverage coverage) => new AnalysisRecipePreview(identity, _definition,
         _rootIds, Metric, coverage, _rules?.MinimumBytes, _rules?.MinimumAgeDays, _candidates, _unknown, _excluded,
-        [.. _rows.UnorderedItems.OrderByDescending(item => item.Priority).Select(item => item.Element)]);
+        [.. _rows.UnorderedItems.OrderByDescending(item => item.Priority).Select(item => item.Element)])
+        { CoverageNote = _coverageNote };
 }
 
 public sealed partial class AnalysisDatasetLease
@@ -89,6 +115,11 @@ public sealed partial class AnalysisDatasetLease
         var preview = await AnalysisIo.Run(_io, "analysis-filter-calendar", _ => prepare(), cancellation).ConfigureAwait(false);
         return await _owned.UseAsync(async reader =>
         {
+            if (preview.Recipe is AnalysisMetadataRecipe.UnmeasuredLocations or AnalysisMetadataRecipe.ManySmallFiles or AnalysisMetadataRecipe.LargeExtraData)
+            {
+                await ReadRecordedInsightAsync(reader, preview, cancellation).ConfigureAwait(false);
+                return preview.Finish(Descriptor.Identity, Descriptor.Coverage);
+            }
             ulong next = 1;
             while (next <= Descriptor.Paths)
                 await AnalysisIo.Run(_io, _device, token =>
@@ -109,7 +140,8 @@ public sealed partial class AnalysisDatasetLease
                             ? ReadRequiredObservedObject(reader, id, token) : null;
                         if (obj is not null) bytes += 1024L + (obj.VerifiedIdentity?.Length ?? 0) * 2L + (obj.VersionEvidence?.Length ?? 0) * 2L;
                         AnalysisMeasurement allocation = preview.NeedsAllocation && obj is not null
-                            ? ReadRecipeAllocation(reader, obj.Id, ref bytes, token) : AnalysisMeasurement.Missing(MeasurementState.Unsupported);
+                            ? ReadRecipeAllocation(reader, obj.Id, ref bytes, token, preview.Recipe == AnalysisMetadataRecipe.AllocationDifference)
+                            : AnalysisMeasurement.Missing(MeasurementState.Unsupported);
                         preview.Add(node, obj, allocation, ReadPath, FindChild);
                     }
                     return true;
@@ -154,7 +186,15 @@ public sealed partial class AnalysisDatasetLease
         return reader.ReadObject(reader.ReadIndex(AnalysisIndexedGraphRevision.ObjectIds, range.First, token).Value, token);
     }
 
-    private static AnalysisMeasurement ReadRecipeAllocation(AnalysisIndexedGraphReader reader, string id, ref long bytes, CancellationToken token)
+    private static AnalysisMeasurement ReadRecipeAllocation(AnalysisIndexedGraphReader reader, string id, ref long bytes, CancellationToken token, bool primaryOnly)
+    {
+        var facts = ReadRecipeComponents(reader, id, ref bytes, token);
+        if (facts is null) return AnalysisMeasurement.Missing(MeasurementState.Unsupported);
+        return primaryOnly ? AnalysisRecipePreviews.PrimaryAllocation(facts)?.Measurement ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported)
+            : AnalysisAggregate.CompatibleAllocation(facts);
+    }
+
+    private static List<StorageFact>? ReadRecipeComponents(AnalysisIndexedGraphReader reader, string id, ref long bytes, CancellationToken token)
     {
         var range = reader.Find(AnalysisIndexedGraphRevision.FactOwners, AnalysisGraphKeys.FactOwner(id, null), cancellation: token);
         var maximum = Math.Min(range.Count, AnalysisLimits.Components);
@@ -168,9 +208,9 @@ public sealed partial class AnalysisDatasetLease
             long cost = FactBytes(fact);
             bytes += cost;
             factBytes += cost;
-            if (factBytes > AnalysisLimits.BatchBytes) return AnalysisMeasurement.Missing(MeasurementState.Unsupported);
+            if (factBytes > AnalysisLimits.BatchBytes) return null;
             facts.Add(fact);
         }
-        return AnalysisAggregate.CompatibleAllocation(facts);
+        return facts;
     }
 }

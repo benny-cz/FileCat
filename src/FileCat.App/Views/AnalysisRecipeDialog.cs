@@ -119,22 +119,34 @@ internal static class AnalysisRecipeDialog
             body.Children.Add(Text($"File size at least {DiskSpaceViewModel.Bytes(size)} and modified more than {age:N0} days before observation."));
         if (preview.Coverage != NamespaceCoverage.CompleteUnderPolicy)
             body.Children.Add(Text("Partial observations. Unobserved entries may change this preview."));
+        if (preview.CoverageNote is { } coverageNote)
+            body.Children.Add(Text(coverageNote));
         string measure = preview.Metric switch
         {
             AnalysisMetric.OnDisk => "recorded allocation",
             AnalysisMetric.UniqueFileSize => "recorded size with verified identity",
             _ => "recorded file size"
         };
-        string candidateLabel = preview.Candidates == 1 ? "candidate" : "candidates";
-        body.Children.Add(Text($"{preview.Candidates:N0} {candidateLabel} · {preview.Unknown:N0} uncertain · {preview.Excluded:N0} excluded. " +
-            (preview.Rows.Length == 0 ? "No definite candidates to show." : $"Showing {preview.Rows.Length:N0} ranked by {measure}. Shared files can appear under more than one name.")));
+        string summary = preview.Definition.Recipe switch
+        {
+            AnalysisMetadataRecipe.AllocationDifference => $"{preview.Candidates:N0} file paths with measured differences · {preview.Unknown:N0} uncertain · {preview.Excluded:N0} excluded." +
+                (preview.Rows.IsEmpty ? "" : $" Showing {preview.Rows.Length:N0} ranked by absolute difference."),
+            AnalysisMetadataRecipe.ManySmallFiles => $"{preview.Candidates:N0} folders meet the count threshold · {preview.Unknown:N0} folders have uncertain counts near the threshold." +
+                (preview.Rows.IsEmpty ? "" : $" Showing {preview.Rows.Length:N0} ranked by observed small-file count."),
+            AnalysisMetadataRecipe.UnmeasuredLocations => $"{preview.Candidates:N0} captured issue records in scope." +
+                (preview.Rows.IsEmpty ? "" : $" Showing {preview.Rows.Length:N0} ordered by recorded state."),
+            AnalysisMetadataRecipe.LargeExtraData => "",
+            _ => $"{preview.Candidates:N0} {(preview.Candidates == 1 ? "candidate" : "candidates")} · {preview.Unknown:N0} uncertain · {preview.Excluded:N0} excluded. " +
+                (preview.Rows.IsEmpty ? "No definite candidates to show." : $"Showing {preview.Rows.Length:N0} ranked by {measure}. Shared files can appear under more than one name.")
+        };
+        if (summary.Length != 0) body.Children.Add(Text(summary));
         Task? inspection = null;
         if (preview.Rows.Length > 0)
         {
             var rows = new ListBox { MaxHeight = 270, MinHeight = 90, ItemTemplate = DialogLayout.WrappingListText,
-                ItemsSource = preview.Rows.Select(row => $"{row.DisplayName}\n{locations[row.RootId]} · " +
-                    (row.RecordedBytes.Value is { } amount ? DiskSpaceViewModel.Bytes(amount) : "Size unavailable") +
-                    $" · captured entry {row.PathId:N0}\n{row.Finding.Evidence}").ToArray() };
+                ItemsSource = preview.Rows.Select(row => $"{row.DisplayName}\n{locations[row.RootId]}" +
+                    (row.PathId == 0 ? "" : $" · captured entry {row.PathId:N0}") +
+                    DetailAmount(row) + $"\n{row.Finding.Evidence}").ToArray() };
             ScrollViewer.SetHorizontalScrollBarVisibility(rows, ScrollBarVisibility.Disabled);
             AutomationProperties.SetName(rows, "Captured recipe candidates");
             body.Children.Add(rows);
@@ -163,7 +175,8 @@ internal static class AnalysisRecipeDialog
                 var token = cancellation.Token;
                 try
                 {
-                    string described = "Recorded path — " + await RecordedPathAsync(candidate.PathId, candidate.RootId, readPath, token);
+                    string described = candidate.PathId == 0 ? "Issue recorded for " + locations[candidate.RootId] :
+                        "Recorded path — " + await RecordedPathAsync(candidate.PathId, candidate.RootId, readPath, token);
                     var finding = candidate.Finding;
                     if (finding.ContextPath is { } context)
                         described += "\nContext folder — " + await RecordedPathAsync(context, candidate.RootId, readPath, token);
@@ -198,6 +211,14 @@ internal static class AnalysisRecipeDialog
             cancellation.Cancel();
             if (inspection is not null) await inspection;
         }
+
+        string DetailAmount(AnalysisRecipeCandidate row) => preview.Definition.Recipe switch
+        {
+            AnalysisMetadataRecipe.UnmeasuredLocations => "",
+            AnalysisMetadataRecipe.ManySmallFiles => row.RecordedBytes.Value is { } size ? " · known single-link allocation " + DiskSpaceViewModel.Bytes(size) : "",
+            AnalysisMetadataRecipe.AllocationDifference => " · difference " + DiskSpaceViewModel.Bytes(row.RecordedBytes.Value!.Value),
+            _ => " · " + (row.RecordedBytes.Value is { } amount ? DiskSpaceViewModel.Bytes(amount) : "Size unavailable")
+        };
     }
 
     internal static async Task<string> RecordedPathAsync(ulong id, string root, Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> readPath,
