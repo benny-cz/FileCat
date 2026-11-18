@@ -114,17 +114,18 @@ public sealed partial class WindowsRetrievalDetailsTests
         string folder = Directory.CreateTempSubdirectory("filecat-ntfs-record-extents-").FullName;
         try
         {
+            const int sparseRanges = 1025;
             Assert.Equal("NTFS", new DriveInfo(Path.GetPathRoot(folder)!).DriveFormat);
             string file = Path.Join(folder, "nonresident.bin");
             var reader = new WindowsFileRecords();
             var ct = TestContext.Current.CancellationToken;
             if (sparse)
             {
-                const int stride = 128 * 1024, ranges = 520;
+                const int stride = 128 * 1024;
                 using var stream = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                 Assert.True(DeviceIoControl(stream.SafeFileHandle, 0x000900C4 /* FSCTL_SET_SPARSE */, 0, 0, 0, 0, out _, 0));
-                stream.SetLength((long)ranges * stride);
-                for (int i = 0; i < ranges; i++)
+                stream.SetLength((long)sparseRanges * stride);
+                for (int i = 0; i < sparseRanges; i++)
                 {
                     ct.ThrowIfCancellationRequested();
                     stream.Position = (long)i * stride;
@@ -144,6 +145,11 @@ public sealed partial class WindowsRetrievalDetailsTests
                 var count = extents.Fields.Single(field => field.Name == "Returned extent records").Value;
                 Assert.True(int.Parse(count, NumberStyles.Integer | NumberStyles.AllowThousands, CultureInfo.CurrentCulture) > 1023);
                 Assert.Contains(extents.Table.Rows, row => row[2] == "Unallocated or compressed");
+                var ranges = Assert.Single(full.Technical.Sections, section => section.Title == "Main-stream allocated byte ranges");
+                Assert.True(ranges.Fields.Contains(("Inventory", "Complete")), string.Join(" ", ranges.Lines));
+                Assert.Contains(("Returned ranges", sparseRanges.ToString("N0")), ranges.Fields);
+                Assert.Contains("These ranges can contain zero bytes.", ranges.Lines);
+                Assert.DoesNotContain("allocated byte ranges", summary.ToReport().ToText(), StringComparison.OrdinalIgnoreCase);
             }
             Assert.Equal(summary.Identity, full.Summary.Identity);
             Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);

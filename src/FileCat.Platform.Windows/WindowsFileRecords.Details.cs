@@ -120,9 +120,16 @@ public sealed unsafe partial class WindowsFileRecords
 
         var extents = RetrievalSection(item, ct);
         var report = FileDetailsReport.Metadata(snapshot, metadata, extents);
+        bool collectRanges = hasId && (attributes & (uint)(FileAttributes.SparseFile | FileAttributes.Compressed)) != 0;
+        string omissions = "Not acquired: supplementary-data values and previews, raw volumes and journals, security value collectors and hard-link names.";
+        if (collectRanges)
+        {
+            var ranges = AllocatedRangesSection(item, id, BinaryPrimitives.ReadInt64LittleEndian(standard[8..]), ct);
+            return report with { Technical = report.Technical with { Sections = [metadata, extents, ranges], Warnings = [omissions] } };
+        }
         return report with { Technical = report.Technical with
         {
-            Warnings = ["Not acquired: supplementary-data values and previews, raw volumes and journals, security value collectors, hard-link names and allocated byte ranges."],
+            Warnings = [omissions, "Allocated byte ranges are available for qualified sparse or compressed files."],
         } };
     }
 }
