@@ -15,6 +15,48 @@ public sealed class ArchiveEfsSpoolTests
     private const string FixtureRequirement = "Requires a disposable Windows NTFS fixture with EFS enabled.";
 
     [Fact]
+    public void The_opened_contributor_limit_counts_distinct_held_identities_and_refuses_an_overflow()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Requires actual Windows file identities.");
+        using var directory = new TempDir();
+        var protection = new OutputEfsObservation();
+        for (int i = 0; i < OutputEfsObservation.MaxContributors; i++)
+        {
+            string path = directory.File($"input-{i:D4}.bin");
+            using (var handle = File.OpenHandle(path)) protection.ObserveOpened(handle);
+            if (i == 0)
+            {
+                using var reopened = File.OpenHandle(path);
+                protection.ObserveOpened(reopened);
+            }
+        }
+        Assert.Equal(OutputEfsObservation.State.Clear, protection.Status);
+        ArchiveOuterEfs.RequireClearOutput(protection, ContentOutputKind.DiskCache);
+        var receipt = protection.Freeze();
+        Assert.Equal(OutputEfsObservation.MaxContributors, receipt.Contributors.Length);
+        var derived = new OutputEfsObservation();
+        derived.Include(receipt);
+        using (var overflow = File.OpenHandle(directory.File("overflow.bin"))) derived.ObserveOpened(overflow);
+        Assert.Equal(OutputEfsObservation.State.Unknown, derived.Status);
+        Assert.Equal(OutputEfsObservation.State.Clear, receipt.Protection);
+        Assert.Equal(ArchiveOuterEfs.SpoolUnknown, Assert.Throws<ArchiveWriteException>(() =>
+            ArchiveOuterEfs.RequireClearOutput(derived, ContentOutputKind.DiskCache)).Message);
+    }
+
+    [Fact]
+    public void Over_budget_origin_metadata_cannot_authorize_persistence()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Requires an actual Windows file identity.");
+        using var directory = new TempDir();
+        using var handle = File.OpenHandle(directory.File("input.bin"));
+        var protection = new OutputEfsObservation();
+        protection.ObserveOpened(handle, new string('A', OutputEfsObservation.MaxContributorBytes / sizeof(char)));
+        Assert.Equal(OutputEfsObservation.State.Unknown, protection.Status);
+        protection.ObserveOpened(handle);
+        Assert.Equal(OutputEfsObservation.State.Unknown, protection.Status);
+    }
+
+    [Fact]
     public void Protected_tar_members_can_be_read_forward_without_creating_a_disk_cache()
     {
         if (!IsEfsFixture) Assert.Skip(FixtureRequirement);

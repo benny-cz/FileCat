@@ -1,0 +1,13 @@
+# EFS provenance bounds for opened archive and image inputs
+
+The ZIP, general archive and Recovery image readers now record EFS state and the held file identity and revision when they open a contributing input. The general archive reader uses its existing actual-open callback, including later multipart RAR volumes. Reopening the same identity at the same revision uses one entry. The reader retains earlier observations after an input handle closes.
+
+An unavailable identity or revision, more than 1,024 distinct contributors, or more than 1 MiB of contributor metadata makes protection unknown unless EFS was already observed. An unknown result refuses disk cache, extraction, drag and remote upload where those routes use the existing archive or Recovery admission. Read-only memory and forward-only access retain their existing bounds. The current EFS state is still checked around persistence-producing reads.
+
+The Windows 11 x64 VM at medium integrity passed 149 archive and Recovery tests. The native count test opened 1,025 distinct files, including a repeated open of the first file. Admission accepted 1,024 distinct inputs and refused the overflow. The metadata-budget test confirmed that a later ordinary input could not clear overflow. Existing EFS controls verified ZIP, TAR, a later RAR part and a Recovery image. Ubuntu x64 and Apple silicon macOS each passed 139 cases with 10 expected Windows-only skips.
+
+Exact results are in `opened-contributor-limit-tests.xml`, `opened-contributor-limit-ubuntu.xml` and `opened-contributor-limit-mac.xml` in the validation `.tmp` locations.
+
+The follow-up stores the immutable input union with the owned spool lease and imports it before the next index can admit output. Both alternating ZIP and TAR chains preserved the original archive's actual identity and revision at depth eight. Each receipt held eight distinct opened inputs, and the extracted payload matched in both directions. The native limit test closed the original inputs, reused their frozen receipt in a downstream reader, and refused the next distinct input while retaining the original receipt. Nested spool creation also requires origin evidence from the content reader before creating its private output.
+
+Windows passed all 151 tests, including native EFS, nested spool eviction and source-close cases. Ubuntu and macOS passed 141 cases each with 10 Windows-only skips. See `nested-origin-tests.xml`, `nested-origin-ubuntu.xml` and `nested-origin-mac.xml` in the native `.tmp` locations. The nested input union is qualified for these fixtures. End-to-end destination, consent and retained-output receipts require their route-specific checks.

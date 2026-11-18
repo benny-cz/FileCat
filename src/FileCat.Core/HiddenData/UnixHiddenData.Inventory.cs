@@ -123,13 +123,19 @@ public sealed partial class UnixHiddenData
         // this ordinary view inventoried storage backing, even when the caller requested the deeper API view.
         int options = MacNoFollow;
         var result = CollectInventory(path, (buffer, size) => MacList(path, buffer, size, options), name => MacGet(path, name, null, 0, 0, options), ct);
+        int attributes = result.Items.Count(item => item.Kind == HiddenKind.Attribute);
+        int forks = result.Items.Length - attributes;
         var categories = ImmutableArray.CreateBuilder<HiddenCategoryInventory>();
         foreach (var kind in new[] { HiddenKind.Attribute, HiddenKind.ResourceFork })
             categories.Add(new(kind, result.State == HiddenInventoryState.Complete ? HiddenInventoryState.Partial : result.State,
-                result.Items.Count(i => i.Kind == kind), "Darwin ordinary no-follow path view",
+                kind == HiddenKind.Attribute ? attributes : forks, "Darwin ordinary no-follow path view",
                 result.Reason ?? "Same-object lifetime binding is not qualified for this API view; counts are observational lower bounds."));
+        string backing = request.ShowCompressionBacking ? "Compression backing: not inventoried." : "Compression backing: not requested.";
         return new(path, DateTimeOffset.UtcNow, result.Items, categories.ToImmutable(), "listxattr / getxattr size queries")
-        { Notice = "No values read. Compression backing: not inventoried. Value/export/delete actions require a qualified bound adapter." };
+        {
+            Notice = $"Observed {attributes} ordinary attributes and {forks} resource forks. {backing} " +
+                "No values read. Value, export and delete actions require a qualified bound adapter.",
+        };
     }
 
     private static Exception InventoryError(string path, int error) => error is 1 or 13 ? new UnauthorizedAccessException($"{path}: {Marshal.GetPInvokeErrorMessage(error)}")

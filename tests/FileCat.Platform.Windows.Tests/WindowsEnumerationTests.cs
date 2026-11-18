@@ -124,6 +124,45 @@ public sealed class WindowsEnumerationTests
     }
 
     [Fact]
+    public async Task Native_listing_matches_managed_listing_on_a_prepared_mapped_and_unc_smb_folder()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Requires the Windows SMB client.");
+        string? mapped = Environment.GetEnvironmentVariable("FILECAT_ENUM_MAPPED_SMB_ROOT");
+        string? unc = Environment.GetEnvironmentVariable("FILECAT_ENUM_NATIVE_SMB_ROOT");
+        if (string.IsNullOrWhiteSpace(mapped) || string.IsNullOrWhiteSpace(unc))
+            Assert.Skip("Set FILECAT_ENUM_MAPPED_SMB_ROOT and FILECAT_ENUM_NATIVE_SMB_ROOT to the same prepared SMB fixture folder.");
+        var ct = TestContext.Current.CancellationToken;
+        var nativeProvider = new WindowsFileSystemProvider { UseNativeEnumeration = true };
+        var managedProvider = new WindowsFileSystemProvider();
+        foreach (string root in new[] { mapped, unc })
+        {
+            var location = Location.FileSystem(root);
+            var native = new Sink(); var managed = new Sink();
+            await managedProvider.EnumerateAsync(location, managed, ct);
+            await nativeProvider.EnumerateAsync(location, native, ct);
+            Assert.Contains("Case.txt", native.Entries.Keys);
+            Assert.Contains("case.txt", native.Entries.Keys);
+            Assert.Contains("Unicode 名前.bin", native.Entries.Keys);
+            Assert.Equal(EntryKind.Directory, native.Entries["owned-folder"].Kind);
+            Assert.Equal(managed.Entries.Keys.Order(StringComparer.Ordinal), native.Entries.Keys.Order(StringComparer.Ordinal));
+            foreach (var (name, entry) in managed.Entries)
+            {
+                var got = native.Entries[name];
+                Assert.Equal(entry.Kind, got.Kind);
+                Assert.Equal(entry.Attributes, got.Attributes);
+                Assert.Equal(entry.Flags, got.Flags);
+                Assert.Equal(entry.Size, got.Size);
+                Assert.Equal(entry.Modified, got.Modified);
+                Assert.Equal(entry.Created, got.Created);
+            }
+
+            var missing = Location.FileSystem(Path.Join(root, "fixture-directory-does-not-exist"));
+            await Assert.ThrowsAsync<DirectoryNotFoundException>(() => managedProvider.EnumerateAsync(missing, new Sink(), ct));
+            await Assert.ThrowsAsync<DirectoryNotFoundException>(() => nativeProvider.EnumerateAsync(missing, new Sink(), ct));
+        }
+    }
+
+    [Fact]
     public async Task Enumeration_performance_records_native_and_managed_timings_on_a_prepared_directory()
     {
         if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows enumeration performance."); return; }

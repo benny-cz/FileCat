@@ -128,7 +128,7 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
         if (problem is null)
         {
             ct.ThrowIfCancellationRequested();
-            var backing = WindowsStorageBacking.Query(file, ct);
+            var backing = WindowsStorageBacking.QueryLocalNtfs(file, ct);
             if (backing.External != false) problem = Problem(backing.External == true ? StorageReasonKind.FileCatBoundary : StorageReasonKind.Unknown, "external-backing", backing.External == true
                 ? "This file uses external storage backing, which this workflow does not change."
                 : "External storage backing could not be ruled out; storage changes are unavailable.");

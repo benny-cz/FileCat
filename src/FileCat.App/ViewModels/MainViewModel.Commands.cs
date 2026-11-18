@@ -23,6 +23,13 @@ public readonly record struct CommandAvailability(bool Enabled, string? Reason =
 /// </summary>
 public sealed partial class MainViewModel
 {
+    internal bool AdvertisesEfsCommand(string id) => id switch
+    {
+        CommandIds.EfsProtection => Services.Jobs.EfsSelectionUnavailable is null,
+        CommandIds.EfsFileBackup => Services.Jobs.EfsFileBackupUnavailable is null,
+        _ => true,
+    };
+
     public CommandAvailability GetAvailability(string id)
     {
         if (!MainMenuModel.IsPlatformApplicable(id))
@@ -54,6 +61,17 @@ public sealed partial class MainViewModel
                 if (tab is null || loc is null || !hasItem) return CommandAvailability.No("Focus or mark files or folders to change NTFS compression.");
                 return loc.IsFileSystem || loc.Scheme == Schemes.ResultSet
                     ? CommandAvailability.Yes : CommandAvailability.No("NTFS compression acts on local filesystem originals, including local search results and working sets.");
+            case CommandIds.EfsProtection:
+            case CommandIds.EfsFileBackup:
+                if (Scope?.StorageAvailability?.Invoke() is { Enabled: false })
+                    return CommandAvailability.No("Wait for these results to finish updating before reviewing EFS protection.");
+                var efsProblem = id == CommandIds.EfsProtection ? Services.Jobs.EfsSelectionUnavailable : Services.Jobs.EfsFileBackupUnavailable;
+                if (efsProblem is not null) return CommandAvailability.No(efsProblem.Message);
+                if (WindowsTokenAuthority.IsHighIntegrity) return CommandAvailability.No("Open FileCat as your usual Windows user to review EFS protection and keys.");
+                if (id == CommandIds.EfsFileBackup && _reviewingEfsFileBackup) return CommandAvailability.No("An EFS key backup review is already open.");
+                if (tab is null || loc is null || !hasItem) return CommandAvailability.No("Focus or mark items to review their EFS protection.");
+                return loc.IsFileSystem || loc.Scheme == Schemes.ResultSet
+                    ? CommandAvailability.Yes : CommandAvailability.No("EFS review requires ordinary local filesystem originals.");
             case CommandIds.FileRecord:
             case CommandIds.HiddenData:
                 if (id == CommandIds.FileRecord && !Services.Platform.FileRecords.IsSupported)

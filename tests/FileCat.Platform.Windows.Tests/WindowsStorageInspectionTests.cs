@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 using FileCat.Platform.Windows.Elevation;
 using Microsoft.Win32.SafeHandles;
 
@@ -133,6 +134,34 @@ public sealed partial class WindowsStorageInspectionTests
                 using var review = Inspect(manager, path, action);
                 return Assert.Single(review.Roots).Observation.Ineligible?.Code;
             }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void Efs_candidates_refuse_the_actual_ReFS_filesystem_before_admitting_a_change()
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires the disposable normal-user Windows EFS qualification fixture.");
+        string? path = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_REFS_TARGET");
+        if (string.IsNullOrWhiteSpace(path)) Assert.Skip("Set FILECAT_STORAGE_NATIVE_REFS_TARGET to an owned file on a prepared ReFS volume.");
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
+        Assert.Equal("ReFS", new DriveInfo(Path.GetPathRoot(path)!).DriveFormat);
+        byte[] expected = File.ReadAllBytes(path);
+        string root = Directory.CreateTempSubdirectory("filecat-storage-refs-admission-").FullName;
+        try
+        {
+            var candidate = new WindowsStorageTransforms().CreateEfsJobCandidate();
+            var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), candidate, Path.Join(root, "journal"));
+            foreach (var action in new[] { StorageAction.EncryptEfs, StorageAction.DecryptEfs })
+            {
+                Assert.Null(candidate.Unavailable(action));
+                var refused = Assert.Throws<StorageInspectionException>(() => Inspect(manager, path, action));
+                Assert.Equal("filesystem", refused.Problem.Code);
+            }
+            Assert.Empty(manager.Jobs);
+            Assert.False(Directory.Exists(Path.Join(root, "journal")));
+            Assert.Equal(expected, File.ReadAllBytes(path));
         }
         finally { Directory.Delete(root, recursive: true); }
     }

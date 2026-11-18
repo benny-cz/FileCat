@@ -119,14 +119,16 @@ public static class StoragePaths
         && name.IndexOfAny('\\', '/', ':') < 0 && name.IndexOfAny('\0', '*', '?') < 0;
 
     /// <summary>Pure captured-reference validation. No provider resolution or filesystem access.</summary>
-    public static StorageProblem? SourceProblem(ItemRef? source)
+    public static StorageProblem? SourceProblem(ItemRef? source) => SourceProblem(source, "NTFS compression");
+
+    internal static StorageProblem? SourceProblem(ItemRef? source, string feature)
     {
         string? message = source switch
         {
             null => "The captured item is unavailable.",
-            { Kind: not (EntryKind.File or EntryKind.Directory) } => "Select a file or folder; this item kind cannot use NTFS compression.",
+            { Kind: not (EntryKind.File or EntryKind.Directory) } => $"Select a file or folder. This item kind cannot use {feature}.",
             _ when !source.Parent.IsFileSystem || source.Parent.Container is not null || source.Parent.Session is not null =>
-                "This item is not an ordinary local filesystem original. Archive, remote and virtual items cannot use NTFS compression.",
+                $"This item is not an ordinary local filesystem original. Archive, remote and virtual items cannot use {feature}.",
             _ when !IsChildName(source.Name) => "The captured name contains path or stream syntax that FileCat cannot use for storage changes.",
             _ when !IsOrdinaryLocalPath(source.Parent.Path) => "The original location is not an ordinary local Windows path that FileCat can use for storage changes.",
             _ when !IsOrdinaryLocalPath(source.Parent.Path.TrimEnd('\\') + "\\" + source.Name) => "The captured storage path is invalid or too long.",

@@ -25,9 +25,12 @@ internal static class ArchiveOuterEfs
         ? SpoolUnknown
         : "FileCat cannot verify Windows EFS protection for every archive input, so it cannot prepare this output.";
 
-    internal static void RequireClearOutput(OutputEfsObservation protection, ContentOutputKind method)
+    internal static void RequireClearOutput(OutputEfsObservation protection, ContentOutputKind method) =>
+        RequireClearOutput(protection.Status, method);
+
+    internal static void RequireClearOutput(OutputEfsObservation.State protection, ContentOutputKind method)
     {
-        switch (protection.Status)
+        switch (protection)
         {
             case OutputEfsObservation.State.Encrypted:
                 throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, OutputUnavailable(method));

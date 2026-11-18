@@ -1,0 +1,7 @@
+# Darwin ordinary attributes on a compressed APFS file
+
+The Apple silicon Mac extracted an owned archive with `/usr/bin/tar --hfsCompression`. The APFS file reported the `compressed` flag, a logical length of 2,350,000 bytes, and 24 allocated 512-byte blocks. The uncompressed source reported the same length and 4,592 blocks. The native control issued size queries only. It found `com.apple.decmpfs` and `com.apple.ResourceFork` with `XATTR_SHOWCOMPRESSION`, while ordinary no-follow queries omitted both. [Darwin extended-attribute options](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/xattr.h)
+
+FileCat's ordinary view reported zero ordinary attributes and resource forks for that path observation. A request for compression backing shows that it was not inventoried. An ordinary-only request shows that it was not requested. Both observations remain partial and expose no bound value actions. Apple describes `O_EVTONLY` as an event-monitoring open. A bound compression-visible reader still requires independent selection, device and provider qualification. [Darwin open manual](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man2/open.2)
+
+All 10 supplementary-data tests passed on the Mac. Ubuntu x64 passed nine tests and skipped the Darwin-only fixture. Exact results are `darwin-ordinary-xattrs-mac.xml` and `darwin-ordinary-xattrs-ubuntu.xml` in the native `.tmp` locations.

@@ -144,9 +144,10 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 foreach (var node in Owner._path.Nodes) Validate(node.Handle.File, node.Facts, ct);
                 foreach (var parent in Parents()) { parent.Check(); Validate(parent._handle.File, parent._original, ct); }
             }
-            private void Validate(SafeFileHandle handle, NodeFacts expected, CancellationToken ct)
+            private static void Validate(SafeFileHandle handle, NodeFacts expected, CancellationToken ct)
             {
-                var current = Facts(handle, Owner._path.Volume.Binding, ct);
+                string volume = expected.Identity.VolumeBinding ?? throw Changed("volume-binding", "The held ancestor has no captured volume binding.");
+                var current = Facts(handle, volume, ct);
                 if (current.Identity != expected.Identity || current.CaseFlags != expected.CaseFlags || current.DeletePending ||
                     (current.Attributes & (uint)FileAttributes.ReparsePoint) != 0 || ManagedAttributes(current.Attributes))
                     throw Changed("ancestor-changed", "A held storage ancestor changed; its remaining subtree is not processed.");
@@ -220,6 +221,9 @@ internal sealed unsafe partial class WindowsStorageTransforms
                         return new(before, after, StorageEffect.Uncertain, after.Ineligible ?? Problem(StorageReasonKind.Unknown, "postcondition-unknown", "The native call's result remains uncertain.")) { NativeCallAttempted = true };
                     if (!NeedsChange(after.Compression, action)) return new(before, after, StorageEffect.Changed, after.Ineligible ??
                         (call.NativeSucceeded ? null : Problem(StorageReasonKind.TransientFailure, "native-" + call.NativeError, "The desired state was observed after a failed native return."))) { NativeCallAttempted = true };
+                    if (!call.NativeSucceeded && call.NativeError == 112 /* ERROR_DISK_FULL */)
+                        return new(before, after, StorageEffect.Failed, Problem(StorageReasonKind.TransientFailure, "compression-disk-full",
+                            "The drive ran out of free space while Windows tried to change NTFS compression (error 112).")) { NativeCallAttempted = true };
                     return new(before, after, StorageEffect.Failed, Problem(StorageReasonKind.TransientFailure, "compression-postcondition",
                         call.NativeSucceeded ? "Windows returned success but the requested compression state was not observed." : "Windows could not establish the requested compression state (error " + call.NativeError + ").")) { NativeCallAttempted = true };
                 }

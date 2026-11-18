@@ -164,7 +164,7 @@ public sealed class CommandSearchTests
 
             foreach (var id in MainMenuModel.Layout.SelectMany(menu => Ids(menu.Items)).Distinct())
             {
-                if (!MainMenuModel.IsPlatformApplicable(id)) continue;
+                if (!MainMenuModel.IsPlatformApplicable(id) || !vm.AdvertisesEfsCommand(id)) continue;
                 if (id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal)
                     && int.TryParse(id.AsSpan(CommandIds.ColumnProfilePrefix.Length), out int profile)
                     && profile >= services.Columns.Count) continue;

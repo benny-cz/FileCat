@@ -312,7 +312,7 @@ public static class SettingsDialog
             {
                 var keymap = new Keymap(vm.Services.Commands, draft);
                 var entries = vm.Services.Commands.All
-                    .Where(def => !def.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
+                    .Where(def => vm.AdvertisesEfsCommand(def.Id) && !def.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
                         && !def.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
                         && !def.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal)
                         && !def.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal))

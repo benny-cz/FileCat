@@ -1,0 +1,13 @@
+# Compression and EFS on secondary NTFS volumes
+
+Windows 11 x64 build 26340 ran the FileCat qualification adapter at medium integrity (RID 8192). The lab formatted separate local NTFS VHDs with 4 KiB and 64 KiB allocation units. The protected Windows directory and private storage evidence remained on the system volume. Every mutation targeted a newly created file in an owned test directory.
+
+- The 4 KiB volume ran a reviewed compression job and a reviewed removal job. Both completed with durable native call evidence and the original file content. Traversal revalidated the protected Windows anchor against its own captured volume while continuing to validate the target against the secondary volume.
+- The 64 KiB volume refused compression review with `allocation-unit`. Reviewed EFS encryption and decryption both completed with durable call evidence and retained the original main and named stream bytes. This used the invoking user's existing verified certificate and an explicit recovery declaration.
+- Windows created a real WOF file on a separate NTFS fixture with `compact /c /exe:lzx`. The held backing query confirmed external backing. EFS review refused the file with `external-backing`. A separate remount control retained the positive backing result.
+
+On the newly formatted volumes, the initial held `FSCTL_GET_EXTERNAL_BACKING` reported Win32 error 1. The transform-specific local NTFS lookup requires `ERROR_NOT_A_REPARSE_POINT` on the same no-follow handle and repeats the backing query before accepting the ordinary file. The generic backing inspection continues to represent an unavailable query as Unknown. [External backing status codes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ifs/fsctl-get-external-backing) [Reparse point query](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/d86a4c4d-a996-403a-8b92-9c0e1a300e22)
+
+The new test volumes initially had no Cloud Files filter instance. The held membership query returned `0x80070001` and FileCat refused both jobs at review. The lab attached the Windows Cloud Files filter to those two VHDs and reran the matrix. FileCat still requires the explicit outside-sync-root result and never attaches a filter. [Cloud Files membership query](https://learn.microsoft.com/en-us/windows/win32/api/cfapi/nf-cfapi-cfgetsyncrootinfobyhandle)
+
+The combined EFS job, sparse, compression and hidden-data suite passed 42 tests with no failures. The separate fixture that changes the account's current EFS key was skipped. Results are in `.tmp/filecat-fresh-ntfs-validation-tests.xml`. Release composition and the broader native gates remain open.

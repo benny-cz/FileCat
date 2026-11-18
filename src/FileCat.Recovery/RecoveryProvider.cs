@@ -398,6 +398,9 @@ public sealed class RecoveryProvider : ResourceProvider, IUnprotectedContentOutp
 
     IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind) => OpenContent(item, kind);
 
+    IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind, out OutputEfsObservation? provenance) =>
+        OpenContent(item, kind, out provenance);
+
     void IUnprotectedContentOutput.RequireClearOutputSource(Location location, ContentOutputKind kind)
     {
         lock (_scanLock)
@@ -423,8 +426,11 @@ public sealed class RecoveryProvider : ResourceProvider, IUnprotectedContentOutp
         });
     }
 
-    private IContentSource? OpenContent(ItemRef item, ContentOutputKind? output)
+    private IContentSource? OpenContent(ItemRef item, ContentOutputKind? output) => OpenContent(item, output, out _);
+
+    private IContentSource? OpenContent(ItemRef item, ContentOutputKind? output, out OutputEfsObservation? provenance)
     {
+        provenance = null;
         lock (_scanLock)
         {
             var session = GetSession(item.Parent, CancellationToken.None);
@@ -445,6 +451,7 @@ public sealed class RecoveryProvider : ResourceProvider, IUnprotectedContentOutp
             if (OperatingSystem.IsWindows() && !device && session.Source is ImageFileSource image)
             {
                 VerifyImageOutput(image, output);
+                provenance = image.OutputProtection;
                 var verifyRevision = verifySource;
                 verifySource = () =>
                 {

@@ -1,6 +1,10 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
 using FileCat.Core.Records;
+using FileCat.Core.Resources;
+using FileCat.Core.State;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows.Tests;
@@ -71,6 +75,9 @@ public sealed partial class WindowsFileRecordsTests
             var (rootRecord, rootSequence) = Reference(root);
             int fetchesBefore = Volatile.Read(ref _fetches);
 
+            CheckDetailsAndStorageAdmission(root, file);
+            Assert.Equal(fetchesBefore, Volatile.Read(ref _fetches));
+
             bool[] modes = Environment.IsPrivilegedProcess ? [false, true] : [false];
             foreach (bool privileged in modes)
             {
@@ -116,6 +123,38 @@ public sealed partial class WindowsFileRecordsTests
                 Directory.Delete(root, recursive: true);
             }
         }
+    }
+
+    private static void CheckDetailsAndStorageAdmission(string root, string file)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var reader = new WindowsFileRecords();
+        var summary = reader.ReadSummary(file, ct);
+        Assert.Equal(FileObjectKind.File, summary.Kind);
+        Assert.Equal(FactState.Known, summary.ReparseTag.State);
+        Assert.True(ReparsePresentation.IsCloudTag(summary.ReparseTag.Value));
+        Assert.Equal(FactState.Known, summary.Cloud.State);
+        Assert.Equal(FactState.NotInspected, summary.Target.State);
+        Assert.Equal(5000, summary.LogicalSize.Value);
+        var full = reader.ReadFull(file, FileDetailsPolicy.MetadataOnly, ct);
+        Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);
+        Assert.Equal(summary.Identity, full.Summary.Identity);
+        Assert.Equal(summary.Cloud, full.Summary.Cloud);
+        Assert.Equal("Native metadata", Assert.Single(full.Technical.Sections).Title);
+        Assert.NotEqual(summary.Revision, full.Summary.Revision);
+
+        if (!WindowsStorageTransforms.IsQualifiedHost) return;
+        var adapter = new WindowsStorageTransforms();
+        var candidate = adapter.CreateEfsJobCandidate();
+        var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), candidate,
+            Path.Join(root, "unused-evidence"));
+        var target = ItemRef.ForFileSystemPath(file, EntryKind.File);
+        Assert.Equal("ancestor-excluded", Assert.Throws<StorageInspectionException>(() =>
+            manager.PrepareStorageReview([target], StorageAction.Compress, ct)).Problem.Code);
+        if (!WindowsTokenAuthority.IsHighIntegrity && candidate.Unavailable(StorageAction.EncryptEfs) is null)
+            Assert.Equal("ancestor-excluded", Assert.Throws<StorageInspectionException>(() =>
+                manager.PrepareStorageReview([target], StorageAction.EncryptEfs, ct)).Problem.Code);
+        Assert.False(Directory.Exists(Path.Join(root, "unused-evidence")));
     }
 
     [StructLayout(LayoutKind.Sequential)]

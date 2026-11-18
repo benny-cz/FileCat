@@ -199,6 +199,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
             string name = container.Path[(slash + 1)..];
             string spoolPath;
             FileStream holder;
+            OutputEfsObservation.Receipt origin;
             // Nested copy admission must keep its outer index alive until every byte is spooled.
             // The resolved outer path avoids taking the nested lock again under the cache lock.
             lock (_cacheLock)
@@ -219,10 +220,15 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
                 Directory.CreateDirectory(_tempDirectory);
                 spoolPath = Path.Combine(_tempDirectory, $"nested-{Guid.NewGuid():N}.zip");
                 holder = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.DeleteOnClose);
-                try { index.CopyMember(tag, holder); }
+                try
+                {
+                    index.CopyMember(tag, holder);
+                    origin = index.OutputProtection.Freeze();
+                    ArchiveOuterEfs.RequireClearOutput(origin.Protection, ContentOutputKind.DiskCache);
+                }
                 catch { holder.Dispose(); throw; }
             }
-            var added = new ArchiveSpool(spoolPath, holder);
+            var added = new ArchiveSpool(spoolPath, holder, origin);
             _nested[key] = added;
             while (_nested.Count > MaxNestedSpools)
             {
@@ -391,13 +397,19 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
     IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind) =>
         OpenContent(item, retainedEdit: false, output: kind);
 
+    IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind, out OutputEfsObservation? provenance) =>
+        OpenContent(item, retainedEdit: false, kind, out provenance);
+
     void IUnprotectedContentOutput.RequireClearOutputSource(Location location, ContentOutputKind kind)
     {
         using var source = ZipPath(location);
         lock (_cacheLock) GetIndex(location, source).RequireClearOutputSource(kind);
     }
 
-    private IContentSource? OpenContent(ItemRef item, bool retainedEdit, ContentOutputKind? output = null)
+    private IContentSource? OpenContent(ItemRef item, bool retainedEdit, ContentOutputKind? output = null) =>
+        OpenContent(item, retainedEdit, output, out _);
+
+    private IContentSource? OpenContent(ItemRef item, bool retainedEdit, ContentOutputKind? output, out OutputEfsObservation? provenance)
     {
         using var source = ZipPath(item.Parent);
         // Resolve nested paths before taking the cache lock; cross-provider spool locks stay ordered.
@@ -405,6 +417,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
         lock (_cacheLock)
         {
             var index = GetIndex(item.Parent, source);
+            provenance = index.OutputProtection;
             var name = item.Name;
             int ordinal = item.Ordinal;
             var full = item.Parent.Path.Length == 0 ? name : item.Parent.Path + "/" + name;
@@ -592,7 +605,8 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
 
 internal sealed class ZipIndex : IDisposable
 {
-    private readonly OutputEfsObservation _outputProtection = new();
+    private readonly OutputEfsObservation _outputProtection;
+    internal OutputEfsObservation OutputProtection => _outputProtection;
     private readonly object _lock = new();
     private readonly FileStream _stream;
     // Taken once while the index is built: reading a FileStream's handle flushes its read buffer, which must never happen
@@ -605,9 +619,10 @@ internal sealed class ZipIndex : IDisposable
     public sealed record Node(string Name, bool IsDirectory, long Size, long Modified, ZipMemberTag? Tag);
 
     private ZipIndex(FileStream stream, ZipArchive archive, List<ZipArchiveEntry> entries, Dictionary<string, List<Node>> children, string? warning,
-        bool readOnly, long estimatedBytes, string? openedChangeToken, bool completeListing)
+        bool readOnly, long estimatedBytes, string? openedChangeToken, bool completeListing, OutputEfsObservation protection)
     {
         CompleteListing = completeListing;
+        _outputProtection = protection;
         _stream = stream;
         _handle = stream.SafeFileHandle;
         _archive = archive;
@@ -746,8 +761,10 @@ internal sealed class ZipIndex : IDisposable
         {
             verifyOpened?.Invoke(fs.SafeFileHandle);
             string? changeToken = SourceChangeToken.FromHandle(fs.SafeFileHandle);
+            var protection = new OutputEfsObservation();
+            protection.ObserveOpened(fs.SafeFileHandle, changeToken);
             archive = new ZipArchive(fs, ZipArchiveMode.Read, leaveOpen: false, entryNameEncoding: nameEncoding);
-            var index = Build(path, fs, archive, changeToken, maxNameChars);
+            var index = Build(path, fs, archive, changeToken, maxNameChars, protection);
             index.VerifySource();
             return index;
         }
@@ -763,7 +780,7 @@ internal sealed class ZipIndex : IDisposable
         }
     }
 
-    private static ZipIndex Build(string path, FileStream fs, ZipArchive archive, string? changeToken, long maxNameChars)
+    private static ZipIndex Build(string path, FileStream fs, ZipArchive archive, string? changeToken, long maxNameChars, OutputEfsObservation protection)
     {
         const long maxDirectoryChars = 32L * 1024 * 1024;
         var entries = new List<ZipArchiveEntry>();
@@ -863,7 +880,7 @@ internal sealed class ZipIndex : IDisposable
         // Generated ancestor paths are retained as separate strings and directory nodes. A single
         // deeply nested member can own much more index memory than its one central-directory name.
         long estimate = archive.Entries.Count * 460L + nameChars * 4 + directoryChars * 2 + directoryCount * 160;
-        return new ZipIndex(fs, archive, entries, children, warning, readOnly, estimate, changeToken, complete);
+        return new ZipIndex(fs, archive, entries, children, warning, readOnly, estimate, changeToken, complete, protection);
     }
 
     /// <summary>
@@ -925,7 +942,11 @@ internal sealed class ZipIndex : IDisposable
 
     // Members being read keep the archive open: an index dropped from the cache closes when the last one is disposed.
     private ArchiveSourceLease? _source;
-    public void KeepSource(ArchiveSourceLease source) => _source = source.Retain();
+    public void KeepSource(ArchiveSourceLease source)
+    {
+        if (source.Origin is { } origin) _outputProtection.Include(origin);
+        _source = source.Retain();
+    }
     private int _leases;
     private bool _closing;
 

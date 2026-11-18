@@ -455,7 +455,7 @@ public sealed partial class MainViewModel
         var entries = new List<CommandSearch.Entry>();
         foreach (var d in Services.Commands.All)
         {
-            if (!MainMenuModel.IsPlatformApplicable(d.Id)) continue;
+            if (!MainMenuModel.IsPlatformApplicable(d.Id) || !AdvertisesEfsCommand(d.Id)) continue;
             if (d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
                 || d.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
                 || d.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal))
@@ -516,7 +516,7 @@ public sealed partial class MainViewModel
     private KeyboardHelpEntry[] KeyboardHelpEntries(bool remapOnly)
     {
         return Services.Commands.All
-            .Where(d => !d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
+            .Where(d => AdvertisesEfsCommand(d.Id) && !d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
                 && !d.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
                 && !d.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal)
                 && !d.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal)
