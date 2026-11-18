@@ -177,8 +177,11 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         if (FileCat.Core.State.WindowsTokenAuthority.IsHighIntegrity)
             throw new IOException("Nested archives cannot be opened while FileCat runs as administrator because they require a user-local spool.");
         if (container.Scheme != Schemes.Zip)
-            return OtherArchives is IArchiveSpoolProvider spools ? spools.OpenSpool(container)
-                : new ArchiveSourceLease(SpoolForeignMember?.Invoke(container) ?? throw new NotSupportedException("This archive is inside a location FileCat cannot read archives from."));
+        {
+            if (OtherArchives is IArchiveSpoolProvider spools) return spools.OpenSpool(container);
+            if (OperatingSystem.IsWindows()) throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnknown);
+            return new ArchiveSourceLease(SpoolForeignMember?.Invoke(container) ?? throw new NotSupportedException("This archive is inside a location FileCat cannot read archives from."));
+        }
         if (depth >= MaxNestingDepth) throw new InvalidDataException($"Archives are nested more than {MaxNestingDepth} levels deep.");
         using var outerSource = ArchiveFile(container, depth + 1);
         string outer = outerSource.Path;
@@ -382,7 +385,15 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
 
     internal IContentSource? OpenEditContent(ItemRef item) => OpenContent(item, retainedEdit: true);
 
-    private IContentSource? OpenContent(ItemRef item, bool retainedEdit)
+    internal IContentSource? OpenForDiskSpool(ItemRef item) => OpenContent(item, retainedEdit: false, forDiskSpool: true);
+
+    internal void RequireClearForDiskSpool(Location location)
+    {
+        using var source = ZipPath(location);
+        lock (_cacheLock) GetIndex(location, source).RequireClearSpoolSource();
+    }
+
+    private IContentSource? OpenContent(ItemRef item, bool retainedEdit, bool forDiskSpool = false)
     {
         using var source = ZipPath(item.Parent);
         // Resolve nested paths before taking the cache lock; cross-provider spool locks stay ordered.
@@ -397,7 +408,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{full}\" is not in the archive.");
             if (tag.Encrypted) return null;
             if (tag.UnsafeReason is not null) throw new InvalidDataException("This member has an unsafe name: " + tag.UnsafeReason);
-            return index.Extract(tag, _tempDirectory, retainedEdit);
+            return index.Extract(tag, _tempDirectory, retainedEdit, forDiskSpool);
         }
     }
 
@@ -849,13 +860,18 @@ internal sealed class ZipIndex : IDisposable
     /// (<see cref="ProgressiveContent"/>), so the first bytes are there at once. Either way the declared size is not
     /// trusted and the member's checksum is verified (.NET does not check it).
     /// </summary>
-    public IContentSource Extract(ZipMemberTag tag, string tempDirectory, bool retainedEdit = false)
+    public IContentSource Extract(ZipMemberTag tag, string tempDirectory, bool retainedEdit = false, bool forDiskSpool = false)
     {
         LastUsed = DateTime.UtcNow;
         lock (_lock)
         {
-            if (retainedEdit) VerifyClearEditSource();
-            else VerifySource();
+            void VerifyInput()
+            {
+                if (retainedEdit) VerifyClearEditSource();
+                else VerifySource();
+                if (forDiskSpool) RequireClearSpoolSource();
+            }
+            VerifyInput();
             if (_closing && _leases == 0) throw new IOException("The archive was closed; open it again.");
             var entry = _entries[tag.EntryIndex];
             var limits = Limits(entry);
@@ -863,12 +879,11 @@ internal sealed class ZipIndex : IDisposable
             {
                 _leases++;
                 return new ProgressiveContent(tag.FullName, _lock, entry.Open, limits, ZipProvider.MaxSpooledMember,
-                    tempDirectory, Returned, retainedEdit ? VerifyClearEditSource : VerifySource, RequireClearSpoolSource);
+                    tempDirectory, Returned, VerifyInput, RequireClearSpoolSource);
             }
             var memory = new MemoryStream((int)Math.Max(0, entry.Length));
-            using (var source = entry.Open()) limits.CopyAll(source, memory);
-            if (retainedEdit) VerifyClearEditSource();
-            else VerifySource();
+            using (var source = entry.Open()) limits.CopyAll(source, memory, default, forDiskSpool ? RequireClearSpoolSource : null);
+            VerifyInput();
             // Ordinary members already have an exact-sized backing array. Keep its logical length instead of
             // copying the whole payload just before a viewer or nested reader allocates again. A malformed
             // member may expand within the allowed slack and force geometric over-allocation; trim that case.
