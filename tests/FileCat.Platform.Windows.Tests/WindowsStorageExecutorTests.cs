@@ -1,4 +1,5 @@
 using System.Security.AccessControl;
+using System.Security.Cryptography;
 using System.Security.Principal;
 using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
@@ -39,6 +40,97 @@ public sealed class WindowsStorageExecutorTests
         finally { manager.JobFinished -= Finished; }
     }
     private static bool Compressed(string path) => (File.GetAttributes(path) & FileAttributes.Compressed) != 0;
+
+    [Fact]
+    public void Removing_compression_with_insufficient_volume_capacity_retains_payload_and_reports_the_native_failure()
+    {
+        RequireNormal();
+        string? canary = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_FULL_TARGET");
+        if (string.IsNullOrWhiteSpace(canary)) Assert.Skip("Set FILECAT_STORAGE_NATIVE_FULL_TARGET to a canary on a small disposable NTFS fixture volume.");
+        Assert.True(File.Exists(canary));
+        var volume = new DriveInfo(Path.GetPathRoot(canary)!);
+        Assert.StartsWith("FCFresh", volume.VolumeLabel, StringComparison.Ordinal);
+        Assert.Equal("NTFS", volume.DriveFormat);
+        Assert.InRange(volume.TotalSize, 32 * 1024 * 1024, 320 * 1024 * 1024);
+
+        string evidence = Directory.CreateTempSubdirectory("filecat-storage-full-volume-").FullName;
+        string owned = Path.Join(Path.GetDirectoryName(canary), "filecat-space-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(owned);
+            string target = Path.Join(owned, "compressed.bin");
+            File.WriteAllBytes(target, []);
+            var source = ItemRef.ForFileSystemPath(target, EntryKind.File);
+            var manager = Manager(evidence);
+            var buffer = new byte[1024 * 1024];
+            buffer.AsSpan().Fill(0x71);
+            const int logicalMiB = 32;
+            TestContext.Current.TestOutputHelper?.WriteLine($"Fixture volume {volume.TotalSize} bytes, {volume.AvailableFreeSpace} free before writing.");
+            using (var file = new FileStream(target, FileMode.Open, FileAccess.Write, FileShare.Read, 64 * 1024, FileOptions.WriteThrough))
+            {
+                for (int i = 0; i < logicalMiB; i++)
+                {
+                    Stop.ThrowIfCancellationRequested();
+                    file.Write(buffer);
+                }
+            }
+            Assert.False(Compressed(target));
+            long beforeCompression = volume.AvailableFreeSpace;
+            Assert.Equal(JobState.Completed, Run(manager, StorageScope.SelectedItems, source).State);
+            Assert.True(Compressed(target));
+            long saved = volume.AvailableFreeSpace - beforeCompression;
+            Assert.True(saved >= 16 * 1024 * 1024, $"The prepared compressible file must actually free storage, observed {saved} bytes.");
+
+            var fs = new WindowsFileOperations();
+            var id = fs.GetFileIdentity(target);
+            Assert.NotNull(id);
+            Assert.False(File.GetAttributes(target).HasFlag(FileAttributes.SparseFile));
+            byte[] before = Checksum(target);
+            string filler = Path.Join(owned, "owned-capacity-reserve.bin");
+            const long remaining = 2 * 1024 * 1024;
+            Assert.True(volume.AvailableFreeSpace > remaining);
+            using (var file = new FileStream(filler, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                file.SetLength(volume.AvailableFreeSpace - remaining);
+            Assert.False(Compressed(filler));
+            Assert.InRange(volume.AvailableFreeSpace, 1, 2 * remaining);
+
+            var attempted = RunAction(manager, StorageAction.RemoveCompression, StorageScope.SelectedItems, source);
+            var result = attempted.StorageResult!;
+            var calls = manager.ReadStorageCalls(StorageJournalPolicy.FileName(attempted.CreatedUtc, attempted.Id), result.DurablePrefix!, ct: Stop);
+            var call = Assert.Single(calls.Calls);
+            TestContext.Current.TestOutputHelper?.WriteLine($"{saved} bytes saved during setup. Removal outcome {call.Result?.Effect}, state {attempted.State}, error {call.Result?.Problem?.Code} {call.Result?.Problem?.Message}.");
+            Assert.Equal(StorageCallDisposition.Observed, call.Disposition);
+            Assert.Equal(StorageEffect.Failed, call.Result!.Effect);
+            Assert.Equal(JobState.Failed, attempted.State);
+            Assert.Equal("compression-disk-full", call.Result.Problem?.Code);
+            Assert.Contains("112", call.Result.Problem?.Message); // ERROR_DISK_FULL
+            Assert.Equal(1, result.Counts.Failed);
+            Assert.Equal(0, result.Counts.Changed);
+            Assert.True(Compressed(target));
+            Assert.Equal(id, fs.GetFileIdentity(target));
+            Assert.Equal((long)logicalMiB * buffer.Length, new FileInfo(target).Length);
+            Assert.Equal(before, Checksum(target));
+
+            File.Delete(filler);
+            var retried = RunAction(manager, StorageAction.RemoveCompression, StorageScope.SelectedItems, source);
+            Assert.Equal(JobState.Completed, retried.State);
+            Assert.Equal(1, retried.StorageResult!.Counts.Changed);
+            Assert.False(Compressed(target));
+            Assert.Equal(id, fs.GetFileIdentity(target));
+            Assert.Equal(before, Checksum(target));
+        }
+        finally
+        {
+            if (Directory.Exists(owned)) Directory.Delete(owned, recursive: true);
+            Directory.Delete(evidence, recursive: true);
+        }
+
+        static byte[] Checksum(string path)
+        {
+            using var file = File.OpenRead(path);
+            return SHA256.HashData(file);
+        }
+    }
 
     [Fact]
     public void Recursive_job_covers_reverse_order_overlaps_hidden_files_and_named_streams_without_double_counts()

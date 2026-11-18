@@ -1,0 +1,9 @@
+# Windows storage capacity, ReFS and SMB qualification
+
+Windows 11 x64 build 26340 ran the suite at medium integrity (RID 8192). It passed 31 cases. The previously measured scale case was the sole skip. The exact result is in `.tmp/filecat-storage-full-volume-tests.xml`.
+
+- A reviewed compression job freed 31,457,280 bytes on an owned 4 KiB NTFS VHD while preserving a 32 MiB file's logical content. A temporary capacity reserve left about 2 MiB free. The reviewed removal received Windows error 112, reported the free-space failure, and recorded a durable failed call with zero changed entries. The original file identity, size, compression state and full SHA-256 matched the pre-call observations. After the reserve was removed, a fresh reviewed job removed compression and retained the identity and payload.
+- A dynamically expanding Windows Dev Drive produced a genuine ReFS volume. The FileCat summary and fresh metadata-only full report identified ReFS and reported the fixture's main-stream size and allocation. Both compression actions and both EFS actions refused the filesystem at review. The EFS check created no job or journal and the canary retained its original bytes. [Windows Dev Drive formatting](https://learn.microsoft.com/en-us/windows/dev-drive/)
+- A private Samba 4.19.5 SMB3 fixture on the Ubuntu VM exposed independent case-distinct names, a Unicode name and a directory. Windows native and managed listings agreed on names, kinds, attributes, flags, sizes and timestamps through both a mapped drive and its UNC spelling. Both reported a missing directory with the same failure type. The compression candidate refused the mapped file with the remote-volume reason. The temporary mapping was removed after the run.
+
+The suite also exercised the prior NTFS, FAT32 and exFAT volume controls, recursive access denial, sharing conflicts and native long-name and link-tag tests. Additional provider, removable-device and release gates remain open.
