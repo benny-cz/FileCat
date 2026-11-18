@@ -40,6 +40,9 @@ public static class AnalysisIo
     internal static Task ReleaseScratchAsync(DeviceIoScheduler scheduler, AnalysisIoDevices device, IAnalysisScratchOwned source) =>
         CloseCore(scheduler, () => device, source.Dispose);
 
+    internal static Task ReleaseContentAsync(DeviceIoScheduler scheduler, AnalysisIoDevices device, IAnalysisBoundContent source) =>
+        CloseCore(scheduler, () => device, source.Dispose);
+
     // Called only by trusted native setup/rollback code already on its admitted worker.
     internal static void CloseOnWorker(IDisposable source)
     {

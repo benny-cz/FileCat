@@ -140,7 +140,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         if (_namespace != source._namespace || _volume != source._volume) return AnalysisRootContainment.Disjoint;
         bool Current(WindowsAnalysisBackend backend)
         {
-            var observed = Observe(backend._root.Value, [], [], backend._namespace);
+            var observed = Observe(backend._root.Value, [], [], backend._namespace, backend._nativeTimePrecisionTicks);
             return observed.Identity == backend.RootEntry.Identity && observed.Version == backend.RootEntry.Version;
         }
         if (!Current(this) || !Current(source)) throw new AnalysisSourceChangedException();
@@ -160,7 +160,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
             for (int i = 0; i < parts.Length; i++)
             {
                 var next = OpenChild(parent, parts[i], directory: i < parts.Length - 1); held.Add(next); parent = next.Value;
-                var entry = Observe(parent, [], [], _namespace);
+                var entry = Observe(parent, [], [], _namespace, _nativeTimePrecisionTicks);
                 if (Volume(parent) != _volume) return AnalysisRootContainment.Disjoint;
                 if (i < parts.Length - 1 && (entry.Kind != AnalysisKind.Directory || entry.Cloud == true)) return AnalysisRootContainment.Unavailable;
                 if (i == parts.Length - 1)
@@ -287,9 +287,12 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         try { modified = DateTimeOffset.FromFileTime(*(long*)(basic + 16)); } catch (ArgumentOutOfRangeException) { modified = null; }
         DateTimeOffset? created = timePrecisionTicks is null ? null : NativeFileTime(*(long*)basic);
         DateTimeOffset? changed = timePrecisionTicks is null ? null : NativeFileTime(*(long*)(basic + 24));
+        string version = $"{identity}:{length}:{*(long*)(basic + 24)}";
+        if (timePrecisionTicks == 1 && kind == AnalysisKind.File && !cloud && TryReadPrimaryUsn(h) is { } usn)
+            version += ":usn-" + usn.ToString("X16", System.Globalization.CultureInfo.InvariantCulture);
         return new(relative, Utf16(raw), raw.ToImmutableArray(), kind, identity,
             kind == AnalysisKind.File ? AnalysisMeasurement.Known((ulong)length) : AnalysisMeasurement.Missing(MeasurementState.Unsupported),
-            allocated, AnalysisMeasurement.Known(*(uint*)(standard + 16)), modified, $"{identity}:{length}:{*(long*)(basic + 24)}", cloud,
+            allocated, AnalysisMeasurement.Known(*(uint*)(standard + 16)), modified, version, cloud,
             Compressed: (attributes & 0x800) != 0, NameEncoding: "utf16le", ObservedUtc: DateTimeOffset.UtcNow, Sparse: (attributes & 0x200) != 0)
             { CreatedUtc = created, CreatedPrecisionTicks = created is null ? null : timePrecisionTicks,
                 ChangedUtc = changed, ChangedPrecisionTicks = changed is null ? null : timePrecisionTicks };

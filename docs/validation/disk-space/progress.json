@@ -15896,5 +15896,17 @@
     "publicEntryEnabled": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "windowsNtfsPrimaryContent": {
+    "status": "qualified-internal-reader",
+    "packet": "source-manifest-r1375-ntfs-primary-content.json",
+    "document": "NTFS_PRIMARY_CONTENT_QUALIFICATION.md",
+    "nativeReaderCasesPassed": 14,
+    "nativeRegressionCasesPassed": 6,
+    "windowsOnly": true,
+    "applicationContentReadsEnabled": false,
+    "publicEntryEnabled": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }

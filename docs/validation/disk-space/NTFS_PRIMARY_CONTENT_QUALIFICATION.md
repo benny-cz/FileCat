@@ -1,0 +1,11 @@
+# Native NTFS primary-content reader
+
+The reader binds to the recorded selected file or walks from a held directory through its recorded ancestors. It requests primary data with native no-follow and no-recall flags and keeps write and delete sharing closed throughout the read. The reader checks the object identity, creation time, length, version, and resident-file attributes, then rechecks the recorded scope and name before returning a SHA-256 over the primary stream. [Microsoft NT file-open contract](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-ntifs-ntcreatefile)
+
+Local NTFS regular-file observations include the positive USN from the same file handle when available. The reader requires that witness to match the captured version. An unavailable journal leaves ordinary metadata observations usable. Read work uses bounded 256 KiB chunks and release runs on the shared device scheduler. [Microsoft per-file change-journal query](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_read_file_usn_data)
+
+The first Windows run passed 8 of 11 cases. Two individually selected file fixtures hit the Win32 reopen failure, and the restored-timestamp fixture demonstrated that equal length and change time can persist across a write. The corrected native open and per-file journal check passed all 11 cases plus six metadata and ancestry regressions in r1373.
+
+The r1374 control run reused the identical Core and Windows product binaries. Three additional native cases covered a write through a subsequently closed writable mapping, a replacement directory junction targeting an identical hard-link object outside the selected root, and a captured version missing its journal witness. Across the successful runs the reader also excluded active writable mappings and hard-link writers, preserved a named stream, and released its handles on cancellation. Windows ran these cases as the ordinary test account. All owned test processes exited.
+
+This evidence covers the Windows local NTFS reader. The duplicate-review content command still requires the application consent, lifetime and grouping workflow. Other platform readers, live cloud-provider qualification, and the independent final review remain pending.

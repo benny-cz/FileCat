@@ -1,0 +1,82 @@
+{
+  "sourceBase": "f576a3416c92a0bee2339ca1df81d6aa7b17d1ee",
+  "sources": {
+    "src/FileCat.Core/Analysis/AnalysisIo.cs": "35d1ac2bef4090223ff370ec20ba5087572077828ab2ac78f86d42f3d2ca8cec",
+    "src/FileCat.Core/Analysis/AnalysisPrimaryContent.cs": "b08079505258cae390c5bde3d9b946325ed98ae7b4a93eae7c457bda775f757f",
+    "src/FileCat.Platform.Windows/Analysis/WindowsAnalysisBackend.Content.cs": "9220f9c664e296fe5349f1226c730fa59a2d181309d2e4c14126849495642b3c",
+    "src/FileCat.Platform.Windows/Analysis/WindowsAnalysisBackend.cs": "594a8b18be8451681f3230633e18dbbc533f0b92644c51f3b167a1817f1a7b0a",
+    "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.PrimaryContent.cs": "462e4874d578c8b8e3fcbbb9eae4489819fa73b39749111db544c0cf60a4408b"
+  },
+  "inputs": {
+    "batch-r1374-windows/plan.json": "718df18f6991eacb6bd382716b8f5a463f44b87b2f036e4f3d5271c07356def4",
+    "batch-windows-r1372.ps1": "988f968acbfec6166d2be0be19ba924b0c0cf1d9a0684bd021f600293499bd38",
+    "batch-windows-r1373.ps1": "bf1e72ec5d25c6a6a1c4c34a9076fdab1f50d1121f36409be130e2266009d0a3",
+    "batch-windows-r1374.ps1": "72bc71dbdfcfbd69dc44a49982bf2f151958ad0e8ec0660d1d1b7f6500a2986f",
+    "primary-content-bootstrap-build-failure-r1372.txt": "3924f086424690daed5c4a02f0b7af2c135e97293c7f65fd1d89fd516a48d8a5",
+    "primary-content-build-r1372.txt": "13dd8f5dc948312888e28ac2d6e71466745460fab8773ec1ab596b6ee90bbc7b",
+    "primary-content-build-r1373.txt": "393d45b94cb1d5055b49e32134ceb90539c6a88490014c90dc13a6341d03a5f0",
+    "primary-content-build-r1374.txt": "8387de439b0577d69efb36f29902edfa2dabe248f3ca110e26df441626fde1cf",
+    "primary-content-fixture-build-failure-r1372.txt": "94f5621492908e5977c2fe65da3afdee599ebc0dc889ec1139bb6a7078c29084",
+    "primary-content-platform-build-r1373.txt": "3dd4b50e1c44d27191e593db95422459286cd92905f93708c17b7acfd3cd1d0d",
+    "primary-content-proof-r1372.json": "34e0ab2e7274435c941464c814a63c5c5c17d1976fced5807af622a49d46aa43",
+    "primary-content-proof-r1373.json": "07fee7f7b6f5e43d083de99040663cee2b3c43c29f211967b4ba8c45392c461b",
+    "primary-content-proof-r1374.json": "0251526bbbd143bae361f9d4cf9fafd3aaadf8966c1ea35028d0e3d702c4d4d0",
+    "primary-content-usn-build-failure-r1373.txt": "d4a8c75de94abbb507caad4150f079d0019a8df68d20639f4c26a0b3caa3c912",
+    "source-r1372-primary-content.tgz": "9bab197d4028a57aa9ac0b1190c09b27e54cc21a9d941cca00b2d3da54e75593",
+    "source-r1373-primary-content.tgz": "c0847881874f997ebfca8fd4a307bb7d56416e6e973b8618d5617c33b0429bb6",
+    "source-r1374-primary-content.tgz": "57d61fde389125bfd1999d443e99b61365b8302e2b105d3fae8ad209a2f82922",
+    "windows-batch-r1372-post.json": "fa9860fb606f5c22f553bb2dd25ef9354654b6e10d3f155bbb935b8c98b4c4a8",
+    "windows-batch-r1372-results.tgz": "1478aed77fc6f626b4a5cfcd53a9694ce92d413db3c68ebecee23e550bd325b3",
+    "windows-batch-r1373-post.json": "40235926bdd43c95bd82444d5e712d5da2ee1721da7df73f23550da286f9fb02",
+    "windows-batch-r1373-results.tgz": "11df2fa8c76b7d648b1ddc97be4f13f3c2dded452a5322cd26cb10d7acc3ed00",
+    "windows-batch-r1374-post.json": "b0eddf6ca815258429a0c9b9acdc81794ea0b85be3bd776d8bea9fb79e5b9d4f",
+    "windows-batch-r1374-results.tgz": "61329533e5e6db43e3e4adf871c97b94490487acd08d86008fedaf9d1ded1f68"
+  },
+  "archiveSha256": "4c04c57809780b6df9070a39290d81af878f43a944c4126d93fbaebea7ac960e",
+  "nativeWindowsCases": {
+    "r1372/native": [
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesReplacedAncestryEvenWithTheSameLeafObject",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesAReplacementAtTheRecordedName",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRejectsNamesThatCouldSelectOutsideThePrimaryEntry",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesAnInPlaceSameSizeWriteWithLastWriteTimeRestored",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentCancellationRetiresTheReadAndReleasesItsDeviceAndHandles",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentDeniesNewWritersThroughItsHardLinkDuringTheRead",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentReadsOnlyTheHeldPrimaryStream(fileRoot: False, length: 524361)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentReadsOnlyTheHeldPrimaryStream(fileRoot: True, length: 593)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentReadsOnlyTheHeldPrimaryStream(fileRoot: True, length: 0)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesAnOutstandingWriterOrWritableMapping(mapped: False)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesAnOutstandingWriterOrWritableMapping(mapped: True)"
+    ],
+    "r1373/native": [
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentDeniesNewWritersThroughItsHardLinkDuringTheRead",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesAnOutstandingWriterOrWritableMapping(mapped: False)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesAnOutstandingWriterOrWritableMapping(mapped: True)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRejectsNamesThatCouldSelectOutsideThePrimaryEntry",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentReadsOnlyTheHeldPrimaryStream(fileRoot: False, length: 524361)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentReadsOnlyTheHeldPrimaryStream(fileRoot: True, length: 593)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentReadsOnlyTheHeldPrimaryStream(fileRoot: True, length: 0)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesAnInPlaceSameSizeWriteWithLastWriteTimeRestored",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentCancellationRetiresTheReadAndReleasesItsDeviceAndHandles",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesReplacedAncestryEvenWithTheSameLeafObject",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesAReplacementAtTheRecordedName"
+    ],
+    "r1373/native-epoch": [
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsCreationAndChangeTimesComeFromNtfsMetadataAndSurviveTheMemoryAcquisition(fileRoot: False)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsCreationAndChangeTimesComeFromNtfsMetadataAndSurviveTheMemoryAcquisition(fileRoot: True)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.CloudTagsRepresentRegularFilePathsWithoutClaimingLocalAllocation(tag: 2415919130)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.CloudTagsRepresentRegularFilePathsWithoutClaimingLocalAllocation(tag: 2415923226)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.CloudTagsRepresentRegularFilePathsWithoutClaimingLocalAllocation(tag: 2415980570)",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.QueuedDirectoryCannotIgnoreRenamedAncestors"
+    ],
+    "r1374/native": [
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesARevisionWithoutTheJournalWitness",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesAClosedMappedWrite",
+      "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeWindowsPrimaryContentRefusesAReplacementDirectoryJunction"
+    ]
+  },
+  "windowsOnly": true,
+  "applicationContentReadsEnabled": false,
+  "publicEntryEnabled": false,
+  "fullGoalComplete": false,
+  "finalIndependentReviewPerformed": false
+}
