@@ -220,10 +220,12 @@ public sealed class BackgroundContextMenuTests
             vm.Workspace.Activate(otherPanel);
 
             paste.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-            await Until(() => File.Exists(Path.Combine(target, "a.txt")));
+            await Until(() => services.Jobs.Jobs.Any(j => j.Kind == JobKind.Copy));
+            var job = Assert.Single(services.Jobs.Jobs, j => j.Kind == JobKind.Copy);
+            Assert.Equal(target, job.Request.Destination?.Path);
+            await Until(() => job.State.IsFinished());
+            Assert.Equal(JobState.Completed, job.State);
             Assert.False(File.Exists(Path.Combine(other, "a.txt")));
-            var job = Assert.Single(services.Jobs.Jobs, j => j.Request.Destination?.Path == target);
-            Assert.Equal(JobKind.Copy, job.Kind);
             Assert.Equal("alpha", File.ReadAllText(Path.Combine(target, "a.txt")));
 
             int before = services.Jobs.Jobs.Count;
