@@ -4,9 +4,9 @@ using FileCat.Core.Analysis;
 
 namespace FileCat.App.Services;
 
-internal sealed record AnalysisDuplicateReadItem(RootBinding Root, AnalysisPrimaryContentTarget Target, string RelativePath);
+internal sealed record AnalysisPrimaryReadItem(RootBinding Root, AnalysisPrimaryContentTarget Target, string RelativePath);
 
-internal sealed record AnalysisDuplicateReadScope(ImmutableArray<AnalysisDuplicateReadItem> Items, BigInteger Bytes,
+internal sealed record AnalysisDuplicateReadScope(ImmutableArray<AnalysisPrimaryReadItem> Items, BigInteger Bytes,
     int WithoutSizePeer)
 {
     internal const long MaximumBytes = 8L * 1024 * 1024 * 1024;
@@ -15,7 +15,7 @@ internal sealed record AnalysisDuplicateReadScope(ImmutableArray<AnalysisDuplica
 
 internal enum AnalysisDuplicateReadState { Read, Changed, Unreadable, Unavailable }
 
-internal sealed record AnalysisDuplicateReadRow(AnalysisDuplicateReadItem Item, AnalysisDuplicateReadState State,
+internal sealed record AnalysisDuplicateReadRow(AnalysisPrimaryReadItem Item, AnalysisDuplicateReadState State,
     AnalysisPrimaryContentProof? Proof = null);
 
 internal sealed record AnalysisDuplicateReadResult(SessionIdentity Identity, ImmutableArray<AnalysisDuplicateReadRow> Rows)
@@ -29,12 +29,12 @@ internal sealed record AnalysisDuplicateReadResult(SessionIdentity Identity, Imm
             .Select(group => group.OrderBy(row => row.Item.Target.PathId).ToImmutableArray())];
 }
 
-internal sealed class AnalysisDuplicateReadPlan(SessionIdentity identity, ImmutableArray<AnalysisDuplicateReadItem> items,
+internal sealed class AnalysisDuplicateReadPlan(SessionIdentity identity, ImmutableArray<AnalysisPrimaryReadItem> items,
     int withoutBinding, Func<AnalysisDuplicateReadScope, CancellationToken, Task<AnalysisDuplicateReadResult>> run)
 {
     private int _used;
     internal SessionIdentity Identity { get; } = identity;
-    internal ImmutableArray<AnalysisDuplicateReadItem> Items { get; } = items;
+    internal ImmutableArray<AnalysisPrimaryReadItem> Items { get; } = items;
     internal int WithoutBinding { get; } = withoutBinding;
 
     internal AnalysisDuplicateReadScope Select(ImmutableHashSet<ulong> selected)

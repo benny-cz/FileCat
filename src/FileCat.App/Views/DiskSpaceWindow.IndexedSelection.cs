@@ -119,6 +119,7 @@ public sealed partial class DiskSpaceWindow
         {
             if (_disposed) return;
             RefreshBranchAvailability();
+            UpdatePreviewButton(_previewFile, PreviewRefusal(FocusedPreviewPath, _runtimeAcquisition));
             ScheduleMarkVisibility();
             _markFocused.IsEnabled = _focus != 0;
             _showCapturedFolder.IsEnabled = _focus != 0;

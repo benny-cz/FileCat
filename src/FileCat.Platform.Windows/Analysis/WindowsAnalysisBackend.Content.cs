@@ -17,6 +17,49 @@ public sealed unsafe partial class WindowsAnalysisBackend
 
     internal IAnalysisBoundContent OpenPrimaryContent(AnalysisPrimaryContentTarget target, CancellationToken cancellation)
     {
+        var handles = BindPrimaryContent(target, cancellation);
+        try { return new PrimaryContentRead(this, target, handles); }
+        catch
+        {
+            AnalysisNativeHandle.CloseAll(handles.AsEnumerable().Reverse());
+            throw;
+        }
+    }
+
+    internal byte[] ReadPrimaryPreview(AnalysisPrimaryContentTarget target, CancellationToken cancellation)
+    {
+        var handles = BindPrimaryContent(target, cancellation);
+        byte[]? buffer = null;
+        try
+        {
+            try
+            {
+                buffer = new byte[(int)Math.Min(target.Bytes, AnalysisPrimaryContentTarget.PreviewBytes)];
+                var leaf = handles[^1].Value;
+                using var file = leaf.BorrowFile();
+                int received = 0;
+                while (received < buffer.Length)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    RequireResidentContent(leaf);
+                    int count = RandomAccess.Read(file.View, buffer.AsSpan(received), received);
+                    if (count <= 0) throw new AnalysisSourceChangedException();
+                    received += count;
+                }
+                RequirePrimaryBinding(target, handles, cancellation);
+            }
+            finally { AnalysisNativeHandle.CloseAll(handles.AsEnumerable().Reverse()); }
+            return buffer;
+        }
+        catch
+        {
+            if (buffer is not null) CryptographicOperations.ZeroMemory(buffer);
+            throw;
+        }
+    }
+
+    private List<OwnedHandle> BindPrimaryContent(AnalysisPrimaryContentTarget target, CancellationToken cancellation)
+    {
         ArgumentNullException.ThrowIfNull(target);
         Guard();
         cancellation.ThrowIfCancellationRequested();
@@ -51,13 +94,34 @@ public sealed unsafe partial class WindowsAnalysisBackend
             held.Add(leaf);
             RequirePrimaryContent(leaf.Value, target);
             cancellation.ThrowIfCancellationRequested();
-            return new PrimaryContentRead(this, target, held);
+            return held;
         }
         catch
         {
             AnalysisNativeHandle.CloseAll(held.AsEnumerable().Reverse());
             throw;
         }
+    }
+
+    private void RequirePrimaryBinding(AnalysisPrimaryContentTarget target, List<OwnedHandle> handles, CancellationToken cancellation)
+    {
+        RequirePrimaryContent(handles[^1].Value, target);
+        RequireContentRoot(target);
+        if (target.RootDirectory is not null)
+        {
+            SafeHandle parent = _root.Value;
+            for (int index = 0; index < target.Parents.Length; index++)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var expected = target.Parents[index];
+                using var current = OpenChild(parent, expected.Name, directory: true);
+                RequireContentDirectory(current.Value, expected);
+                parent = handles[index].Value;
+            }
+            using var named = OpenChild(parent, target.Name, directory: false);
+            RequirePrimaryContent(named.Value, target);
+        }
+        cancellation.ThrowIfCancellationRequested();
     }
 
     private OwnedHandle OpenPrimaryRead(SafeHandle parent, string? name)
@@ -184,23 +248,7 @@ public sealed unsafe partial class WindowsAnalysisBackend
             if (BytesRead != target.Bytes) throw new InvalidOperationException("Wait for the whole reviewed primary stream.");
             try
             {
-                owner.RequirePrimaryContent(handles[^1].Value, target);
-                owner.RequireContentRoot(target);
-                if (target.RootDirectory is not null)
-                {
-                    SafeHandle parent = owner._root.Value;
-                    for (int index = 0; index < target.Parents.Length; index++)
-                    {
-                        cancellation.ThrowIfCancellationRequested();
-                        var expected = target.Parents[index];
-                        using var current = owner.OpenChild(parent, expected.Name, directory: true);
-                        owner.RequireContentDirectory(current.Value, expected);
-                        parent = handles[index].Value;
-                    }
-                    using var named = owner.OpenChild(parent, target.Name, directory: false);
-                    owner.RequirePrimaryContent(named.Value, target);
-                }
-                cancellation.ThrowIfCancellationRequested();
+                owner.RequirePrimaryBinding(target, handles, cancellation);
                 _completed = true;
                 return new(target.PathId, Convert.ToHexStringLower(_hash.GetHashAndReset()), BytesRead, DateTimeOffset.UtcNow,
                     AnalysisContentEvidenceKind.StableContentProof);

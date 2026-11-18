@@ -17,6 +17,12 @@ internal sealed partial class HarnessApp
         Add(original, 4);
         Add("duplicate-review-unique.bin", 1);
         Add("duplicate-review-same-size.bin", 4);
+        if (Program.CleanupReviewProbe)
+        {
+            string preview = Path.Combine(_fixture, "primary-preview.txt");
+            File.WriteAllText(preview, "Read from the selected live file.");
+            _originals.Add(preview, Hash(preview));
+        }
         string source = Path.Combine(_fixture, original), alias = Path.Combine(_fixture, "duplicate-review-alias.bin");
         if (!(OperatingSystem.IsWindows() ? HardLink(alias, source, 0) : UnixLink(source, alias) == 0))
             throw new IOException("The native duplicate-review fixture needs an actual hard link.");
@@ -179,7 +185,11 @@ internal sealed partial class HarnessApp
             Click("Remove selected from basket");
             Click("Keep files / Close review");
             await ReadyAsync(() => Control<ListBox>("Captured basket entries") is null && Marks(4, 4));
-            if (Program.CleanupReviewProbe) await CheckCleanupReviewAsync();
+            if (Program.CleanupReviewProbe)
+            {
+                await CheckCleanupReviewAsync();
+                await CheckPrimaryPreviewAsync();
+            }
             if (_extraDataPath is { } extraPath && Hash(extraPath) != _extraDataDigest)
                 throw new IOException("Extra data changed during the preview and review.");
 
@@ -189,7 +199,8 @@ internal sealed partial class HarnessApp
                 capturedMarks = 4, additionalHardLinkNames = 1, preservingDefault, retainedHiddenMarksAndBasket = true,
                 contentAvailable, contentGroups, recordedInsightsPassed = true, largestFoldersPassed = true, recipeStagingPassed = true,
                 detailedStreamProbe = Program.DetailedStreamProbe, namedAllocationAvailable, namedStreamBytesPreserved = true,
-                resourceAllocationAvailable, resourceForkBytesPreserved = true, cleanupReviewPassed = Program.CleanupReviewProbe
+                resourceAllocationAvailable, resourceForkBytesPreserved = true, cleanupReviewPassed = Program.CleanupReviewProbe,
+                primaryPreviewPassed = Program.CleanupReviewProbe
             };
         }
         catch (Exception error)
@@ -240,6 +251,33 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => Control<ListBox>("Cleanup review entries") is null && Marks(0, 4));
             if (_originals.Any(file => !File.Exists(file.Key) || Hash(file.Key) != file.Value))
                 throw new IOException("Cleanup review changed an original file.");
+        }
+        async Task CheckPrimaryPreviewAsync()
+        {
+            var table = Control<ListBox>("Indexed analysis entries")!;
+            var oldRows = table.ItemsSource;
+            Control<TextBox>("Filter indexed observations")!.Text = "name:primary-preview.txt";
+            Click("Apply filter");
+            await ReadyAsync(() => !ReferenceEquals(table.ItemsSource, oldRows) && Matches(1));
+            table.SelectedItem = table.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Kind == AnalysisKind.Directory);
+            Click("Explore selected folder");
+            await ReadyAsync(() => table.Items.OfType<AnalysisHierarchyRow>().Any(row => row.Path.Name == "primary-preview.txt"));
+            table.SelectedItem = table.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Name == "primary-preview.txt");
+            await ReadyAsync(() => HasText("Captured metadata ready for primary-preview.txt"));
+            if (!OperatingSystem.IsWindows())
+            {
+                if (Button("Preview file") is not { IsEnabled: false } unavailable ||
+                    !AutomationProperties.GetHelpText(unavailable)!.Contains("qualified live file binding", StringComparison.Ordinal))
+                    throw new IOException("An unsupported native source exposed live file preview.");
+                return;
+            }
+            Click("Preview file");
+            await ReadyAsync(() => Control<TextBox>("Live primary file preview")?.Text == "Read from the selected live file.");
+            if (Button("Close preview") is not { IsDefault: true, IsCancel: true })
+                throw new IOException("The native file preview changed its preserving default.");
+            RenderNativeFrame("primary-preview.png");
+            Click("Close preview");
+            await ReadyAsync(() => Control<TextBox>("Live primary file preview") is null);
         }
         async Task OpenInsightAsync(string title)
         {

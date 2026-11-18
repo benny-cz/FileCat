@@ -405,7 +405,8 @@ public sealed partial class DiskSpaceWindow : Window
             _table.Children.Add(_tableHeader); Grid.SetRow(_list, 1); _table.Children.Add(_list);
             Grid.SetRow(_table, 2); _explorer.Children.Add(_table);
             _inspectorPanel.Children.Add(new TextBlock { Text = "Selection inspector", FontSize = 18 }); _inspectorPanel.Children.Add(_inspector);
-            _inspectorPanel.Children.Add(Unavailable("Preview", new AnalysisCapabilities().For(AnalysisVerb.Preview).Reason));
+            _previewFile.Click += (_, _) => _ = PreviewFocusedAsync();
+            _inspectorPanel.Children.Add(_previewFile);
             _inspectorPanel.Children.Add(Unavailable("Reveal in panel", "A historical path is not a current source binding. Explicit live rebinding is required."));
             _inspectorPanel.Children.Add(ActionButton("Copy path", () => _ = CopyPathAsync(), "Copy the selected path as literal text; it is not opened or executed."));
             _showHierarchy = ActionButton("Show in captured folder", () => _ = Model.ShowFocusedInHierarchyAsync(), "Show this observed entry in the captured folder hierarchy. This does not open or reconnect its current filesystem location.");
@@ -742,10 +743,17 @@ public sealed partial class DiskSpaceWindow : Window
                 body.Children.Add(ActionButton("Show in captured folder", () => { _ = Model.ShowFocusedInHierarchyAsync(); closer.Close(true); }, "Navigate within these captured observations; the live source is not opened."));
             body.Children.Add(ActionButton("Mark current members", Model.MarkCurrentMembers, "Capture current real members; future observations are not selected."));
             body.Children.Add(ActionButton("Add to review", Model.StageSelection, "Stage inert references for explicit review."));
-            body.Children.Add(Unavailable("Preview", new AnalysisCapabilities().For(AnalysisVerb.Preview).Reason));
+            var path = FocusedPreviewPath;
+            var reviewIdentity = Model.Tree?.Snapshot.Identity;
+            var preview = PrimaryPreviewButton();
+            UpdatePreviewButton(preview, PreviewRefusal(path, Model.BranchRuntime));
+            bool previewRequested = false;
+            preview.Click += (_, _) => { previewRequested = true; closer.Close(null); };
+            body.Children.Add(preview);
             Model.Interaction(true);
             try { await _window._dialogs.ShowCustomAsync("Selection inspector", body, [new DialogButton("Close details", true, IsDefault: true, IsCancel: true)], closer: closer); }
             finally { Model.Interaction(false); }
+            if (previewRequested) await PreviewAsync(path, reviewIdentity);
         }
         public void HandleKeys(KeyEventArgs e)
         {
@@ -778,7 +786,7 @@ public sealed partial class DiskSpaceWindow : Window
                 case CommandIds.DiskSpaceBack: Model.Back(); break;
                 case CommandIds.DiskSpaceForward: Model.Forward(); break;
                 case CommandIds.DiskSpaceParent: Model.Parent(); break;
-                case CommandIds.DiskSpacePreview: Model.SetStatus(new AnalysisCapabilities().For(AnalysisVerb.Preview).Reason); break;
+                case CommandIds.DiskSpacePreview: _ = PreviewFocusedAsync(); break;
                 case CommandIds.DiskSpaceMark when _list.IsKeyboardFocusWithin || _treemap.IsKeyboardFocusWithin || _sunburst.IsKeyboardFocusWithin: Model.ToggleFocusedMark(); break;
                 case CommandIds.DiskSpaceEnter when _list.IsKeyboardFocusWithin || _treemap.IsKeyboardFocusWithin || _sunburst.IsKeyboardFocusWithin:
                     if (Model.Selection.Focus is { } focus) ActivateItem(focus, false, true);

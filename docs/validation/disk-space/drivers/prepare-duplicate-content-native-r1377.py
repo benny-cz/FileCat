@@ -92,7 +92,7 @@ for platform in (("mac",) if mac_capture_retry else ("windows", "mac", "linux"))
             worker = worker.replace("list(run.glob('ntfs-stream-allocation.png'))", "list(run.glob('apfs-resource-fork-allocation.png'))")
         if cleanup:
             worker = worker.replace("'--duplicate-review-probe'", "'--cleanup-review-probe'")
-            worker = worker.replace("probe['recipeStagingPassed'] and", "probe['recipeStagingPassed'] and probe['cleanupReviewPassed'] and")
+            worker = worker.replace("probe['recipeStagingPassed'] and", "probe['recipeStagingPassed'] and probe['cleanupReviewPassed'] and probe['primaryPreviewPassed'] and")
             worker = worker.replace("list(run.glob('recipe-staging-*.png'))", "list(run.glob('recipe-staging-*.png')) + list(run.glob('cleanup-review-*.png'))")
         if mac_capture_retry or forks or cleanup:
             worker = worker.replace(f"assert frame == '{frame}'", f"assert frame == '{frame}', " + "f'Unexpected capture request {frame!r}'")
@@ -140,8 +140,8 @@ for platform in (("mac",) if mac_capture_retry else ("windows", "mac", "linux"))
             portable = portable.replace("ntfs-stream-allocation.png", "apfs-resource-fork-allocation.png")
         if cleanup:
             portable = portable.replace("'--duplicate-review-probe'", "'--cleanup-review-probe'")
-            portable = portable.replace("-or!$probe.recipeStagingPassed)", "-or!$probe.recipeStagingPassed-or!$probe.cleanupReviewPassed)")
-            portable = portable.replace("$_.Name -like 'recipe-staging-*.png'", "$_.Name -like 'recipe-staging-*.png' -or $_.Name -like 'cleanup-review-*.png'")
+            portable = portable.replace("-or!$probe.recipeStagingPassed)", "-or!$probe.recipeStagingPassed-or!$probe.cleanupReviewPassed-or!$probe.primaryPreviewPassed)")
+            portable = portable.replace("$_.Name -like 'recipe-staging-*.png'", "$_.Name -like 'recipe-staging-*.png' -or $_.Name -like 'cleanup-review-*.png' -or $_.Name -eq 'primary-preview.png'")
         assert "$probe.contentGroups-ne1" in portable and "$parent.FullName-ne$inputRoot" in portable
     runner = temp / f"batch-{platform}-{revision}{suffix}"
     runner.write_text(portable.replace(old["bundle"], sha(archive)), encoding="utf-8", newline="\n")

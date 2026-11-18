@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Globalization;
 using FileCat.Core.Analysis;
 using FileCat.Core.FileSystem;
 using FileCat.Platform.Windows.Analysis;
@@ -89,7 +88,7 @@ internal sealed partial class AnalysisIndexedAcquisition
         Func<string, CancellationToken, Task<AnalysisObjectMetadata?>> readObject, CancellationToken cancellation)
     {
         var active = roots.ToDictionary(root => root.Id, StringComparer.Ordinal);
-        var items = ImmutableArray.CreateBuilder<AnalysisDuplicateReadItem>();
+        var items = ImmutableArray.CreateBuilder<AnalysisPrimaryReadItem>();
         var distinct = new HashSet<string>(StringComparer.Ordinal);
         var cachedDirectories = new Dictionary<ulong, AnalysisPathMetadata>();
         long retainedBytes = 0;
@@ -99,70 +98,28 @@ internal sealed partial class AnalysisIndexedAcquisition
             cancellation.ThrowIfCancellationRequested();
             if (row.State != AnalysisDuplicateCandidateState.Candidate) continue;
             var root = active[row.RootId!];
-            var item = await ReadTargetAsync(root, row.PathId).ConfigureAwait(false);
+            var leaf = await readPath(row.PathId, cancellation).ConfigureAwait(false);
+            var item = leaf.Id == row.PathId
+                ? await ReadPrimaryTargetAsync(root, leaf, ReadDirectoryAsync, readObject, cancellation).ConfigureAwait(false)
+                : null;
             if (item is null || !distinct.Add(item.Target.Identity)) { refused++; continue; }
             retainedBytes += 512L + item.RelativePath.Length * 2L + item.Target.Identity.Length * 2L +
                 item.Target.Version.Length * 2L + item.Target.Parents.Sum(part => 64L + part.Name.Length * 2L + part.Identity.Length * 2L);
             CheckSize();
             items.Add(item);
         }
-        lock (_gate) CheckDuplicateRuntime(session);
+        lock (_gate) RequirePrimaryReadRuntime(session);
         return new(estimate.Identity, items.ToImmutable(), refused,
             (scope, token) => ExecuteDuplicateReadAsync(session, estimate.Identity, scope, token));
 
-        async Task<AnalysisDuplicateReadItem?> ReadTargetAsync(RootBinding root, ulong id)
+        async Task<AnalysisPathMetadata> ReadDirectoryAsync(ulong id, CancellationToken token)
         {
-            if (root is not { Scheme: "file", NameRules: AnalysisNameRules.Windows, Assurance: IdentityAssurance.Verified,
-                    Disposition: AnalysisRootDisposition.Active, ObservedObjectIdentity: not null, SourceIdentity: not null })
-                return null;
-            var leaf = await readPath(id, cancellation).ConfigureAwait(false);
-            if (leaf.Id != id || leaf.ObjectId is not { } objectId || leaf.Kind != AnalysisKind.File ||
-                !HasBinding(leaf, root.Id) || !OrdinaryName(leaf)) return null;
-            var obj = await readObject(objectId, cancellation).ConfigureAwait(false);
-            if (obj is null || obj.VerifiedIdentity != leaf.ObservedIdentity || obj.Id != objectId || obj.LogicalLength.Value is not { } size ||
-                size > (UInt128)long.MaxValue || obj.VersionEvidence is not { } version || !WindowsAnalysisBackend.HasPrimaryVersion(version))
-                return null;
-            var parents = new List<AnalysisBranchComponent>();
-            AnalysisBranchComponent? directory = null;
-            if (leaf.ParentId == 0)
-            {
-                if (root.Kind != AnalysisKind.File || root.ObservedObjectIdentity != leaf.ObservedIdentity) return null;
-            }
-            else
-            {
-                if (root.Kind != AnalysisKind.Directory) return null;
-                var child = leaf;
-                while (child.ParentId != 0)
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    if (child.ParentId >= child.Id || parents.Count >= AnalysisBranchComponent.MaximumDepth - 1) return null;
-                    if (!cachedDirectories.TryGetValue(child.ParentId, out var parent))
-                    {
-                        parent = await readPath(child.ParentId, cancellation).ConfigureAwait(false);
-                        if (parent.Id != child.ParentId || parent.Kind != AnalysisKind.Directory || !HasBinding(parent, root.Id) ||
-                            (parent.ParentId != 0 && !OrdinaryName(parent))) return null;
-                        retainedBytes += 512L + parent.Name.Length * 2L + parent.RawName.Length + parent.ObservedIdentity!.Length * 2L;
-                        CheckSize();
-                        cachedDirectories.Add(parent.Id, parent);
-                    }
-                    if (parent.RootId != root.Id) return null;
-                    var component = new AnalysisBranchComponent(parent.Name, parent.ObservedIdentity!,
-                        parent.Times!.CreatedUtc!.Value, 1);
-                    if (parent.ParentId == 0)
-                    {
-                        if (parent.ObservedIdentity != root.ObservedObjectIdentity) return null;
-                        directory = component;
-                    }
-                    else parents.Add(component);
-                    child = parent;
-                }
-                parents.Reverse();
-            }
-            int characters = leaf.Name.Length + parents.Sum(part => part.Name.Length + 1);
-            if (characters > 8192) return null;
-            var target = new AnalysisPrimaryContentTarget(leaf.Id, directory, [.. parents], leaf.Name, leaf.ObservedIdentity!,
-                version, leaf.Times!.CreatedUtc!.Value, 1, (long)size);
-            return new(root, target, string.Join('\\', parents.Select(part => part.Name).Append(leaf.Name)));
+            if (cachedDirectories.TryGetValue(id, out var parent)) return parent;
+            parent = await readPath(id, token).ConfigureAwait(false);
+            retainedBytes += 512L + parent.Name.Length * 2L + parent.RawName.Length + (parent.ObservedIdentity?.Length ?? 0) * 2L;
+            CheckSize();
+            cachedDirectories.Add(id, parent);
+            return parent;
         }
 
         void CheckSize()
@@ -171,19 +128,13 @@ internal sealed partial class AnalysisIndexedAcquisition
                 throw new InvalidOperationException("Narrow the marked scope before reviewing content paths.");
         }
 
-        static bool HasBinding(AnalysisPathMetadata path, string root) => path.RootId == root && path is
-            { Cloud: false, IncludedByPolicy: true, MetadataState: MeasurementState.Known, ObservedIdentity.Length: > 0,
-                Times: { CreatedUtc: not null, CreatedPrecisionTicks: 1 } };
-        static bool OrdinaryName(AnalysisPathMetadata path) => path.NameEncoding == "utf16le" &&
-            AnalysisNames.IsOrdinaryChild(path.Name, windows: true) &&
-            path.RawName.AsSpan().SequenceEqual(AnalysisRawNames.Encode(path.NameEncoding, path.Name));
     }
 
-    private void CheckDuplicateRuntime(AnalysisSession session)
+    private void RequirePrimaryReadRuntime(AnalysisSession session)
     {
         ObjectDisposedException.ThrowIf(_close is not null, this);
         if (!CanReviewContentReads || !ReferenceEquals(_session, session))
-            throw new InvalidOperationException("The live analysis changed. Reopen duplicate review from the current result.");
+            throw new InvalidOperationException("The live analysis changed. Open the read from the current result.");
     }
 
     private async Task<AnalysisDuplicateReadResult> ExecuteDuplicateReadAsync(AnalysisSession session, SessionIdentity identity,
@@ -193,7 +144,7 @@ internal sealed partial class AnalysisIndexedAcquisition
         string[] locations;
         lock (_gate)
         {
-            CheckDuplicateRuntime(session);
+            RequirePrimaryReadRuntime(session);
             locations = (string[])_runtimeLocations.Clone();
             work = _imports.Enter();
         }
@@ -205,26 +156,17 @@ internal sealed partial class AnalysisIndexedAcquisition
                 foreach (var group in scope.Items.GroupBy(item => item.Root.Id))
                 {
                     cancellation.ThrowIfCancellationRequested();
-                    lock (_gate) CheckDuplicateRuntime(session);
+                    lock (_gate) RequirePrimaryReadRuntime(session);
                     var root = group.First().Root;
-                    if (!int.TryParse(root.Id, NumberStyles.None, CultureInfo.InvariantCulture, out int ordinal) ||
-                        ordinal < 1 || ordinal > locations.Length || ordinal.ToString(CultureInfo.InvariantCulture) != root.Id)
-                        throw new InvalidDataException("The reviewed location has no matching runtime binding.");
-                    string location = locations[ordinal - 1];
+                    string location = PrimaryRuntimeLocation(root, locations);
                     var device = (AnalysisIoDevices)PathUtil.GetDeviceKey(location);
                     WindowsAnalysisBackend? source = null;
                     try
                     {
                         try
                         {
-                            source = await AnalysisIo.Run(_services.Io, device, _ => new WindowsAnalysisBackend(location),
+                            source = await AnalysisIo.Run(_services.Io, device, _ => OpenPrimarySource(location, root),
                                 cancellation).ConfigureAwait(false);
-                            var now = source.Root;
-                            if (now.Assurance != IdentityAssurance.Verified || now.Scheme != root.Scheme || now.Kind != root.Kind ||
-                                now.CanonicalLocator != root.CanonicalLocator || now.SourceIdentity != root.SourceIdentity ||
-                                now.NameRules != root.NameRules || now.TraversalBoundary != root.TraversalBoundary ||
-                                source.RootEntry.Identity != root.ObservedObjectIdentity)
-                                throw new AnalysisSourceChangedException();
                         }
                         catch (Exception error) when (ReadFailure(error) is not null)
                         {
@@ -234,7 +176,7 @@ internal sealed partial class AnalysisIndexedAcquisition
                         foreach (var item in group)
                         {
                             cancellation.ThrowIfCancellationRequested();
-                            lock (_gate) CheckDuplicateRuntime(session);
+                            lock (_gate) RequirePrimaryReadRuntime(session);
                             try
                             {
                                 var proof = await ReadPrimaryAsync(source, device, item.Target, cancellation).ConfigureAwait(false);
@@ -250,7 +192,7 @@ internal sealed partial class AnalysisIndexedAcquisition
                     }
                 }
                 cancellation.ThrowIfCancellationRequested();
-                lock (_gate) CheckDuplicateRuntime(session);
+                lock (_gate) RequirePrimaryReadRuntime(session);
                 return new(identity, rows.MoveToImmutable());
             }
             catch (Exception error) when (AnalysisCloseUnconfirmedException.IsPresent(error))

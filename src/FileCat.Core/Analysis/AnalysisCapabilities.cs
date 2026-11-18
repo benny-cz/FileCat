@@ -8,6 +8,7 @@ public sealed class AnalysisCapabilities
 {
     public AnalysisCapability For(AnalysisVerb verb) => new(verb, false, AnalysisAssurance.ObservedMetadata, verb switch
     {
+        AnalysisVerb.Preview => "Current content preview is unavailable for this source. It requires a qualified live file binding.",
         AnalysisVerb.Copy => "Reviewed copy requires a verified source and a destination that supports publishing a new file safely.",
         AnalysisVerb.Move => "Reviewed move requires a verified destination and a way to remove the exact source after publication is confirmed.",
         AnalysisVerb.Replace => "Reviewed replacement requires an adapter that can verify the expected destination at commit. Keep the existing file.",

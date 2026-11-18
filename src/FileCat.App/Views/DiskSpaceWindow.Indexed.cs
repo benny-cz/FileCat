@@ -335,6 +335,8 @@ public sealed partial class DiskSpaceWindow
             _main.Children.Add(ActionButton("Focus inspector", () => { _details.BringIntoView(); _details.Focus(); }, "Read and copy captured metadata with the keyboard."));
             _inspector.Children.Add(new TextBlock { Text = "Inspector", FontWeight = FontWeight.Bold }); _inspector.Children.Add(_inspectorStatus); _inspector.Children.Add(_details);
             _inspector.Children.Add(_showCapturedFolder);
+            _previewFile.Click += (_, _) => _ = PreviewFocusedAsync();
+            _inspector.Children.Add(_previewFile);
             var evidence = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             string[] captions = ["First aliases", "More aliases", "First facts", "More facts", "First issues", "More issues"];
             for (int index = 0; index < captions.Length; index++)
@@ -693,6 +695,7 @@ public sealed partial class DiskSpaceWindow
                 if (!await explorer.InspectAsync(path, alias, fact, issue, maximum: 32) || _disposed || version != _inspection || !ReferenceEquals(explorer, _explorer)) return;
                 var detail = explorer.Inspection!; _shownInspection = detail;
                 RefreshBranchAvailability();
+                UpdatePreviewButton(_previewFile, PreviewRefusal(FocusedPreviewPath, _runtimeAcquisition));
                 var item = _selectedGroupedItem?.NodeId == path ? _selectedGroupedItem : AnalysisIndexedChart.Row(detail.Row, explorer.Metric);
                 var metric = _grouping?.Metric ?? explorer.Metric;
                 var text = new System.Text.StringBuilder();
@@ -742,7 +745,14 @@ public sealed partial class DiskSpaceWindow
                 return;
             }
             if (_window.FocusManager?.GetFocusedElement() is TextBox) return;
-            if (CleanupVerb(_window.ResolveAnalysisKey(args, CommandContext.DiskSpace)) is { } verb)
+            var command = _window.ResolveAnalysisKey(args, CommandContext.DiskSpace);
+            if (command == CommandIds.DiskSpacePreview)
+            {
+                _ = PreviewFocusedAsync();
+                args.Handled = true;
+                return;
+            }
+            if (CleanupVerb(command) is { } verb)
             {
                 _ = ReviewCleanupAsync(verb);
                 args.Handled = true;

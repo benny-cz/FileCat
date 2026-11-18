@@ -14,7 +14,7 @@ namespace FileCat.App.Views;
 
 public sealed partial class DiskSpaceWindow
 {
-    private sealed record DuplicateReadDisplay(AnalysisDuplicateReadItem Item, string Label, string Details)
+    private sealed record DuplicateReadDisplay(AnalysisPrimaryReadItem Item, string Label, string Details)
     {
         public override string ToString() => Label;
     }
@@ -159,10 +159,10 @@ public sealed partial class DiskSpaceWindow
         }
     }
 
-    private static string ShortDuplicatePath(AnalysisDuplicateReadItem item) =>
+    private static string ShortDuplicatePath(AnalysisPrimaryReadItem item) =>
         AnalysisNames.Display(item.RelativePath, 800, escapeTrailing: true) + " · " + AnalysisNames.Display(item.Root.Label, 120);
 
-    private static string ExactDuplicatePath(AnalysisDuplicateReadItem item) =>
+    private static string ExactDuplicatePath(AnalysisPrimaryReadItem item) =>
         AnalysisRecipeDialog.LocationLabel(item.Root) + "\n" + AnalysisNames.Display(item.RelativePath, 8192, escapeTrailing: true);
 
     private static TextBlock DuplicateText(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap };

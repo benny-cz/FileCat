@@ -9,6 +9,8 @@ internal sealed record AnalysisPrimaryContentTarget(ulong PathId, AnalysisBranch
     ImmutableArray<AnalysisBranchComponent> Parents, string Name, string Identity, string Version,
     DateTimeOffset CreatedUtc, ulong CreatedPrecisionTicks, long Bytes)
 {
+    internal const int PreviewBytes = 16 * 1024;
+
     internal void RequireFile(AnalysisEntry entry)
     {
         if (entry.Kind != AnalysisKind.File || entry.Cloud != false || entry.MetadataState != MeasurementState.Known ||

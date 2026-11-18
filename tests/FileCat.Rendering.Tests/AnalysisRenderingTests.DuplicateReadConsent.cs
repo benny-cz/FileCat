@@ -174,7 +174,7 @@ public sealed partial class AnalysisRenderingTests
         Assert.Equal(1, reads);
         await Assert.ThrowsAsync<InvalidOperationException>(() => plan.ReadAsync(choices, TestContext.Current.CancellationToken));
 
-        static AnalysisDuplicateReadItem At(ulong id, long bytes) => new(DuplicateEstimateRoot,
+        static AnalysisPrimaryReadItem At(ulong id, long bytes) => new(DuplicateEstimateRoot,
             new(id, null, [], $"file-{id}", $"id-{id}", "v", DateTimeOffset.UnixEpoch, 1, bytes), $"file-{id}");
     }
 }
