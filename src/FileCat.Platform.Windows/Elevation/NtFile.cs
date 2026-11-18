@@ -255,8 +255,9 @@ internal static unsafe partial class NtFile
     /// Renames or moves the object behind the handle to <paramref name="name"/> inside <paramref name="directory"/>.
     /// NtSetInformationFile takes the target folder as a handle (FILE_RENAME_INFORMATION.RootDirectory), so the
     /// destination is the folder already verified, not a path that could be swapped.
+    /// Pass a null directory and a simple leaf name to rename within the open object's own directory.
     /// </summary>
-    public static void Rename(SafeHandle handle, SafeHandle directory, string name, bool replace)
+    public static void Rename(SafeHandle handle, SafeHandle? directory, string name, bool replace)
     {
         const int RenameInformation = 10, RenameInformationEx = 65;
         const uint ReplaceIfExists = 0x1, Posix = 0x2, IgnoreReadOnly = 0x40;
@@ -267,10 +268,10 @@ internal static unsafe partial class NtFile
         bool added = false;
         try
         {
-            directory.DangerousAddRef(ref added);
+            directory?.DangerousAddRef(ref added);
             fixed (byte* start = buffer)
             {
-                *(nint*)(start + 8) = directory.DangerousGetHandle();
+                *(nint*)(start + 8) = directory?.DangerousGetHandle() ?? 0;
                 *(uint*)(start + 16) = (uint)(name.Length * 2);
                 fixed (char* chars = name) Buffer.MemoryCopy(chars, start + 20, size - 20, name.Length * 2);
                 IoStatusBlock io;
@@ -295,7 +296,7 @@ internal static unsafe partial class NtFile
         }
         finally
         {
-            if (added) directory.DangerousRelease();
+            if (added) directory!.DangerousRelease();
         }
     }
 

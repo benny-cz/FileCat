@@ -47,18 +47,24 @@ public sealed class SftpRetainedEditTests
             var providers=new ProviderRegistry();providers.Register(new LocalFileSystemProvider());providers.Register(sftp);SftpJobs.Register();
             using var original=new MemoryContentSource("notes.txt",target.Data);
             var record=store.CreateRemote(profile.Id,"Owned test","/up/notes.txt",original,original.GetRevision()!.Value,null,ct);
-            byte[] bytes=scenario=="empty"?[]:scenario is "large" or "retry"?Enumerable.Range(0,2097169).Select(i=>(byte)(i*31)).ToArray():"reviewed immutable edit"u8.ToArray();
+            byte[] bytes=scenario=="empty"?[]:scenario is "large" or "retry" or "snapshot-efs"?Enumerable.Range(0,2097169).Select(i=>(byte)(i*31)).ToArray():"reviewed immutable edit"u8.ToArray();
             File.WriteAllBytes(record.WorkingPath,bytes);copy=store.PrepareCommit(record,root,ct);
             IRetainedEditUpload input=store.RemoteCommitInput(record,copy)!;
             var expected=new ContentRevision(target.Data.Length,target.Modified.Ticks);
             string expectedHash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(target.Data));
             bool refuse=scenario is "disposed" or "wrong-source" or "wrong-profile" or "wrong-folder" or "wrong-name" or "move" or
                 "multi-source" or "local-destination" or "missing-digest" or "stale-target-metadata" or "stale-target-hash" or
-                "concurrent-target" or "corrupt-source" or "corrupt-server" or "snapshot-efs";
-            if (scenario == "snapshot-efs" && OperatingSystem.IsWindows())
+                "concurrent-target" or "corrupt-source" or "corrupt-server";
+            Exception? encryptionRejected = null;
+            bool encryptionAttempted = false;
+            if (scenario == "snapshot-efs")
             {
-                File.Encrypt(copy.Path);
-                Assert.True(File.GetAttributes(copy.Path).HasFlag(FileAttributes.Encrypted));
+                server.DuringUpload = () =>
+                {
+                    if (encryptionAttempted) return;
+                    encryptionAttempted = true;
+                    encryptionRejected = Record.Exception(() => File.Encrypt(copy.Path));
+                };
             }
             if(scenario=="late-save")File.WriteAllText(record.WorkingPath,"later editor save stays local");
             if(scenario=="disposed")Assert.True(Record.Exception(copy.Dispose) is null or IOException);
@@ -122,8 +128,11 @@ public sealed class SftpRetainedEditTests
             Assert.Equal(["notes.txt"],server.Lookup("/up",false)!.Children.Keys);
             if (scenario == "snapshot-efs")
             {
-                Assert.Contains(active.Issues, issue => issue.Message.Contains("retained edit snapshot uses Windows EFS", StringComparison.Ordinal));
-                Assert.True(File.GetAttributes(copy.Path).HasFlag(FileAttributes.Encrypted));
+                const int efsInTransaction = unchecked((int)0x80071AAF), sharingViolation = unchecked((int)0x80070020),
+                    transactionConflict = unchecked((int)0x80071A90);
+                Assert.True(encryptionAttempted);
+                Assert.True(encryptionRejected is IOException { HResult: efsInTransaction or sharingViolation or transactionConflict }, encryptionRejected?.ToString());
+                Assert.False(File.GetAttributes(copy.Path).HasFlag(FileAttributes.Encrypted));
             }
             Assert.Equal(scenario=="late-save"?"later editor save stays local":System.Text.Encoding.UTF8.GetString(bytes),File.ReadAllText(record.WorkingPath));
             connections.Dispose(); // A returned lease remains connected in the reusable pool until the owner closes it.

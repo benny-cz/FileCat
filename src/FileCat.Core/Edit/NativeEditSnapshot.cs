@@ -5,7 +5,7 @@ namespace FileCat.Core.Edit;
 /// <summary>Parent-owned immutable bytes. Jobs receive bounded read views over this object, never a path reopen.</summary>
 internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirectoryLease directory,FileStream file,ArchiveFileObservation expected,
     EditPublishedRecord[] records,EditSessionRecord session,EditSnapshotAdmission admission,
-    Func<CancellationToken,EditStorageMutation> acquireMutation):IArchiveOwnedEditInput,IRetainedEditUpload,IDisposable
+    Func<CancellationToken,EditStorageMutation> acquireMutation,ISealedEditSnapshot? seal):IArchiveOwnedEditInput,IRetainedEditUpload,IDisposable
 {
     private readonly object gate=new();
     private readonly List<EditPublishedRecord> ownedRecords=records.ToList();
@@ -145,7 +145,8 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
                     RequireNames(directory,[Expected.LeafName]);
                     foreach(var record in ownedRecords)record.Review(default);
                     RequireClearSnapshot();
-                    directory.DeleteSnapshot(file,Expected.LeafName,Expected,default);
+                    if (seal is null) directory.DeleteSnapshot(file,Expected.LeafName,Expected,default);
+                    else seal.Retire(Expected, default);
                     directory.RemoveEmpty(default);
                     RequireNames(capture,["capture.json","captured.json"]);
                     foreach(var record in ownedRecords)record.Review(default);
@@ -153,7 +154,8 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
                     capture.RemoveEmpty(default);mutation.Review(default);
                 }
                 catch(Exception error){issue=error;}
-                Close(file.Dispose);
+                if (seal is null) Close(file.Dispose);
+                else Close(seal.Dispose);
                 foreach(var record in ownedRecords)Close(record.Dispose);
                 Close(directory.Dispose);Close(capture.Dispose);Close(admission.Release);
             }

@@ -73,7 +73,7 @@ public sealed class LocalIconFileLease : IDisposable
             var parent = OpenOrThrow(null, @"\??\" + root, rootAccess,
                 ShareRead | ShareWrite, Open, DirectoryFile | OpenReparsePoint, "Open icon drive");
             _handles.Add(parent);
-            if (plainDirectory ? GetReparseTag(parent) != 0 : IsLink(parent))
+            if (plainDirectory ? IsReparsePoint(GetBasic(parent).FileAttributes) : IsLink(parent))
                 throw new IOException("The drive root contains a reparse point.");
             for (int i = 0; i < parts.Length; i++)
             {
@@ -87,18 +87,18 @@ public sealed class LocalIconFileLease : IDisposable
                 uint share = ShareRead | ShareWrite;
                 uint kind = file ? NonDirectoryFile : DirectoryFile;
                 var next = OpenOrThrow(parent, parts[i], access, share, Open, kind | OpenReparsePoint, "Open local path");
-                uint tag;
-                try { tag = GetReparseTag(next); }
+                uint tagOrAttributes;
+                try { tagOrAttributes = plainDirectory ? GetBasic(next).FileAttributes : GetReparseTag(next); }
                 catch { next.Dispose(); throw; }
-                if (plainDirectory && tag != 0)
+                if (plainDirectory && IsReparsePoint(tagOrAttributes))
                 {
                     next.Dispose();
                     throw new IOException("The path contains a reparse point.");
                 }
-                if (IsLinkTag(tag))
+                if (!plainDirectory && IsLinkTag(tagOrAttributes))
                 {
                     next.Dispose();
-                    if (i >= followable || links == LeaseLinks.Refuse || (links == LeaseLinks.FollowLocal && tag != MountPointTag))
+                    if (i >= followable || links == LeaseLinks.Refuse || (links == LeaseLinks.FollowLocal && tagOrAttributes != MountPointTag))
                         throw new IOException("The icon path contains a link.");
                     next = OpenOrThrow(parent, parts[i], access, share, Open, kind, "Open local path");
                 }

@@ -469,31 +469,21 @@ internal sealed partial class FtpChannel : ISftpChannel
         return new FtpWriteStream(this, _client, stream);
     }
 
-    /// <summary>How long the server's verdict is waited for after a transfer's data connection broke.</summary>
-    internal static readonly TimeSpan BreakReplyWait = TimeSpan.FromSeconds(5);
-
     /// <summary>
-    /// The server's final reply after a transfer whose data connection broke, waited for briefly: a server that ended
-    /// the transfer itself says why (a full disk, a quota), while a session that ended never answers — waiting for it
-    /// took the whole 60 s read timeout when the lab's ProFTPD session was killed (I47). Null when no reply came; the
-    /// connection is then ended at once (without QUIT), which also releases the wait, and the job's Retry reconnects.
+    /// Give the server a brief chance to report why the transfer broke (for example, a full disk or a quota).
+    /// FluentFTP closes the control stream on read failure. Let that read finish before the channel can be reused
+    /// or disposed, since disconnecting during the read can race its TLS cleanup.
     /// </summary>
     internal FtpReply? ReplyAfterBreak()
     {
-        var waiting = Task.Run(() =>
+        int previousTimeout = _client.Config.ReadTimeout;
+        _client.Config.ReadTimeout = Math.Min(previousTimeout, 5_000);
+        try { return _client.GetReply(); }
+        catch (Exception ex) when (ex is IOException or FtpException or SocketException or TimeoutException or InvalidOperationException)
         {
-            try { return (FtpReply?)_client.GetReply(); }
-            catch (Exception ex) when (ex is IOException or FtpException or SocketException or ObjectDisposedException or TimeoutException or InvalidOperationException) { return null; }
-        });
-        if (waiting.Wait(BreakReplyWait)) return waiting.Result;
-        try
-        {
-            _client.Config.DisconnectWithQuit = false;
-            _client.Disconnect();
+            return null;
         }
-        catch (Exception ex) when (ex is IOException or FtpException or SocketException or ObjectDisposedException or TimeoutException or InvalidOperationException) { }
-        waiting.Wait(BreakReplyWait);
-        return null;
+        finally { _client.Config.ReadTimeout = previousTimeout; }
     }
 
     public void CreateDirectory(string path)

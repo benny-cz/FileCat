@@ -39,7 +39,7 @@ public partial class WindowsFileOperations : ILegacyZipInPlacePublisher
         SafeFileHandle? snapshotPin = null;
         try
         {
-            if (!SupportsZipTransactions(WindowsArchiveNative.Volume(directory, requirePrivateNtfs: false))) return null;
+            if (!SupportsLocalNtfsTransactions(WindowsArchiveNative.Volume(directory, requirePrivateNtfs: false))) return null;
             string archiveName = Path.GetFileName(archive), stageName = Path.GetFileName(stage);
             using var transaction = new WindowsFileTransaction("FileCat legacy ZIP publication");
             var published = new LegacyZipRollbackFile(new(original.Version.Identity, rebuilt.Version.Length, rebuilt.Version.Sha256),
@@ -48,8 +48,8 @@ public partial class WindowsFileOperations : ILegacyZipInPlacePublisher
             BasicInfo originalInfo;
             byte[] originalSecurity;
             ArchiveOriginSnapshot publishedOrigin;
-            using (var target = OpenTransactedZip(directory, archiveName, transaction, GenericRead | GenericWrite | Synchronize))
-            using (var input = OpenTransactedZip(directory, stageName, transaction, GenericRead | Synchronize))
+            using (var target = transaction.OpenHeldChild(directory, archiveName, GenericRead | GenericWrite | Synchronize))
+            using (var input = transaction.OpenHeldChild(directory, stageName, GenericRead | Synchronize))
             {
                 if (ProtectedHexFile.Identity(target) != ProtectedHexFile.Identity(originalPin) ||
                     ProtectedHexFile.Identity(input) != ProtectedHexFile.Identity(stagePin))
@@ -81,7 +81,7 @@ public partial class WindowsFileOperations : ILegacyZipInPlacePublisher
 
             // The read pin remains alive through commit and adoption of the normal reader. Writers and new
             // hard links stay excluded across that interval, including after the private writer is closed.
-            using (var commitPin = OpenTransactedZip(directory, archiveName, transaction, GenericRead | Synchronize))
+            using (var commitPin = transaction.OpenHeldChild(directory, archiveName, GenericRead | Synchronize))
             {
                 var actual = VerifyTransactedPublicationInput(commitPin, transaction, published, checkpoint);
                 if (actual.Digest != publishedOrigin.Digest) throw new IOException("The verified ZIP download mark changed before commit.");

@@ -1,10 +1,17 @@
 using FileCat.Core.Archives;
 using FileCat.Core.Resources;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Edit;
 
 public sealed partial class EditSessionStore
 {
+    private IDisposable? HoldClearEditInput(SafeFileHandle source, string refusal)
+    {
+        ArchiveOuterEfs.RequireClear(source, refusal);
+        return (fs as IEditCopyPublisher)?.HoldClearEditInput(source, refusal);
+    }
+
     /// <summary>
     /// Test seam (null in the application): opens, through the given opener, each native working-file read that a review or
     /// a saved copy makes, so the application tests can hold or fail it (before or after the open) as they do a legacy
@@ -82,7 +89,7 @@ public sealed partial class EditSessionStore
         if(!current.IsSupported||string.IsNullOrEmpty(record.StoredRecordSha256)||current.StoredRecordSha256!=record.StoredRecordSha256)
             throw new IOException("The edit record changed before its working file was reviewed. Reload the session.");
         var files=session.OpenDirectory("files",record.WorkingDirectoryIdentity,ct);
-        try{return new NativeWorkingContent(files,Path.GetFileName(record.WorkingPath),ct,review);}
+        try{return new NativeWorkingContent(this,files,Path.GetFileName(record.WorkingPath),ct,review);}
         catch{files.Dispose();throw;}
     }
 
@@ -95,12 +102,13 @@ public sealed partial class EditSessionStore
         private readonly CancellationToken ct;
         private readonly FileStream stream;
         private readonly bool checkEfs;
-        internal NativeWorkingContent(EditDirectoryLease directory,string leaf,CancellationToken ct,bool review=false)
+        private readonly IDisposable? protection;
+        internal NativeWorkingContent(EditSessionStore store,EditDirectoryLease directory,string leaf,CancellationToken ct,bool review=false)
         {
             this.directory=directory;this.leaf=leaf;this.ct=ct;
             checkEfs = !review && OperatingSystem.IsWindows();
             stream=review?directory.OpenWorkingFileForReview(leaf,ct):directory.OpenWorkingFile(leaf,ct);
-            try { RequireClearForCopy(); }
+            try { if (checkEfs) protection = store.HoldClearEditInput(stream.SafeFileHandle, ArchiveOuterEfs.WorkingCopyUnavailable); }
             catch { stream.Dispose(); throw; }
         }
         public string DisplayName=>Path.Combine(directory.Path,leaf);
@@ -127,6 +135,10 @@ public sealed partial class EditSessionStore
         {
             if (checkEfs) ArchiveOuterEfs.RequireClear(stream.SafeFileHandle, ArchiveOuterEfs.WorkingCopyUnavailable);
         }
-        public void Dispose(){try{stream.Dispose();}finally{directory.Dispose();}}
+        public void Dispose()
+        {
+            try { protection?.Dispose(); }
+            finally { try { stream.Dispose(); } finally { directory.Dispose(); } }
+        }
     }
 }

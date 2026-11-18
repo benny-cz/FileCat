@@ -86,10 +86,14 @@ public sealed class PictureBrowseTests
             for (int i = 0; i < 250 && ViewerWindow.OpenWindows.Count == 0; i++)
                 await Task.Delay(20, TestContext.Current.CancellationToken);
             viewer = Assert.Single(ViewerWindow.OpenWindows);
-            for (int i = 0; i < 250 && (!viewer.ReadyForRefresh || viewer.Picture is null); i++)
+            for (int i = 0; i < 250 && viewer.PictureLoad is null; i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            var pictureLoad = Assert.IsAssignableFrom<Task>(viewer.PictureLoad);
+            await pictureLoad.WaitAsync(TimeSpan.FromSeconds(40), TestContext.Current.CancellationToken);
+            for (int i = 0; i < 250 && !viewer.ReadyForRefresh; i++)
                 await Task.Delay(20, TestContext.Current.CancellationToken);
             Assert.True(viewer.ReadyForRefresh);
-            Assert.NotNull(viewer.Picture);
+            Assert.True(viewer.Picture is not null, viewer.StatusLine);
             Assert.Contains("Space next", viewer.StatusLine);
             viewer.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, null);
             for (int i = 0; i < 250 && !viewer.DisplayName.EndsWith("b.bmp", StringComparison.Ordinal); i++)
