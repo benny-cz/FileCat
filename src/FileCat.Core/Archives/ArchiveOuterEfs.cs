@@ -8,6 +8,7 @@ internal static class ArchiveOuterEfs
     internal const string EditUnavailable = "FileCat cannot create an edit session from an EFS-encrypted archive because the working copy would lose EFS protection.";
     internal const string WorkingCopyUnavailable = "FileCat cannot capture an EFS-encrypted working file because its temporary copy would lose EFS protection.";
     internal const string PackUnavailable = "FileCat cannot pack this EFS-protected input because this archive route cannot preserve its EFS protection.";
+    internal const string SpoolUnavailable = "This archive uses Windows EFS. FileCat cannot keep its extracted content in a disk cache that lacks EFS protection.";
 
     internal static void RequireClear(SafeFileHandle source, string reason = UpdateUnavailable)
     {

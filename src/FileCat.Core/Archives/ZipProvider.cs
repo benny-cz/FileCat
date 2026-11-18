@@ -188,11 +188,6 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         string key = $"{outer}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{container.Path}|{SourceIdentityKey(outer)}|{change}";
         lock (_nestedLock)
         {
-            if (_nested.TryGetValue(key, out var cached))
-            {
-                cached.Used = DateTime.UtcNow;
-                return cached.Acquire();
-            }
             int slash = container.Path.LastIndexOf('/');
             var folder = container.WithPath(slash < 0 ? string.Empty : container.Path[..slash]);
             string name = container.Path[(slash + 1)..];
@@ -203,6 +198,12 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             lock (_cacheLock)
             {
                 var index = GetIndex(folder, outerSource);
+                index.RequireClearSpoolSource();
+                if (_nested.TryGetValue(key, out var cached))
+                {
+                    cached.Used = DateTime.UtcNow;
+                    return cached.Acquire();
+                }
                 var node = index.Children.GetValueOrDefault(folder.Path)?.Where(n => !n.IsDirectory && n.Name == name).ToList() ?? [];
                 if (node.Count == 0) throw new FileNotFoundException($"\"{container.Path}\" is not in the archive.");
                 if (node.Count > 1) throw new NotSupportedException("Several members share this name; extract the one you want with F5, then open it.");
@@ -610,6 +611,8 @@ internal sealed class ZipIndex : IDisposable
         VerifySource();
     }
 
+    internal void RequireClearSpoolSource() => ArchiveOuterEfs.RequireClear(_handle, ArchiveOuterEfs.SpoolUnavailable);
+
     /// <summary>
     /// What this index holds in memory, estimated: .NET's entry and FileCat's node per member, and their names. Measured
     /// with members of 30-character names (ArchiveIndexScaleTests): 584 bytes a member at a million, 598 at 200,000.
@@ -860,7 +863,7 @@ internal sealed class ZipIndex : IDisposable
             {
                 _leases++;
                 return new ProgressiveContent(tag.FullName, _lock, entry.Open, limits, ZipProvider.MaxSpooledMember,
-                    tempDirectory, Returned, retainedEdit ? VerifyClearEditSource : VerifySource);
+                    tempDirectory, Returned, retainedEdit ? VerifyClearEditSource : VerifySource, RequireClearSpoolSource);
             }
             var memory = new MemoryStream((int)Math.Max(0, entry.Length));
             using (var source = entry.Open()) limits.CopyAll(source, memory);
@@ -885,7 +888,7 @@ internal sealed class ZipIndex : IDisposable
             VerifySource();
             var entry = _entries[tag.EntryIndex];
             if (entry.Length > ZipProvider.MaxSpooledMember) throw new InvalidDataException("The inner archive is larger than FileCat opens in place; extract it with F5.");
-            using (var source = entry.Open()) Limits(entry).CopyAll(source, destination);
+            using (var source = entry.Open()) Limits(entry).CopyAll(source, destination, default, RequireClearSpoolSource);
             VerifySource();
             destination.Flush();
         }

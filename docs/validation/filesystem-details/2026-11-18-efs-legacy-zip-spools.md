@@ -1,0 +1,7 @@
+# EFS protection in legacy ZIP caches
+
+The legacy ZIP provider asks the held outer archive for its current EFS attributes before admitting either a new nested ZIP cache or a cached nested ZIP. During nested copying it checks the same source before and after each payload read. Progressive member caching uses the same check before and after reading into its buffer, before creating or writing to disk. A refused read does not advance the spool. Ordinary small members remain readable in memory and large members remain available through the forward-only content reader.
+
+The Windows 11 x64 VM passed 34 focused tests with no skips, including two tests on real EFS archives. The nested ZIP refusal created no cache directory. A 33 MiB member was refused when a viewer requested a disk cache, then read through the forward-only path. A small member was read in memory. Neither read created a cache directory. The existing Windows archive edit, update, copy and replacement checks also passed in the same run. Results are in `.tmp/filecat-legacy-zip-efs-spools-tests.xml`.
+
+Ubuntu passed 107 tests with six Windows-specific skips. macOS passed 91 with 22 Windows-specific or filesystem-case skips. The portable runs included clear nested cache and source replacement cases with the checked-in 7z fixtures. The other archive provider, multipart inputs and downstream EFS provenance still require verification for E-OUT10.
