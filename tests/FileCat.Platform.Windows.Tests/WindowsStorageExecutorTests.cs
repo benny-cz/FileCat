@@ -22,8 +22,8 @@ public sealed class WindowsStorageExecutorTests
         Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity, "Storage jobs must run in the normal user process.");
     }
-    private static JobManager Manager(string root) => new(new PortableFileOperations(), new ProviderRegistry(),
-        Directory.CreateDirectory(Path.Join(root, "journals")).FullName, ArchiveJobBackends.Empty, new WindowsStorageTransforms(),
+    private static JobManager Manager(string root, IStorageTransforms? transforms = null) => new(new PortableFileOperations(), new ProviderRegistry(),
+        Directory.CreateDirectory(Path.Join(root, "journals")).FullName, ArchiveJobBackends.Empty, transforms ?? new WindowsStorageTransforms(),
         WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend);
     private static Job Run(JobManager manager, StorageScope scope, params ItemRef[] sources) => RunAction(manager, StorageAction.Compress, scope, sources);
     private static Job RunAction(JobManager manager, StorageAction action, StorageScope scope, params ItemRef[] sources)
@@ -40,6 +40,108 @@ public sealed class WindowsStorageExecutorTests
         finally { manager.JobFinished -= Finished; }
     }
     private static bool Compressed(string path) => (File.GetAttributes(path) & FileAttributes.Compressed) != 0;
+
+    [Fact]
+    public void Detaching_the_owned_volume_after_intent_does_not_mutate_or_replay_the_prepared_call()
+    {
+        RequireNormal();
+        string? control = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_DEVICE_LOSS_CONTROL");
+        if (string.IsNullOrWhiteSpace(control)) Assert.Skip("Requires the isolated virtual disk device-loss fixture.");
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(Stop);
+        stop.CancelAfter(TimeSpan.FromSeconds(90));
+        string target = File.ReadAllText(Path.Join(control, "target.txt")).Trim();
+        var drive = new DriveInfo(Path.GetPathRoot(target)!);
+        Assert.Equal("FCDeviceLoss", drive.VolumeLabel);
+        Assert.Equal("NTFS", drive.DriveFormat);
+        Assert.InRange(drive.TotalSize, 32 * 1024 * 1024, 320 * 1024 * 1024);
+        var fs = new WindowsFileOperations();
+        string identity = Assert.IsType<string>(fs.GetFileIdentity(target));
+        byte[] before = SHA256.HashData(File.ReadAllBytes(target));
+        Assert.False(Compressed(target));
+        var source = ItemRef.ForFileSystemPath(target, EntryKind.File);
+        var adapter = new DetachBeforeMutation(() =>
+        {
+            File.WriteAllText(Path.Join(control, "prepared"), "");
+            WaitForFixture("detached");
+        });
+        string evidence = Directory.CreateTempSubdirectory("filecat-storage-detach-").FullName;
+        try
+        {
+            var manager = Manager(evidence, adapter);
+            var interrupted = Run(manager, StorageScope.SelectedItems, source);
+            var result = Assert.IsType<StorageResultSnapshot>(interrupted.StorageResult);
+            Assert.True(result.DurablePrefix is not null, JobIssue.Summarize(interrupted.Issues));
+            Assert.Equal(JobState.Failed, interrupted.State);
+            Assert.Equal(new StorageOutcomeCounts(NotProcessed: 1), result.Counts);
+            Assert.Equal(StorageCompleteness.Incomplete, Assert.Single(result.Roots).Completeness);
+            Assert.False(result.ReviewPending);
+            string name = StorageJournalPolicy.FileName(interrupted.CreatedUtc, interrupted.Id);
+            var call = Assert.Single(manager.ReadStorageCalls(name, result.DurablePrefix!, ct: stop.Token).Calls);
+            Assert.Equal(StorageCallDisposition.NotAttempted, call.Disposition);
+            Assert.Equal("precall-observation-failed", call.Result?.Problem?.Code);
+            Assert.False(call.Result!.NativeCallAttempted);
+            Assert.True(manager.ReadStorageReview(name, stop.Token).Current.History.Ended);
+            File.Copy(Path.Join(evidence, "journals", name), Path.Join(control, "interrupted.journal"));
+            File.WriteAllText(Path.Join(control, "retired"), "");
+            WaitForFixture("reattached");
+
+            Assert.Equal(identity, fs.GetFileIdentity(target));
+            Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(target)));
+            Assert.False(Compressed(target));
+            var retry = Run(Manager(evidence), StorageScope.SelectedItems, source);
+            Assert.Equal(JobState.Completed, retry.State);
+            Assert.Equal(1, retry.StorageResult!.Counts.Changed);
+            Assert.True(Compressed(target));
+            Assert.Equal(identity, fs.GetFileIdentity(target));
+            Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(target)));
+            File.Copy(Path.Join(evidence, "journals", StorageJournalPolicy.FileName(retry.CreatedUtc, retry.Id)), Path.Join(control, "fresh-retry.journal"));
+        }
+        finally { Directory.Delete(evidence, recursive: true); }
+
+        void WaitForFixture(string marker)
+        {
+            string path = Path.Join(control, marker);
+            while (!File.Exists(path))
+            {
+                stop.Token.ThrowIfCancellationRequested();
+                if (File.Exists(Path.Join(control, "aborted"))) throw new IOException("The isolated device-loss fixture could not proceed.");
+                stop.Token.WaitHandle.WaitOne(TimeSpan.FromMilliseconds(50));
+            }
+        }
+    }
+
+    private sealed class DetachBeforeMutation(Action waitForDeviceLoss) : IStorageTransforms
+    {
+        private readonly WindowsStorageTransforms _native = new();
+        public StorageProblem? Unavailable(StorageAction action) => _native.Unavailable(action);
+        public IStorageReviewLease InspectRoot(StorageTarget target, StorageAction? action, CancellationToken ct) =>
+            _native.InspectRoot(target, action, ct);
+        public IStorageTraversal OpenReviewedRoot(IStorageReviewLease root, StorageAction action, CancellationToken ct) =>
+            new Traversal(_native.OpenReviewedRoot(root, action, ct), waitForDeviceLoss);
+
+        private sealed class Traversal(IStorageTraversal native, Action waitForDeviceLoss) : IStorageTraversal
+        {
+            public IStorageObjectLease Root { get; } = new ObjectLease(native.Root, waitForDeviceLoss);
+            public IReadOnlyList<StorageObjectIdentity> RootAncestors(CancellationToken ct) => native.RootAncestors(ct);
+            public IEnumerable<IStorageObjectLease> Children(IStorageObjectLease directory, CancellationToken ct) =>
+                throw new NotSupportedException("This fixture submits one selected file.");
+            public void Dispose() => native.Dispose();
+        }
+
+        private sealed class ObjectLease(IStorageObjectLease native, Action waitForDeviceLoss) : IStorageObjectLease
+        {
+            public string Path => native.Path;
+            public StorageObjectIdentity Identity => native.Identity;
+            public StorageObservation Observe(CancellationToken ct) => native.Observe(ct);
+            public StorageObservation PrepareMutation(StorageAction action, CancellationToken ct) => native.PrepareMutation(action, ct);
+            public StorageMutationResult ApplyAdmitted(StorageAction action)
+            {
+                waitForDeviceLoss();
+                return native.ApplyAdmitted(action);
+            }
+            public void Dispose() => native.Dispose();
+        }
+    }
 
     [Fact]
     public void Removing_compression_with_insufficient_volume_capacity_retains_payload_and_reports_the_native_failure()

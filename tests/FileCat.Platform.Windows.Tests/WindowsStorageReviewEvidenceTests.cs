@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -12,6 +13,64 @@ namespace FileCat.Platform.Windows.Tests;
 [Collection("Windows storage job evidence")]
 public sealed partial class WindowsStorageReviewEvidenceTests
 {
+    [Fact]
+    public void Private_history_stays_readable_when_pending_reviews_fill_the_process_allowance()
+    {
+        RequireNormalWindows();
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_SCALE") == "1",
+            "Requires the disposable normal-user Windows NTFS storage scale fixture.");
+        string root = Directory.CreateTempSubdirectory("filecat-evidence-quota-").FullName;
+        try
+        {
+            Assert.Equal("NTFS", new DriveInfo(Path.GetPathRoot(root)!).DriveFormat);
+            int count = checked((int)(StorageJournalPolicy.ProcessBytes / StorageJournalPolicy.ReviewWriteBytes));
+            long journalBytes = 0;
+            for (int i = 0; i < count; i++)
+                journalBytes += new FileInfo(Path.Join(root, CreateJournal(root))).Length;
+
+            var backend = WindowsStorageReviewEvidence.Backend;
+            var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), root, ArchiveJobBackends.Empty,
+                new NoStorageTransforms(), WindowsStorageReviewEvidence.CreateJournal, backend);
+            var timer = Stopwatch.StartNew();
+            var page = manager.ReadStorageHistoryPage(ct: Stop);
+            double pageMs = timer.Elapsed.TotalMilliseconds;
+            Assert.True(page.More);
+            Assert.Equal(64, page.Examined);
+            Assert.Equal(64, page.Rows.Length);
+            Assert.InRange(page.HeaderBytes, 1, 1024 * 1024);
+
+            long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+            timer.Restart();
+            var account = manager.AccountStorageHistory(Stop);
+            double censusMs = timer.Elapsed.TotalMilliseconds;
+            long censusAllocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+            Assert.True(account.Complete, account.Problem);
+            Assert.Equal(count, account.PendingHistories);
+            Assert.Equal(count, account.Journals);
+            Assert.Equal(journalBytes, account.EvidenceBytes);
+            Assert.Equal(StorageJournalPolicy.ProcessBytes, account.ReservedReviewBytes);
+
+            var budget = new StorageEvidenceBudget();
+            timer.Restart();
+            Assert.Throws<StorageEvidenceLimitException>(() => budget.Reserve(root, Guid.NewGuid(), Stop, backend));
+            double admissionMs = timer.Elapsed.TotalMilliseconds;
+            Assert.Equal(count, Directory.EnumerateFiles(root, "*.fcj").Count());
+
+            timer.Restart();
+            var review = manager.ReadStorageReview(page.Rows[0].FileName, Stop);
+            var calls = manager.ReadStorageCalls(page.Rows[0].FileName, review.Current.History.Prefix, ct: Stop);
+            double reportMs = timer.Elapsed.TotalMilliseconds;
+            Assert.True(review.ReviewPending);
+            Assert.True(review.Current.History.EffectUncertain);
+            Assert.Equal(1, Assert.Single(calls.Calls).Call);
+            TestContext.Current.TestOutputHelper!.WriteLine(
+                $"{count} pending journals, {account.EvidenceBytes:N0} actual bytes and {account.ReservedReviewBytes:N0} reserved bytes. " +
+                $"First page {pageMs:F1} ms, census {censusMs:F1} ms with {censusAllocated:N0} managed bytes allocated, " +
+                $"refused admission {admissionMs:F1} ms, exact review and call page {reportMs:F1} ms.");
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     [Fact]
     public void Held_history_cursor_streams_multiple_batches_and_binds_every_entry_to_native_identity()
     {

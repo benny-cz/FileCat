@@ -1,0 +1,11 @@
+# Windows NTFS device loss before the compression call
+
+Windows 11 x64 build 26340 ran the opt-in `WindowsStorageExecutorTests.Detaching_the_owned_volume_after_intent_does_not_mutate_or_replay_the_prepared_call` fixture at medium integrity (RID 8192). The test passed twice with no skips. The final run took 3.50 seconds. Each run used a separate disposable 256 MiB NTFS VHD with 4 KiB clusters and kept the operation journal on the system volume. The Windows Cloud Files minifilter was attached to the test volume so FileCat could establish Cloud Files membership at review.
+
+The test submitted one uncompressed file through the normal storage review and executor. A test barrier paused at the native adapter boundary after the executor durably wrote the intent and admitted the call. The controller detached the VHD while FileCat held the prepared mutation handle. When the executor resumed, its required pre-call observation failed. The journal recorded `NotAttempted`, `precall-observation-failed` and `NativeCallAttempted=false`. The scope was incomplete with one item unprocessed, zero changes and zero uncertain calls. The durable history ended with no pending review.
+
+After reattachment, the file still had its original identity, full SHA-256 and uncompressed state. A fresh reviewed job compressed it, recorded one observed native change and preserved its identity and SHA-256. Teardown confirmed the VHD was detached. Device loss during or after the native call and physical removable media remain open.
+
+The xUnit XML and both durable journals for the final run `cbae2b5b4ac74fbf895ac3c9c24ca1dc` are in the Windows VM fixture directory and were copied to the workspace's `.tmp` receipts.
+
+To repeat the fixture, point `FILECAT_STORAGE_NATIVE_DEVICE_LOSS_CONTROL` at a fresh directory on a separate volume. Put the path of an owned, uncompressed canary on an `FCDeviceLoss` NTFS VHD in `target.txt` there. Run the single test at medium integrity. The fixture controller waits for `prepared`, detaches the owned VHD, then creates `detached`. After `retired` appears it remounts the same VHD at the original path, verifies the filter attachment and creates `reattached`. Create `aborted` if the controller cannot proceed. The control directory receives `interrupted.journal` and `fresh-retry.journal`.
