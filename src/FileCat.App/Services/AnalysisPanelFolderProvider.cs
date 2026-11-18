@@ -6,6 +6,8 @@ namespace FileCat.App.Services;
 /// <summary>A temporary panel listing of metadata read through an approved analysis folder binding.</summary>
 internal sealed class AnalysisPanelFolderProvider : ResourceProvider
 {
+    internal const string WorkingSetRefusal = "Open a current folder to add its files to a working set. This panel shows read-only analysis metadata.";
+
     private readonly object _gate = new();
     private readonly Dictionary<Location, PublishedFolder> _folders = [];
 

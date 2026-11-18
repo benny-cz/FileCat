@@ -5,7 +5,7 @@ using FileCat.Core.Resources;
 
 namespace FileCat.App.Services;
 
-internal sealed record AnalysisPanelFolder(string DisplayPath, ImmutableArray<EntryData> Entries)
+internal sealed record AnalysisPanelFolder(string DisplayPath, ImmutableArray<EntryData> Entries, string? FocusName)
 {
     internal const int MaximumEntries = 4096;
     internal const int MaximumNameBytes = 2 * 1024 * 1024;
@@ -14,10 +14,10 @@ internal sealed record AnalysisPanelFolder(string DisplayPath, ImmutableArray<En
 
 internal sealed partial class AnalysisIndexedAcquisition
 {
-    internal async Task<AnalysisPanelFolder> ReadPanelFolderAsync(SessionIdentity expected, ulong directory, CancellationToken cancellation)
+    internal async Task<AnalysisPanelFolder> ReadPanelListingAsync(SessionIdentity expected, ulong path, CancellationToken cancellation)
     {
         if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
-        var runtime = await CaptureRuntimeBranchAsync(expected, directory, cancellation).ConfigureAwait(false);
+        var runtime = await CaptureRuntimeBranchAsync(expected, path, cancellation, includeFile: true).ConfigureAwait(false);
         var folder = await OpenRuntimeBranchAsync(runtime, cancellation).ConfigureAwait(false);
         AnalysisPanelFolder listing;
         try
@@ -38,6 +38,8 @@ internal sealed partial class AnalysisIndexedAcquisition
         var encoded = exclusions.EncodePaths([folder.Root], 0);
         var rows = ImmutableArray.CreateBuilder<EntryData>();
         int nameBytes = 0;
+        var selectedFile = runtime.Selection.SelectedFile;
+        string? focusName = null;
         folder.ValidateReadScope(folder.RootEntry);
         foreach (var observed in folder.Children(folder.RootEntry, cancellation))
         {
@@ -46,6 +48,16 @@ internal sealed partial class AnalysisIndexedAcquisition
             var entry = AnalysisFolderExclusions.Apply(observed, encoded);
             var node = new AnalysisNode(0, folder.Root.Id, 0, entry.Name, entry.Kind) { NameEncoding = entry.NameEncoding, RawName = entry.RawName };
             string name = AnalysisNames.DisplayName(node, AnalysisLimits.RawNameBytes);
+            if (selectedFile is not null && selectedFile.NameEncoding == entry.NameEncoding &&
+                selectedFile.RawName.AsSpan().SequenceEqual(entry.RawName.AsSpan()))
+            {
+                var times = selectedFile.Times!;
+                if (entry is not { Kind: AnalysisKind.File, IncludedByPolicy: true, MetadataState: MeasurementState.Known, Cloud: not true } ||
+                    entry.Identity != selectedFile.ObservedIdentity || entry.CreatedUtc != times.CreatedUtc ||
+                    entry.CreatedPrecisionTicks != times.CreatedPrecisionTicks)
+                    throw new AnalysisSourceChangedException();
+                focusName = name;
+            }
             nameBytes = checked(nameBytes + Encoding.UTF8.GetByteCount(name));
             if (rows.Count >= AnalysisPanelFolder.MaximumEntries || nameBytes > AnalysisPanelFolder.MaximumNameBytes)
                 throw new NotSupportedException(AnalysisPanelFolder.LimitMessage);
@@ -62,6 +74,9 @@ internal sealed partial class AnalysisIndexedAcquisition
             });
         }
         folder.ValidateReadScope(folder.RootEntry);
-        return new(AnalysisNames.DisplayPath(RuntimeReopenLocator(folder), folder.Root.NameRules), rows.ToImmutable());
+        if (selectedFile is not null && focusName is null) throw new AnalysisSourceChangedException();
+        if (focusName is not null && rows.Count(row => row.Name == focusName) != 1)
+            throw new NotSupportedException("Two entries have the same displayed name. Reveal cannot focus the exact file here.");
+        return new(AnalysisNames.DisplayPath(RuntimeReopenLocator(folder), folder.Root.NameRules), rows.ToImmutable(), focusName);
     }
 }

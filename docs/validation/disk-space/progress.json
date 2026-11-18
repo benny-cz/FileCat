@@ -100,7 +100,18 @@
   "readOnlyPanelReveal": {
     "tests": { "run": "r1519", "windowsVm": 12, "mac": 12, "ubuntuVm": 12 },
     "desktop": { "run": "r1520", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
-    "coverage": "Reads a verified current folder and publishes immutable metadata in a temporary read-only workspace tab. Replaced ancestors, oversized listings and expired tabs are refused. Working-set references and file reveal remain open."
+    "coverage": "Reads a verified current folder and publishes immutable metadata in a temporary read-only workspace tab. Replaced ancestors, oversized listings and expired tabs are refused. Working-set references remain open.",
+    "integratedRendering": {
+      "run": "r1521",
+      "windowsVm": "Postponed when a second test process appeared",
+      "mac": { "passed": 965, "skipped": 6, "failed": 0, "total": 971 },
+      "ubuntuVm": { "passed": 965, "skipped": 6, "failed": 0, "total": 971 }
+    },
+    "fileFocus": {
+      "tests": { "ubuntuVm": "r1524 16/16", "windowsVm": "Postponed", "mac": "Postponed" },
+      "desktop": { "ubuntuVm": "r1525 passed", "windowsVm": "Pending", "mac": "Pending" },
+      "coverage": "A selected live file inside a verified observed folder is matched by raw name, object identity and creation time and focused in the read-only result. Individually selected file roots require an analysis of the containing folder."
+    }
   },
   "completedBehaviors": [
     "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",

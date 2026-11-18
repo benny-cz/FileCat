@@ -30,7 +30,7 @@ public sealed partial class MainViewModel
         if (_view?.TopLevel is not Avalonia.Controls.Window { IsVisible: true } main || Workspace.ActivePanel is not { } panel)
             return false;
         using var pending = Services.AnalysisPanelFolders.Publish(folder);
-        panel.OpenTab(pending.Location);
+        panel.OpenTab(pending.Location, folder.FocusName);
         main.Activate();
         _view.FocusActivePanel();
         return true;

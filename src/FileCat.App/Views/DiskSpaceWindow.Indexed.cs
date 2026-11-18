@@ -342,8 +342,8 @@ public sealed partial class DiskSpaceWindow
             _inspector.Children.Add(_showCapturedFolder);
             _previewFile.Click += (_, _) => _ = PreviewFocusedAsync();
             _inspector.Children.Add(_previewFile);
-            _revealFolder.Click += (_, _) => _ = RevealFocusedFolderAsync();
-            _inspector.Children.Add(_revealFolder);
+            _revealInPanel.Click += (_, _) => _ = RevealFocusedPathAsync();
+            _inspector.Children.Add(_revealInPanel);
             _bindIndexedSource.Click += (_, _) => _ = BindIndexedSourceAsync();
             _inspector.Children.Add(_bindIndexedSource);
             _copyCapturedPath.Click += (_, _) => _ = CopyCapturedPathAsync();
@@ -719,7 +719,7 @@ public sealed partial class DiskSpaceWindow
                 _bindIndexedSource.IsVisible = IndexedRecordedChoice() is not null;
                 RefreshBranchAvailability();
                 UpdatePreviewButton(_previewFile, PreviewRefusal(FocusedPreviewPath, _runtimeAcquisition));
-                UpdateRevealButton(_revealFolder, PanelRevealRefusal(_services, _runtimeAcquisition, FocusedRevealFolder));
+                UpdateRevealButton(_revealInPanel, PanelRevealRefusal(_services, _runtimeAcquisition, FocusedRevealPath));
                 var item = _selectedGroupedItem?.NodeId == path ? _selectedGroupedItem : AnalysisIndexedChart.Row(detail.Row, explorer.Metric);
                 var metric = _grouping?.Metric ?? explorer.Metric;
                 var text = new System.Text.StringBuilder();

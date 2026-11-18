@@ -31,7 +31,7 @@ public sealed partial class MainViewModel
     {
         if (ActiveTab?.Location is { Scheme: Schemes.AnalysisFolder })
         {
-            Notify("A read-only analysis folder only contains recorded metadata. Open a current folder to add items to a working set.");
+            Notify(AnalysisPanelFolderProvider.WorkingSetRefusal);
             return;
         }
         if (ResultSetProvider.IsWorkingSetList(ActiveTab?.Location))

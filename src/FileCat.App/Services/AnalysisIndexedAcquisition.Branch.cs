@@ -55,7 +55,7 @@ internal sealed partial class AnalysisIndexedAcquisition
     private sealed record RuntimeBranch(AnalysisSession Session, AnalysisComponentPreset Components, BranchSelection Selection,
         int RootIndex, string Location);
 
-    private async Task<RuntimeBranch> CaptureRuntimeBranchAsync(SessionIdentity expected, ulong directory, CancellationToken cancellation)
+    private async Task<RuntimeBranch> CaptureRuntimeBranchAsync(SessionIdentity expected, ulong path, CancellationToken cancellation, bool includeFile = false)
     {
         AnalysisSession session;
         string[] locations;
@@ -68,7 +68,7 @@ internal sealed partial class AnalysisIndexedAcquisition
             components = _runtimeComponents;
         }
 
-        var selection = await CaptureBranchAsync(session, expected, directory, cancellation).ConfigureAwait(false);
+        var selection = await CaptureBranchAsync(session, expected, path, includeFile, cancellation).ConfigureAwait(false);
         if (!int.TryParse(selection.Root.Id, NumberStyles.None, CultureInfo.InvariantCulture, out int ordinal) ||
             ordinal < 1 || ordinal > locations.Length || ordinal.ToString(CultureInfo.InvariantCulture) != selection.Root.Id)
             throw new InvalidOperationException("The recorded folder has no verified runtime root.");
@@ -131,13 +131,14 @@ internal sealed partial class AnalysisIndexedAcquisition
         }
     }
 
-    private sealed record BranchSelection(RootBinding Root, AnalysisBranchComponent RootComponent, AnalysisBranchComponent[] Children);
+    private sealed record BranchSelection(RootBinding Root, AnalysisBranchComponent RootComponent, AnalysisBranchComponent[] Children,
+        AnalysisPathMetadata? SelectedFile);
 
-    private static async Task<BranchSelection> CaptureBranchAsync(AnalysisSession session, SessionIdentity expected, ulong directory,
-        CancellationToken cancellation)
+    private static async Task<BranchSelection> CaptureBranchAsync(AnalysisSession session, SessionIdentity expected, ulong selected,
+        bool includeFile, CancellationToken cancellation)
     {
         cancellation.ThrowIfCancellationRequested();
-        if (directory == 0) throw new InvalidOperationException("Choose a captured folder to refresh.");
+        if (selected == 0) throw new InvalidOperationException("Choose an observed entry in the analysis.");
 
         if (session.DatasetDescriptor is not null)
         {
@@ -162,7 +163,7 @@ internal sealed partial class AnalysisIndexedAcquisition
                 if (node.Id < id) low = middle + 1;
                 else high = middle - 1;
             }
-            throw new InvalidOperationException("The captured folder is unavailable in the completed analysis.");
+            throw new InvalidOperationException("The captured entry is unavailable in the completed analysis.");
         }).ConfigureAwait(false);
 
         async Task<BranchSelection> ReadAsync(SessionIdentity actual, AnalysisPhase phase, IReadOnlyList<RootBinding> roots,
@@ -170,9 +171,24 @@ internal sealed partial class AnalysisIndexedAcquisition
         {
             if (phase != AnalysisPhase.Finished || actual.SessionId != expected.SessionId || actual.Epoch != expected.Epoch ||
                 actual.Revision != expected.Revision)
-                throw new InvalidOperationException("Choose a folder in the finished observation revision.");
+                throw new InvalidOperationException("Choose an entry in the finished observation revision.");
 
-            var path = await read(directory, cancellation).ConfigureAwait(false);
+            var path = await read(selected, cancellation).ConfigureAwait(false);
+            AnalysisPathMetadata? selectedFile = null;
+            if (includeFile && path.Kind == AnalysisKind.File)
+            {
+                if (path.ParentId == 0)
+                    throw new NotSupportedException("Reveal this file from an analysis of its containing folder.");
+                if (path.ParentId >= path.Id || !path.IncludedByPolicy || path.MetadataState != MeasurementState.Known ||
+                    path.Cloud == true || path.ObservedIdentity is null ||
+                    path.Times is not { CreatedUtc: not null, CreatedPrecisionTicks: not null })
+                    throw new NotSupportedException("The file lacks verified identity and creation-time evidence.");
+                selectedFile = path.RawName.IsDefaultOrEmpty
+                    ? path with { RawName = [.. AnalysisRawNames.Encode(path.NameEncoding, path.Name)] }
+                    : path;
+                path = await read(path.ParentId, cancellation).ConfigureAwait(false);
+                if (path.RootId != selectedFile.RootId) throw new AnalysisSourceChangedException();
+            }
             var root = roots.SingleOrDefault(item => item.Id == path.RootId);
             if (root is not { Scheme: "file", Kind: AnalysisKind.Directory, Assurance: IdentityAssurance.Verified,
                     Disposition: AnalysisRootDisposition.Active, ObservedObjectIdentity: not null, SourceIdentity: not null })
@@ -193,7 +209,7 @@ internal sealed partial class AnalysisIndexedAcquisition
                     if (path.ObservedIdentity != root.ObservedObjectIdentity) throw new AnalysisSourceChangedException();
                     chain.Reverse();
                     if (chain.Count != 0) AnalysisBranchComponent.Validate(chain, OperatingSystem.IsWindows());
-                    return new(root, component, chain.ToArray());
+                    return new(root, component, chain.ToArray(), selectedFile);
                 }
 
                 if (chain.Count >= AnalysisBranchComponent.MaximumDepth || path.ParentId >= path.Id)

@@ -92,6 +92,7 @@ public sealed partial class MainViewModel
                     ? CommandAvailability.Yes
                     : CommandAvailability.No("Remove from set works in search results and working sets; it never deletes anything.");
             case CommandIds.AddToWorkingSet:
+                if (loc?.Scheme == Schemes.AnalysisFolder) return CommandAvailability.No(AnalysisPanelFolderProvider.WorkingSetRefusal);
                 return hasItem || Core.Search.ResultSetProvider.IsWorkingSetList(loc) ? CommandAvailability.Yes : CommandAvailability.No("Nothing is focused or marked.");
             case CommandIds.RegistryExport:
                 return registryItem || loc?.Scheme == Schemes.Registry && loc.Path.Length > 0

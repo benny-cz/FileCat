@@ -5,6 +5,7 @@ using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Analysis;
+using FileCat.Core.Commands;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 
@@ -13,9 +14,11 @@ namespace FileCat.Rendering.Tests;
 public sealed partial class AnalysisRenderingTests
 {
     [AvaloniaTheory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task NativeAnalysisPanelRevealDisplaysBoundMetadataWithoutOpeningThePathAgain(bool indexed)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task NativeAnalysisPanelRevealDisplaysBoundMetadataWithoutOpeningThePathAgain(bool indexed, bool file)
     {
         OrdinaryPreparation();
         using var styles = new ProductStyles();
@@ -28,6 +31,10 @@ public sealed partial class AnalysisRenderingTests
         string branch = Directory.CreateDirectory(Path.Combine(input, "branch")).FullName;
         string original = Path.Combine(branch, "original.txt");
         File.WriteAllText(original, "original");
+        const string alias = "z-alias.txt";
+        if (file) CreateGroupedNativeAlias(original, Path.Combine(branch, alias));
+        string selectedName = file ? alias : "branch";
+        string[] expected = file ? ["new\\u202E.txt", "original.txt", alias] : ["new\\u202E.txt", "original.txt"];
         var token = TestContext.Current.CancellationToken;
         main.Show();
         analysis.Show();
@@ -47,12 +54,18 @@ public sealed partial class AnalysisRenderingTests
                 Click(analysis, "Explore selected folder");
                 await Until(() => list.Items.OfType<AnalysisHierarchyRow>().Any(row => row.Path.Name == "branch"));
                 list.SelectedItem = Assert.Single(list.Items.OfType<AnalysisHierarchyRow>(), row => row.Path.Name == "branch");
-                await Until(() => explorer.Inspection?.Row.Path.Name == "branch");
+                if (file)
+                {
+                    Click(analysis, "Explore selected folder");
+                    await Until(() => list.Items.OfType<AnalysisHierarchyRow>().Any(row => row.Path.Name == alias));
+                    list.SelectedItem = Assert.Single(list.Items.OfType<AnalysisHierarchyRow>(), row => row.Path.Name == alias);
+                }
+                await Until(() => explorer.Inspection?.Row.Path.Name == selectedName);
             }
             else
             {
                 var model = Assert.IsType<DiskSpaceViewModel>(result.Memory);
-                model.Focus(AnalysisTree.Key(Assert.Single(model.Tree!.Snapshot.Nodes, node => node.Name == "branch").Id));
+                model.Focus(AnalysisTree.Key(Assert.Single(model.Tree!.Snapshot.Nodes, node => node.Name == selectedName).Id));
                 Click(analysis, "Inspect selection");
             }
 
@@ -67,9 +80,15 @@ public sealed partial class AnalysisRenderingTests
             var location = tab.Location!;
             Assert.Contains("Read-only folder metadata", tab.Banner);
             Assert.Equal(LocationCapabilities.Enumerate, tab.Listing.Provider!.GetCapabilities(location));
+            Assert.Equal(CommandAvailability.No(AnalysisPanelFolderProvider.WorkingSetRefusal), vm.GetAvailability(CommandIds.AddToWorkingSet));
             Assert.Null(tab.ToState().Location);
             Assert.Null(tab.ToState().FocusName);
-            Assert.Equal(["new\\u202E.txt", "original.txt"], PanelNames(tab));
+            Assert.Equal(expected, PanelNames(tab));
+            if (file)
+            {
+                Assert.True(tab.Listing.TryGetFocused(out var focused));
+                Assert.Equal(alias, focused.Name);
+            }
             foreach (int index in Enumerable.Range(0, tab.Listing.Store.Count))
             {
                 var reference = tab.Listing.GetItemRef(index);
@@ -86,7 +105,7 @@ public sealed partial class AnalysisRenderingTests
             File.WriteAllText(Path.Combine(branch, "replacement.txt"), "replacement");
             tab.Refresh();
             await Until(() => tab.Listing.State == ListingState.Complete);
-            Assert.Equal(["new\\u202E.txt", "original.txt"], PanelNames(tab));
+            Assert.Equal(expected, PanelNames(tab));
             Assert.Equal("original", File.ReadAllText(Path.Combine(moved, "original.txt")));
             panel.CloseTab(tab);
             await Assert.ThrowsAsync<DirectoryNotFoundException>(() => profile.Services.AnalysisPanelFolders.PrepareNavigationAsync(location, token));
@@ -100,6 +119,34 @@ public sealed partial class AnalysisRenderingTests
 
         static string[] PanelNames(TabViewModel tab) => Enumerable.Range(0, tab.Listing.Store.Count)
             .Select(index => tab.Listing.Store[index].Name).Order(StringComparer.Ordinal).ToArray();
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeAnalysisPanelRevealRefusesAReplacedSelectedFile(bool indexed)
+    {
+        OrdinaryPreparation();
+        using var profile = new PreparationFixture();
+        string input = Directory.CreateDirectory(Path.Combine(profile.Root, "input")).FullName;
+        string selected = Path.Combine(input, "selected.txt");
+        File.WriteAllText(selected, "original");
+        var token = TestContext.Current.CancellationToken;
+        await using var owner = await AnalysisIndexedAcquisition.PrepareAsync(profile.Services, token, indexedStorage: indexed);
+        var scan = await StartAcquiredAsync(owner, profile, input);
+        await using var dataset = await scan.AcquireDatasetAsync(token);
+        var snapshot = scan.Snapshot();
+        var revision = dataset?.Descriptor.Identity ?? snapshot.Identity;
+        ulong id = dataset is null ? Assert.Single(snapshot.Nodes, row => row.Name == "selected.txt").Id :
+            Assert.Single((await dataset.ReadPathsAsync(0, cancellation: token)).Rows, row => row.Name == "selected.txt").Id;
+        string retained = Path.Combine(input, "original.txt");
+        File.Move(selected, retained);
+        File.WriteAllText(selected, "replaced");
+        File.SetLastWriteTimeUtc(selected, File.GetLastWriteTimeUtc(retained));
+
+        await Assert.ThrowsAsync<AnalysisSourceChangedException>(() => owner.ReadPanelListingAsync(revision, id, token));
+        Assert.Equal("original", File.ReadAllText(retained));
+        Assert.Equal("replaced", File.ReadAllText(selected));
     }
 
     [AvaloniaFact]
@@ -119,7 +166,7 @@ public sealed partial class AnalysisRenderingTests
             File.WriteAllBytes(Path.Combine(branch, $"row-{index:D5}.bin"), []);
         }
 
-        var error = await Assert.ThrowsAsync<NotSupportedException>(() => owner.ReadPanelFolderAsync(revision, folder, token));
+        var error = await Assert.ThrowsAsync<NotSupportedException>(() => owner.ReadPanelListingAsync(revision, folder, token));
         Assert.Equal(AnalysisPanelFolder.LimitMessage, error.Message);
         Assert.Equal(AnalysisPanelFolder.MaximumEntries + 1, Directory.EnumerateFiles(branch).Count());
         Assert.True(owner.HasRuntimeBranchContext);

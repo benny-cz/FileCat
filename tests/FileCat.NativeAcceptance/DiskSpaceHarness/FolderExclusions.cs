@@ -164,13 +164,14 @@ internal sealed partial class HarnessApp
                 top.Y + comparedPath.Bounds.Height <= window.ClientSize.Height);
             Click("Close");
             await ReadyAsync(() => VisibleButton("Close") is null);
-            await CheckPanelRevealAsync(window, model, packageScope);
+            string photo = AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "photo.png").Id);
+            await CheckPanelRevealAsync(window, model, packageScope, photo);
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
                 sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
-                readOnlyPanelReveal = true };
+                readOnlyPanelReveal = true, exactFilePanelFocus = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }
@@ -182,7 +183,7 @@ internal sealed partial class HarnessApp
         }
     }
 
-    private async Task CheckPanelRevealAsync(DiskSpaceWindow window, DiskSpaceViewModel model, string folder)
+    private async Task CheckPanelRevealAsync(DiskSpaceWindow window, DiskSpaceViewModel model, string folder, string file)
     {
         var vm = new MainViewModel(_services!);
         var main = new MainWindow(vm, null);
@@ -190,21 +191,31 @@ internal sealed partial class HarnessApp
         main.Show();
         try
         {
-            window.Activate();
             await ReadyAsync(() => _tabs is { IsVisible: true });
             _tabs!.SelectedIndex = 0;
-            model.Focus(folder);
-            Button? Find(string label) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
-                button.IsEffectivelyVisible && button.Content as string == label);
-            await ReadyAsync(() => Find("Inspect selection") is { IsEnabled: true });
-            Find("Inspect selection")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await ReadyAsync(() => Find("Reveal in panel") is { IsEnabled: true });
-            Find("Reveal in panel")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await ReadyAsync(() => vm.ActiveTab is { Location.Scheme: Schemes.AnalysisFolder, Listing.State: ListingState.Complete });
-            var shown = vm.ActiveTab!;
+            var shown = await RevealAsync(folder);
             if (shown.Listing.Provider?.GetCapabilities(shown.Location!) != LocationCapabilities.Enumerate ||
                 shown.Listing.Store.Count != 1 || shown.Listing.Store[0].Name != "Contents" || shown.Listing.GetItemRef(0).FileSystemPath is not null)
                 throw new InvalidOperationException("Reveal did not show the verified package folder in a read-only workspace tab.");
+            var selected = await RevealAsync(file);
+            if (!selected.Listing.TryGetFocused(out var row) || row.Name != "photo.png")
+                throw new InvalidOperationException("Reveal did not focus the exact selected file in its verified folder.");
+
+            async Task<TabViewModel> RevealAsync(string key)
+            {
+                var previous = vm.ActiveTab;
+                window.Activate();
+                model.Focus(key);
+                Button? Find(string label) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+                    button.IsEffectivelyVisible && button.Content as string == label);
+                await ReadyAsync(() => Find("Inspect selection") is { IsEnabled: true });
+                Find("Inspect selection")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await ReadyAsync(() => Find("Reveal in panel") is { IsEnabled: true });
+                Find("Reveal in panel")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await ReadyAsync(() => vm.ActiveTab is { Location.Scheme: Schemes.AnalysisFolder, Listing.State: ListingState.Complete } current &&
+                    !ReferenceEquals(previous, current));
+                return vm.ActiveTab!;
+            }
         }
         finally
         {
