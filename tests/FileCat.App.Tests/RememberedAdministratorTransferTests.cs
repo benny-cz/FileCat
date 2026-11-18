@@ -56,8 +56,14 @@ public sealed class RememberedAdministratorTransferTests
                 Assert.Null(first.AdministratorTransfers!.LoadWorkspace());
                 firstVm.Initialize(null);
                 window.Show();
-                await ApplyAndRememberAsync(firstVm, window, "Use copied appearance and workspace",
-                    "Appearance and workspace text", new CombinedTransfer(appearance, packet).Encode(), "Apply appearance and workspace");
+                string text = new CombinedTransfer(appearance, packet).Encode();
+                await ApplyCombinedAsync(firstVm, window, text, sessionOnly: true);
+                Assert.Equal("Psychedelic", first.Settings.Theme);
+                Assert.Equal(local, firstVm.Workspace.ActivePanel?.ActiveTab?.Location?.Path);
+                Assert.Null(first.AdministratorTransfers!.ReadSnapshot());
+
+                // The default confirmation alone remembers both for the next elevated launch.
+                await ApplyCombinedAsync(firstVm, window, text, sessionOnly: false);
                 var remembered = first.AdministratorTransfers!.ReadSnapshot();
                 Assert.Equal(appearance.Encode(), remembered?.Appearance);
                 Assert.Equal(packet.Encode(), remembered?.Workspace);
@@ -148,19 +154,21 @@ public sealed class RememberedAdministratorTransferTests
         finally { machine.DeleteSubKeyTree(name, throwOnMissingSubKey: false); }
     }
 
-    private static async Task ApplyAndRememberAsync(MainViewModel vm, Window window, string open, string field,
-        string text, string apply)
+    private static async Task ApplyCombinedAsync(MainViewModel vm, Window window, string text, bool sessionOnly)
     {
         var settings = SettingsDialog.ShowAsync(vm);
         Click(AppearanceTransferDialog.ActionLabel);
-        Click(open);
-        window.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationProperties.GetName(box) == field).Text = text;
+        Click("Use copied appearance and workspace");
+        window.GetVisualDescendants().OfType<TextBox>()
+            .Single(box => AutomationProperties.GetName(box) == "Appearance and workspace text").Text = text;
         Click("Review");
         var remember = window.GetVisualDescendants().OfType<CheckBox>().Single(box =>
             box.IsEffectivelyVisible && Equals(box.Content, "Remember for future administrator launches"));
-        Assert.False(remember.IsChecked);
-        remember.IsChecked = true;
-        Click(apply);
+        Assert.True(remember.IsChecked);
+        Assert.Contains(window.GetVisualDescendants().OfType<Button>(),
+            button => button.IsEffectivelyVisible && Equals(button.Content, "Apply and remember"));
+        if (sessionOnly) remember.IsChecked = false;
+        Click(sessionOnly ? "Apply for this session" : "Apply and remember");
         await settings.WaitAsync(TimeSpan.FromSeconds(10));
 
         void Click(string label)
