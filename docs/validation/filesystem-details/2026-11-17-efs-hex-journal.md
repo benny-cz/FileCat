@@ -23,6 +23,12 @@ Builds passed with zero warnings/errors. Tests ran only on the supplied machines
 
 The EFS save test opens actual encrypted synthetic content, reads it, stages edits, performs Undo/Redo and attempts Save. It observes unchanged target bytes, retained edits/Undo/Redo and no journal directory. Each recovery direction first creates a genuine interrupted clear-file save, then encrypts that same target explicitly after its handle closes. Inspection and both recovery-handle routes refuse; journal bytes and current target bytes remain unchanged. Explicit fixture decryption restores the ordinary recovery route, which finishes/rolls back correctly and removes its journal. FileCat never decrypts as a fallback.
 
+## Protection changes during save and recovery
+
+Windows applied EFS to an owned NTFS fixture while the hex editor held its write handle. Save now checks the held target again before writing the journal and before each in-place write. Save and recovery also check before and after final readback. An observed change stops the operation and preserves the journal and any completed writes.
+
+The native Windows 11 x64 fixtures applied EFS after the journal flush and after the final save write. The first case preserved all original bytes and a journal with zero completed ranges. The second retained the journal and the completed write before verification. The Finish and Rollback fixtures applied EFS between two ranges. Both preserved the completed first write and the exact journal and left the second range untouched. The Windows hex suite passed 36 cases with one optional benchmark skipped. See `.tmp/hex-journal-late-efs-r1.xml`.
+
 The editor case types an edit in a real EFS-backed `HexEditorWindow`, confirms Save in place and observes the refusal message, unsaved state, unchanged target and no `.fcj` output. It dismisses the message before closing the fixture. This is headless UI behavior with native EFS I/O, not screen-reader/theme/geometry or whole-workflow qualification. Broader unknown-metadata/concurrency/provider/output matrices remain separate.
 
 ## Retained inputs

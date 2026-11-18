@@ -179,7 +179,11 @@ public sealed partial class ProtectedHexFile : IContentSource, IHexContentOrigin
         return Identity(handle);
     }
 
-    internal void Write(long offset, ReadOnlySpan<byte> bytes) => RandomAccess.Write(_handle, bytes, offset);
+    internal void Write(long offset, ReadOnlySpan<byte> bytes)
+    {
+        RequireUnencryptedJournalTarget();
+        RandomAccess.Write(_handle, bytes, offset);
+    }
     internal void Flush() => UnixFiles.FullSync(_handle);
     public void Dispose() => _handle.Dispose();
 

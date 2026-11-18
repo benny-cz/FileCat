@@ -64,6 +64,7 @@ public static class HexSaveJournal
             snapshot.RequireUnprotectedOutput("In-place saving");
             file.ValidateForSave(ranges);
             byte[] payload = Serialize(file, snapshot);
+            file.RequireUnencryptedJournalTarget();
             Directory.CreateDirectory(journalDirectory);
             string journalPath = Path.Combine(journalDirectory, "hex-" + Guid.NewGuid().ToString("N") + ".fcj");
             FileStream stream;
@@ -300,6 +301,7 @@ public static class HexSaveJournal
 
     private static void VerifyReadBack(ProtectedHexFile file, IReadOnlyList<HexPatchRange> ranges, bool rollback)
     {
+        file.RequireUnencryptedJournalTarget();
         foreach (var range in ranges)
         {
             var expected = rollback ? range.Original : range.Replacement;
@@ -307,6 +309,7 @@ public static class HexSaveJournal
             if (file.Read(range.Offset, actual) != actual.Length || !actual.AsSpan().SequenceEqual(expected))
                 throw new IOException($"Written bytes at 0x{range.Offset:X} read back differently.");
         }
+        file.RequireUnencryptedJournalTarget();
     }
 
     private static void TryDelete(string path)
