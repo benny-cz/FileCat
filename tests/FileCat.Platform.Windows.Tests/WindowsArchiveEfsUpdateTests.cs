@@ -89,6 +89,40 @@ public sealed class WindowsArchiveEfsUpdateTests
     }
 
     [Fact]
+    public void Native_transaction_refuses_an_encrypted_snapshot_before_copying_original_bytes()
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-native-efs-snapshot-").FullName;
+        string archive = Path.Join(root, "original.tar");
+        byte[] originalBytes = "owned transactional archive bytes"u8.ToArray();
+        var ct = TestContext.Current.CancellationToken;
+        try
+        {
+            File.WriteAllBytes(archive, originalBytes);
+            using var directory = WindowsArchiveDirectory.Open(root);
+            using var original = directory.OpenReviewedTarget("original.tar");
+            var baseline = ((IArchiveRetainedFile)original).Observe(ct);
+            var nonce = Guid.NewGuid();
+            using var snapshot = directory.CreateArtifact(nonce, WindowsArchiveArtifactKind.Stage, originalBytes.Length);
+            File.Encrypt(snapshot.DisplayPath);
+            Assert.True(File.GetAttributes(snapshot.DisplayPath).HasFlag(FileAttributes.Encrypted));
+
+            using (var transaction = original.BeginContentTransaction(baseline, nonce, TimeSpan.FromSeconds(30), ct))
+            {
+                var refusal = Assert.Throws<ArchiveWriteException>(() => transaction.RetainOriginal(snapshot, ct));
+                Assert.Equal(ArchiveWriteReason.PublicationUnavailable, refusal.Reason);
+                Assert.Equal(ArchiveOuterEfs.NativeUpdateArtifactUnavailable, refusal.Message);
+                Assert.Equal(0, snapshot.Length);
+                transaction.Rollback();
+            }
+
+            Assert.Equal(originalBytes, File.ReadAllBytes(archive));
+            Assert.True(File.GetAttributes(snapshot.DisplayPath).HasFlag(FileAttributes.Encrypted));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void Native_update_read_view_refuses_protection_drift_on_the_held_original()
     {
         RequireEfs();
