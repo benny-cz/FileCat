@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using FileCat.App.Services;
@@ -43,6 +45,8 @@ internal sealed partial class HarnessApp
             bool recordResourceSpeech = Environment.GetEnvironmentVariable("FILECAT_TEST_RESOURCE_SPEECH") == "1";
             if (OperatingSystem.IsWindows() && (Program.ResourceKeyboardProbe || recordResourceSpeech))
                 WindowsGuestInput.ActivateFromDesktop(window.TryGetPlatformHandle()?.Handle ?? 0);
+            if (OperatingSystem.IsMacOS() && Program.ResourceKeyboardProbe)
+                window.Activate();
             Click("Resource limits…");
             await ReadyAsync(() => VisibleButton("Close limits") is { IsDefault: true, IsCancel: true });
             var closeLimits = VisibleButton("Close limits")!;
@@ -85,7 +89,11 @@ internal sealed partial class HarnessApp
             panelFilter.IsChecked = true;
             await ReadyAsync(() => panelFilter.IsChecked == true);
             RenderNativeFrame("folder-exclusions-setup.png");
+            var analysisStarted = Stopwatch.StartNew();
             start.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            double? firstResultMilliseconds = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_FIRST_RESULTS") == "1"
+                ? await WaitForNativeLayoutAsync(analysisStarted, FirstRankedRowVisible, "the first ranked analysis row", _indexedLifetime.Token)
+                : null;
             await ReadyAsync(() => model.Tree?.Snapshot.Phase == AnalysisPhase.Finished && model.PanelFilterApplied);
             var snapshot = model.Tree!.Snapshot;
             var skipped = snapshot.BoundaryTotals.GetValueOrDefault(AnalysisBoundaryKind.FolderExclusion);
@@ -189,9 +197,16 @@ internal sealed partial class HarnessApp
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
                 readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
                 standardIndexChoice = true, scratchThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true,
-                packageTier = Program.PackageTier, packageFastNtfsReason, warmShell };
+                packageTier = Program.PackageTier, packageFastNtfsReason, warmShell, firstResultMilliseconds };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
+
+            bool FirstRankedRowVisible() => model.Tree is { Snapshot.Nodes.Length: > 0 } &&
+                window.GetVisualDescendants().OfType<ListBox>()
+                    .Where(list => list.IsEffectivelyVisible && AutomationProperties.GetName(list) == "Ranked analysis entries")
+                    .SelectMany(list => list.GetVisualDescendants().OfType<ListBoxItem>())
+                    .Any(row => row.IsEffectivelyVisible && row.Bounds.Height > 0 &&
+                        row.TranslatePoint(default, window) is { } top && top.Y >= 0 && top.Y < window.ClientSize.Height);
         }
         catch (Exception error)
         {
@@ -403,12 +418,39 @@ internal sealed partial class HarnessApp
             }
             string request = Path.Combine(_run, "resource-key.request"), response = Path.Combine(_run, "resource-key.response");
             string pending = request + ".pending";
-            await File.WriteAllTextAsync(pending, key, cancellation);
-            File.Move(pending, request);
-            await ReadyAsync(() => File.Exists(response));
-            if (await File.ReadAllTextAsync(response, cancellation) != key) throw new InvalidOperationException("Unexpected native key acknowledgement.");
-            await WaitForDismissalAsync();
-            File.Delete(request); File.Delete(response);
+            bool cocoa = OperatingSystem.IsMacOS() && Environment.GetEnvironmentVariable("FILECAT_TEST_RESOURCE_COCOA") == "1";
+            string? received = null;
+            void ObserveKey(object? sender, KeyEventArgs args)
+            {
+                string observed = args.Key.ToString();
+                if (observed == key || key == "Return" && observed == "Enter") received = observed;
+            }
+            window.AddHandler(InputElement.KeyDownEvent, ObserveKey, RoutingStrategies.Tunnel, handledEventsToo: true);
+            try
+            {
+                await File.WriteAllTextAsync(pending, key, cancellation);
+                File.Move(pending, request);
+                if (cocoa)
+                {
+                    PostCocoaResourceKey(window.TryGetPlatformHandle()?.Handle ?? 0, key);
+                    await ReadyAsync(() => received is not null);
+                }
+                else
+                {
+                    await ReadyAsync(() => File.Exists(response));
+                    if (await File.ReadAllTextAsync(response, cancellation) != key) throw new InvalidOperationException("Unexpected native key acknowledgement.");
+                }
+                await WaitForDismissalAsync();
+                if (cocoa) File.WriteAllText(Path.Combine(_run, $"resource-key-completed-{key}.txt"), received!);
+                File.Delete(request);
+                File.Delete(response);
+            }
+            catch (TimeoutException error)
+            {
+                bool open = VisibleButton("Close limits") is not null;
+                throw new TimeoutException($"Native {key} did not dismiss and restore focus. Received key: {received ?? "none"}. Dialog open: {open}.", error);
+            }
+            finally { window.RemoveHandler(InputElement.KeyDownEvent, ObserveKey); }
         }
 
         Task WaitForDismissalAsync() => ReadyAsync(() =>

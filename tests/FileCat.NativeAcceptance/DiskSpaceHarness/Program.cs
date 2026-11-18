@@ -291,7 +291,8 @@ internal static class Program
         PackageTier = Environment.GetEnvironmentVariable("FILECAT_TEST_ANALYSIS_PACKAGE_TIER");
         if (PackageTier is not null && (!FolderExclusionProbe || !OperatingSystem.IsWindows() || PackageTier is not ("portable" or "fdd"))) return 64;
         ResourceKeyboardProbe = args.Contains("--resource-keyboard-probe", StringComparer.Ordinal);
-        if (ResourceKeyboardProbe && (!FolderExclusionProbe || !(OperatingSystem.IsLinux() || OperatingSystem.IsWindows()))) return 64;
+        if (ResourceKeyboardProbe && (!FolderExclusionProbe ||
+            !(OperatingSystem.IsLinux() || OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))) return 64;
         if (FolderExclusionProbe && args.Any(arg => arg is not ("--folder-exclusion-probe" or "--large-text" or "--compact" or "--replacement-compositor-capture" or "--resource-keyboard-probe"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
         Compact = args.Contains("--compact", StringComparer.Ordinal);

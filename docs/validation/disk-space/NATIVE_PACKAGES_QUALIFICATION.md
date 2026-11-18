@@ -33,3 +33,7 @@ The r1627 native desktop harness called the Tools entry in an already-running Fi
 | Ubuntu VM | 53 ms | 73 ms | `dd7eccaa5607628a64f528685188204edc3f6f1edcf7c9e3c95e01d09d59115c` |
 
 All three measured warm p95 values met the proposed 500 ms target for setup readiness. The source fixtures stayed intact and the test processes exited. Cold process startup and physical input-to-paint latency remain separate measurements.
+
+The same native folder workflow measured 160 ms from Start analysis to the first visible, laid-out result row on the Mac in r1643 and 550 ms on Ubuntu in r1641. The harness invoked the command through its native window's Start analysis control and checked the rendered list. The fixtures remained intact and the process inventories were empty. The raw result hashes are `172336172d6a44caf8878a06088849c90fd7a56db883f3c31c8e41166fd28ee2` and `6c6d0a37743a4d02f8b4e936832d8548a669d5f18eff730164d5108ba746c5bd`. The measured Windows first visible result remains open.
+
+The Mac r1643 desktop run also posted Return and Escape through the owned AppKit application queue. FileCat received both events, dismissed the indexed resource dialog and restored focus to its launcher. The external Quartz attempts in r1636 and r1638 posted Return while the dialog held native focus. The r1638 observer recorded zero matching events in the app. This qualifies the AppKit key-handling path. Physical keyboard and VoiceOver speech remain separate checks.

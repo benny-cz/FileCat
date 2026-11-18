@@ -25,16 +25,10 @@ internal sealed partial class HarnessApp
             var window = manager.Window ?? throw new InvalidOperationException("The Tools entry did not open Disk space.");
             try
             {
-                while (!await Dispatcher.UIThread.InvokeAsync(() => window.IsVisible &&
+                samples[i] = await WaitForNativeLayoutAsync(elapsed, () => window.IsVisible &&
                     window.GetVisualDescendants().OfType<Button>().Any(button =>
                         button.Content is "Start analysis" && button.IsEffectivelyVisible && button.IsEnabled &&
-                        button.Bounds.Width > 0 && button.Bounds.Height > 0), DispatcherPriority.Background))
-                {
-                    if (elapsed.Elapsed > TimeSpan.FromSeconds(5))
-                        throw new TimeoutException("The native Tools entry did not lay out the analysis setup.");
-                    await Task.Delay(5, cancellation);
-                }
-                samples[i] = elapsed.Elapsed.TotalMilliseconds;
+                        button.Bounds.Width > 0 && button.Bounds.Height > 0), "the analysis setup", cancellation);
             }
             finally
             {
@@ -46,5 +40,16 @@ internal sealed partial class HarnessApp
         }
         var warm = samples[1..];
         return new(samples[0], warm, warm.Order().ElementAt((int)Math.Ceiling(warm.Length * .95) - 1));
+    }
+
+    private static async Task<double> WaitForNativeLayoutAsync(Stopwatch elapsed, Func<bool> ready, string target, CancellationToken cancellation)
+    {
+        while (!await Dispatcher.UIThread.InvokeAsync(ready, DispatcherPriority.Background))
+        {
+            if (elapsed.Elapsed > TimeSpan.FromSeconds(5))
+                throw new TimeoutException($"The native window did not lay out {target}.");
+            await Task.Delay(5, cancellation);
+        }
+        return elapsed.Elapsed.TotalMilliseconds;
     }
 }
