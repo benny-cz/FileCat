@@ -245,13 +245,17 @@ public sealed class WindowsContextMenuTests
             Assert.Equal(Path.Combine(folder, name), Assert.Single(Directory.EnumerateFileSystemEntries(folder)));
             Assert.True(Directory.Exists(Path.Combine(folder, name)));
 
-            // New → Text Document, where Windows offers it (a classic ShellNew entry or, on Windows 11, Notepad's packaged
-            // one) and makes the file by itself (no program or handler of an editor runs instead): the text file is
-            // reported too, beside the folder already there.
-            if (lines.Any(line => line.StartsWith('\t') && line.EndsWith("\t.txt", StringComparison.OrdinalIgnoreCase)) &&
-                WindowsContextMenu.NewMakesItemItself(".txt"))
+            // Text Document can come from a classic ShellNew entry or a packaged Notepad entry. Use the invoking
+            // helper's menu to establish availability, because a different Shell process can list different entries.
+            if (WindowsContextMenu.NewMakesItemItself(".txt"))
             {
-                var (textExit, textOutput, _) = await RunHostAsync(WindowsContextMenu.NewProbeOption, ".txt", folder);
+                var (textExit, textOutput, textErrors) = await RunHostAsync(WindowsContextMenu.NewProbeOption, ".txt", folder);
+                if (textExit == 1 && textErrors.Trim() == "No New command .txt here.")
+                {
+                    Assert.Contains(WindowsContextMenu.ReadyMessage, textOutput, StringComparison.Ordinal);
+                    Assert.Equal(Path.Combine(folder, name), Assert.Single(Directory.EnumerateFileSystemEntries(folder)));
+                    return;
+                }
                 string? textReport = textOutput.Split('\n').Select(line => line.TrimEnd('\r'))
                     .LastOrDefault(line => line.StartsWith(WindowsContextMenu.CreatedMessage + " ", StringComparison.Ordinal));
                 Assert.Equal(19, textExit);

@@ -200,6 +200,9 @@ public interface IFileSystemOperations
     /// </summary>
     BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity) => null;
 
+    /// <summary>Delete an owned stage only after checking that its held object remains clear of EFS.</summary>
+    BoundDeletion? DeleteClearOwnedFile(string path, string expectedIdentity) => null;
+
     BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct);
 
@@ -332,6 +335,7 @@ public class PortableFileOperations : IFileSystemOperations
         long expectedLength, CancellationToken ct) => null;
 
     public virtual BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity) => null;
+    public virtual BoundDeletion? DeleteClearOwnedFile(string path, string expectedIdentity) => null;
 
     public virtual BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct) => null;

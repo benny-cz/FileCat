@@ -43,7 +43,7 @@ public sealed unsafe partial class UnixFileRecords
             if (status != 0) throw Error(path);
             var fields = new ReadOnlySpan<byte>(bytes, 256);
             var report = ParseLinuxDetails(path, fields);
-            report = report with { Summary = report.Summary with { FileSystem = ReadLinuxDetailsFileSystem(fields, noFollow, ct) } };
+            report = report with { Summary = report.Summary with { FileSystem = ReadLinuxDetailsFileSystem(fd, fields, noFollow, ct) } };
             if (report.Summary.Kind == FileObjectKind.SymbolicLink)
             {
                 byte[] buffer = new byte[16 * 1024];
@@ -60,13 +60,17 @@ public sealed unsafe partial class UnixFileRecords
             if (fullReport && report.Summary is { Kind: FileObjectKind.File or FileObjectKind.Directory,
                     Identity: { State: FactState.Known, Value: { } identity } } summary)
             {
-                bool fscrypt = RuntimeInformation.ProcessArchitecture == Architecture.X64 && summary.FileSystem is { State: FactState.Known, Value: "ext4" };
-                if (summary.Kind == FileObjectKind.File || fscrypt)
+                bool x64 = RuntimeInformation.ProcessArchitecture == Architecture.X64;
+                bool fscrypt = x64 && summary.FileSystem is { State: FactState.Known, Value: "ext4" };
+                bool btrfs = x64 && summary.FileSystem is { State: FactState.Known, Value: "btrfs" };
+                if (summary.Kind == FileObjectKind.File || fscrypt || btrfs)
                 {
                     var (file, state, reason) = OpenLinuxMetadataDescriptor(fd, identity, summary.Kind, ct);
                     using var descriptor = file;
                     if (fscrypt)
                         report = AddLinuxFscrypt(report, file is null ? FscryptUnavailable(state, reason!) : ReadLinuxFscrypt(file, ct));
+                    if (btrfs)
+                        report = AddLinuxBtrfs(report, file, state, reason, ct);
                     if (summary.Kind == FileObjectKind.File)
                         report = AddLinuxExtents(report, file is null ? FiemapUnavailable(state, reason!) : ReadLinuxExtents(file, ct));
                 }
@@ -76,7 +80,7 @@ public sealed unsafe partial class UnixFileRecords
         finally { Close(fd); }
     }
 
-    private static ObservedFact<string> ReadLinuxDetailsFileSystem(ReadOnlySpan<byte> statx, int noFollow, CancellationToken ct)
+    private static ObservedFact<string> ReadLinuxDetailsFileSystem(int held, ReadOnlySpan<byte> statx, int noFollow, CancellationToken ct)
     {
         const string source = "statx on O_PATH descriptor + /proc/self/mountinfo";
         ObservedFact<string> Unavailable(FactState state, string reason) => ObservedFact<string>.Unavailable(state, FactScope.Volume, source, reason);
@@ -113,6 +117,7 @@ public sealed unsafe partial class UnixFileRecords
             ct.ThrowIfCancellationRequested();
             if (count > limit) return Unavailable(FactState.Partial, "The process mount table exceeds the 1 MiB read limit.");
             string? type = null;
+            bool btrfsSubvolume = false;
             ReadOnlySpan<byte> table = data.AsSpan(0, count);
             foreach (var range in table.Split((byte)'\n'))
             {
@@ -122,13 +127,19 @@ public sealed unsafe partial class UnixFileRecords
                 if (firstSpace < 0 || !row[..firstSpace].SequenceEqual(id)) continue;
                 string[] columns = Encoding.UTF8.GetString(row).Split(' ');
                 int separator = Array.IndexOf(columns, "-");
-                if (type is not null || separator < 6 || separator + 4 != columns.Length || columns[2] != device ||
+                if (type is not null || separator < 6 || separator + 4 != columns.Length ||
                     string.IsNullOrEmpty(columns[separator + 1]))
                     return Unavailable(FactState.Changed, "The mount record did not uniquely match the held item's device.");
                 type = columns[separator + 1];
+                if (columns[2] == device) continue;
+                // Btrfs can report an anonymous device number for a subvolume within the same mount ID.
+                // Independently verify the filesystem on the held object before qualifying that case.
+                if (type != "btrfs" || !IsHeldBtrfs(held, ct))
+                    return Unavailable(FactState.Changed, "The mount record did not match the held item's device.");
+                btrfsSubvolume = true;
             }
             return type is null ? Unavailable(FactState.Partial, "The held item's mount is not visible in the process mount table.")
-                : ObservedFact<string>.Known(type, FactScope.Volume, source);
+                : ObservedFact<string>.Known(type, FactScope.Volume, btrfsSubvolume ? source + " + fstatfs on the held subvolume" : source);
         }
         catch (UnauthorizedAccessException) { return Unavailable(FactState.Denied, "The process mount table is unavailable to this user."); }
         catch (IOException) { return Unavailable(FactState.Failed, "The process mount table could not be read."); }

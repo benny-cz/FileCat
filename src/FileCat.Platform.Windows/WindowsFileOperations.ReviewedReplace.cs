@@ -82,6 +82,12 @@ public partial class WindowsFileOperations
 
     /// <summary>R21: FileCat's own file, opened by name in its held folder, deleted only while it is the recorded object.</summary>
     public override BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity)
+        => DeleteOwnedFileCore(path, expectedIdentity, requireClearEfs: false);
+
+    public override BoundDeletion? DeleteClearOwnedFile(string path, string expectedIdentity)
+        => DeleteOwnedFileCore(path, expectedIdentity, requireClearEfs: true);
+
+    private static BoundDeletion? DeleteOwnedFileCore(string path, string expectedIdentity, bool requireClearEfs)
     {
         if (!OperatingSystem.IsWindows()) return null;
         if (string.IsNullOrEmpty(expectedIdentity) || !IsReplaceVolume(path))
@@ -97,6 +103,8 @@ public partial class WindowsFileOperations
             var identity = ProtectedHexFile.Identity(file);
             if (!string.Equals($"{identity.VolumeSerial:X16}:{identity.FileId}", expectedIdentity, StringComparison.OrdinalIgnoreCase))
                 return new BoundDeletion(false, true, "Another object now has the owned file's name.");
+            if (requireClearEfs && IsEfsProtected(file))
+                return new BoundDeletion(false, true, "The owned file became EFS-protected.");
             DeleteOpen(file);
             return new BoundDeletion(true, false);
         }
