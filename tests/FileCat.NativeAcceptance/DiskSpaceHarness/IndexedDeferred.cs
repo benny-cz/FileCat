@@ -12,7 +12,8 @@ namespace DiskSpaceHarness;
 
 internal sealed partial class HarnessApp
 {
-    private const int DeferredNativePaths = 50_000;
+    private static readonly string? PauseFeedbackMode = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_PAUSE_FEEDBACK");
+    private static readonly int DeferredNativePaths = PauseFeedbackMode == "series" ? 200_000 : 50_000;
     private object? _indexedDeferredProbe;
 
     // Real ordinary metadata scan and native Avalonia window. Control events are
@@ -29,9 +30,37 @@ internal sealed partial class HarnessApp
                 model.Tree!.Snapshot.Nodes.Any(node => node.Kind == AnalysisKind.File));
             Require(model.Running, "The scan completed before the native deferred request could be captured.");
             double? pauseKeyToLayoutMilliseconds = null;
-            if (Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_PAUSE_FEEDBACK") == "1")
-                pauseKeyToLayoutMilliseconds = await MeasureNativePauseFeedbackAsync(
-                    Button("Pause") ?? throw new IOException("The active scan has no visible Pause button."), token);
+            if (PauseFeedbackMode is "1" or "series")
+            {
+                var pause = Button("Pause") ?? throw new IOException("The active scan has no visible Pause button.");
+                if (PauseFeedbackMode == "series")
+                {
+                    const int resumedSamples = 20;
+                    var pauses = new double[resumedSamples + 1];
+                    var resumes = new double[resumedSamples];
+                    for (int index = 0; index < pauses.Length; index++)
+                    {
+                        pauses[index] = await TogglePauseAsync(pause, "Resume", index * 2);
+                        await WaitForNativeLayoutAsync(Stopwatch.StartNew(), () => model.Phase == AnalysisPhase.Paused,
+                            "the paused scan boundary", token);
+                        if (index == resumes.Length) break;
+                        resumes[index] = await TogglePauseAsync(pause, "Pause", index * 2 + 1);
+                        Require(model.Phase == AnalysisPhase.Scanning, "The scan ended before the timing series finished.");
+                    }
+                    var stop = Button("Stop") ?? throw new IOException("The paused scan has no visible Stop button.");
+                    double stopKeyToLayoutMilliseconds = await MeasureNativeButtonFeedbackAsync(stop, pauses.Length + resumes.Length,
+                        () => model.Phase == AnalysisPhase.Stopped && !stop.IsEnabled &&
+                            window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+                                text.Bounds.Height > 0 && text.Text?.StartsWith("Stopped ·", StringComparison.Ordinal) == true),
+                        "the visible Stopped status", token);
+                    RenderNativeFrame("native-scan-feedback-stopped.png");
+                    _indexedDeferredProbe = new { finished = true, passed = true, fixtureFilePaths = DeferredNativePaths,
+                        pauseFeedbackSeries = new { pauses, resumes, pauseP95 = P95(pauses), resumeP95 = P95(resumes), stopKeyToLayoutMilliseconds } };
+                    WriteReport("native-scan-feedback-finished");
+                    return;
+                }
+                pauseKeyToLayoutMilliseconds = await TogglePauseAsync(pause, "Resume", null);
+            }
             else
                 model.PauseOrResume();
             await ReadyAsync(() => model.Phase == AnalysisPhase.Paused);
@@ -105,6 +134,9 @@ internal sealed partial class HarnessApp
         }
 
         Button? Button(string text) => _window!.GetVisualDescendants().OfType<Button>().SingleOrDefault(button => button.IsEffectivelyVisible && Equals(button.Content, text));
+        Task<double> TogglePauseAsync(Button button, string caption, int? index) => MeasureNativeButtonFeedbackAsync(button, index,
+            () => button.IsEffectivelyVisible && button.Bounds.Width > 0 && button.Bounds.Height > 0 && Equals(button.Content, caption),
+            "the visible " + caption + " button", token);
         ListBox CapturedList() => _window!.GetVisualDescendants().OfType<ListBox>().Single(list => AutomationProperties.GetName(list) == "Deferred captured matches");
         void Click(string text)
         {
@@ -113,16 +145,17 @@ internal sealed partial class HarnessApp
             button.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
         }
         static void Require(bool value, string detail) { if (!value) throw new IOException(detail); }
+        static double P95(double[] samples) => samples.Order().ElementAt((int)Math.Ceiling(samples.Length * .95) - 1);
     }
 
-    private async Task<double> MeasureNativePauseFeedbackAsync(Button pause, CancellationToken token)
+    private async Task<double> MeasureNativeButtonFeedbackAsync(Button button, int? sequence, Func<bool> feedback, string description, CancellationToken token)
     {
         var window = _window!;
         window.Activate();
         if (OperatingSystem.IsWindows())
             WindowsGuestInput.ActivateFromDesktop(window.TryGetPlatformHandle()?.Handle ?? 0);
-        if (!pause.IsEnabled || !pause.Focus(NavigationMethod.Tab))
-            throw new IOException("Could not focus the visible Pause button during a scan.");
+        if (!button.IsEnabled || !button.Focus(NavigationMethod.Tab))
+            throw new IOException("Could not focus the enabled feedback control during a scan.");
 
         Stopwatch? observedKey = null;
         void Observe(object? sender, KeyEventArgs key)
@@ -130,19 +163,22 @@ internal sealed partial class HarnessApp
             if (key.Key == Key.Space) observedKey ??= Stopwatch.StartNew();
         }
 
-        pause.AddHandler(InputElement.KeyDownEvent, Observe, RoutingStrategies.Tunnel, handledEventsToo: true);
+        button.AddHandler(InputElement.KeyDownEvent, Observe, RoutingStrategies.Tunnel, handledEventsToo: true);
         try
         {
             if (OperatingSystem.IsWindows())
                 WindowsGuestInput.Key(0x20);
             else
-                await File.WriteAllTextAsync(Path.Combine(_run, "scan-feedback.request"), "Space", token);
-            await WaitForNativeLayoutAsync(Stopwatch.StartNew(), () => observedKey is not null, "the native Pause key", token);
-            return await WaitForNativeLayoutAsync(observedKey!, () => pause.IsEffectivelyVisible &&
-                pause.Bounds.Width > 0 && pause.Bounds.Height > 0 && Equals(pause.Content, "Resume"),
-                "the visible Resume button", token);
+            {
+                string request = Path.Combine(_run, sequence is { } index ? $"scan-feedback-{index:D3}.request" : "scan-feedback.request");
+                string pending = request + ".pending";
+                await File.WriteAllTextAsync(pending, "Space", token);
+                File.Move(pending, request);
+            }
+            await WaitForNativeLayoutAsync(Stopwatch.StartNew(), () => observedKey is not null, "the native Space key", token);
+            return await WaitForNativeLayoutAsync(observedKey!, feedback, description, token);
         }
-        finally { pause.RemoveHandler(InputElement.KeyDownEvent, Observe); }
+        finally { button.RemoveHandler(InputElement.KeyDownEvent, Observe); }
     }
 }
 
