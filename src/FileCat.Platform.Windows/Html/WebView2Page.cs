@@ -20,6 +20,8 @@ public sealed class WebView2Page : IDisposable
     private HtmlPage? _page;
     private (int Width, int Height) _size = (1, 1);
     private bool _disposed;
+    private bool _starting;
+    private string? _startupError;
     private bool _focusPending;
     private bool _nativeHasFocus;
     private long _navigationGeneration;
@@ -39,7 +41,6 @@ public sealed class WebView2Page : IDisposable
     {
         Handle = Native.CreateHost(parent);
         DataFolder = dataFolder;
-        _ = StartAsync();
     }
 
     /// <summary>The child window the page is drawn in.</summary>
@@ -89,6 +90,7 @@ public sealed class WebView2Page : IDisposable
                 AreBrowserExtensionsEnabled = false,
             };
             _environment = await CoreWebView2Environment.CreateAsync(null, DataFolder, options);
+            if (_disposed) return;
             var controllerOptions = _environment.CreateCoreWebView2ControllerOptions();
             controllerOptions.IsInPrivateModeEnabled = true;
             controllerOptions.ProfileName = "FileCatPage";
@@ -161,7 +163,8 @@ public sealed class WebView2Page : IDisposable
         }
         catch (Exception ex) when (ex is COMException or WebView2RuntimeNotFoundException or UnauthorizedAccessException or IOException or InvalidOperationException or ArgumentException)
         {
-            Loaded?.Invoke(false, ex.Message);
+            _startupError = ex.Message;
+            if (!_disposed) Loaded?.Invoke(false, _startupError);
         }
     }
 
@@ -176,8 +179,16 @@ public sealed class WebView2Page : IDisposable
     /// <summary>Shows a page (at once, or once the view is ready).</summary>
     public void Show(HtmlPage page)
     {
+        if (_disposed) return;
         _page = page;
-        _controller?.CoreWebView2.Navigate(page.Address);
+        if (_startupError is { } failure) Loaded?.Invoke(false, failure);
+        else if (_controller is { } controller) controller.CoreWebView2.Navigate(page.Address);
+        else if (!_starting)
+        {
+            // Show follows the host's event registration, including for synchronous startup failures.
+            _starting = true;
+            _ = StartAsync();
+        }
     }
 
     /// <summary>The view's size in physical pixels (the child window's; the host sizes that window).</summary>
