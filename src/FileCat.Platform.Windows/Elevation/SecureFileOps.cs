@@ -56,6 +56,7 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                                                    FileAttributes.Archive | FileAttributes.NotContentIndexed);
     private const string EncryptedCopySource = "The administrator helper cannot copy EFS-encrypted items without preserving their protection.";
     private const string EncryptedCopyTarget = "The administrator helper cannot replace an EFS-encrypted destination without preserving its protection.";
+    private const string EncryptedCopyFolder = "The administrator helper cannot create copies in a folder with an EFS encryption default.";
     private readonly Func<string, string> _display = display ?? (p => p);
 
     /// <summary>"\\?\Volume{GUID}\a\b" as the NT root "\??\Volume{GUID}\" and its checked components.</summary>
@@ -247,6 +248,11 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         var report = new TreeReport();
         using var sourceParent = Walk(sourcePath, includeLast: false, out var leaf);
         using var destination = OpenDirectory(destinationFolder);
+        if (IsEncrypted(GetBasic(destination).FileAttributes))
+        {
+            report.Fail(_display(destinationFolder), new IOException(EncryptedCopyFolder));
+            return report;
+        }
         (SafeFileHandle source, uint attributes, bool link) entry;
         try { entry = OpenCopyEntry(sourceParent, leaf); }
         catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(sourcePath), ex); return report; }
@@ -346,6 +352,11 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
 
     private SafeFileHandle? OpenOrCreateDirectory(SafeFileHandle parent, string name, string path, TreeReport report)
     {
+        if (IsEncrypted(GetBasic(parent).FileAttributes))
+        {
+            report.Fail(_display(path), new IOException(EncryptedCopyFolder));
+            return null;
+        }
         const uint access = ListDirectory | AddFile | AddSubdirectory | ReadAttributes | WriteAttributes | Synchronize;
         int status = TryOpen(parent, name, access, ShareAll, Create, DirectoryFile, out var created);
         if (status >= 0)
@@ -371,6 +382,12 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         {
             existing.Dispose();
             report.Fail(_display(path), new IOException("The destination folder is a link; nothing is copied through it."));
+            return null;
+        }
+        if (IsEncrypted(GetBasic(existing).FileAttributes))
+        {
+            existing.Dispose();
+            report.Fail(_display(path), new IOException(EncryptedCopyFolder));
             return null;
         }
         return existing;
@@ -413,60 +430,78 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         try { source = BindCopySource(sourceParent, sourceName, observedSource); }
         catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(path), ex); return; }
         using var heldSource = source;
-        // Hold a readable mark without write/delete sharing until publication. An inaccessible stream is not an
-        // absent stream: publishing the copy without it would silently remove Windows' download warning.
-        SafeFileHandle? sourceZone;
-        byte[]? mark;
-        try { (sourceZone, mark) = ReadZoneIdentifier(source); }
-        catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(path), ex); return; }
-        using var heldSourceZone = sourceZone;
-        // Stage under a unique name, then publish with a rename; a failure never leaves a partial file under the real name.
-        string temp = ".filecat-admin-" + Guid.NewGuid().ToString("N") + ".tmp";
-        SafeFileHandle output;
         try
         {
-            output = OpenOrThrow(targetDirectory, temp, GenericWrite | Delete | ReadAttributes | WriteAttributes | Synchronize, 0, Create,
-                NonDirectoryFile | OpenReparsePoint, "Create the file", (uint)FileAttributes.Normal);
+            if (IsEncrypted(GetBasic(targetDirectory).FileAttributes)) throw new IOException(EncryptedCopyFolder);
+            using var sourceProtection = CopyFileTransaction.PinSource(source, EncryptedCopySource);
+            // The source mark remains held without write or delete sharing until publication.
+            var (sourceZone, mark) = ReadZoneIdentifier(source);
+            using var heldSourceZone = sourceZone;
+            int skipped = replaceIdentity is { } reviewed && CopyFileTransaction.CanEncrypt(targetDirectory)
+                ? CopyReplacingTransacted(source, targetDirectory, targetName, reviewed, mark)
+                : CopyStaged(source, targetDirectory, targetName, replaceIdentity, mark, report);
+            report.StreamsNotCopied += skipped;
+            report.Done++;
         }
         catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(path), ex); return; }
+    }
+
+    private int CopyReplacingTransacted(SafeFileHandle source, SafeFileHandle directory, string name, FileIdentity reviewedTarget,
+        byte[]? mark)
+    {
+        if (ProtectedHexFile.Identity(source) == reviewedTarget)
+            throw new IOException("The copy source and replacement destination identify the same file.");
+        using var transaction = new CopyFileTransaction();
+        string folder = CopyFileTransaction.HeldPath(directory);
+        string destination = Path.Combine(folder, name);
+        const uint access = GenericRead | GenericWrite | Delete | Synchronize;
+        using (var original = transaction.OpenExisting(destination, access, ShareRead, "Hold the reviewed replacement destination"))
+        {
+            CopyFileTransaction.RequireOrdinaryFile(original, EncryptedCopyTarget);
+            using (var atName = OpenOrThrow(directory, name, ReadAttributes | Synchronize, ShareAll, Open, NonDirectoryFile | OpenReparsePoint,
+                "Recheck the held replacement name"))
+            {
+                CopyFileTransaction.RequireOrdinaryFile(atName, EncryptedCopyTarget);
+                if (ProtectedHexFile.Identity(original) != reviewedTarget || ProtectedHexFile.Identity(atName) != reviewedTarget ||
+                    !string.Equals(CopyFileTransaction.HeldPath(original), destination, StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("The reviewed replacement destination changed while the administrator helper was opening it.");
+            }
+            // All later opens occur after the exact original has been moved inside the private transaction.
+            // NTFS keeps its old name visible outside this transaction and pins the modified file's ancestors.
+            NtFile.Rename(original, directory, ".filecat-admin-" + Guid.NewGuid().ToString("N") + ".old", replace: false);
+            CopyFileTransaction.RemoveOnClose(original);
+        }
+        if (IsLink(directory) || !string.Equals(CopyFileTransaction.HeldPath(directory), folder, StringComparison.Ordinal))
+            throw new IOException("The held replacement folder changed during staging.");
+        if (IsEncrypted(GetBasic(directory).FileAttributes)) throw new IOException(EncryptedCopyFolder);
+        string stagePath = Path.Combine(folder, ".filecat-admin-" + Guid.NewGuid().ToString("N") + ".tmp");
+        int skipped;
+        using (var output = transaction.CreateFile(stagePath, access, ShareAll, "Create the private replacement copy"))
+        {
+            CopyFileTransaction.RequireOrdinaryFile(output, EncryptedCopyFolder);
+            if (!string.Equals(CopyFileTransaction.HeldPath(output), stagePath, StringComparison.Ordinal))
+                throw new IOException("The replacement stage was opened outside the held destination folder.");
+            skipped = WriteAndRenameCopy(source, output, directory, name, null, mark, transaction);
+            RandomAccess.FlushToDisk(output);
+        }
+        transaction.Commit();
+        return skipped;
+    }
+
+    private int CopyStaged(SafeFileHandle source, SafeFileHandle directory, string name, FileIdentity? reviewedTarget,
+        byte[]? mark, TreeReport report)
+    {
+        string temp = ".filecat-admin-" + Guid.NewGuid().ToString("N") + ".tmp";
+        using var output = OpenOrThrow(directory, temp, GenericWrite | Delete | ReadAttributes | WriteAttributes | Synchronize, 0, Create,
+            NonDirectoryFile | OpenReparsePoint, "Create the file", (uint)FileAttributes.Normal);
         bool complete = false;
         try
         {
-            var buffer = new byte[1024 * 1024];
-            for (long offset = 0; ;)
-            {
-                checkpoint();
-                RequireClearSource(source);
-                int read = RandomAccess.Read(source, buffer, offset);
-                RequireClearSource(source);
-                if (read <= 0) break;
-                RandomAccess.Write(output, buffer.AsSpan(0, read), offset);
-                offset += read;
-            }
-            using var stagedZone = mark is null ? null : WriteZoneIdentifier(output, mark);
-            report.StreamsNotCopied += Streams(source).Count(s => !s.StartsWith(":Zone.Identifier:", StringComparison.OrdinalIgnoreCase));
-            var basic = GetBasic(source);
-            basic.ChangeTime = 0;
-            basic.FileAttributes &= EditableAttributes;
-            if (basic.FileAttributes == 0) basic.FileAttributes = (uint)FileAttributes.Normal;
-            SetBasic(output, basic);
-            if (mark is null) EnsureZoneIdentifierMissing(source);
-            else VerifyZoneIdentifier(stagedZone!, mark);
-            RequireClearSource(source);
-            if (replaceIdentity is { } reviewedTarget)
-            {
-                using var current = OpenOrThrow(targetDirectory, targetName, ReadAttributes | Synchronize, ShareAll, Open,
-                    OpenReparsePoint, "Recheck the replacement destination");
-                if (IsEncrypted(GetBasic(current).FileAttributes)) throw new IOException(EncryptedCopyTarget);
-                if (ProtectedHexFile.Identity(current) != reviewedTarget) throw new IOException("The replacement destination changed while the source was copied.");
-            }
-            NtFile.Rename(output, targetDirectory, targetName, replace: replaceIdentity is not null);
-            if (mark is null) EnsureZoneIdentifierMissing(source);
-            else VerifyZoneIdentifier(stagedZone!, mark);
+            if (IsEncrypted(GetBasic(output).FileAttributes)) throw new IOException(EncryptedCopyFolder);
+            int skipped = WriteAndRenameCopy(source, output, directory, name, reviewedTarget, mark);
             complete = true;
-            report.Done++;
+            return skipped;
         }
-        catch (Exception ex) when (IsIo(ex)) { report.Fail(_display(path), ex); }
         finally
         {
             if (!complete)
@@ -474,8 +509,44 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
                 try { DeleteOpen(output); }
                 catch (Exception ex) when (IsIo(ex)) { report.Note($"A staged file could not be removed: {ex.Message}"); }
             }
-            output.Dispose();
         }
+    }
+
+    private int WriteAndRenameCopy(SafeFileHandle source, SafeFileHandle output, SafeFileHandle directory, string name,
+        FileIdentity? reviewedTarget, byte[]? mark, CopyFileTransaction? transaction = null)
+    {
+        var buffer = new byte[1024 * 1024];
+        for (long offset = 0; ;)
+        {
+            checkpoint();
+            RequireClearSource(source);
+            int read = RandomAccess.Read(source, buffer, offset);
+            RequireClearSource(source);
+            if (read <= 0) break;
+            RandomAccess.Write(output, buffer.AsSpan(0, read), offset);
+            offset += read;
+        }
+        using var stagedZone = mark is null ? null : WriteZoneIdentifier(output, mark, transaction);
+        int skipped = Streams(source).Count(s => !s.StartsWith(":Zone.Identifier:", StringComparison.OrdinalIgnoreCase));
+        var basic = GetBasic(source);
+        basic.ChangeTime = 0;
+        basic.FileAttributes &= EditableAttributes;
+        if (basic.FileAttributes == 0) basic.FileAttributes = (uint)FileAttributes.Normal;
+        SetBasic(output, basic);
+        if (mark is null) EnsureZoneIdentifierMissing(source);
+        else VerifyZoneIdentifier(stagedZone!, mark);
+        RequireClearSource(source);
+        if (reviewedTarget is { } reviewed)
+        {
+            using var current = OpenOrThrow(directory, name, ReadAttributes | Synchronize, ShareAll, Open,
+                OpenReparsePoint, "Recheck the replacement destination");
+            if (IsEncrypted(GetBasic(current).FileAttributes)) throw new IOException(EncryptedCopyTarget);
+            if (ProtectedHexFile.Identity(current) != reviewed) throw new IOException("The replacement destination changed while the source was copied.");
+        }
+        NtFile.Rename(output, directory, name, replace: reviewedTarget is not null);
+        if (mark is null) EnsureZoneIdentifierMissing(source);
+        else VerifyZoneIdentifier(stagedZone!, mark);
+        return skipped;
     }
 
     private static SafeFileHandle BindCopySource(SafeFileHandle parent, string name, SafeFileHandle observed)
@@ -498,8 +569,8 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
     }
 
     /// <summary>
-    /// Mark-of-the-Web is security metadata (plan §8.1). Only an absent stream may produce an unmarked copy. Both
-    /// streams are opened relative to the already open file handles, never by a pathname.
+    /// Mark-of-the-Web is security metadata (plan §8.1). Only an absent stream may produce an unmarked copy.
+    /// The source and its stream stay bound through their handles until publication.
     /// </summary>
     private static (SafeFileHandle? Handle, byte[]? Bytes) ReadZoneIdentifier(SafeFileHandle source)
     {
@@ -524,14 +595,20 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         throw new IOException("The download mark exceeds the 64 KiB copy limit; the file was not published.");
     }
 
-    private static SafeFileHandle WriteZoneIdentifier(SafeFileHandle output, byte[] mark)
+    private static SafeFileHandle WriteZoneIdentifier(SafeFileHandle output, byte[] mark, CopyFileTransaction? transaction)
     {
-        var target = OpenOrThrow(output, ":Zone.Identifier", GenericRead | GenericWrite | Synchronize, ShareRead | ShareDelete,
-            Create, NonDirectoryFile, "Copy the download mark");
+        const string stream = ":Zone.Identifier";
+        const uint access = GenericRead | GenericWrite | Synchronize;
+        var target = transaction is null ? OpenOrThrow(output, stream, access, ShareRead | ShareDelete,
+            Create, NonDirectoryFile, "Copy the download mark") :
+            transaction.CreateFile(CopyFileTransaction.HeldPath(output) + stream, access, ShareAll, "Copy the private replacement download mark");
         try
         {
+            if (transaction is not null && ProtectedHexFile.Identity(target) != ProtectedHexFile.Identity(output))
+                throw new IOException("The private download mark does not belong to the staged copy.");
             RandomAccess.Write(target, mark, 0);
             VerifyZoneIdentifier(target, mark);
+            if (transaction is not null) RandomAccess.FlushToDisk(target);
             return target;
         }
         catch { target.Dispose(); throw; }

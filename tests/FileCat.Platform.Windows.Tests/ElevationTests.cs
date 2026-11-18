@@ -197,19 +197,34 @@ public sealed class ElevationTests
             if (scenario is "replacement" or "replacement-encrypted-during-copy") File.WriteAllText(target, "Original destination");
             if (scenario == "replacement") File.Encrypt(target);
             bool injected = false;
+            Exception? encryptionRefusal = null;
             var ops = new SecureFileOps(() =>
             {
                 if (injected || scenario is not ("replacement-encrypted-during-copy" or "replacement-appeared-during-copy")) return;
                 injected = true;
+                if (scenario == "replacement-encrypted-during-copy")
+                {
+                    encryptionRefusal = Record.Exception(() => File.Encrypt(target));
+                    return;
+                }
                 if (!File.Exists(target)) File.WriteAllText(target, "Original destination");
                 File.Encrypt(target);
             });
             string selected = scenario == "child" ? sourceFolder : source;
             string destination = scenario == "child" ? "copy-folder" : Path.GetFileName(target);
             var report = ops.CopyTree(ElevationPaths.ToVolumePath(selected), ElevationPaths.ToVolumePath(targetFolder), destination, replace: true);
+            Assert.Empty(Directory.EnumerateFiles(targetFolder, ".filecat-admin-*", SearchOption.AllDirectories));
+            if (scenario == "replacement-encrypted-during-copy")
+            {
+                Assert.True(injected);
+                Assert.True(encryptionRefusal is IOException or UnauthorizedAccessException, encryptionRefusal?.ToString());
+                Assert.Equal((1, 0), (report.Done, report.Failed));
+                Assert.False(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+                Assert.Equal("Synthetic source data", File.ReadAllText(target));
+                return;
+            }
             Assert.Equal(1, report.Failed);
             Assert.Equal(scenario == "child" ? 1 : 0, report.Done);
-            Assert.Empty(Directory.EnumerateFiles(targetFolder, ".filecat-admin-*", SearchOption.AllDirectories));
             if (scenario is "source" or "child")
             {
                 Assert.Contains("EFS-encrypted items", Assert.Single(report.Problems));
@@ -230,7 +245,7 @@ public sealed class ElevationTests
     }
 
     [Fact]
-    public void The_administrator_copy_refuses_observed_encryption_after_source_admission()
+    public void The_administrator_copy_holds_the_source_clear_during_native_reads()
     {
         Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
             "Requires a disposable Windows VM with EFS enabled.");
@@ -250,24 +265,74 @@ public sealed class ElevationTests
             });
             var report = ops.CopyTree(ElevationPaths.ToVolumePath(source), ElevationPaths.ToVolumePath(root), Path.GetFileName(target), replace: false);
             Assert.True(attempted);
-            if (refused is null)
-            {
-                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
-                Assert.Equal((0, 1), (report.Done, report.Failed));
-                Assert.Contains("EFS-encrypted items", Assert.Single(report.Problems));
-                Assert.False(File.Exists(target));
-            }
-            else
-            {
-                Assert.True(refused is IOException or UnauthorizedAccessException, refused.ToString());
-                Assert.Equal((1, 0), (report.Done, report.Failed));
-                Assert.False(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
-                Assert.Equal("Synthetic source data", File.ReadAllText(target));
-                File.Encrypt(source);
-                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
-            }
+            Assert.True(refused is IOException or UnauthorizedAccessException, refused?.ToString());
+            Assert.Equal((1, 0), (report.Done, report.Failed));
+            Assert.False(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal("Synthetic source data", File.ReadAllText(target));
+            File.Encrypt(source);
+            Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
             Assert.Empty(Directory.GetFiles(root, ".filecat-admin-*"));
             TestContext.Current.TestOutputHelper?.WriteLine($"EFS_BROKER_SOURCE nativeEncryptionSucceeded={refused is null} copied={report.Done} failed={report.Failed}");
+        }
+        finally { DeleteTree(root); }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_marked_administrator_replacement_commits_or_rolls_back_the_entire_copy(bool abort)
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires a disposable Windows VM with EFS enabled.");
+        string root = NewDirectory();
+        string source = Path.Combine(root, "source.txt"), target = Path.Combine(root, "target.txt");
+        const string originalMark = "[ZoneTransfer]\r\nZoneId=2\r\n", replacementMark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        try
+        {
+            File.WriteAllText(source, "Reviewed replacement");
+            File.WriteAllText(source + ":Zone.Identifier", replacementMark);
+            File.WriteAllText(target, "Original version");
+            File.WriteAllText(target + ":Zone.Identifier", originalMark);
+            var files = new WindowsFileOperations();
+            string? originalIdentity = files.GetFileIdentity(target);
+            Assert.NotNull(originalIdentity);
+            int checkpoints = 0;
+            var copy = new SecureFileOps(() =>
+            {
+                Assert.Contains(target, Directory.EnumerateFiles(root));
+                Assert.Empty(Directory.EnumerateFiles(root, ".filecat-admin-*"));
+                if (++checkpoints == 2 && abort) throw new IOException("Injected refusal after staging the payload.");
+            });
+            var report = copy.CopyTree(ElevationPaths.ToVolumePath(source), ElevationPaths.ToVolumePath(root), Path.GetFileName(target), replace: true);
+            Assert.True(checkpoints >= 2);
+            Assert.Equal(abort ? (0, 1) : (1, 0), (report.Done, report.Failed));
+            Assert.Equal(abort, files.GetFileIdentity(target) == originalIdentity);
+            Assert.Equal(abort ? "Original version" : "Reviewed replacement", File.ReadAllText(target));
+            Assert.Equal(abort ? originalMark : replacementMark, File.ReadAllText(target + ":Zone.Identifier"));
+            Assert.Empty(Directory.EnumerateFiles(root, ".filecat-admin-*"));
+        }
+        finally { DeleteTree(root); }
+    }
+
+    [Fact]
+    public void An_encrypted_destination_default_refuses_administrator_copy_before_creation()
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires a disposable Windows VM with EFS enabled.");
+        string root = NewDirectory();
+        try
+        {
+            string source = Directory.CreateDirectory(Path.Combine(root, "source")).FullName;
+            string target = Directory.CreateDirectory(Path.Combine(root, "target")).FullName;
+            File.WriteAllText(Path.Combine(source, "payload.txt"), "Synthetic source data");
+            File.Encrypt(target);
+
+            var result = Ops().CopyTree(ElevationPaths.ToVolumePath(source), ElevationPaths.ToVolumePath(target), "copy", replace: true);
+
+            Assert.Equal((0, 1), (result.Done, result.Failed));
+            Assert.Contains("EFS encryption default", Assert.Single(result.Problems));
+            Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(target));
         }
         finally { DeleteTree(root); }
     }
@@ -302,17 +367,29 @@ public sealed class ElevationTests
 
             File.Delete(ads);
             bool injected = false;
+            Exception? newMarkRefusal = null;
             var racing = new SecureFileOps(() =>
             {
                 if (injected) return;
                 injected = true;
-                File.WriteAllText(ads, "[ZoneTransfer]\r\nZoneId=3\r\n");
+                newMarkRefusal = Record.Exception(() => File.WriteAllText(ads, "[ZoneTransfer]\r\nZoneId=3\r\n"));
             }).CopyTree(sourceVolume, destinationVolume, "racing.exe", replace: false);
             Assert.True(injected);
-            Assert.Equal((0, 1), (racing.Done, racing.Failed));
-            Assert.False(File.Exists(Path.Combine(destination, "racing.exe")));
+            string racingCopy = Path.Combine(destination, "racing.exe");
+            if (newMarkRefusal is null)
+            {
+                Assert.Equal((0, 1), (racing.Done, racing.Failed));
+                Assert.False(File.Exists(racingCopy));
+            }
+            else
+            {
+                Assert.True(newMarkRefusal is IOException or UnauthorizedAccessException, newMarkRefusal.ToString());
+                Assert.Equal((1, 0), (racing.Done, racing.Failed));
+                Assert.False(File.Exists(racingCopy + ":Zone.Identifier"));
+            }
 
             const string originalMark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+            File.WriteAllText(ads, originalMark);
             bool replacementAttempted = false, replacementBlocked = false;
             var heldSourceMark = new SecureFileOps(() =>
             {
@@ -332,7 +409,7 @@ public sealed class ElevationTests
             {
                 int checkpoints = 0;
                 var blocked = new SecureFileOps(() => checkpoints++).CopyTree(sourceVolume, destinationVolume, "existing.exe", replace: true);
-                Assert.True(checkpoints > 0); // The stage was reached before publication was refused.
+                Assert.Equal(!CopyFileTransaction.CanEncrypt(held.SafeFileHandle), checkpoints > 0);
                 Assert.Equal((0, 1), (blocked.Done, blocked.Failed));
                 Assert.Equal("ORIGINAL", File.ReadAllText(existing));
                 var plan = ValidPlan(new ElevatedStep(ElevatedVerb.CopyTree)
