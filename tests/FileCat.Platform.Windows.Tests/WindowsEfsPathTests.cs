@@ -114,6 +114,96 @@ public sealed unsafe partial class WindowsEfsPathTests
     }
 
     [Fact]
+    public void A_native_inventory_over_the_stream_limit_refuses_encryption_before_the_call()
+    {
+        NativeFixture();
+        string root = Directory.CreateTempSubdirectory("filecat-efs-stream-limit-").FullName;
+        string path = Path.Join(root, "owned.bin");
+        try
+        {
+            File.WriteAllText(path, "original main data");
+            // Include the unnamed stream: 1,024 native named streams exceed the total limit by one.
+            for (int i = 0; i < 1024; i++)
+            {
+                Ct.ThrowIfCancellationRequested();
+                using var stream = new FileStream(path + ":stream-" + i, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                if (i is 0 or 1023) stream.WriteByte(37);
+            }
+
+            using var reserve = StorageReviewResources.ReservePins(1);
+            using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = new WindowsStorageTransforms();
+            using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct,
+                (_, _) => throw new InvalidOperationException("An incomplete inventory must never reach EncryptFileW."));
+            var refusal = Assert.Throws<StorageInspectionException>(() => held.PrepareMutation(StorageAction.EncryptEfs, Ct));
+            Assert.Equal("stream-inventory-limit", refusal.Problem.Code);
+            Assert.Throws<InvalidOperationException>(() => held.ApplyAdmitted(StorageAction.EncryptEfs));
+            Assert.False(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal("original main data", File.ReadAllText(path));
+            Assert.Equal(new byte[] { 37 }, File.ReadAllBytes(path + ":stream-0"));
+            Assert.Equal(new byte[] { 37 }, File.ReadAllBytes(path + ":stream-1023"));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData("main")]
+    [InlineData("existing")]
+    [InlineData("new")]
+    public void Approved_encryption_preserves_bytes_when_stream_compression_changes_after_final_inspection(string lateStream)
+    {
+        NativeFixture();
+        string root = Directory.CreateTempSubdirectory("filecat-efs-late-compression-").FullName;
+        string path = Path.Join(root, "owned.bin"), existing = path + ":existing", added = path + ":added";
+        string subject = lateStream switch { "main" => path, "existing" => existing, "new" => added, _ => throw new ArgumentOutOfRangeException(nameof(lateStream)) };
+        try
+        {
+            const string mainData = "original main data", existingData = "original named data", addedData = "late named data";
+            File.WriteAllText(path, mainData);
+            File.WriteAllText(existing, existingData);
+            SetCompression(path, false);
+            SetCompression(existing, false);
+            var operations = new WindowsFileOperations();
+            string identity = Assert.IsType<string>(operations.GetFileIdentity(path));
+            int attempts = 0;
+
+            using (var reserve = StorageReviewResources.ReservePins(1))
+            using (var native = StorageReviewResources.EnterNative(Ct))
+            {
+                var adapter = new WindowsStorageTransforms();
+                using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
+                var consent = Consent(pin, StorageAction.EncryptEfs);
+                using var held = adapter.OpenEfsPathForQualification(pin, consent, Ct, (apiPath, action) =>
+                {
+                    attempts++;
+                    Assert.Equal(StorageAction.EncryptEfs, action);
+                    if (lateStream == "new") File.WriteAllText(added, addedData);
+                    SetCompression(subject, true);
+                    using (var stream = OpenMetadata(subject))
+                        Assert.Equal(StorageObservationState.Enabled, WindowsCompression.Query(stream).State);
+                    bool encrypted = Encrypt(apiPath);
+                    return new(encrypted, encrypted ? 0 : Marshal.GetLastPInvokeError());
+                });
+                var result = Apply(held, StorageAction.EncryptEfs);
+                Assert.Equal(1, attempts);
+                Assert.True(result.NativeCallAttempted);
+                Assert.True(result.Effect == StorageEffect.Changed, $"{result.Effect}: {result.Problem?.Code} {result.Problem?.Message}");
+                Assert.Null(result.Problem);
+                Assert.Equal(StorageObservationState.Enabled, result.After!.Efs);
+                using var stream = OpenMetadata(subject);
+                Assert.Equal(StorageObservationState.Disabled, WindowsCompression.Query(stream).State);
+            }
+
+            Assert.Equal(identity, operations.GetFileIdentity(path));
+            Assert.Equal(mainData, File.ReadAllText(path));
+            Assert.Equal(existingData, File.ReadAllText(existing));
+            if (lateStream == "new") Assert.Equal(addedData, File.ReadAllText(added));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void Efs_consents_are_independent_and_identity_action_bound_before_a_binding_can_call_Windows()
     {
         NativeFixture(); string root = Directory.CreateTempSubdirectory("filecat-efs-consent-").FullName;
