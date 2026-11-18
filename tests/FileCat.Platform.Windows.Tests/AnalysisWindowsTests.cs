@@ -181,7 +181,17 @@ public sealed partial class AnalysisWindowsTests
             Assert.Equal((UInt128)10000, AnalysisAggregate.Project(snapshot, AnalysisMetric.UniqueFileSize, cancellation: TestContext.Current.CancellationToken).Totals.Known);
             var onDisk = AnalysisAggregate.Project(snapshot, AnalysisMetric.OnDisk, cancellation: TestContext.Current.CancellationToken);
             Assert.True(onDisk.Totals.Known > 0);
-            Assert.True(Assert.Single(onDisk.Charges, c => !c.DirectorySelf).Shared);
+            var fileCharges = onDisk.Charges.Where(charge => !charge.DirectorySelf).ToArray();
+            Assert.Equal(detailed ? 2 : 1, fileCharges.Length);
+            var primaryCharge = Assert.Single(fileCharges, charge => charge.Value > 0);
+            if (detailed) Assert.Single(fileCharges, charge => charge.Value == 0);
+            Assert.All(fileCharges, charge =>
+            {
+                Assert.True(charge.Shared);
+                Assert.Equal(primaryCharge.ParentId, charge.ParentId);
+                Assert.Equal<ulong>(primaryCharge.Aliases, charge.Aliases);
+                Assert.Equal(2, charge.Aliases.Length);
+            });
             Assert.Equal(detailed ? 3 : 0, snapshot.Facts.Count(f => f.DirectoryId.HasValue));
             Assert.Equal(detailed ? 3 : 0, onDisk.Charges.Count(c => c.DirectorySelf));
             Assert.Equal(detailed ? "detailed" : "standard", snapshot.Policy.ComponentPreset);
