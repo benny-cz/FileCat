@@ -45,11 +45,13 @@ public sealed class ExitWithWaitingJobTests
             for (int i = 0; i < 250 && !find.Dialogs.IsOpen; i++) await Task.Delay(20, ct);
             find.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
 
-            // Background decisions stay in Operations until the user explicitly reviews them.
-            for (int i = 0; i < 400 && !services.Jobs.Jobs.Any(j => j.State == JobState.AwaitingDecision); i++) await Task.Delay(20, ct);
+            // The worker enters AwaitingDecision before the dispatcher updates the Operations strip.
+            bool ReviewVisible() => window.GetVisualDescendants().OfType<Button>()
+                .Any(b => b.Content as string == "Review decision…" && b.IsEffectivelyVisible);
+            for (int i = 0; i < 400 && !ReviewVisible(); i++) await Task.Delay(20, ct);
             Assert.Contains(services.Jobs.Jobs, j => j.State == JobState.AwaitingDecision);
             Assert.False(dialogs.IsOpen);
-            Assert.Contains(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Review decision…" && b.IsVisible);
+            Assert.True(ReviewVisible(), "Operations did not show the waiting job's review button.");
             Assert.True(File.Exists(original));
 
             // Closing now asks about the operation still waiting.
