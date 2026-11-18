@@ -149,7 +149,8 @@ public sealed class DeviceIoSchedulerTests
             Assert.False(held.IsCompleted);
             Assert.Equal(DeviceHealth.NotResponding, io.GetHealth("held"));
             Assert.Equal(42, await io.Run("healthy", IoPriority.Interactive, _ => 42, TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
-            Assert.Equal(DeviceHealth.Responsive, io.GetHealth("healthy"));
+            Assert.False(held.IsCompleted);
+            await AssertResponsiveAfterReturn(io, "healthy");
         }
         finally
         {
@@ -157,9 +158,16 @@ public sealed class DeviceIoSchedulerTests
             if (held is not null) await held.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         }
         // The returned call no longer contributes to the device's unhealthy state.
-        for (int i = 0; i < 100 && io.GetHealth("held") != DeviceHealth.Responsive; i++)
+        await AssertResponsiveAfterReturn(io, "held");
+    }
+
+    private static async Task AssertResponsiveAfterReturn(DeviceIoScheduler io, string key)
+    {
+        // Work completion is published before the worker clears its current call and updates health.
+        var deadline = System.Diagnostics.Stopwatch.StartNew();
+        while (io.GetHealth(key) != DeviceHealth.Responsive && deadline.Elapsed < TimeSpan.FromSeconds(5))
             await Task.Delay(10, TestContext.Current.CancellationToken);
-        Assert.Equal(DeviceHealth.Responsive, io.GetHealth("held"));
+        Assert.Equal(DeviceHealth.Responsive, io.GetHealth(key));
     }
 
     [Fact]
