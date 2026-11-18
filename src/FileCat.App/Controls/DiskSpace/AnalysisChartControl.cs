@@ -5,6 +5,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using FileCat.App.Services;
 using FileCat.Core.Analysis;
 
@@ -15,9 +16,14 @@ public abstract partial class AnalysisChartControl : Control
 {
     protected sealed record Part(string Key, Rect Bounds, double Start = 0, double Sweep = 0, int Depth = 0, bool Branch = false);
     private sealed record View(IAnalysisChartData Tree, string Scope, string? Focus, ImmutableHashSet<ulong> Marks, AnalysisColorDimension Color);
+    private enum Outline { Normal, Marked, Ancestor, Focused }
+    private sealed record DrawingStyle(IBrush Fill, IPen Border, string TextColor);
+    private static readonly ImmutableDashStyle UnverifiedBorder = new([3, 2], 0);
     private View? _view, _pending;
     private ImmutableArray<Part> _parts = [];
     private readonly Dictionary<string, AnalysisTreeItem> _displayItems = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string Category, Outline Outline, bool Dashed), DrawingStyle> _drawingStyles = new();
+    private ThemePalette? _drawingPalette;
     private Size _layoutSize;
     private string? _layoutFontFamily;
     private double _layoutFontSize, _labelLineHeight;
@@ -83,6 +89,11 @@ public abstract partial class AnalysisChartControl : Control
     {
         base.Render(context);
         var p = ThemeManager.Current;
+        if (!ReferenceEquals(_drawingPalette, p))
+        {
+            _drawingPalette = p;
+            _drawingStyles.Clear();
+        }
         context.FillRectangle(new SolidColorBrush(AnalysisChartPalette.Panel(p)), new Rect(Bounds.Size));
         if (_view is null) { Text(context, "Start an analysis to explore its measured storage.", new(16, 20), p.TextMuted); return; }
         var tree = _view.Tree;
@@ -112,25 +123,26 @@ public abstract partial class AnalysisChartControl : Control
         }
         if (tree is IAnalysisComparisonChartData comparisonChart)
             Text(context, ComparisonHeading(comparisonChart), new(8, 6), p.Text, Bounds.Width - 16);
+        var focus = _view.Focus;
+        var ancestors = FocusAncestors(tree, focus);
         foreach (var part in _parts)
         {
             var item = Item(part.Key);
             if (item is null) continue;
-            bool focused = _view.Focus == part.Key, marked = item.NodeId is { } id && _view.Marks.Contains(id);
-            bool ancestor = _view.Focus is { } focus && IsAncestor(part.Key, focus);
-            var paint = AnalysisChartPalette.For(AnalysisChartColors.Category(tree, item, _view.Color).Key, p);
-            IBrush fill = new SolidColorBrush(paint.Fill);
-            var pen = new Pen(new SolidColorBrush(focused || ancestor ? paint.Focus : marked ? paint.Mark : paint.Border), focused ? 3 : marked || ancestor ? 2 : 1,
-                item.Synthetic || item.IdentityUnverified > 0 ? new DashStyle([3, 2], 0) : null);
-            DrawPart(context, part, fill, pen);
+            bool focused = focus == part.Key, marked = item.NodeId is { } id && _view.Marks.Contains(id);
+            bool ancestor = ancestors?.Contains(part.Key) == true;
+            var outline = focused ? Outline.Focused : ancestor ? Outline.Ancestor : marked ? Outline.Marked : Outline.Normal;
+            var style = Style(AnalysisChartColors.Category(tree, item, _view.Color).Key, outline,
+                item.Synthetic || item.IdentityUnverified > 0, p);
+            DrawPart(context, part, style.Fill, style.Border);
             if (this is TreemapControl && part.Bounds.Width > 72 && part.Bounds.Height >= _labelLineHeight + 10)
             {
                 var label = new Rect(part.Bounds.Position, new Size(part.Bounds.Width, Math.Min(part.Bounds.Height, TileLabelHeight)));
                 using (context.PushClip(label.Deflate(4)))
                 {
-                    Text(context, (marked ? "✓ " : "") + AnalysisNames.Display(item.Name, 90), part.Bounds.TopLeft + new Vector(7, 5), paint.Text.ToString(), part.Bounds.Width - 14);
+                    Text(context, (marked ? "✓ " : "") + AnalysisNames.Display(item.Name, 90), part.Bounds.TopLeft + new Vector(7, 5), style.TextColor, part.Bounds.Width - 14);
                     if (part.Bounds.Height >= TileLabelHeight)
-                        Text(context, FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, tree.Metric), part.Bounds.TopLeft + new Vector(7, 6 + _labelLineHeight), paint.Text.ToString(), part.Bounds.Width - 14);
+                        Text(context, FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, tree.Metric), part.Bounds.TopLeft + new Vector(7, 6 + _labelLineHeight), style.TextColor, part.Bounds.Width - 14);
                 }
             }
         }
@@ -153,6 +165,23 @@ public abstract partial class AnalysisChartControl : Control
             }
         }
     }
+    private DrawingStyle Style(string category, Outline outline, bool dashed, ThemePalette palette)
+    {
+        var key = (category, outline, dashed);
+        if (_drawingStyles.TryGetValue(key, out var style)) return style;
+        var paint = AnalysisChartPalette.For(category, palette);
+        var (color, width) = outline switch
+        {
+            Outline.Focused => (paint.Focus, 3),
+            Outline.Ancestor => (paint.Focus, 2),
+            Outline.Marked => (paint.Mark, 2),
+            _ => (paint.Border, 1)
+        };
+        style = new(new ImmutableSolidColorBrush(paint.Fill),
+            new ImmutablePen(new ImmutableSolidColorBrush(color), width, dashed ? UnverifiedBorder : null), paint.Text.ToString());
+        _drawingStyles.Add(key, style);
+        return style;
+    }
     private string CenterAmount(IAnalysisChartData tree) => tree is IAnalysisComparisonChartData ? tree.Metric == AnalysisMetric.Files
         ? tree.ScopeValue(Scope).ToString("N0", CultureInfo.CurrentCulture) + " paths" : FileCat.App.ViewModels.DiskSpaceViewModel.Bytes(tree.ScopeValue(Scope))
         : tree.ScopeValue(Scope).ToString(CultureInfo.InvariantCulture);
@@ -162,12 +191,16 @@ public abstract partial class AnalysisChartControl : Control
         if (_view.Tree.Items.TryGetValue(key, out var item)) return item;
         return _displayItems.GetValueOrDefault(key);
     }
-    private bool IsAncestor(string ancestor, string item)
+    private static HashSet<string>? FocusAncestors(IAnalysisChartData tree, string? focus)
     {
-        if (Tree is not { } tree) return false;
-        for (int depth = 0; depth < 8 && item != AnalysisTree.RootKey; depth++)
-        { item = tree.ParentOf(item); if (item == ancestor) return true; }
-        return false;
+        if (focus is null || focus == AnalysisTree.RootKey) return null;
+        var ancestors = new HashSet<string>(StringComparer.Ordinal);
+        for (int depth = 0; depth < 8 && focus != AnalysisTree.RootKey; depth++)
+        {
+            focus = tree.ParentOf(focus);
+            ancestors.Add(focus);
+        }
+        return ancestors;
     }
     private FormattedText Format(string text, string color)
     {

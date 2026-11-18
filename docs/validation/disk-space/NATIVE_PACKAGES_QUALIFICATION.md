@@ -75,3 +75,14 @@ Revision r1676 used one verified compact overlay of the merged build on each Uni
 Mac r1686 opened and closed FileCat normally in three fresh package processes. Native command search and Return opened Disk space, and the operating system exposed the enabled Start analysis button with laid-out bounds. The three process-to-setup samples were 2,448 ms, 2,038 ms and 2,055 ms. The fixture used ordinary filesystem caches and disabled automatic update checks in its private profiles to keep the startup update notice out of the measurement. All three instances closed normally and the source remained unchanged. The raw result SHA-256 is `d67e1f5c0c3c5dec7b1d70c71b0dc7bfda0a89b66af81cfc376913f9105282fd`.
 
 Ubuntu r1683 measured the flat and hierarchy fixtures in one native application session. At 1× scale in its private X11 display, the 4,096-observation Treemap exceeded the 33 ms target with 38.26 ms focus p95 and 39.95 ms revised-layout p95. Sunburst on the same hierarchy measured 2.75 ms and 5.33 ms. Both chart fixtures completed with an unchanged source and an empty process inventory. The performance fix is being qualified separately. The baseline result SHA-256 is `262b83c1e842d600b2fdd05335b2947ed99cd30215eabb250a8903e0198d4ef0`.
+
+The chart renderer now computes the focused item's ancestors once per frame and reuses immutable fills and borders for the active theme. The eight-step ancestry boundary and border selection for focus, ancestors, marks and dashed entries are preserved. Revision r1687 measured the original dense Ubuntu Treemap at 37.41 ms focus p95 and 39.90 ms revised-layout p95 on the merged product overlay. The ancestry change alone measured 36.65 ms and 40.41 ms. The combined fix in r1690 measured 19.91 ms and 25.53 ms. All four Ubuntu workload and chart combinations met the 33 ms target in that run.
+
+The same fixed assembly on the Mac measured 10.89 ms and 10.37 ms for the dense Treemap. All four Mac combinations passed, and all eight focused renderer checks passed across themes, chart modes, grouping and input. Both guests closed their application instances with source fixtures unchanged. Windows and the matching Ubuntu focused renderer repeat remain queued.
+
+| Verification | Result SHA-256 |
+|---|---|
+| Ubuntu r1687 before and ancestry-only comparison | `6a7a99f606a2fa0b266cc282ac63a8cd1f5638db635f7f7c744cdbeb69305c77` |
+| Ubuntu r1690 combined fix | `646925b802321b9067a9fe3b52014e503998ec72d9fe8f27c079ce5162cac8d1` |
+| Mac r1690 combined fix | `d450394ed16c8ec48c14acd50e44885289570d44da9b65de70c1d5758880f693` |
+| Mac r1692 focused renderer XML | `74ff888d8181260ca6d976d5b2461ee492fdcac962cbd00a7522fe39a7aa9072` |
