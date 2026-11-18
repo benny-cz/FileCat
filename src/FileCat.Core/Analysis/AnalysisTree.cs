@@ -26,9 +26,10 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
     internal AnalysisLogicalTotals? ReportLogical { get; init; }
     internal bool ReportNamespaceIncomplete { get; init; }
     internal bool ReportAccountingReference { get; init; }
-    // Only the bounded-memory tree keeps this reference to its already owned
-    // snapshot name. Indexed chart projections never retain full ordering names.
-    internal string? CapturedOrderName { get; init; }
+    // Only the bounded-memory tree references its already owned path observation.
+    // Indexed chart rows do not retain raw observations or full ordering names.
+    internal AnalysisNode? CapturedNode { get; init; }
+    internal string? CapturedOrderName => CapturedNode?.Name;
     // Known namespace metadata for these entries is not a measured zero for their targets.
     public bool IsNonFileLeaf => !Synthetic && (Kind is AnalysisKind.Link or AnalysisKind.Special);
 }
@@ -138,7 +139,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
                 !filterApplied || matching || projection.AliasContextNodes.Contains(node.Id) || node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && namespaceVisible?.Invoke(node) == true,
                 node.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(node.Name));
             item.MetadataState = node.MetadataState; item.IncludedByPolicy = node.IncludedByPolicy;
-            item.CapturedOrderName = node.Name;
+            item.CapturedNode = node;
             item.FilterContext = projection.AliasContextNodes.Contains(node.Id) && !matching;
             item.SharedElsewhere = item.FilterContext;
             item.ModifiedUtc = node.Times?.ModifiedUtc; item.ModifiedPrecisionTicks = node.Times?.ModifiedPrecisionTicks ?? 0;
@@ -279,7 +280,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
         public AnalysisMeasurement? PathLogical;
         public AnalysisPathStatistics? ReferenceLogical;
         public string? NameEvidence;
-        public string? CapturedOrderName;
+        public AnalysisNode? CapturedNode;
         public DateTimeOffset? ModifiedUtc;
         public ulong ModifiedPrecisionTicks;
         public List<string> Children = [];
@@ -292,7 +293,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
         public AnalysisTreeItem Freeze(bool report, AnalysisProjection projection) => new(key, Parent, name, node, kind, synthetic, Visible, Value, Logical, Files, Unknown,
             SharedElsewhere, family, Children.ToImmutableArray(), Members.Order().ToImmutableArray())
             { IdentityUnverified = Unverified, MetadataState = MetadataState, IncludedByPolicy = IncludedByPolicy, IsFilterContext = FilterContext,
-                LogicalUnknown = LogicalUnknown, ReferenceLogical = ReferenceLogical?.Export(), NameEvidence = NameEvidence, CapturedOrderName = CapturedOrderName,
+                LogicalUnknown = LogicalUnknown, ReferenceLogical = ReferenceLogical?.Export(), NameEvidence = NameEvidence, CapturedNode = CapturedNode,
                 ModifiedUtc = ModifiedUtc, ModifiedPrecisionTicks = ModifiedPrecisionTicks,
                 ReportTotals = report ? new(projection.Metric == AnalysisMetric.UniqueFileSize ? Value : checked(Value - Unverified), Unverified, Files,
                     Missing?.ToImmutableDictionary() ?? ImmutableDictionary<MeasurementState, ulong>.Empty, projection.Totals.CompatibleBasis) : null,

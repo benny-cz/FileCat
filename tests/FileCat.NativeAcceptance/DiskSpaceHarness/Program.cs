@@ -283,7 +283,7 @@ internal static class Program
     {
         if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture" or "--indexed-deferred-probe" or "--branch-refresh-probe" or "--saved-recipe-probe" or "--growth-recipe-probe" or "--duplicate-review-probe" or "--detailed-stream-probe" or "--detailed-fork-probe" or "--cleanup-review-probe" or "--folder-exclusion-probe"))) return 64;
         FolderExclusionProbe = args.Contains("--folder-exclusion-probe", StringComparer.Ordinal);
-        if (FolderExclusionProbe && args.Any(arg => arg is not ("--folder-exclusion-probe" or "--large-text" or "--compact"))) return 64;
+        if (FolderExclusionProbe && args.Any(arg => arg is not ("--folder-exclusion-probe" or "--large-text" or "--compact" or "--replacement-compositor-capture"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
         Compact = args.Contains("--compact", StringComparer.Ordinal);
         WindowsInput = args.Contains("--windows-input", StringComparer.Ordinal);
@@ -312,7 +312,7 @@ internal static class Program
         if (BranchRefreshProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe || IndexedDeferredProbe)) return 64;
         if (IndexedDeferredProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe)) return 64;
         ReplacementCompositorCapture = args.Contains("--replacement-compositor-capture", StringComparer.Ordinal);
-        if (ReplacementCompositorCapture && (!(ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe || GrowthRecipeProbe || DuplicateReviewProbe) || !OperatingSystem.IsMacOS())) return 64;
+        if (ReplacementCompositorCapture && (!(ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe || GrowthRecipeProbe || DuplicateReviewProbe || FolderExclusionProbe) || !OperatingSystem.IsMacOS())) return 64;
         if (ReplacementUiProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile)) return 64;
         if (MemoryFallbackProbe && args.Contains("--indexed-probe", StringComparer.Ordinal)) return 64;
         if (ProfileProbe && WindowsInput) return 64;

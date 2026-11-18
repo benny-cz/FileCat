@@ -450,7 +450,7 @@ public sealed partial class DiskSpaceWindow : Window
             _previewFile.Click += (_, _) => _ = PreviewFocusedAsync();
             _inspectorPanel.Children.Add(_previewFile);
             _inspectorPanel.Children.Add(Unavailable("Reveal in panel", "A historical path is not a current source binding. Explicit live rebinding is required."));
-            _inspectorPanel.Children.Add(ActionButton("Copy path", () => _ = CopyPathAsync(), "Copy the selected path as literal text; it is not opened or executed."));
+            _inspectorPanel.Children.Add(ActionButton("Copy path", () => _ = CopyPathAsync(Model.FocusedClipboardPath()), "Copy the selected path as literal text; it is not opened or executed."));
             _showHierarchy = ActionButton("Show in captured folder", () => _ = Model.ShowFocusedInHierarchyAsync(), "Show this observed entry in the captured folder hierarchy. This does not open or reconnect its current filesystem location.");
             _inspectorPanel.Children.Add(_showHierarchy);
             _inspectorPanel.Children.Add(ActionButton("Mark current members", Model.MarkCurrentMembers, "Capture this group's current real members. Future observations are not selected."));
@@ -787,12 +787,13 @@ public sealed partial class DiskSpaceWindow : Window
             }
             finally { _updating = false; }
         }
-        private async Task CopyPathAsync()
+        private async Task CopyPathAsync((string? Path, string Refusal) captured)
         {
             if (_disposed) return;
             using var actualWork = _actualWork.Enter();
-            if (Model.FocusedPath() is { } path && _window.Clipboard is { } clipboard) await clipboard.SetTextAsync(path);
-            else Model.SetStatus("A lossless literal path is unavailable for this selection. Raw source names remain in its observations.");
+            if (captured.Path is not { } path) Model.SetStatus(captured.Refusal);
+            else if (_window.Clipboard is { } clipboard) await clipboard.SetTextAsync(path);
+            else Model.SetStatus("The clipboard is unavailable.");
         }
         private async Task InspectAsync()
         {
@@ -800,7 +801,9 @@ public sealed partial class DiskSpaceWindow : Window
             using var actualWork = _actualWork.Enter();
             var body = new StackPanel { Spacing = 8 }; var closer = new DialogCloser();
             body.Children.Add(new TextBlock { Text = _inspector.Text, TextWrapping = TextWrapping.Wrap });
-            body.Children.Add(ActionButton("Copy path", () => _ = CopyPathAsync(), "Copy the literal observation path."));
+            var clipboardPath = Model.FocusedClipboardPath();
+            body.Children.Add(clipboardPath.Path is null ? Unavailable("Copy path", clipboardPath.Refusal) :
+                ActionButton("Copy path", () => _ = CopyPathAsync(clipboardPath), "Copy the literal observation path shown here."));
             if (Model.Tree?.GroupingDimension != AnalysisGroupingDimension.FolderHierarchy && Model.Tree?.Items.GetValueOrDefault(Model.Selection.Focus ?? "")?.NodeId is not null)
                 body.Children.Add(ActionButton("Show in captured folder", () => { _ = Model.ShowFocusedInHierarchyAsync(); closer.Close(true); }, "Navigate within these captured observations; the live source is not opened."));
             body.Children.Add(ActionButton("Mark current members", Model.MarkCurrentMembers, "Capture current real members; future observations are not selected."));

@@ -59,7 +59,7 @@ public sealed partial class AnalysisTree
             cancellation.ThrowIfCancellationRequested();
             var member = Member(node, false); var none = new GroupAmount();
             items.Add(Key(node.Id), AnalysisGroupedChart.MemberItem(new(member, none.Export(node.Kind == AnalysisKind.File ? 1UL : 0, projection.Totals.CompatibleBasis), false), RootKey, projection.Metric)
-                with { Visible = false, NameEvidence = AnalysisNames.NameEvidence(node), CapturedOrderName = node.Name });
+                with { Visible = false, NameEvidence = AnalysisNames.NameEvidence(node), CapturedNode = node });
         }
         foreach (var group in grouped.Groups)
         {
@@ -73,7 +73,7 @@ public sealed partial class AnalysisTree
                 var item = AnalysisGroupedChart.MemberItem(row, group.Definition.Key, projection.Metric);
                 bool reference = group.Kind == AnalysisGroupKind.SharedAcrossGroups;
                 string key = reference ? "group-reference:" + group.Definition.Key + ":" + Key(id) : Key(id);
-                item = item with { Key = key, NameEvidence = AnalysisNames.NameEvidence(node), CapturedOrderName = node.Name,
+                item = item with { Key = key, NameEvidence = AnalysisNames.NameEvidence(node), CapturedNode = node,
                     Unknown = item.Unknown || node.MetadataState != MeasurementState.Known || incomplete.Contains(id),
                     ReportTotals = retainReportStatistics ? row.Assigned : null, ReportLogical = retainReportStatistics ? AnalysisReportGroupRows.Logical(row.Member) : null,
                     ReportAccountingReference = group.Kind == AnalysisGroupKind.SharedAcrossGroups,

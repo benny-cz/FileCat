@@ -33,7 +33,7 @@ internal sealed partial class HarnessApp
             if (closeLimits.TranslatePoint(default, window) is not { } closeTop || closeTop.Y < 0 ||
                 closeTop.Y + closeLimits.Bounds.Height > window.ClientSize.Height)
                 throw new InvalidOperationException("The resource limits close button was clipped.");
-            RenderNativeFrame("folder-exclusions-limits.png");
+            await RecipeFrameAsync("folder-exclusions-limits.png", true, _indexedLifetime.Token);
             Click("Close limits");
             await ReadyAsync(() => VisibleButton("Close limits") is null);
             if (model.Tree is not null) throw new InvalidOperationException("Viewing the limits started a scan.");
@@ -101,7 +101,7 @@ internal sealed partial class HarnessApp
             bool packageHint = window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
                 text.Text?.Contains("The recorded scan policy includes package contents where accessible.", StringComparison.Ordinal) == true);
             if (packageHint != OperatingSystem.IsMacOS()) throw new InvalidOperationException("The package hint did not match the captured platform.");
-            RenderNativeFrame("folder-exclusions-package.png");
+            await RecipeFrameAsync("folder-exclusions-package.png", true, _indexedLifetime.Token);
             Click("Close details");
             await ReadyAsync(() => VisibleButton("Close details") is null);
             model.Focus(packageScope, open: true);
@@ -113,7 +113,7 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
                 text.Text?.StartsWith("Small files\nExcluded by policy\nThis folder and its contents were skipped under the captured folder exclusion rules.",
                     StringComparison.Ordinal) == true));
-            RenderNativeFrame("folder-exclusions-inspector.png");
+            await RecipeFrameAsync("folder-exclusions-inspector.png", true, _indexedLifetime.Token);
             Click("Close details");
             await ReadyAsync(() => !window.GetVisualDescendants().OfType<Button>().Any(button =>
                 button.IsEffectivelyVisible && button.Content as string == "Close details"));

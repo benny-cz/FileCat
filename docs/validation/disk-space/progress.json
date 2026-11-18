@@ -40,14 +40,18 @@
     "coverage": "Exact native names with a trailing dot and space. Filtered view, captured folder rule, temporary-tab review and owned native exit passed on all three development desktops."
   },
   "setupAndInspector": {
-    "tests": { "run": "r1478", "windowsVm": 108, "mac": "deferred-busy", "ubuntuVm": 108 },
-    "desktop": { "run": "r1479", "windowsVm": "passed", "mac": "deferred-busy", "ubuntuVm": "passed" },
+    "tests": { "run": "r1478", "windowsVm": 108, "mac": { "run": "r1482", "passed": 109 }, "ubuntuVm": 108 },
+    "desktop": { "run": "r1479", "windowsVm": "passed", "mac": { "run": "r1488", "functional": "passed", "compositorRetinaOverlay": "passed" }, "ubuntuVm": "passed" },
     "coverage": "Readable compact headings, exclusion reasons before the location, resource limits dialog, exact captured Windows and Unix clipboard root paths."
   },
   "packageFolderPresentation": {
-    "tests": { "run": "r1482", "windowsVm": 109, "mac": "deferred-busy", "ubuntuVm": 109 },
-    "desktop": { "run": "r1483", "windowsVm": "passed", "mac": "deferred-busy", "ubuntuVm": "passed" },
+    "tests": { "run": "r1482", "windowsVm": 109, "mac": 109, "ubuntuVm": 109 },
+    "desktop": { "run": "r1483", "windowsVm": "passed", "mac": { "functional": "passed", "compositorRun": "r1488" }, "ubuntuVm": "passed" },
     "coverage": "Package filename hint for the recorded macOS basis, policy disclosure and captured-content navigation. Finder flags and custom package associations are unqualified."
+  },
+  "capturedClipboardPath": {
+    "tests": { "run": "r1486", "windowsVm": 116, "mac": 116, "ubuntuVm": "in-progress" },
+    "coverage": "The memory inspector walks captured ancestors, bounds clipboard path bytes and keeps the path displayed in the compact inspector pinned across later focus changes."
   },
   "completedBehaviors": [
     "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",
