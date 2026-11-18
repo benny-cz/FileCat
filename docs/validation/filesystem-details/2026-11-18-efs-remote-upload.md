@@ -1,0 +1,7 @@
+# EFS consent for uploads from local files
+
+The shared SFTP, FTP and FTPS upload job inspects the actual opened Windows file before creating or appending to a server stage. For EFS inputs it shows the source and remote destination and asks once per attempt. Skip is the initial choice. Reopening after a failure requires fresh consent. When a previously clear source is observed as EFS-protected during a read, the newly read buffer stays local. A successful move ties a granted decision to the opened file identity, checks the published bytes and keeps a source that became EFS-protected without that approval.
+
+The Windows 11 x64 VM passed seven focused tests with no skips. The six EFS tests exercised the production upload job and Windows file operations against a controlled SFTP channel. They verified copy and move with approval and refusal, a reconnect after 150,000 staged bytes without an unapproved append, and retention of a source encrypted after server publication. The seventh test exercised ordinary FAT32 and exFAT move retirement. Results are in `.tmp/filecat-efs-remote-upload-verified-tests.xml`.
+
+Ubuntu and macOS each passed 783 focused remote regressions across the ordinary SFTP controls and real FTP, FTPES and FTPS servers, with one Windows-only link fixture skipped per host. Two crash controls on each host passed after the standalone package was given the expected harness layout. Windows EFS combined with real protocol transports and the origin of retained and derived uploads remain open in E-OUT4.

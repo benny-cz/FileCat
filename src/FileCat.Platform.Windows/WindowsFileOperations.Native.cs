@@ -467,10 +467,14 @@ public partial class WindowsFileOperations
         using var handle = CreateFileForIdentity(Long(path), FILE_READ_ATTRIBUTES, SHARE_ALL, 0, OPEN_EXISTING,
             FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, 0);
         if (handle.IsInvalid) return null;
+        return GetOpenedFileIdentity(handle);
+    }
+
+    public override string? GetOpenedFileIdentity(SafeFileHandle file)
+    {
         try
         {
-            var id = ProtectedHexFile.Identity(handle);
-            return $"{id.VolumeSerial:X16}:{id.FileId}";
+            return ProtectedHexFile.Identity(file).ToString();
         }
         catch (Win32Exception)
         {
