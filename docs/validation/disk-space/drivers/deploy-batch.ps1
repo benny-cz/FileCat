@@ -2,7 +2,7 @@ param([Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$R
  [ValidateRange(5,240)][int]$WindowsTaskLimitMinutes=30,[switch]$ReuseUploadedWindows)
 $ErrorActionPreference='Stop'
 function Check([string]$what){if($LASTEXITCODE){throw $what}}
-if($ReuseUploadedWindows-and($Platform-ne'windows'-or!$InteractiveWindows)){throw 'Uploaded desktop retries require the Windows interactive account'}
+if ($ReuseUploadedWindows -and $Platform -ne 'windows') { throw 'Uploaded batch reuse is available for the Windows VM.' }
 $archive=Join-Path $PWD ('.tmp/dsa-batch-'+$Platform+'-'+$Revision+'.tgz')
 if($Platform-eq'windows'){
  $v='C:\Program Files\VMware\VMware Workstation\vmrun.exe';$vm='V:\Virtual Machines\Jamf\Windows 10 x64\Windows 10 x64.vmx';$guest='C:\FileCatDsa20261104R2\batch-'+$Revision

@@ -22,6 +22,7 @@ scope.add_argument("--ntfs-streams", action="store_true")
 scope.add_argument("--apfs-forks", action="store_true")
 scope.add_argument("--cleanup-review", action="store_true")
 scope.add_argument("--cleanup-review-fixture", metavar="BASE_REVISION")
+scope.add_argument("--reviewed-copy-fixture", metavar="BASE_REVISION")
 options = parser.parse_args()
 revision = options.revision
 methods = ["*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*"]
@@ -66,10 +67,10 @@ if options.duplicates or options.duplicate_content or options.recorded_insights 
         expected = 54
         name = f"apfs-forks-render-build-{revision}"
     if options.cleanup_review:
-        methods.extend(("*NativeCleanupReview*", "*NativePrimaryPreview*", "*CleanupReviewTotalsSeparateBasisCoverageAndOverlappingComponents*",
+        methods.extend(("*NativeCleanupReview*", "*NativePrimaryPreview*", "*NativeReviewedCopy*", "*CleanupReviewTotalsSeparateBasisCoverageAndOverlappingComponents*",
                         "*ReviewCancelBindingRoutesFromOverlayAndEnterOnAFileOpensDetails*",
                         "*ShortLargeTextPageScrollsAndTheRankedTableRemainsVirtualized*"))
-        expected = 61
+        expected = 62
         name = f"cleanup-review-render-build-{revision}"
     log = (Path.cwd() / f".tmp/{name}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
@@ -84,11 +85,11 @@ if options.recipe_staging_fixture:
     expected = 2
     log = (Path.cwd() / f".tmp/recipe-staging-render-build-{revision}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
-retry = options.cleanup_review_fixture
+retry = options.cleanup_review_fixture or options.reviewed_copy_fixture
 if retry:
     assert re.fullmatch(r"r[0-9]+", retry) and re.fullmatch(r"r[0-9]+", revision) and retry != revision
-    methods = ["*NativeCleanupReview*"]
-    expected = 2
+    methods = ["*NativeReviewedCopy*"] if options.reviewed_copy_fixture else ["*NativeCleanupReview*"]
+    expected = 1 if options.reviewed_copy_fixture else 2
     log = (Path.cwd() / f".tmp/cleanup-review-render-build-{revision}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
 root = Path.cwd()

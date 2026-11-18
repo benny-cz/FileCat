@@ -107,7 +107,7 @@ internal static unsafe partial class WindowsEfsStreams
         return pending.Count == 0;
     }
 
-    private static ImmutableArray<WindowsEfsStream> ReadNames(SafeFileHandle root, bool directory, CancellationToken ct)
+    internal static ImmutableArray<WindowsEfsStream> ReadNames(SafeFileHandle root, bool directory, CancellationToken ct)
     {
         for (int attempt = 0, size = 64 * 1024; attempt < 3; attempt++, size *= 4)
         {
