@@ -37,6 +37,25 @@ public sealed partial class UnixFileDetailsNativeTests
     }
 
     [Fact]
+    public void Linux_gets_the_mount_type_of_the_held_item_through_a_parent_symlink()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux(), "Requires Linux statx and procfs.");
+        using var root = new TempDir();
+        string link = Path.Join(root.Path, "proc-alias");
+        Directory.CreateSymbolicLink(link, "/proc/self");
+        var reader = new UnixFileRecords();
+        var ct = TestContext.Current.CancellationToken;
+        var entry = reader.ReadSummary(link, ct);
+        Assert.Equal(FileObjectKind.SymbolicLink, entry.Kind);
+        Assert.Equal(FactState.Known, entry.FileSystem.State);
+        Assert.Equal(reader.ReadSummary(root.Path, ct).FileSystem.Value, entry.FileSystem.Value);
+        var proc = reader.ReadSummary(Path.Join(link, "stat"), ct);
+        Assert.Equal(FactState.Known, proc.FileSystem.State);
+        Assert.Equal(FactScope.Volume, proc.FileSystem.Scope);
+        Assert.Equal("proc", proc.FileSystem.Value);
+    }
+
+    [Fact]
     public void Linux_summary_of_FIFO_does_not_open_it_for_data_or_wait_for_a_writer()
     {
         if (!OperatingSystem.IsLinux()) { Assert.Skip("Linux O_PATH fixture."); return; }

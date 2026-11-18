@@ -4,6 +4,7 @@ using System.Security;
 using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Text;
+using System.Text.Json;
 using FileCat.Core.State;
 using FileCat.Platform.Windows;
 
@@ -12,9 +13,11 @@ namespace FileCat.App.Services;
 [SupportedOSPlatform("windows")]
 internal sealed class AdministratorTransferPreferences(AdministratorTransferRegistry registry, string scope)
 {
+    private const int MaxWindowPlacementCharacters = 512;
     private string AppearanceName => scope + ".appearance";
     private string WorkspaceName => scope + ".workspace";
     private string TransfersName => scope + ".transfers.v1";
+    private string WindowPlacementName => scope + ".window-placement.v1";
 
     internal static AdministratorTransferPreferences? ForProfile(AppPaths paths, AdministratorTransferRegistry? registry = null)
     {
@@ -60,6 +63,22 @@ internal sealed class AdministratorTransferPreferences(AdministratorTransferRegi
     }
 
     internal WorkspaceTransfer? LoadWorkspace() => LoadWorkspace(ReadSnapshot());
+
+    internal WindowPlacement? LoadWindowPlacement()
+    {
+        string? text = registry.Read(WindowPlacementName, MaxWindowPlacementCharacters);
+        if (text is null) return null;
+        try { return JsonSerializer.Deserialize(text, StateJsonContext.Default.WindowPlacement); }
+        catch (JsonException ex) { throw new IOException("The remembered window placement is invalid.", ex); }
+    }
+
+    internal void RememberWindowPlacement(WindowPlacement placement)
+    {
+        if (!WindowPlacementPolicy.HasRestorableSize(placement) ||
+            !double.IsFinite(placement.X) || !double.IsFinite(placement.Y)) return;
+        registry.Save(WindowPlacementName, JsonSerializer.Serialize(placement, StateJsonContext.Default.WindowPlacement),
+            MaxWindowPlacementCharacters);
+    }
 
     internal void RememberAppearance(AppearanceTransferV1 value) => WithWriterLock(() =>
         Save(new TransferPackets(value.Encode(), ReadWorkspace(ReadSnapshot()))));
