@@ -89,6 +89,84 @@ public sealed partial class WindowsStorageInspectionTests
     }
 
     [Fact]
+    public void A_file_in_the_active_Windows_tree_is_refused_by_inspection()
+    {
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        string root = Directory.CreateTempSubdirectory("filecat-storage-active-windows-").FullName;
+        try
+        {
+            string path = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "win.ini");
+            Assert.SkipUnless(File.Exists(path), "The native fixture requires an existing ordinary file under the active Windows tree.");
+            using var review = Inspect(Manager(root), path, StorageAction.Compress);
+            Assert.Equal("windows-tree", Assert.Single(review.Roots).Observation.Ineligible?.Code);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData("FILECAT_STORAGE_NATIVE_64K_TARGET", "allocation-unit", false)]
+    [InlineData("FILECAT_STORAGE_NATIVE_READONLY_TARGET", "read-only-volume", false)]
+    [InlineData("FILECAT_STORAGE_NATIVE_FAT_TARGET", "filesystem", true)]
+    [InlineData("FILECAT_STORAGE_NATIVE_EXFAT_TARGET", "filesystem", true)]
+    [InlineData("FILECAT_STORAGE_NATIVE_REFS_TARGET", "filesystem", true)]
+    [InlineData("FILECAT_STORAGE_NATIVE_MAPPED_TARGET", "remote-volume", true)]
+    public void Prepared_volumes_have_specific_inspection_refusals(string variable, string reason, bool rejectsBinding)
+    {
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client fixture.");
+        string? path = Environment.GetEnvironmentVariable(variable);
+        if (string.IsNullOrWhiteSpace(path)) Assert.Skip("Set " + variable + " to an owned prepared file.");
+        Assert.True(File.Exists(path), "The owned fixture file must be visible to the test account.");
+        string root = Directory.CreateTempSubdirectory("filecat-storage-volume-admission-").FullName;
+        try
+        {
+            var manager = Manager(root);
+            foreach (var action in new[] { StorageAction.Compress, StorageAction.RemoveCompression })
+            {
+                var code = rejectsBinding
+                    ? Assert.Throws<StorageInspectionException>(() => Inspect(manager, path, action)).Problem.Code
+                    : Refusal(action);
+                Assert.Equal(reason, code);
+            }
+
+            string? Refusal(StorageAction action)
+            {
+                using var review = Inspect(manager, path, action);
+                return Assert.Single(review.Roots).Observation.Ineligible?.Code;
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public unsafe void Compression_enable_size_ceiling_uses_the_held_logical_file_length()
+    {
+        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost || Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_SIZE") != "1",
+            "Requires the explicit Windows NTFS large sparse fixture.");
+        string root = Directory.CreateTempSubdirectory("filecat-storage-size-").FullName;
+        try
+        {
+            const long ceiling = 30_000_000_000L;
+            string path = Path.Join(root, "sparse.bin");
+            var manager = Manager(root);
+            foreach (long size in new[] { ceiling - 1, ceiling, ceiling + 1 })
+            {
+                using (var file = File.OpenHandle(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    Assert.True(Control(file, 0x900C4, null, 0, null, 0, out _, 0));
+                    RandomAccess.SetLength(file, size);
+                    Assert.Equal(size, RandomAccess.GetLength(file));
+                }
+                Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.SparseFile));
+                using var compress = Inspect(manager, path, StorageAction.Compress);
+                Assert.Equal(size > ceiling ? "enable-size-limit" : null, Assert.Single(compress.Roots).Observation.Ineligible?.Code);
+                using var remove = Inspect(manager, path, StorageAction.RemoveCompression);
+                Assert.Null(Assert.Single(remove.Roots).Observation.Ineligible);
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public unsafe void Reparse_entries_and_multiple_names_are_refused_while_sparse_regular_files_can_be_reviewed()
     {
         Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");

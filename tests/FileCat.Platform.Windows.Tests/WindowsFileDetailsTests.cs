@@ -4,6 +4,36 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed class WindowsFileDetailsTests
 {
+    [Theory]
+    [InlineData("FILECAT_STORAGE_NATIVE_64K_TARGET", "NTFS")]
+    [InlineData("FILECAT_STORAGE_NATIVE_READONLY_TARGET", "NTFS")]
+    [InlineData("FILECAT_STORAGE_NATIVE_FAT_TARGET", "FAT32")]
+    [InlineData("FILECAT_STORAGE_NATIVE_EXFAT_TARGET", "exFAT")]
+    [InlineData("FILECAT_STORAGE_NATIVE_REFS_TARGET", "ReFS")]
+    public void Native_details_describe_owned_files_on_their_actual_volumes(string variable, string expectedFormat)
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Windows native metadata fixture.");
+        string? path = Environment.GetEnvironmentVariable(variable);
+        if (string.IsNullOrWhiteSpace(path)) Assert.Skip("Set " + variable + " to a file on the prepared volume.");
+        Assert.True(File.Exists(path));
+        var ct = TestContext.Current.CancellationToken;
+        var reader = new WindowsFileRecords();
+        var summary = reader.ReadSummary(path, ct);
+        Assert.Equal(FileObjectKind.File, summary.Kind);
+        Assert.Equal(FactState.Known, summary.FileSystem.State);
+        Assert.Equal(FactScope.Volume, summary.FileSystem.Scope);
+        Assert.Equal(expectedFormat, summary.FileSystem.Value, ignoreCase: true);
+        Assert.Equal(new FileInfo(path).Length, summary.LogicalSize.Value);
+        Assert.Equal(FactState.Known, summary.Allocated.State);
+        Assert.Equal(FactScope.MainData, summary.Allocated.Scope);
+        var full = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
+        Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);
+        Assert.Equal(summary.FileSystem, full.Summary.FileSystem);
+        Assert.NotEqual(summary.Revision, full.Summary.Revision);
+        if (expectedFormat != "NTFS")
+            Assert.DoesNotContain(full.Technical.Sections, section => section.Title == "Main-stream extent records");
+    }
+
     [Fact]
     public void Summary_and_metadata_full_inspect_one_object_without_legacy_payload_sections()
     {

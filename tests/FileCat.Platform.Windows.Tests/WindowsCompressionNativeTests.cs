@@ -19,9 +19,9 @@ public sealed class WindowsCompressionNativeTests
         Assert.True(call.NativeSucceeded, $"Native SET error {call.NativeError}; postcondition {call.After}");
         Assert.Equal(0, call.After.Error); Assert.Equal(expected, call.After.Native);
     }
-    private static ushort Format(string path)
+    private static ushort Format(string path, bool directory = false)
     {
-        using var file = Open(null, @"\??\" + path, 0, NtFile.ShareAll, false);
+        using var file = Open(null, @"\??\" + path, 0, NtFile.ShareAll, directory);
         var state = WindowsCompression.Query(file);
         Assert.Equal(0, state.Error); Assert.NotNull(state.Native);
         return state.Native.Value;
@@ -96,6 +96,49 @@ public sealed class WindowsCompressionNativeTests
             if (Directory.Exists(folder)) File.SetAttributes(folder, File.GetAttributes(folder) & ~FileAttributes.ReadOnly);
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public void Folder_default_only_changes_new_entries_and_same_volume_moves_keep_their_state()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(), "Disposable Windows NTFS fixture.");
+        string root = Directory.CreateTempSubdirectory("filecat-compression-inheritance-").FullName;
+        try
+        {
+            string folder = Directory.CreateDirectory(Path.Join(root, "compressed")).FullName;
+            string peer = Directory.CreateDirectory(Path.Join(root, "clear")).FullName;
+            string existing = Path.Join(folder, "existing.bin");
+            string fromClear = Path.Join(peer, "moved-in.bin");
+            byte[] payload = new byte[128 * 1024];
+            payload[0] = 23;
+            File.WriteAllBytes(existing, payload);
+            File.WriteAllBytes(fromClear, payload);
+
+            using (var change = Open(null, @"\??\" + folder, NtFile.ListDirectory | NtFile.WriteData, NtFile.ShareRead, true))
+                Check(WindowsCompression.InvokeAdmitted(change, StorageAction.Compress), WindowsCompression.Lznt1);
+            Assert.Equal(WindowsCompression.None, Format(existing));
+            string child = Directory.CreateDirectory(Path.Join(folder, "child")).FullName;
+            Assert.Equal(WindowsCompression.Lznt1, Format(child, directory: true));
+            string created = Path.Join(child, "created.bin");
+            File.WriteAllBytes(created, payload);
+            Assert.Equal(WindowsCompression.Lznt1, Format(created));
+
+            string movedIn = Path.Join(folder, Path.GetFileName(fromClear)), movedOut = Path.Join(peer, "moved-out.bin");
+            File.Move(fromClear, movedIn);
+            File.Move(created, movedOut);
+            Assert.Equal(WindowsCompression.None, Format(movedIn));
+            Assert.Equal(WindowsCompression.Lznt1, Format(movedOut));
+            Assert.Equal(payload, File.ReadAllBytes(movedIn));
+            Assert.Equal(payload, File.ReadAllBytes(movedOut));
+
+            using (var change = Open(null, @"\??\" + folder, NtFile.ListDirectory | NtFile.WriteData, NtFile.ShareRead, true))
+                Check(WindowsCompression.InvokeAdmitted(change, StorageAction.RemoveCompression), WindowsCompression.None);
+            Assert.Equal(WindowsCompression.Lznt1, Format(child, directory: true));
+            string createdAfterRemoval = Path.Join(folder, "clear-now.bin");
+            File.WriteAllBytes(createdAfterRemoval, payload);
+            Assert.Equal(WindowsCompression.None, Format(createdAfterRemoval));
+        }
+        finally { Directory.Delete(root, recursive: true); }
     }
 
     [Fact]

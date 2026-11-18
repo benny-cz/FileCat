@@ -13,13 +13,15 @@ public sealed class StreamStagingOwnershipTests(ITestOutputHelper output)
     {
         foreach (string moment in new[] { "create", "revision", "length", "cancel", "unexpected" })
         foreach (bool collision in new[] { false, true }) yield return [moment, collision];
-        foreach (string moment in new[] { "read", "close", "publish", "verify" }) yield return [moment, false];
+        foreach (string moment in new[] { "read", "close", "publish", "verify", "protected-resume", "protected-verify" }) yield return [moment, false];
     }
 
     [Theory]
     [MemberData(nameof(Cases))]
     public async Task Cleanup_only_deletes_a_staging_file_this_copy_created(string moment, bool collision)
     {
+        bool protectedReopen = moment is "protected-resume" or "protected-verify";
+        if (protectedReopen && !OperatingSystem.IsWindows()) Assert.Skip("Windows EFS output admission.");
         using var root = new TempDir();
         using var fixtureReady = new ManualResetEventSlim(false);
         string destination = root.Dir("destination"), target = Path.Combine(destination, "copy.bin"), staged = "";
@@ -34,7 +36,12 @@ public sealed class StreamStagingOwnershipTests(ITestOutputHelper output)
             if (collision) File.WriteAllBytes(staged, previous);
             fixtureReady.Set();
         };
-        jobs.DecisionRequested += pending => pending.Resolve(new Decision(DecisionAction.Skip));
+        string? question = null;
+        jobs.DecisionRequested += pending =>
+        {
+            question = pending.Request.Message;
+            pending.Resolve(new Decision(DecisionAction.Skip));
+        };
         try
         {
             var job = jobs.Submit(new JobRequest
@@ -42,7 +49,7 @@ public sealed class StreamStagingOwnershipTests(ITestOutputHelper output)
                 Kind = JobKind.Copy,
                 Sources = [new(new Location(provider.Scheme, ""), "copy.bin", EntryKind.File, source.Length)],
                 Destination = Location.FileSystem(destination),
-                Options = new TransferOptions { Conflicts = ConflictPolicy.Replace, Verify = moment == "verify" ? VerifyMode.ReadBack : VerifyMode.Native },
+                Options = new TransferOptions { Conflicts = ConflictPolicy.Replace, Verify = moment is "verify" or "protected-verify" ? VerifyMode.ReadBack : VerifyMode.Native },
             });
             var clock = Stopwatch.StartNew();
             while (!job.State.IsFinished() || jobs.HasActiveWork)
@@ -60,6 +67,12 @@ public sealed class StreamStagingOwnershipTests(ITestOutputHelper output)
                 DestinationNames = Directory.GetFiles(destination).Select(p => Path.GetFileName(p)),
             }));
             Assert.Equal(provider.Opens, provider.Closes);
+            if (protectedReopen)
+            {
+                Assert.Equal(2, provider.OutputAdmissions);
+                Assert.Equal(1, provider.Opens);
+                Assert.Contains("EFS protection changed", question, StringComparison.Ordinal);
+            }
             if (collision) Assert.Equal(previous, File.ReadAllBytes(staged)); else Assert.False(File.Exists(staged));
             bool completed = moment == "create" && !collision;
             Assert.Equal(completed ? JobState.Completed : moment == "cancel" ? JobState.Canceled : JobState.Failed, job.State);
@@ -80,9 +93,10 @@ public sealed class StreamStagingOwnershipTests(ITestOutputHelper output)
         }
     }
 
-    private sealed class Provider(byte[] bytes, string moment, ManualResetEventSlim fixtureReady) : ResourceProvider
+    private sealed class Provider(byte[] bytes, string moment, ManualResetEventSlim fixtureReady) : ResourceProvider, IUnprotectedContentOutput
     {
         public int Opens, Closes, Reads;
+        public int OutputAdmissions;
         public override string Scheme => "owned-stream-staging";
         public override string GetDisplayPath(Location location) => location.Path;
         public override Location? GetParent(Location location) => null;
@@ -93,6 +107,17 @@ public sealed class StreamStagingOwnershipTests(ITestOutputHelper output)
         {
             if (!fixtureReady.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException("Owned staging fixture was not installed.");
             return new Source(this, ++Opens, bytes, moment);
+        }
+        public void RequireClearOutputSource(Location location, ContentOutputKind kind)
+        {
+            Assert.Equal(ContentOutputKind.Extraction, kind);
+            if (++OutputAdmissions > 1 && moment is ("protected-resume" or "protected-verify"))
+                throw new IOException("The opened source's EFS protection changed.");
+        }
+        public IContentSource OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind)
+        {
+            RequireClearOutputSource(item.Parent, kind);
+            return OpenContent(item);
         }
         private sealed class Source(Provider owner, int ordinal, byte[] bytes, string moment) : IContentSource
         {
@@ -105,6 +130,7 @@ public sealed class StreamStagingOwnershipTests(ITestOutputHelper output)
                 "revision" => throw new IOException("owned pre-creation revision failure"),
                 "cancel" => throw new OperationCanceledException("owned pre-creation cancellation"),
                 "unexpected" => throw new InvalidOperationException("owned pre-creation unexpected failure"),
+                "protected-resume" or "protected-verify" => new ContentRevision(bytes.Length, 0),
                 _ => null,
             };
             public int Read(long offset, Span<byte> buffer)
@@ -112,6 +138,11 @@ public sealed class StreamStagingOwnershipTests(ITestOutputHelper output)
                 owner.Reads++;
                 if (moment == "read") throw new IOException("owned post-creation read failure");
                 int n = (int)Math.Min(buffer.Length, Math.Max(0, bytes.Length - offset));
+                if (moment == "protected-resume" && ordinal == 1)
+                {
+                    if (offset > 0) throw new IOException("owned interruption before a new source open");
+                    n = Math.Min(8, n);
+                }
                 bytes.AsSpan((int)offset, n).CopyTo(buffer);
                 if (moment == "verify" && ordinal == 2 && n > 0) buffer[0] ^= 0xff;
                 return n;

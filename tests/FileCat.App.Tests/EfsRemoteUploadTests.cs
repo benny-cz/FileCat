@@ -1,3 +1,7 @@
+using System.Formats.Tar;
+using System.IO.Compression;
+using FileCat.Archives;
+using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -114,6 +118,31 @@ public sealed class EfsRemoteUploadTests
         Assert.Contains(job.Issues, issue => issue.Message.Contains("no matching approval", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    public async Task Derived_archive_upload_checks_the_open_archive_before_staging(bool legacyZip, bool encrypted)
+    {
+        RequireEfsFixture();
+        using var fixture = new Fixture();
+        byte[] bytes = [23, 11, 7, 57];
+        var item = fixture.CreateArchiveMember(legacyZip, encrypted, bytes);
+        var job = await fixture.Run(item, JobKind.Copy, _ => throw new InvalidOperationException("Unexpected upload question."));
+        if (encrypted)
+        {
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Contains(job.Issues, issue => issue.Message.Contains("archive uses Windows EFS", StringComparison.Ordinal));
+            Assert.Empty(fixture.Names);
+        }
+        else
+        {
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.Equal(bytes, fixture.Server.Lookup("/upload/member.bin", true)!.Data);
+        }
+    }
+
     private static void RequireEfsFixture() => Assert.SkipUnless(OperatingSystem.IsWindows() && !WindowsTokenAuthority.IsHighIntegrity &&
         Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1", "Requires the disposable normal-user Windows NTFS fixture.");
 
@@ -123,6 +152,9 @@ public sealed class EfsRemoteUploadTests
         private readonly RemoteProfile _profile = new() { Name = "EFS upload test", Host = "files.example", User = "user" };
         private readonly SftpConnections _connections;
         private readonly JobManager _jobs;
+        private readonly ZipProvider _zip;
+        private readonly ArchiveProvider _archives;
+        private string? _archivePath;
         internal FakeSftpServer Server { get; } = new();
         internal string[] Names => Server.Lookup("/upload", true)!.Children.Keys.ToArray();
 
@@ -134,10 +166,16 @@ public sealed class EfsRemoteUploadTests
             _connections = new SftpConnections(id => id == _profile.Id ? _profile : null, new FakeConnector(Server),
                 new HostKeyTrust(Path.Join(_root, "known_hosts"), []), new SessionSecretStore(), interaction);
             var providers = new ProviderRegistry();
+            var files = new WindowsFileOperations();
+            string cache = Path.Join(_root, "archive-cache");
+            _zip = new ZipProvider(cache) { GetSourceIdentity = files.GetFileIdentity, GetOpenedSourceIdentity = files.GetOpenedFileIdentity };
+            _archives = new ArchiveProvider(cache, providers) { GetSourceIdentity = files.GetFileIdentity, GetOpenedSourceIdentity = files.GetOpenedFileIdentity };
             providers.Register(new LocalFileSystemProvider());
+            providers.Register(_zip);
+            providers.Register(_archives);
             providers.Register(new SftpProvider(_connections, () => [_profile], p => p));
             SftpJobs.Register();
-            _jobs = new JobManager(new WindowsFileOperations(), providers, Path.Join(_root, "journal"));
+            _jobs = new JobManager(files, providers, Path.Join(_root, "journal"));
         }
 
         internal string CreateEncryptedFile(byte[] bytes)
@@ -148,12 +186,36 @@ public sealed class EfsRemoteUploadTests
             return path;
         }
 
-        internal async Task<Job> Run(string source, JobKind kind, Func<PendingDecision, Decision> decide)
+        internal ItemRef CreateArchiveMember(bool legacyZip, bool encrypted, byte[] bytes)
+        {
+            string path = _archivePath = Path.Join(_root, legacyZip ? "source.zip" : "source.tar");
+            if (legacyZip)
+            {
+                using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
+                using var member = archive.CreateEntry("member.bin").Open();
+                member.Write(bytes);
+            }
+            else
+            {
+                using var file = File.Create(path);
+                using var archive = new TarWriter(file);
+                using var member = new MemoryStream(bytes, writable: false);
+                archive.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, "member.bin") { DataStream = member });
+            }
+            if (encrypted) File.Encrypt(path);
+            var parent = legacyZip ? ZipProvider.ForFile(path) : ArchiveProvider.ForFile(path);
+            return new ItemRef(parent, "member.bin", EntryKind.File, bytes.Length);
+        }
+
+        internal Task<Job> Run(string source, JobKind kind, Func<PendingDecision, Decision> decide) =>
+            Run(ItemRef.ForFileSystemPath(source, EntryKind.File), kind, decide);
+
+        internal async Task<Job> Run(ItemRef source, JobKind kind, Func<PendingDecision, Decision> decide)
         {
             var job = _jobs.Submit(new JobRequest
             {
                 Kind = kind,
-                Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
+                Sources = [source],
                 Destination = SftpProvider.At(_profile, "/upload"),
             });
             try
@@ -173,6 +235,11 @@ public sealed class EfsRemoteUploadTests
         public void Dispose()
         {
             _connections.Dispose();
+            if (_archivePath is { } archive)
+            {
+                _zip.Release(archive);
+                _archives.Release(archive);
+            }
             Directory.Delete(_root, recursive: true);
         }
     }

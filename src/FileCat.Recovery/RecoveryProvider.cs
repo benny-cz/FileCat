@@ -418,6 +418,7 @@ public sealed class RecoveryProvider : ResourceProvider, IUnprotectedContentOutp
         {
             ContentOutputKind.Drag => "This disk image uses Windows EFS. FileCat cannot stage its files for dragging without losing that protection. Use a reviewed recovery that preserves EFS.",
             ContentOutputKind.DiskCache => "This disk image uses Windows EFS. FileCat cannot keep its recovered content in a disk cache that lacks EFS protection.",
+            ContentOutputKind.RemoteUpload => "This disk image uses Windows EFS. FileCat cannot upload its recovered files without losing that protection.",
             _ => "This disk image uses Windows EFS. FileCat cannot verify that this recovery will retain EFS protection.",
         });
     }

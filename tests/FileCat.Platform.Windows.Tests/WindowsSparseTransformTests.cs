@@ -122,6 +122,66 @@ public sealed unsafe partial class WindowsSparseTransformTests
         });
     }
 
+    [Fact]
+    public void Reviewed_removal_keeps_sparse_ranges_above_the_compression_enable_ceiling()
+    {
+        RequireFixture();
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_SIZE") == "1",
+            "Requires the separately prepared NTFS large sparse fixture.");
+        const long largeLength = 30_000_000_001L;
+        string root = Directory.CreateTempSubdirectory("filecat-large-sparse-removal-").FullName;
+        string path = Path.Join(root, "large.bin");
+        var ct = TestContext.Current.CancellationToken;
+        try
+        {
+            WriteStream(path, sparse: true, holes: true, allHole: false, seed: 57);
+            WriteStream(path + NamedStream, sparse: true, holes: true, allHole: false, seed: 91);
+            var jobs = CreateManager(path);
+            RunJob(jobs, path, StorageAction.Compress, changed: true);
+            using (var data = File.OpenHandle(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+                RandomAccess.SetLength(data, largeLength);
+
+            WindowsStorageTransforms.SparseLayout before;
+            string identity;
+            using (var data = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                before = Assert.IsType<WindowsStorageTransforms.SparseLayout>(WindowsStorageTransforms.ReadSparseLayout(data, ct));
+                identity = ProtectedHexFile.Identity(data).ToString();
+                Assert.Equal(largeLength, before.Length);
+                Assert.Equal(WindowsCompression.Lznt1, WindowsCompression.Query(data).Native);
+                Assert.InRange(before.Allocation, 1, Length);
+            }
+            StreamObservation namedBefore;
+            using (var named = File.OpenRead(path + NamedStream)) namedBefore = ObserveStream(named);
+            RunJob(jobs, path, StorageAction.RemoveCompression, changed: true);
+
+            using var result = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var after = Assert.IsType<WindowsStorageTransforms.SparseLayout>(WindowsStorageTransforms.ReadSparseLayout(result, ct));
+            Assert.Equal(identity, ProtectedHexFile.Identity(result).ToString());
+            Assert.Equal(largeLength, after.Length);
+            Assert.Equal(before.Ranges, after.Ranges);
+            Assert.InRange(after.Allocation, 1, Length);
+            Assert.Equal(WindowsCompression.None, WindowsCompression.Query(result).Native);
+            Assert.Equal(57, ReadByte(64 * 1024));
+            Assert.Equal(58, ReadByte(2 * 1024 * 1024));
+            Assert.Equal(0, ReadByte(largeLength - 1));
+            using var namedResult = File.OpenRead(path + NamedStream);
+            var namedAfter = ObserveStream(namedResult);
+            Assert.Equal(namedBefore.Digest, namedAfter.Digest);
+            Assert.Equal(namedBefore.Ranges, namedAfter.Ranges);
+            Assert.Equal(namedBefore.Compression, namedAfter.Compression);
+            TestContext.Current.TestOutputHelper?.WriteLine($"EOF {after.Length}, allocation {before.Allocation} to {after.Allocation}, {after.Ranges.Length} allocated ranges");
+
+            byte ReadByte(long offset)
+            {
+                Span<byte> data = stackalloc byte[1];
+                Assert.Equal(1, RandomAccess.Read(result, data, offset));
+                return data[0];
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Theory]
     [InlineData("all-hole")]
     [InlineData("main-holes")]

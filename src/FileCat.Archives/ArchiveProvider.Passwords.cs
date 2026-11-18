@@ -37,7 +37,7 @@ public sealed partial class ArchiveProvider
     {
         ct.ThrowIfCancellationRequested();
         var root = location.WithPath("");
-        using var source = ArchiveFile(root, 0);
+        using var source = ArchiveFile(root);
         lock (_cacheLock)
         {
             ArchiveIndex index;

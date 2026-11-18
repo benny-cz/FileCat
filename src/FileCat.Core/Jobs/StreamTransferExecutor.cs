@@ -418,10 +418,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         try
         {
             // Read once from start to end: a large archive member is then decompressed straight into the copy.
-            var opened = OperatingSystem.IsWindows() && provider is IUnprotectedContentOutput derived
-                ? derived.OpenUnprotectedOutput(item, ContentOutputKind.Extraction)
-                : provider.OpenContent(item);
-            content = Content.ProgressiveContent.Sequential(opened);
+            content = OpenExtractionSource(provider, item);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
@@ -698,7 +695,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             try
             {
                 byte[] theirs;
-                using (var again = Content.ProgressiveContent.Sequential(provider.OpenContent(item)) ?? throw new IOException("The item has no readable content any more."))
+                using (var again = OpenExtractionSource(provider, item) ?? throw new IOException("The item has no readable content any more."))
                     theirs = HashContent(again, length, copiedRevision, Progress);
                 streamDone = 0;
                 var ours = PortableFileOperations.HashFile(staged, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress, length);
@@ -764,6 +761,14 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
 
     private const int ResumeCheckBytes = 64 * 1024;
 
+    private static IContentSource? OpenExtractionSource(ResourceProvider provider, ItemRef item)
+    {
+        var opened = OperatingSystem.IsWindows() && provider is IUnprotectedContentOutput derived
+            ? derived.OpenUnprotectedOutput(item, ContentOutputKind.Extraction)
+            : provider.OpenContent(item);
+        return Content.ProgressiveContent.Sequential(opened);
+    }
+
     /// <summary>
     /// After the source failed part way (plan §14: "verify resumable partial content before reuse"): the first failure
     /// retries on its own after a second, later ones ask. The part already copied is kept only when the source is
@@ -790,7 +795,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             IContentSource? next = null;
             try
             {
-                next = provider.OpenContent(item) ?? throw new IOException("The item has no readable content any more.");
+                next = OpenExtractionSource(provider, item) ?? throw new IOException("The item has no readable content any more.");
                 if (Unchanged(next, revision, staged, written))
                 {
                     staged.Position = written;
