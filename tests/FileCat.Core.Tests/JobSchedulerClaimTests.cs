@@ -46,18 +46,32 @@ public sealed class JobSchedulerClaimTests
     }
 
     [Fact]
-    public void Pre_start_paused_job_keeps_its_queue_position_but_can_be_explicitly_reordered_behind_later_work()
+    public async Task Pre_start_paused_job_keeps_its_queue_position_but_can_be_explicitly_reordered_behind_later_work()
     {
         using var temp = new TempDir();
         var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), Path.Join(temp.Path, "journal")) { MaxConcurrent = 0 };
         var directory = Location.FileSystem(Path.Join(temp.Path, "target"));
         var first = manager.SubmitWithRegistration(new() { Kind = JobKind.CreateDirectory, Destination = directory, NewName = "same" }, job => job.Pause());
         var second = manager.Submit(new() { Kind = JobKind.CreateDirectory, Destination = directory, NewName = "same" });
+        var firstFinished = new TaskCompletionSource<JobState>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondFinished = new TaskCompletionSource<JobState>(TaskCreationOptions.RunContinuationsAsynchronously);
+        manager.JobFinished += job =>
+        {
+            if (ReferenceEquals(job, first)) firstFinished.TrySetResult(job.State);
+            if (ReferenceEquals(job, second)) secondFinished.TrySetResult(job.State);
+        };
         manager.MaxConcurrent = 1; manager.Schedule();
         Assert.Same(first, second.WaitingFor);
         first.Pause(); manager.Schedule(); Assert.Null(first.WaitingFor); Assert.Equal("Paused before start", first.WaitReason);
         Assert.True(manager.MoveInQueue(second, -1));
-        Assert.True(SpinWait.SpinUntil(() => second.State.IsFinished(), TimeSpan.FromSeconds(5)));
-        Assert.Null(first.StartedUtc); first.Cancel(); Assert.Equal(JobState.Canceled, first.State);
+
+        var timeout = TimeSpan.FromSeconds(5);
+        var ct = TestContext.Current.CancellationToken;
+        Assert.Equal(JobState.Completed, await secondFinished.Task.WaitAsync(timeout, ct));
+        Assert.Null(first.StartedUtc);
+        first.Cancel();
+        // The finishing worker may have claimed cancellation on its own scheduling pass.
+        Assert.Equal(JobState.Canceled, await firstFinished.Task.WaitAsync(timeout, ct));
+        Assert.Null(first.StartedUtc);
     }
 }
