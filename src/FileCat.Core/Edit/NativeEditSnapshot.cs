@@ -91,7 +91,7 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
         {
             Live();
             RequireClearSnapshot();
-            var observed = directory.ObserveSnapshot(file, Expected.LeafName, ct);
+            var observed = directory.ObserveSnapshot(file, Expected.LeafName, ct, protectionRefusal: ArchiveOuterEfs.EditSnapshotUnavailable);
             RequireClearSnapshot();
             if (!observed.Matches(Expected)) throw Changed();
             return Expected;
@@ -119,7 +119,7 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
         }
     }
     private void RequireClearSnapshot() => ArchiveOuterEfs.RequireClear(file.SafeFileHandle,
-        "The retained edit snapshot uses Windows EFS. FileCat cannot copy its bytes without losing that protection.");
+        ArchiveOuterEfs.EditSnapshotUnavailable);
     private bool IsReadable(){lock(gate)return !disposed;}
     private void Live(){if(disposed)throw Changed();}
     private static ArchiveWriteException Changed()=>new(ArchiveWriteReason.SourceChanged,"The retained edit snapshot is no longer the reviewed source.");

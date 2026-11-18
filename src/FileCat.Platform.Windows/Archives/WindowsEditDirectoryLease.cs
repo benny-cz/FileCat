@@ -158,26 +158,46 @@ internal sealed partial class WindowsEditDirectoryLease : EditDirectoryLease
     internal override IReadOnlyList<string> Names(CancellationToken ct,int maximum)
     {lock(Gate){if(maximum is <0 or >100000)throw new ArgumentOutOfRangeException(nameof(maximum));RequireOpen();ReviewCore(ct);var names=List(directory,maximum,ct);ReviewCore(ct);return names.Select(entry=>entry.Name).ToArray();}}
     internal override ArchiveOriginSnapshot ReadOrigin(FileStream file,string name,CancellationToken ct)
+        => ReadOriginCore(file, name, ct, null);
+
+    internal override ArchiveOriginSnapshot ReadOutputOrigin(FileStream file, string leaf, CancellationToken ct, string refusal)
+        => ReadOriginCore(file, leaf, ct, refusal);
+
+    private ArchiveOriginSnapshot ReadOriginCore(FileStream file, string name, CancellationToken ct, string? protectionRefusal)
     {
         lock(Gate)
         {
+            void CheckProtection(SafeFileHandle? stream = null)
+            {
+                if (protectionRefusal is null) return;
+                ArchiveOuterEfs.RequireClear(file.SafeFileHandle, protectionRefusal);
+                if (stream is not null) ArchiveOuterEfs.RequireClear(stream, protectionRefusal);
+            }
+            CheckProtection();
             ReviewWorkingFile(file,name,ct);var identity=ProtectedHexFile.Identity(file.SafeFileHandle);
             int status=TryOpen(directory,name+":Zone.Identifier",GenericRead|Synchronize,ShareAll,Open,
                 NonDirectoryFile|OpenReparsePoint,out var origin);
             using(origin)
             {
-                if(status==NameNotFound)return ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier);
+                if(status==NameNotFound)
+                {
+                    CheckProtection();
+                    return ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier);
+                }
                 if(status<0)throw Error(status,"Read native edit download mark");
                 WindowsArchiveNative.Regular(origin,ArchiveOriginSnapshot.MaxBytes,false,false);
                 if(ProtectedHexFile.Identity(origin)!=identity)throw new IOException("The edit download mark belongs to another object.");
                 byte[] bytes=new byte[checked((int)RandomAccess.GetLength(origin))];int offset=0;
                 while(offset<bytes.Length)
                 {
-                    ct.ThrowIfCancellationRequested();int read=RandomAccess.Read(origin,bytes.AsSpan(offset),offset);
+                    ct.ThrowIfCancellationRequested(); CheckProtection(origin);
+                    int read=RandomAccess.Read(origin,bytes.AsSpan(offset),offset);
+                    CheckProtection(origin);
                     if(read<=0)throw new IOException("The edit download mark ended during review.");offset+=read;
                 }
                 if(RandomAccess.GetLength(origin)!=bytes.Length)throw new IOException("The edit download mark changed during review.");
-                ReviewWorkingFile(file,name,ct);return ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier,bytes);
+                ReviewWorkingFile(file,name,ct); CheckProtection(origin);
+                return ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier,bytes);
             }
         }
     }

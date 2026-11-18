@@ -65,6 +65,7 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
         lock (parent.Gate)
         {
             EnsureWritable(); CheckRange(position, buffer.Length);
+            CheckSourceProtection(handle);
             RandomAccess.Write(handle, buffer, position); position += buffer.Length;
         }
     }
@@ -127,6 +128,8 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
     internal void BindPackingSource() => BindClearSource(ArchiveOuterEfs.PackUnavailable);
 
     internal void BindUpdateSource() => BindClearSource(ArchiveOuterEfs.UpdateUnavailable);
+
+    internal void BindEditSaveCopyArtifact() => BindClearSource(ArchiveOuterEfs.EditTemporaryOutputUnavailable);
 
     private void BindClearSource(string refusal)
     {
