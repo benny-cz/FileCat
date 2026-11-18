@@ -363,14 +363,36 @@ public sealed partial class MainViewModel : ObservableObject
         return WorkspaceReadOnly || reset ? null : state;
     }
 
+    internal WindowPlacement? LoadStartupWindowPlacement(WorkspaceState? workspace, bool reset)
+    {
+        if (reset) return null;
+        if (!OperatingSystem.IsWindows() || Services.AdministratorTransfers is not { } store) return workspace?.Window;
+        try { return store.LoadWindowPlacement(); }
+        catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+        {
+            Notify("Could not restore the administrator window size and position. " + Formatters.SafeName(ex.Message), true);
+            return null;
+        }
+    }
+
     public void SaveWorkspace(WindowPlacement? placement)
     {
-        placement ??= LastPlacement;
-        LastPlacement = placement;
+        LastPlacement = placement ?? LastPlacement;
+        if (OperatingSystem.IsWindows() && Services.AdministratorTransfers is { } store)
+        {
+            // The close path supplies fresh bounds. Autosave has no new administrator window placement to persist.
+            if (placement is null) return;
+            try { store.RememberWindowPlacement(placement); }
+            catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+            {
+                AppLog.Error("Saving administrator window placement failed", ex);
+            }
+            return;
+        }
         if (WorkspaceReadOnly) return;
         try
         {
-            JsonFileStore.Save(Services.Paths.WorkspaceFile, Workspace.ToState(placement), StateJsonContext.Default.WorkspaceState);
+            JsonFileStore.Save(Services.Paths.WorkspaceFile, Workspace.ToState(LastPlacement), StateJsonContext.Default.WorkspaceState);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

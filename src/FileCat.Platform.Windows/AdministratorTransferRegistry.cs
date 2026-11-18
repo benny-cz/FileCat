@@ -9,7 +9,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
 
-/// <summary>Private storage for settings explicitly remembered by an elevated FileCat.</summary>
+/// <summary>Private storage for remembered preferences and window placement in elevated FileCat.</summary>
 [SupportedOSPlatform("windows")]
 public sealed partial class AdministratorTransferRegistry
 {

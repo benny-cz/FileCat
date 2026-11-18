@@ -63,7 +63,7 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var window = new MainWindow(vm, state?.Window);
+            var window = new MainWindow(vm, vm.LoadStartupWindowPlacement(state, StartupOptions.ResetLayout));
             // Periodic autosave keeps the layout recoverable even after a hard crash (plan §19.2).
             var autosave = new DispatcherTimer(TimeSpan.FromSeconds(60), DispatcherPriority.Background, (_, _) => vm.SaveWorkspace(null));
             autosave.Start();

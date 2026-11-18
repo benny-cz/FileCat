@@ -7,10 +7,12 @@ internal readonly record struct DisplayWorkArea(int X, int Y, int Width, int Hei
 /// <summary>Restores a saved normal rectangle in physical screen coordinates and logical window dimensions.</summary>
 internal static class WindowPlacementPolicy
 {
+    internal static bool HasRestorableSize(WindowPlacement placement) =>
+        double.IsFinite(placement.Width) && double.IsFinite(placement.Height) && placement.Width >= 200 && placement.Height >= 150;
+
     public static WindowPlacement? Restore(WindowPlacement? saved, IReadOnlyList<DisplayWorkArea> displays)
     {
-        if (saved is null || !double.IsFinite(saved.Width) || !double.IsFinite(saved.Height) ||
-            saved.Width < 200 || saved.Height < 150) return null;
+        if (saved is null || !HasRestorableSize(saved)) return null;
         var usable = displays.Where(d => d.Width > 0 && d.Height > 0 &&
             double.IsFinite(d.Scaling) && d.Scaling is >= 0.25 and <= 8).ToArray();
         if (usable.Length == 0) return null;

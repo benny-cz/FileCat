@@ -55,6 +55,8 @@ The normal window uses its already-resolved path, covering installed roaming set
 
 Remembered transfers live in an administrator-only Windows registry key, scoped by the elevated account’s SID and the resolved profile path. An elevated launch reads the appearance and workspace from one record. Separately stored values from earlier FileCat versions remain readable. Portable installations keep these administrator preferences on the machine that received them. `--data` launches apply transfers for one session only. `--reset-layout` skips the remembered workspace for that launch. [Administrator registry storage](../../src/FileCat.Platform.Windows/AdministratorTransferRegistry.cs)
 
+Closing an administrator window also saves its size, position, and maximized state in a separate registry value for that account and profile. `--reset-layout` opens with default window placement. Administrator launches with `--data` keep window placement for the current session only.
+
 ## Acceptance tests
 
 - **Baseline preservation.** In a disposable normal profile matching the baseline presentation settings, record hashes of `settings.json` and its backup. Copy normal → elevated with remembrance off, verify `Psychedelic` is visible, exercise autosave and close, then relaunch elevated. The new elevated session starts with defaults. The transfer produces no change to either normal file.
