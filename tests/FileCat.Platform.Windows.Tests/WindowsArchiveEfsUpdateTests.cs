@@ -1,15 +1,152 @@
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Text;
 using FileCat.Core.Archives;
 using FileCat.Core.Jobs;
 using FileCat.Core.State;
 using FileCat.Platform.Windows.Archives;
 using FileCat.Platform.Windows.Elevation;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows.Tests;
 
-public sealed class WindowsArchiveEfsUpdateTests
+public sealed partial class WindowsArchiveEfsUpdateTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Legacy_zip_publication_preserves_the_original_object_or_leaves_its_hard_link_unchanged(bool hardLinked)
+    {
+        RequireLocalNtfs();
+        string root = Directory.CreateTempSubdirectory("filecat-zip-publication-").FullName;
+        string target = Path.Join(root, "original.zip"), alias = Path.Join(root, "linked.zip");
+        const string mark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        try
+        {
+            using (var zip = ZipFile.Open(target, ZipArchiveMode.Create)) zip.CreateEntry("original.txt");
+            File.WriteAllText(target + ":filecat-fixture", "other stream");
+            File.WriteAllText(target + ":Zone.Identifier", mark, Encoding.Unicode);
+            var originalMark = File.ReadAllBytes(target + ":Zone.Identifier");
+            var original = File.ReadAllBytes(target);
+            var creation = File.GetCreationTimeUtc(target);
+            if (hardLinked) Assert.True(CreateHardLink(alias, target, 0));
+            var files = new WindowsFileOperations();
+            string id = Assert.IsType<string>(files.GetFileIdentity(target));
+            var plan = new ArchivePlan(target, ArchiveBaseline.Of(target), [new(ArchiveChangeKind.CreateFolderEntry, "new-folder")]);
+            var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan }, "ZIP publication fixture", "", [], []);
+            using var journal = JobJournal.Create(Path.Join(root, "journals"), job);
+
+            new ZipUpdateExecutor(job, files, journal).Execute();
+
+            using var output = ZipFile.OpenRead(target);
+            Assert.NotNull(output.GetEntry("original.txt"));
+            Assert.NotNull(output.GetEntry("new-folder/"));
+            Assert.Equal(mark, files.ReadOriginMark(target));
+            if (hardLinked)
+            {
+                Assert.NotEqual(id, files.GetFileIdentity(target));
+                Assert.Equal(id, files.GetFileIdentity(alias));
+                Assert.Equal(original, File.ReadAllBytes(alias));
+                Assert.Equal(originalMark, File.ReadAllBytes(alias + ":Zone.Identifier"));
+                return;
+            }
+            Assert.Equal(id, files.GetFileIdentity(target));
+            Assert.Equal(creation, File.GetCreationTimeUtc(target));
+            Assert.Equal(originalMark, File.ReadAllBytes(target + ":Zone.Identifier"));
+            Assert.Equal("other stream", File.ReadAllText(target + ":filecat-fixture"));
+            Assert.Equal([target], Directory.GetFiles(root));
+            Assert.False(journal.NeedsRecovery);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateHardLinkW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CreateHardLink(string name, string original, nint security);
+
+    private static void LegacyReplace(string stage, string target, string backup) =>
+        File.Replace(stage, target, backup, ignoreMetadataErrors: true);
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Legacy_zip_publication_is_private_until_commit_and_retains_the_snapshot_on_cancellation(bool cancel)
+    {
+        RequireLocalNtfs();
+        string root = Directory.CreateTempSubdirectory("filecat-zip-publication-commit-").FullName;
+        string target = Path.Join(root, "original.zip"), stage = Path.Join(root, "stage.tmp");
+        string backup = Path.Join(root, "snapshot.bak"), alias = Path.Join(root, "alias.zip");
+        const string mark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        try
+        {
+            var files = new WindowsFileOperations();
+            ILegacyZipInPlacePublisher publisher = files;
+            var original = WriteReviewedZip(target, "original.txt", null);
+            var rebuilt = WriteReviewedZip(stage, "replacement.txt", mark);
+            var oldBytes = File.ReadAllBytes(target);
+            var newBytes = File.ReadAllBytes(stage);
+            using var originalPin = Pin(target);
+            using var stagePin = Pin(stage);
+            bool reachedCommit = false;
+
+            var result = WindowsFileOperations.PublishLegacyZipInPlaceCore(target, stage, backup, original, originalPin,
+                rebuilt, stagePin, checkpoint: () => { }, beforeCommit: () =>
+                {
+                    reachedCommit = true;
+                    RequirePrivateUntilCommit(() => Assert.Equal(oldBytes, File.ReadAllBytes(target)));
+                    RequirePrivateUntilCommit(() => Assert.Null(files.ReadOriginMark(target)));
+                    Assert.Equal(oldBytes, File.ReadAllBytes(backup));
+                    Assert.False(CreateHardLink(alias, target, 0));
+                    if (cancel) throw new OperationCanceledException("Owned fixture stopped before publication.");
+                });
+
+            Assert.NotNull(result);
+            Assert.True(reachedCommit, result.Failure?.ToString());
+            Assert.True(result.Published == !cancel, result.Failure?.ToString());
+            Assert.Equal(original.Version.Identity, files.GetFileIdentity(target));
+            Assert.Equal(cancel ? oldBytes : newBytes, File.ReadAllBytes(target));
+            Assert.Equal(cancel ? null : mark, files.ReadOriginMark(target));
+            Assert.Equal(cancel, File.Exists(backup));
+            Assert.Equal(cancel, File.Exists(stage));
+            if (cancel)
+            {
+                Assert.True(result.Failure is OperationCanceledException, result.Failure?.ToString());
+                Assert.NotNull(result.ReviewReason);
+            }
+            else
+            {
+                Assert.Null(result.Failure);
+                Assert.Null(result.ReviewReason);
+            }
+
+            LegacyZipRollbackFile WriteReviewedZip(string path, string member, string? origin)
+            {
+                using (var zip = ZipFile.Open(path, ZipArchiveMode.Create)) zip.CreateEntry(member);
+                if (origin is not null) Assert.True(files.WriteOriginMark(path, origin));
+                var baseline = ArchiveBaseline.Of(path);
+                return new(new(Assert.IsType<string>(files.GetFileIdentity(path)), baseline.Length, baseline.Sha256Hex),
+                    origin, Encrypted: false);
+            }
+
+            SafeFileHandle Pin(string path)
+            {
+                using var file = File.OpenHandle(path, share: FileShare.ReadWrite | FileShare.Delete);
+                return Assert.IsType<SafeFileHandle>(publisher.PinLegacyZipForPublication(file));
+            }
+
+            static void RequirePrivateUntilCommit(Action read)
+            {
+                // An outside reader may see the committed version or be blocked while NTFS holds the new stream.
+                const int sharingViolation = unchecked((int)0x80070020), transactionalConflict = unchecked((int)0x80071A90);
+                var error = Record.Exception(read);
+                Assert.True(error is null || error is IOException io &&
+                    (io.InnerException ?? io).HResult is sharingViolation or transactionalConflict, error?.ToString());
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Fact]
     public void Legacy_revision_does_not_hash_an_archive_encrypted_after_the_reader_opens()
     {
@@ -176,7 +313,7 @@ public sealed class WindowsArchiveEfsUpdateTests
             string originalIdentity = files.GetFileIdentity(target)!;
             using var journal = JobJournal.Create(Path.Join(root, "journals"), job);
 
-            var refusal = Assert.Throws<ArchiveWriteException>(() => new ZipUpdateExecutor(job, files, journal).Execute());
+            var refusal = Assert.Throws<ArchiveWriteException>(() => new ZipUpdateExecutor(job, files, journal, replaceFile: LegacyReplace).Execute());
             Assert.True(files.Encrypted);
             Assert.Equal(ArchiveWriteReason.PublicationUnavailable, refusal.Reason);
             Assert.Equal(encryptBackup ? "The original archive became EFS-encrypted during the update. FileCat restored the encrypted original."
@@ -208,7 +345,7 @@ public sealed class WindowsArchiveEfsUpdateTests
             var files = new ChangeStageDuringPreparation(target, encrypt);
             using var journal = JobJournal.Create(Path.Join(root, "journals"), job);
 
-            var error = Record.Exception(() => new ZipUpdateExecutor(job, files, journal).Execute());
+            var error = Record.Exception(() => new ZipUpdateExecutor(job, files, journal, replaceFile: LegacyReplace).Execute());
             string stage = Assert.IsType<string>(files.Stage);
             Assert.Equal(original, File.ReadAllBytes(target));
             Assert.Empty(Directory.GetFiles(root, "*.bak"));
@@ -252,7 +389,7 @@ public sealed class WindowsArchiveEfsUpdateTests
             var files = new EncryptAfterPublication(target, encryptOutput);
             using var journal = JobJournal.Create(Path.Join(root, "journals"), job);
 
-            Assert.Throws<IOException>(() => new ZipUpdateExecutor(job, files, journal).Execute());
+            Assert.Throws<IOException>(() => new ZipUpdateExecutor(job, files, journal, replaceFile: LegacyReplace).Execute());
             string backup = Assert.Single(Directory.GetFiles(root, "*.bak"));
             Assert.True(files.Encrypted);
             Assert.Equal(original, File.ReadAllBytes(backup));
@@ -360,7 +497,7 @@ public sealed class WindowsArchiveEfsUpdateTests
             var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan }, "Legacy ZIP mark loss", "", [], []);
             using var journal = JobJournal.Create(Path.Join(root, "journals"), job);
 
-            var failure = Assert.Throws<IOException>(() => new ZipUpdateExecutor(job, files, journal).Execute());
+            var failure = Assert.Throws<IOException>(() => new ZipUpdateExecutor(job, files, journal, replaceFile: LegacyReplace).Execute());
             Assert.Contains("original was restored", failure.Message, StringComparison.Ordinal);
             Assert.True(files.Removed);
             Assert.Equal(id, files.GetFileIdentity(target));
@@ -487,7 +624,7 @@ public sealed class WindowsArchiveEfsUpdateTests
             bool kept = change != "unchanged";
             using (var journal = JobJournal.Create(journals, job))
             {
-                new ZipUpdateExecutor(job, files, journal).Execute();
+                new ZipUpdateExecutor(job, files, journal, replaceFile: LegacyReplace).Execute();
                 metadataWriter?.Dispose();
                 Assert.Equal(kept, journal.NeedsRecovery);
                 if (!kept) journal.Finish(JobState.Completed, "Published owned ZIP and removed reviewed backup.");

@@ -45,7 +45,8 @@ public static class ArchivePaths
 /// original must still be the version the plan saw, and only then does the rebuilt file replace it (keeping the
 /// original's permissions and download mark). A failed or stopped rebuild leaves the original untouched.
 /// </summary>
-internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal)
+internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJournal journal,
+    Action<string, string, string>? replaceFile = null) : ExecutorBase(job, fs, journal)
 {
     private const int BufferSize = 1024 * 1024;
 
@@ -86,7 +87,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         var additions = ExpandAdditions(plan, move);
         using var sourceStream = updating ? new ArchiveMutationReadStream(archive) : null;
         void CheckOuterProtection() => sourceStream?.RequireClear();
-        var publication = new LegacyZipPublicationTransaction(Job, Fs, Journal, plan, archive, folder, move);
+        using var publication = new LegacyZipPublicationTransaction(Job, Fs, Journal, plan, archive, folder, move, replaceFile);
         ZipArchive? source = null;
         try
         {

@@ -66,12 +66,16 @@ public partial class WindowsFileOperations
             NonDirectoryFile | OpenReparsePoint, "Open held ZIP file");
 
     private static ArchiveOriginSnapshot VerifyLegacyZipRollbackFile(SafeFileHandle file, LegacyZipRollbackFile expected,
-        bool allowMissingOrigin, Func<ArchiveOriginSnapshot>? readOrigin = null)
+        bool allowMissingOrigin, Func<ArchiveOriginSnapshot>? readOrigin = null, Action? checkpoint = null)
     {
         WindowsArchiveNative.Regular(file, expected.Version.Length, artifact: false, mayRename: true);
         if (ProtectedHexFile.Identity(file).ToString() != expected.Version.Identity ||
             !DigestMatches(file, expected.Version.Sha256, expected.Version.Length, CancellationToken.None,
-                () => CheckLegacyZipRollbackProtection(file, expected.Encrypted)))
+                () =>
+                {
+                    checkpoint?.Invoke();
+                    CheckLegacyZipRollbackProtection(file, expected.Encrypted);
+                }))
             throw new IOException("A ZIP object's identity or bytes changed before recovery or cleanup.");
         var mark = readOrigin?.Invoke() ?? ReadLegacyZipRollbackOrigin(file, expected.Encrypted);
         RequireZipOrigin(mark, expected.Origin, allowMissingOrigin);

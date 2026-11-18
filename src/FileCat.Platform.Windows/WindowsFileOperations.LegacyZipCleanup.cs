@@ -94,21 +94,30 @@ public partial class WindowsFileOperations
 
     private static bool RequireLegacyZipCleanupMode(SafeFileHandle directory)
     {
-        const uint supportsTransactions = 0x00200000, supportsEncryption = 0x00020000,
+        const uint supportsEncryption = 0x00020000,
             supportsNamedStreams = 0x00040000, supportsExtendedAttributes = 0x00800000;
         var volume = WindowsArchiveNative.Volume(directory, requirePrivateNtfs: false);
-        if (volume.FileSystem == "NTFS" && (volume.Flags & supportsTransactions) != 0) return true;
+        if (SupportsZipTransactions(volume)) return true;
         if ((volume.Flags & (supportsEncryption | supportsNamedStreams | supportsExtendedAttributes)) != 0)
             throw new IOException("Automatic ZIP cleanup requires a transaction on this volume to protect against concurrent changes.");
         return false;
     }
 
+    private static bool SupportsZipTransactions(WindowsArchiveVolume volume) =>
+        volume.FileSystem == "NTFS" && (volume.Flags & 0x00200000 /* FILE_SUPPORTS_TRANSACTIONS */) != 0;
+
     private static SafeFileHandle OpenZipForCleanup(SafeFileHandle directory, string leaf, WindowsFileTransaction? transaction,
         bool removing)
     {
         if (transaction is null) return OpenLegacyZipRollbackFile(directory, leaf, allowDelete: removing);
-        string path = Path.Combine(WindowsFileTransaction.HeldPath(directory), leaf);
         uint access = GenericRead | Synchronize | (removing ? GenericWrite | Delete : 0);
+        return OpenTransactedZip(directory, leaf, transaction, access);
+    }
+
+    private static SafeFileHandle OpenTransactedZip(SafeFileHandle directory, string leaf, WindowsFileTransaction transaction,
+        uint access)
+    {
+        string path = Path.Combine(WindowsFileTransaction.HeldPath(directory), leaf);
         var file = transaction.OpenExisting(path, access, ShareRead, "Open the reviewed ZIP in a transaction");
         try
         {
