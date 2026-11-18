@@ -1,6 +1,7 @@
 using FileCat.App.Views;
 using FileCat.Core.Records;
 using FileCat.Core.Resources;
+using FileCat.Core.Threading;
 
 namespace FileCat.App.ViewModels;
 
@@ -35,12 +36,18 @@ public sealed partial class MainViewModel
         {
             if (_view?.TopLevel is not Avalonia.Controls.Window { IsVisible: true } main || Services.Io.IsStopped)
                 throw new NotSupportedException("The main workspace is unavailable.");
+            bool requiresDirectory = false;
+            if (!OperatingSystem.IsWindows())
+                (targetPath, requiresDirectory) = await FileObservationRequests.RunOwned(Services.Io, device, IoPriority.Interactive,
+                    token => FileDetailsTargets.ResolveUnixNavigationPath(targetPath, token), ct);
             var target = Location.FileSystem(targetPath);
             using var targetReader = new FileDetailsReader(records, Services.Io, Services.Providers.For(target).GetDeviceKey(target), targetPath);
             var observed = await targetReader.ReadAsync(FileDetailsTier.Summary, ct);
             ct.ThrowIfCancellationRequested();
             if (observed.Summary.Kind is not (FileObjectKind.File or FileObjectKind.Directory))
                 throw new NotSupportedException("The target is another link or special object; inspect it before navigating further.");
+            if (requiresDirectory && observed.Summary.Kind != FileObjectKind.Directory)
+                throw new NotSupportedException("The stored target requires a directory.");
             var location = observed.Summary.Kind == FileObjectKind.Directory ? target
                 : Location.FileSystem(Path.GetDirectoryName(targetPath) ?? targetPath);
             Workspace.ActivePanel?.OpenTab(location, observed.Summary.Kind == FileObjectKind.File ? Path.GetFileName(targetPath) : null);
