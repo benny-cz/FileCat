@@ -47,6 +47,12 @@ internal sealed partial class HarnessApp
                 closeTop.Y + closeLimits.Bounds.Height > window.ClientSize.Height)
                 throw new InvalidOperationException("The resource limits close button was clipped.");
             await RecipeFrameAsync("folder-exclusions-limits.png", true, _indexedLifetime.Token);
+            if (OperatingSystem.IsLinux() && Environment.GetEnvironmentVariable("FILECAT_TEST_RESOURCE_SPEECH") == "1")
+            {
+                // Keep the first dialog available while the external screen reader processes its focus event.
+                File.WriteAllText(Path.Combine(_run, "resource-speech.request"), "Close limits");
+                await ReadyAsync(() => File.Exists(Path.Combine(_run, "resource-speech.response")));
+            }
             Click("Close limits");
             await ReadyAsync(() => VisibleButton("Close limits") is null);
             if (model.Tree is not null) throw new InvalidOperationException("Viewing the limits started a scan.");

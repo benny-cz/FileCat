@@ -104,6 +104,25 @@
           "preflight-shard-15.xml": "e858b7075a224ca2d99853c1efb3d2ea714515f343aef1ca23be47bb0f43f7d8",
           "preflight-shard-16.xml": "aee59ae7ed0e0fa685e64105fbd42034dcafcf8d3de9ed9ce6fc87c803e0ce41"
         }
+      },
+      "resourceSpeech": {
+        "run": "native-exclusions-linux-r1601",
+        "receiptSha256": "198ca0f3c941f9419af5378c812f99a0ceb023559ad248aaf2810f769d6edd4a",
+        "speechLogSha256": "04666d414c994e8efacfe244db1c205be89d335c969c07cec1a6f35d627f15c5",
+        "appSha256": "1da25a76c8f9b83a2b9cd67ba24934981b0ca83c203a73481d4c6bcd7aafac19",
+        "spoken": "Close limits push button.",
+        "keys": [
+          "Return",
+          "Escape"
+        ],
+        "resourceAccessibility": {
+          "applicationExposed": true,
+          "dialogTitleExposed": true,
+          "closeButtonFocused": true,
+          "scratchAmountExposed": true
+        },
+        "assistiveProcessesClosed": true,
+        "remaining": []
       }
     },
     "windowsVm": {
