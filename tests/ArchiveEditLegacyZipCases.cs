@@ -4,6 +4,7 @@ using FileCat.Core.Edit;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Tests;
 
@@ -125,6 +126,7 @@ internal static class ArchiveEditLegacyZipCases
         public override IDisposable HoldRegularFile(string path,string? root=null)
         {PathInputOpens++;throw new IOException("A retained ZIP edit must not reopen its input pathname.");}
         public override string? GetFileIdentity(string path)=>native.GetFileIdentity(path);
+        public override string? GetOpenedFileIdentity(SafeFileHandle file) => native.GetOpenedFileIdentity(file);
         public override string? ReadOriginMark(string path)=>native.ReadOriginMark(path);
         public override bool WriteOriginMark(string path,string mark)=>native.WriteOriginMark(path,mark);
         public override FileSystemItemInfo? TryGetInfo(string path)=>native.TryGetInfo(path);

@@ -4,6 +4,7 @@ using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using Microsoft.Win32.SafeHandles;
 
 /// <summary>Runs the same real-file move cases against each platform's actual file-operations adapter.</summary>
 public abstract class ArchiveMoveAcceptance
@@ -284,6 +285,7 @@ public abstract class ArchiveMoveAcceptance
         internal int Removed;
         public override FileSystemItemInfo? TryGetInfo(string path) => inner.TryGetInfo(path);
         public override string? GetFileIdentity(string path) => inner.GetFileIdentity(path);
+        public override string? GetOpenedFileIdentity(SafeFileHandle file) => inner.GetOpenedFileIdentity(file);
         public override string? GetFinalPath(string path) => inner.GetFinalPath(path);
         public override string? ReadOriginMark(string path) => inner.ReadOriginMark(path);
         public override bool WriteOriginMark(string path, string mark) => inner.WriteOriginMark(path, mark);
