@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
+using FileCat.Core.FileSystem;
 using FileCat.Core.HiddenData;
 using Microsoft.Win32.SafeHandles;
 
@@ -11,7 +12,7 @@ namespace FileCat.Platform.Windows;
 /// with NtQueryEaFile, which also returns those only the kernel may write ($KERNEL.*, kept by Smart App Control and
 /// AppLocker) and WSL's ($LXUID, $LXGID, $LXMOD, LXATTRB).
 /// </summary>
-public sealed unsafe partial class WindowsHiddenData : IHiddenData
+public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValueOutput
 {
     private const uint FileReadEa = 0x0008, FileWriteEa = 0x0010;
     private const uint ShareAll = 0x7, OpenExisting = 3, BackupSemantics = 0x02000000, OpenReparsePoint = 0x00200000;
@@ -63,6 +64,30 @@ public sealed unsafe partial class WindowsHiddenData : IHiddenData
         ? new MemoryStream(Read(path, item, int.MaxValue), writable: false)
         : item.Kind == HiddenKind.Stream ? new FileStream(OpenExactStream(path, item, 1 /* FILE_READ_DATA */), FileAccess.Read, 1 << 16)
         : throw new NotSupportedException("This supplementary category does not belong to the Windows adapter.");
+
+    void IHiddenValueOutput.RequireClearSource(string path)
+    {
+        using var file = OpenForEas(path, 0x80 | 0x100000);
+        RefuseManagedObject(file);
+        var observation = new OutputEfsObservation();
+        observation.ObserveOpened(file);
+        IHiddenValueOutput.RequireClear(observation);
+    }
+
+    Stream IHiddenValueOutput.OpenClearValue(string path, HiddenItem item, OutputEfsObservation observation)
+    {
+        if (item.Kind == HiddenKind.NtfsAttribute)
+            return new MemoryStream(ReadExactEa(path, item, int.MaxValue, observation), writable: false);
+        if (item.Kind != HiddenKind.Stream) throw new NotSupportedException("This supplementary category does not belong to the Windows adapter.");
+        var file = OpenExactStream(path, item, 1 /* FILE_READ_DATA */);
+        try
+        {
+            observation.ObserveOpened(file);
+            IHiddenValueOutput.RequireClear(observation);
+            return new FileStream(file, FileAccess.Read, bufferSize: 1);
+        }
+        catch { file.Dispose(); throw; }
+    }
 
     public void Delete(string path, HiddenItem item)
     {

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using FileCat.Core.FileSystem;
 using FileCat.Core.HiddenData;
 using FileCat.Core.Resources;
 using Microsoft.Win32.SafeHandles;
@@ -14,6 +15,73 @@ public sealed partial class WindowsHiddenDataTests
         string dir = Path.Combine(Path.GetTempPath(), "filecat-hidden-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         return dir;
+    }
+
+    [Theory]
+    [InlineData(HiddenKind.Stream)]
+    [InlineData(HiddenKind.NtfsAttribute)]
+    public void Protected_values_are_viewable_and_refused_by_derived_output(HiddenKind kind)
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires a disposable Windows VM with EFS enabled.");
+        string dir = NewFolder();
+        try
+        {
+            string file = Path.Combine(dir, "protected.bin");
+            const string name = "FILECAT.VALUE";
+            byte[] expected = "owned supplementary value"u8.ToArray();
+            File.WriteAllText(file, "main data");
+            File.WriteAllBytes(file + ":" + name, expected);
+            WriteEa(file, name, expected);
+            var provider = new HiddenDataProvider(new WindowsHiddenData());
+            var request = new ItemRef(HiddenDataProvider.Of(file), name, EntryKind.File) { Ordinal = HiddenIdentities.Ordinal(kind) };
+            var output = (IUnprotectedContentOutput)provider;
+            using (var clear = output.OpenUnprotectedOutput(request, ContentOutputKind.Extraction, out var origin)!)
+            {
+                byte[] bytes = new byte[expected.Length];
+                Assert.Equal(bytes.Length, clear.Read(0, bytes));
+                Assert.Equal(expected, bytes);
+                Assert.NotNull(origin);
+                Assert.False(origin.Freeze().HasUnknownInput);
+                Assert.Equal(OutputEfsObservation.State.Clear, origin.Status);
+            }
+
+            File.Encrypt(file);
+            var refusal = Assert.Throws<NotSupportedException>(() => output.OpenUnprotectedOutput(request, ContentOutputKind.Extraction));
+            Assert.Contains("Windows EFS", refusal.Message);
+            using var view = provider.OpenContent(request)!;
+            byte[] viewed = new byte[expected.Length];
+            Assert.Equal(viewed.Length, view.Read(0, viewed));
+            Assert.Equal(expected, viewed);
+            Assert.Equal([file], Directory.GetFiles(dir));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public void Opened_stream_output_refuses_a_later_efs_change_before_reading_more_bytes()
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires a disposable Windows VM with EFS enabled.");
+        string dir = NewFolder();
+        try
+        {
+            string file = Path.Combine(dir, "before.bin");
+            File.WriteAllText(file, "original");
+            File.WriteAllBytes(file + ":payload", [1, 2, 3]);
+            var provider = (IUnprotectedContentOutput)new HiddenDataProvider(new WindowsHiddenData());
+            var request = new ItemRef(HiddenDataProvider.Of(file), "payload", EntryKind.File) { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Stream) };
+            using var output = provider.OpenUnprotectedOutput(request, ContentOutputKind.Extraction, out var origin)!;
+            byte[] next = [0];
+            Assert.Equal(1, output.Read(0, next));
+            Assert.Equal((byte)1, next[0]);
+
+            File.Encrypt(file);
+            Assert.Contains("Windows EFS", Assert.Throws<NotSupportedException>(() => output.Read(1, next)).Message);
+            Assert.Equal((byte)1, next[0]);
+            Assert.Equal(OutputEfsObservation.State.Encrypted, origin!.Freeze().Protection);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
     }
 
     [Fact]
