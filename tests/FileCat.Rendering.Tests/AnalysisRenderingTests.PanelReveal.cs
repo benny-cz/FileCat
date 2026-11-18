@@ -140,9 +140,16 @@ public sealed partial class AnalysisRenderingTests
             var provider = profile.Services.AnalysisPanelFolders;
             var tab = vm.Workspace.ActivePanel!.OpenTab(start);
             await Until(() => tab.Location == start && tab.Listing.State == ListingState.Complete);
+            string setBookmark = CommandIds.BookmarkSetPrefix + "1";
+            await vm.ExecuteAsync(setBookmark);
+            Assert.Equal(start, Assert.Single(profile.Services.History.Bookmarks).Location);
             Location first = OpenAnalysisPanel(tab, provider);
             await Until(() => tab.Location == first && tab.Listing.State == ListingState.Complete);
             Assert.Equal(start, Assert.Single(tab.BackHistory));
+            Assert.DoesNotContain(profile.Services.History.Folders, entry => entry.Location == first);
+            Assert.Equal(CommandAvailability.No(AnalysisPanelFolderProvider.BookmarkRefusal), vm.GetAvailability(setBookmark));
+            await vm.ExecuteAsync(setBookmark);
+            Assert.Equal(start, Assert.Single(profile.Services.History.Bookmarks).Location);
 
             tab.GoBack();
             await Until(() => tab.Location == start && tab.Listing.State == ListingState.Complete);

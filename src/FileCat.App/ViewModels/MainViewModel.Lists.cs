@@ -340,10 +340,12 @@ public sealed partial class MainViewModel
     {
         var list = Services.History.Bookmarks.Where(b => b.Location is not null).OrderBy(b => b.Slot ?? 99).ThenBy(b => b.Name).ToList();
         var items = list.Select(b => new ChoiceItem((b.Slot is { } s ? $"[{s}] " : string.Empty) + b.Name, Services.Providers.Display(b.Location!), b.Slot is { } sl ? $"Ctrl+{sl}" : null)).ToList();
-        items.Add(new ChoiceItem("+ Add current location", "Adds an unnumbered bookmark"));
+        bool analysisListing = ActiveTab?.Location?.Scheme == Schemes.AnalysisFolder;
+        if (!analysisListing) items.Add(new ChoiceItem("+ Add current location", "Adds an unnumbered bookmark"));
+        const string keys = "Enter opens · Shift+Enter opens in the target panel · Ctrl+Del removes · Ctrl+Shift+0–9 sets numbered slots, Ctrl+0–9 opens them, Alt+Shift+0–9 opens them in the target panel";
         var r = await Dialogs.ChooseAsync(new ChoiceOptions("Bookmarks", items)
         {
-            Hint = "Enter opens · Shift+Enter opens in the target panel · Ctrl+Del removes · Ctrl+Shift+0–9 sets numbered slots, Ctrl+0–9 opens them, Alt+Shift+0–9 opens them in the target panel",
+            Hint = analysisListing ? AnalysisPanelFolderProvider.BookmarkRefusal : keys,
             AllowDelete = true,
         });
         foreach (var d in r.Deleted.OrderByDescending(i => i)) if (d < list.Count) Services.History.Bookmarks.Remove(list[d]);
@@ -353,6 +355,7 @@ public sealed partial class MainViewModel
         {
             var loc = ActiveTab?.Location;
             if (loc is null) return;
+            if (loc.Scheme == Schemes.AnalysisFolder) { Notify(AnalysisPanelFolderProvider.BookmarkRefusal); return; }
             var name = await Dialogs.PromptAsync(new PromptOptions("Add bookmark", "Name:") { Text = Services.Providers.For(loc).GetDisplayName(loc) });
             if (name is null) return;
             Services.History.Bookmarks.Add(new BookmarkEntry { Name = name.Text, Location = loc });

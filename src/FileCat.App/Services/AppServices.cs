@@ -61,6 +61,9 @@ public sealed class AppServices : IDisposable
         History = JsonFileStore.Load(paths.HistoryFile, StateJsonContext.Default.HistoryState, HistoryState.CurrentSchema,
             () => new HistoryState(), out var historyStatus);
         HistoryStatus = historyStatus;
+        History.Folders?.RemoveAll(entry => entry?.Location?.Scheme == Schemes.AnalysisFolder);
+        History.Files?.RemoveAll(entry => entry?.Location?.Scheme == Schemes.AnalysisFolder);
+        History.Bookmarks?.RemoveAll(entry => entry?.Location?.Scheme == Schemes.AnalysisFolder);
         AppLog.DiagnosticMode = Settings.DiagnosticMode;
         Core.Content.PageCacheBudget.Shared.LimitBytes = Math.Clamp(Settings.ContentCacheMiB, 4, 4096) * 1024L * 1024;
 
@@ -568,6 +571,7 @@ public sealed class AppServices : IDisposable
 
     public void RecordFolder(Location location)
     {
+        if (location.Scheme == Schemes.AnalysisFolder) return;
         if (location.Scheme is Schemes.ResultSet && !Core.Search.ResultSetProvider.IsPersistent(location)) return;
         // A drive's deleted items open only from the drive, after its checks (release plan V09): not from the history.
         if (location.Scheme is Schemes.Recovery && FileCat.Recovery.RecoveryProvider.IsDevice(location)) return;
@@ -581,6 +585,7 @@ public sealed class AppServices : IDisposable
 
     public void RecordFile(Location parent, string name)
     {
+        if (parent.Scheme == Schemes.AnalysisFolder) return;
         var list = History.Files;
         list.RemoveAll(h => h.Location == parent && h.Name == name && !h.Pinned);
         if (!list.Any(h => h.Location == parent && h.Name == name))

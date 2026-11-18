@@ -7,6 +7,7 @@ namespace FileCat.App.Services;
 internal sealed class AnalysisPanelFolderProvider : ResourceProvider
 {
     internal const string WorkingSetRefusal = "Open a current folder to add its files to a working set. This panel shows read-only analysis metadata.";
+    internal const string BookmarkRefusal = "Open a current folder to bookmark it. This read-only analysis listing is temporary.";
 
     private readonly object _gate = new();
     private readonly Dictionary<Location, PublishedFolder> _folders = [];

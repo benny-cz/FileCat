@@ -43,6 +43,8 @@ public sealed partial class MainViewModel
             return CommandAvailability.No("Open Disk space to use this action. Its shortcut can be changed in the keyboard reference.");
         var tab = ActiveTab;
         var loc = tab?.Location;
+        if (loc?.Scheme == Schemes.AnalysisFolder && id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal))
+            return CommandAvailability.No(AnalysisPanelFolderProvider.BookmarkRefusal);
         var caps = loc is null ? LocationCapabilities.None : Services.Providers.For(loc).GetCapabilities(loc);
         bool hasItem = tab is not null && tab.Listing.TryGetFocused(out var f) && f.Kind != EntryKind.Parent || tab?.Listing.HasMarks == true;
         bool registryItem = TryGetFocusedRegistryItem(out var focusedRegistry);
