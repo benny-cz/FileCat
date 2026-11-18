@@ -5,6 +5,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.Threading;
 using FileCat.App.Controls;
+using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Analysis;
 
@@ -28,10 +29,12 @@ public sealed partial class DiskSpaceWindow
         return new(identity.SessionId, identity.Epoch, identity.Revision, [.. marks]);
     }
 
-    private async Task ShowDuplicateReviewAsync(AnalysisDuplicateEstimate estimate, ImmutableArray<RootBinding> roots, CancellationToken lifetime)
+    private async Task ShowDuplicateReviewAsync(AnalysisDuplicateEstimate estimate, ImmutableArray<RootBinding> roots,
+        Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> readPath, AnalysisIndexedAcquisition? runtime, AnalysisSelection marks,
+        CancellationToken lifetime)
     {
         const int pageSize = 128;
-        var locations = roots.ToDictionary(root => root.Id, AnalysisRecipeDialog.LocationLabel, StringComparer.Ordinal);
+        var locations = roots.ToDictionary(root => root.Id, root => AnalysisNames.Display(root.Label, 120) + " [" + root.Id + "]", StringComparer.Ordinal);
         var captured = estimate.Rows.OrderBy(row => row.State != AnalysisDuplicateCandidateState.Candidate).ToArray();
         var header = Text($"Marked entries · {captured.Length:N0} across {captured.Where(row => row.RootId is not null).Select(row => row.RootId).Distinct().Count():N0} captured locations");
         var observation = Text($"Observation {estimate.Identity.ObservedUtc.ToLocalTime():g} · revision {estimate.Identity.Revision:N0} · rule version 1");
@@ -39,8 +42,10 @@ public sealed partial class DiskSpaceWindow
         var unknown = Text($"{estimate.UnknownBytePaths:N0} marked file paths have unknown or changed size and are excluded from the estimate.");
         var rule = Text("Only separate recorded objects with the same known size are candidates. Extra hard-link names and cloud or offline entries are excluded. Hashing would read primary file contents; streams, forks and other metadata would remain unexamined.");
         var capability = new AnalysisCapabilities().For(AnalysisVerb.StableHash);
-        var availability = Text(estimate.Origin == AnalysisOrigin.LiveSession ? capability.Reason :
-            "This is a saved or imported observation. It cannot open source content.");
+        bool canReview = runtime?.CanReviewContentReads == true && estimate.Origin == AnalysisOrigin.LiveSession;
+        var availability = Text(estimate.Origin != AnalysisOrigin.LiveSession ? "Saved and imported observations carry recorded metadata." :
+            canReview ? "Review the exact eligible locations, file paths and bytes before confirming a content read." :
+            OperatingSystem.IsWindows() ? "Content reads require a current, finished live NTFS analysis." : capability.Reason);
         var page = Text("");
         AutomationProperties.SetLiveSetting(page, AutomationLiveSetting.Polite);
         var list = new ListBox { MinHeight = 120, MaxHeight = 280, ItemTemplate = DialogLayout.WrappingListText };
@@ -49,20 +54,87 @@ public sealed partial class DiskSpaceWindow
         var previous = new Button { Content = "Previous entries" };
         var next = new Button { Content = "Next entries" };
         var navigation = new WrapPanel { IsVisible = captured.Length > pageSize, ItemSpacing = 8, Children = { previous, next } };
-        var body = new StackPanel { Spacing = 8, Children = { header, observation, reads, unknown, rule, availability, page, list, navigation } };
+        var inspect = new Button { Content = "Inspect recorded path", IsEnabled = false };
+        var detail = Text("");
+        AutomationProperties.SetName(detail, "Duplicate candidate recorded path");
+        AutomationProperties.SetLiveSetting(detail, AutomationLiveSetting.Polite);
+        var body = new StackPanel { Spacing = 8, Children = { header, observation, reads, unknown, rule, availability, page, list, navigation, inspect, detail } };
         if (estimate.Coverage != NamespaceCoverage.CompleteUnderPolicy)
             body.Children.Insert(2, Text("Partial observations. This estimate covers captured marks only."));
 
         int offset = 0;
+        Task? inspection = null;
+        bool openReadReview = false;
+        using var dialogLifetime = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
+        var closer = new DialogCloser();
         previous.Click += (_, _) => Load(Math.Max(0, offset - pageSize));
         next.Click += (_, _) => { if (offset + pageSize < captured.Length) Load(offset + pageSize); };
+        list.SelectionChanged += (_, _) => { detail.Text = ""; UpdateInspect(); };
+        inspect.Click += (_, _) =>
+        {
+            if (inspect.IsEnabled && list.SelectedIndex >= 0)
+            {
+                inspect.IsEnabled = false;
+                inspection = InspectAsync(offset + list.SelectedIndex);
+            }
+        };
+        if (canReview && estimate.CandidateObjects >= 2)
+        {
+            var readReview = new Button { Content = "Review content reads…" };
+            readReview.Click += (_, _) => { openReadReview = true; closer.Close(null); };
+            body.Children.Add(readReview);
+        }
         Load(0);
 
-        var closer = new DialogCloser();
         using var close = lifetime.Register(() => Dispatcher.UIThread.Post(() => closer.Close(null)));
         lifetime.ThrowIfCancellationRequested();
-        await _dialogs.ShowCustomAsync("Duplicate review", body,
-            [new DialogButton("Close review", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true);
+        try
+        {
+            await _dialogs.ShowCustomAsync("Duplicate review", body,
+                [new DialogButton("Close review", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true);
+        }
+        finally
+        {
+            dialogLifetime.Cancel();
+            if (inspection is not null) await inspection;
+        }
+        if (openReadReview)
+        {
+            var plan = await IndexedComparisonProgressAsync("Preparing content read review",
+                token => runtime!.PrepareDuplicateReadPlanAsync(marks, token), lifetime);
+            await ShowDuplicateReadConsentAsync(plan, estimate.UnknownBytePaths, lifetime);
+        }
+
+        void UpdateInspect() => inspect.IsEnabled = list.SelectedIndex >= 0 && offset + list.SelectedIndex < captured.Length &&
+            captured[offset + list.SelectedIndex].RootId is not null &&
+            (inspection is null || inspection.IsCompleted);
+
+        async Task InspectAsync(int index)
+        {
+            var row = captured[index];
+            var token = dialogLifetime.Token;
+            try
+            {
+                var path = await AnalysisRecipeDialog.RecordedPathAsync(row.PathId, row.RootId!, readPath, token);
+                if (!token.IsCancellationRequested && list.SelectedIndex >= 0 && index == offset + list.SelectedIndex)
+                {
+                    var root = roots.Single(location => location.Id == row.RootId);
+                    detail.Text = AnalysisRecipeDialog.LocationLabel(root) + "\n" + path;
+                }
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+            catch (Exception error) when (IndexedExpectedError(error) && !AnalysisCloseUnconfirmedException.IsPresent(error))
+            {
+                if (!token.IsCancellationRequested && list.SelectedIndex >= 0 && index == offset + list.SelectedIndex)
+                    detail.Text = "Recorded path unavailable. " + AnalysisNames.Display(error.Message, 240);
+            }
+            finally
+            {
+                if (!token.IsCancellationRequested)
+                    inspect.IsEnabled = list.SelectedIndex >= 0 && offset + list.SelectedIndex < captured.Length &&
+                        captured[offset + list.SelectedIndex].RootId is not null;
+            }
+        }
 
         void Load(int start)
         {
@@ -108,7 +180,8 @@ public sealed partial class DiskSpaceWindow
                 var lifetime = Model.HistoryLifetime;
                 var estimate = await _window.IndexedComparisonProgressAsync("Estimating duplicate content reads",
                     token => AnalysisDuplicateEstimates.FromSnapshotAsync(source, marks, token), lifetime);
-                await _window.ShowDuplicateReviewAsync(estimate, snapshot.Roots, lifetime);
+                await _window.ShowDuplicateReviewAsync(estimate, snapshot.Roots, (id, token) => ReadRecipeMemoryPathAsync(snapshot, id, token),
+                    snapshot.Phase == AnalysisPhase.Finished ? Model.BranchRuntime : null, marks, lifetime);
             }
             catch (OperationCanceledException) { }
             catch (Exception error) when (IndexedExpectedError(error))
@@ -136,7 +209,8 @@ public sealed partial class DiskSpaceWindow
                 var lifetime = _selectionLifetime.Token;
                 var estimate = await _window.IndexedComparisonProgressAsync("Estimating duplicate content reads",
                     token => _source.EstimateDuplicatesAsync(marks, token), lifetime);
-                await _window.ShowDuplicateReviewAsync(estimate, descriptor.Roots, lifetime);
+                await _window.ShowDuplicateReviewAsync(estimate, descriptor.Roots, _source.ReadPathAsync,
+                    descriptor.Phase == AnalysisPhase.Finished && !_actualWork.HasUnconfirmedClose ? _runtimeAcquisition : null, marks, lifetime);
             }
             catch (OperationCanceledException) { }
             catch (Exception error) when (Expected(error))

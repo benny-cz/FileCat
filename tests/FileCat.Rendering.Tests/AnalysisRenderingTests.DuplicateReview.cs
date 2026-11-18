@@ -61,7 +61,8 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Review duplicate candidates…");
             await Until(() => ComparisonControl<ListBox>(window, "Captured duplicate candidates and exclusions")?.ItemCount == 4,
                 () => ComparisonText(window), TimeSpan.FromSeconds(20));
-            var rows = ComparisonControl<ListBox>(window, "Captured duplicate candidates and exclusions")!.Items.Cast<string>().ToArray();
+            var list = ComparisonControl<ListBox>(window, "Captured duplicate candidates and exclusions")!;
+            var rows = list.Items.Cast<string>().ToArray();
             Assert.Equal(2, rows.Count(row => row.Contains("Same-size candidate", StringComparison.Ordinal)));
             Assert.Single(rows, row => row.Contains("Additional name for the same recorded file", StringComparison.Ordinal));
             Assert.Single(rows, row => row.Contains("No separate marked object with this size", StringComparison.Ordinal));
@@ -69,7 +70,12 @@ public sealed partial class AnalysisRenderingTests
             Assert.Contains("8 B for 2 distinct candidate objects", description);
             Assert.Contains("0 marked file paths have unknown", description);
             Assert.Contains("streams, forks and other metadata would remain unexamined", description);
-            Assert.Contains("A bound stable-content reader has not been qualified", description);
+            if (OperatingSystem.IsWindows()) Assert.Contains("Review the exact eligible locations", description);
+            else Assert.Contains("A bound stable-content reader has not been qualified", description);
+            list.SelectedIndex = 0;
+            Click(window, "Inspect recorded path");
+            await Until(() => ComparisonControl<TextBlock>(window, "Duplicate candidate recorded path")?.Text?.Contains("duplicate-review", StringComparison.Ordinal) == true,
+                () => ComparisonText(window));
             Click(window, "Close review");
             if (indexed) Assert.True(IndexedSelectionCount(window, 4, 4));
             else

@@ -219,9 +219,10 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
     }
     private async Task CloseAsync()
     {
-        await _imports.CloseAsync().ConfigureAwait(false);
         Exception? failure = null;
         void Remember(Exception error) => failure = AnalysisViewWork.PreserveCloseFailure(failure, error);
+        try { await _imports.CloseAsync().ConfigureAwait(false); }
+        catch (Exception error) { Remember(error); }
         try { await CloseRuntimeChangeHintsAsync().ConfigureAwait(false); }
         catch (Exception error) { Remember(error); }
         if (_session is { } session)

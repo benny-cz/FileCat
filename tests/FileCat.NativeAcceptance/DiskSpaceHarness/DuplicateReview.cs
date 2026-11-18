@@ -14,9 +14,7 @@ internal sealed partial class HarnessApp
         const string original = "duplicate-review-primary.bin";
         Add(original, 4);
         Add("duplicate-review-unique.bin", 1);
-        string separate = Path.Combine(_fixture, "duplicate-review-same-size.bin");
-        File.WriteAllBytes(separate, [4, 3, 2, 1]);
-        _originals.Add(separate, Hash(separate));
+        Add("duplicate-review-same-size.bin", 4);
         string source = Path.Combine(_fixture, original), alias = Path.Combine(_fixture, "duplicate-review-alias.bin");
         if (!(OperatingSystem.IsWindows() ? HardLink(alias, source, 0) : UnixLink(source, alias) == 0))
             throw new IOException("The native duplicate-review fixture needs an actual hard link.");
@@ -59,12 +57,42 @@ internal sealed partial class HarnessApp
                     text.Text?.Contains("8 B for 2 distinct candidate objects", StringComparison.Ordinal) == true);
             if (!correct || !preservingDefault) throw new IOException("Duplicate review changed its exact cost, alias treatment or preserving default.");
             await RecipeFrameAsync("duplicate-review-estimate.png", true, _indexedLifetime.Token);
-            Click("Close review");
+            int contentGroups = 0;
+            bool contentAvailable = Button("Review content reads…")?.IsEnabled == true;
+            if (OperatingSystem.IsWindows())
+            {
+                if (!contentAvailable) throw new IOException("The qualified NTFS content review is unavailable.");
+                Click("Review content reads…");
+                await ReadyAsync(() => Control<ListBox>("Eligible primary-content reads")?.ItemCount == 2 &&
+                    Button("Read selected contents")?.IsEnabled == true);
+                if (Control<TextBlock>("Approved primary-content read scope")?.Text?.Contains("Read 8 B from 2 files", StringComparison.Ordinal) != true ||
+                    Button("Close read review") is not { IsDefault: true, IsCancel: true } || Button("Read selected contents")!.IsDefault)
+                    throw new IOException("The native consent scope or preserving default differs.");
+                RenderNativeFrame("duplicate-review-consent.png");
+                Click("Read selected contents");
+                await ReadyAsync(() => Control<ListBox>("Primary-content evidence rows")?.ItemCount == 2);
+                var result = Control<ListBox>("Primary-content evidence rows")!;
+                var matches = result.Items.Select(item => item?.ToString() ?? "").ToArray();
+                if (!matches.All(label => label.StartsWith("Primary match 1", StringComparison.Ordinal)) ||
+                    matches.Count(label => label.Contains("Proposed keeper", StringComparison.Ordinal)) != 1)
+                    throw new IOException("The native content review did not return the single approved match group.");
+                result.SelectedIndex = 0;
+                await ReadyAsync(() => Control<TextBox>("Primary-content evidence details")?.Text?.Contains("SHA-256 ", StringComparison.Ordinal) == true);
+                RenderNativeFrame("duplicate-review-content.png");
+                contentGroups = 1;
+                Click("Close content results");
+            }
+            else
+            {
+                if (contentAvailable) throw new IOException("An unqualified platform exposed a content-read command.");
+                Click("Close review");
+            }
             await ReadyAsync(() => Control<ListBox>("Captured duplicate candidates and exclusions") is null && Marks(4, 4));
             _duplicateReviewProbe = new
             {
                 finished = true, passed = true, sessions = window.SessionCount, candidateObjects = 2, knownReadBytes = 8,
-                capturedMarks = 4, additionalHardLinkNames = 1, preservingDefault, retainedHiddenMarksAndBasket = true
+                capturedMarks = 4, additionalHardLinkNames = 1, preservingDefault, retainedHiddenMarksAndBasket = true,
+                contentAvailable, contentGroups
             };
         }
         catch (Exception error)

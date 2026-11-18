@@ -15908,5 +15908,18 @@
     "publicEntryEnabled": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "duplicateContentReview": {
+    "status": "qualified-internal-local-ntfs-workflow",
+    "packet": "source-manifest-r1378-duplicate-content.json",
+    "document": "DUPLICATE_CONTENT_QUALIFICATION.md",
+    "focusedCasesPassedPerPlatform": 16,
+    "nativeWindowRevision": "r1377",
+    "windowsContentAvailable": true,
+    "macAndUbuntuMetadataFallbackQualified": true,
+    "physicalInputQualified": false,
+    "publicEntryEnabled": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }

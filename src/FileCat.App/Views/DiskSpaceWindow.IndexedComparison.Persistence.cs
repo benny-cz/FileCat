@@ -18,14 +18,15 @@ public sealed partial class DiskSpaceWindow
         catch (ArgumentException) { return "Use a portable filename ending in .fcdsc (up to 120 characters)."; }
     }
 
-    private async Task<T> IndexedComparisonProgressAsync<T>(string title, Func<CancellationToken, Task<T>> run, CancellationToken lifetime)
+    private async Task<T> IndexedComparisonProgressAsync<T>(string title, Func<CancellationToken, Task<T>> run, CancellationToken lifetime,
+        string detail = "Working with captured observations. Cancel requests a stop and waits for outstanding work to finish.")
     {
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
         var work = run(cancel.Token); if (work.IsCompleted) return await work;
         var closer = new DialogCloser();
         using var close = cancel.Token.Register(() => Dispatcher.UIThread.Post(() => closer.Close(false)));
         var dismissed = _dialogs.ShowCustomAsync(title,
-            new TextBlock { Text = "Working with captured observations. Cancel requests a stop and waits for outstanding work to finish.", TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = detail, TextWrapping = TextWrapping.Wrap },
             [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true)], closer: closer);
         try { if (await Task.WhenAny(work, dismissed) == dismissed && await dismissed is false) cancel.Cancel(); return await work; }
         finally { closer.Close(null); }

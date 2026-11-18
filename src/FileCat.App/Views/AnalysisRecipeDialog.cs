@@ -200,7 +200,7 @@ internal static class AnalysisRecipeDialog
         }
     }
 
-    private static async Task<string> RecordedPathAsync(ulong id, string root, Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> readPath,
+    internal static async Task<string> RecordedPathAsync(ulong id, string root, Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> readPath,
         CancellationToken cancellation)
     {
         var segments = new Stack<string>();
