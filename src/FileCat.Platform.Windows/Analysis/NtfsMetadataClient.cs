@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.Json;
 using FileCat.Core.Analysis;
 using FileCat.Core.Jobs;
@@ -78,6 +79,57 @@ internal sealed class NtfsMetadataClient : IAsyncDisposable
     internal ValueTask PauseAsync(CancellationToken cancellation) => _channel.SendAsync(Empty(NtfsMetadataMessage.Pause), cancellation);
     internal ValueTask ResumeAsync(CancellationToken cancellation) => _channel.SendAsync(Empty(NtfsMetadataMessage.Resume), cancellation);
     internal ValueTask CancelAsync(CancellationToken cancellation) => _channel.SendAsync(Empty(NtfsMetadataMessage.Cancel), cancellation);
+
+    internal Task<NtfsMetadataCompletion> CaptureAsync(AnalysisNtfsDiscovery discovery, IProgress<NtfsMetadataFrame>? status,
+        CancellationToken cancellation) => CaptureAsync(ReceiveAsync, discovery, status, cancellation);
+
+    internal static async Task<NtfsMetadataCompletion> CaptureAsync(Func<CancellationToken, ValueTask<NtfsMetadataFrame>> receive,
+        AnalysisNtfsDiscovery discovery, IProgress<NtfsMetadataFrame>? status, CancellationToken cancellation)
+    {
+        var pending = ImmutableArray.CreateBuilder<AnalysisNtfsObservation>(AnalysisNtfsDiscovery.PageRecords);
+        uint captured = 0;
+        while (true)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var frame = await receive(cancellation).ConfigureAwait(false);
+            switch (frame.Kind)
+            {
+                case NtfsMetadataMessage.ObservationBatch:
+                    foreach (var record in frame.Payload.GetProperty("Records").EnumerateArray())
+                    {
+                        pending.Add(NtfsMetadataProtocol.ReadObservation(record));
+                        if (pending.Count == pending.Capacity) await AppendAsync().ConfigureAwait(false);
+                    }
+                    if (pending.Count != 0) await AppendAsync().ConfigureAwait(false);
+                    break;
+                case NtfsMetadataMessage.Progress:
+                case NtfsMetadataMessage.Issue:
+                case NtfsMetadataMessage.Paused:
+                    // These closed frame kinds contain counts, issue codes or empty acknowledgments.
+                    status?.Report(frame);
+                    break;
+                case NtfsMetadataMessage.Refused:
+                    status?.Report(frame);
+                    throw new IOException("The NTFS metadata helper refused to complete the approved scan.");
+                case NtfsMetadataMessage.Complete:
+                    if (NtfsMetadataProtocol.ReadCount(frame.Payload.GetProperty("Seen")) != captured)
+                        throw NtfsMetadataProtocol.InvalidFrame();
+                    var outcome = Enum.Parse<NtfsMetadataCompletion>(frame.Payload.GetProperty("Outcome").GetString()!);
+                    if (outcome != NtfsMetadataCompletion.Canceled)
+                        await discovery.SealAsync(captured, cancellation).ConfigureAwait(false);
+                    return outcome;
+                default:
+                    throw NtfsMetadataProtocol.InvalidFrame();
+            }
+        }
+
+        async Task AppendAsync()
+        {
+            await discovery.AppendAsync(pending.ToImmutable(), cancellation).ConfigureAwait(false);
+            captured = checked(captured + (uint)pending.Count);
+            pending.Clear();
+        }
+    }
 
     public async ValueTask DisposeAsync()
     {

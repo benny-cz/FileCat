@@ -1,5 +1,7 @@
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -27,7 +29,7 @@ internal static class NtfsMetadataProtocol
     internal const int Version = 1;
     internal const int MaximumFrameBytes = 1024 * 1024;
     internal const int MaximumRecordBatch = 1024;
-    internal const int MaximumNameBytes = 510;
+    internal const int MaximumNameBytes = AnalysisNtfsObservation.MaximumNameBytes;
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private static readonly JsonDocumentOptions JsonOptions = new() { MaxDepth = 8 };
 
@@ -153,16 +155,14 @@ internal static class NtfsMetadataProtocol
         if (!ValidRawName(bytes[..written])) throw InvalidFrame();
     }
 
-    internal static bool ValidRawName(ReadOnlySpan<byte> bytes)
-    {
-        if (bytes.Length is 0 or > MaximumNameBytes || (bytes.Length & 1) != 0 ||
-            bytes.Length == 2 && BinaryPrimitives.ReadUInt16LittleEndian(bytes) == '.' ||
-            bytes.Length == 4 && BinaryPrimitives.ReadUInt32LittleEndian(bytes) == 0x002E002E) return false;
-        for (int index = 0; index < bytes.Length; index += 2)
-            if (BinaryPrimitives.ReadUInt16LittleEndian(bytes[index..]) is 0 or (ushort)'/' or (ushort)'\\' or (ushort)':')
-                return false;
-        return true;
-    }
+    internal static bool ValidRawName(ReadOnlySpan<byte> bytes) => AnalysisNtfsObservation.ValidName(bytes);
+
+    // The channel already checked the frame's size, shape and tagged UTF-16 before delivery.
+    internal static AnalysisNtfsObservation ReadObservation(JsonElement record) => new(
+        ParseId(record.GetProperty("ObjectId").GetString()!), ParseId(record.GetProperty("ParentId").GetString()!),
+        record.GetProperty("Attributes").GetUInt32(), ImmutableCollectionsMarshal.AsImmutableArray(record.GetProperty("NameUtf16").GetBytesFromBase64()));
+
+    internal static UInt128 ParseId(string id) => UInt128.Parse(id, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture);
 
     internal static uint ReadCount(JsonElement count) =>
         count.TryGetUInt32(out uint seen) && seen <= AnalysisLimits.Observations ? seen : throw InvalidFrame();

@@ -13,20 +13,28 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
 {
     private readonly AnalysisOwnedDatasetIo<Owner> _owned;
     private readonly DeviceIoScheduler _io; private readonly AnalysisIoDevices _device;
+    private readonly AnalysisTaint _taint;
     private AnalysisObservationCapture? _stopTarget;
-    private AnalysisObservationWriter(Owner owner, DeviceIoScheduler io, AnalysisIoDevices device)
-    { _io = io; _device = device; _owned = new(owner, io, device); _stopTarget = owner.Capture; }
+    private AnalysisObservationWriter(Owner owner, DeviceIoScheduler io, AnalysisIoDevices device, AnalysisTaint taint)
+    { _io = io; _device = device; _taint = taint; _owned = new(owner, io, device); _stopTarget = owner.Capture; }
     public void RequestStop() => Volatile.Read(ref _stopTarget)?.RequestStop();
     internal void RequestStop(string? issueCode) => Volatile.Read(ref _stopTarget)?.RequestStop(issueCode);
     internal Task PublishEnumerationAsync(AnalysisEnumerationProgress progress, CancellationToken cancellation) =>
         _owned.RunAsync((owner, token) => { owner.Capture.Enumeration(progress, token); owner.Capture.Publish(token); return true; }, cancellation);
 
     // The factory is application-owned configuration, not a callback restored from an inventory.
-    public static async Task<AnalysisObservationWriter> CreateAsync(DeviceIoScheduler io, AnalysisIoDevices device, Func<AnalysisPrivateDirectory> createDirectory,
-        SessionIdentity acquisition, ImmutableArray<RootBinding> roots, ScanPolicy policy, CancellationToken cancellation = default, Func<AnalysisProfileQuota>? createProfileQuota = null)
+    public static Task<AnalysisObservationWriter> CreateAsync(DeviceIoScheduler io, AnalysisIoDevices device, Func<AnalysisPrivateDirectory> createDirectory,
+        SessionIdentity acquisition, ImmutableArray<RootBinding> roots, ScanPolicy policy, CancellationToken cancellation = default, Func<AnalysisProfileQuota>? createProfileQuota = null) =>
+        CreateAsync(io, device, createDirectory, acquisition, roots, policy, AnalysisTaint.OrdinarySensitive, cancellation, createProfileQuota);
+
+    internal static async Task<AnalysisObservationWriter> CreateAsync(DeviceIoScheduler io, AnalysisIoDevices device, Func<AnalysisPrivateDirectory> createDirectory,
+        SessionIdentity acquisition, ImmutableArray<RootBinding> roots, ScanPolicy policy, AnalysisTaint sourceTaint, CancellationToken cancellation,
+        Func<AnalysisProfileQuota>? createProfileQuota = null)
     {
         ArgumentNullException.ThrowIfNull(createDirectory);
-        var header = new AnalysisIndexedGraphHeader(acquisition, roots, policy, AnalysisPhase.Scanning, NamespaceCoverage.Partial); header.Validate();
+        var header = new AnalysisIndexedGraphHeader(acquisition, roots, policy, AnalysisPhase.Scanning, NamespaceCoverage.Partial,
+            Taint: AnalysisPrivacy.Join(sourceTaint));
+        header.Validate();
         var owner = await AnalysisIo.Run(io, device, _ =>
         {
             AnalysisProfileQuota? quota = null; AnalysisPrivateDirectory? directory = null; AnalysisScratchWorkspace workspace;
@@ -45,7 +53,7 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
             }
             catch { workspace.Dispose(); throw; }
         }, cancellation).ConfigureAwait(false);
-        try { return new(owner, io, device); }
+        try { return new(owner, io, device, header.Taint); }
         catch { await AnalysisIo.ReleaseScratchAsync(io, device, owner).ConfigureAwait(false); throw; }
     }
 
@@ -97,6 +105,13 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
 
     internal Task<AnalysisSourceFrontier> CreateSourceFrontierAsync(AnalysisEntry root, RootBinding binding, ulong path, CancellationToken cancellation) =>
         _owned.RunAsync((owner, _) => AnalysisSourceFrontier.Create(owner.Workspace, _io, _device, root, binding, path), cancellation);
+
+    internal Task<AnalysisNtfsDiscovery> CreateNtfsDiscoveryAsync(UInt128 rootId, CancellationToken cancellation)
+    {
+        if (!_taint.HasFlag(AnalysisTaint.PrivilegedDerived))
+            throw new InvalidOperationException("An NTFS discovery index requires a privileged-derived analysis store.");
+        return _owned.RunAsync((owner, _) => new AnalysisNtfsDiscovery(owner.Workspace, _io, _device, rootId), cancellation);
+    }
 
     public async Task<AnalysisDataset> CompleteAsync(SessionIdentity identity, AnalysisPhase phase, NamespaceCoverage coverage, CancellationToken cancellation = default, AnalysisFreshness freshness = AnalysisFreshness.Observed)
     {
