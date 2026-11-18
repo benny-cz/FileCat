@@ -13,9 +13,7 @@ public sealed class WindowsArchiveEfsUpdateTests
     [InlineData(true)]
     public void Archive_update_refuses_a_target_encrypted_after_review_before_staging(bool native)
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Requires a disposable normal-user Windows VM with EFS enabled.");
-        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
+        RequireEfs();
         string root = Directory.CreateTempSubdirectory("filecat-archive-efs-update-").FullName;
         string target = Path.Join(root, "original.zip");
         try
@@ -60,5 +58,94 @@ public sealed class WindowsArchiveEfsUpdateTests
             Assert.Equal(original, File.ReadAllBytes(target));
         }
         finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void Native_update_read_view_refuses_protection_drift_on_the_held_original()
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-native-update-efs-drift-").FullName;
+        string target = Path.Join(root, "original.zip");
+        byte[] bytes = [1, 2, 3, 4];
+        try
+        {
+            File.WriteAllBytes(target, bytes);
+            using var directory = WindowsArchiveDirectory.Open(root);
+            using var file = directory.OpenSource(Path.GetFileName(target));
+            file.BindUpdateSource();
+            var retained = (IArchiveRetainedFile)file;
+            var ct = TestContext.Current.CancellationToken;
+            var original = retained.Observe(ct);
+            using var read = retained.OpenReadView(original, ct);
+            Assert.Equal(1, read.ReadByte());
+
+            File.Encrypt(target);
+            byte[] next = [0];
+            var refusal = Assert.Throws<ArchiveWriteException>(() => read.Read(next));
+            Assert.Equal(ArchiveOuterEfs.UpdateUnavailable, refusal.Message);
+            Assert.Equal((byte)0, next[0]);
+            Assert.Equal(1, read.Position);
+            Assert.Equal(ArchiveOuterEfs.UpdateUnavailable, Assert.Throws<ArchiveWriteException>(() => retained.Observe(ct)).Message);
+            Assert.Equal([target], Directory.GetFiles(root));
+            Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(bytes, File.ReadAllBytes(target));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Legacy_update_preserves_newly_encrypted_original_during_preparation_or_backup_review(bool encryptBackup)
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-legacy-update-efs-drift-").FullName;
+        string target = Path.Join(root, "original.zip");
+        try
+        {
+            using (var archive = ZipFile.Open(target, ZipArchiveMode.Create))
+            using (var writer = new StreamWriter(archive.CreateEntry("original.txt").Open()))
+                writer.Write("Original archive member");
+            byte[] original = File.ReadAllBytes(target);
+            var plan = new ArchivePlan(target, ArchiveBaseline.Of(target), [new(ArchiveChangeKind.CreateFolderEntry, "new-folder")]);
+            var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan }, "EFS drift fixture", "", [], []);
+            var files = new EncryptDuringMarkRead(target, encryptBackup);
+            string originalIdentity = files.GetFileIdentity(target)!;
+            using var journal = JobJournal.Create(Path.Join(root, "journals"), job);
+
+            var refusal = Assert.Throws<ArchiveWriteException>(() => new ZipUpdateExecutor(job, files, journal).Execute());
+            Assert.True(files.Encrypted);
+            Assert.Equal(ArchiveWriteReason.PublicationUnavailable, refusal.Reason);
+            Assert.Equal(encryptBackup ? "The original archive became EFS-encrypted during the update. FileCat restored the encrypted original."
+                : ArchiveOuterEfs.UpdateUnavailable, refusal.Message);
+            Assert.Equal(originalIdentity, files.GetFileIdentity(target));
+            Assert.Equal(original, File.ReadAllBytes(target));
+            Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal([target], Directory.GetFiles(root));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private sealed class EncryptDuringMarkRead(string target, bool encryptBackup) : WindowsFileOperations
+    {
+        public bool Encrypted { get; private set; }
+
+        public override string? ReadOriginMark(string path)
+        {
+            bool matches = encryptBackup ? Path.GetExtension(path) == ".bak" : path == target;
+            if (!Encrypted && matches)
+            {
+                File.Encrypt(path);
+                Encrypted = true;
+            }
+            return base.ReadOriginMark(path);
+        }
+    }
+
+    private static void RequireEfs()
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires a disposable normal-user Windows VM with EFS enabled.");
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
     }
 }

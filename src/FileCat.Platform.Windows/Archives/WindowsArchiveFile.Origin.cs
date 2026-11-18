@@ -17,7 +17,7 @@ internal sealed partial class WindowsArchiveFile
             EnsureLive(); cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                Validate(); CheckPackingProtection(handle);
+                Validate(); CheckSourceProtection(handle);
                 using var name = HoldCurrentName();
                 int status = TryOpen(parent.Handle, KnownName + ":Zone.Identifier", GenericRead | Synchronize,
                     ShareRead | ShareDelete, NtFile.Open, NonDirectoryFile | OpenReparsePoint, out var stream);
@@ -48,7 +48,7 @@ internal sealed partial class WindowsArchiveFile
             catch (ArchiveWriteException ex) when (ex.Reason == ArchiveWriteReason.NeedsReview) { return Unavailable(ArchiveOriginFailure.Changed); }
             catch (NotSupportedException) { return Unavailable(ArchiveOriginFailure.Unsupported); }
             catch (Win32Exception ex) { return Unavailable(Failure(ex.NativeErrorCode)); }
-            catch (IOException ex) when (!packingSource || ex is not ArchiveWriteException { Reason: ArchiveWriteReason.PublicationUnavailable })
+            catch (IOException ex) when (protectedSourceRefusal is null || ex is not ArchiveWriteException { Reason: ArchiveWriteReason.PublicationUnavailable })
             { return Unavailable(Failure(ex.HResult & 0xffff)); }
         }
     }

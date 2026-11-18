@@ -22,8 +22,20 @@ public sealed partial class ArchiveAppContainerTests
     [InlineData(ArchiveWriteFormat.Tar, "changed-snapshot", false)]
     [InlineData(ArchiveWriteFormat.Tar, "stale-journal", false)]
     [InlineData(ArchiveWriteFormat.Tar, "busy-journal", false)]
-    public async Task Native_fresh_restoration_keeps_a_current_version_rollback_copy_and_restores_exact_retained_bytes_with_strongest_origin(
-        ArchiveWriteFormat format, string mode, bool application)
+    public Task Native_fresh_restoration_keeps_a_current_version_rollback_copy_and_restores_exact_retained_bytes_with_strongest_origin(
+        ArchiveWriteFormat format, string mode, bool application) => RestoreFixture(format, mode, application);
+
+    [Theory]
+    [InlineData("efs-target")]
+    [InlineData("efs-snapshot")]
+    public Task Native_restoration_refuses_an_efs_encrypted_target_or_retained_snapshot(string mode)
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires a disposable normal-user Windows VM with EFS enabled.");
+        return RestoreFixture(ArchiveWriteFormat.Tar, mode, application: false);
+    }
+
+    private static async Task RestoreFixture(ArchiveWriteFormat format, string mode, bool application)
     {
         string executable = Probe();
         if (application)
@@ -75,6 +87,26 @@ public sealed partial class ArchiveAppContainerTests
             if (mode == "changed-target") File.WriteAllBytes(path, "a later user version"u8.ToArray());
             if (mode == "changed-snapshot") File.SetLastWriteTimeUtc(content.SnapshotPath, DateTime.UnixEpoch.AddSeconds(1700000123));
             if (mode == "stale-journal") File.AppendAllText(journalPath, "a later torn record");
+            if (mode is "efs-target" or "efs-snapshot")
+            {
+                string encrypted = mode == "efs-target" ? path : content.SnapshotPath;
+                byte[] beforeEncryption = File.ReadAllBytes(encrypted);
+                File.Encrypt(encrypted);
+                string[] before = Tree();
+                var refusal = Assert.Throws<ArchiveWriteException>(() =>
+                {
+                    using var rejected = WindowsArchiveRestorationLease.Open(journalPath, expected, content.Nonce, ct);
+                });
+                Assert.Equal(ArchiveWriteReason.PublicationUnavailable, refusal.Reason);
+                Assert.Equal(ArchiveOuterEfs.UpdateUnavailable, refusal.Message);
+                Assert.Equal(before, Tree());
+                Assert.Equal(expected, Hash(journalPath));
+                Assert.Equal(beforeEncryption, File.ReadAllBytes(encrypted));
+                Assert.Equal(currentBytes, File.ReadAllBytes(path));
+                Assert.Equal(originalBytes, File.ReadAllBytes(content.SnapshotPath));
+                Assert.True(File.GetAttributes(encrypted).HasFlag(FileAttributes.Encrypted));
+                return;
+            }
             string[] beforeRefusal = Tree();
             if (mode != "restore")
             {
