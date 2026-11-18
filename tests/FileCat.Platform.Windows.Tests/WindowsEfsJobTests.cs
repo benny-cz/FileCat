@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Principal;
 using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
@@ -53,6 +54,51 @@ public sealed class WindowsEfsJobTests
         void AssertNoEfsCertificate() => Assert.DoesNotContain(certificates.Certificates,
             certificate => certificate.Extensions.OfType<X509EnhancedKeyUsageExtension>()
                 .Any(usage => usage.EnhancedKeyUsages.Cast<System.Security.Cryptography.Oid>().Any(oid => oid.Value == "1.3.6.1.4.1.311.10.3.4")));
+    }
+
+    [Fact]
+    public void A_restored_fixture_key_can_decrypt_the_same_file_under_an_independent_windows_account()
+    {
+        RequireEfs();
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_RESTORED_KEY_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires the isolated backup and restore fixture.");
+        using var identity = WindowsIdentity.GetCurrent();
+        Assert.NotEqual(File.ReadAllText(Path.Join(root, "owner-sid.txt")).Trim(), identity.User!.Value);
+        string hash = File.ReadAllText(Path.Join(root, "thumbprint.txt")).Trim();
+        using var certificates = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+        certificates.Open(OpenFlags.ReadOnly);
+        using var exactKey = Assert.Single(certificates.Certificates.Find(X509FindType.FindByThumbprint, hash, validOnly: false));
+        Assert.True(exactKey.HasPrivateKey);
+
+        string source = Path.Join(root, "recovery-source.bin");
+        Assert.True(IsEncrypted(source));
+        Assert.Equal("synthetic recovery payload", File.ReadAllText(source));
+        Assert.Equal("synthetic recovery stream", File.ReadAllText(source + ":fixture"));
+        var operations = new WindowsFileOperations();
+        string originalIdentity = Assert.IsType<string>(operations.GetFileIdentity(source));
+
+        string privateRoot = Directory.CreateTempSubdirectory("filecat-efs-recovered-key-").FullName;
+        try
+        {
+            var manager = Manager(privateRoot, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            int keyPrompts = 0;
+            manager.DecisionRequested += pending => { keyPrompts++; pending.Resolve(new(DecisionAction.CancelJob)); };
+            var job = Run(manager, StorageAction.DecryptEfs, [ItemRef.ForFileSystemPath(source, EntryKind.File)]);
+            AssertCompleted(job, changed: 1, already: 0);
+            Assert.Equal(0, keyPrompts);
+            var call = Assert.Single(Evidence(manager, job).Calls);
+            Assert.Equal(StorageCallDisposition.Observed, call.Disposition);
+            Assert.Null(call.EfsReviewedKey);
+            Assert.True(call.Result!.NativeCallAttempted);
+            Assert.Equal(StorageObservationState.Enabled, call.Result.Before.Efs);
+            Assert.Equal(StorageObservationState.Disabled, call.Result.After!.Efs);
+            Assert.True(History(manager, job).Ended);
+            Assert.False(IsEncrypted(source));
+            Assert.Equal(originalIdentity, operations.GetFileIdentity(source));
+            Assert.Equal("synthetic recovery payload", File.ReadAllText(source));
+            Assert.Equal("synthetic recovery stream", File.ReadAllText(source + ":fixture"));
+        }
+        finally { Directory.Delete(privateRoot, recursive: true); }
     }
 
     [Fact]
