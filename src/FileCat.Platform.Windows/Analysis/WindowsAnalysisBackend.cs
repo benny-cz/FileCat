@@ -22,7 +22,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend, IA
     private readonly Guid _bindingId = Guid.NewGuid();
     public RootBinding Root { get; }
     public AnalysisEntry RootEntry { get; }
-    public string Basis => "windows-primary-allocation-v1";
+    public string Basis => AnalysisComponents.WindowsPrimaryAllocationBasis;
     public WindowsAnalysisBackend(string selectedRoot) : this(selectedRoot, null) { }
 
     internal WindowsAnalysisBackend(string selectedRoot, Func<nint, bool>? nativeClose) : this(selectedRoot, nativeClose, null, null) { }

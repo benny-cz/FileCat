@@ -10,7 +10,7 @@ public sealed unsafe partial class WindowsAnalysisBackend
 {
     private const int StreamBufferBytes = 64 * 1024;
     private static readonly UnicodeEncoding StreamNames = new(false, false, true);
-    string IAnalysisDetailedBackend.ExtraAllocationBasis => AnalysisComponents.NamedStreamBasis;
+    string? IAnalysisDetailedBackend.ExtraAllocationBasis => _nativeTimePrecisionTicks == 1 ? AnalysisComponents.NamedStreamBasis : null;
 
     AnalysisEntry IAnalysisDetailedBackend.ReadDetailedRoot(CancellationToken cancellation)
     {

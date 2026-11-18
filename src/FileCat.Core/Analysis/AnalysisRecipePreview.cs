@@ -55,11 +55,6 @@ internal sealed partial class AnalysisRecipePreviews
     internal void Add(AnalysisNode node, AnalysisObject? recordedObject, AnalysisMeasurement allocation,
         Func<ulong, AnalysisNode?> readPath, Func<AnalysisNode, string, AnalysisNode?> readChild)
     {
-        if (Recipe == AnalysisMetadataRecipe.AllocationDifference)
-        {
-            AddDifference(node, recordedObject, allocation);
-            return;
-        }
         AnalysisMeasurement measured = Metric switch
         {
             AnalysisMetric.OnDisk => allocation,
@@ -162,8 +157,14 @@ public sealed partial class AnalysisDatasetLease
                             preview.AddExtraData(node, obj is null ? null : ReadRecipeComponents(reader, obj.Id, ref bytes, token));
                             continue;
                         }
+                        if (preview.Recipe == AnalysisMetadataRecipe.AllocationDifference)
+                        {
+                            var facts = obj is null ? null : ReadRecipeComponents(reader, obj.Id, ref bytes, token);
+                            preview.AddDifference(node, obj, facts is null ? null : AnalysisRecipePreviews.ReportedFileAllocation(facts));
+                            continue;
+                        }
                         AnalysisMeasurement allocation = preview.NeedsAllocation && obj is not null
-                            ? ReadRecipeAllocation(reader, obj.Id, ref bytes, token, preview.Recipe == AnalysisMetadataRecipe.AllocationDifference)
+                            ? ReadRecipeAllocation(reader, obj.Id, ref bytes, token)
                             : AnalysisMeasurement.Missing(MeasurementState.Unsupported);
                         preview.Add(node, obj, allocation, ReadPath, FindChild);
                     }
@@ -210,12 +211,11 @@ public sealed partial class AnalysisDatasetLease
         return reader.ReadObject(reader.ReadIndex(AnalysisIndexedGraphRevision.ObjectIds, range.First, token).Value, token);
     }
 
-    private static AnalysisMeasurement ReadRecipeAllocation(AnalysisIndexedGraphReader reader, string id, ref long bytes, CancellationToken token, bool primaryOnly)
+    private static AnalysisMeasurement ReadRecipeAllocation(AnalysisIndexedGraphReader reader, string id, ref long bytes, CancellationToken token)
     {
         var facts = ReadRecipeComponents(reader, id, ref bytes, token);
         if (facts is null) return AnalysisMeasurement.Missing(MeasurementState.Unsupported);
-        return primaryOnly ? AnalysisRecipePreviews.PrimaryAllocation(facts)?.Measurement ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported)
-            : AnalysisAggregate.CompatibleAllocation(facts);
+        return AnalysisAggregate.CompatibleAllocation(facts);
     }
 
     private static List<StorageFact>? ReadRecipeComponents(AnalysisIndexedGraphReader reader, string id, ref long bytes, CancellationToken token)

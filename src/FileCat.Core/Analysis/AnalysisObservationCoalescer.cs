@@ -65,6 +65,7 @@ internal static class AnalysisObservationCoalescer
             {
                 byte[]? key = null; AnalysisCapturedFile? first = null; ulong lastPath = 0;
                 StorageFact? extra = null;
+                ImmutableArray<string> includes = [];
                 bool logicalChanged = false, allocationChanged = false, linksChanged = false, extraChanged = false;
                 void Finish()
                 {
@@ -72,7 +73,7 @@ internal static class AnalysisObservationCoalescer
                     var obj = first.Object with {
                         LogicalLength = logicalChanged ? AnalysisMeasurement.Missing(MeasurementState.Changed) : first.Object.LogicalLength,
                         LinkCount = linksChanged ? AnalysisMeasurement.Missing(MeasurementState.Changed) : first.Object.LinkCount };
-                    var fact = first.Fact with {
+                    var fact = first.Fact with { Includes = includes,
                         Measurement = logicalChanged || allocationChanged ? AnalysisMeasurement.Missing(MeasurementState.Changed) : first.Fact.Measurement };
                     var extraFact = extra is not null && (extraChanged || logicalChanged)
                         ? extra with { Measurement = AnalysisMeasurement.Missing(MeasurementState.Changed) } : extra;
@@ -97,6 +98,7 @@ internal static class AnalysisObservationCoalescer
                     {
                         Finish(); key = identity; first = current; lastPath = 0;
                         extra = current.Extra;
+                        includes = current.Fact.Includes;
                         logicalChanged = allocationChanged = linksChanged = extraChanged = false;
                     }
                     if (current.PathId <= lastPath || first is null || current.Object.VerifiedIdentity != first.Object.VerifiedIdentity ||
@@ -112,6 +114,8 @@ internal static class AnalysisObservationCoalescer
                         extraChanged |= extra is null || observed.ComponentId != extra.ComponentId || observed.BasisId != extra.BasisId ||
                             observed.Method != extra.Method || observed.Measurement != extra.Measurement;
                         extra ??= observed with { ObjectId = first.Object.Id };
+                        if (current.Fact.Includes.Contains(observed.ComponentId) && !includes.Contains(observed.ComponentId))
+                            includes = includes.Add(observed.ComponentId);
                     }
                     else extraChanged |= extra is not null;
                     byte[] path = new byte[8]; BinaryPrimitives.WriteUInt64BigEndian(path, current.PathId);

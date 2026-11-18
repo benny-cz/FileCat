@@ -102,7 +102,8 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
             byte[] path = AnalysisIndexedPathCodec.Encode(node, root, depth, _header.Roots);
             byte[]? candidate = provisional is null ? null : AnalysisCapturedFileCodec.Encode(new(id,
                 new(provisional, entry.Identity, entry.LogicalLength, entry.Links, entry.ModifiedUtc, string.IsNullOrEmpty(entry.Version) ? null : entry.Version, entry.ModifiedPrecisionTicks),
-                new("f" + id.ToString(CultureInfo.InvariantCulture), provisional, null, "reported-data", basis, entry.Allocation, basis, observed, []),
+                new("f" + id.ToString(CultureInfo.InvariantCulture), provisional, null, "reported-data", basis, entry.Allocation, basis, observed,
+                    entry.ExtraAllocation?.CoveredComponents ?? []),
                 entry.ExtraAllocation?.Fact("e" + id.ToString(CultureInfo.InvariantCulture), provisional, observed)));
             byte[]? directory = directoryAllocation && entry.Kind == AnalysisKind.Directory && entry.IncludedByPolicy
                 ? AnalysisIndexedValueCodec.EncodeFact(new("d" + id.ToString(CultureInfo.InvariantCulture), null, id, "directory-self", basis, entry.Allocation, basis, observed, [])) : null;

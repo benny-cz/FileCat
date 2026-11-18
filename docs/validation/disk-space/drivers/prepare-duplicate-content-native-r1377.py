@@ -10,15 +10,16 @@ root = Path.cwd()
 temp = root / ".tmp"
 binary = root / "tests/FileCat.NativeAcceptance/DiskSpaceHarness/bin/Debug/net10.0"
 mac_capture_retry = sys.argv[1:] == ["--ntfs-streams-mac-capture"]
-streams = sys.argv[1:] == ["--ntfs-streams"] or mac_capture_retry
+forks = sys.argv[1:] == ["--apfs-forks"]
+streams = sys.argv[1:] == ["--ntfs-streams"] or mac_capture_retry or forks
 staging = sys.argv[1:] == ["--recipe-staging"] or streams
 folders = sys.argv[1:] == ["--folders"] or staging
 insights = sys.argv[1:] == ["--insights"] or folders
 assert not sys.argv[1:] or insights
 native_baseline = "r1377" if insights else "r1370"
-render_revision = "r1394" if streams else "r1389" if staging else "r1382" if folders else "r1379" if insights else "r1376"
-revision = "r1397" if mac_capture_retry else "r1395" if streams else "r1390" if staging else "r1384" if folders else "r1380" if insights else "r1377"
-label = "ntfs-streams" if streams else "recipe-staging" if staging else "recorded-insights" if insights else "duplicate-content"
+render_revision = "r1398" if forks else "r1394" if streams else "r1389" if staging else "r1382" if folders else "r1379" if insights else "r1376"
+revision = "r1399" if forks else "r1397" if mac_capture_retry else "r1395" if streams else "r1390" if staging else "r1384" if folders else "r1380" if insights else "r1377"
+label = "apfs-forks" if forks else "ntfs-streams" if streams else "recipe-staging" if staging else "recorded-insights" if insights else "duplicate-content"
 template = "r1370"
 drivers = {"DiskSpaceHarness.dll", "DiskSpaceHarness.pdb"}
 log = (temp / f"{label}-native-build-{revision}.txt").read_text(encoding="utf-8-sig")
@@ -68,7 +69,7 @@ for platform in (("mac",) if mac_capture_retry else ("windows", "mac", "linux"))
         worker = worker.replace("'baseline': str(baseline),", "'baseline': str(baseline), 'render': str(render),")
         worker = worker.replace("and probe['retainedHiddenMarksAndBasket'] and", "and probe['retainedHiddenMarksAndBasket'] and not probe['contentAvailable'] and probe['contentGroups']==0 and")
         if insights:
-            frame = "ntfs-stream-allocation.png" if streams else "recipe-staging-included.png" if staging else "recorded-insights-largest-folders.png" if folders else "recorded-insights-small-files.png"
+            frame = "apfs-resource-fork-allocation.png" if forks else "ntfs-stream-allocation.png" if streams else "recipe-staging-included.png" if staging else "recorded-insights-largest-folders.png" if folders else "recorded-insights-small-files.png"
             worker = worker.replace("frame == 'duplicate-review-estimate.png'", f"frame == '{frame}'")
             worker = worker.replace("run.glob('duplicate-review-*.png')", "list(run.glob('duplicate-review-*.png')) + list(run.glob('recorded-insights-*.png'))")
             worker = worker.replace("probe['contentGroups']==0 and", "probe['contentGroups']==0 and probe['recordedInsightsPassed'] and")
@@ -81,8 +82,12 @@ for platform in (("mac",) if mac_capture_retry else ("windows", "mac", "linux"))
             worker = worker.replace("'--duplicate-review-probe'", "'--detailed-stream-probe'")
             worker = worker.replace("probe['recipeStagingPassed'] and", "probe['recipeStagingPassed'] and probe['detailedStreamProbe'] and not probe['namedAllocationAvailable'] and probe['namedStreamBytesPreserved'] and")
             worker = worker.replace("list(run.glob('recipe-staging-*.png'))", "list(run.glob('recipe-staging-*.png')) + list(run.glob('ntfs-stream-allocation.png'))")
-        if mac_capture_retry:
-            worker = worker.replace("assert frame == 'ntfs-stream-allocation.png'", "assert frame == 'ntfs-stream-allocation.png', f'Unexpected capture request {frame!r}'")
+        if forks:
+            worker = worker.replace("'--detailed-stream-probe'", "'--detailed-fork-probe'")
+            worker = worker.replace("probe['namedStreamBytesPreserved'] and", "probe['namedStreamBytesPreserved'] and probe['resourceForkBytesPreserved'] and probe['resourceAllocationAvailable'] == (sys.platform == 'darwin') and")
+            worker = worker.replace("list(run.glob('ntfs-stream-allocation.png'))", "list(run.glob('apfs-resource-fork-allocation.png'))")
+        if mac_capture_retry or forks:
+            worker = worker.replace(f"assert frame == '{frame}'", f"assert frame == '{frame}', " + "f'Unexpected capture request {frame!r}'")
             worker = worker.replace("    assert len(owned) == 1", "    assert len(owned) == 1, f'Expected one visible owned window, got {len(owned)}'")
             worker = worker.replace("    (run / 'capture.response').write_text(frame)",
                 "    response = run / 'capture.response.pending'\n    response.write_text(frame)\n    response.replace(run / 'capture.response')")
@@ -121,6 +126,10 @@ for platform in (("mac",) if mac_capture_retry else ("windows", "mac", "linux"))
             portable = portable.replace("'--duplicate-review-probe'", "'--detailed-stream-probe'")
             portable = portable.replace("-or!$probe.recipeStagingPassed)", "-or!$probe.recipeStagingPassed-or!$probe.detailedStreamProbe-or!$probe.namedAllocationAvailable-or!$probe.namedStreamBytesPreserved)")
             portable = portable.replace("$_.Name -like 'recipe-staging-*.png'", "$_.Name -like 'recipe-staging-*.png' -or $_.Name -eq 'ntfs-stream-allocation.png'")
+        if forks:
+            portable = portable.replace("'--detailed-stream-probe'", "'--detailed-fork-probe'")
+            portable = portable.replace("-or!$probe.namedStreamBytesPreserved)", "-or!$probe.namedStreamBytesPreserved-or$probe.resourceAllocationAvailable-or!$probe.resourceForkBytesPreserved)")
+            portable = portable.replace("ntfs-stream-allocation.png", "apfs-resource-fork-allocation.png")
         assert "$probe.contentGroups-ne1" in portable and "$parent.FullName-ne$inputRoot" in portable
     runner = temp / f"batch-{platform}-{revision}{suffix}"
     runner.write_text(portable.replace(old["bundle"], sha(archive)), encoding="utf-8", newline="\n")

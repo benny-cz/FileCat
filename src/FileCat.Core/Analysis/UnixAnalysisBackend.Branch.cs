@@ -53,6 +53,7 @@ public sealed unsafe partial class UnixAnalysisBackend
         _device = parent._device;
         _mount = parent._mount;
         _identitySupported = parent._identitySupported;
+        _apfs = parent._apfs;
         _modifiedPrecisionTicks = parent._modifiedPrecisionTicks;
         _nativeClose = parent._nativeClose;
         string canonical = parent.Root.CanonicalLocator.TrimEnd('/') + "/" + relative;

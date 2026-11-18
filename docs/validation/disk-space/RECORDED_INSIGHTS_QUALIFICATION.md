@@ -3,7 +3,7 @@
 Candidate review offers folder small-file concentrations, logical and allocated size differences, and unmeasured or unreadable locations. Each preview uses explicitly selected captured locations, names the revision and rule, and offers inspection of the recorded path.
 
 - Folders qualify with at least 32 direct file paths whose recorded lengths are at most 64 KiB. Ranking uses the path count. The known allocation portion uses verified single-link files with compatible recorded bases.
-- File differences use the absolute gap between logical length and separate reported primary allocation. Both original amounts and the direction of the difference appear in each row.
+- File differences use the absolute gap between primary logical length and the recorded file allocation. Each row shows the amounts, the allocation basis and the direction of the difference.
 - Issue results use selected location bindings. Root-only issues remain attached to their recorded roots. Unlocated issues and incomplete issue sampling are disclosed independently of the scoped count.
 - Large extra data displays an unavailable measurement for stream and fork sizes. These captures have ordinary primary-allocation observations.
 
@@ -29,4 +29,12 @@ The query uses a 64 KiB native buffer and accepts at most 256 named streams. Inc
 
 The r1394 suite exercises memory and indexed captures, multiple real NTFS named streams, a real hard-link alias, measured zero, primary-size preservation and unavailable results on macOS and Ubuntu. The r1395 native workflow shows 76 KiB of reported named allocation for an archive on Windows and the unavailable preview on Ubuntu. Named-stream bytes and primary fixture bytes are preserved. The initial Mac capture stalled waiting for the capture acknowledgement. The r1397 Mac retry uses the same FileCat build with an atomic request and acknowledgement in the harness. [Exact evidence](source-manifest-r1396-ntfs-streams.json)
 
-Resource forks, xattrs, stream-specific actions, and physical input and assistive technology qualification remain open.
+## Detailed APFS resource-fork allocation
+
+Detailed APFS scans query the held file descriptor with `fgetattrlist`. The response must identify the requested attributes and report consistent total, data-fork and resource-fork allocation. The fork value sits under the existing total-file allocation in the stored component graph. A missing field, inconsistent total, unreadable metadata, or compressed file leaves separate fork allocation unavailable. The scan preserves the standard reported total. [Apple attribute definitions](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/getattrlist.2.html)
+
+The Mac metadata probe reported zero allocation for a file without a resource fork, 4,096 allocated bytes for a 48-byte fork, and 81,920 allocated bytes for a 77,829-byte fork. In each sample, the total-file allocation already included the resource fork.
+
+The r1398 suite passed all 54 cases per platform. The native filesystem tests cover memory and indexed captures, hard-link accounting, measured zero, retained bytes, and agreement between the allocation total and its components. Additional parser checks cover missing fields, negative values, truncated responses and inconsistent totals. The r1399 native windows showed reported resource-fork allocation on macOS, named-stream allocation on Windows, and the unavailable state on Ubuntu. All owned processes exited. [Exact three-platform evidence](source-manifest-r1400-apfs-forks.json)
+
+Extended attribute allocation, stream-specific actions, physical input, and assistive technology qualification remain open.

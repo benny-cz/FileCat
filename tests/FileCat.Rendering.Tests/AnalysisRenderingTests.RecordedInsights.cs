@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
@@ -31,6 +32,11 @@ public sealed partial class AnalysisRenderingTests
             File.WriteAllBytes(high + ":extra:$DATA", stream);
             File.WriteAllBytes(high + ":second:$DATA", primary);
             File.WriteAllBytes(low + ":small:$DATA", primary);
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            File.WriteAllBytes(high + "/..namedfork/rsrc", stream);
+            File.WriteAllBytes(low + "/..namedfork/rsrc", primary);
         }
         CreateGroupedNativeAlias(high, alias);
 
@@ -76,17 +82,26 @@ public sealed partial class AnalysisRenderingTests
             ComparisonControl<ComboBox>(window, "Candidate recipe")!.SelectedItem = "Large extra data";
             ComparisonControl<ListBox>(window, "Locations for candidate preview")!.SelectedIndex = 0;
             Click(window, "View candidates");
-            if (OperatingSystem.IsWindows())
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
             {
                 await Until(() => ComparisonControl<ListBox>(window, "Captured recipe candidates")?.ItemCount == 3, () => ComparisonText(window));
                 var list = ComparisonControl<ListBox>(window, "Captured recipe candidates")!;
                 var rows = list.Items.Cast<string>().ToArray();
                 Assert.Equal(new[] { "alias-extra.bin", "large-extra.bin" }, rows.Take(2).Select(row => row[..row.IndexOf('\n')]).Order());
                 Assert.StartsWith("small-extra.bin\n", rows[2], StringComparison.Ordinal);
-                Assert.All(rows, row => Assert.Contains("Reported NTFS named data stream allocation", row, StringComparison.Ordinal));
-                Assert.DoesNotContain(rows, row => row.Contains(":$DATA", StringComparison.Ordinal));
-                Assert.Equal(stream, File.ReadAllBytes(high + ":extra:$DATA"));
-                Assert.Equal(primary, File.ReadAllBytes(high + ":second:$DATA"));
+                if (OperatingSystem.IsWindows())
+                {
+                    Assert.All(rows, row => Assert.Contains("Reported NTFS named data stream allocation", row, StringComparison.Ordinal));
+                    Assert.DoesNotContain(rows, row => row.Contains(":$DATA", StringComparison.Ordinal));
+                    Assert.Equal(stream, File.ReadAllBytes(high + ":extra:$DATA"));
+                    Assert.Equal(primary, File.ReadAllBytes(high + ":second:$DATA"));
+                }
+                else
+                {
+                    Assert.All(rows, row => Assert.Contains("Reported APFS resource fork allocation. Included in the reported file total.", row, StringComparison.Ordinal));
+                    Assert.Equal(stream, File.ReadAllBytes(high + "/..namedfork/rsrc"));
+                    Assert.Equal(primary, File.ReadAllBytes(low + "/..namedfork/rsrc"));
+                }
             }
             else
             {
@@ -104,15 +119,24 @@ public sealed partial class AnalysisRenderingTests
             token.ThrowIfCancellationRequested();
             var captured = facts.ToArray();
             var named = captured.Where(AnalysisComponents.IsExtraAllocation).OrderBy(fact => fact.Measurement.Value).ToArray();
-            if (OperatingSystem.IsWindows())
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
             {
                 Assert.Equal(3, named.Length);
                 Assert.Equal(UInt128.Zero, named[0].Measurement.Value);
                 Assert.True(named[1].Measurement.Value > (UInt128)primary.Length);
-                Assert.True(named[2].Measurement.Value > (UInt128)(primary.Length + stream.Length));
+                Assert.True(named[2].Measurement.Value > (UInt128)(OperatingSystem.IsMacOS() ? stream.Length : primary.Length + stream.Length));
+                if (OperatingSystem.IsMacOS())
+                    foreach (var fork in named)
+                    {
+                        Assert.Equal(AnalysisComponents.ResourceForkBasis, fork.BasisId);
+                        var main = Assert.Single(captured, fact => fact.ObjectId == fork.ObjectId && fact.ComponentId == "reported-data");
+                        Assert.Equal(new[] { AnalysisComponents.ResourceForkComponent }, main.Includes);
+                        Assert.True(main.Measurement.Value > fork.Measurement.Value);
+                    }
             }
             else Assert.Empty(named);
-            Assert.Equal(captured.Aggregate(UInt128.Zero, (sum, fact) => sum + fact.Measurement.Value.GetValueOrDefault()), total);
+            Assert.Equal(captured.Where(fact => fact.ComponentId != AnalysisComponents.ResourceForkComponent)
+                .Aggregate(UInt128.Zero, (sum, fact) => sum + fact.Measurement.Value.GetValueOrDefault()), total);
         }
     }
 
@@ -215,7 +239,8 @@ public sealed partial class AnalysisRenderingTests
                 () => ComparisonText(window), TimeSpan.FromSeconds(20));
             var difference = Assert.Single(ComparisonControl<ListBox>(window, "Captured recipe candidates")!.Items.Cast<string>(),
                 row => row.Contains("allocation-shape.bin", StringComparison.Ordinal));
-            Assert.Contains("reported primary allocation", difference);
+            Assert.Contains(OperatingSystem.IsMacOS() ? "reported total-file allocation" :
+                OperatingSystem.IsWindows() ? "reported primary allocation" : "reported file allocation", difference);
             Assert.Contains("difference", difference);
             Assert.Contains("ranked by absolute difference", ComparisonText(window));
             Click(window, "Close preview");
@@ -280,7 +305,7 @@ public sealed partial class AnalysisRenderingTests
     }
 
     [Fact]
-    public void RecordedInsightOrdersBothDirectionsAndUsesOnlySeparatePrimaryAllocation()
+    public void RecordedInsightOrdersBothDirectionsAndUsesTheReportedAllocationBasis()
     {
         var identity = DuplicateEstimateIdentity();
         var preview = new AnalysisRecipePreviews(new(AnalysisMetadataRecipe.AllocationDifference, ["r"]), [DuplicateEstimateRoot], identity, AnalysisMetric.Files);
@@ -288,13 +313,15 @@ public sealed partial class AnalysisRenderingTests
         var obj = new AnalysisObject("o", "id", AnalysisMeasurement.Known(100), AnalysisMeasurement.Known(1));
         var primary = new StorageFact("p", "o", null, "reported-data", "basis", AnalysisMeasurement.Known(30), "method", DateTimeOffset.UnixEpoch, []);
         var extra = primary with { Id = "e", ComponentId = "extra-stream", Measurement = AnalysisMeasurement.Known(1_000) };
-        Assert.Equal(primary, AnalysisRecipePreviews.PrimaryAllocation([primary, extra]));
-        Assert.Null(AnalysisRecipePreviews.PrimaryAllocation([primary with { Includes = ["extra-stream"] }, extra]));
-        Assert.Null(AnalysisRecipePreviews.PrimaryAllocation([primary, primary with { BasisId = "another" }]));
-        preview.Add(file, obj, primary.Measurement, _ => null, (_, _) => null);
-        preview.Add(file with { Id = 2, Name = "other.bin" }, obj, AnalysisMeasurement.Known(220), _ => null, (_, _) => null);
-        preview.Add(file with { Id = 3, Name = "unknown.bin" }, obj, AnalysisMeasurement.Missing(MeasurementState.Failed), _ => null, (_, _) => null);
-        preview.Add(file with { Id = 4, Name = "offline.bin", Cloud = true }, obj, primary.Measurement, _ => null, (_, _) => null);
+        Assert.Equal(primary, AnalysisRecipePreviews.ReportedFileAllocation([primary, extra]));
+        Assert.Null(AnalysisRecipePreviews.ReportedFileAllocation([primary with { Includes = ["extra-stream"] }, extra]));
+        Assert.Null(AnalysisRecipePreviews.ReportedFileAllocation([primary, primary with { BasisId = "another" }]));
+        var total = primary with { BasisId = AnalysisComponents.DarwinTotalAllocationBasis, Includes = [AnalysisComponents.ResourceForkComponent] };
+        Assert.Equal(total, AnalysisRecipePreviews.ReportedFileAllocation([total]));
+        preview.AddDifference(file, obj, total);
+        preview.AddDifference(file with { Id = 2, Name = "other.bin" }, obj, primary with { Measurement = AnalysisMeasurement.Known(220) });
+        preview.AddDifference(file with { Id = 3, Name = "unknown.bin" }, obj, primary with { Measurement = AnalysisMeasurement.Missing(MeasurementState.Failed) });
+        preview.AddDifference(file with { Id = 4, Name = "offline.bin", Cloud = true }, obj, primary);
         var result = preview.Finish(identity, NamespaceCoverage.Partial);
         Assert.Equal(2UL, result.Candidates);
         Assert.Equal(1UL, result.Unknown);
@@ -303,6 +330,32 @@ public sealed partial class AnalysisRenderingTests
         Assert.Equal((UInt128)120, result.Rows[0].RecordedBytes.Value);
         Assert.Contains("reported allocation is larger", result.Rows[0].Finding.Evidence);
         Assert.Contains("logical size is larger", result.Rows[1].Finding.Evidence);
+        Assert.Contains("reported total-file allocation", result.Rows[1].Finding.Evidence);
+    }
+
+    [Fact]
+    public void ResourceForkAllocationRequiresReturnedAndConsistentFields()
+    {
+        var response = new byte[56];
+        BinaryPrimitives.WriteUInt32LittleEndian(response, 56);
+        BinaryPrimitives.WriteUInt32LittleEndian(response.AsSpan(4), 0x80000000);
+        BinaryPrimitives.WriteUInt32LittleEndian(response.AsSpan(16), 0x3404);
+        BinaryPrimitives.WriteInt64LittleEndian(response.AsSpan(24), 8192);
+        BinaryPrimitives.WriteInt64LittleEndian(response.AsSpan(32), 4096);
+        BinaryPrimitives.WriteInt64LittleEndian(response.AsSpan(40), 17);
+        BinaryPrimitives.WriteInt64LittleEndian(response.AsSpan(48), 4096);
+        Assert.Equal(AnalysisMeasurement.Known(4096), UnixAnalysisBackend.ParseResourceAllocation(response, 8192));
+        Assert.Equal(MeasurementState.Unsupported, UnixAnalysisBackend.ParseResourceAllocation(response, 12288).State);
+        Assert.Equal(MeasurementState.Failed, UnixAnalysisBackend.ParseResourceAllocation(response.AsSpan(0, 40), 8192).State);
+        BinaryPrimitives.WriteUInt32LittleEndian(response.AsSpan(16), 0x1404);
+        Assert.Equal(MeasurementState.Unsupported, UnixAnalysisBackend.ParseResourceAllocation(response, 8192).State);
+        BinaryPrimitives.WriteUInt32LittleEndian(response.AsSpan(16), 0x3404);
+        BinaryPrimitives.WriteInt64LittleEndian(response.AsSpan(48), -1);
+        Assert.Equal(MeasurementState.Failed, UnixAnalysisBackend.ParseResourceAllocation(response, 8192).State);
+        BinaryPrimitives.WriteInt64LittleEndian(response.AsSpan(48), 0);
+        BinaryPrimitives.WriteInt64LittleEndian(response.AsSpan(40), 0);
+        BinaryPrimitives.WriteInt64LittleEndian(response.AsSpan(24), 4096);
+        Assert.Equal(AnalysisMeasurement.Known(0), UnixAnalysisBackend.ParseResourceAllocation(response, 4096));
     }
 
     [Fact]

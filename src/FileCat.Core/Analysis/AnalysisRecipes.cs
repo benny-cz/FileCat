@@ -49,7 +49,7 @@ public sealed class AnalysisRecipes
             "Look for known cache entry names in Google/Chrome/User Data/Default/Cache/Cache_Data, with recorded Local State and Preferences files.",
             "The rule covers the Default profile in this recorded layout. The browser may use these files. Synchronized or offline content can have other side effects."),
         new(AnalysisMetadataRecipe.AllocationDifference, "allocation-difference", 1, "Logical and allocated size differences",
-            "Rank files by the absolute difference between their logical size and reported primary allocation.",
+            "Rank files by the absolute difference between their logical size and reported file allocation. Each row identifies its allocation basis.",
             "Sparse data, compression, sharing, and measurement basis can affect the difference. Shared objects can appear under more than one name."),
         new(AnalysisMetadataRecipe.ManySmallFiles, "many-small-files", 1, "Folders with many small files",
             "Rank folders with at least 32 directly observed files of 64 KiB or less by their small-file count.",
@@ -59,7 +59,7 @@ public sealed class AnalysisRecipes
             "Issue records can be sampled. Unknown size remains unknown, and a measurement issue alone gives no reason to remove an entry."),
         new(AnalysisMetadataRecipe.LargeExtraData, "large-extra-data", 1, "Large extra data",
             "Rank files by separately reported extra-data allocation.",
-            "Allocation can be shared. Named streams can be required by an application or record its provenance.")
+            "Allocation can be shared. Streams and forks can be required by an application or record its provenance.")
     ];
 
     public AnalysisRecipeDefinition Definition { get; }

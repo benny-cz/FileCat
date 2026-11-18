@@ -134,11 +134,13 @@ public static class AnalysisMemoryRecipes
                 preview.AddExtraData(node, obj is null ? null : facts.GetValueOrDefault(obj.Id));
                 continue;
             }
-            var allocation = obj is not null && facts.TryGetValue(obj.Id, out var components)
-                ? preview.Recipe == AnalysisMetadataRecipe.AllocationDifference
-                    ? AnalysisRecipePreviews.PrimaryAllocation(components)?.Measurement ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported)
-                    : AnalysisAggregate.CompatibleAllocation(components)
-                : AnalysisMeasurement.Missing(MeasurementState.Unsupported);
+            var components = obj is null ? null : facts.GetValueOrDefault(obj.Id);
+            if (preview.Recipe == AnalysisMetadataRecipe.AllocationDifference)
+            {
+                preview.AddDifference(node, obj, components is null ? null : AnalysisRecipePreviews.ReportedFileAllocation(components));
+                continue;
+            }
+            var allocation = components is null ? AnalysisMeasurement.Missing(MeasurementState.Unsupported) : AnalysisAggregate.CompatibleAllocation(components);
             preview.Add(node, obj, allocation, ReadPath, ReadChild);
         }
         token.ThrowIfCancellationRequested();
@@ -178,7 +180,7 @@ public static class AnalysisMemoryRecipes
             if (path.ParentId == 0 || !preview.IncludesRoot(path.RootId) || !AnalysisRecipePreviews.CountsSmallPaths(path)) continue;
             var obj = path.ObjectId is { } id ? objects.GetValueOrDefault(id) : null;
             var primary = AnalysisRecipePreviews.SmallSize(path, obj) && AnalysisRecipePreviews.SingleLink(obj) &&
-                facts.TryGetValue(obj!.Id, out var components) ? AnalysisRecipePreviews.PrimaryAllocation(components) : null;
+                facts.TryGetValue(obj!.Id, out var components) ? AnalysisRecipePreviews.ReportedFileAllocation(components) : null;
             var summary = folders.GetValueOrDefault(path.ParentId);
             summary.Add(path, obj, primary);
             folders[path.ParentId] = summary;

@@ -9,31 +9,40 @@ internal sealed partial class AnalysisRecipePreviews
     private ulong _unlocatedIssues;
     private string? _coverageNote;
 
-    private void AddDifference(AnalysisNode node, AnalysisObject? obj, AnalysisMeasurement allocation)
+    internal void AddDifference(AnalysisNode node, AnalysisObject? obj, StorageFact? fact)
     {
         if (!node.IncludedByPolicy || node.MetadataState == MeasurementState.Excluded || node.Cloud == true)
         { _excluded++; return; }
         if (node.MetadataState != MeasurementState.Known ||
-            obj?.LogicalLength.Value is not { } logical || allocation.Value is not { } assigned)
+            obj?.LogicalLength.Value is not { } logical || fact?.Measurement.Value is not { } assigned)
         { _unknown++; return; }
         if (logical == assigned) return;
         var delta = logical > assigned ? logical - assigned : assigned - logical;
         var priority = (true, delta, ulong.MaxValue - node.Id);
         if (!AdmitRow(priority)) return;
         string direction = logical > assigned ? "logical size is larger" : "reported allocation is larger";
+        string label = fact.BasisId switch
+        {
+            AnalysisComponents.WindowsPrimaryAllocationBasis => "reported primary allocation",
+            AnalysisComponents.DarwinTotalAllocationBasis => "reported total-file allocation",
+            _ => "reported file allocation"
+        };
         var finding = new AnalysisRecipeFinding(AnalysisRecipeMatch.Candidate,
-            $"Logical size {logical:N0} B · reported primary allocation {assigned:N0} B · {direction}.");
+            $"Logical size {logical:N0} B · {label} {assigned:N0} B · {direction}. Basis {AnalysisNames.Display(fact.BasisId, 80)}.");
         Enqueue(new(node.Id, node.RootId, AnalysisNames.DisplayName(node, 256), AnalysisMeasurement.Known(delta), finding), priority);
     }
 
-    internal static StorageFact? PrimaryAllocation(List<StorageFact> facts)
+    internal static StorageFact? ReportedFileAllocation(List<StorageFact> facts)
     {
         StorageFact? primary = null;
         foreach (var fact in facts)
         {
             if (fact.ComponentId != "reported-data") continue;
-            if (!fact.Includes.IsEmpty || primary is not null &&
-                (primary.BasisId != fact.BasisId || primary.Measurement != fact.Measurement || primary.Method != fact.Method))
+            bool qualifiedInclusion = fact.BasisId == AnalysisComponents.DarwinTotalAllocationBasis &&
+                fact.Includes.Length == 1 && fact.Includes[0] == AnalysisComponents.ResourceForkComponent;
+            if (!fact.Includes.IsEmpty && !qualifiedInclusion || primary is not null &&
+                (primary.BasisId != fact.BasisId || primary.Measurement != fact.Measurement || primary.Method != fact.Method ||
+                    !primary.Includes.SequenceEqual(fact.Includes)))
                 return null;
             primary = fact;
         }
@@ -113,24 +122,42 @@ internal sealed partial class AnalysisRecipePreviews
                     $"{_unlocatedIssues:N0} captured issue records have no verified location and are outside this list.");
     }
 
-    private ulong _measuredExtraFiles;
+    private ulong _measuredStreamFiles, _measuredForkFiles;
 
     internal void AddExtraData(AnalysisNode node, List<StorageFact>? facts)
     {
         if (!node.IncludedByPolicy || node.MetadataState == MeasurementState.Excluded || node.Cloud == true)
         { _excluded++; return; }
-        var fact = node.MetadataState == MeasurementState.Known ? facts?.Find(AnalysisComponents.IsExtraAllocation) : null;
+        StorageFact? fact = null;
+        if (node.MetadataState == MeasurementState.Known && facts is not null)
+            foreach (var observation in facts)
+            {
+                if (!AnalysisComponents.IsExtraAllocation(observation)) continue;
+                if (fact is not null && (fact.ComponentId != observation.ComponentId || fact.Measurement != observation.Measurement))
+                { _unknown++; return; }
+                fact = observation;
+            }
         if (fact?.Measurement.Value is not { } amount)
         { _unknown++; return; }
-        _measuredExtraFiles++;
+        bool fork = fact.ComponentId == AnalysisComponents.ResourceForkComponent;
+        if (fork) _measuredForkFiles++; else _measuredStreamFiles++;
         if (amount != 0)
             AddPathRow(node, fact.Measurement, new(AnalysisRecipeMatch.Candidate,
-                "Reported NTFS named data stream allocation. Primary data is separate."), true, amount);
+                fork ? "Reported APFS resource fork allocation. Included in the reported file total."
+                     : "Reported NTFS named data stream allocation. Primary data is separate."), true, amount);
     }
 
-    internal void CompleteExtraData() => _coverageNote = _measuredExtraFiles == 0
-        ? "No separately qualified stream or fork allocation is recorded for these locations. Extra-data size is unavailable."
-        : $"Named stream allocation was measured for {_measuredExtraFiles:N0} captured file paths. Fork and xattr allocation remains unavailable.";
+    internal void CompleteExtraData()
+    {
+        if (_measuredStreamFiles == 0 && _measuredForkFiles == 0)
+        {
+            _coverageNote = "No separately qualified stream or fork allocation is recorded for these locations. Extra-data size is unavailable.";
+            return;
+        }
+        string streams = _measuredStreamFiles == 0 ? "" : $"Named stream allocation measured for {_measuredStreamFiles:N0} captured file paths. ";
+        string forks = _measuredForkFiles == 0 ? "" : $"Resource fork allocation measured for {_measuredForkFiles:N0} captured file paths. ";
+        _coverageNote = streams + forks + "Separate extended attribute allocation is unavailable.";
+    }
 }
 
 public sealed partial class AnalysisDatasetLease
@@ -203,7 +230,7 @@ public sealed partial class AnalysisDatasetLease
                     if (obj is not null) bytes += 1024L + (obj.VerifiedIdentity?.Length ?? 0) * 2L + (obj.VersionEvidence?.Length ?? 0) * 2L;
                     var facts = AnalysisRecipePreviews.SmallSize(child, obj) && AnalysisRecipePreviews.SingleLink(obj)
                         ? ReadRecipeComponents(reader, obj!.Id, ref bytes, token) : null;
-                    small.Add(child, obj, facts is null ? null : AnalysisRecipePreviews.PrimaryAllocation(facts));
+                    small.Add(child, obj, facts is null ? null : AnalysisRecipePreviews.ReportedFileAllocation(facts));
                 }
                 return true;
             }, cancel).ConfigureAwait(false);

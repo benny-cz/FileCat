@@ -1,0 +1,137 @@
+"""Retain the exact APFS resource-fork sources and three-platform evidence."""
+import hashlib
+import io
+import json
+from pathlib import Path
+import tarfile
+import xml.etree.ElementTree as ET
+
+root = Path.cwd()
+temp = root / ".tmp"
+validation = root / "docs/validation/disk-space"
+manifest = validation / "source-manifest-r1400-apfs-forks.json"
+source_output = validation / "exact-source-deltas-r1400-apfs-forks.tgz"
+receipt_output = validation / "exact-receipts-r1400-apfs-forks.tgz"
+assert not any(path.exists() for path in (manifest, source_output, receipt_output))
+
+
+def sha(path):
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def read(path):
+    return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def member(packet, name):
+    return json.loads(packet.extractfile(name).read().decode("utf-8-sig"))
+
+
+rendered = read(temp / "apfs-forks-source-proof-r1398.json")
+render_package = read(temp / "recipe-rendering-proof-r1398.json")
+native = read(temp / "apfs-forks-native-proof-r1399.json")
+sources = rendered["changes"] | native["sources"]
+assert all(sha(root / name) == digest for name, digest in sources.items())
+assert sha(temp / "source-r1398-apfs-forks-delta.tgz") == rendered["archive"]
+files = {"apfs-forks-render-build-r1398.txt", "apfs-forks-native-build-r1399.txt",
+         "apfs-forks-source-proof-r1398.json", "recipe-rendering-proof-r1398.json", "apfs-forks-native-proof-r1399.json",
+         "windows-batch-r1398-task-outcome.json", "windows-native-r1399-task-outcome.json", "mac-r1398-native-resource-fields.json"}
+for name in ("windows-batch-r1398-task-outcome.json", "windows-native-r1399-task-outcome.json"):
+    task = read(temp / name)
+    assert task["terminalExit"] == 0 and task["runLevel"] == "Limited"
+probe = read(temp / "mac-r1398-native-resource-fields.json")
+for name in ("empty-fork", "small-fork", "large-fork"):
+    case = probe[name]
+    length, mask, _, _, fork_mask, _, total, primary, logical, allocated = case["fields"]
+    assert case["status"] == 0 and mask == 0x80000000 and fork_mask == 0x3404 and length == 56
+    assert total == case["stat_alloc"] == primary + allocated
+assert probe["empty-fork"]["fields"][-1] == 0
+assert probe["small-fork"]["fields"][-2:] == [48, 4096]
+assert probe["large-fork"]["fields"][-2:] == [77829, 81920]
+checks = {}
+private_mac = None
+for platform, name in (("windows", "windows"), ("mac", "mac"), ("linux", "ubuntu")):
+    suffix = ".ps1" if platform == "windows" else ".sh"
+    native_revision = "r1399"
+    render_run = f"batch-{platform}-r1398{suffix}"
+    native_run = f"batch-{platform}-{native_revision}{suffix}"
+    plan_file = f"batch-r1399-{platform}/plan.json"
+    files.update((render_run, native_run, plan_file))
+    assert sha(temp / render_run) == render_package[platform]["runner"]
+    assert sha(temp / native_run) == native["platforms"][platform]["runner"]
+    assert sha(temp / f"dsa-batch-{platform}-r1398.tgz") == render_package[platform]["archive"]
+    assert sha(temp / f"dsa-batch-{platform}-{native_revision}.tgz") == native["platforms"][platform]["bundle"]
+    plan = read(temp / plan_file)
+    with tarfile.open(temp / f"dsa-batch-{platform}-{native_revision}.tgz") as bundle:
+        assert member(bundle, "plan.json") == plan
+    installed = {row["path"]: row["sha256"] for row in plan["files"]}
+    borrowed = {row["path"] for row in plan["files"] if row["render"]}
+    assert borrowed >= {"FileCat.dll", "FileCat.Core.dll", "FileCat.Platform.Windows.dll"}
+    assert len(borrowed) == native["platforms"][platform]["sharedRenderInputs"]
+    assert {row["path"] for row in plan["files"] if row["patch"]} == {"DiskSpaceHarness.dll", "DiskSpaceHarness.pdb"}
+
+    rendering = f"{name}-batch-r1398-results.tgz"
+    files.add(rendering)
+    for post in (f"{name}-batch-r1398-post.json", f"{name}-native-{native_revision}-post.json"):
+        files.add(post)
+        assert not read(temp / post)["filecatOrDotnet"]
+    with tarfile.open(temp / rendering) as packet:
+        results = ET.fromstring(packet.extractfile("render.xml").read()).find("assembly")
+        assert tuple(int(results.get(key)) for key in ("total", "passed", "failed", "errors", "skipped")) == (54, 54, 0, 0, 0)
+        tests = [test for test in results.iter("test") if test.get("method") == "NativeDetailedExtraAllocationKeepsPrimaryAndNamedDataSeparate"]
+        assert len(tests) == 2 and all(test.get("result") == "Pass" for test in tests)
+        render_inputs = {row["path"]: row["sha256"] for row in member(packet, "cache-proof.json")["files"]}
+        assert all(installed[path] == render_inputs[path] for path in borrowed)
+
+    native_packet = f"{name}-native-{native_revision}-results.tgz"
+    with tarfile.open(temp / native_packet) as packet:
+        result = member(packet, "result.json")
+        finished = result["finished"]
+        probe = finished["duplicateReviewProbe"]
+        assert result["passed"] and result["exitCode"] == 0 and result["closed"]["sourceUnchanged"]
+        assert not result.get("forcedOwnedTermination") and not result["postProcesses"]
+        assert finished["appSha256"] == installed["FileCat.dll"] and finished["harnessSha256"] == installed["DiskSpaceHarness.dll"]
+        verified = member(packet, "cache-proof.json")
+        assert verified["baseline"] == plan["baseline"] and verified["render"] == plan["render"]
+        assert verified["verifiedInputs"] == len(plan["files"])
+        assert set(verified["patched"]) == {"DiskSpaceHarness.dll", "DiskSpaceHarness.pdb"}
+        assert probe["recordedInsightsPassed"] and probe["largestFoldersPassed"] and probe["preservingDefault"] and probe["retainedHiddenMarksAndBasket"]
+        assert probe["recipeStagingPassed"] and probe["detailedStreamProbe"] and probe["namedAllocationAvailable"] == (platform == "windows")
+        assert probe["resourceAllocationAvailable"] == (platform == "mac") and probe["resourceForkBytesPreserved"] and probe["namedStreamBytesPreserved"]
+        assert "apfs-resource-fork-allocation.png" in packet.getnames()
+        checks[name] = probe
+        if platform != "mac":
+            files.add(native_packet)
+            continue
+        capture, = result["compositorCaptures"]
+        desktop = "compositor-apfs-resource-fork-allocation.png"
+        assert capture["frame"] == "apfs-resource-fork-allocation.png"
+        assert hashlib.sha256(packet.extractfile(desktop).read()).hexdigest() == capture["sha256"]
+        private_mac = {"capture": capture, "archiveSha256": sha(temp / native_packet)}
+        safe = io.BytesIO()
+        with tarfile.open(fileobj=safe, mode="w:gz") as stripped:
+            for item in packet.getmembers():
+                assert item.isfile() and item.name == Path(item.name).name
+                if item.name != desktop:
+                    assert not item.name.startswith("compositor-")
+                    stripped.addfile(item, packet.extractfile(item))
+
+assert private_mac is not None
+retained = {name: sha(temp / name) for name in sorted(files)}
+with tarfile.open(receipt_output, "w:gz") as packet:
+    for name in sorted(files):
+        packet.add(temp / name, arcname=name, recursive=False)
+    item = tarfile.TarInfo("mac-native-r1399-results-without-desktop.tgz")
+    filtered = safe.getvalue()
+    item.size = len(filtered)
+    packet.addfile(item, io.BytesIO(filtered))
+    retained[item.name] = hashlib.sha256(filtered).hexdigest()
+with tarfile.open(source_output, "w:gz") as packet:
+    for name in sorted(sources):
+        packet.add(root / name, arcname=name, recursive=False)
+manifest.write_text(json.dumps({"sourceBase": rendered["head"], "sources": sources, "retained": retained, "nativeResults": checks,
+    "archives": {path.name: sha(path) for path in (source_output, receipt_output)}, "localMacDesktopCapture": private_mac,
+    "ntfsNamedStreamAllocationQualified": True, "apfsResourceForkAllocationQualified": True, "linuxExtraAllocationAvailable": False, "publicEntryEnabled": False, "physicalInputQualified": False,
+    "fullGoalComplete": False, "finalIndependentReviewPerformed": False}, indent=2) + "\n", encoding="utf-8")
+print(f"Retained {len(retained)} resource-fork inputs and receipts across {len(checks)} platforms.")

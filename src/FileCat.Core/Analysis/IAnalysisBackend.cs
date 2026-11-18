@@ -65,18 +65,20 @@ public interface IAnalysisBackend : IDisposable
 
 internal interface IAnalysisDetailedBackend
 {
-    string ExtraAllocationBasis { get; }
+    string? ExtraAllocationBasis { get; }
     AnalysisEntry ReadDetailedRoot(CancellationToken cancellation);
     IEnumerable<AnalysisEntry> ReadDetailedChildren(AnalysisEntry directory, Func<AnalysisEntry, bool> mayMeasure, CancellationToken cancellation);
 }
 
-internal sealed record AnalysisExtraAllocation(string Component, string Basis, string Method, AnalysisMeasurement Measurement)
+internal sealed record AnalysisExtraAllocation(string Component, string Basis, string Method, AnalysisMeasurement Measurement,
+    bool IncludedInReportedAllocation = false)
 {
     internal StorageFact Fact(string id, string owner, DateTimeOffset observed) =>
         new(id, owner, null, Component, Basis, Measurement, Method, observed, []);
 
     internal bool Matches(StorageFact fact) => Component == fact.ComponentId && Basis == fact.BasisId && Method == fact.Method &&
         Measurement == fact.Measurement && fact.Includes.IsEmpty;
+    internal ImmutableArray<string> CoveredComponents => IncludedInReportedAllocation ? [Component] : [];
 }
 
 public sealed class AnalysisSourceChangedException : IOException

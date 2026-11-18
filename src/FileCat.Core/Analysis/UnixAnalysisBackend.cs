@@ -6,7 +6,7 @@ using FileCat.Core.FileSystem;
 namespace FileCat.Core.Analysis;
 
 /// <summary>Descriptor-relative metadata only. Linux resolves every queued entry beneath the held root with openat2.</summary>
-public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
+public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnalysisDetailedBackend
 {
     private readonly int _root;
     private readonly bool _mac = OperatingSystem.IsMacOS();
@@ -18,12 +18,13 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
     internal bool IsDisposed => _disposed;
     private readonly ulong _device, _mount;
     private readonly bool _identitySupported;
+    private readonly bool _apfs;
     private readonly ulong _modifiedPrecisionTicks = 1;
     private readonly Dictionary<int, AnalysisNativeHandle> _handleLeases = [];
     private readonly Guid _bindingId = Guid.NewGuid();
     public RootBinding Root { get; }
     public AnalysisEntry RootEntry { get; }
-    public string Basis => _mac ? "darwin-stat-total-blocks-v1" : "linux-statx-blocks-v1";
+    public string Basis => _mac ? AnalysisComponents.DarwinTotalAllocationBasis : AnalysisComponents.LinuxAllocationBasis;
     private sealed record Facts(ulong Device, ulong Inode, ulong Mount, AnalysisKind Kind, ulong Size, ulong Blocks,
         uint Links, long Modified, uint ModifiedNs, long Changed, uint ChangedNs, bool HasAllocation, uint Flags,
         DateTimeOffset? Created = null);
@@ -52,6 +53,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
             if (_mac)
             {
                 string type = MacFileSystem(_root).Type;
+                _apfs = type == "apfs";
                 _identitySupported = type is "apfs" or "hfs";
                 _modifiedPrecisionTicks = type == "hfs" ? (ulong)TimeSpan.TicksPerSecond : 1;
             }
@@ -71,7 +73,10 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
         catch { Dispose(); throw; }
     }
 
-    public IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation)
+    public IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation) =>
+        ChildrenCore(directory, null, cancellation);
+
+    private IEnumerable<AnalysisEntry> ChildrenCore(AnalysisEntry directory, Func<AnalysisEntry, bool>? mayMeasure, CancellationToken cancellation)
     {
         Guard();
         if (!_identitySupported && directory.RelativeName.Length > 0)
@@ -116,6 +121,8 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
                     var facts = Stat(child);
                     if (facts.Device != _device || facts.Mount != _mount) throw new AnalysisEntryUnavailableException(MeasurementState.Excluded, "source-mount-boundary");
                     result = Bind(Entry(relative.ToImmutableArray(), raw, facts), directory.Ancestry);
+                    if (mayMeasure is not null && result.Kind == AnalysisKind.File && mayMeasure(result))
+                        result = ReadResourceAllocation(child, result, cancellation);
                 }
                 catch (AnalysisEntryUnavailableException ex)
                 {

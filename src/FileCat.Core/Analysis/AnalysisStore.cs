@@ -61,7 +61,7 @@ public sealed class AnalysisStore(bool canonicalPathIds = false, int pathLimit =
                 if (e.Identity is not null) _identities.Add(e.Identity, at);
                 _objectFactIndices.Add((_facts.Count, e.ExtraAllocation is null ? null : _facts.Count + 1));
                 _facts.Add(new("f" + id, objectId, null, "reported-data", basis, e.Allocation, basis,
-                    e.ObservedUtc ?? DateTimeOffset.UtcNow, []));
+                    e.ObservedUtc ?? DateTimeOffset.UtcNow, e.ExtraAllocation?.CoveredComponents ?? []));
                 if (e.ExtraAllocation is { } extra)
                     _facts.Add(extra.Fact("e" + id, objectId, times.ObservedUtc));
             }
@@ -95,6 +95,8 @@ public sealed class AnalysisStore(bool canonicalPathIds = false, int pathLimit =
                 else if (e.ExtraAllocation is { } extra)
                 {
                     _objectFactIndices[at] = (indices.Primary, _facts.Count);
+                    if (extra.IncludedInReportedAllocation)
+                        _facts[indices.Primary] = _facts[indices.Primary] with { Includes = extra.CoveredComponents };
                     _facts.Add(extra.Fact("e" + id, objectId, times.ObservedUtc) with { Measurement = AnalysisMeasurement.Missing(MeasurementState.Changed) });
                     Issue("extra-data-changed-during-observation", id, MeasurementState.Changed);
                 }

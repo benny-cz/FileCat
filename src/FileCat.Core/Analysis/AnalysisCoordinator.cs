@@ -73,7 +73,7 @@ public sealed partial class AnalysisSession : IDisposable
             if (nextEpoch is not null) _phase = AnalysisPhase.Refreshing;
             var bases = sources.Select(source => source.Basis);
             if (components == AnalysisComponentPreset.DetailedAllocation)
-                bases = bases.Concat(sources.OfType<IAnalysisDetailedBackend>().Select(source => source.ExtraAllocationBasis));
+                bases = bases.Concat(sources.OfType<IAnalysisDetailedBackend>().Select(source => source.ExtraAllocationBasis).OfType<string>());
             _policy = new() { BasisIds = bases.Distinct(StringComparer.Ordinal).ToImmutableArray(), PackagePolicy = "contents-included",
                 ComponentPreset = components == AnalysisComponentPreset.DetailedAllocation ? "detailed" : "standard", Limits = AnalysisLimits.EffectivePolicy,
                 Exclusions = storage is null ? [] : ["filecat-private-analysis-state"] };
@@ -310,12 +310,15 @@ public sealed partial class AnalysisSession : IDisposable
     {
         bool protectedRoot = _protectedSources.Contains(source) || IsProtected(source.RootEntry);
         var rootEntry = protectedRoot ? ExcludedPrivate(source.RootEntry) : source.RootEntry;
-        var detailed = _policy.ComponentPreset == "detailed" ? source as IAnalysisDetailedBackend : null;
+        var detailed = _policy.ComponentPreset == "detailed" && source is IAnalysisDetailedBackend { ExtraAllocationBasis: not null } provider
+            ? provider : null;
         if (!protectedRoot && detailed is not null && rootEntry.Kind == AnalysisKind.File)
             rootEntry = await AnalysisIo.Run(_io, device, detailed.ReadDetailedRoot, _cancel.Token).ConfigureAwait(false);
         var rootId = await AppendObservationAsync(rootEntry, 0, root.Id, source.Basis).ConfigureAwait(false);
         if (!rootId.HasValue) { Issue("memory-or-observation-limit"); return; }
         if (protectedRoot) { Issue("private-analysis-state-excluded", rootId, MeasurementState.Excluded); return; }
+        if (rootEntry.ExtraAllocation?.Measurement.State == MeasurementState.Changed)
+            Issue("extra-data-changed-during-observation", rootId, MeasurementState.Changed);
         if (source.RootEntry.Kind != AnalysisKind.Directory) return;
         if (!source.RootEntry.IncludedByPolicy || source.RootEntry.MetadataState != MeasurementState.Known)
         { Issue(source.RootEntry.IssueCode ?? "root-enumeration-unavailable", rootId, source.RootEntry.MetadataState); return; }
@@ -382,6 +385,8 @@ public sealed partial class AnalysisSession : IDisposable
                         ulong? childId = storedIds.IsDefault ? _store.Append(child, id, root.Id, source.Basis, _policy.ComponentPreset == "detailed") : storedIds[childAt];
                         if (childId is null) { Issue("memory-or-observation-limit", id); return; }
                         if (protectedChild) { Issue("private-analysis-state-excluded", childId, MeasurementState.Excluded); continue; }
+                        if (child.ExtraAllocation?.Measurement.State == MeasurementState.Changed)
+                            Issue("extra-data-changed-during-observation", childId, MeasurementState.Changed);
                         if (child.IssueCode is { } issueCode) Issue(issueCode, childId, child.MetadataState);
                         if (!child.IncludedByPolicy || child.MetadataState != MeasurementState.Known) continue;
                         if (child.Kind is AnalysisKind.Link or AnalysisKind.Special)

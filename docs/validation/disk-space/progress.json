@@ -15982,5 +15982,17 @@
     "publicEntryEnabled": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "apfsResourceForkAllocation": {
+    "status": "qualified-internal-detailed-apfs-slice",
+    "packet": "source-manifest-r1400-apfs-forks.json",
+    "document": "RECORDED_INSIGHTS_QUALIFICATION.md",
+    "focusedCasesPassedPerPlatform": 54,
+    "nativeWindowRevision": "r1399",
+    "macActualCompositorQualified": true,
+    "linuxExtraAllocationAvailable": false,
+    "publicEntryEnabled": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }

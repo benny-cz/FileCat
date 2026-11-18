@@ -10,13 +10,18 @@ public static class AnalysisComponents
 {
     internal const string NamedStreamComponent = "named-data-streams", NamedStreamBasis = "ntfs-named-stream-allocation-v1";
     internal const string NamedStreamMethod = "NTFS FileStreamInformation named data stream allocation";
-    public const string UnmeasuredExplanation = "Separate resource fork and xattr allocation is unavailable. Detailed NTFS scans can record named data stream allocation.";
+    internal const string ResourceForkComponent = "resource-fork", ResourceForkBasis = "apfs-resource-fork-allocation-v1";
+    internal const string ResourceForkMethod = "APFS fgetattrlist resource fork allocation";
+    internal const string DarwinTotalAllocationBasis = "darwin-stat-total-blocks-v1", LinuxAllocationBasis = "linux-statx-blocks-v1";
+    internal const string WindowsPrimaryAllocationBasis = "windows-primary-allocation-v1";
+    public const string UnmeasuredExplanation = "Detailed scans can record named streams on NTFS and resource forks on APFS. Separate extended attribute allocation is unavailable.";
 
     internal static bool IsExtraAllocation(StorageFact fact) =>
-        fact.ComponentId == NamedStreamComponent && fact.BasisId == NamedStreamBasis && fact.Method == NamedStreamMethod &&
-        fact.ObjectId is not null && fact.Includes.IsEmpty;
+        fact.ObjectId is not null && fact.Includes.IsEmpty &&
+        (fact is { ComponentId: NamedStreamComponent, BasisId: NamedStreamBasis, Method: NamedStreamMethod } ||
+         fact is { ComponentId: ResourceForkComponent, BasisId: ResourceForkBasis, Method: ResourceForkMethod });
     internal static bool ExtraAllocationRequested(ScanPolicy policy) =>
-        policy.ComponentPreset == "detailed" && policy.BasisIds.Contains(NamedStreamBasis);
+        policy.ComponentPreset == "detailed" && (policy.BasisIds.Contains(NamedStreamBasis) || policy.BasisIds.Contains(ResourceForkBasis));
 
     public static ImmutableArray<AnalysisComponentFacts> Summarize(AnalysisSnapshot snapshot) => snapshot.Facts
         .GroupBy(f => (f.ComponentId, f.BasisId)).OrderBy(g => g.Key.ComponentId, StringComparer.Ordinal).ThenBy(g => g.Key.BasisId, StringComparer.Ordinal)
