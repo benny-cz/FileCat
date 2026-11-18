@@ -23,6 +23,7 @@ scope.add_argument("--apfs-forks", action="store_true")
 scope.add_argument("--cleanup-review", action="store_true")
 scope.add_argument("--cleanup-review-fixture", metavar="BASE_REVISION")
 scope.add_argument("--reviewed-copy-fixture", metavar="BASE_REVISION")
+scope.add_argument("--fast-ntfs-transport", metavar="BASE_REVISION")
 options = parser.parse_args()
 revision = options.revision
 methods = ["*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*"]
@@ -68,9 +69,9 @@ if options.duplicates or options.duplicate_content or options.recorded_insights 
         name = f"apfs-forks-render-build-{revision}"
     if options.cleanup_review:
         methods.extend(("*NativeCleanupReview*", "*NativePrimaryPreview*", "*NativeReviewedCopy*", "*NativeReviewedMove*", "*CleanupReviewTotalsSeparateBasisCoverageAndOverlappingComponents*",
-                        "*ReviewedCopyRecoveryReportsExactEffectsAndKeepsFiles*", "*ReviewCancelBindingRoutesFromOverlayAndEnterOnAFileOpensDetails*",
+                        "*ReviewedCopyRecoveryReportsExactEffectsAndKeepsFiles*", "*FastNtfsTransport*", "*ReviewCancelBindingRoutesFromOverlayAndEnterOnAFileOpensDetails*",
                         "*ShortLargeTextPageScrollsAndTheRankedTableRemainsVirtualized*"))
-        expected = 66
+        expected = 69
         name = f"cleanup-review-render-build-{revision}"
     log = (Path.cwd() / f".tmp/{name}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
@@ -85,11 +86,15 @@ if options.recipe_staging_fixture:
     expected = 2
     log = (Path.cwd() / f".tmp/recipe-staging-render-build-{revision}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
-retry = options.cleanup_review_fixture or options.reviewed_copy_fixture
+retry = options.cleanup_review_fixture or options.reviewed_copy_fixture or options.fast_ntfs_transport
 if retry:
     assert re.fullmatch(r"r[0-9]+", retry) and re.fullmatch(r"r[0-9]+", revision) and retry != revision
-    methods = ["*NativeReviewedCopy*"] if options.reviewed_copy_fixture else ["*NativeCleanupReview*"]
-    expected = 3 if options.reviewed_copy_fixture else 2
+    if options.fast_ntfs_transport:
+        methods, expected = ["*FastNtfsTransport*"], 3
+    elif options.reviewed_copy_fixture:
+        methods, expected = ["*NativeReviewedCopy*"], 3
+    else:
+        methods, expected = ["*NativeCleanupReview*"], 2
     log = (Path.cwd() / f".tmp/cleanup-review-render-build-{revision}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
 root = Path.cwd()
@@ -120,9 +125,9 @@ for platform in ("windows", "mac", "linux"):
         cached = json.loads((temp / f"{tag}-batch-{retry}-cache-proof.json").read_text(encoding="utf-8-sig"))
         assert cached["revision"] == retry and cached["files"] == plan["files"], platform
         ending = "\\render" if platform == "windows" else "/render"
-        assert plan["baseline"].endswith(ending) and "r1334" in plan["baseline"]
-        prior_baseline = plan["baseline"]
-        plan["baseline"] = prior_baseline[:-len(ending)].replace("r1334", retry)
+        prior_baseline = plan["baseline"].removesuffix(ending)
+        plan["baseline"], replacements = re.subn(r"r[0-9]+(?=[\\/]payload$)", retry, prior_baseline)
+        assert replacements == 1
     plan["revision"] = revision
     plan["methods"] = methods
     changes = set()
@@ -137,7 +142,12 @@ for platform in ("windows", "mac", "linux"):
         if entry["patch"]:
             changes.add(name)
     assert changes <= allow, f"Review changed rendering inputs: {sorted(changes - allow)}"
-    if retry:
+    if options.fast_ntfs_transport:
+        tests = {"FileCat.Rendering.Tests.dll", "FileCat.Rendering.Tests.pdb"}
+        transport = {f"{stem}.{ext}" for stem in ("FileCat.Platform.Windows", "FileCat.Rendering.Tests") for ext in ("dll", "pdb")}
+        dependents = {f"{stem}.{ext}" for stem in ("FileCat", "FileCat.ShellHost") for ext in ("dll", "pdb")}
+        assert changes == tests or transport <= changes <= transport | dependents, sorted(changes)
+    elif retry:
         assert changes == {"FileCat.Rendering.Tests.dll", "FileCat.Rendering.Tests.pdb"}, sorted(changes)
     else:
         assert {"FileCat.Core.dll", "FileCat.dll", "FileCat.Rendering.Tests.dll"} <= changes
