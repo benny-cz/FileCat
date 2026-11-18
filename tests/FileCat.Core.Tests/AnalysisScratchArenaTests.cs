@@ -79,7 +79,7 @@ public sealed partial class AnalysisScratchArenaTests
         Ordinary(); var directory = new FakeDirectory(); using var arena = new AnalysisScratchArena(directory);
         var first = arena.Append([1], Cancellation); using var checkpoint = arena.Capture(); int calls = directory.File.Writes;
         directory.Available = 256UL * 1024 * 1024;
-        Assert.Throws<IOException>(() => arena.Append([2], Cancellation));
+        Assert.Equal(AnalysisScratchLimit.FreeSpaceReserve, Assert.Throws<AnalysisScratchLimitException>(() => arena.Append([2], Cancellation)).Limit);
         Assert.Equal(calls, directory.File.Writes); Assert.True(arena.Failed); Assert.Equal(new byte[] { 1 }, checkpoint.Read(first, Cancellation));
     }
 
@@ -90,10 +90,13 @@ public sealed partial class AnalysisScratchArenaTests
         using var first = new AnalysisScratchArena(new FakeDirectory(), budget, 100);
         first.Append([1], Cancellation); using var checkpoint = first.Capture(); first.Dispose();
         using var second = new AnalysisScratchArena(new FakeDirectory(), budget, 100);
-        Assert.Throws<IOException>(() => second.Append([2, 3, 4, 5], Cancellation)); Assert.Equal(49, budget.ReservedBytes);
+        Assert.Equal(AnalysisScratchLimit.Budget, Assert.Throws<AnalysisScratchLimitException>(() => second.Append([2, 3, 4, 5], Cancellation)).Limit);
+        Assert.Equal(49, budget.ReservedBytes);
         checkpoint.Dispose(); Assert.Equal(0, budget.ReservedBytes);
         using var third = new AnalysisScratchArena(new FakeDirectory(), budget, 50);
-        third.Append([1], Cancellation); Assert.Throws<IOException>(() => third.Append([], Cancellation)); Assert.Equal(49, budget.ReservedBytes);
+        third.Append([1], Cancellation);
+        Assert.Equal(AnalysisScratchLimit.Budget, Assert.Throws<AnalysisScratchLimitException>(() => third.Append([], Cancellation)).Limit);
+        Assert.Equal(49, budget.ReservedBytes);
     }
 
     [Fact]

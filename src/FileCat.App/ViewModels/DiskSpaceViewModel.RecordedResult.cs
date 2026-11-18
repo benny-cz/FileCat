@@ -9,9 +9,15 @@ public sealed partial class DiskSpaceViewModel
     private string? _capturedPreviewNotice;
     internal bool IsIndexedRuntimePreview => !_disposed && _acquisition?.IndexedStorage == true && _session is { UsesMemoryFallback: false };
     private bool FinishedWithoutRecordedResult => _session is { Completion.IsCompletedSuccessfully: true, DatasetDescriptor: null };
+    private string RecordedResultFailure => (_session?.ScratchLimitReached switch
+    {
+        AnalysisScratchLimit.Budget => "The private scratch budget was reached before the recorded result was ready.",
+        AnalysisScratchLimit.FreeSpaceReserve => "Private scratch reached its free-space reserve before the recorded result was ready.",
+        _ => "The recorded result could not be prepared."
+    }) + " The bounded preview remains available.";
     internal string? RuntimePreviewNotice => _capturedPreviewNotice ?? (IsIndexedRuntimePreview
         ? FinishedWithoutRecordedResult
-            ? "The recorded result could not be prepared. This bounded preview remains available. Try a narrower scan to record more of the selected scope."
+            ? RecordedResultFailure + " Try a narrower scan to record more of the selected scope."
             : "Live preview of a bounded subset. Marks and selection apply to this displayed revision. Open the recorded result after scanning to explore every recorded entry."
         : null);
     internal bool CanOpenRecordedResult => RecordedResultUnavailableReason is null;
@@ -26,7 +32,7 @@ public sealed partial class DiskSpaceViewModel
             ? "Source cleanup could not be confirmed. Preserve this result before restarting FileCat."
         : IsPreparing || IsRescanning || !_session!.Completion.IsCompletedSuccessfully
             ? "Wait for the scan and its source handles to finish closing."
-        : _session.DatasetDescriptor is null ? "The recorded result could not be prepared. The bounded preview remains available."
+        : _session.DatasetDescriptor is null ? RecordedResultFailure
         : _building || _interaction != 0 && !(reviewedRequest is not null && _interaction == 1)
             ? "Finish the current view update or chart interaction first."
         : Tree is null || _publishedView is null ? "Wait for the preview revision to be displayed."

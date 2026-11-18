@@ -31,3 +31,17 @@ Complete ten-million-entry workflows, global multi-session resource limits, nati
 The fixture runner writes an atomic checkpoint outside the scan source after each verified batch of generated rows. During the directory-size baseline, a separate watcher also passes withdrawal to the running test so the guest can yield to another tester.
 
 On the Mac, r1572 deliberately stopped generation after the first checkpoint at row 16,386. The retry kept that row's inode and modification time, completed the 65,541-file fixture and captured 65,542 paths, including the root. The acquisition and exploration case passed and closed its owners. The post-run FileCat and test-process inventory was empty. The render.xml SHA-256 is 656e41ad372fad012ccbbb89251bd3c391c7c0ab5061d677c625dffe85204c4d. The combined interruption and resumed receipt log SHA-256 is ef112a9f65b21ab5ec151b14cbaF4c8d6e4dcce4cce70bfd23008ec08c2f6716.
+
+## Scratch limits and retained previews
+
+The Mac r1592 and Ubuntu r1591 wide fixtures each contained 9,999,999 source files and one root. Both verified their file counts and logical bytes before the scan, then ended without a recorded index. The Mac last checkpoint observed 8,729,311 paths and Ubuntu reached 9,019,510. Both runs closed their owners. Ubuntu detached its owned ext4 fixture image. Their receipts identified the missing index without identifying which resource or index failure caused it. Full ten-million-path exploration remains unqualified.
+
+FileCat now records a private scratch budget limit and a free-space reserve limit separately. An interrupted capture keeps the bounded prefix and describes the applicable limit in the preview and the unavailable recorded-result action. The final telemetry captures observed and preview path counts, coverage, issue codes and sampled peak scratch reservations.
+
+The r1604 checks ran the exact same eight Core and ten Rendering methods on each test machine. All 18 passed on each platform. The Core controls force each of the two limits while a bounded preview exists and verify that the preview remains available. The renderer run covers the indexed preview and recorded-result resource views, settings and fallback regressions. A different tester appeared during Windows result collection, so the broad follow-up retained its existing checkpoints and used its idle checks before running again.
+
+| Platform | Core XML SHA-256 | Renderer XML SHA-256 |
+|---|---|---|
+| Windows VM | `b90291b14dd0716979caad9cc9d1787d64969e99785740d4f62f8bb15dbfd06b` | `68c590376297b3a53af4e43013ae589fd56787b26c27a98dc1da77d3e2639434` |
+| Mac | `a0381b2e1a8273a231b8815ca83340a18b0878e269d8cc172ddead127cd674eb` | `1f7e4b74589d85303e0def8664608d34c03e550dbe4fa5659b1887f6adb19468` |
+| Ubuntu VM | `7e5581ba21fb370f47093cc7dd7d560bce6928c4729ad9d58aceee6b8af1ff43` | `a195eb9d1afa3cc666f40905b669cb4cb2c79dc5d166ac4e9c2dc01e7a42b8e8` |

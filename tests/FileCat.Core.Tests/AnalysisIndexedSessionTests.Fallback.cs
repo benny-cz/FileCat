@@ -70,6 +70,28 @@ public sealed partial class AnalysisIndexedSessionTests
         Assert.Contains(session.Snapshot().Nodes, n => n.Name == "source");
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ScratchCapacityFailureKeepsTheBoundedPreviewWithItsActualReason(bool budgetExhausted)
+    {
+        Ordinary(); using var io = new DeviceIoScheduler(); var directory = new MemoryDirectory();
+        var limit = budgetExhausted ? AnalysisScratchLimit.Budget : AnalysisScratchLimit.FreeSpaceReserve;
+        var source = new Backend(20) { BeforeEnumerate = () => directory.BeforeNextWrite = () => throw new AnalysisScratchLimitException(limit) };
+        using var session = new AnalysisCoordinator(io).Start([source], storage: Storage(directory, new Backend(0, "private")) with { AllowMemoryFallback = true });
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(20), Cancellation);
+        Assert.Equal(limit, session.ScratchLimitReached);
+        Assert.False(session.UsesMemoryFallback);
+        Assert.Null(session.DatasetDescriptor);
+        Assert.True(source.Closed);
+        var partial = session.Snapshot();
+        Assert.Equal(NamespaceCoverage.Partial, partial.Coverage);
+        Assert.Contains(partial.Nodes, node => node.Name == "source");
+        string expected = budgetExhausted ? "analysis-scratch-budget-reached" : "analysis-scratch-reserve-reached";
+        Assert.Contains(partial.Issues, issue => issue.Code == expected);
+        Assert.DoesNotContain(partial.Issues, issue => issue.Code == "analysis-source-unavailable");
+    }
+
     [Fact]
     public async Task StopDuringInitialScratchFailureCannotResumeTheCanceledScanInMemory()
     {

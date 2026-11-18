@@ -41,9 +41,11 @@ public sealed partial class AnalysisSession
     private Task _datasetClose = Task.CompletedTask;
     private bool _previewLimited, _indexing, _captureIssueOverflow, _memoryFallback;
     private int _capturedPaths;
+    private AnalysisScratchLimit? _scratchLimit;
     public Task DatasetCloseCompletion { get { lock (_sync) return _datasetClose; } }
     public AnalysisDatasetDescriptor? DatasetDescriptor { get { lock (_sync) return _dataset?.Descriptor; } }
     public bool UsesMemoryFallback { get { lock (_sync) return _memoryFallback; } }
+    internal AnalysisScratchLimit? ScratchLimitReached { get { lock (_sync) return _scratchLimit; } }
     /// <summary>Current scratch reservations, or null while the session has no private index.</summary>
     public long? ScratchReservedBytes { get { lock (_sync) return _writer?.ScratchReservations.ReservedBytes ?? _dataset?.ScratchReservedBytes; } }
     public Task<AnalysisDatasetLease?> AcquireDatasetAsync(CancellationToken cancellation = default)
@@ -255,11 +257,18 @@ public sealed partial class AnalysisSession
             if (!keep) await dataset.DisposeAsync().ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (_finalizeCancel.IsCancellationRequested) { }
+        catch (AnalysisScratchLimitException error) { RecordScratchLimit(error); lock (_sync) _final = null; }
         catch (Exception) { Issue("analysis-index-unavailable"); lock (_sync) _final = null; }
         finally
         {
             if (_writer is { } writer) { try { await writer.DisposeAsync().ConfigureAwait(false); } catch { lock (_sync) _sourceCloseFailures++; } }
             lock (_sync) { _writer = null; _indexing = false; _activeDevice = null; }
         }
+    }
+
+    private void RecordScratchLimit(AnalysisScratchLimitException error)
+    {
+        lock (_sync) _scratchLimit ??= error.Limit;
+        Issue(error.Limit == AnalysisScratchLimit.Budget ? "analysis-scratch-budget-reached" : "analysis-scratch-reserve-reached");
     }
 }

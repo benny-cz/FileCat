@@ -3,6 +3,15 @@ using System.Security.Cryptography;
 
 namespace FileCat.Core.Analysis;
 
+internal enum AnalysisScratchLimit { Budget, FreeSpaceReserve }
+
+internal sealed class AnalysisScratchLimitException(AnalysisScratchLimit limit) : IOException(limit == AnalysisScratchLimit.Budget
+    ? "The private analysis scratch budget was reached. Keep the partial result or choose a narrower scope."
+    : "Not enough private scratch space remains above the analysis reserve. Keep the partial result.")
+{
+    internal AnalysisScratchLimit Limit { get; } = limit;
+}
+
 /// <summary>
 /// Append-only backing for indexed analysis records, used exclusively by admitted I/O workers.
 /// Checkpoints retain the native directory/file and quota after the writer closes. No disk I/O belongs on the UI thread.
@@ -66,7 +75,7 @@ internal sealed class AnalysisScratchArena : IDisposable
             {
                 Guard(); _file.Verify();
                 if (_reserved > _limit - bytes || !_budget.TryReserve(bytes))
-                    throw new IOException("The private analysis scratch budget was reached. Keep the partial result or choose a narrower scope.");
+                    throw new AnalysisScratchLimitException(AnalysisScratchLimit.Budget);
                 // Retain the ENTIRE reservation if a native write partially succeeds or cancellation arrives.
                 _reserved += bytes;
                 Span<byte> header = stackalloc byte[HeaderBytes];
@@ -92,9 +101,10 @@ internal sealed class AnalysisScratchArena : IDisposable
         {
             cancellation.ThrowIfCancellationRequested(); Guard();
             int take = Math.Min(bytes.Length, 64 * 1024); var space = _directory.Space();
-            if (space.Capacity == 0 || space.Available > space.Capacity ||
-                space.Available < AnalysisPrivateInventoryStore.RequiredReserve(space.Capacity) + (uint)take)
-                throw new IOException("Not enough private scratch space remains above the analysis reserve. Keep the partial result.");
+            if (space.Capacity == 0 || space.Available > space.Capacity)
+                throw new IOException("Private scratch capacity is unavailable. Keep the partial result.");
+            if (space.Available < AnalysisPrivateInventoryStore.RequiredReserve(space.Capacity) + (uint)take)
+                throw new AnalysisScratchLimitException(AnalysisScratchLimit.FreeSpaceReserve);
             _file.WriteAt(bytes[..take], offset); offset += take; bytes = bytes[take..];
         }
     }

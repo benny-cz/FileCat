@@ -241,6 +241,7 @@ public sealed partial class AnalysisSession : IDisposable
         catch (OperationCanceledException) when (_io.IsStopped) { Stop("analysis-io-stopped"); }
         catch (Exception ex) when (_ntfs is not null && ex is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException or TimeoutException)
         { FailNtfsDiscovery(ex is AnalysisSourceChangedException ? MeasurementState.Changed : MeasurementState.Unsupported); }
+        catch (AnalysisScratchLimitException error) { RecordScratchLimit(error); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         { Issue("analysis-source-unavailable"); }
         catch (Exception)

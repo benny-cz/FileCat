@@ -15,7 +15,7 @@ public sealed class AnalysisScratchWorkspaceTests
         using var data = workspace.CreateArena(); using var run = workspace.CreateArena();
         var address = data.Append(new byte[10], Cancellation); run.Append(new byte[10], Cancellation); using var reader = data.Capture();
         Assert.Equal(116, workspace.ReservedBytes); Assert.Equal(116, profile.ReservedBytes);
-        Assert.Throws<IOException>(() => data.Append([1], Cancellation)); Assert.Equal(116, profile.ReservedBytes);
+        Assert.Throws<AnalysisScratchLimitException>(() => data.Append([1], Cancellation)); Assert.Equal(116, profile.ReservedBytes);
         workspace.Dispose(); Assert.False(directory.Closed); Assert.Throws<ObjectDisposedException>(() => workspace.CreateArena());
         run.Dispose(); data.Dispose(); Assert.Equal(58, workspace.ReservedBytes); Assert.False(directory.Closed);
         Assert.Equal(new byte[10], reader.Read(address, Cancellation)); reader.Dispose();
@@ -30,7 +30,7 @@ public sealed class AnalysisScratchWorkspaceTests
         using var second = new AnalysisScratchWorkspace(new MemoryDirectory(), 200, profile);
         using var a = first.CreateArena(); using var b = second.CreateArena();
         a.Append(new byte[100], Cancellation); Assert.Equal(148, profile.ReservedBytes);
-        Assert.Throws<IOException>(() => b.Append(new byte[100], Cancellation)); Assert.Equal(0, second.ReservedBytes);
+        Assert.Throws<AnalysisScratchLimitException>(() => b.Append(new byte[100], Cancellation)); Assert.Equal(0, second.ReservedBytes);
         a.Dispose(); Assert.Equal(0, profile.ReservedBytes);
         using var retry = second.CreateArena(); retry.Append(new byte[100], Cancellation); Assert.Equal(148, second.ReservedBytes);
     }

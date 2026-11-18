@@ -40,6 +40,9 @@ public sealed partial class AnalysisRenderingTests
         var phases = new List<object>(); var timer = Stopwatch.StartNew();
         string phase = "fixture"; string? failure = null; bool completed = false, cleanup = false;
         long baselinePrivate = 0, peakPrivate = 0, baselineWorking = 0, peakWorking = 0;
+        long peakScratchReserved = 0;
+        AnalysisProgress? acquisitionProgress = null;
+        object? acquisitionOutcome = null;
         using var process = Process.GetCurrentProcess(); using var samplingStop = new CancellationTokenSource();
         Task sampling = Task.CompletedTask; AnalysisPhysicalMemory? physical = null;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
@@ -78,7 +81,8 @@ public sealed partial class AnalysisRenderingTests
             sampledPeakPrivateIncrementBytes = baselinePrivate > 0 ? (long?)Math.Max(0, peakPrivate - baselinePrivate) : null,
             privateMemoryBudgetVerified = baselinePrivate > 0 && peakPrivate - baselinePrivate <= 512L * 1024 * 1024,
             sampledPeakWorkingSetIncrementBytes = Math.Max(0, peakWorking - baselineWorking),
-            nativePhysicalMemory = physical?.Describe(), remainingSharedQuotaBytes = AnalysisScratchBudget.Shared.ReservedBytes,
+            nativePhysicalMemory = physical?.Describe(), sampledPeakScratchReservedBytes = peakScratchReserved,
+            remainingSharedQuotaBytes = AnalysisScratchBudget.Shared.ReservedBytes, acquisitionOutcome,
             failure,
         }, new JsonSerializerOptions { WriteIndented = true }));
         void Mark(string name)
@@ -123,6 +127,7 @@ public sealed partial class AnalysisRenderingTests
                 {
                     process.Refresh(); peakPrivate = Math.Max(peakPrivate, process.PrivateMemorySize64);
                     peakWorking = Math.Max(peakWorking, process.WorkingSet64); physical.Observe();
+                    peakScratchReserved = Math.Max(peakScratchReserved, AnalysisScratchBudget.Shared.ReservedBytes);
                     try { await Task.Delay(50, samplingStop.Token); } catch (OperationCanceledException) { break; }
                 }
             });
@@ -133,6 +138,7 @@ public sealed partial class AnalysisRenderingTests
             long lastProgressReceipt = 0;
             var session = acquisition.Start([source], new InlineScaleProgress(value =>
             {
+                acquisitionProgress = value;
                 Interlocked.Increment(ref progressReports);
                 if (value.ObservedPaths > 0) Interlocked.CompareExchange(ref firstObservationTicks, timer.Elapsed.Ticks, 0);
                 long milliseconds = timer.ElapsedMilliseconds;
@@ -140,11 +146,18 @@ public sealed partial class AnalysisRenderingTests
                 {
                     lastProgressReceipt = milliseconds;
                     File.WriteAllText(Path.Combine(parent, "progress.json"), JsonSerializer.Serialize(new
-                    { count, shape, milliseconds, value.ObservedPaths, value.Phase, value.DatasetReady, value.SourceCloseFailures }));
+                    { count, shape, milliseconds, value.ObservedPaths, value.PreviewPaths, value.Phase, value.DatasetReady, value.SourceCloseFailures }));
                 }
             })); source = null;
             await session.Completion.WaitAsync(token);
             var snapshot = session.Snapshot(); sourceCloseFailures = session.SourceCloseFailures;
+            acquisitionOutcome = new
+            {
+                phase = snapshot.Phase.ToString(), coverage = snapshot.Coverage.ToString(),
+                observedPaths = acquisitionProgress?.ObservedPaths, previewPaths = snapshot.Nodes.Length,
+                datasetReady = session.DatasetDescriptor is not null, scratchLimit = session.ScratchLimitReached?.ToString(),
+                issueCodes = snapshot.Issues.Select(issue => issue.Code).Distinct().Order().ToArray()
+            };
             Assert.Equal(AnalysisPhase.Finished, snapshot.Phase); Assert.Equal(0UL, sourceCloseFailures);
             Assert.NotNull(session.DatasetDescriptor); paths = session.DatasetDescriptor.Paths;
             Assert.Equal((ulong)(count + directories + 1), paths); Assert.True(snapshot.Nodes.Length <= 4_096);
