@@ -18,10 +18,12 @@ public partial class WindowsFileOperations
     private const uint COPY_FILE_COPY_SYMLINK = 0x00000800;
     private const uint COPY_FILE_NO_BUFFERING = 0x00001000;
     private const uint COPY_FILE_ALLOW_DECRYPTED_DESTINATION = 0x00000008;
+    private const uint COPY_FILE_NO_OFFLOAD = 0x00040000;
     private const uint COPY_FILE_DISABLE_PRE_ALLOCATION = 0x04000000;
     private const uint COPY_FILE_ENABLE_SPARSE_COPY = 0x20000000; // Windows 11 22H2+
     private const int E_INVALIDARG = unchecked((int)0x80070057);
     private const int COPYFILE2_CALLBACK_CHUNK_FINISHED = 2;
+    private const int COPYFILE2_CALLBACK_STREAM_STARTED = 3;
     private const int COPYFILE2_CALLBACK_STREAM_FINISHED = 4;
     private const int COPYFILE2_PROGRESS_CONTINUE = 0;
     private const int COPYFILE2_PROGRESS_CANCEL = 1;
@@ -117,12 +119,14 @@ public partial class WindowsFileOperations
         return PathUtil.IsUncPath(path) ? @"\\?\UNC\" + path[2..] : @"\\?\" + path;
     }
 
-    private sealed class CopyContext(CopyProgressCallback? progress, string destination, bool flush, CancellationToken ct)
+    private sealed class CopyContext(CopyProgressCallback? progress, string destination, bool flush, CancellationToken ct, DecryptedCopyReview? review)
     {
         public readonly CopyProgressCallback? Progress = progress;
         public readonly string Destination = destination;
         public readonly bool Flush = flush;
         public readonly CancellationToken Token = ct;
+        public readonly DecryptedCopyReview? Review = review;
+        public bool StreamReviewed;
         public Exception? CallbackError;
     }
 
@@ -138,7 +142,13 @@ public partial class WindowsFileOperations
             var ctx = (CopyContext)GCHandle.FromIntPtr(context).Target!;
             if (ctx.Token.IsCancellationRequested) return COPYFILE2_PROGRESS_CANCEL;
             int type = *(int*)message;
-            if (type == COPYFILE2_CALLBACK_CHUNK_FINISHED && ctx.Progress is { } p)
+            if (type == COPYFILE2_CALLBACK_STREAM_STARTED && ctx.Review is { } review)
+            {
+                // Both handles are open, and Windows has not begun to copy this stream.
+                review.CheckStream(*(nint*)(message + 16), *(nint*)(message + 24));
+                ctx.StreamReviewed = true;
+            }
+            else if (type == COPYFILE2_CALLBACK_CHUNK_FINISHED && ctx.Progress is { } p)
             {
                 // ChunkFinished: uliTotalFileSize at +64, uliTotalBytesTransferred at +72 (x64 and ARM64 layout).
                 long total = *(long*)(message + 64);
@@ -166,8 +176,14 @@ public partial class WindowsFileOperations
     }
 
     public override unsafe void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
+        => CopyFileCore(source, destination, options, progress, ct, null);
+
+    private unsafe void CopyFileCore(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct,
+        DecryptedCopyReview? review)
     {
-        var ctx = new CopyContext(progress, destination, options.FlushDestination, ct);
+        if (options.AllowDecryptedDestination && review is null)
+            throw new IOException("A decrypted copy requires approval for the held source and destination.");
+        var ctx = new CopyContext(progress, destination, options.FlushDestination, ct, review);
         var handle = GCHandle.Alloc(ctx);
         int* cancel = (int*)NativeMemory.AllocZeroed(sizeof(int));
         try
@@ -176,7 +192,7 @@ public partial class WindowsFileOperations
                 | (options.CopyLinkAsLink ? COPY_FILE_COPY_SYMLINK : 0)
                 | (options.NoBuffering ? COPY_FILE_NO_BUFFERING : 0)
                 | (options.DisablePreallocation ? COPY_FILE_DISABLE_PRE_ALLOCATION : 0)
-                | (options.AllowDecryptedDestination ? COPY_FILE_ALLOW_DECRYPTED_DESTINATION : 0);
+                | (review is not null ? COPY_FILE_ALLOW_DECRYPTED_DESTINATION | COPY_FILE_NO_OFFLOAD : 0);
             var p = new COPYFILE2_EXTENDED_PARAMETERS
             {
                 dwSize = (uint)sizeof(COPYFILE2_EXTENDED_PARAMETERS),
@@ -188,13 +204,19 @@ public partial class WindowsFileOperations
             nint cancelAddress = (nint)cancel;
             using var reg = ct.Register(() => Volatile.Write(ref *(int*)cancelAddress, 1));
             int hr = CopyFile2(Long(source), Long(destination), ref p);
-            if (hr == E_INVALIDARG)
+            if (hr == E_INVALIDARG && review is null)
             {
-                // A Windows build that predates sparse-copy or pre-allocation control: copy with the classic flags.
+                // A Windows build that predates sparse-copy or pre-allocation control can retry ordinary copies
+                // with the classic flags. A decrypted copy's approval is consumed by its first native attempt.
                 p.dwCopyFlags = flags & ~(COPY_FILE_ENABLE_SPARSE_COPY | COPY_FILE_DISABLE_PRE_ALLOCATION);
                 hr = CopyFile2(Long(source), Long(destination), ref p);
             }
-            if (hr >= 0) return;
+            if (hr >= 0)
+            {
+                if (review is not null && !ctx.StreamReviewed)
+                    throw new IOException("Windows did not confirm the handles of the decrypted copy. Review the destination before continuing.");
+                return;
+            }
             // A failure inside the callback (a flush error) ends the copy as "aborted": report the failure, not a cancel.
             if (ctx.CallbackError is { } error and not OperationCanceledException) throw error;
             if (ctx.CallbackError is OperationCanceledException || ct.IsCancellationRequested || (hr & 0xFFFF) == 1235)

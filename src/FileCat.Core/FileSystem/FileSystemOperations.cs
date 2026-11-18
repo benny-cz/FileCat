@@ -33,6 +33,17 @@ public sealed class FileCopyOptions
     public bool FlushDestination { get; init; }
 }
 
+/// <summary>Holds the actual EFS source and output parent while the job asks about a single clear-copy attempt.</summary>
+internal interface IDecryptedCopyReviewProvider
+{
+    IDecryptedCopyReview PrepareDecryptedCopy(string source, string destination, bool followLink, CancellationToken ct);
+}
+
+internal interface IDecryptedCopyReview : IDisposable
+{
+    void Copy(FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct);
+}
+
 /// <summary>Native identity and metadata of one file-system item.</summary>
 public sealed record FileSystemItemInfo(
     string Path,

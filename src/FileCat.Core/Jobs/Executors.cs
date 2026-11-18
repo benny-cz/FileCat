@@ -1212,12 +1212,15 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         bool copied = false;
         bool allowDecrypted = false;
         bool decryptedCopyApproved = false;
+        IDecryptedCopyReview? pendingReview = null;
         int quietRetries = 0;
         while (!copied)
         {
             // A retry first tries to preserve protection again.
             bool approvedForAttempt = allowDecrypted;
             allowDecrypted = false;
+            var approvedReview = pendingReview;
+            pendingReview = null;
             long reported = 0;
             var pace = new TransferPace();
             try
@@ -1231,7 +1234,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     // A move deletes the source next: the copy must be on the device first, not in the write cache.
                     FlushDestination = Move,
                 };
-                Fs.CopyFile(src, writeTo, options, (done, total) =>
+                CopyProgressCallback progress = (done, total) =>
                 {
                     long advanced = done - reported;
                     Job.AddBytes(advanced);
@@ -1240,7 +1243,12 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     if (Job.IsPaused) Job.Checkpoint();
                     Job.Throttle(done, pace);
                     return Job.IsCancellationRequested ? CopyProgressAction.Cancel : CopyProgressAction.Continue;
-                }, Job.Token);
+                };
+                using (approvedReview)
+                {
+                    if (approvedReview is null) Fs.CopyFile(src, writeTo, options, progress, Job.Token);
+                    else approvedReview.Copy(options, progress, Job.Token);
+                }
                 copied = true;
                 decryptedCopyApproved = approvedForAttempt;
             }
@@ -1270,20 +1278,41 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 }
                 if (cls == "encryption" && !approvedForAttempt)
                 {
+                    IDecryptedCopyReview? review = null;
+                    try
+                    {
+                        if (Fs is IDecryptedCopyReviewProvider native)
+                            review = native.PrepareDecryptedCopy(src, writeTo, followLink, Job.Token);
+                    }
+                    catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                    {
+                        Job.ItemFailed();
+                        TransferIssue(IssueSeverity.Warning, src, target, "Cannot review a decrypted copy: " + error.Message,
+                            StepOutcome.Failed, "No decrypted copy attempted", "Original kept",
+                            "No decrypted output produced", "Actual input or output could not be bound");
+                        return Result.Failed;
+                    }
                     string stage = direct ? "" : $"\nTemporary copy: {writeTo}";
                     string effect = Move ? "\nA successful move can remove the original after verifying the copy." : "";
-                    var d = Job.Ask(new ConfirmRequest("Copy without Windows EFS?",
-                        $"Windows could not preserve EFS for this copy. Allow one attempt that can write unencrypted data?\n\nSource: {src}\nDestination: {target}{stage}{effect}",
-                        src, "decrypt", [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob])
+                    Decision d;
+                    try
                     {
-                        ProceedLabel = "Copy decrypted",
-                        OffersApplyToAll = false,
-                    });
-                    if (d.Action == DecisionAction.Proceed)
-                    {
-                        allowDecrypted = true;
-                        continue;
+                        d = Job.Ask(new ConfirmRequest("Copy without Windows EFS?",
+                            $"Windows could not preserve EFS for this copy. Allow one attempt that can write unencrypted data?\n\nSource: {src}\nDestination: {target}{stage}{effect}",
+                            src, "decrypt", [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob])
+                        {
+                            ProceedLabel = "Copy decrypted",
+                            OffersApplyToAll = false,
+                        });
+                        if (d.Action == DecisionAction.Proceed)
+                        {
+                            allowDecrypted = true;
+                            pendingReview = review;
+                            review = null;
+                            continue;
+                        }
                     }
+                    finally { review?.Dispose(); }
                     if (d.Action != DecisionAction.Skip) throw new OperationCanceledException();
                     Job.ItemSkipped();
                     TransferIssue(IssueSeverity.Warning, src, target, "Skipped: it is encrypted and the destination cannot keep it encrypted.",

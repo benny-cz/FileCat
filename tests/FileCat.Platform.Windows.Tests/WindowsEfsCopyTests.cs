@@ -24,6 +24,47 @@ public sealed class WindowsEfsCopyTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Fact]
+    public async Task A_staged_clear_copy_reviews_the_temporary_and_final_names()
+    {
+        RequireEfs();
+        string? clearRoot = Environment.GetEnvironmentVariable("FILECAT_STORAGE_EFS_CLEAR_TEST_ROOT");
+        Assert.SkipUnless(!string.IsNullOrWhiteSpace(clearRoot) && Directory.Exists(clearRoot),
+            "Requires a prepared destination where CopyFile2 cannot preserve EFS.");
+        string root = Directory.CreateTempSubdirectory("filecat-efs-copy-stage-").FullName;
+        string destination = Path.Join(clearRoot!, "efs-stage-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(destination);
+            string previous = Path.Join(destination, "secret.bin");
+            File.WriteAllBytes(previous, [1]);
+            byte[] payload = [3, 2, 1];
+            string source = Encrypt(root, "secret.bin", payload);
+            string[] existingAtQuestion = [];
+            var (_, questions) = await Run(root, new WindowsFileOperations(), JobKind.Copy, [source], destination, request =>
+            {
+                if (request is not ConfirmRequest { ConfirmClass: "decrypt" }) return new(DecisionAction.CancelJob);
+                existingAtQuestion = Directory.GetFiles(destination);
+                return new(DecisionAction.Proceed);
+            }, new TransferOptions { Conflicts = ConflictPolicy.KeepBothRenameIncoming });
+            Assert.Equal([previous], existingAtQuestion);
+            var prompt = Assert.IsType<ConfirmRequest>(Assert.Single(questions));
+            string published = Assert.Single(Directory.EnumerateFiles(destination), path => path != previous);
+            Assert.Contains("Destination: " + published, prompt.Message);
+            string stage = Assert.Single(prompt.Message.Split('\n'), line => line.StartsWith("Temporary copy:", StringComparison.Ordinal));
+            Assert.Contains(Path.Join(destination, JournalRecovery.StagedPrefix), stage);
+            Assert.DoesNotContain(JournalRecovery.StagedPrefix, published);
+            Assert.Equal(payload, File.ReadAllBytes(published));
+            Assert.Equal(new byte[] { 1 }, File.ReadAllBytes(previous));
+            Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+        }
+        finally
+        {
+            if (Directory.Exists(destination)) Directory.Delete(destination, recursive: true);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData(JobKind.Copy)]
     [InlineData(JobKind.Move)]
@@ -65,9 +106,10 @@ public sealed class WindowsEfsCopyTests
     }
 
     [Theory]
-    [InlineData(JobKind.Copy)]
-    [InlineData(JobKind.Move)]
-    public async Task A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file(JobKind kind)
+    [InlineData(JobKind.Copy, false)]
+    [InlineData(JobKind.Copy, true)]
+    [InlineData(JobKind.Move, false)]
+    public async Task A_destination_that_cannot_encrypt_needs_a_fresh_choice_for_each_file(JobKind kind, bool empty)
     {
         RequireEfs();
         string? clearRoot = Environment.GetEnvironmentVariable("FILECAT_STORAGE_EFS_CLEAR_TEST_ROOT");
@@ -78,7 +120,8 @@ public sealed class WindowsEfsCopyTests
         try
         {
             Directory.CreateDirectory(destination);
-            string approve = Encrypt(root, "approved.bin", [7, 6, 5]);
+            byte[] expected = empty ? [] : [7, 6, 5];
+            string approve = Encrypt(root, "approved.bin", expected);
             string deny = Encrypt(root, "declined.bin", [1, 2, 3, 4]);
             List<string> alreadyWritten = [];
             var (job, questions) = await Run(root, new WindowsFileOperations(), kind, [approve, deny], destination, request =>
@@ -90,6 +133,8 @@ public sealed class WindowsEfsCopyTests
             });
             Assert.Empty(alreadyWritten);
             Assert.Equal(2, questions.Length);
+            Assert.True(questions.All(request => request is ConfirmRequest),
+                string.Join("\n", questions.Select(request => request.Title + " " + request.Message)));
             foreach (var request in questions.Select(Assert.IsType<ConfirmRequest>))
             {
                 Assert.Equal("decrypt", request.ConfirmClass);
@@ -100,7 +145,7 @@ public sealed class WindowsEfsCopyTests
             }
             string published = Assert.Single(Directory.GetFiles(destination));
             Assert.Equal(Path.Join(destination, "approved.bin"), published);
-            Assert.Equal(new byte[] { 7, 6, 5 }, File.ReadAllBytes(published));
+            Assert.Equal(expected, File.ReadAllBytes(published));
             Assert.False(File.GetAttributes(published).HasFlag(FileAttributes.Encrypted));
             Assert.True(File.GetAttributes(deny).HasFlag(FileAttributes.Encrypted));
             Assert.Equal(new byte[] { 1, 2, 3, 4 }, File.ReadAllBytes(deny));
@@ -110,6 +155,44 @@ public sealed class WindowsEfsCopyTests
         finally
         {
             if (Directory.Exists(destination)) Directory.Delete(destination, recursive: true);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Replacing_the_output_folder_during_approval_produces_no_clear_payload()
+    {
+        RequireEfs();
+        string? clearRoot = Environment.GetEnvironmentVariable("FILECAT_STORAGE_EFS_CLEAR_TEST_ROOT");
+        Assert.SkipUnless(!string.IsNullOrWhiteSpace(clearRoot) && Directory.Exists(clearRoot),
+            "Requires a prepared destination where CopyFile2 cannot preserve EFS.");
+        string root = Directory.CreateTempSubdirectory("filecat-efs-copy-parent-").FullName;
+        string destination = Path.Join(clearRoot!, "efs-parent-" + Guid.NewGuid().ToString("N"));
+        string originalDirectory = destination + "-before";
+        try
+        {
+            Directory.CreateDirectory(destination);
+            byte[] payload = [5, 7, 9];
+            string source = Encrypt(root, "protected.bin", payload);
+            var (_, questions) = await Run(root, new WindowsFileOperations(), JobKind.Move, [source], destination, request =>
+            {
+                if (request is not ConfirmRequest { ConfirmClass: "decrypt" }) return new(DecisionAction.Skip);
+                Directory.Move(destination, originalDirectory);
+                Directory.CreateDirectory(destination);
+                return new(DecisionAction.Proceed);
+            });
+            Assert.Equal(2, questions.Length);
+            Assert.IsType<ConfirmRequest>(questions[0]);
+            Assert.Contains("reviewed folder", Assert.IsType<ErrorRequest>(questions[1]).Message);
+            Assert.Empty(Directory.GetFiles(destination));
+            Assert.Empty(Directory.GetFiles(originalDirectory));
+            Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(payload, File.ReadAllBytes(source));
+        }
+        finally
+        {
+            if (Directory.Exists(destination)) Directory.Delete(destination, recursive: true);
+            if (Directory.Exists(originalDirectory)) Directory.Delete(originalDirectory, recursive: true);
             Directory.Delete(root, recursive: true);
         }
     }
@@ -160,7 +243,7 @@ public sealed class WindowsEfsCopyTests
     }
 
     private static async Task<(Job Job, DecisionRequest[] Questions)> Run(string root, WindowsFileOperations files,
-        JobKind kind, string[] sources, string destination, Func<DecisionRequest, Decision> decide)
+        JobKind kind, string[] sources, string destination, Func<DecisionRequest, Decision> decide, TransferOptions? options = null)
     {
         var providers = new ProviderRegistry();
         providers.Register(new LocalFileSystemProvider());
@@ -178,6 +261,7 @@ public sealed class WindowsEfsCopyTests
             Kind = kind,
             Sources = sources.Select(path => ItemRef.ForFileSystemPath(path, EntryKind.File)).ToArray(),
             Destination = Location.FileSystem(destination),
+            Options = options ?? new(),
         });
         try
         {
