@@ -182,13 +182,16 @@ public sealed class ClippedCellInspectionTests
     {
         string old = "old-" + new string('x', 145);
         using var f = new FileListFixture([old, .. Enumerable.Range(0, 70).Select(i => $"row-{i:D2}-" + new string('y', 145))]);
+        f.Services.Columns.Replace([("Inspect", [new ColumnSpec(ColumnField.Name, "Name", 200)])]);
+        f.Tab.ColumnProfile = 0;
         await f.Load();
         Hover(f, Row(f, old), 65);
         Assert.Equal("Full name: " + old, ToolTip.GetTip(f.List));
 
         var scroll = f.List.GetVisualDescendants().OfType<ScrollBar>()
             .Single(bar => bar.Orientation == Avalonia.Layout.Orientation.Vertical);
-        scroll.Value = Math.Min(10, scroll.Maximum);
+        Assert.True(scroll.Maximum >= 10);
+        scroll.Value = 10;
         Assert.Null(ToolTip.GetTip(f.List));
 
         Hover(f, 10, 65);
@@ -197,15 +200,14 @@ public sealed class ClippedCellInspectionTests
         await FileListFixture.Wait(() => f.Tab.Listing.AppliedViewSpecVersion == f.Tab.Listing.ViewSpecVersion);
         Assert.Null(ToolTip.GetTip(f.List));
 
-        Dispatcher.UIThread.RunJobs();
-        Hover(f, 10, 65);
+        Hover(f, f.List.TopRow, 65);
         Assert.NotNull(ToolTip.GetTip(f.List));
         var beforeRefresh = f.Tab.Listing.Store;
         f.Tab.Refresh();
         await FileListFixture.Wait(() => !ReferenceEquals(beforeRefresh, f.Tab.Listing.Store));
         Assert.Null(ToolTip.GetTip(f.List));
 
-        Dispatcher.UIThread.RunJobs();
+        await FileListFixture.Wait(() => !f.Tab.Listing.IsRefreshing);
         f.Click(Row(f, old));
         Hover(f, Row(f, old), 65);
         Assert.Equal("Full name: " + old, ToolTip.GetTip(f.List));
@@ -223,8 +225,12 @@ public sealed class ClippedCellInspectionTests
 
     private static void Hover(FileListFixture f, int row, double x)
     {
-        Dispatcher.UIThread.RunJobs();
-        var point = f.List.TranslatePoint(new Point(x, f.List.GetRowBounds(row).Center.Y), f.Window)!.Value;
+        // Hover reads the cells drawn by the current frame. Finish that frame before
+        // using the arranged row coordinates to deliver input.
+        f.Window.CaptureRenderedFrame()?.Dispose();
+        var rowPoint = new Point(x, f.List.GetRowBounds(row).Center.Y);
+        Assert.True(new Rect(f.List.Bounds.Size).Contains(rowPoint));
+        var point = f.List.TranslatePoint(rowPoint, f.Window)!.Value;
         f.Window.MouseMove(point);
     }
 
