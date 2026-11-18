@@ -2,6 +2,10 @@
 
 The standard analyzer opens from Tools → Disk space…, command search, and the folder and drive context menus. Live file operations require their corresponding source and operation admission checks. The indexed runtime, installed Fast NTFS, and whole-tool qualification remain in progress.
 
+The development packages passed Standard desktop workflows on the Windows VM, Mac and Ubuntu VM. Actual Windows NVDA and Ubuntu Orca announced the Resource limits close button. Native Return and Escape restored focus on both systems. The Mac accessibility API exposed the title, reservation amount and focused button. See the [package and accessibility results](NATIVE_PACKAGES_QUALIFICATION.md).
+
+Native wide and deep million-path workflows pass across all three platforms. On the retained Ubuntu ten-million-path fixture, the 4 GiB scratch budget stopped acquisition around nine million observed paths. The result reported partial coverage and retained a 4,096-path preview. See the [native scale measurements](NATIVE_MILLION_SCALE_QUALIFICATION.md).
+
 Standard analysis reports filesystem capacity from its held source. Compact folder views and dedicated NTFS, HFS+, and ext4 whole-volume fixtures pass on the three native runtimes. The first observable root also publishes before child enumeration can block. See the [capacity and preview checkpoint](VOLUME_CAPACITY_QUALIFICATION.md).
 
 Standard scans accept literal folder exclusions per selected location. The scan records skipped folder boundaries and retains the exact rules in saved inventories, full rescans and applicable branch refreshes. Changed exclusions limit comparison. Fast NTFS requires whole-volume discovery, so the setup directs users with exclusions to Standard.

@@ -13,6 +13,12 @@
     "ubuntuVm": { "passed": 946, "skipped": 6, "failed": 0, "total": 952 },
     "limits": "The full renderer assembly includes platform-specific and opt-in resource cases. Native desktop and release qualification have their own evidence."
   },
+  "mergedRendererQualification": {
+    "windowsVm": { "run": "r1598", "groups": 40, "passed": 981, "skipped": 8, "failed": 0, "errors": 0, "total": 989 },
+    "mac": { "run": "r1571", "passed": 982, "skipped": 7, "failed": 0, "errors": 0, "total": 989 },
+    "ubuntuVm": { "run": "r1571", "passed": 982, "skipped": 7, "failed": 0, "errors": 0, "total": 989 },
+    "qualification": "NATIVE_PACKAGES_QUALIFICATION.md"
+  },
   "folderExclusions": {
     "status": "implemented-standard-local-scans",
     "releaseQualified": false,
@@ -50,6 +56,17 @@
     "themeDesktop": { "run": "r1547", "themes": 8, "windowsVmScale": 1, "macCompositorScale": 2, "ubuntuVmScale": 1, "fontSizeDip": 20, "widthDip": 380, "heightDip": 430 },
     "nativeKeyboard": { "run": "r1553", "ubuntuVm": "Enter and Escape closed Resource limits through X11 and restored focus to the opener", "driver": "drivers/resource-keyboard-x11.py" },
     "nativeAccessibility": { "run": "r1559", "ubuntuVm": "AT-SPI showed the dialog title, scratch amount and enabled focused Close limits button in a private test session", "driver": "drivers/inspect-resource-atspi.py" },
+    "screenReader": {
+      "windowsVm": "r1614 signed NVDA spoke Close limits with native UI Automation focus. Return and Escape restored focus.",
+      "ubuntuVm": "r1601 Orca spoke Close limits. Native Return and Escape restored focus.",
+      "mac": "r1605 native AX exposed title, scratch amount and focused Close limits. VoiceOver speech remains open.",
+      "qualification": "NATIVE_PACKAGES_QUALIFICATION.md"
+    },
+    "scratchLimit": {
+      "focusedAllThree": "r1604 18 passed on each platform",
+      "ubuntuVm": "r1603 observed 9015920 paths before reaching the 4 GiB budget and retained 4096 paths with partial coverage.",
+      "qualification": "NATIVE_MILLION_SCALE_QUALIFICATION.md"
+    },
     "coverage": "Resource limits shows the configured path and the captured index's current reservation at open, including derived indexes. A bounded-memory view explains that it has no index reservation. The compact desktop cases leave the source unchanged and close their owned processes."
   },
   "standardIndexChoice": {
@@ -13100,6 +13117,7 @@
     }
   },
   "nextWork": [
+    "The branch synchronized with main ef79336b in 713b212e. All three merged renderer runs are recorded. Close the remaining W8 desktop, performance, resource and release gates and verify the retained preview after a scratch limit. Complete the independent review once the integrated live checks finish.",
     "Main40480c8e integration, internal progressive indexed previews, transactional recorded-result ownership handoff, scope preservation and dynamic live-region naming now have r1298 all-three scoped qualification. Indexed deferred selection and review now have r1328 evidence on all three platforms. Continue branch refresh/watchers, global resources and the remaining W0-W8 gates. Public entry remains off.",
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Progressive indexed startup and explicit recorded-result handoff now pass r1298; finish deferred indexed selection/review and the qualified public entry/lifecycle without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu normal native resize at480/1100 now passes (r978); maximize/restore and display changes remain unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
