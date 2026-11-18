@@ -1,10 +1,12 @@
 param(
     [Parameter(Mandatory)][string]$TestRoot,
     [Parameter(Mandatory)][string]$NvdaPath,
-    [switch]$VerifyCanceledKeyBackup
+    [switch]$VerifyCanceledKeyBackup,
+    [switch]$VerifyCompletedKeyBackup
 )
 
 $ErrorActionPreference = 'Stop'
+if ($VerifyCanceledKeyBackup -and $VerifyCompletedKeyBackup) { throw 'Choose one backup outcome per fixture.' }
 $testRoot = [IO.Path]::GetFullPath($TestRoot)
 $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation')) + '\'
 $nvdaPath = [IO.Path]::GetFullPath($NvdaPath)
@@ -18,17 +20,17 @@ if (!(Get-Process -Id $PID).SessionId -or
 $log = Join-Path $testRoot 'storage-review-result.json'
 if (Test-Path -LiteralPath $log) { throw 'Use a fresh test root to preserve prior receipts.' }
 $record = [ordered]@{ Passed = $false; Stage = 'process preflight'; Error = $null; Controls = @{}; Speech = @{} }
-$app = $reader = $null
+$app = $reader = $backupPath = $null
 try {
     if (Get-Process dotnet,testhost,FileCat,FileCat.App.Tests,FileCat.*QualificationHost,FileCat.*CrashHarness,nvda -ErrorAction SilentlyContinue) {
         throw 'A test process is already using this VM.'
     }
-    if ($VerifyCanceledKeyBackup) {
+    if ($VerifyCanceledKeyBackup -or $VerifyCompletedKeyBackup) {
         $record.Stage = 'verify existing fixture key'
         $currentKey = & (Join-Path $env:WINDIR 'System32\cipher.exe') /y | Out-String
         $keyLine = [regex]::Match($currentKey, '(?im)^[ \t]*(?:[a-f0-9]{4}[ \t]*){10}\r?$')
         if ($LASTEXITCODE -ne 0 -or !$keyLine.Success) {
-            throw 'The backup cancellation fixture needs a pre-existing default EFS certificate.'
+            throw 'The backup fixture needs a pre-existing default EFS certificate.'
         }
         $fixtureThumbprint = $keyLine.Value -replace '\s', ''
         if (!(Get-Item -LiteralPath "Cert:\CurrentUser\My\$fixtureThumbprint").HasPrivateKey) {
@@ -38,6 +40,7 @@ try {
     Add-Type -AssemblyName UIAutomationClient
     Add-Type -AssemblyName UIAutomationTypes
     Add-Type -AssemblyName System.Windows.Forms
+    if ($VerifyCompletedKeyBackup) { Add-Type -Path (Join-Path $PSScriptRoot 'WindowsEfsBackupWizardDriver.cs') }
     Add-Type @'
 using System;
 using System.Runtime.InteropServices;
@@ -80,9 +83,9 @@ public static class StorageReviewInput {
     $ui = [System.Windows.Automation.AutomationElement]
     $scope = [System.Windows.Automation.TreeScope]
     $all = [System.Windows.Automation.Condition]::TrueCondition
-    function Await([scriptblock]$probe, [string]$description) {
+    function Await([scriptblock]$probe, [string]$description, [int]$seconds = 18) {
         $watch = [Diagnostics.Stopwatch]::StartNew()
-        while ($watch.Elapsed.TotalSeconds -lt 18) {
+        while ($watch.Elapsed.TotalSeconds -lt $seconds) {
             try { $value = & $probe; if ($value) { return $value } }
             catch [System.Windows.Automation.ElementNotAvailableException] { }
             catch [Runtime.InteropServices.COMException] { }
@@ -166,7 +169,26 @@ public static class StorageReviewInput {
         Await { $ui::FocusedElement.Current.Name -eq $reviewName } 'operation decision review focus' | Out-Null
         Key @(0x20)
     }
-    function Verify-KeyBackupCancellation {
+    function Approve-Decryption {
+        Tab-To 'Decrypt'
+        Key @(0x20)
+        Await { Find-Control 'Every selected item passed inspection for this action.' } 'completed decryption inspection' | Out-Null
+        [void](Require-Consent $pathConsent $false)
+        $decryptConsent = Require-Consent 'I understand the selected files will lose EFS protection*' $false
+        if (Find-Control $streamConsent 'CheckBox') { throw 'The encryption acknowledgment stayed visible for decryption.' }
+        Require-Footer 'Decrypt' $false
+        [void](Take-Speech)
+        Tab-To $decryptConsent
+        Hear 'decryption acknowledgment' 'selected files will lose EFS protection'
+        Key @(0x20)
+        [void](Require-Consent $decryptConsent $true)
+        Require-Footer 'Decrypt' $false
+        Tab-To $pathConsent
+        Key @(0x20)
+        Require-Footer 'Decrypt' $true
+        Snapshot 'decrypt review'
+    }
+    function Verify-KeyBackup {
         $setupName = "Set up EFS$([char]0x2026)"
         $backupName = "Back up EFS key$([char]0x2026)"
         $record.Stage = 'accept setup for the existing EFS key'
@@ -180,7 +202,7 @@ public static class StorageReviewInput {
         Hear 'EFS setup' 'Set up EFS|Windows may create or enroll an encryption key'
         Tab-To $setupName
         Key @(0x20)
-        $record.Stage = 'cancel the parented Windows EFS backup wizard'
+        $record.Stage = 'open the parented Windows EFS backup wizard'
         Review-Decision
         $certificates = Await { Find-Control 'Reviewed EFS certificate' 'ComboBox' } 'EFS recovery certificate'
         $options = @($certificates.FindAll($scope::Descendants, $all) | ForEach-Object { $_.Current.Name })
@@ -198,9 +220,71 @@ public static class StorageReviewInput {
         } 'the FileCat-owned Windows certificate export wizard'
         $record.WizardParentMatched = $true
         if ([StorageReviewInput]::GetForegroundWindow() -ne $wizard) { throw 'The owned backup wizard lost focus.' }
-        [StorageReviewInput]::Send(@(0x1B), $false)
+        if ($VerifyCompletedKeyBackup) {
+            $record.Stage = 'complete the private-key export'
+            $fixturePassword = [guid]::NewGuid().ToString('N') + '!a7'
+            [FileCat.NativeAcceptance.WindowsEfsBackupWizardDriver]::Drive($handle, $true, $backupPath, $fixturePassword)
+        }
+        else {
+            [StorageReviewInput]::Send(@(0x1B), $false)
+        }
         Await { [StorageReviewInput]::GetForegroundWindow() -eq $handle } 'focus returning from the backup wizard' | Out-Null
         $record.WizardRestoredFocus = $true
+        if ($VerifyCompletedKeyBackup) {
+            $restored = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
+                $backupPath, $fixturePassword, [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet)
+            try {
+                if (!$restored.HasPrivateKey -or $restored.Thumbprint -ne $fixtureThumbprint) {
+                    throw 'The exported PFX did not contain the reviewed certificate and private key.'
+                }
+            }
+            finally { $restored.Dispose() }
+            $record.BackupMatched = $true
+            $record.Stage = 'verify encryption after the successful backup'
+            Await {
+                if ((Get-Item -LiteralPath $file).Attributes -band [IO.FileAttributes]::Encrypted) {
+                    Find-Control '*Encrypt with EFS*1 changed*0 failed*0 uncertain*'
+                }
+            } 'terminal encryption and the on-disk EFS attribute' | Out-Null
+            Snapshot 'completed encryption result'
+            $query = [Diagnostics.ProcessStartInfo]::new()
+            $query.FileName = Join-Path $env:WINDIR 'System32\cipher.exe'
+            $query.Arguments = '/c "' + $file + '"'
+            $query.UseShellExecute = $false
+            $query.CreateNoWindow = $true
+            $query.RedirectStandardOutput = $true
+            $cipher = [Diagnostics.Process]::Start($query)
+            try {
+                $output = $cipher.StandardOutput.ReadToEndAsync()
+                if (!$cipher.WaitForExit(15000)) {
+                    $cipher.Kill()
+                    throw 'The independent EFS certificate query timed out.'
+                }
+                $queryExit = $cipher.ExitCode
+                $observedKeys = $output.GetAwaiter().GetResult()
+            }
+            finally { $cipher.Dispose() }
+            if ($queryExit -ne 0 -or ($observedKeys -replace '\s','') -notmatch [regex]::Escape($fixtureThumbprint)) {
+                throw 'The encrypted file does not report the exported fixture certificate.'
+            }
+            if ((Get-FileHash -LiteralPath $file).Hash -ne $initialHash -or
+                (Get-Content -LiteralPath $file -Stream 'proof' -Raw) -cne $streamText) {
+                throw 'Encryption changed the main or alternate stream bytes.'
+            }
+            $record.EncryptedStreamsVerified = $true
+            $record.Stage = 'verify decryption through the FileCat command'
+            Show-Command 'EFS protection' '*Windows file encryption (EFS)*'
+            Approve-Decryption
+            Tab-To 'Decrypt' 'Button'
+            Key @(0x20)
+            Await {
+                if (!((Get-Item -LiteralPath $file).Attributes -band [IO.FileAttributes]::Encrypted)) {
+                    Find-Control '*Decrypt EFS*1 changed*0 failed*0 uncertain*'
+                }
+            } 'terminal decryption and clear on-disk attributes' | Out-Null
+            Snapshot 'completed decryption result'
+            return
+        }
         Review-Decision
         Await { Find-Control 'Windows canceled the backup.*' } 'canceled backup retry text' | Out-Null
         Hear 'EFS recovery after wizard cancellation' 'Choose EFS recovery|Windows canceled the backup'
@@ -224,6 +308,11 @@ public static class StorageReviewInput {
     $file = Join-Path $left 'alpha-review.txt'
     [IO.File]::WriteAllText($file, ('FileCat storage review fixture. ' * 512))
     $initialHash = (Get-FileHash -LiteralPath $file).Hash
+    if ($VerifyCompletedKeyBackup) {
+        $streamText = 'FileCat alternate stream for the EFS fixture.'
+        Set-Content -LiteralPath $file -Stream 'proof' -Value $streamText -NoNewline -Encoding ASCII
+        $backupPath = Join-Path $fixture 'fixture-key.pfx'
+    }
     $record.Stage = 'launch'
     if (Get-Process dotnet,testhost,FileCat,FileCat.App.Tests,FileCat.*QualificationHost,FileCat.*CrashHarness,nvda -ErrorAction SilentlyContinue) {
         throw 'A test process started before the qualification instance could launch.'
@@ -256,7 +345,11 @@ public static class StorageReviewInput {
     $list.SetFocus()
     $reader = Start-Process -FilePath $nvdaPath -WindowStyle Hidden -PassThru -ArgumentList @(
         "--log-file=`"$speechPath`"", '--log-level=12', "--config-path=`"$nvdaConfig`"", '--disable-addons')
-    Await { Select-String -LiteralPath $speechPath -SimpleMatch 'NVDA initialized' -Quiet -ErrorAction SilentlyContinue } 'NVDA startup' | Out-Null
+    Await {
+        $reader.Refresh()
+        if ($reader.HasExited) { throw "NVDA exited with $($reader.ExitCode) during startup." }
+        Select-String -LiteralPath $speechPath -SimpleMatch 'NVDA initialized' -Quiet -ErrorAction SilentlyContinue
+    } 'NVDA startup' 60 | Out-Null
     Hear 'active FileCat window' 'FileCat.{0,180}window|Panel 1, source'
     Key @(0x24) $true
     Key @(0x28) $true
@@ -284,27 +377,11 @@ public static class StorageReviewInput {
     Key @(0x20)
     Require-Footer 'Encrypt with EFS' $true
     Snapshot 'encrypt review'
-    if ($VerifyCanceledKeyBackup) {
-        Verify-KeyBackupCancellation
+    if ($VerifyCanceledKeyBackup -or $VerifyCompletedKeyBackup) {
+        Verify-KeyBackup
     }
     else {
-        Tab-To 'Decrypt'
-        Key @(0x20)
-        Await { Find-Control 'Every selected item passed inspection for this action.' } 'completed decryption inspection' | Out-Null
-        [void](Require-Consent $pathConsent $false)
-        $decryptConsent = Require-Consent 'I understand the selected files will lose EFS protection*' $false
-        if (Find-Control $streamConsent 'CheckBox') { throw 'The encryption acknowledgment stayed visible for decryption.' }
-        Require-Footer 'Decrypt' $false
-        [void](Take-Speech)
-        Tab-To $decryptConsent
-        Hear 'decryption acknowledgment' 'selected files will lose EFS protection'
-        Key @(0x20)
-        [void](Require-Consent $decryptConsent $true)
-        Require-Footer 'Decrypt' $false
-        Tab-To $pathConsent
-        Key @(0x20)
-        Require-Footer 'Decrypt' $true
-        Snapshot 'decrypt review'
+        Approve-Decryption
         [void](Take-Speech)
         Key @(0x1B)
         Await { !(Find-Control '*Windows file encryption (EFS)*') } 'EFS review dismissal' | Out-Null
@@ -328,7 +405,11 @@ public static class StorageReviewInput {
     }
     if ((Get-FileHash -LiteralPath $file).Hash -ne $initialHash -or
         ((Get-Item -LiteralPath $file).Attributes -band ([IO.FileAttributes]::Encrypted -bor [IO.FileAttributes]::Compressed))) {
-        throw 'The review changed the fixture without approval.'
+        throw 'The fixture did not finish with its original content and clear attributes.'
+    }
+    if ($VerifyCompletedKeyBackup) {
+        if ((Get-Content -LiteralPath $file -Stream 'proof' -Raw) -cne $streamText) { throw 'Decryption changed the alternate stream bytes.' }
+        $record.DecryptedStreamsVerified = $true
     }
     $record.Stage = 'complete'
     $record.Passed = $true
@@ -341,5 +422,14 @@ catch {
 finally {
     if ($app -and !$app.HasExited) { [void]$app.CloseMainWindow(); if (!$app.WaitForExit(4000)) { $app.Kill() } }
     if ($reader -and !$reader.HasExited) { $reader.Kill(); [void]$reader.WaitForExit(4000) }
-    $record | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $log -Encoding UTF8
+    try {
+        if ($backupPath -and (Test-Path -LiteralPath $backupPath)) {
+            Remove-Item -LiteralPath $backupPath
+            $record.BackupArtifactRemoved = !(Test-Path -LiteralPath $backupPath)
+        }
+    }
+    catch { $record.Passed = $false; $record.Error = 'Could not remove the disposable PFX.'; throw }
+    finally {
+        $record | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $log -Encoding UTF8
+    }
 }

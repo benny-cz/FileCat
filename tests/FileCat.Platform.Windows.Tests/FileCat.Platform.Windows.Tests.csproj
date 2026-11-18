@@ -25,6 +25,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\LiveUsbGuard.cs" Link="LiveUsbGuard.cs" />
+    <Compile Include="..\FileCat.NativeAcceptance\WindowsEfsBackupWizardDriver.cs" Link="WindowsEfsBackupWizardDriver.cs" />
     <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
     <Compile Include="..\ArchiveEditDirectoryCases.cs" Link="ArchiveEditDirectoryCases.cs" />
     <Compile Include="..\ArchiveEditStorageCases.cs" Link="ArchiveEditStorageCases.cs" />
