@@ -7,6 +7,11 @@ internal static class AnalysisNativeScaleFixture
 {
     internal const string MarkerKind = "FileCat retained native scale fixture v1";
     internal const int HardLinkCohortSize = 128;
+    internal const int CheckpointInterval = 16_384;
+    private const string ProgressKind = "FileCat retained native scale progress v1";
+
+    internal static bool KeepSource(int count) =>
+        count >= 1_000_000 && Environment.GetEnvironmentVariable("FILECAT_TEST_NATIVE_SCALE_KEEP_SOURCE") == "1";
 
     internal static string? ReusableSource(int count, string shape, Action checkCancellation, Action<string, string> createAlias)
     {
@@ -69,36 +74,19 @@ internal static class AnalysisNativeScaleFixture
             }
         }
 
-        const string kind = "FileCat retained native scale progress v1";
-        const int checkpointInterval = 16_384;
-        string progress = Path.Combine(container, "fixture-progress.json");
-        int next = 2;
-        if (File.Exists(progress))
-        {
-            var info = new FileInfo(progress);
-            if ((info.Attributes & FileAttributes.ReparsePoint) != 0 || info.Length is < 1 or > 32 * 1024)
-                throw new IOException("Invalid retained fixture progress.");
-            using var json = JsonDocument.Parse(File.ReadAllText(progress), new JsonDocumentOptions { MaxDepth = 4 });
-            var cursor = json.RootElement;
-            next = cursor.GetProperty("next").GetInt32();
-            if (cursor.GetProperty("kind").GetString() != kind || cursor.GetProperty("source").GetString() != source ||
-                cursor.GetProperty("count").GetInt32() != count || cursor.GetProperty("shape").GetString() != shape || next < 2 || next > count)
-                throw new IOException("The retained fixture progress does not match this source.");
-        }
-
+        int next = ReadProgress(container, source, count, shape);
         while (next < count)
         {
             checkCancellation();
-            int end = Math.Min(count, next + checkpointInterval);
+            int end = Math.Min(count, next + CheckpointInterval);
             for (; next < end; next++)
             {
                 if ((next & 127) == 0) checkCancellation();
                 var row = new FileInfo(RowPath(bottom, next));
                 int owner = RowOwner(next, shape);
-                int expectedLength = owner % 17;
                 if (row.Exists)
                 {
-                    if ((row.Attributes & FileAttributes.ReparsePoint) != 0 || row.Length != expectedLength)
+                    if ((row.Attributes & FileAttributes.ReparsePoint) != 0 || row.Length != owner % 17)
                         throw new IOException($"Generated row {next} does not match the retained fixture.");
                 }
                 else
@@ -106,17 +94,37 @@ internal static class AnalysisNativeScaleFixture
                     WriteRow(bottom, next, owner, createAlias);
                 }
             }
-
-            string staging = Path.Combine(container, $"fixture-progress-{Guid.NewGuid():N}.tmp");
-            using (var stream = new FileStream(staging, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-                JsonSerializer.Serialize(stream, new { kind, source, count, shape, next });
-            File.Move(staging, progress, overwrite: true);
+            WriteProgress(container, source, count, shape, next);
         }
+    }
+
+    private static int ReadProgress(string container, string source, int count, string shape)
+    {
+        string progress = Path.Combine(container, "fixture-progress.json");
+        if (!File.Exists(progress)) return 2;
+        var info = new FileInfo(progress);
+        if ((info.Attributes & FileAttributes.ReparsePoint) != 0 || info.Length is < 1 or > 32 * 1024)
+            throw new IOException("Invalid retained fixture progress.");
+        using var json = JsonDocument.Parse(File.ReadAllText(progress), new JsonDocumentOptions { MaxDepth = 4 });
+        var cursor = json.RootElement;
+        int next = cursor.GetProperty("next").GetInt32();
+        if (cursor.GetProperty("kind").GetString() != ProgressKind || cursor.GetProperty("source").GetString() != source ||
+            cursor.GetProperty("count").GetInt32() != count || cursor.GetProperty("shape").GetString() != shape || next < 2 || next > count)
+            throw new IOException("The retained fixture progress does not match this source.");
+        return next;
+    }
+
+    internal static void WriteProgress(string container, string source, int count, string shape, int next)
+    {
+        string staging = Path.Combine(container, $"fixture-progress-{Guid.NewGuid():N}.tmp");
+        using (var stream = new FileStream(staging, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            JsonSerializer.Serialize(stream, new { kind = ProgressKind, source, count, shape, next });
+        File.Move(staging, Path.Combine(container, "fixture-progress.json"), overwrite: true);
     }
 
     internal static string? RetainCreatedSource(string source, string owner, string @case, int count, string shape, bool complete)
     {
-        if (count < 1_000_000 || Environment.GetEnvironmentVariable("FILECAT_TEST_NATIVE_SCALE_KEEP_SOURCE") != "1" || !Directory.Exists(source)) return null;
+        if (!KeepSource(count) || !Directory.Exists(source)) return null;
         source = Path.GetFullPath(source); owner = Path.GetFullPath(owner); @case = Path.GetFullPath(@case);
         // Reused sources belong to their original container and must never be moved or deleted here.
         if (Path.GetDirectoryName(source) != owner) return source;
@@ -127,7 +135,9 @@ internal static class AnalysisNativeScaleFixture
         string container = Path.Combine(retained, Path.GetFileName(owner)), target = Path.GetFullPath(Path.Combine(container, "source"));
         if (Directory.Exists(container) || !target.StartsWith(Path.GetFullPath(batch) + Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             throw new IOException("A fresh contained retained source is required.");
+        int next = complete ? count : ReadProgress(owner, source, count, shape);
         Directory.CreateDirectory(container); Directory.Move(source, target);
+        if (!complete) WriteProgress(container, target, count, shape, next);
         File.WriteAllText(Path.Combine(container, "fixture.json"), JsonSerializer.Serialize(new
         { kind = MarkerKind, count, shape, source = target, movedFrom = source, originalCase = @case, sourceCreationComplete = complete, utc = DateTimeOffset.UtcNow }));
         return target;

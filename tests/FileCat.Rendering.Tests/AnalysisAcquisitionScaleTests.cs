@@ -13,6 +13,8 @@ using FileCat.Core.State;
 
 namespace FileCat.Rendering.Tests;
 
+internal enum NativeScaleRequirement { CompleteIndex, ScratchBudget, IndexOrScratchBudget }
+
 // Explicit guest-only resource qualification. Ordinary rendering runs do not create a large tree.
 public sealed class AnalysisAcquisitionScaleTests
 {
@@ -21,12 +23,16 @@ public sealed class AnalysisAcquisitionScaleTests
 
     [AvaloniaFact]
     public Task NativeAcquisitionAtScratchBudgetKeepsBoundedPreview() =>
-        AnalysisRenderingTests.RunNativeAcquisitionScaleAsync(expectScratchBudget: true);
+        AnalysisRenderingTests.RunNativeAcquisitionScaleAsync(NativeScaleRequirement.ScratchBudget);
+
+    [AvaloniaFact]
+    public Task NativeAcquisitionAtScalePublishesIndexOrScratchBudgetPreview() =>
+        AnalysisRenderingTests.RunNativeAcquisitionScaleAsync(NativeScaleRequirement.IndexOrScratchBudget);
 }
 
 public sealed partial class AnalysisRenderingTests
 {
-    internal static async Task RunNativeAcquisitionScaleAsync(bool expectScratchBudget = false)
+    internal static async Task RunNativeAcquisitionScaleAsync(NativeScaleRequirement requirement = NativeScaleRequirement.CompleteIndex)
     {
         string? input = Environment.GetEnvironmentVariable("FILECAT_TEST_NATIVE_SCALE_COUNT");
         Assert.SkipWhen(input is null, "Opt-in native filesystem resource suite; run only on an idle test guest.");
@@ -55,7 +61,8 @@ public sealed partial class AnalysisRenderingTests
         using var process = Process.GetCurrentProcess(); using var samplingStop = new CancellationTokenSource();
         Task sampling = Task.CompletedTask; AnalysisPhysicalMemory? physical = null;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        timeout.CancelAfter(TimeSpan.FromMinutes(count >= 5_000_000 ? 180 : 60)); var token = timeout.Token;
+        int minutes = count < 5_000_000 ? 60 : fixtureDrive is null ? 180 : 360;
+        timeout.CancelAfter(TimeSpan.FromMinutes(minutes)); var token = timeout.Token;
         string cancelPath = Path.Combine(parent, "cancel.txt");
         var cancellationWatch = Task.Run(async () =>
         {
@@ -122,9 +129,12 @@ public sealed partial class AnalysisRenderingTests
                 CreateGroupedNativeAlias(anchor, Path.Combine(bottom, "anchor-alias.txt"));
             }
             ulong expectedBytes = 14, expectedUniqueBytes = 7;
+            bool checkpoint = !reusedSource && AnalysisNativeScaleFixture.KeepSource(count);
             for (int at = 2; at < count; at++)
             {
                 if (at % 128 == 0) CheckFixtureProgress();
+                if (checkpoint && at % AnalysisNativeScaleFixture.CheckpointInterval == 0)
+                    AnalysisNativeScaleFixture.WriteProgress(root, selected, count, shape, at);
                 token.ThrowIfCancellationRequested();
                 int owner = AnalysisNativeScaleFixture.RowOwner(at, shape);
                 int length = owner % 17;
@@ -181,7 +191,8 @@ public sealed partial class AnalysisRenderingTests
                 issueCodes = snapshot.Issues.Select(issue => issue.Code).Distinct().Order().ToArray()
             };
             Assert.Equal(AnalysisPhase.Finished, snapshot.Phase); Assert.Equal(0UL, sourceCloseFailures);
-            if (expectScratchBudget)
+            if (requirement == NativeScaleRequirement.ScratchBudget ||
+                requirement == NativeScaleRequirement.IndexOrScratchBudget && session.ScratchLimitReached == AnalysisScratchLimit.Budget)
             {
                 Mark("verify-retained-preview");
                 Assert.Equal(AnalysisScratchLimit.Budget, session.ScratchLimitReached);

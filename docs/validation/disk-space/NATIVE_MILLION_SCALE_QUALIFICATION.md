@@ -62,3 +62,5 @@ The Mac and Ubuntu r1635 analyzer Core selections each discovered 2,038 cases. T
 |---|---|---|
 | Mac | `f533ca1b215ee098f6998a5d41022481ccaeaa08cf56db673cf61d82c20d3298` | `0a9f62b24c983900cac6dcd680733318ff30a62c5bfc47315a0f354463ed37da` |
 | Ubuntu VM | `0e2b16cd9f80c8d5f953b4c740e41e1be3595b81a0db5eb96fd9e80d8a390c7b` | `5c27c5882c333d2a4bf22ba08d8369e78193c350eec99ca368922073697937f6` |
+
+Windows r1633 passed its free-space preflight after older, verified task caches were moved off the guest. It started the actual 9,999,999-file linked NTFS fixture and wrote an observed initial-generation checkpoint at 638,976 paths. The fixture records its next position every 16,384 paths and preserves the cursor with its owned source when a cooperative yield interrupts generation. The Windows acceptance case requires a full indexed result or the exact scratch-budget outcome, including its usable bounded preview and disabled index action. The final Windows result is pending.
