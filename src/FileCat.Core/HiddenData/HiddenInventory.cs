@@ -4,7 +4,7 @@ using FileCat.Core.FileSystem;
 namespace FileCat.Core.HiddenData;
 
 public enum HiddenInventoryState { Complete, Partial, NotInspected, Denied, Unsupported, Changed, Failed }
-public enum HiddenMetadataRole { Ordinary, DownloadMark, StorageBacking, SecurityMetadata, RequiredMetadata, Unqualified }
+public enum HiddenMetadataRole { Ordinary, DownloadMark, StorageBacking, SecurityMetadata, RequiredMetadata, Unqualified, StoragePolicy }
 public sealed record HiddenInventoryRequest(bool IncludeEaValues = false, bool ShowCompressionBacking = true);
 public sealed record HiddenCategoryInventory(HiddenKind Kind, HiddenInventoryState State, int Count, string Scope, string? Reason = null);
 
@@ -49,6 +49,8 @@ public static class HiddenMetadataRoles
             item.Name.StartsWith("$CI.", StringComparison.OrdinalIgnoreCase) || item.Name.StartsWith("$LX", StringComparison.OrdinalIgnoreCase) || item.Name.Equals("LXATTRB", StringComparison.OrdinalIgnoreCase))) return HiddenMetadataRole.SecurityMetadata;
         if (item.Kind == HiddenKind.Stream && item.Name.Equals("WofCompressedData", StringComparison.OrdinalIgnoreCase) ||
             item.Kind == HiddenKind.Attribute && item.Name == "com.apple.decmpfs") return HiddenMetadataRole.StorageBacking;
+        if (OperatingSystem.IsLinux() && item.Kind == HiddenKind.Attribute && item.Name == "btrfs.compression")
+            return HiddenMetadataRole.StoragePolicy;
         if (item.Kind == HiddenKind.ResourceFork) return compressed switch
         { true => HiddenMetadataRole.StorageBacking, false => HiddenMetadataRole.Ordinary, null => HiddenMetadataRole.Unqualified };
         if (item.Kind == HiddenKind.Attribute && (item.Name.StartsWith("security.", StringComparison.Ordinal) ||
@@ -60,6 +62,7 @@ public static class HiddenMetadataRoles
     public static string? DeleteRefusal(HiddenItem item) => item.Role switch
     {
         HiddenMetadataRole.StorageBacking => "This is filesystem-managed storage backing; it cannot be deleted as an attachment.",
+        HiddenMetadataRole.StoragePolicy => "This attribute controls filesystem storage policy and cannot be deleted here.",
         HiddenMetadataRole.SecurityMetadata => "This is managed security or operating-system metadata; use the responsible system tool.",
         HiddenMetadataRole.RequiredMetadata => "The filesystem marks this extended attribute as required; generic deletion is unavailable.",
         HiddenMetadataRole.Unqualified => "The role of this metadata is not qualified; deletion is unavailable.",

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
+using FileCat.Core.HiddenData;
 using FileCat.Core.Records;
 
 namespace FileCat.Core.Tests;
@@ -71,5 +72,24 @@ public sealed partial class UnixFileDetailsNativeTests
             Assert.Equal("btrfs", full.Summary.FileSystem.Value);
             Assert.DoesNotContain(full.Technical.Sections, section => section.Title == "Btrfs properties");
         }
+    }
+
+    [Fact]
+    public void Linux_Btrfs_compression_is_readable_policy_and_generic_attribute_deletion_refuses_it()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux(), "Requires Linux Btrfs.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_BTRFS_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires the prepared Btrfs fixture.");
+        string path = Path.Join(root, "nested", "lzo.dat");
+        var reader = new UnixHiddenData();
+        var ct = TestContext.Current.CancellationToken;
+        var inventory = reader.ReadInventory(path, new(), ct);
+        var policy = Assert.Single(inventory.Items, item => item.Name == "btrfs.compression");
+        Assert.Equal(HiddenMetadataRole.StoragePolicy, policy.Role);
+        Assert.Equal(3, policy.Size);
+        Assert.False(inventory.ValueBearingQueryIssued);
+        var refusal = Assert.Throws<NotSupportedException>(() => reader.Delete(path, policy with { Role = HiddenMetadataRole.Ordinary }));
+        Assert.Equal(HiddenMetadataRoles.DeleteRefusal(policy), refusal.Message);
+        Assert.Contains(reader.ReadInventory(path, new(), ct).Items, item => item == policy);
     }
 }
