@@ -17,6 +17,7 @@ internal sealed partial class WindowsArchiveFile
         lock (parent.Gate)
         {
             EnsureLive(); ct.ThrowIfCancellationRequested(); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
+            CheckPackingProtection(handle);
             var metadata = CaptureOuterMetadata(ct); if (metadata.LinkCount != 1) throw ArchiveWriteMessages.HardLinked(DisplayPath);
             if (expected.Version.Identity != Identity.ToString() || Length != expected.Version.Length ||
                 !RetainedObservation(expected.Version, metadata).Matches(expected)) throw ChangedRetained();
@@ -49,7 +50,7 @@ internal sealed partial class WindowsArchiveFile
                 {
                     EnsureLive(); ct.ThrowIfCancellationRequested(); Validate();
                     if (writable || RandomAccess.GetLength(handle) != expected.Version.Length) throw ChangedRetained();
-                    return RandomAccess.Read(handle, target, offset);
+                    return ReadHeldPayload(handle, target, offset);
                 }
             }
         }

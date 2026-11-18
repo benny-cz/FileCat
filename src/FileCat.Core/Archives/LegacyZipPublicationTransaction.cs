@@ -54,9 +54,10 @@ internal sealed class LegacyZipPublicationTransaction
         step = Journal.Intent("zip-update", archive, null, temp);
     }
 
-    public void CaptureOpenedSource(Stream source)
+    public void CaptureOpenedSource(FileStream source)
     {
         if (!updating || openedSourceDigest is not null || prepared) throw new InvalidOperationException("Invalid ZIP source capture phase.");
+        ArchiveOuterEfs.RequireClear(source.SafeFileHandle);
         openedSourceDigest = DigestOpened(source);
         if (!string.Equals(Convert.ToHexString(openedSourceDigest), plan.Baseline!.Sha256Hex, StringComparison.Ordinal))
             throw new IOException("The archive changed after it was opened, so this change was not applied. Open it again and repeat the change.");

@@ -107,6 +107,9 @@ public sealed class ListingModel : IDisposable
     }
 
     public event EventHandler<ListingChange>? Changed;
+
+    /// <summary>The current navigation's provider read. Callers can hold a path lease until this read ends.</summary>
+    public Task CurrentEnumeration => _pipeline?.LoadTask ?? Task.CompletedTask;
     /// <summary>UI-thread transition before enumeration or ordering of a new store starts, including refreshes.</summary>
     public event Action<Location, EntryStore>? PreparingStore;
 

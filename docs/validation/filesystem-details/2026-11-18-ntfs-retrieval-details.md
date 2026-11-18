@@ -1,0 +1,7 @@
+# Bounded NTFS extent details
+
+The metadata-only full record now includes a bounded `FSCTL_GET_RETRIEVAL_POINTERS` inventory for the held main stream of an eligible local NTFS file. The summary does not make the extent query. The full route checks the held volume before querying and leaves reparse, recall-managed and directory objects outside this collector. It uses the same metadata handle as the summary fields.
+
+The collector retains at most 4,096 records and makes at most 32 calls. A complete response ending at exactly the record limit remains complete. A later failure retains the validated prefix as partial. Malformed lengths, counts, nonadvancing cursors and overflowing ranges stop collection. The report identifies returned records and completeness and shows the first 40 records. An LCN of −1 is displayed as unallocated or compressed. [Microsoft's retrieval pointer structure](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-retrieval_pointers_buffer).
+
+The Windows 11 x64 VM passed 13 tests, including full-report reads on a nonresident file and a sparse main stream with more than 1,023 returned records. The sparse result spans more than one native request. Ubuntu and macOS each passed ten portable parser fixtures. See `.tmp/filecat-record-ntfs-extents-qualified.xml` on the build host and `.tmp/record-ntfs-extents/results.xml` in the portable checkouts. Hard-link names, allocated byte ranges, Linux FIEMAP and wider platform qualification remain open under F-COMPLETE.

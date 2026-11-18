@@ -278,7 +278,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 DateTime.MinValue,FileAttributes.Normal);
             Job.AddTotals(1,observed.Version.Length);
             bool copied=UploadFile(()=>new RetainedEditUploadStream(retained.OpenReadView(observed,Job.Token),observed.Version),
-                incoming,Job.Request.Sources[0].FileSystemPath!,destFolder,Job.Request.NewName!,out _,
+                incoming,Job.Request.Sources[0].FileSystemPath!,destFolder,Job.Request.NewName!,out _,out _,
                 retained:new ArchiveRetainedBinding(retained,observed));
             if(copied)Job.RootCompleted(0);else Job.RootFailed(0);
             CompleteUpload();return;
@@ -434,7 +434,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     }
 
     /// <summary>A moved file whose published copy is checked, and its local source removed, with its folder's others.</summary>
-    private sealed record MovedSource(string Local, string DestFolder, string Name, FileSystemItemInfo Uploaded);
+    private sealed record MovedSource(string Local, string DestFolder, string Name, FileSystemItemInfo Uploaded, string? ApprovedEfsIdentity);
 
     /// <param name="moved">Where a moved file waits to be checked with the others of its folder; without it, at once.</param>
     private bool UploadLocalFile(string local, string destFolder, string name, List<MovedSource>? moved = null)
@@ -453,13 +453,13 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             return false;
         }
         bool ok = UploadFile(() => new FileStream(local, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 1, FileOptions.SequentialScan),
-            info, local, destFolder, name, out string published,
+            info, local, destFolder, name, out string published, out string? approvedEfsIdentity,
             unchanged: () => Fs.TryGetInfo(local) is { } now && now.Size == info.Size && now.ModifiedUtc == info.ModifiedUtc,
             refreshSource: () => info = Fs.TryGetInfo(local) ?? throw new FileNotFoundException("The upload source no longer exists.", local));
         if (ok && Moving)
         {
             // Checked against the copy under the name it was published as: "a (2).txt" after Keep both (review finding R-M1).
-            var source = new MovedSource(local, destFolder, published, info);
+            var source = new MovedSource(local, destFolder, published, info, approvedEfsIdentity);
             if (moved is not null) moved.Add(source);
             else RetireMovedSources([source]);
         }
@@ -483,7 +483,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 Changed(source.DestFolder);
                 listed[source.DestFolder] = Stopwatch.StartNew();
             }
-            DeletePublishedLocalSource(source.Local, source.DestFolder, source.Name, source.Uploaded);
+            DeletePublishedLocalSource(source.Local, source.DestFolder, source.Name, source.Uploaded, source.ApprovedEfsIdentity);
         }
     }
 
@@ -492,7 +492,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     /// then cannot become the object deleted by this job. An interrupted hold is named in the durable journal and is
     /// never removed by generic staging cleanup.
     /// </summary>
-    private void DeletePublishedLocalSource(string local, string destFolder, string name, FileSystemItemInfo uploaded)
+    private void DeletePublishedLocalSource(string local, string destFolder, string name, FileSystemItemInfo uploaded, string? approvedEfsIdentity)
     {
         string held = Path.Combine(Path.GetDirectoryName(local)!, ".FileCat-move-hold-" + Guid.NewGuid().ToString("N"));
         // The held file is the user's original, never a staged copy. Journaled as a rename back to its own name through
@@ -508,6 +508,8 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 current.Size != uploaded.Size || current.ModifiedUtc != uploaded.ModifiedUtc)
                 throw new IOException("The local source changed before it could be removed.");
             string? before = Fs.GetFileIdentity(local);
+            if (approvedEfsIdentity is null ? IsEfsProtected(current) : before != approvedEfsIdentity)
+                throw new IOException("The current local file has no matching approval to move without Windows EFS protection.");
             Fs.Move(local, held, replaceExisting: false, writeThrough: true);
             moved = true;
             // On FAT and exFAT the longer hold name can move the file's directory entry, and with it its identity (review
@@ -518,6 +520,8 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 heldInfo.ModifiedUtc != uploaded.ModifiedUtc ||
                 before is not null && identity != before && Fs.GetVolumeInfo(held).IdentitySurvivesRename)
                 throw new IOException("The held local source is not the selected file.");
+            if (approvedEfsIdentity is null && IsEfsProtected(heldInfo))
+                throw new IOException("The local source became EFS-protected and was kept.");
 
             string remote = RemotePath.Combine(destFolder, name);
             var published = Entry(destFolder, name);
@@ -531,6 +535,8 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             if (Fs.TryGetInfo(held) is not { IsDirectory: false, IsLink: false } after || after.Size != uploaded.Size ||
                 after.ModifiedUtc != uploaded.ModifiedUtc || identity is not null && Fs.GetFileIdentity(held) != identity)
                 throw new IOException("The held local source changed during verification.");
+            if (approvedEfsIdentity is null && IsEfsProtected(after))
+                throw new IOException("The local source became EFS-protected during verification and was kept.");
             Fs.DeleteFile(held);
             Journal.Done(step, StepOutcome.Committed);
         }
@@ -661,7 +667,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         var incoming = new FileSystemItemInfo(item.Name, false, false, item.Size, item.Modified > 0 ? new DateTime(item.Modified, DateTimeKind.Utc) : DateTime.MinValue,
             DateTime.MinValue, FileAttributes.Normal);
         return UploadFile(() => new ContentStream(Core.Content.ProgressiveContent.Sequential(provider.OpenContent(item)) ?? throw new IOException("This item has no content to copy.")), incoming,
-            provider.GetDisplayPath(item.Parent).TrimEnd('/', '\\') + "/" + item.Name, destFolder, name, out _);
+            provider.GetDisplayPath(item.Parent).TrimEnd('/', '\\') + "/" + item.Name, destFolder, name, out _, out _);
     }
 
     private bool AdmitName(string name, string sourceDisplay)
@@ -681,9 +687,10 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     /// <param name="unchanged">Whether the source is still the file the upload started with; without it, uploads restart after a break.</param>
     /// <param name="published">The name the copy has on the server: another one after Keep both.</param>
     private bool UploadFile(Func<Stream> openSource, FileSystemItemInfo incoming, string sourceDisplay, string destFolder, string name,
-        out string published, Func<bool>? unchanged = null, Func<FileSystemItemInfo>? refreshSource = null,ArchiveRetainedBinding? retained=null)
+        out string published, out string? approvedEfsIdentity, Func<bool>? unchanged = null, Func<FileSystemItemInfo>? refreshSource = null,ArchiveRetainedBinding? retained=null)
     {
         published = name;
+        approvedEfsIdentity = null;
         Job.SetCurrent(sourceDisplay);
         string dst = RemotePath.Combine(destFolder, name);
         IRemoteEntry? existing = null;
@@ -778,6 +785,8 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         long freshBytes = 0;
         var freshTime = TimeSpan.Zero;
         var freshClock = new Stopwatch();
+        string? attemptEfsIdentity = null;
+        bool skippedEfs = false;
         bool ok;
         var publication = new PublicationState();
         try
@@ -798,6 +807,34 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     var previous = incoming;
                     incoming = refreshSource();
                     Job.AddTotals(0, Math.Max(0, incoming.Size) - Math.Max(0, previous.Size));
+                }
+                using var input = openSource();
+                attemptEfsIdentity = null;
+                var localInput = OperatingSystem.IsWindows() ? input as FileStream : null;
+                if (localInput is not null && ReadEfsProtection(localInput))
+                {
+                    var sourceIdentity = Fs.GetOpenedFileIdentity(localInput.SafeFileHandle)
+                        ?? throw new RefusedOperationException("FileCat could not identify the EFS-protected file opened for upload.");
+                    string destinationDisplay = Sftp.GetDisplayPath(ConnectionLocation.WithPath(dst));
+                    var answer = Job.Ask(new ConfirmRequest("Upload without Windows EFS?",
+                        $"The server copy and its temporary file will lose Windows EFS protection.\n\nSource: {sourceDisplay}\nDestination: {destinationDisplay}",
+                        sourceDisplay, "efs-remote-upload", [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob])
+                    {
+                        ProceedLabel = "Upload without EFS",
+                        OffersApplyToAll = false,
+                    });
+                    if (answer.Action == DecisionAction.Skip)
+                    {
+                        skippedEfs = true;
+                        return;
+                    }
+                    if (answer.Action != DecisionAction.Proceed) throw new OperationCanceledException();
+                    attemptEfsIdentity = sourceIdentity;
+                }
+                void RequireApprovedProtection()
+                {
+                    if (localInput is not null && attemptEfsIdentity is null && ReadEfsProtection(localInput))
+                        throw new RefusedOperationException("The opened file became EFS-protected during the upload. FileCat did not send this read.");
                 }
                 // Where the server's copy is continued, it is opened first: a server that cannot continue (an FTP server
                 // refusing APPE, I47) makes the upload start again instead.
@@ -823,7 +860,6 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 Job.AddBytes(start - written);
                 written = start;
                 using (appendTo)
-                using (var input = openSource())
                 {
                     if (start > 0) input.Seek(start, SeekOrigin.Begin);
                     // Each stretch read is counted and paced to the speed limit (from this attempt's start), and a pause or
@@ -837,17 +873,23 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     }
                     var paced = new PacedRead(input, n =>
                     {
+                        RequireApprovedProtection();
                         written += n;
                         // A new upload's pace, as of its last read (not counting a question that followed a break).
                         if (start == 0) (freshBytes, freshTime) = (written, freshClock.Elapsed);
                         Job.AddBytes(n);
                         Job.Throttle(written - start, pace);
                         Job.Checkpoint();
-                    }, input is ContentStream ? null : incoming.Size - start, Job.Checkpoint);
+                    }, input is ContentStream ? null : incoming.Size - start, () =>
+                    {
+                        Job.Checkpoint();
+                        RequireApprovedProtection();
+                    });
                     // A new copy goes with requests in flight together (I39); a continued one appends where the server's copy ends.
                     if (start == 0) Channel.UploadNew(paced, temp!);
                     else paced.CopyTo(appendTo!, BufferSize);
                     paced.EnsureComplete();
+                    RequireApprovedProtection();
                     if (input is ContentStream content)
                     {
                         uploadedRevision = content.Revision;
@@ -901,23 +943,45 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             Journal.Done(step, StepOutcome.Failed);
             throw;
         }
-        if (!ok || differs)
+        if (!ok || differs || skippedEfs)
         {
             if (!publication.RetainStageForReview) DiscardTemp(destFolder, temp);
             Job.AddBytes(-written);
+            if (skippedEfs)
+            {
+                Journal.Done(step, StepOutcome.Skipped);
+                Job.ItemSkipped();
+                string message = written > 0
+                    ? "Skipped the new upload attempt. An earlier attempt may have reached the temporary server file. No final copy was published."
+                    : "Skipped the upload because it would lose Windows EFS protection.";
+                Issue(IssueSeverity.Info, sourceDisplay, message, StepOutcome.Skipped);
+                return false;
+            }
             Journal.Done(step, StepOutcome.Failed);
             Job.ItemFailed();
             if (differs) Issue(IssueSeverity.Error, dst, "Read-back verification found different content on the server; the copy was discarded, and nothing was published under this name.", StepOutcome.Failed);
             return false;
         }
+        approvedEfsIdentity = attemptEfsIdentity;
         Journal.Done(step, StepOutcome.Committed);
         Job.ItemDone();
+        if (approvedEfsIdentity is not null)
+            Issue(IssueSeverity.Warning, sourceDisplay, "Uploaded without Windows EFS protection, as approved.", StepOutcome.Committed);
         if (caveat is not null)
             Issue(IssueSeverity.Warning, sourceDisplay, caveat + (lost is { Count: > 0 } ? " " + PartialContent.Describe(lost, written) : ""), StepOutcome.Committed);
         else if (lost is { Count: > 0 })
             Issue(IssueSeverity.Warning, sourceDisplay, PartialContent.Describe(lost, written) + " Check the file before relying on it.", StepOutcome.Committed);
         if (!timeKept && _timesNotKept++ == 0) _firstTimeNotKept = dst;
         return true;
+    }
+
+    private static bool ReadEfsProtection(FileStream source)
+    {
+        try { return File.GetAttributes(source.SafeFileHandle).HasFlag(FileAttributes.Encrypted); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            throw new RefusedOperationException("FileCat could not verify Windows EFS protection on the actual opened upload source.");
+        }
     }
 
     /// <summary>

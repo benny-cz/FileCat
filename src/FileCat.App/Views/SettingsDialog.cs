@@ -75,7 +75,7 @@ public static class SettingsDialog
         var cmdLine = new CheckBox { Content = "Show the command line", IsChecked = s.ShowCommandLine };
         // With seconds first; the shorter forms stay for those who chose them, and a format typed into the settings file
         // is offered as it is, so saving never replaces it.
-        var dateFormats = new List<string> { "Culture", "yyyy-MM-dd HH:mm:ss", "dd.MM.yyyy HH:mm:ss", "MM/dd/yyyy h:mm:ss tt", "yyyy-MM-dd HH:mm", "dd.MM.yyyy HH:mm", "MM/dd/yyyy h:mm tt" };
+        var dateFormats = AppearanceTransferV1.DateFormats.ToList();
         if (!dateFormats.Contains(s.DateFormat)) dateFormats.Add(s.DateFormat);
         var dateFormat = new ComboBox { ItemsSource = dateFormats, SelectedItem = s.DateFormat, MinWidth = 220 };
         tabs.Items.Add(new TabItem { Header = "Appearance", Content = Form(("Theme", theme), ("", themeDescription), ("", animations), ("Interface density", density), ("List font size", fontSize), ("Text, hex and comparison size", contentFontSize), ("", Note("Content size starts new viewers and comparisons at this value; Ctrl+plus/minus and the visible size controls adjust the open view.")), ("Date format", dateFormat), ("", keyBar), ("", toolbar), ("", classicToolbar), ("", toolbarNote), ("", driveButtons), ("", allPlaces), ("", placesNote), ("", cmdLine),
@@ -461,6 +461,18 @@ public static class SettingsDialog
             tabs.SelectedItem = start;
             if (ReferenceEquals(start.Content, columnsEditor.View)) initialFocus = columnsEditor.InitialFocus;
         }
+        var closer = new DialogCloser();
+        Func<bool>? hasDraftChanges = null;
+        if (OperatingSystem.IsWindows())
+        {
+            var transfer = new Button { Content = AppearanceTransferDialog.ActionLabel };
+            transfer.Click += async (_, _) =>
+            {
+                if (await AppearanceTransferDialog.ShowAsync(vm, hasDraftChanges?.Invoke() == true))
+                    closer.Close("appearance transferred");
+            };
+            body.Children.Insert(0, transfer);
+        }
         if (vm.Services.SettingsReadOnly)
         {
             // Keep tabs, scrolling and text selection usable while preventing edits and preview side effects.
@@ -469,7 +481,9 @@ public static class SettingsDialog
                     foreach (var control in page.GetLogicalDescendants().OfType<Control>())
                         if (control is TextBox textBox) textBox.IsReadOnly = true;
                         else if (control is Button or ComboBox or CheckBox or NumericUpDown) control.IsEnabled = false;
-            string reason = vm.Services.SettingsStatus switch
+            string reason = WindowsTokenAuthority.IsHighIntegrity
+                ? "Administrator Settings are read-only. You can copy appearance and open folders from a normal window."
+                : vm.Services.SettingsStatus switch
             {
                 StateLoadStatus.NewerSchemaReadOnly => "These settings were written by a newer FileCat. They can be inspected here, but this version cannot change them.",
                 StateLoadStatus.OversizedReadOnly => "The settings exceed the safe input limit. A backup or defaults are shown for inspection; the original file is preserved.",
@@ -478,7 +492,7 @@ public static class SettingsDialog
             body.Children.Insert(0, new TextBlock { Text = reason, Classes = { "warning" }, TextWrapping = TextWrapping.Wrap });
             await vm.Dialogs.ShowCustomAsync("Settings — read-only", body,
                 [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)],
-                initialFocus: initialFocus,
+                initialFocus: initialFocus, closer: closer,
                 behavior: new DialogBehavior { DismissOnBackdrop = false, AlignTop = true });
             return;
         }
@@ -532,7 +546,6 @@ public static class SettingsDialog
                 return Fail("Associations", associationError!, associationField, 2);
             return true;
         }
-        var closer = new DialogCloser();
         bool reviewingDismissal = false;
         bool HasDraftChanges()
         {
@@ -580,6 +593,7 @@ public static class SettingsDialog
                 !associationsEditor.TryGet(out var associations, out _, out _) ||
                 JsonSerializer.Serialize(associations) != JsonSerializer.Serialize(s.Associations);
         }
+        hasDraftChanges = HasDraftChanges;
         async void ReviewImplicitDismissal()
         {
             if (reviewingDismissal) return;

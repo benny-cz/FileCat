@@ -315,9 +315,14 @@ public enum DecisionAction
     CreateJunction,
     /// <summary>Copy instead of moving: the original stays where it is.</summary>
     KeepSource,
+    BackUpEfsKey,
+    DeclareEfsRecovery,
 }
 
-public sealed record Decision(DecisionAction Action, bool ApplyToAll = false);
+public sealed record Decision(DecisionAction Action, bool ApplyToAll = false)
+{
+    internal StorageEfsRecoverySelection? EfsRecovery { get; init; }
+}
 
 public abstract record DecisionRequest(string Title, string Message)
 {

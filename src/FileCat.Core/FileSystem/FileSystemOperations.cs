@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.FileSystem;
 
@@ -31,6 +32,17 @@ public sealed class FileCopyOptions
     /// still in the write cache would be lost with it on power failure.
     /// </summary>
     public bool FlushDestination { get; init; }
+}
+
+/// <summary>Holds the actual EFS source and output parent while the job asks about a single clear-copy attempt.</summary>
+internal interface IDecryptedCopyReviewProvider
+{
+    IDecryptedCopyReview PrepareDecryptedCopy(string source, string destination, bool followLink, CancellationToken ct);
+}
+
+internal interface IDecryptedCopyReview : IDisposable
+{
+    void Copy(FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct);
 }
 
 /// <summary>Native identity and metadata of one file-system item.</summary>
@@ -223,6 +235,9 @@ public interface IFileSystemOperations
     /// <summary>Mark-of-the-Web / quarantine origin data, or null.</summary>
     string? ReadOriginMark(string path);
 
+    /// <summary>Reads the download mark of a captured archive input under the platform's output admission policy.</summary>
+    string? ReadArchiveSourceOriginMark(string path, string? identity, CancellationToken ct) => ReadOriginMark(path);
+
     /// <summary>Writes origin data; returns false when the destination cannot store it (reported as a security loss).</summary>
     bool WriteOriginMark(string path, string mark);
 
@@ -253,6 +268,9 @@ public interface IFileSystemOperations
 
     /// <summary>A stable identity of the file (volume and file ID), without following links; null where unavailable.</summary>
     string? GetFileIdentity(string path);
+
+    /// <summary>Identity of the actual file open for reading, when the platform can establish it.</summary>
+    string? GetOpenedFileIdentity(SafeFileHandle file) => null;
 
     /// <summary>
     /// Where <paramref name="path"/> really is: its full path with every link on the way and at its end resolved
@@ -745,6 +763,8 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual string? ReadOriginMark(string path) => null;
 
+    public virtual string? ReadArchiveSourceOriginMark(string path, string? identity, CancellationToken ct) => ReadOriginMark(path);
+
     public virtual bool WriteOriginMark(string path, string mark) => false;
 
     public virtual IReadOnlyList<string> GetAlternateStreams(string path) => [];
@@ -806,6 +826,8 @@ public class PortableFileOperations : IFileSystemOperations
     /// <summary>Linux and macOS: the device and inode of the path's own entry (Windows overrides with volume and file ID).</summary>
     public virtual string? GetFileIdentity(string path) =>
         PathUtil.HasAmbiguousUnixName(path) ? null : UnixFiles.Stat(path) is { } s ? s.Identity.ToString() : null;
+
+    public virtual string? GetOpenedFileIdentity(SafeFileHandle file) => UnixFiles.Stat(file)?.Identity.ToString();
 
     /// <summary>Linux and macOS: realpath (Windows overrides with the handle's final path).</summary>
     public virtual string? GetFinalPath(string path) =>

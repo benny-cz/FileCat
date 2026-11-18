@@ -63,13 +63,14 @@ internal sealed class ArchiveMoveSources
         if (inputs.TryGetValue(path, out var previous)) return previous;
         if (inputs.Count >= ArchiveWritePolicy.MaxMembers) throw new IOException("Too many inputs for one archive move; move smaller selections.");
         var info = fs.TryGetInfo(path) ?? throw new FileNotFoundException("The move source no longer exists.", path);
+        if (OperatingSystem.IsWindows()) ArchiveOuterEfs.RequireClear(info.Attributes, ArchiveOuterEfs.PackUnavailable);
         if (info.IsDirectory != directory || info.IsLink || ReparseLinks.IsLink(path) ||
             !directory && !OperatingSystem.IsWindows() && UnixFiles.Stat(path) is not { IsRegular: true })
             throw new IOException("Only local regular files and folders can be moved into an archive; links and special files stay in place.");
         string? identity = fs.GetFileIdentity(path);
         if (identity is not null && identity == archiveIdentity)
             throw new IOException("The archive itself, or a link to it, cannot be a move source.");
-        string? mark = fs.ReadOriginMark(path);
+        string? mark = fs.ReadArchiveSourceOriginMark(path, identity, job.Token);
         if (mark is not null)
         {
             int bytes = Encoding.UTF8.GetByteCount(mark);
@@ -83,11 +84,12 @@ internal sealed class ArchiveMoveSources
     internal void RequireCurrent(Input input)
     {
         var now = fs.TryGetInfo(input.Path);
+        if (OperatingSystem.IsWindows() && now is not null) ArchiveOuterEfs.RequireClear(now.Attributes, ArchiveOuterEfs.PackUnavailable);
         if (now is null || now.IsDirectory != input.Info.IsDirectory || now.IsLink || ReparseLinks.IsLink(input.Path) ||
             input.Identity is not null && !string.Equals(fs.GetFileIdentity(input.Path), input.Identity, StringComparison.Ordinal) ||
             !now.IsDirectory && (now.Size != input.Info.Size || now.ModifiedUtc != input.Info.ModifiedUtc || now.Attributes != input.Info.Attributes) ||
             input.UnixMode is { } mode && UnixFiles.Stat(input.Path)?.Mode != mode ||
-            fs.ReadOriginMark(input.Path) != input.Mark)
+            fs.ReadArchiveSourceOriginMark(input.Path, input.Identity, job.Token) != input.Mark)
             throw new IOException("The move source changed after it was captured; its original was kept: " + input.Path);
     }
 

@@ -2,6 +2,16 @@ namespace FileCat.Core.Jobs;
 
 public sealed partial class Job
 {
+    internal T RunEfsRecoveryInteraction<T>(Func<T> interaction)
+    {
+        Checkpoint();
+        if (Kind != JobKind.StorageTransform || Request.StorageTransform?.Action != FileSystem.StorageAction.EncryptEfs || State != JobState.Running)
+            throw new InvalidOperationException("The running encryption job must own its EFS recovery interaction.");
+        SetState(JobState.AwaitingDecision);
+        try { return interaction(); }
+        finally { if (!IsCancellationRequested && State == JobState.AwaitingDecision) SetState(JobState.Running); }
+    }
+
     private StorageTransformJournalWriter? _storageWriter;
     private StorageJournalCall? _storageCall;
     internal void AttachStorageWriter(StorageTransformJournalWriter writer)

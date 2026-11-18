@@ -1037,7 +1037,12 @@ public sealed class HexEditorWindow : Window
             ShowOverwritePrompt = false,
         });
         string? target = picked?.TryGetLocalPath();
-        if (target is null) return;
+        if (target is not null) await SaveAsToAsync(target);
+    }
+
+    internal async Task SaveAsToAsync(string target)
+    {
+        if (_closed || !CanEdit) return;
         if (File.Exists(target) || Directory.Exists(target))
         {
             await _dialogs.AlertAsync("Choose a new name", "Save As creates a new file and never replaces an existing one. Choose a name that does not exist yet.");
@@ -1057,7 +1062,13 @@ public sealed class HexEditorWindow : Window
             var file = _file;
             var overlay = _overlay;
             var token = _copyStop.Token;
-            var result = await Task.Run(() => HexSaveAs.CreateNew(file, overlay, target, token, progress));
+            HexSaveAsResult result;
+            using (var review = await Task.Run(() => HexSaveAs.Prepare(file, overlay, target), token))
+            {
+                if (!await ApproveHexOutputAsync(review, "Save an edited copy without EFS protection?",
+                    "The edited copy contains file bytes from EFS-protected inputs.", "Save copy", token)) return;
+                result = await Task.Run(() => HexSaveAs.CreateNew(review, token, progress), token);
+            }
             string notes = (result.Sparse ? " Unallocated ranges stayed sparse." : "") +
                            " The new file has the default permissions of its folder; alternate data streams other than the download mark were not copied.";
             if (result.OriginMark == HexOriginMark.Lost)
@@ -1068,7 +1079,7 @@ public sealed class HexEditorWindow : Window
         catch (OperationCanceledException) { Status("Save As stopped; the incomplete new file was removed. Your edits are still open."); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            await _dialogs.AlertAsync("Save As failed", ex.Message + "\n\nNo new file was created. Your edits are still open.");
+            if (!_closed) await _dialogs.AlertAsync("Save As failed", ex.Message + "\n\nYour edits are still open.");
         }
         finally
         {
@@ -1117,21 +1128,47 @@ public sealed class HexEditorWindow : Window
             FileTypeChoices = [new FilePickerFileType("FileCat hex patch") { Patterns = ["*.json"] }],
         });
         string? target = picked?.TryGetLocalPath();
-        if (target is null) return;
+        if (target is not null) await ExportPatchToAsync(target);
+    }
+
+    internal async Task ExportPatchToAsync(string target)
+    {
+        if (_closed || !CanEdit || _overlay.DirtyBytes == 0) return;
         SetSaving(true);
+        _copyStop = new CancellationTokenSource();
         try
         {
             var file = _file;
             var overlay = _overlay;
-            int ranges = overlay.SnapshotRanges().Count;
-            await Task.Run(() => HexPatchExport.Export(file, overlay, target));
+            var token = _copyStop.Token;
+            using var review = await Task.Run(() => HexPatchExport.Prepare(file, overlay, target), token);
+            if (!await ApproveHexOutputAsync(review, "Export patch without EFS protection?",
+                "This patch contains original and replacement file bytes from an edit that used EFS-protected inputs. Anyone who can read the patch can decode those bytes.",
+                "Export patch", token)) return;
+            int ranges = await Task.Run(() => HexPatchExport.Export(review, token), token);
             Status($"Exported {Formatters.Plural(ranges, "changed range", "changed ranges")} to {Path.GetFileName(target)}. The file itself was not changed; the edits are still unsaved.");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            await _dialogs.AlertAsync("Patch export failed", ex.Message);
+            if (!_closed) await _dialogs.AlertAsync("Patch export failed", ex.Message);
         }
-        finally { SetSaving(false); }
+        finally
+        {
+            _copyStop.Dispose();
+            _copyStop = null;
+            SetSaving(false);
+        }
+    }
+
+    private async Task<bool> ApproveHexOutputAsync(HexOutputReview review, string title, string contents, string action, CancellationToken ct)
+    {
+        if (!review.NeedsEfsConsent) return true;
+        bool approved = await _dialogs.ConfirmWithCancellationAsync(title,
+            $"{contents} The destination and its temporary sibling may both store those bytes without EFS protection.\n\nDestination\n{review.Destination}\n\nTemporary file\n{review.Temporary}\n\nIf FileCat is interrupted, the temporary file may remain in this folder.",
+            action, danger: true, cancellationToken: ct);
+        if (approved) review.ApproveEfsExport();
+        return approved;
     }
 
     private async Task ApplyPatchAsync()

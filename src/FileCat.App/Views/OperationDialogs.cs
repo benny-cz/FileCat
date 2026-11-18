@@ -421,6 +421,7 @@ public static class OperationDialogs
             ConflictRequest c => ConflictAsync(vm, job, c, closer),
             ErrorRequest e => ErrorAsync(vm, job, e, closer),
             ConfirmRequest cr => ConfirmAsync(vm, job, cr, closer),
+            StorageEfsRecoveryDecision efs => EfsRecoveryAsync(vm, efs, closer),
             _ => Task.FromResult(new Decision(DecisionAction.CancelJob)),
         };
         using var stopped = new CancellationTokenSource();
@@ -437,6 +438,41 @@ public static class OperationDialogs
         var observation = ObserveResolution();
         try { return await dialog; }
         finally { stopped.Cancel(); await observation; }
+    }
+
+    private static async Task<Decision> EfsRecoveryAsync(MainViewModel vm, StorageEfsRecoveryDecision request, DialogCloser closer)
+    {
+        if (request.Keys.IsDefaultOrEmpty) return new(DecisionAction.CancelJob);
+        var body = new StackPanel { Spacing = 8, MinWidth = 460, MaxWidth = 620 };
+        body.Children.Add(Text("Windows account " + Formatters.SafeName(request.Invoker) + " (" + request.InvokerSid + ")"));
+        var candidates = new ComboBox
+        {
+            ItemsSource = request.Keys.Select(key => key.Subject is { Length: > 0 } subject
+                ? Formatters.SafeName(subject) + " · " + key.CertificateSha1 : key.CertificateSha1).ToArray(),
+            SelectedIndex = 0,
+        };
+        AutomationProperties.SetName(candidates, "Reviewed EFS certificate");
+        body.Children.Add(candidates);
+        body.Children.Add(Text("Keep the backup somewhere you can access without this Windows account or EFS key, and keep its password separately."));
+        body.Children.Add(Text("Use an existing recovery arrangement if you have a backup or an organization or hardware recovery arrangement for this key."));
+        body.Children.Add(Text("Windows chooses the key for each file. A key change can require another recovery review after the current file is encrypted."));
+        if (request.PreviousResult is { } previous) body.Children.Add(Text(previous));
+        if (request.CleanupProblem is { } cleanup)
+        {
+            body.Children.Add(Text(cleanup.Message));
+            if (request.RetainedSetupPath is { } path) body.Children.Add(Muted(Formatters.SafeName(path)));
+        }
+
+        nint owner = vm.View.TopLevel?.TryGetPlatformHandle() is { HandleDescriptor: "HWND", Handle: not 0 } hwnd ? hwnd.Handle : 0;
+        var buttons = new List<DialogButton>();
+        if (owner != 0) buttons.Add(new("Back up EFS key…", DecisionAction.BackUpEfsKey));
+        buttons.Add(new("Use existing recovery", DecisionAction.DeclareEfsRecovery));
+        buttons.Add(new("Cancel operation", DecisionAction.CancelJob, IsDefault: true, IsCancel: true));
+        var answer = await vm.Dialogs.ShowCustomAsync(request.Title, body, buttons, closer: closer);
+        if (answer is not (DecisionAction.DeclareEfsRecovery or DecisionAction.BackUpEfsKey) ||
+            (uint)candidates.SelectedIndex >= (uint)request.Keys.Length)
+            return new(DecisionAction.CancelJob);
+        return new((DecisionAction)answer) { EfsRecovery = new(request.Keys[candidates.SelectedIndex].CertificateSha1, owner) };
     }
 
     private static async Task<Decision> ConflictAsync(MainViewModel vm, Job job, ConflictRequest c, DialogCloser closer)

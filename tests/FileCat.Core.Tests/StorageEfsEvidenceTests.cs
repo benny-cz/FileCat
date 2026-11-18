@@ -26,6 +26,89 @@ public sealed class StorageEfsEvidenceTests
         return collector;
     }
 
+    private static StorageEfsRecoveryApproval DeclareRecovery(StorageEfsConsent consent)
+    {
+        const string sid = "S-1-5-21-1-2-3-1000";
+        string thumbprint = new('A', 40);
+        var association = new StorageEfsAssociationSnapshot(Identity("C"), sid, [new(sid, thumbprint, null)],
+            [new(sid, thumbprint, true, true, StorageEfsKeyState.MatchedAvailable, StorageEfsKeyProvider.Capi, DateTime.UnixEpoch, null, null)]);
+        return StorageEfsRecoveryApproval.DeclareArrangement(consent, new(association, true, false, null, null, null, null),
+            thumbprint, acknowledged: true);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Version_three_retains_the_reviewed_key_and_actual_result_in_the_captured_page(bool unexpectedKey)
+    {
+        using var temp = new TempDir();
+        var header = Header() with { RequiresEfsRecoveryEvidence = true };
+        var before = header.Roots[0].Observation;
+        using var data = new MemoryStream();
+        using var writer = new StorageTransformJournalWriter(data, () => { }, header);
+        long openingLength = data.Length;
+        Assert.Throws<ArgumentException>(() => writer.FlushIntent(0, header.Roots[0].Path, before));
+        Assert.Throws<ArgumentException>(() => writer.FlushIntent(0, header.Roots[0].Path, before, DeclareRecovery(Header().EfsConsent!)));
+        Assert.Equal(openingLength, data.Length);
+
+        var approval = DeclareRecovery(header.EfsConsent!);
+        var call = writer.FlushIntent(0, header.Roots[0].Path, before, approval);
+        Assert.Equal(approval.Evidence, call.Intent.EfsReviewedKey);
+        Assert.True(call.TryAdmit());
+        var observed = new StorageEfsObservedKey(unexpectedKey ? new string('B', 40) : approval.CertificateSha1, StorageEfsKeyState.MatchedAvailable);
+        var problem = unexpectedKey ? new StorageProblem(StorageReasonKind.PermissionOrPolicy, "efs-recovery-review-required", "Windows associated a different key.", true) : null;
+        var effect = unexpectedKey ? StorageEffect.Uncertain : StorageEffect.Changed;
+        writer.FlushResult(call, new(before, before with { Efs = StorageObservationState.Enabled }, effect, problem)
+        {
+            NativeCallAttempted = true,
+            EfsKeys = new(true, [observed]),
+        });
+
+        var prefix = writer.Prefix!;
+        string path = Path.Join(temp.Path, StorageJournalPolicy.FileName(header.CreatedUtc, header.JobId));
+        File.WriteAllBytes(path, data.ToArray());
+        var page = JournalRecovery.ReadStorageCalls(path, prefix, ct: TestContext.Current.CancellationToken);
+        var recorded = Assert.Single(page.Calls);
+        Assert.Equal(approval.Evidence, recorded.EfsReviewedKey);
+        Assert.Equal(observed, Assert.Single(recorded.Result!.EfsKeys!.Keys));
+        Assert.Equal(effect, recorded.Result.Effect);
+        var history = JournalRecovery.ReadStorageHistory(path, prefix, TestContext.Current.CancellationToken);
+        Assert.Equal(StorageJournalPolicy.EfsRecoveryVersion, history.JournalSchema);
+        Assert.Equal(unexpectedKey, history.EffectUncertain);
+        if (unexpectedKey)
+            Assert.Throws<InvalidOperationException>(() => writer.FlushIntent(0, header.Roots[0].Path, before, approval));
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("unexpected")]
+    [InlineData("unknown")]
+    [InlineData("duplicate")]
+    public void An_encrypted_state_cannot_report_success_without_the_expected_available_key(string observation)
+    {
+        var header = Header() with { RequiresEfsRecoveryEvidence = true };
+        var before = header.Roots[0].Observation;
+        using var data = new MemoryStream();
+        using var writer = new StorageTransformJournalWriter(data, () => { }, header);
+        var recovery = DeclareRecovery(header.EfsConsent!);
+        var call = writer.FlushIntent(0, header.Roots[0].Path, before, recovery);
+        Assert.True(call.TryAdmit());
+        var expected = new StorageEfsObservedKey(recovery.CertificateSha1, StorageEfsKeyState.MatchedAvailable);
+        StorageEfsResultKeys? observed = observation switch
+        {
+            "missing" => null,
+            "unexpected" => new(true, [expected with { CertificateSha1 = new string('D', 40) }]),
+            "duplicate" => new(true, [expected, expected]),
+            _ => new(false, [expected]),
+        };
+        var prefix = writer.Prefix;
+        Assert.Throws<IOException>(() => writer.FlushResult(call,
+            new(before, before with { Efs = StorageObservationState.Enabled }, StorageEffect.Changed, null)
+            { NativeCallAttempted = true, EfsKeys = observed }));
+        Assert.Equal(prefix, writer.Prefix);
+        Assert.True(writer.NeedsRecovery);
+    }
+
     [Fact]
     public void Default_choices_and_each_missing_acknowledgment_fail_before_the_first_durable_write()
     {

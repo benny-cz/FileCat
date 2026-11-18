@@ -31,8 +31,17 @@ internal sealed unsafe partial class WindowsStorageTransforms
         return new Pin(this, target, inspection, action, path.TakeLeaf(), sid);
     }
 
-    internal IStorageObjectLease OpenEfsPath(IStorageReviewLease root, StorageEfsConsent consent, CancellationToken ct,
+    internal IStorageObjectLease OpenEfsPath(IStorageReviewLease root, StorageEfsConsent consent,
+        StorageEfsRecoveryApproval? recovery, CancellationToken ct, int sourceIndex = 0) =>
+        OpenEfsBinding(root, consent, recovery, requireRecovery: true, ct, InvokeEfs, sourceIndex);
+
+    internal IStorageObjectLease OpenEfsPathForQualification(IStorageReviewLease root, StorageEfsConsent consent, CancellationToken ct,
         Func<string, StorageAction, EfsNativeReturn>? invoke = null, int sourceIndex = 0)
+        => OpenEfsBinding(root, consent, null, requireRecovery: false, ct, invoke ?? InvokeEfs, sourceIndex);
+
+    private EfsPathBinding OpenEfsBinding(IStorageReviewLease root, StorageEfsConsent consent, StorageEfsRecoveryApproval? recovery,
+        bool requireRecovery, CancellationToken ct, Func<string, StorageAction, EfsNativeReturn> invoke, int sourceIndex,
+        Func<CancellationToken, StorageEfsRecoveryApproval>? resolveRecovery = null)
     {
         ArgumentNullException.ThrowIfNull(consent);
         RequireEfsHost(consent.Action);
@@ -43,6 +52,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
             consent.RootIdentities[sourceIndex] != pin.Observation.Identity)
             throw Refuse("efs-consent", "EFS needs separate identity-bound acknowledgment of the concurrent link-change boundary and, for encryption, all-stream decompression.");
         if (EfsInvoker() != pin.InvokerSid) throw Changed("efs-invoker", "The invoking EFS user changed; create a new review.");
+        if (recovery is not null && !recovery.Matches(consent, pin.InvokerSid))
+            throw Refuse("efs-recovery-scope", "The EFS recovery arrangement belongs to a different invoking user or review.");
         NativePath? path = null, windows = null;
         try
         {
@@ -52,7 +63,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             windows = ProtectedWindowsPath(ct);
             var observation = Inspect(path, windows.LeafFacts.Identity, ct, compressionPolicy: false).For(consent.Action);
             if (observation.Ineligible is { } excluded) throw new StorageInspectionException(excluded);
-            var binding = new EfsPathBinding(pin, path, windows, consent, sourceIndex, invoke ?? InvokeEfs);
+            var binding = new EfsPathBinding(pin, path, windows, consent, invoke, recovery, requireRecovery, resolveRecovery);
             path = null; windows = null;
             return binding;
         }
@@ -87,7 +98,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         int prefix = raw.StartsWith("Volume{", StringComparison.OrdinalIgnoreCase) ? 45 : 3;
         string[] names = raw[prefix..].TrimEnd('\\').Split('\\');
         string deviceRoot = EfsDeviceRoot(path);
-        for (int i = 0; i < path.Nodes.Count; i++)
+        for (int i = path.OwnedFrom; i < path.Nodes.Count; i++)
         {
             var node = path.Nodes[i];
             var facts = Facts(node.Handle.File, path.Volume.Binding, ct);
@@ -111,13 +122,20 @@ internal sealed unsafe partial class WindowsStorageTransforms
         }
     }
 
-    private sealed class EfsPathBinding : IStorageObjectLease
+    private sealed partial class EfsPathBinding : IStorageEfsObjectLease
     {
         private readonly Pin _pin;
         private readonly NativePath _path, _windows;
+        private readonly EfsPathBinding? _parent;
+        private readonly EfsPathBinding _root;
+        private readonly NodeFacts _reviewedRoot;
+        private readonly StorageProblem? _cursorProblem;
+        private readonly HashSet<EfsPathBinding> _children = [];
         private readonly StorageNativeAllowance _allowance;
         private readonly StorageEfsConsent _consent;
-        private readonly StorageObjectIdentity _identity;
+        private StorageEfsRecoveryApproval? _recovery;
+        private readonly bool _requireRecovery;
+        private readonly Func<CancellationToken, StorageEfsRecoveryApproval>? _resolveRecovery;
         private readonly Func<string, StorageAction, EfsNativeReturn> _invoke;
         private readonly string _apiPath;
         private StorageObservation? _prepared;
@@ -126,23 +144,35 @@ internal sealed unsafe partial class WindowsStorageTransforms
         private bool _disposed;
         internal ImmutableArray<WindowsEfsStream> PreparedStreams { get; private set; } = [];
         // The containing type owns construction; callers receive no unpinned ID-to-path authority.
-        internal EfsPathBinding(Pin pin, NativePath path, NativePath windows, StorageEfsConsent consent, int sourceIndex,
-            Func<string, StorageAction, EfsNativeReturn> invoke)
+        internal EfsPathBinding(Pin pin, NativePath path, NativePath windows, StorageEfsConsent consent,
+            Func<string, StorageAction, EfsNativeReturn> invoke, StorageEfsRecoveryApproval? recovery, bool requireRecovery,
+            Func<CancellationToken, StorageEfsRecoveryApproval>? resolveRecovery,
+            EfsPathBinding? parent = null, string? capturedPath = null, StorageProblem? cursorProblem = null)
         {
             _pin = pin; _path = path; _windows = windows; _consent = consent; _invoke = invoke;
-            _identity = consent.RootIdentities[sourceIndex];
+            _parent = parent;
+            _root = parent?._root ?? this;
+            _reviewedRoot = parent?._reviewedRoot ?? path.LeafFacts;
+            _cursorProblem = cursorProblem;
+            _recovery = recovery;
+            _requireRecovery = requireRecovery;
+            _resolveRecovery = resolveRecovery;
             _allowance = StorageNativeAllowance.RequireCurrent();
-            _apiPath = EfsApiPath(path, pin.Target.Path);
+            Path = capturedPath ?? pin.Target.Path;
+            Identity = path.LeafFacts.Identity;
+            _apiPath = EfsApiPath(path, Path);
+            parent?._children.Add(this);
         }
-        public string Path => _pin.Target.Path;
-        public StorageObjectIdentity Identity => _identity;
+        public string Path { get; }
+        public StorageObjectIdentity Identity { get; }
+        public StorageEfsRecoveryApproval? RecoveryApproval => _recovery;
         internal bool IsFrom(WindowsStorageTransforms adapter) => ReferenceEquals(_pin.Adapter, adapter);
         internal StorageEfsAssociationSnapshot ReadAssociations(CancellationToken ct)
         {
             Check(); var before = Observe(ct);
             if (before.Ineligible is { } excluded) throw new StorageInspectionException(excluded);
             if (before.Efs != StorageObservationState.Enabled) throw Refuse("efs-association-state", "The held item is not known to be EFS encrypted.");
-            if (!_guards) { PromoteEfsGuards(_path, Path, ct); _guards = true; }
+            EnsureGuards(ct);
             return WindowsEfsAssociations.Read(_apiPath, Identity, _pin.InvokerSid!, token =>
             {
                 var observed = Observe(token);
@@ -153,23 +183,39 @@ internal sealed unsafe partial class WindowsStorageTransforms
         private void Check()
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!_pin.IsAlive || !ReferenceEquals(StorageNativeAllowance.RequireCurrent(), _allowance))
+            if (!_pin.IsAlive || _parent is { _disposed: true } || !ReferenceEquals(StorageNativeAllowance.RequireCurrent(), _allowance))
                 throw Changed("review-pin", "The EFS path requires its original live review pin and native owner.");
             if (EfsInvoker() != _pin.InvokerSid) throw Changed("efs-invoker", "The invoking EFS user changed.");
         }
         public StorageObservation Observe(CancellationToken ct)
         {
-            Check(); ValidateSpelling(ct);
+            Check();
+            if (_cursorProblem is { } problem)
+                return new(StorageObservationState.Unknown, StorageObservationState.Unknown, Identity, _path.LeafFacts.IsDirectory, problem);
+            if (_parent is not null)
+            {
+                var child = Inspect(_path, _windows.LeafFacts.Identity, ct, compressionPolicy: false).For(_consent.Action);
+                if (child.Ineligible is null || child.Ineligible.Code == "read-only-file") ValidateSpelling(ct);
+                return child;
+            }
+            ValidateSpelling(ct);
             return Inspect(_path, _windows.LeafFacts.Identity, ct, compressionPolicy: false).For(_consent.Action);
         }
         public StorageObservation PrepareMutation(StorageAction action, CancellationToken ct)
         {
             RequireAction(action); _prepared = null; PreparedStreams = [];
             var before = Observe(ct);
+            if (before.Ineligible is null && action == StorageAction.EncryptEfs && NeedsChange(before.Efs, action) &&
+                _recovery is null && _resolveRecovery is { } resolve)
+            {
+                _recovery = resolve(ct);
+                before = Observe(ct);
+            }
             if (before.Ineligible is null && NeedsChange(before.Efs, action))
             {
-                if (!_guards) { PromoteEfsGuards(_path, Path, ct); _guards = true; before = Observe(ct); }
-                PreparedStreams = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, ct);
+                RequireRecoveryKey(action, ct);
+                if (!_guards) { EnsureGuards(ct); before = Observe(ct); }
+                PreparedStreams = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, ct, includeSparseLayouts: true);
                 RequireNativeStatus(before, ct);
                 before = Observe(ct);
             }
@@ -181,6 +227,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             RequireAction(action);
             var before = _prepared ?? throw new InvalidOperationException("Prepare the same EFS object before durable intent and atomic call admission.");
             _prepared = null; bool attempted = false;
+            StorageEfsResultKeys? observedKeys = null;
             try
             {
                 before = Observe(CancellationToken.None);
@@ -189,7 +236,12 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 if (!_preparedNeeded) return new(before, before, StorageEffect.NotProcessed,
                     Problem(StorageReasonKind.IdentityChanged, "new-preparation-required", "The EFS state changed after no-op preparation; no native call was attempted."));
                 // Complete metadata again after preparation. Consent covers compressed streams added meanwhile.
-                PreparedStreams = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, CancellationToken.None);
+                var streamsBefore = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, CancellationToken.None, includeSparseLayouts: true);
+                if (!WindowsEfsStreams.SameSparseLayouts(PreparedStreams, streamsBefore))
+                    return new(before, before, StorageEffect.NotProcessed,
+                        Problem(StorageReasonKind.IdentityChanged, "efs-sparse-preparation-changed",
+                            "The observed sparse stream layouts changed after preparation. No EFS call was attempted."));
+                RequireRecoveryKey(action, CancellationToken.None);
                 RequireNativeStatus(before, CancellationToken.None);
                 before = Observe(CancellationToken.None);
                 if (before.Ineligible is { } changed) return new(before, before, StorageEffect.NotProcessed, changed);
@@ -200,6 +252,23 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 var after = Observe(CancellationToken.None);
                 if (after.Ineligible is not null || after.Efs is not (StorageObservationState.Enabled or StorageObservationState.Disabled))
                     return Result(after, StorageEffect.Uncertain, after.Ineligible ?? Problem(StorageReasonKind.Unknown, "efs-postcondition-unknown", "The held EFS effect could not be established."));
+                if (_recovery is { } recovery && after.Efs == StorageObservationState.Enabled)
+                {
+                    var association = ReadAssociations(CancellationToken.None);
+                    observedKeys = StorageEfsResultKeys.FromAssociation(association, recovery.InvokerSid);
+                    if (!observedKeys.Matches(recovery.Evidence))
+                    {
+                        var unexpected = association.Users.FirstOrDefault(user => user.Sid == recovery.InvokerSid && user.CertificateSha1 != recovery.CertificateSha1);
+                        string observed = unexpected is null ? "The resulting association could not be confirmed against the reviewed key."
+                            : "Windows associated an unexpected key for this user (" + unexpected.CertificateSha1 + ").";
+                        return Result(after, StorageEffect.Uncertain, Problem(StorageReasonKind.PermissionOrPolicy, "efs-recovery-review-required",
+                            observed + " The item is encrypted. Review its recovery arrangement before starting further work. Reviewed key " + recovery.CertificateSha1 + "."));
+                    }
+                }
+                var streamsAfter = WindowsEfsStreams.Read(_path.Leaf.File, Identity, after.IsDirectory, CancellationToken.None, includeSparseLayouts: true);
+                if (!WindowsEfsStreams.SameSparseLayouts(streamsBefore, streamsAfter))
+                    return Result(after, StorageEffect.Uncertain, Problem(StorageReasonKind.Unknown, "efs-sparse-postcondition-changed",
+                        "A sparse stream's state, length or reported hole ranges changed. Review the file before continuing."));
                 if (!NeedsChange(after.Efs, action)) return Result(after, StorageEffect.Changed,
                     call.Succeeded ? null : Problem(StorageReasonKind.TransientFailure, "efs-native-" + call.Error, "The desired held EFS state was observed after a failed native return."));
                 return Result(after, call.Succeeded ? StorageEffect.Uncertain : StorageEffect.Failed,
@@ -209,16 +278,35 @@ internal sealed unsafe partial class WindowsStorageTransforms
             }
             catch (Exception error)
             {
+                if (!attempted && error is StorageInspectionException inspection)
+                    return new(before, null, StorageEffect.NotProcessed, inspection.Problem);
                 return new(before, null, attempted ? StorageEffect.Uncertain : StorageEffect.NotProcessed,
                     Problem(StorageReasonKind.Unknown, attempted ? "efs-postcondition-unreadable" : "efs-precall-failed",
                         attempted ? "An EFS call may have changed an item; the held object or captured spelling could not be verified: " + error.Message
                             : "No EFS call was attempted: " + error.Message)) { NativeCallAttempted = attempted };
             }
             StorageMutationResult Result(StorageObservation after, StorageEffect effect, StorageProblem? issue) =>
-                new(before, after, effect, issue) { NativeCallAttempted = true };
+                new(before, after, effect, issue) { NativeCallAttempted = true, EfsKeys = observedKeys };
         }
         private void RequireAction(StorageAction action)
         { if (action != _consent.Action) throw new ArgumentException("This EFS binding belongs to one acknowledged action.", nameof(action)); }
+
+        private void EnsureGuards(CancellationToken ct)
+        {
+            if (_guards) return;
+            PromoteEfsGuards(_path, Path, ct);
+            _guards = true;
+        }
+
+        private void RequireRecoveryKey(StorageAction action, CancellationToken ct)
+        {
+            if (!_requireRecovery || action != StorageAction.EncryptEfs) return;
+            var recovery = _recovery ?? throw Refuse("efs-recovery-required", "Review the actual EFS setup key and choose its recovery arrangement before encrypting an item.");
+            var evidence = new WindowsEfsKeys().ProbeAssociatedCertificate(recovery.InvokerSid, recovery.CertificateSha1, ct);
+            if (!recovery.Matches(evidence))
+                throw new StorageInspectionException(Problem(StorageReasonKind.PermissionOrPolicy, "efs-recovery-key-unavailable",
+                    "The reviewed EFS certificate's exact private key could not be matched for this user. A recovery declaration cannot replace that check."));
+        }
         private void RequireNativeStatus(StorageObservation before, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
@@ -231,7 +319,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         private void ValidateSpelling(CancellationToken ct)
         {
             ValidateCapturedEfsPath(_path, Path, ct);
-            ValidateNode(Facts(_pin.Handle.File, _path.Volume.Binding, ct), _path.LeafFacts);
+            ValidateNode(Facts(_pin.Handle.File, _path.Volume.Binding, ct), _reviewedRoot);
             foreach (var node in _windows.Nodes) ValidateNode(Facts(node.Handle.File, _windows.Volume.Binding, ct), node.Facts);
         }
         internal static void ValidateNode(NodeFacts current, NodeFacts original)
@@ -241,7 +329,16 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 throw Changed("efs-path-changed", "A held EFS item or ancestor changed identity, case mode, links or storage backing; stop and review the scope.");
         }
         public void Dispose()
-        { if (_disposed) return; _disposed = true; try { _path.Dispose(); } finally { _windows.Dispose(); } }
+        {
+            if (_disposed) return;
+            _disposed = true;
+            try { foreach (var child in _children.ToArray()) child.Dispose(); }
+            finally
+            {
+                try { _path.Dispose(); }
+                finally { if (_parent is null) _windows.Dispose(); else _parent._children.Remove(this); }
+            }
+        }
     }
 
     private static void ValidateCapturedEfsPath(NativePath path, string captured, CancellationToken ct)

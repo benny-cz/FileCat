@@ -253,6 +253,99 @@ public sealed partial class MainViewModel
         View.FocusActivePanel();
     }
 
+    internal async Task<bool> UseTransferredWorkspaceAsync(WorkspaceTransfer transfer, bool remember,
+        AppearanceTransferV1? appearance = null)
+    {
+        if (!WindowsTokenAuthority.IsHighIntegrity) return false;
+        var previous = Workspace.ToState(LastPlacement);
+        if (TabCount(previous) > MaxSwitchTabs)
+        {
+            Notify($"Workspace switching supports up to {MaxSwitchTabs} tabs. Close some tabs and try again.", true);
+            return false;
+        }
+        _ = DropUnrestorableTabs(previous);
+        WorkspaceTransfer.Prepared? prepared = null;
+        bool applying = false;
+        AppearanceTransferV1? previousAppearance = null;
+        try
+        {
+            prepared = await Task.Run(() => transfer.Prepare(WorkspaceViewModel.DefaultLocation()));
+            // Keep the accepted directory names pinned while the initial provider reads run.
+            applying = true;
+            Workspace.LoadState(prepared.State);
+            int skipped = prepared.Skipped;
+            if (appearance is not null)
+            {
+                // Elevated appearance consists of the same allowlisted values.
+                previousAppearance = AppearanceTransferV1.Capture(Services.Settings, ThemeManager.Names);
+                appearance.ApplyTo(Services.Settings);
+                RefreshAppearance();
+            }
+            RetainWorkspaceTransferPaths(prepared);
+            prepared = null;
+            SetPreviousWorkspace(previous);
+            string subject = appearance is null ? "Workspace" : "Appearance and workspace";
+            string message = $"{subject} applied to this administrator session.";
+            bool saveFailed = false;
+            if (remember && OperatingSystem.IsWindows() && Services.AdministratorTransfers is { } store)
+            {
+                try
+                {
+                    var workspace = WorkspaceTransfer.Capture(Workspace);
+                    if (appearance is null) store.RememberWorkspace(workspace);
+                    else store.RememberBoth(appearance, workspace);
+                    message = $"{subject} applied and remembered for future administrator launches.";
+                }
+                catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+                {
+                    saveFailed = true;
+                    message += " Could not save the transfer for future launches. " + Formatters.SafeName(ex.Message);
+                }
+            }
+            Notify(message +
+                (skipped == 0 ? "" : $" Skipped {skipped} unavailable or linked {(skipped == 1 ? "folder" : "folders")}."),
+                saveFailed,
+                actionCommandId: CommandIds.RestorePreviousWorkspace);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            if (applying)
+            {
+                try { Workspace.LoadState(previous); } catch (Exception) { }
+            }
+            if (previousAppearance is not null)
+            {
+                previousAppearance.ApplyTo(Services.Settings);
+                try { RefreshAppearance(); } catch (Exception) { }
+            }
+            Notify("Could not apply the copied transfer. " + Formatters.SafeName(ex.Message), true);
+            return false;
+        }
+        finally { prepared?.Dispose(); }
+    }
+
+    internal WorkspaceTransfer.Prepared? PrepareRememberedWorkspace()
+        => Services.RememberedAdministratorWorkspace?.Prepare(WorkspaceViewModel.DefaultLocation());
+
+    internal void RetainWorkspaceTransferPaths(WorkspaceTransfer.Prepared prepared)
+    {
+        var reads = Workspace.Panels.SelectMany(panel => panel.Tabs).Select(tab => tab.Listing.CurrentEnumeration).ToArray();
+        _ = ReleaseTransferPathsAsync(prepared, reads);
+    }
+
+    private static async Task ReleaseTransferPathsAsync(WorkspaceTransfer.Prepared prepared, Task[] reads)
+    {
+        using (prepared)
+        {
+            try { await Task.WhenAll(reads).ConfigureAwait(false); }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // Each listing already owns reporting its read failure or cancellation.
+            }
+        }
+    }
+
     /// <summary>
     /// Settings, opened on one page by its name (the file list's header menu opens Columns, on the panel's own column
     /// profile); never over another dialog.

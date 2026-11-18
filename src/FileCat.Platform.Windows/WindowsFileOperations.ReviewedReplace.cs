@@ -10,6 +10,7 @@ namespace FileCat.Platform.Windows;
 
 public partial class WindowsFileOperations
 {
+    private const string EfsReplacementUnavailable = "This replacement cannot preserve the destination's EFS protection. The protected file was kept.";
     /// <summary>
     /// Fixed and removable drives (a USB stick, an SD card): their items can be held, checked and renamed by handle. A
     /// network location cannot bind replacement to the reviewed object, and by the owner's policy is not replaced.
@@ -205,6 +206,8 @@ public partial class WindowsFileOperations
             ct.ThrowIfCancellationRequested();
             if (IsLink(old))
                 return new BoundReplacement(false, true, Reason: "A linked destination is not eligible for bound replacement.");
+            if (IsEfsProtected(old))
+                return new BoundReplacement(false, true, Reason: EfsReplacementUnavailable);
             var identity = ProtectedHexFile.Identity(old);
             string actualIdentity = $"{identity.VolumeSerial:X16}:{identity.FileId}";
             if (!string.Equals(actualIdentity, expectedIdentity, StringComparison.OrdinalIgnoreCase) ||
@@ -220,12 +223,15 @@ public partial class WindowsFileOperations
             {
                 if (ProtectedHexFile.Identity(atName) != identity)
                     return new BoundReplacement(false, true, Reason: "Another file now has the reviewed destination name.");
+                if (IsEfsProtected(atName))
+                    return new BoundReplacement(false, true, Reason: EfsReplacementUnavailable);
             }
             NtFile.Rename(old, parent.LastHandle, backupName, replace: false);
             try
             {
                 ct.ThrowIfCancellationRequested();
                 afterRetire?.Invoke();
+                if (IsEfsProtected(old)) throw new IOException(EfsReplacementUnavailable);
                 new SecureFileOps(() => ct.ThrowIfCancellationRequested()).MoveItem(
                     ElevationPaths.ToVolumePathWithoutFollowing(source),
                     ElevationPaths.ToVolumePathWithoutFollowing(parentPath), name);
@@ -248,7 +254,12 @@ public partial class WindowsFileOperations
                 }
             }
             WriteThrough(parentPath);
-            try { DeleteOpen(old); }
+            try
+            {
+                if (IsEfsProtected(old))
+                    return new BoundReplacement(true, false, backupPath, "The replaced file became EFS-protected and remains at the recovery name.");
+                DeleteOpen(old);
+            }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
             {
                 return new BoundReplacement(true, false, backupPath,
@@ -261,6 +272,8 @@ public partial class WindowsFileOperations
             return new BoundReplacement(false, true, Reason: "Bound replacement refused: " + ex.Message);
         }
     }
+
+    private static bool IsEfsProtected(SafeFileHandle file) => (GetBasic(file).FileAttributes & (uint)FileAttributes.Encrypted) != 0;
 
     /// <summary>
     /// Makes the renames that published a replacement durable before its caller goes on, as a replacement by name is

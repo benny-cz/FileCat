@@ -48,10 +48,65 @@ public sealed partial class UnixFileDetailsNativeTests
             var snapshot = new UnixFileRecords().ReadSummary(fifo, TestContext.Current.CancellationToken);
             Assert.Equal(FileObjectKind.Fifo, snapshot.Kind);
             Assert.Equal(FactState.Known, snapshot.Identity.State);
+            var full = new UnixFileRecords().ReadFull(fifo, FileDetailsPolicy.MetadataOnly, TestContext.Current.CancellationToken);
+            Assert.DoesNotContain(full.Technical.Sections, section => section.Title == "Main-stream extent records");
         }
         finally { Directory.Delete(root, true); }
     }
 
+    [Fact]
+    public void Linux_FIEMAP_reopens_the_pinned_inode_even_after_its_path_becomes_a_FIFO()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() && Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_FIEMAP") == "1",
+            "Requires a disposable Linux filesystem with native FIEMAP support.");
+        string root = Directory.CreateTempSubdirectory("filecat-fiemap-details-").FullName;
+        var ct = TestContext.Current.CancellationToken;
+        try
+        {
+            string path = Path.Join(root, "source"), retired = Path.Join(root, "renamed");
+            const int ranges = 520, stride = 32 * 1024;
+            using (var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write))
+            {
+                file.SetLength((ranges + 1L) * stride);
+                for (int i = 1; i <= ranges; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    file.Position = (long)i * stride;
+                    file.WriteByte(42);
+                }
+                file.Flush(flushToDisk: true);
+            }
+            var reader = new UnixFileRecords();
+            var summary = reader.ReadSummary(path, ct);
+            Assert.DoesNotContain("Main-stream extent records", summary.ToReport().ToText());
+            var full = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
+            var extents = Assert.Single(full.Technical.Sections, section => section.Title == "Main-stream extent records");
+            Assert.Contains(("Inventory", "Complete"), extents.Fields);
+            Assert.NotEmpty(extents.Table!.Rows);
+            Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);
+            int pin = OpenPath(path, 0x200000 | 0x80000); // O_PATH | O_CLOEXEC
+            Assert.True(pin >= 0);
+            try
+            {
+                File.Move(path, retired);
+                Assert.Equal(0, MakeFifo(path, 0x180));
+                var map = UnixFileRecords.ReadLinuxPinnedExtents(pin, summary.Identity.Value!, ct);
+                Assert.Equal(FactState.Known, map.State);
+                Assert.True(map.Value!.Count >= ranges);
+                Assert.DoesNotContain(reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct).Technical.Sections,
+                    section => section.Title == "Main-stream extent records");
+            }
+            finally { CloseFile(pin); }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [LibraryImport("libc", EntryPoint = "mkfifo", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int MakeFifo(string path, uint mode);
+
+    [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial int OpenPath(string path, int flags);
+
+    [LibraryImport("libc", EntryPoint = "close")]
+    private static partial int CloseFile(int fd);
 }

@@ -81,6 +81,7 @@ public sealed class FileContentSource : IContentSource
     public bool CanSeek => true;
 
     public string? LocalPath => _path;
+    internal FileAttributes AttributesFromHeldFile() => File.GetAttributes(_handle);
 
     public int Read(long offset, Span<byte> buffer)
     {

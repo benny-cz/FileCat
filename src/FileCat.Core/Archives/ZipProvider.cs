@@ -27,7 +27,7 @@ public sealed record ZipDirectoryRevision(string? ArchiveRevision, string? Archi
 /// extracted; archives inside archives open read-only from a private spool. Mark-of-the-Web propagates through
 /// <see cref="StreamTransferExecutor"/> from the outermost marked file.
 /// </summary>
-public sealed class ZipProvider : ResourceProvider, IContainerDetector
+public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprotectedContentOutput
 {
     public const int MaxEntries = 1_000_000;
     public const long MaxMemberInMemory = 32L * 1024 * 1024;
@@ -177,8 +177,11 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         if (FileCat.Core.State.WindowsTokenAuthority.IsHighIntegrity)
             throw new IOException("Nested archives cannot be opened while FileCat runs as administrator because they require a user-local spool.");
         if (container.Scheme != Schemes.Zip)
-            return OtherArchives is IArchiveSpoolProvider spools ? spools.OpenSpool(container)
-                : new ArchiveSourceLease(SpoolForeignMember?.Invoke(container) ?? throw new NotSupportedException("This archive is inside a location FileCat cannot read archives from."));
+        {
+            if (OtherArchives is IArchiveSpoolProvider spools) return spools.OpenSpool(container);
+            if (OperatingSystem.IsWindows()) throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnknown);
+            return new ArchiveSourceLease(SpoolForeignMember?.Invoke(container) ?? throw new NotSupportedException("This archive is inside a location FileCat cannot read archives from."));
+        }
         if (depth >= MaxNestingDepth) throw new InvalidDataException($"Archives are nested more than {MaxNestingDepth} levels deep.");
         using var outerSource = ArchiveFile(container, depth + 1);
         string outer = outerSource.Path;
@@ -188,11 +191,6 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         string key = $"{outer}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{container.Path}|{SourceIdentityKey(outer)}|{change}";
         lock (_nestedLock)
         {
-            if (_nested.TryGetValue(key, out var cached))
-            {
-                cached.Used = DateTime.UtcNow;
-                return cached.Acquire();
-            }
             int slash = container.Path.LastIndexOf('/');
             var folder = container.WithPath(slash < 0 ? string.Empty : container.Path[..slash]);
             string name = container.Path[(slash + 1)..];
@@ -203,6 +201,12 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             lock (_cacheLock)
             {
                 var index = GetIndex(folder, outerSource);
+                index.RequireClearSpoolSource();
+                if (_nested.TryGetValue(key, out var cached))
+                {
+                    cached.Used = DateTime.UtcNow;
+                    return cached.Acquire();
+                }
                 var node = index.Children.GetValueOrDefault(folder.Path)?.Where(n => !n.IsDirectory && n.Name == name).ToList() ?? [];
                 if (node.Count == 0) throw new FileNotFoundException($"\"{container.Path}\" is not in the archive.");
                 if (node.Count > 1) throw new NotSupportedException("Several members share this name; extract the one you want with F5, then open it.");
@@ -377,7 +381,20 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
 
     // ---- Content -----------------------------------------------------------------------------------------
 
-    public override IContentSource? OpenContent(ItemRef item)
+    public override IContentSource? OpenContent(ItemRef item) => OpenContent(item, retainedEdit: false);
+
+    internal IContentSource? OpenEditContent(ItemRef item) => OpenContent(item, retainedEdit: true);
+
+    IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind) =>
+        OpenContent(item, retainedEdit: false, output: kind);
+
+    void IUnprotectedContentOutput.RequireClearOutputSource(Location location, ContentOutputKind kind)
+    {
+        using var source = ZipPath(location);
+        lock (_cacheLock) GetIndex(location, source).RequireClearOutputSource(kind);
+    }
+
+    private IContentSource? OpenContent(ItemRef item, bool retainedEdit, ContentOutputKind? output = null)
     {
         using var source = ZipPath(item.Parent);
         // Resolve nested paths before taking the cache lock; cross-provider spool locks stay ordered.
@@ -392,7 +409,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{full}\" is not in the archive.");
             if (tag.Encrypted) return null;
             if (tag.UnsafeReason is not null) throw new InvalidDataException("This member has an unsafe name: " + tag.UnsafeReason);
-            return index.Extract(tag, _tempDirectory);
+            return index.Extract(tag, _tempDirectory, retainedEdit, output);
         }
     }
 
@@ -468,7 +485,8 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             if (matches.Length != 1 || matches[0].Tag is not { Encrypted: false, UnsafeReason: null } tag)
                 throw new IOException("Direct editing needs one exact regular member. Extract the selected occurrence with F5 instead.");
             // The lease keeps the index open through extraction, whatever the cache does meanwhile.
-            ct.ThrowIfCancellationRequested(); return index.Extract(tag, _tempDirectory);
+            ct.ThrowIfCancellationRequested();
+            return index.Extract(tag, _tempDirectory, retainedEdit: true);
         }
     }
 
@@ -571,6 +589,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
 
 internal sealed class ZipIndex : IDisposable
 {
+    private readonly OutputEfsObservation _outputProtection = new();
     private readonly object _lock = new();
     private readonly FileStream _stream;
     // Taken once while the index is built: reading a FileStream's handle flushes its read buffer, which must never happen
@@ -597,6 +616,20 @@ internal sealed class ZipIndex : IDisposable
         EstimatedBytes = estimatedBytes;
         _openedChangeToken = openedChangeToken;
         LastUsed = DateTime.UtcNow;
+    }
+
+    private void VerifyClearEditSource()
+    {
+        ArchiveOuterEfs.RequireClear(_handle, ArchiveOuterEfs.EditUnavailable);
+        VerifySource();
+    }
+
+    internal void RequireClearSpoolSource() => RequireClearOutputSource(ContentOutputKind.DiskCache);
+
+    internal void RequireClearOutputSource(ContentOutputKind kind)
+    {
+        _outputProtection.Observe(_handle);
+        ArchiveOuterEfs.RequireClearOutput(_outputProtection, kind);
     }
 
     /// <summary>
@@ -835,23 +868,30 @@ internal sealed class ZipIndex : IDisposable
     /// (<see cref="ProgressiveContent"/>), so the first bytes are there at once. Either way the declared size is not
     /// trusted and the member's checksum is verified (.NET does not check it).
     /// </summary>
-    public IContentSource Extract(ZipMemberTag tag, string tempDirectory)
+    public IContentSource Extract(ZipMemberTag tag, string tempDirectory, bool retainedEdit = false, ContentOutputKind? output = null)
     {
         LastUsed = DateTime.UtcNow;
         lock (_lock)
         {
-            VerifySource();
+            void VerifyInput()
+            {
+                if (retainedEdit) VerifyClearEditSource();
+                else VerifySource();
+                if (output is { } purpose) RequireClearOutputSource(purpose);
+            }
+            VerifyInput();
             if (_closing && _leases == 0) throw new IOException("The archive was closed; open it again.");
             var entry = _entries[tag.EntryIndex];
             var limits = Limits(entry);
             if (entry.Length > ZipProvider.MaxMemberInMemory)
             {
                 _leases++;
-                return new ProgressiveContent(tag.FullName, _lock, entry.Open, limits, ZipProvider.MaxSpooledMember, tempDirectory, Returned, VerifySource);
+                return new ProgressiveContent(tag.FullName, _lock, entry.Open, limits, ZipProvider.MaxSpooledMember,
+                    tempDirectory, Returned, VerifyInput, RequireClearSpoolSource);
             }
             var memory = new MemoryStream((int)Math.Max(0, entry.Length));
-            using (var source = entry.Open()) limits.CopyAll(source, memory);
-            VerifySource();
+            using (var source = entry.Open()) limits.CopyAll(source, memory, default, output is null ? null : VerifyInput);
+            VerifyInput();
             // Ordinary members already have an exact-sized backing array. Keep its logical length instead of
             // copying the whole payload just before a viewer or nested reader allocates again. A malformed
             // member may expand within the allowed slack and force geometric over-allocation; trim that case.
@@ -871,7 +911,7 @@ internal sealed class ZipIndex : IDisposable
             VerifySource();
             var entry = _entries[tag.EntryIndex];
             if (entry.Length > ZipProvider.MaxSpooledMember) throw new InvalidDataException("The inner archive is larger than FileCat opens in place; extract it with F5.");
-            using (var source = entry.Open()) Limits(entry).CopyAll(source, destination);
+            using (var source = entry.Open()) Limits(entry).CopyAll(source, destination, default, RequireClearSpoolSource);
             VerifySource();
             destination.Flush();
         }

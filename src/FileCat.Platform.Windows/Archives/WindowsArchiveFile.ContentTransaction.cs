@@ -114,6 +114,7 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
         lock (parent.Gate)
         {
             EnsureLive(); ct.ThrowIfCancellationRequested();
+            ArchiveOuterEfs.RequireClear(handle);
             if (artifact || writable || namespaceChanged || RandomAccess.GetLength(handle) != prepared.OriginalBytes)
                 throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "The original no longer matches the native update space review.");
             var estimate = new ArchiveSpaceEstimate(prepared.OriginalBytes, prepared.StageBytes, prepared.EvidenceBytes, prepared.KnownSnapshotBytes,
@@ -129,12 +130,22 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
         lock (parent.Gate)
         {
             EnsureLive(); ct.ThrowIfCancellationRequested();
+            ArchiveOuterEfs.RequireClear(handle);
             if (artifact || writable || namespaceChanged || nonce == Guid.Empty || timeout.TotalMilliseconds is < 1 or > int.MaxValue)
                 throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "A live original source and finite transaction scope are required.");
             ((IArchiveRetainedFile)this).Review(reviewed, ct);
             if ((parent.Volume.Flags & 0x00200000 /* FILE_SUPPORTS_TRANSACTIONS */) == 0)
                 throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "The held NTFS volume does not advertise transaction support.");
             return new ContentTransaction(this, reviewed, nonce, (uint)timeout.TotalMilliseconds, ct);
+        }
+    }
+
+    internal void RequireClearUpdateSource()
+    {
+        lock (parent.Gate)
+        {
+            EnsureLive();
+            ArchiveOuterEfs.RequireClear(handle);
         }
     }
 
@@ -194,6 +205,7 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
                 source.handle.Dispose(); source.disposed = true; ownsParentChild = true;
                 data = Open(leaf, 0xc0000000, 7, 3);
                 if (ProtectedHexFile.Identity(data) != identity) throw Changed();
+                ArchiveOuterEfs.RequireClear(data);
                 if (!Observe(data, ct).Matches(original)) throw Changed();
             }
             catch { Dispose(); throw; }
@@ -204,6 +216,7 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
             lock (parent.Gate)
             {
                 Require(Phase.Open); ct.ThrowIfCancellationRequested();
+                ArchiveOuterEfs.RequireClear(data!);
                 RequireStage(destination, original.Version.Length);
                 var oldOrigin = ArchiveWindowsOriginZone.Parse(original.Origin);
                 phase = Phase.Retaining; // A partially claimed snapshot cannot be replaced by a retry.

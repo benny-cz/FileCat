@@ -7,6 +7,33 @@ namespace FileCat.App.Tests;
 public sealed class StorageEfsEvidenceTextTests
 {
     [Theory]
+    [InlineData(StorageEfsRecoveryChoice.DeclaredArrangement)]
+    [InlineData(StorageEfsRecoveryChoice.WindowsReportedExport)]
+    public void A_call_report_displays_the_recorded_recovery_choice_and_the_observed_key(StorageEfsRecoveryChoice choice)
+    {
+        var identity = new StorageObjectIdentity(1, new string('A', 32)) { VolumeBinding = Guid.NewGuid().ToString() };
+        var before = new StorageObservation(StorageObservationState.Disabled, StorageObservationState.Disabled, identity, false, null);
+        string reviewed = new('B', 40), observed = new('C', 40);
+        var result = new StorageMutationResult(before, before with { Efs = StorageObservationState.Enabled }, StorageEffect.Uncertain,
+            new(StorageReasonKind.PermissionOrPolicy, "efs-recovery-review-required", "Windows associated an unexpected key.", true))
+        {
+            NativeCallAttempted = true,
+            EfsKeys = new(true, [new(observed, StorageEfsKeyState.MatchedAvailable)]),
+        };
+        var call = new StorageHistoryCall(1, 0, @"C:\scope\file", identity, before, StorageObservationState.Enabled,
+            StorageCallDisposition.Observed, null, result)
+        { EfsReviewedKey = new(identity, "S-1-5-21-1-2-3-1000", reviewed, choice) };
+        var page = new StorageCallEvidencePage(new(Guid.NewGuid(), 3, 2000, new string('A', 64)), [call], false, 0, 1, 2000)
+        { Action = StorageAction.EncryptEfs, Scope = StorageScope.SelectedItems, ReviewRevision = Guid.NewGuid() };
+        string text = StorageCallEvidenceText.Format(page, false);
+        Assert.Contains("Reviewed EFS certificate \"" + reviewed + "\"", text);
+        Assert.Contains("Observed EFS certificate \"" + observed + "\" [MatchedAvailable]", text);
+        Assert.Contains(choice == StorageEfsRecoveryChoice.WindowsReportedExport
+            ? "Windows reported private-key export completed." : "Recovery arrangement acknowledged by the user.", text);
+        Assert.Contains("observed effect: Uncertain", text);
+    }
+
+    [Theory]
     [InlineData(StorageAction.EncryptEfs)]
     [InlineData(StorageAction.DecryptEfs)]
     public void Recorded_Efs_calls_name_the_effect_and_both_independent_acknowledgment_meanings(StorageAction action)

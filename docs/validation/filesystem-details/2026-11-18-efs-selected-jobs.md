@@ -1,0 +1,9 @@
+# Selected-item EFS jobs through the normal executor
+
+The Windows qualification adapter now connects the supported pathname binding to the regular review owner, job executor, one-shot native call admission and private on-disk storage journal. It admits the selected-items scope after action-specific acknowledgments. Compression keeps its existing held-handle path. The Windows product composition still controls feature availability.
+
+Encryption checks the current state before recovery setup. The first item that needs encryption resolves the invoking user's reviewed key, and later items in that job reuse the same scope-bound choice with fresh key checks. A declined recovery decision cancels before the first intent. Already-satisfied items create no native call. Decryption records the reviewed pathname consent and does not request encryption setup. This qualification used an explicit fixture decision provider in place of the application recovery UI.
+
+On the Windows 11 x64 VM, a selected-items job processed an already-encrypted file, a clear file with a named stream, and a clear folder. It requested recovery once, changed the two eligible items and left the selected folder's existing child clear. The on-disk journal recorded both call indices, the selected key and the resulting associations. The decrypted round trip preserved the synthetic main and named bytes and did not request setup. The separate recovery-cancel job left both selected files clear with no call intent. The combined native run passed 67 tests with no failures and three fixture-specific skips. See `.tmp/filecat-efs-selected-jobs-tests.xml` and `.tmp/filecat-efs-selected-jobs-results.log`.
+
+Ubuntu and macOS each passed 94 portable storage executor, ownership, review and journal tests. The XML is in `.tmp/efs-selected-jobs-core/results.xml` in the existing remote checkouts. Recursive EFS traversal, product recovery decisions and wider release qualification are still open.

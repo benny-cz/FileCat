@@ -1,4 +1,5 @@
 using Avalonia;
+using FileCat.Platform.Windows;
 
 namespace FileCat.App;
 
@@ -7,6 +8,7 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args is [WindowsStorageCloudQuery.WorkerArgument]) return WindowsStorageCloudQuery.RunWorker();
         if (args.Length > 0 && Services.ArchiveWorker.IsArgument(args[0])) return Services.ArchiveWorker.Run(args);
         if (args.Length > 0 && Services.ArchiveWorker.IsLinuxArgument(args[0])) return Services.ArchiveWorker.RunLinux(args);
         if (args.Length > 0 && Services.ArchiveWorker.IsMacArgument(args[0])) return Services.ArchiveWorker.RunMac(args);
@@ -29,6 +31,7 @@ internal static class Program
             return 0;
         }
         var options = StartupOptions.Parse(args);
+        using var storageCloudQuery = OperatingSystem.IsWindows() ? StartStorageCloudQuery() : null;
         bool menuTrace = Environment.GetEnvironmentVariable("FILECAT_MENU_TRACE") == "1" && options.DataRoot is not null;
         if (menuTrace)
         {
@@ -53,6 +56,14 @@ internal static class Program
         {
             SingleInstance.Release();
         }
+    }
+
+    private static IDisposable StartStorageCloudQuery()
+    {
+        string executable = Environment.ProcessPath ?? Path.Join(AppContext.BaseDirectory, "FileCat.exe");
+        string? managedEntry = Path.GetFileName(executable).Equals("dotnet.exe", StringComparison.OrdinalIgnoreCase)
+            ? typeof(Program).Assembly.Location : null;
+        return WindowsStorageCloudQuery.UseWorker(executable, managedEntry);
     }
 
     /// <summary>FILECAT_RENDERING=compat restores Avalonia's default composition (troubleshooting).</summary>

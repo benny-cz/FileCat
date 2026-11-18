@@ -9,15 +9,15 @@ namespace FileCat.Platform.Windows;
 
 public sealed unsafe partial class WindowsFileRecords
 {
-    public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct) => ReadDetails(path, ct).Summary;
+    public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct) => ReadDetails(path, fullReport: false, ct).Summary;
 
     public FileDetailsReport ReadFull(string path, FileDetailsPolicy policy, CancellationToken ct)
     {
         if (policy != FileDetailsPolicy.MetadataOnly) throw new NotSupportedException("This details route supports metadata only.");
-        return ReadDetails(path, ct);
+        return ReadDetails(path, fullReport: true, ct);
     }
 
-    private static FileDetailsReport ReadDetails(string path, CancellationToken ct)
+    private static FileDetailsReport ReadDetails(string path, bool fullReport, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ct.ThrowIfCancellationRequested();
@@ -110,6 +110,20 @@ public sealed unsafe partial class WindowsFileRecords
         }
         if (reparse) fields.Add(("Reparse tag", hasTag ? RecordText.ReparseTag(reparseTag) : "Unavailable"));
         ct.ThrowIfCancellationRequested();
-        return FileDetailsReport.Metadata(snapshot, new InspectionSection("Native metadata", fields.ToArray()));
+        var metadata = new InspectionSection("Native metadata", fields.ToArray());
+        if (!fullReport || !hasBasic || !hasStandard || folder || reparse || format != "NTFS" ||
+            (attributes & (0x1000u | 0x580000u)) != 0 || !StoragePaths.IsOrdinaryLocalPath(full) || !WindowsFileOperations.IsReplaceVolume(full))
+            return FileDetailsReport.Metadata(snapshot, metadata);
+        // A fixed drive letter can reach another provider through a parent. Qualify the volume of the held object.
+        try { _ = WindowsStorageTransforms.ActualVolumeBinding(item, rootOnly: false, ct); }
+        catch (StorageInspectionException) { return FileDetailsReport.Metadata(snapshot, metadata); }
+
+        var sections = new List<InspectionSection> { metadata, RetrievalSection(item, ct) };
+        var warnings = new List<string> { "Not acquired: supplementary-data values and previews, raw volumes and journals, and security value collectors." };
+        bool collectRanges = hasId && (attributes & (uint)(FileAttributes.SparseFile | FileAttributes.Compressed)) != 0;
+        if (collectRanges) sections.Add(AllocatedRangesSection(item, id, BinaryPrimitives.ReadInt64LittleEndian(standard[8..]), ct));
+        else warnings.Add("Allocated byte ranges are available for qualified sparse or compressed files.");
+        if (snapshot.LinkCount.Value > 1) sections.Add(HardLinkSection(item, ct));
+        return new(snapshot, new("Full record · metadata only", sections.ToArray(), warnings.ToArray()), ReportContentKind.MetadataOnly);
     }
 }

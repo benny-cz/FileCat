@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Security.Cryptography;
@@ -190,29 +191,93 @@ public sealed class WindowsEfsSetupTests
 
     [Fact]
     public void The_resulting_user_file_association_is_inspected_through_its_original_live_Efs_binding()
+        => ReviewResultingAssociation(changeKey: false);
+
+    [Fact]
+    public void A_real_key_change_after_setup_requires_review_after_the_current_file_is_encrypted()
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_ROTATE_KEY") == "1",
+            "Use only a separately prepared disposable account whose current EFS key can be changed.");
+        ReviewResultingAssociation(changeKey: true);
+    }
+
+    private static void ReviewResultingAssociation(bool changeKey)
     {
         NativeFixture(); string directory = Namespace(); string path = Path.Join(directory, "user-item"); File.WriteAllText(path, "synthetic test content");
         try
         {
             using var native = StorageReviewResources.EnterNative(Ct);
             var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => directory);
-            var setup = adapter.InspectEfsSetup(Sid, Consent(), true, Ct);
-            Assert.Null(setup.Problem); Assert.True(setup.Association!.HasMatchedCurrentUserKey);
             var target = StoragePaths.Capture([ItemRef.ForFileSystemPath(path, EntryKind.File)])[0];
             using var pins = StorageReviewResources.ReservePins(1); IStorageReviewLease pin;
             using (StorageReviewResources.EnterRootInspection(target)) pin = adapter.InspectEfsRoot(target, StorageAction.EncryptEfs, Ct);
             using (pin)
             {
                 var consent = StorageEfsConsent.Capture(Guid.NewGuid(), StorageAction.EncryptEfs, StorageScope.SelectedItems, [pin.Observation.Identity], new(true, true));
-                using var item = adapter.OpenEfsPath(pin, consent, Ct);
-                Assert.Null(item.PrepareMutation(StorageAction.EncryptEfs, Ct).Ineligible);
-                Assert.Equal(StorageEffect.Changed, item.ApplyAdmitted(StorageAction.EncryptEfs).Effect);
+                using (var unapproved = adapter.OpenEfsPath(pin, consent, null, Ct))
+                    Assert.Equal("efs-recovery-required", Assert.Throws<StorageInspectionException>(() => unapproved.PrepareMutation(StorageAction.EncryptEfs, Ct)).Problem.Code);
+                Assert.False(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+                var setup = adapter.InspectEfsSetup(Sid, consent, true, Ct);
+                Assert.Null(setup.Problem); Assert.True(setup.Association!.HasMatchedCurrentUserKey);
+                var hash = Assert.Single(setup.Association.CurrentUserKeys).CertificateSha1;
+                Assert.Throws<ArgumentException>(() => StorageEfsRecoveryApproval.DeclareArrangement(consent, setup, hash, acknowledged: false));
+                Assert.Throws<ArgumentException>(() => StorageEfsRecoveryApproval.DeclareArrangement(consent, setup, new string('0', 40), acknowledged: true));
+                var recovery = StorageEfsRecoveryApproval.DeclareArrangement(consent, setup, hash, acknowledged: true);
+                Assert.Equal("efs-recovery-scope", Assert.Throws<StorageInspectionException>(() =>
+                    adapter.OpenEfsPath(pin, consent with { Scope = StorageScope.ExistingDescendants }, recovery, Ct)).Problem.Code);
+                using var item = adapter.OpenEfsPath(pin, consent, recovery, Ct);
+                var prepared = item.PrepareMutation(StorageAction.EncryptEfs, Ct);
+                Assert.Null(prepared.Ineligible);
+                var header = new StorageJournalHeader(Guid.NewGuid(), DateTime.UtcNow, consent.Action, consent.Scope,
+                    consent.ReviewRevision, [new(0, 0, path, pin.Observation)])
+                { EfsConsent = consent, RequiresEfsRecoveryEvidence = true };
+                using var evidence = new MemoryStream();
+                using var writer = new StorageTransformJournalWriter(evidence, () => { }, header);
+                var call = writer.FlushIntent(0, path, prepared, recovery);
+                if (changeKey) RotateDisposableDefaultKey();
+                Assert.True(call.TryAdmit());
+                var result = item.ApplyAdmitted(StorageAction.EncryptEfs);
+                writer.FlushResult(call, result);
+                Assert.True(result.NativeCallAttempted);
+                Assert.Equal(changeKey ? StorageEffect.Uncertain : StorageEffect.Changed, result.Effect);
+                Assert.Equal(changeKey ? "efs-recovery-review-required" : null, result.Problem?.Code);
                 var actual = adapter.InspectEfsAssociations(item, Ct);
                 Assert.Equal(item.Identity, actual.Identity); Assert.Equal(Sid, actual.InvokerSid); Assert.True(actual.HasMatchedCurrentUserKey);
-                Assert.Contains(actual.Users, user => setup.Association.Users.Any(known => known.Sid == user.Sid && known.CertificateSha1 == user.CertificateSha1));
+                var observed = Assert.Single(actual.CurrentUserKeys).CertificateSha1;
+                Assert.True(result.EfsKeys?.UserAssociationsEstablished);
+                Assert.Equal(new StorageEfsObservedKey(observed, StorageEfsKeyState.MatchedAvailable), Assert.Single(result.EfsKeys!.Keys));
+                using var recorded = new MemoryStream(evidence.ToArray());
+                var durable = JournalRecovery.DescribeStorageHistory(StorageTransformJournalReader.Read(recorded, ct: Ct));
+                Assert.Equal(writer.Prefix, durable.Prefix);
+                Assert.Equal(recovery.Evidence, durable.LastCall?.EfsReviewedKey);
+                Assert.Equal(observed, Assert.Single(durable.LastCall!.Result!.EfsKeys!.Keys).CertificateSha1);
+                Assert.Equal(changeKey, durable.EffectUncertain);
+                if (changeKey)
+                {
+                    Assert.NotEqual(hash, observed);
+                    Assert.Contains(observed, result.Problem!.Message, StringComparison.Ordinal);
+                    Assert.Contains(hash, result.Problem.Message, StringComparison.Ordinal);
+                }
+                else Assert.Equal(hash, observed);
+                TestContext.Current.TestOutputHelper?.WriteLine($"EFS_RECOVERY_KEY rotated={changeKey} expected={hash} observed={observed} result={result.Effect}");
+                using var noOp = adapter.OpenEfsPath(pin, consent, null, Ct);
+                Assert.Null(noOp.PrepareMutation(StorageAction.EncryptEfs, Ct).Ineligible);
+                var skipped = noOp.ApplyAdmitted(StorageAction.EncryptEfs);
+                Assert.Equal(StorageEffect.AlreadySatisfied, skipped.Effect);
+                Assert.False(skipped.NativeCallAttempted);
             }
             Assert.Equal("synthetic test content", File.ReadAllText(path));
         }
         finally { if (File.Exists(path)) File.Decrypt(path); Directory.Delete(directory, true); }
+    }
+
+    internal static void RotateDisposableDefaultKey()
+    {
+        Assert.Equal("1", Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_ROTATE_KEY"));
+        using var cipher = Process.Start(new ProcessStartInfo(Path.Join(Environment.SystemDirectory, "cipher.exe"), "/k")
+            { CreateNoWindow = true, UseShellExecute = false });
+        Assert.NotNull(cipher);
+        Assert.True(cipher.WaitForExit(30_000));
+        Assert.Equal(0, cipher.ExitCode);
     }
 }

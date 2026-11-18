@@ -45,8 +45,8 @@ public sealed class StorageSelectionReview : IDisposable
     /// <summary>Immediately invalidates approval. Cached action eligibility and scope changes require no native I/O.</summary>
     public long Request(StorageAction? action, StorageScope scope, bool retry = false)
     {
-        if (!Enum.IsDefined(scope)) throw new ArgumentOutOfRangeException(nameof(scope));
         if (action is { } requested) ReviewedStorageRoots.RequireAction(_adapter, requested);
+        ReviewedStorageRoots.RequireScope(_adapter, action, scope);
         lock (_gate)
         {
             Check(); var previousAction = _action; bool previousReady = !_needsInspection;
@@ -192,7 +192,12 @@ public sealed class StorageSelectionReview : IDisposable
         bool approve = !_disposed && !_transferred && !_busy && !_needsInspection && _problem is null && _action is not null &&
             roots.All(r => r.Pinned && !r.Stale && r.Problem is null &&
                 r.Observation is { Ineligible: null, Compression: StorageObservationState.Enabled or StorageObservationState.Disabled } &&
-                (_action != StorageAction.Compress || r.Observation.Efs == StorageObservationState.Disabled));
+                (_action switch
+                {
+                    StorageAction.Compress => r.Observation.Efs == StorageObservationState.Disabled,
+                    StorageAction.EncryptEfs or StorageAction.DecryptEfs => r.Observation.Efs is StorageObservationState.Enabled or StorageObservationState.Disabled,
+                    _ => true,
+                }));
         return new(_revision, _action, _scope, _busy, _needsInspection, approve, _checked, roots, _problem);
     }
     private void CheckMetadata()

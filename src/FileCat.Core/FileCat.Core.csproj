@@ -26,6 +26,7 @@
     <InternalsVisibleTo Include="FileCat.Platform.Windows.Tests" />
     <InternalsVisibleTo Include="FileCat.Remote" />
     <InternalsVisibleTo Include="FileCat.Remote.Tests" />
+    <InternalsVisibleTo Include="FileCat.Recovery" />
   </ItemGroup>
   <ItemGroup>
     <!-- minisign signatures (D-57): Ed25519 and BLAKE2b, managed code. -->

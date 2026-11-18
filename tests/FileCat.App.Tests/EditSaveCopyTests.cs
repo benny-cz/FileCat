@@ -134,7 +134,18 @@ public abstract class EditSaveCopyCases(ITestOutputHelper output, EditStoreKind 
     {
         using var f = await Fixture.Create(store, outcome: outcome); var task = f.Start(); await Wait(() => f.PickerCalls > 0);
         if (outcome == "missing") File.Delete(f.Session.WorkingPath); f.Answer(); await task.WaitAsync(TimeSpan.FromSeconds(10));
-        Emit(f, "source-refused", new { outcome }); AssertWorkers(f); Assert.Equal("previous destination", File.ReadAllText(f.Target)); Assert.Contains("Cannot save", f.Vm.Notification); Assert.Single(f.Services.EditSessions.LoadAll());
+        Emit(f, "source-refused", new { outcome });
+        if (outcome == "missing" && store == EditStoreKind.Legacy && OperatingSystem.IsWindows())
+        {
+            // The I/O worker cannot acquire the legacy EFS inspection handle, so the provider never opens.
+            Assert.Empty(f.Gate.Calls);
+            Assert.Empty(f.Provider.Sources);
+        }
+        else AssertWorkers(f);
+        Assert.Null(f.Files.Snapshot);
+        Assert.Equal("previous destination", File.ReadAllText(f.Target));
+        Assert.Contains("Cannot save", f.Vm.Notification);
+        Assert.Single(f.Services.EditSessions.LoadAll());
         if (outcome != "missing") Assert.Equal("base", File.ReadAllText(f.Session.WorkingPath));
         Assert.All(f.Provider.Sources, s => Assert.Equal(1, s.Disposals)); f.AssertNoTemporaryCopies();
     }

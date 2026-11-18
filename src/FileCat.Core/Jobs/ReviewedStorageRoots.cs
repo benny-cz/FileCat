@@ -91,6 +91,15 @@ public sealed class ReviewedStorageRoots : IDisposable
         return approval;
     }
 
+    public StorageReviewApproval ApproveEfs(StorageAction action, StorageScope scope, StorageEfsAcknowledgments acknowledgments)
+    {
+        if (!StorageJournalPolicy.IsEfs(action)) throw new ArgumentException("Choose an EFS action.", nameof(action));
+        var consent = StorageEfsConsent.Capture(Revision, action, scope, Roots.Select(r => r.Observation.Identity).ToImmutableArray(), acknowledgments);
+        var approval = new StorageReviewApproval(action, scope, Revision) { EfsConsent = consent };
+        lock (_lock) ValidateLocked(_adapter, approval);
+        return approval;
+    }
+
     internal void Validate(IStorageTransforms adapter, StorageReviewApproval approval)
     {
         ArgumentNullException.ThrowIfNull(approval);
@@ -111,7 +120,7 @@ public sealed class ReviewedStorageRoots : IDisposable
     private void ValidateLocked(IStorageTransforms adapter, StorageReviewApproval approval)
     {
         RequireAction(adapter, approval.Action);
-        if (!Enum.IsDefined(approval.Scope)) throw new ArgumentOutOfRangeException(nameof(approval), "Choose an explicit storage scope.");
+        RequireScope(adapter, approval.Action, approval.Scope);
         if (!ReferenceEquals(_adapter, adapter) || approval.ReviewRevision != Revision || _inspectedAction != approval.Action)
             throw new InvalidOperationException("The action or review changed; inspect this exact selection again.");
         if (_owner is null || !_owner.IsAlive) throw new InvalidOperationException("The reviewed lifetime pins were released or already consumed.");
@@ -124,9 +133,16 @@ public sealed class ReviewedStorageRoots : IDisposable
     internal static void RequireAction(IStorageTransforms adapter, StorageAction action)
     {
         if (!Enum.IsDefined(action)) throw new ArgumentOutOfRangeException(nameof(action), "Choose an explicit storage action.");
-        if (action is StorageAction.EncryptEfs or StorageAction.DecryptEfs)
+        if (StorageJournalPolicy.IsEfs(action) && adapter is not IStorageEfsJobAdapter)
             throw new NotSupportedException("EFS execution requires its qualified identity, key and output protocol.");
         if (adapter.Unavailable(action) is { } reason) throw new NotSupportedException(reason.Message);
+    }
+
+    internal static void RequireScope(IStorageTransforms adapter, StorageAction? action, StorageScope scope)
+    {
+        if (!Enum.IsDefined(scope)) throw new ArgumentOutOfRangeException(nameof(scope), "Choose an explicit storage scope.");
+        if (action is StorageAction.EncryptEfs or StorageAction.DecryptEfs && adapter is IStorageEfsJobAdapter efs &&
+            efs.ScopeUnavailable(scope) is { } refused) throw new NotSupportedException(refused.Message);
     }
 
     internal static void RequireLease(IStorageReviewLease lease, StorageTarget target)

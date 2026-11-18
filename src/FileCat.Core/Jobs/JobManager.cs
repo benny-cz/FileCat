@@ -688,7 +688,15 @@ public sealed partial class JobManager
         {
             case JobKind.StorageTransform:
                 var storage = r.StorageTransform ?? throw new ArgumentException("A storage approval is required.", nameof(r));
-                title = $"{(storage.Action == StorageAction.Compress ? "Compress" : "Remove compression from")} {What()} · " +
+                string storageAction = storage.Action switch
+                {
+                    StorageAction.Compress => "Compress",
+                    StorageAction.RemoveCompression => "Remove compression from",
+                    StorageAction.EncryptEfs => "Encrypt with EFS",
+                    StorageAction.DecryptEfs => "Decrypt EFS from",
+                    _ => throw new ArgumentOutOfRangeException(nameof(r), "Choose a storage action."),
+                };
+                title = $"{storageAction} {What()} · " +
                     (storage.Scope == StorageScope.SelectedItems ? "selected items only" : "selected folders and existing contents");
                 writes.Add(GlobalScope);
                 break;

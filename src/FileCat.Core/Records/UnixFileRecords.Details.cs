@@ -6,24 +6,24 @@ namespace FileCat.Core.Records;
 
 public sealed unsafe partial class UnixFileRecords
 {
-    public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct) => ReadDetails(path, ct).Summary;
+    public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct) => ReadDetails(path, fullReport: false, ct).Summary;
 
     public FileDetailsReport ReadFull(string path, FileDetailsPolicy policy, CancellationToken ct)
     {
         if (policy != FileDetailsPolicy.MetadataOnly) throw new NotSupportedException("This details route supports metadata only.");
-        return ReadDetails(path, ct);
+        return ReadDetails(path, fullReport: true, ct);
     }
 
-    private FileDetailsReport ReadDetails(string path, CancellationToken ct)
+    private FileDetailsReport ReadDetails(string path, bool fullReport, CancellationToken ct)
     {
         if (!IsSupported) throw new PlatformNotSupportedException();
         FileSystem.PathUtil.RefuseAmbiguousUnixName(path);
         ct.ThrowIfCancellationRequested();
         string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-        return OperatingSystem.IsLinux() ? LinuxDetails(full, ct) : MacDetails(full, ct);
+        return OperatingSystem.IsLinux() ? LinuxDetails(full, fullReport, ct) : MacDetails(full, ct);
     }
 
-    private static FileDetailsReport LinuxDetails(string path, CancellationToken ct)
+    private static FileDetailsReport LinuxDetails(string path, bool fullReport, CancellationToken ct)
     {
         int noFollow = RuntimeInformation.ProcessArchitecture is Architecture.Arm64 or Architecture.Arm or Architecture.Ppc64le ? 0x8000 : 0x20000;
         ct.ThrowIfCancellationRequested();
@@ -52,6 +52,8 @@ public sealed unsafe partial class UnixFileRecords
                     ? ObservedFact<FileSystem.StoredLinkTarget>.Unavailable(FactState.Partial, FactScope.Entry, "readlinkat(O_PATH)", "Stored target unavailable or exceeds 16 KiB.")
                     : ObservedFact<FileSystem.StoredLinkTarget>.Known(new(target, "", !target.StartsWith('/')), FactScope.Entry, "readlinkat(O_PATH)") } };
             }
+            if (fullReport && report.Summary is { Kind: FileObjectKind.File, Identity: { State: FactState.Known, Value: { } identity } })
+                report = AddLinuxExtents(report, ReadLinuxPinnedExtents(fd, identity, ct));
             return report;
         }
         finally { Close(fd); }
@@ -75,7 +77,7 @@ public sealed unsafe partial class UnixFileRecords
         var snapshot = new FileDetailsSnapshot(path, DateTimeOffset.UtcNow, Guid.NewGuid())
         {
             Kind = kind,
-            Identity = Field(0x100, new DetailsIdentity($"{BinaryPrimitives.ReadUInt32LittleEndian(bytes[136..])}:{BinaryPrimitives.ReadUInt32LittleEndian(bytes[140..])}", BinaryPrimitives.ReadUInt64LittleEndian(bytes[32..]).ToString()), FactScope.Entry),
+            Identity = Field(0x100, LinuxIdentity(bytes), FactScope.Entry),
             LogicalSize = rawSize <= long.MaxValue ? Field(0x200, (long)rawSize, FactScope.Entry) : ObservedFact<long>.Unavailable(FactState.Failed, FactScope.Entry, Source, "Size overflow."),
             Allocated = blocks <= long.MaxValue / 512 ? Field(0x400, (long)blocks * 512, FactScope.Entry) : ObservedFact<long>.Unavailable(FactState.Failed, FactScope.Entry, Source, "Allocation overflow."),
             LinkCount = Field(4, BinaryPrimitives.ReadUInt32LittleEndian(bytes[16..]), FactScope.Entry),
@@ -87,10 +89,14 @@ public sealed unsafe partial class UnixFileRecords
             Restrictions = ObservedFact<string>.Known($"0x{attrs & supported:X}; supported mask 0x{supported:X}", FactScope.Entry, Source),
             Notes = ["Allocation is inode-reported blocks × 512, not exclusive storage or recursive contents.",
                 $"statx field mask: 0x{mask:X}; attribute mask: 0x{supported:X}; raw attributes: 0x{attrs:X}.",
-                "Filesystem policy, fscrypt mechanism, extents, xattrs and effective access were not queried."]
+                "Filesystem policy, fscrypt mechanism, xattrs and effective access were not queried."]
         };
         return FileDetailsReport.Metadata(snapshot, new InspectionSection("Native statx metadata", [("Returned mask", $"0x{mask:X}"), ("Attribute support mask", $"0x{supported:X}"), ("Raw attributes", $"0x{attrs:X}")]));
     }
+
+    private static DetailsIdentity LinuxIdentity(ReadOnlySpan<byte> bytes) => new(
+        $"{BinaryPrimitives.ReadUInt32LittleEndian(bytes[136..])}:{BinaryPrimitives.ReadUInt32LittleEndian(bytes[140..])}",
+        BinaryPrimitives.ReadUInt64LittleEndian(bytes[32..]).ToString());
 
     internal static FileObjectKind KindFromMode(uint mode) => (mode & TypeMask) switch
     {

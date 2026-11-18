@@ -28,95 +28,145 @@ public static partial class HexSaveAs
     public static HexSaveAsResult CreateNew(ProtectedHexFile source, HexPatchOverlay overlay, string destination,
         CancellationToken ct = default, IProgress<(long Done, long Total)>? progress = null)
     {
-        string full = Path.GetFullPath(destination);
-        if (File.Exists(full) || Directory.Exists(full)) throw new IOException("Save As requires a new file name; this one already exists.");
-        string directory = Path.GetDirectoryName(full) ?? throw new IOException("Choose a destination inside a folder.");
-        overlay.IncludeContributor(source.CaptureHexOrigin());
-        var snapshot = overlay.FreezeForPersistence(); var ranges = snapshot.Ranges;
-        string temp = Path.Combine(directory, ".filecat-hex-" + Guid.NewGuid().ToString("N") + ".tmp");
+        using var review = Prepare(source, overlay, destination);
+        return CreateNew(review, ct, progress);
+    }
+
+    internal static HexOutputReview Prepare(ProtectedHexFile source, HexPatchOverlay overlay, string destination) =>
+        HexOutputReview.Prepare(source, overlay, destination, HexOutputKind.SaveAs);
+
+    internal static HexSaveAsResult CreateNew(HexOutputReview review, CancellationToken ct = default,
+        IProgress<(long Done, long Total)>? progress = null)
+    {
+        review.Begin(HexOutputKind.SaveAs, ct);
+        var source = review.Source;
+        var before = source.GetRevision();
+        List<(long Start, long Length)>? allocated;
+        if (review.NeedsEfsConsent)
+        {
+            var layout = WindowsStorageTransforms.ReadSparseLayout(source.Handle, ct);
+            if ((layout is not null) != source.IsSparse || layout is not null && layout.Length != source.Length)
+                throw new IOException("The source sparse state changed. Reopen it before saving a copy.");
+            allocated = layout?.Ranges.Select(range => (range.Offset, range.Length)).ToList();
+        }
+        else allocated = source.IsSparse ? AllocatedRanges(source.Handle, source.Length) : null;
+        var regions = allocated is null ? [(0L, source.Length)] : Merge(allocated, review.Ranges);
+        long needed = regions.Sum(r => r.Length);
+        long free = FreeBytes(Path.GetDirectoryName(review.Destination)!);
+        if (free >= 0 && needed > free - FreeSpaceMargin)
+            throw new IOException($"The destination drive has {Format(free)} free, but the new file needs about {Format(needed)}. Choose another drive or free up space.");
+
+        (long Written, bool Sparse) Write(SafeFileHandle output)
+        {
+            bool sparse = allocated is not null && TrySetSparse(output);
+            if (!sparse && allocated is not null)
+            {
+                // Holes must be written as zeros on a volume without sparse files.
+                regions = [(0L, source.Length)];
+                needed = source.Length;
+                if (free >= 0 && needed > free - FreeSpaceMargin)
+                    throw new IOException($"The destination drive cannot keep the file sparse, and writing all {Format(needed)} does not fit in {Format(free)} of free space.");
+            }
+            var buffer = new byte[ChunkBytes];
+            long written = 0, lastReport = 0;
+            foreach (var (start, length) in regions)
+            {
+                for (long offset = start, end = start + length; offset < end;)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (OperatingSystem.IsWindows()) review.RequireSourceProtection();
+                    int want = (int)Math.Min(buffer.Length, end - offset);
+                    int read = review.Overlay.Read(offset, buffer.AsSpan(0, want));
+                    if (read != want) throw new IOException($"Could not read the source at 0x{offset:X}.");
+                    if (OperatingSystem.IsWindows()) review.RequireSourceProtection();
+                    RandomAccess.Write(output, buffer.AsSpan(0, read), offset);
+                    offset += read;
+                    written += read;
+                    if (Environment.TickCount64 - lastReport >= 100)
+                    {
+                        lastReport = Environment.TickCount64;
+                        progress?.Report((written, needed));
+                    }
+                }
+            }
+            progress?.Report((written, needed));
+            RandomAccess.SetLength(output, source.Length);
+            RandomAccess.FlushToDisk(output);
+            return (written, sparse);
+        }
+
+        void Revalidate()
+        {
+            ct.ThrowIfCancellationRequested();
+            review.RequireSourceProtection();
+            source.ValidateForSave(review.Ranges);
+            if (before is null || source.GetRevision() != before)
+                throw new IOException("Another program wrote the file while it was being copied, so the new file was not kept: it could mix old and new bytes. Save As again.");
+        }
+
+        if (review.NeedsEfsConsent)
+            return review.PublishBound(stream =>
+            {
+                var (written, sparse) = Write(stream.SafeFileHandle);
+                var mark = ReadWindowsOriginMark(source);
+                review.RequireSourceProtection();
+                if (mark is not null) review.CopyDownloadMark(stream.SafeFileHandle, mark);
+                Revalidate();
+                return new HexSaveAsResult(written, sparse, mark is null ? HexOriginMark.None : HexOriginMark.Copied);
+            }, ct);
+
         bool created = false;
         try
         {
-            snapshot.RequireUnprotectedOutput("Save As");
-            source.ValidateForSave(ranges);
-            // Linux and macOS cannot keep other programs from writing the file meanwhile: a copy taken while one did would
-            // mix its old and new bytes, so its length and time must be the same at the end.
-            var before = source.GetRevision();
-            var allocated = source.IsSparse ? AllocatedRanges(source.Handle, source.Length) : null;
-            var regions = allocated is null ? [(0L, source.Length)] : Merge(allocated, ranges);
-            long needed = regions.Sum(r => r.Length);
-            long free = FreeBytes(directory);
-            if (free >= 0 && free < needed + FreeSpaceMargin)
-                throw new IOException($"The destination drive has {Format(free)} free, but the new file needs about {Format(needed)}. Choose another drive or free up space.");
-            bool sparse = false;
-            long written = 0;
-            using (var output = File.OpenHandle(temp, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+            (long Written, bool Sparse) result;
+            using (var output = File.OpenHandle(review.Temporary, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
             {
                 created = true;
-                if (allocated is not null) sparse = TrySetSparse(output);
-                if (!sparse && allocated is not null)
-                {
-                    // Holes must be written as zeros on a volume without sparse files.
-                    regions = [(0L, source.Length)];
-                    needed = source.Length;
-                    if (free >= 0 && free < needed + FreeSpaceMargin)
-                        throw new IOException($"The destination drive cannot keep the file sparse, and writing all {Format(needed)} does not fit in {Format(free)} of free space.");
-                }
-                var buffer = new byte[ChunkBytes];
-                long lastReport = 0;
-                foreach (var (start, length) in regions)
-                {
-                    for (long offset = start, end = start + length; offset < end;)
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        int want = (int)Math.Min(buffer.Length, end - offset);
-                        int read = overlay.Read(offset, buffer.AsSpan(0, want));
-                        if (read != want) throw new IOException($"Could not read the source at 0x{offset:X}.");
-                        RandomAccess.Write(output, buffer.AsSpan(0, read), offset);
-                        offset += read;
-                        written += read;
-                        if (Environment.TickCount64 - lastReport >= 100)
-                        {
-                            lastReport = Environment.TickCount64;
-                            progress?.Report((written, needed));
-                        }
-                    }
-                }
-                progress?.Report((written, needed));
-                RandomAccess.SetLength(output, source.Length);
-                RandomAccess.FlushToDisk(output);
+                result = Write(output);
             }
-            var mark = CopyOriginMark(source.LocalPath!, temp);
-            source.ValidateForSave(ranges);
-            if (before is null || source.GetRevision() != before)
-                throw new IOException("Another program wrote the file while it was being copied, so the new file was not kept: it could mix old and new bytes. Save As again.");
-            File.Move(temp, full, overwrite: false);
-            return new HexSaveAsResult(written, sparse, mark);
+            var mark = CopyOriginMark(source, review.Temporary);
+            Revalidate();
+            File.Move(review.Temporary, review.Destination, overwrite: false);
+            created = false;
+            return new HexSaveAsResult(result.Written, result.Sparse, mark);
         }
-        finally
-        {
-            overlay.FinishSave(false);
-            if (created && File.Exists(temp)) File.Delete(temp);
-        }
+        finally { if (created && File.Exists(review.Temporary)) File.Delete(review.Temporary); }
     }
 
     /// <summary>
     /// Mark-of-the-Web is security metadata (plan §8.1): a derived copy of downloaded content keeps it (on Linux and
     /// macOS, the extended attributes that stand for it).
     /// </summary>
-    private static HexOriginMark CopyOriginMark(string source, string target)
+    private static HexOriginMark CopyOriginMark(ProtectedHexFile source, string target)
     {
         if (!OperatingSystem.IsWindows())
         {
             var unix = new UnixFileOperations();
-            if (unix.ReadOriginMark(source) is not { } origin) return HexOriginMark.None;
+            if (unix.ReadOriginMark(source.LocalPath!) is not { } origin) return HexOriginMark.None;
             return unix.WriteOriginMark(target, origin) ? HexOriginMark.Copied : HexOriginMark.Lost;
         }
+        var mark = ReadWindowsOriginMark(source);
+        if (mark is null) return HexOriginMark.None;
+        try
+        {
+            using var output = new FileStream(target + ZoneStream, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            output.Write(mark);
+            output.Flush(flushToDisk: true);
+            return HexOriginMark.Copied;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            throw new IOException("The download mark could not be copied, so Save As did not publish a copy.", ex);
+        }
+    }
+
+    private static byte[]? ReadWindowsOriginMark(ProtectedHexFile source)
+    {
         // File.Exists also returns false for inaccessible streams. Treat only a missing stream as unmarked;
         // a sharing violation or read failure must not publish an unmarked derivative.
         FileStream input;
-        try { input = new FileStream(source + ZoneStream, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete); }
-        catch (FileNotFoundException) { return HexOriginMark.None; }
+        try { input = new FileStream(source.LocalPath! + ZoneStream, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete); }
+        catch (FileNotFoundException) { return null; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             throw new IOException("The source download mark could not be read, so Save As did not publish a copy.", ex);
@@ -124,6 +174,8 @@ public static partial class HexSaveAs
         byte[] mark;
         using (input)
         {
+            if (ProtectedHexFile.Identity(input.SafeFileHandle) != source.FileIdentity)
+                throw new IOException("The source download mark no longer belongs to the file being copied.");
             if (input.Length > MaxOriginMarkBytes)
                 throw new IOException("The source download mark exceeds the supported 64 KiB limit, so Save As did not publish a copy.");
             mark = new byte[MaxOriginMarkBytes + 1];
@@ -138,17 +190,7 @@ public static partial class HexSaveAs
                 throw new IOException("The source download mark grew beyond the supported 64 KiB limit, so Save As did not publish a copy.");
             Array.Resize(ref mark, read);
         }
-        try
-        {
-            using var output = new FileStream(target + ZoneStream, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-            output.Write(mark);
-            output.Flush(flushToDisk: true);
-            return HexOriginMark.Copied;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
-        {
-            throw new IOException("The download mark could not be copied, so Save As did not publish a copy.", ex);
-        }
+        return mark;
     }
 
     /// <summary>Allocated ranges plus edited ranges (which may fall into holes), sorted and merged.</summary>

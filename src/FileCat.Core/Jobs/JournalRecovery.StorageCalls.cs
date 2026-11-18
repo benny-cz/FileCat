@@ -81,7 +81,8 @@ public static partial class JournalRecovery
         {
             if (intent.Call <= afterCall || more) return;
             var call = new StorageHistoryCall(intent.Call, intent.SourceIndex, intent.Path, intent.Identity, intent.Before,
-                intent.Desired, outcome?.Disposition, outcome?.NoCallReason, outcome?.Result) { EfsConsentId = intent.EfsConsentId };
+                intent.Desired, outcome?.Disposition, outcome?.NoCallReason, outcome?.Result)
+                { EfsConsentId = intent.EfsConsentId, EfsReviewedKey = intent.EfsReviewedKey };
             long bytes = CallCharge(call);
             if (bytes > StorageCallPageBytes) throw new IOException("One call exceeds the bounded evidence page allowance.");
             if (calls.Count == StorageCallPageEntries || bytes > StorageCallPageBytes - retained) { more = true; return; }
@@ -91,7 +92,9 @@ public static partial class JournalRecovery
 
     // Conservative charges for all retained strings and record objects, including duplicated observations.
     private static long CallCharge(StorageHistoryCall call) => 256 + (call.EfsConsentId is null ? 0 : 32) + Text(call.Path) + Id(call.Identity) + Observation(call.Before) +
-        (call.Result is { } result ? 128 + Observation(result.Before) + (result.After is { } after ? Observation(after) : 0) + Problem(result.Problem) : 0);
+        (call.EfsReviewedKey is { } reviewed ? 96 + Id(reviewed.SetupIdentity) + Text(reviewed.InvokerSid) + Text(reviewed.CertificateSha1) : 0) +
+        (call.Result is { } result ? 128 + Observation(result.Before) + (result.After is { } after ? Observation(after) : 0) + Problem(result.Problem) +
+            (result.EfsKeys is { } keys ? 96 + keys.Keys.Sum(key => 64 + Text(key.CertificateSha1)) : 0) : 0);
     private static long Text(string? value) => value is null ? 0 : 32L + 2L * value.Length;
     private static long Id(StorageObjectIdentity identity) => 96 + Text(identity.ObjectId) + Text(identity.VolumeBinding);
     private static long Observation(StorageObservation observation) => 96 + Id(observation.Identity) + Problem(observation.Ineligible);

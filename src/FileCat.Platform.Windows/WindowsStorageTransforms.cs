@@ -180,7 +180,8 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
         if ((facts.Attributes & (uint)FileAttributes.ReparsePoint) != 0) return Problem(StorageReasonKind.FileCatBoundary, "reparse-entry", "This reparse storage format is not supported by this change.");
         if (ManagedAttributes(facts.Attributes)) return Problem(StorageReasonKind.FileCatBoundary, "cloud-entry", "This item is cloud-managed or may need downloading; its storage protection is not changed here.");
         if (!facts.IsDirectory && facts.Links != 1) return Problem(StorageReasonKind.FileCatBoundary, "multiple-names", "This file has other names that would also be affected, or its link count is unknown.");
-        if ((facts.Attributes & (uint)FileAttributes.SparseFile) != 0) return Problem(StorageReasonKind.FileCatBoundary, "sparse-entry", "Compression changes for sparse entries are outside the qualified workflow.");
+        if ((facts.Attributes & (uint)FileAttributes.SparseFile) != 0 && facts.IsDirectory)
+            return Problem(StorageReasonKind.FileCatBoundary, "sparse-entry", "This action has not been qualified for the observed sparse state.");
         if ((volume.Flags & 0x80000) != 0) return Problem(StorageReasonKind.PermissionOrPolicy, "read-only-volume", "This drive is read-only.");
         if (volume.AllocationUnit == 0) return Problem(StorageReasonKind.Unknown, "allocation-unit-unknown", "The volume's allocation unit could not be established.");
         if (compressionPolicy && volume.AllocationUnit > 4096) return Problem(StorageReasonKind.FileCatBoundary, "allocation-unit", "Compression changes require an allocation unit no larger than 4096 bytes.");
@@ -230,13 +231,15 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
     private sealed record NodeFacts(StorageObjectIdentity Identity, uint Attributes, uint Links, long Size, bool IsDirectory, bool DeletePending, uint CaseFlags);
     private sealed record VolumeFacts(string Binding, uint Flags, ulong AllocationUnit);
     private sealed record Node(Held Handle, NodeFacts Facts);
-    private sealed class NativePath(List<Node> nodes, VolumeFacts volume) : IDisposable
+    private sealed class NativePath(List<Node> nodes, VolumeFacts volume, int ownedFrom = 0) : IDisposable
     {
         internal List<Node> Nodes => nodes;
         internal VolumeFacts Volume => volume;
+        internal int OwnedFrom => ownedFrom;
         internal Held Leaf => nodes[^1].Handle;
         internal NodeFacts LeafFacts => nodes[^1].Facts;
         internal Held TakeLeaf() { var handle = Leaf; nodes.RemoveAt(nodes.Count - 1); return handle; }
-        public void Dispose() { for (int i = nodes.Count - 1; i >= 0; i--) nodes[i].Handle.Dispose(); nodes.Clear(); }
+        internal NativePath BorrowAncestorsAndAppend(Node child) => new([.. nodes, child], volume, nodes.Count);
+        public void Dispose() { for (int i = nodes.Count - 1; i >= ownedFrom; i--) nodes[i].Handle.Dispose(); nodes.Clear(); }
     }
 }

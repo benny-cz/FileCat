@@ -15,9 +15,12 @@ internal static class StorageObjectCallRunner
     internal static StorageObjectCallResult Run(Job job, StorageTransformJournalWriter writer, int sourceIndex, IStorageObjectLease held)
     {
         var request = job.Request.StorageTransform ?? throw new InvalidOperationException("Missing storage request.");
-        if (request.Action is not (StorageAction.Compress or StorageAction.RemoveCompression) ||
+        bool efs = StorageJournalPolicy.IsEfs(request.Action);
+        if (!Enum.IsDefined(request.Action) || efs != (held is IStorageEfsObjectLease) ||
             writer.Header.JobId != job.Id || writer.Header.Action != request.Action || writer.Header.Scope != request.Scope ||
-            writer.Header.ReviewRevision != request.ReviewRevision || sourceIndex < 0 || sourceIndex >= writer.Header.Roots.Length)
+            writer.Header.ReviewRevision != request.ReviewRevision || writer.Header.EfsConsent != request.EfsConsent ||
+            writer.Header.RequiresEfsRecoveryEvidence != (request.Action == StorageAction.EncryptEfs) ||
+            sourceIndex < 0 || sourceIndex >= writer.Header.Roots.Length)
             throw new InvalidOperationException("The held call does not belong to this storage approval.");
         StorageObjectIdentity identity = held.Identity;
         while (true)
@@ -35,7 +38,7 @@ internal static class StorageObjectCallRunner
             if (NoCall(before, request.Action) is { } preparedNoCall) return new(preparedNoCall);
 
             StorageJournalCall call;
-            try { call = writer.FlushIntent(sourceIndex, held.Path, before); }
+            try { call = writer.FlushIntent(sourceIndex, held.Path, before, (held as IStorageEfsObjectLease)?.RecoveryApproval); }
             catch (StorageJournalLimitException)
             {
                 return new(new(before, before, StorageEffect.NotProcessed, Problem("record-limit", "The storage recovery-record limit was reached; select smaller scopes.")), LimitReached: true);
@@ -79,9 +82,11 @@ internal static class StorageObjectCallRunner
     private static StorageMutationResult? NoCall(StorageObservation before, StorageAction action)
     {
         if (before.Ineligible is { } problem) return new(before, before, StorageEffect.Skipped, problem);
-        if (before.Compression is not (StorageObservationState.Enabled or StorageObservationState.Disabled))
-            return new(before, before, StorageEffect.NotProcessed, Problem("compression-unknown", "The held compression state could not be established."));
-        var desired = action == StorageAction.Compress ? StorageObservationState.Enabled : StorageObservationState.Disabled;
-        return before.Compression == desired ? new(before, before, StorageEffect.AlreadySatisfied, null) : null;
+        var state = StorageJournalPolicy.State(action, before);
+        if (state is not (StorageObservationState.Enabled or StorageObservationState.Disabled))
+            return new(before, before, StorageEffect.NotProcessed, StorageJournalPolicy.IsEfs(action)
+                ? Problem("efs-unknown", "The held EFS state could not be established.")
+                : Problem("compression-unknown", "The held compression state could not be established."));
+        return state == StorageJournalPolicy.Desired(action) ? new(before, before, StorageEffect.AlreadySatisfied, null) : null;
     }
 }

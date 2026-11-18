@@ -23,22 +23,24 @@ public sealed class StorageCompressionDialogTests
     {
         public StorageTarget Target => target;
         public StorageObservation Observation { get; set; } = new(StorageObservationState.Disabled, StorageObservationState.Disabled,
-            new(1, target.Path), target.Source.Kind == EntryKind.Directory, null);
+            new(1, Guid.NewGuid().ToString("N").ToUpperInvariant()) { VolumeBinding = "11111111-1111-1111-1111-111111111111" },
+            target.Source.Kind == EntryKind.Directory, null);
         public int Disposed;
         public bool IsAlive => Disposed == 0;
         public void Dispose() => Disposed++;
     }
-    private sealed class Adapter : IStorageTransforms
+    private sealed class Adapter : IStorageTransforms, IStorageEfsJobAdapter
     {
         public readonly List<Pin> Pins = [];
         public Action? Blocking;
         public bool Cached = true;
         public int Opens, Refreshes;
         public string? Missing;
+        public StorageAction? OpenedAction;
         public StorageProblem? Unavailable(StorageAction action) => null;
         public IStorageReviewLease InspectRoot(StorageTarget target, StorageAction? action, CancellationToken ct)
         {
-            Opens++; Blocking?.Invoke();
+            Opens++; OpenedAction = action; Blocking?.Invoke();
             if (target.Path == Missing) throw new FileNotFoundException("Unavailable selected root");
             var pin = new Pin(target); Pins.Add(pin); return pin;
         }
@@ -46,6 +48,9 @@ public sealed class StorageCompressionDialogTests
         public StorageObservation InspectPinnedRoot(IStorageReviewLease root, StorageAction? action, CancellationToken ct)
         { Refreshes++; Blocking?.Invoke(); return root.Observation; }
         public IStorageTraversal OpenReviewedRoot(IStorageReviewLease root, StorageAction action, CancellationToken ct) => throw new NotSupportedException();
+        public StorageProblem? ScopeUnavailable(StorageScope scope) => null;
+        public IStorageTraversal OpenReviewedEfsRoot(IStorageReviewLease root, Job job, int sourceIndex,
+            StorageEfsRecoverySession recovery, CancellationToken ct) => throw new NotSupportedException();
     }
     private sealed class Host : IDisposable
     {
@@ -62,6 +67,8 @@ public sealed class StorageCompressionDialogTests
         public Button Button(string label) => Assert.Single(Overlay.GetVisualDescendants().OfType<Button>(), button => button is not RadioButton && button.Content as string == label);
         public void ChooseAction(int index) => Scope(index == 1 ? "Compress" : "Remove compression").IsChecked = true;
         public RadioButton Scope(string name) => Assert.Single(Overlay.GetVisualDescendants().OfType<RadioButton>(), radio => AutomationProperties.GetName(radio) == name);
+        public CheckBox Consent(string phrase) => Assert.Single(Overlay.GetVisualDescendants().OfType<CheckBox>(),
+            box => box.IsVisible && AutomationProperties.GetName(box)?.Contains(phrase, StringComparison.Ordinal) == true);
         public void Dispose() { Dialogs.CancelAll(); Io.Dispose(); Window.Close(); }
     }
     private static async Task Until(Func<bool> ready)
@@ -74,12 +81,86 @@ public sealed class StorageCompressionDialogTests
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task Efs_consent_is_explicit_and_clears_on_action_scope_or_inspection_changes(bool decrypt)
+    {
+        using var host = new Host(); var adapter = new Adapter { Cached = false };
+        using var review = new StorageSelectionReview(adapter, [Item(directory: true), Item(@"C:\other")]);
+        using var form = new StorageChangeDialog(review, host.Io, "fixture", [false, true], efs: true);
+        var showing = form.ShowAsync(host.Dialogs);
+        try
+        {
+            await Until(() => host.Overlay.GetVisualDescendants().OfType<RadioButton>()
+                .Any(button => AutomationProperties.GetName(button) == "Encrypt with EFS"));
+            Assert.False(form.Ready);
+            Assert.Equal(0, adapter.Opens);
+            Assert.False(host.Button("Choose action").IsEnabled);
+            Assert.True(host.Button("Cancel").IsDefault);
+            host.Scope("Encrypt with EFS").IsChecked = true;
+            await Until(() => form.Ready);
+            Assert.Equal(StorageAction.EncryptEfs, adapter.OpenedAction);
+            var path = host.Consent("concurrent link-change");
+            var streams = host.Consent("remove compression from all data streams");
+            Assert.False(path.IsChecked);
+            Assert.False(streams.IsChecked);
+            path.IsChecked = true;
+            Assert.False(host.Button("Encrypt with EFS").IsEnabled);
+            streams.IsChecked = true;
+            Assert.True(host.Button("Encrypt with EFS").IsEnabled);
+            Assert.False(host.Button("Encrypt with EFS").IsDefault);
+
+            if (decrypt)
+            {
+                host.Scope("Decrypt").IsChecked = true;
+                Assert.False(path.IsChecked);
+                Assert.False(streams.IsVisible);
+                var protection = host.Consent("selected files will lose EFS protection");
+                Assert.Contains("Existing contents stay unchanged", AutomationProperties.GetName(protection));
+                Assert.False(protection.IsChecked);
+                path.IsChecked = true;
+                protection.IsChecked = true;
+                host.Scope("Selected folders and their existing contents").IsChecked = true;
+                Assert.False(path.IsChecked);
+                Assert.False(protection.IsChecked);
+                Assert.Contains("processed files inside them", AutomationProperties.GetName(protection));
+                path.IsChecked = true;
+                Assert.False(host.Button("Queue").IsEnabled);
+                protection.IsChecked = true;
+            }
+            else
+            {
+                host.Button("Retry inspection").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.False(path.IsChecked);
+                Assert.False(streams.IsChecked);
+                path.IsChecked = true;
+                streams.IsChecked = true;
+            }
+
+            string action = decrypt ? "Decrypt" : "Encrypt with EFS";
+            await Until(() => host.Button(action).IsEnabled && host.Button("Queue").IsEnabled);
+            host.Button(decrypt ? "Queue" : action).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            using var choice = Assert.IsType<StorageChangeChoice>(await showing);
+            var consent = Assert.IsType<StorageEfsConsent>(choice.Approval.EfsConsent);
+            Assert.Equal(choice.Roots.Revision, consent.ReviewRevision);
+            Assert.Equal(decrypt ? StorageAction.DecryptEfs : StorageAction.EncryptEfs, consent.Action);
+            Assert.Equal(decrypt ? StorageScope.ExistingDescendants : StorageScope.SelectedItems, consent.Scope);
+            Assert.Equal(decrypt ? QueueMode.Queue : QueueMode.Start, choice.Mode);
+            Assert.Equal(new StorageEfsAcknowledgments(true, !decrypt), consent.Acknowledgments);
+            Assert.Equal<IEnumerable<StorageObjectIdentity>>(adapter.Pins.Select(pin => pin.Observation.Identity), consent.RootIdentities);
+            Assert.Equal(2, adapter.Opens);
+            Assert.All(adapter.Pins, pin => Assert.True(pin.IsAlive));
+        }
+        finally { host.Dialogs.CancelAll(); await showing; }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task Immediate_submission_freezes_the_displayed_action_scope_and_all_original_locations(bool queue)
     {
         using var host = new Host(); var adapter = new Adapter();
         using var review = new StorageSelectionReview(adapter, [Item(directory: true), Item(@"C:\other")]);
         using var initial = new CancellationTokenSource(); int detached = 0;
-        using var form = new StorageCompressionDialog(review, host.Io, "fixture", [true, false], initial.Token, () => detached++);
+        using var form = new StorageChangeDialog(review, host.Io, "fixture", [true, false], initial.Token, () => detached++);
         var showing = form.ShowAsync(host.Dialogs);
         try
         {
@@ -107,7 +188,7 @@ public sealed class StorageCompressionDialogTests
             Assert.True(host.Button("Remove compression").IsEnabled);
             if (queue) host.Button("Queue").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             else host.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
-            using var choice = Assert.IsType<StorageCompressionChoice>(await showing.WaitAsync(TimeSpan.FromSeconds(10)));
+            using var choice = Assert.IsType<StorageChangeChoice>(await showing.WaitAsync(TimeSpan.FromSeconds(10)));
             Assert.Equal(StorageAction.RemoveCompression, choice.Approval.Action);
             Assert.Equal(StorageScope.ExistingDescendants, choice.Approval.Scope);
             Assert.Equal(queue ? QueueMode.Queue : QueueMode.Start, choice.Mode);
@@ -124,7 +205,7 @@ public sealed class StorageCompressionDialogTests
         using var host = new Host(); using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
         var adapter = new Adapter { Blocking = () => { entered.Set(); if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException(); } };
         using var review = new StorageSelectionReview(adapter, [Item()]); using var initial = new CancellationTokenSource();
-        using var form = new StorageCompressionDialog(review, host.Io, "fixture", [false], initial.Token);
+        using var form = new StorageChangeDialog(review, host.Io, "fixture", [false], initial.Token);
         var showing = form.ShowAsync(host.Dialogs);
         try
         {
@@ -142,7 +223,7 @@ public sealed class StorageCompressionDialogTests
         using var host = new Host(); var adapter = new Adapter();
         using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
         using var review = new StorageSelectionReview(adapter, [Item(directory: true)]);
-        using var form = new StorageCompressionDialog(review, host.Io, "fixture", [false]);
+        using var form = new StorageChangeDialog(review, host.Io, "fixture", [false]);
         var showing = form.ShowAsync(host.Dialogs);
         try
         {
@@ -157,7 +238,7 @@ public sealed class StorageCompressionDialogTests
             adapter.Blocking = null; release.Set();
             await Until(() => host.Button("Remove compression").IsEnabled);
             host.Button("Remove compression").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            using var choice = Assert.IsType<StorageCompressionChoice>(await showing);
+            using var choice = Assert.IsType<StorageChangeChoice>(await showing);
             Assert.Equal(StorageAction.RemoveCompression, choice.Approval.Action); Assert.Equal(StorageScope.ExistingDescendants, choice.Approval.Scope);
             Assert.Equal(1, adapter.Opens); Assert.Equal(2, adapter.Refreshes);
             Assert.Equal(0, Assert.Single(adapter.Pins).Disposed);
@@ -170,7 +251,7 @@ public sealed class StorageCompressionDialogTests
     {
         using var host = new Host(); var adapter = new Adapter { Missing = @"C:\missing\same" + "\nname" };
         using var review = new StorageSelectionReview(adapter, [Item(), Item(@"C:\missing")]);
-        using var form = new StorageCompressionDialog(review, host.Io, "fixture", [false, true]);
+        using var form = new StorageChangeDialog(review, host.Io, "fixture", [false, true]);
         var showing = form.ShowAsync(host.Dialogs);
         try
         {
@@ -203,7 +284,7 @@ public sealed class StorageCompressionDialogTests
         });
         await Until(() => entered.IsSet);
         using var review = new StorageSelectionReview(adapter, [Item()]);
-        using var form = new StorageCompressionDialog(review, host.Io, "fixture", [false]);
+        using var form = new StorageChangeDialog(review, host.Io, "fixture", [false]);
         var showing = form.ShowAsync(host.Dialogs);
         try
         {

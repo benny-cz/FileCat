@@ -89,7 +89,7 @@ public sealed partial class WindowsStorageInspectionTests
     }
 
     [Fact]
-    public unsafe void Reparse_ancestors_and_leaves_sparse_and_multiple_names_are_refused_without_following_targets()
+    public unsafe void Reparse_entries_and_multiple_names_are_refused_while_sparse_regular_files_can_be_reviewed()
     {
         Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-exclusions-").FullName;
@@ -113,7 +113,7 @@ public sealed partial class WindowsStorageInspectionTests
             using (var data = File.OpenHandle(path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete))
                 Assert.True(Control(data, 0x900C4, null, 0, null, 0, out _, 0));
             using var sparse = Inspect(manager, path, StorageAction.Compress);
-            Assert.Equal("sparse-entry", sparse.Roots[0].Observation.Ineligible?.Code);
+            Assert.Null(sparse.Roots[0].Observation.Ineligible);
             Assert.Equal("kept", File.ReadAllText(path));
         }
         finally { Directory.Delete(root, true); }

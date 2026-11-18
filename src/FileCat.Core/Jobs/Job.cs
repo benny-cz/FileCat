@@ -606,9 +606,10 @@ public sealed partial class Job
     /// <summary>Asks the user (or a remembered "apply to all" answer) and blocks the job thread until answered.</summary>
     internal Decision Ask(DecisionRequest request)
     {
+        bool canRemember = request is not ConfirmRequest { OffersApplyToAll: false };
         lock (_lock)
         {
-            if (_applyToAll.TryGetValue(request.ClassKey, out var remembered)) return remembered;
+            if (canRemember && _applyToAll.TryGetValue(request.ClassKey, out var remembered)) return remembered;
         }
         var pending = new PendingDecision(this, request);
         Volatile.Write(ref _decision, pending);
@@ -627,7 +628,7 @@ public sealed partial class Job
         {
             Volatile.Write(ref _decision, null);
         }
-        if (d.ApplyToAll && d.Action is not (DecisionAction.CancelJob or DecisionAction.Retry))
+        if (canRemember && d.ApplyToAll && d.Action is not (DecisionAction.CancelJob or DecisionAction.Retry))
         {
             // Scoped to this job and conflict class only; never becomes a global default (plan §9.1).
             lock (_lock) _applyToAll[request.ClassKey] = d;

@@ -8,6 +8,11 @@ using FileCat.Core.State;
 
 namespace FileCat.Platform.Windows.Tests;
 
+// Job admission scans every known journal root in this process. Keep each test's teardown outside other job admissions.
+[CollectionDefinition("Windows storage job evidence")]
+public sealed class WindowsStorageJobEvidenceCollection;
+
+[Collection("Windows storage job evidence")]
 public sealed class WindowsStorageExecutorTests
 {
     private static CancellationToken Stop => TestContext.Current.CancellationToken;

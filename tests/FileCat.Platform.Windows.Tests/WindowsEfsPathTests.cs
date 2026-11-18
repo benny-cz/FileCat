@@ -89,7 +89,7 @@ public sealed unsafe partial class WindowsEfsPathTests
             foreach (var action in new[] { StorageAction.EncryptEfs, StorageAction.DecryptEfs })
             {
                 using var pin = Pin(adapter, path, directory, action);
-                using var held = adapter.OpenEfsPath(pin, Consent(pin, action), Ct);
+                using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, action), Ct);
                 Assert.Null(held.Observe(Ct).Ineligible);
                 using (var raw = OpenMetadata(path))
                 {
@@ -126,8 +126,8 @@ public sealed unsafe partial class WindowsEfsPathTests
             foreach (var refused in new[] { valid with { Acknowledgments = valid.Acknowledgments with { AcceptConcurrentLinkChange = false } },
                 valid with { Acknowledgments = valid.Acknowledgments with { AcceptAllStreamDecompression = false } }, valid with { ReviewRevision = Guid.Empty },
                 valid with { Action = StorageAction.DecryptEfs }, valid with { RootIdentities = [pin.Observation.Identity with { ObjectId = new string('0', 32) }] } })
-                Assert.Equal("efs-consent", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPath(pin, refused, Ct)).Problem.Code);
-            Assert.Equal("efs-consent", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPath(pin, valid, Ct, sourceIndex: 1)).Problem.Code);
+                Assert.Equal("efs-consent", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPathForQualification(pin, refused, Ct)).Problem.Code);
+            Assert.Equal("efs-consent", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPathForQualification(pin, valid, Ct, sourceIndex: 1)).Problem.Code);
             Assert.Equal((FileAttributes)0, File.GetAttributes(path) & FileAttributes.Encrypted);
         }
         finally { Directory.Delete(root, true); }
@@ -143,13 +143,13 @@ public sealed unsafe partial class WindowsEfsPathTests
             string path = Path.Join(parent, "file"); File.WriteAllText(path, "untouched");
             using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
             var adapter = new WindowsStorageTransforms(); using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
-            using var held = adapter.OpenEfsPath(pin, Consent(pin, StorageAction.EncryptEfs), Ct);
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct);
             Assert.Null(held.PrepareMutation(StorageAction.EncryptEfs, Ct).Ineligible);
             Assert.Throws<IOException>(() => File.Move(path, path + ".moved"));
             Assert.Throws<IOException>(() => File.Delete(path));
             Assert.Throws<IOException>(() => Directory.Move(parent, parent + ".moved"));
             Assert.Equal("untouched", File.ReadAllText(path));
-            pin.Dispose(); Assert.Equal("review-pin", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPath(pin, Consent(pin, StorageAction.EncryptEfs), Ct)).Problem.Code);
+            pin.Dispose(); Assert.Equal("review-pin", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct)).Problem.Code);
         }
         finally { Directory.Delete(root, true); }
     }
@@ -166,7 +166,7 @@ public sealed unsafe partial class WindowsEfsPathTests
             using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
             var adapter = new WindowsStorageTransforms(); using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
             int calls = 0;
-            using var held = adapter.OpenEfsPath(pin, Consent(pin, StorageAction.EncryptEfs), Ct, (_, _) => { calls++; return new(nativeSucceeded, nativeSucceeded ? 0 : 5); });
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct, (_, _) => { calls++; return new(nativeSucceeded, nativeSucceeded ? 0 : 5); });
             Assert.Throws<InvalidOperationException>(() => held.ApplyAdmitted(StorageAction.EncryptEfs));
             var result = Apply(held, StorageAction.EncryptEfs);
             Assert.Equal(nativeSucceeded ? StorageEffect.Uncertain : StorageEffect.Failed, result.Effect); Assert.Equal("efs-postcondition", result.Problem!.Code); Assert.Equal(1, calls);
@@ -185,7 +185,7 @@ public sealed unsafe partial class WindowsEfsPathTests
             File.SetAttributes(path, FileAttributes.ReadOnly);
             using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
             var adapter = new WindowsStorageTransforms(); using var pin = Pin(adapter, path, false, StorageAction.DecryptEfs);
-            using var held = adapter.OpenEfsPath(pin, Consent(pin, StorageAction.DecryptEfs), Ct, (_, _) => throw new InvalidOperationException("A no-op cannot invoke EFS."));
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.DecryptEfs), Ct, (_, _) => throw new InvalidOperationException("A no-op cannot invoke EFS."));
             var noop = Apply(held, StorageAction.DecryptEfs);
             Assert.Equal(StorageEffect.AlreadySatisfied, noop.Effect); Assert.False(noop.NativeCallAttempted);
             Assert.True((File.GetAttributes(path) & FileAttributes.ReadOnly) != 0);
@@ -209,7 +209,7 @@ public sealed unsafe partial class WindowsEfsPathTests
             using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
             using var stop = new CancellationTokenSource(); using var alreadyStopped = new CancellationTokenSource(); alreadyStopped.Cancel();
             var adapter = new WindowsStorageTransforms(); using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
-            using var held = adapter.OpenEfsPath(pin, Consent(pin, StorageAction.EncryptEfs), Ct, (apiPath, action) =>
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct, (apiPath, action) =>
             { stop.Cancel(); Assert.True(Encrypt(apiPath)); return new(false, 5); });
             Assert.Throws<OperationCanceledException>(() => held.PrepareMutation(StorageAction.EncryptEfs, alreadyStopped.Token));
             Assert.Throws<InvalidOperationException>(() => held.ApplyAdmitted(StorageAction.EncryptEfs));
@@ -231,7 +231,7 @@ public sealed unsafe partial class WindowsEfsPathTests
             using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
             var adapter = new WindowsStorageTransforms(); using var pin = Pin(adapter, path, false, StorageAction.EncryptEfs);
             File.Move(path, path + ".original"); File.WriteAllText(path, "replacement");
-            Assert.Equal("review-stale", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPath(pin, Consent(pin, StorageAction.EncryptEfs), Ct)).Problem.Code);
+            Assert.Equal("review-stale", Assert.Throws<StorageInspectionException>(() => adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct)).Problem.Code);
             Assert.Equal("replacement", File.ReadAllText(path)); Assert.Equal((FileAttributes)0, File.GetAttributes(path) & FileAttributes.Encrypted);
         }
         finally { Directory.Delete(root, true); }
@@ -248,7 +248,7 @@ public sealed unsafe partial class WindowsEfsPathTests
         {
             using var reserve = StorageReviewResources.ReservePins(1); using var native = StorageReviewResources.EnterNative(Ct);
             var adapter = new WindowsStorageTransforms(); using var pin = Pin(adapter, path, true, StorageAction.EncryptEfs);
-            using var held = adapter.OpenEfsPath(pin, Consent(pin, StorageAction.EncryptEfs), Ct, (apiPath, selectedAction) =>
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, StorageAction.EncryptEfs), Ct, (apiPath, selectedAction) =>
             {
                 using var adversary = NtFile.OpenOrThrow(null, @"\??\" + path, NtFile.WriteAttributes | NtFile.Synchronize,
                     NtFile.ShareAll, NtFile.Open, NtFile.DirectoryFile | NtFile.OpenReparsePoint, "Disposable attribute-only junction competitor");

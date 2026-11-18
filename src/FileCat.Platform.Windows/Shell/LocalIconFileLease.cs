@@ -53,7 +53,7 @@ public sealed class LocalIconFileLease : IDisposable
     public static LeaseLinks ForTransfers => WindowsTokenAuthority.IsHighIntegrity ? LeaseLinks.Refuse : LeaseLinks.Follow;
 
     private LocalIconFileLease(string path, bool directory, LeaseLinks links, bool removable = false, string? chosen = null,
-        bool readControl = false)
+        bool readControl = false, bool plainDirectory = false)
     {
         string full = Path.GetFullPath(path);
         int followable = PortableFileOperations.FollowableComponents(full, chosen, file: !directory);
@@ -68,16 +68,20 @@ public sealed class LocalIconFileLease : IDisposable
 
         try
         {
-            var parent = OpenOrThrow(null, @"\??\" + root, Traverse | ReadAttributes | Synchronize,
+            uint rootAccess = Traverse | ReadAttributes | Synchronize;
+            if (plainDirectory && parts.Length == 0) rootAccess |= ListDirectory;
+            var parent = OpenOrThrow(null, @"\??\" + root, rootAccess,
                 ShareRead | ShareWrite, Open, DirectoryFile | OpenReparsePoint, "Open icon drive");
             _handles.Add(parent);
-            if (IsLink(parent)) throw new IOException("The icon drive is a link.");
+            if (plainDirectory ? GetReparseTag(parent) != 0 : IsLink(parent))
+                throw new IOException("The drive root contains a reparse point.");
             for (int i = 0; i < parts.Length; i++)
             {
                 bool leaf = i == parts.Length - 1;
                 bool file = leaf && !directory;
                 uint access = (file ? GenericRead : Traverse | ReadAttributes) | Synchronize;
                 if (leaf && readControl) access |= 0x20000 /* READ_CONTROL */;
+                if (leaf && plainDirectory) access |= ListDirectory;
                 // Denying delete sharing keeps each name bound. Writers stay allowed: a live log, a database or a download
                 // another program is writing is still added to an archive, as before the hold (finding F-M6 of f134ba37).
                 uint share = ShareRead | ShareWrite;
@@ -86,6 +90,11 @@ public sealed class LocalIconFileLease : IDisposable
                 uint tag;
                 try { tag = GetReparseTag(next); }
                 catch { next.Dispose(); throw; }
+                if (plainDirectory && tag != 0)
+                {
+                    next.Dispose();
+                    throw new IOException("The path contains a reparse point.");
+                }
                 if (IsLinkTag(tag))
                 {
                     next.Dispose();
@@ -154,6 +163,15 @@ public sealed class LocalIconFileLease : IDisposable
 
     /// <summary>A folder, refusing any link on the way (for reviewed replacement and deletion).</summary>
     public static LocalIconFileLease? TryOpenDirectory(string path) => TryOpenDirectory(path, LeaseLinks.Refuse);
+
+    /// <summary>Holds an ordinary local directory and its ancestors, including on a removable local drive.</summary>
+    public static LocalIconFileLease? TryOpenPlainDirectory(string path)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try { return new LocalIconFileLease(path, directory: true, LeaseLinks.Refuse, removable: true, plainDirectory: true); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException
+            or System.ComponentModel.Win32Exception) { return null; }
+    }
 
     /// <param name="removable">Also on a removable drive (a USB stick, an SD card), where reviewed replacement and
     /// compared deletion work as on a fixed one; icons and thumbnails are read only from fixed drives.</param>

@@ -23,6 +23,8 @@ public sealed record StorageObservation(StorageObservationState Compression, Sto
 public sealed record StorageMutationResult(StorageObservation Before, StorageObservation? After, StorageEffect Effect, StorageProblem? Problem)
 {
     public bool NativeCallAttempted { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StorageEfsResultKeys? EfsKeys { get; init; }
 }
 public sealed record StorageTarget(ItemRef Source, string Path);
 

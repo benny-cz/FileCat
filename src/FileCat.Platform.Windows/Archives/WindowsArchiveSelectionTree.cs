@@ -28,6 +28,7 @@ internal sealed class WindowsArchiveSelectionTree : IArchiveSelectionTree, IArch
         WindowsArchiveDirectory.ValidateSelectionLeaf(leaf);
         using var child = OpenOrThrow(parent, leaf, ReadAttributes | Synchronize, ShareAll, NtFile.Open, OpenReparsePoint, "Inspect selected archive input");
         uint attributes = GetBasic(child).FileAttributes;
+        if (!IsReparsePoint(attributes)) ArchiveOuterEfs.RequireClear((FileAttributes)attributes, ArchiveOuterEfs.PackUnavailable);
         return new(leaf, IsReparsePoint(attributes) ? ArchiveSelectionKind.Link : IsDirectory(attributes) ? ArchiveSelectionKind.Directory : ArchiveSelectionKind.File,
             ProtectedHexFile.Identity(child).ToString());
     }
@@ -127,7 +128,7 @@ internal sealed class WindowsArchiveSelectionTree : IArchiveSelectionTree, IArch
         var parent = OpenParent(node, ct); WindowsArchiveFile? file = null;
         try
         {
-            ct.ThrowIfCancellationRequested(); file = parent.Owner.OpenSource(node.Entry.Leaf, ArchiveWritePolicy.MaxPayloadBytes);
+            ct.ThrowIfCancellationRequested(); file = parent.Owner.OpenPackingSource(node.Entry.Leaf);
             if (((IArchiveRetainedFile)file).ObjectIdentity != node.Entry.Identity) throw ArchiveCapturedSelection.Changed();
             return new(file, parent);
         }

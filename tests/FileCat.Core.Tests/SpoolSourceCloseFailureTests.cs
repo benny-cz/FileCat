@@ -81,7 +81,7 @@ public sealed class SpoolSourceCloseFailureTests(ITestOutputHelper output)
         public int Read(long offset, Span<byte> buffer) => inner.Read(offset, buffer);
         public void Dispose() { inner.Dispose(); afterClose(); }
     }
-    private sealed class OwnedProvider(string path, Func<IContentSource> first) : ResourceProvider
+    private sealed class OwnedProvider(string path, Func<IContentSource> first) : ResourceProvider, IUnprotectedContentOutput
     {
         public override string Scheme => "owned-spool-source";
         public override string GetDisplayPath(Location location) => location.Path;
@@ -90,5 +90,17 @@ public sealed class SpoolSourceCloseFailureTests(ITestOutputHelper output)
         public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct) => Task.CompletedTask;
         public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
         public override IContentSource OpenContent(ItemRef item) => item.Name == "source-0.tar" ? first() : new FileContentSource(path);
+
+        public void RequireClearOutputSource(Location location, ContentOutputKind kind)
+        {
+            using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            Assert.False(File.GetAttributes(handle).HasFlag(FileAttributes.Encrypted));
+        }
+
+        public IContentSource OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind)
+        {
+            RequireClearOutputSource(item.Parent, kind);
+            return OpenContent(item);
+        }
     }
 }

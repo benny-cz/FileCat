@@ -21,38 +21,48 @@ public static class HexPatchExport
 
     public static void Export(ProtectedHexFile source, HexPatchOverlay overlay, string destination)
     {
-        string full = Path.GetFullPath(destination);
-        if (File.Exists(full) || Directory.Exists(full)) throw new IOException("Patch export requires a new file name; this one already exists.");
-        string temp = Path.Combine(Path.GetDirectoryName(full)!, ".filecat-patch-" + Guid.NewGuid().ToString("N") + ".tmp");
-        overlay.IncludeContributor(source.CaptureHexOrigin());
-        var snapshot = overlay.FreezeForPersistence(); var ranges = snapshot.Ranges;
+        using var review = Prepare(source, overlay, destination);
+        Export(review);
+    }
+
+    internal static HexOutputReview Prepare(ProtectedHexFile source, HexPatchOverlay overlay, string destination) =>
+        HexOutputReview.Prepare(source, overlay, destination, HexOutputKind.Patch);
+
+    internal static int Export(HexOutputReview review, CancellationToken ct = default)
+    {
+        review.Begin(HexOutputKind.Patch, ct);
+        int Write(FileStream stream)
+        {
+            ct.ThrowIfCancellationRequested();
+            review.RequireSourceProtection();
+            JsonSerializer.Serialize(stream, new
+            {
+                format = Format,
+                sourcePath = review.Source.LocalPath,
+                sourceIdentity = review.Source.FileIdentity.ToString(),
+                sourceLength = review.Source.Length,
+                ranges = review.Ranges.Select(r => new { offset = r.Offset, originalBase64 = Convert.ToBase64String(r.Original),
+                    replacementBase64 = Convert.ToBase64String(r.Replacement) }).ToArray(),
+            }, new JsonSerializerOptions { WriteIndented = true });
+            return review.Ranges.Count;
+        }
+        if (review.NeedsEfsConsent) return review.PublishBound(Write, ct);
         bool created = false;
         try
         {
-            if (ranges.Count == 0) throw new IOException("There are no modified bytes to export.");
-            snapshot.RequireUnprotectedOutput("Patch export");
-            source.ValidateForSave(ranges);
-            using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024))
+            using (var stream = new FileStream(review.Temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024))
             {
                 created = true;
-                JsonSerializer.Serialize(stream, new
-                {
-                    format = Format,
-                    sourcePath = source.LocalPath,
-                    sourceIdentity = source.FileIdentity.ToString(),
-                    sourceLength = source.Length,
-                    ranges = ranges.Select(r => new { offset = r.Offset, originalBase64 = Convert.ToBase64String(r.Original),
-                        replacementBase64 = Convert.ToBase64String(r.Replacement) }).ToArray(),
-                }, new JsonSerializerOptions { WriteIndented = true });
+                Write(stream);
                 stream.Flush(flushToDisk: true);
             }
-            File.Move(temp, full, overwrite: false);
+            review.RequireSourceProtection();
+            ct.ThrowIfCancellationRequested();
+            File.Move(review.Temporary, review.Destination, overwrite: false);
+            created = false;
+            return review.Ranges.Count;
         }
-        finally
-        {
-            overlay.FinishSave(false);
-            if (created && File.Exists(temp)) File.Delete(temp);
-        }
+        finally { if (created && File.Exists(review.Temporary)) File.Delete(review.Temporary); }
     }
 
     /// <summary>Parses and bounds-checks a patch file; content is untrusted input.</summary>

@@ -24,7 +24,11 @@ internal sealed unsafe partial class WindowsEfsKeys : IStorageEfsKeys
     [StructLayout(LayoutKind.Sequential)] private struct Blob { public uint Length; public byte* Data; }
     private sealed record Binding(string Container, string Provider, uint Type, uint Flags, uint KeySpec);
 
-    public StorageEfsKeyEvidence ProbeAssociatedCertificate(string invokerSid, string certificateSha1, CancellationToken ct)
+    public StorageEfsKeyEvidence ProbeAssociatedCertificate(string invokerSid, string certificateSha1, CancellationToken ct) =>
+        InspectAssociatedCertificate(invokerSid, certificateSha1, ct, useMatchedCertificate: null);
+
+    private StorageEfsKeyEvidence InspectAssociatedCertificate(string invokerSid, string certificateSha1, CancellationToken ct,
+        Action<nint>? useMatchedCertificate)
     {
         ValidateRequest(invokerSid, certificateSha1);
         ct.ThrowIfCancellationRequested();
@@ -50,14 +54,15 @@ internal sealed unsafe partial class WindowsEfsKeys : IStorageEfsKeys
                 int error = Marshal.GetLastPInvokeError();
                 return Error(invokerSid, certificateSha1, error == NotFound ? false : null, null, error, "efs-certificate-missing", "The exact file-associated certificate was not found in CurrentUser My.");
             }
-            try { return ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct); }
+            try { return ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct, useMatchedCertificate); }
             finally { FreeCertificate(certificate); }
         }
         finally { CloseStore(store, 0); }
     }
 
     /// <summary>Borrow an API-owned certificate context and its caller's scratch charge. Used by native qualification.</summary>
-    internal static StorageEfsKeyEvidence ProbeHeldCertificate(nint certificate, string invokerSid, string certificateSha1, CancellationToken ct)
+    internal static StorageEfsKeyEvidence ProbeHeldCertificate(nint certificate, string invokerSid, string certificateSha1, CancellationToken ct,
+        Action<nint>? useMatchedCertificate = null)
     {
         ValidateRequest(invokerSid, certificateSha1); RequireInvoker(invokerSid, ct);
         var allowance = StorageNativeAllowance.RequireCurrent();
@@ -110,7 +115,9 @@ internal sealed unsafe partial class WindowsEfsKeys : IStorageEfsKeys
                 if (!callerFree || key == 0 || keySpec is not (1 or 2 or uint.MaxValue) || (keySpec == uint.MaxValue) != (binding.Type == 0))
                     return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.Unknown, provider, null,
                         "efs-key-comparison-unestablished", "A fresh owned certificate-to-key comparison was not established; a cached or ambiguous result cannot authorize encryption.");
-                return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.MatchedAvailable, provider, null, null, null);
+                useMatchedCertificate?.Invoke(fresh);
+                return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.MatchedAvailable, provider, null, null, null)
+                    with { Subject = CertificateSubject(fresh) };
             }
             finally
             {
@@ -119,6 +126,17 @@ internal sealed unsafe partial class WindowsEfsKeys : IStorageEfsKeys
             }
         }
         finally { FreeCertificate(fresh); }
+    }
+
+    private static string? CertificateSubject(nint certificate)
+    {
+        const uint simpleDisplay = 4;
+        uint length = GetNameString(certificate, simpleDisplay, 0, 0, null, 0);
+        if (length is < 2 or > 512) return null;
+        Span<char> text = stackalloc char[(int)length];
+        fixed (char* characters = text)
+            return GetNameString(certificate, simpleDisplay, 0, 0, characters, length) == length
+                ? new string(text[..^1]) : null;
     }
 
     private static Binding ReadBinding(nint certificate, CancellationToken ct)
@@ -192,6 +210,7 @@ internal sealed unsafe partial class WindowsEfsKeys : IStorageEfsKeys
     [LibraryImport("crypt32.dll", EntryPoint = "CertFindCertificateInStore", SetLastError = true)] private static partial nint FindCertificate(nint store, uint encoding, uint flags, uint type, void* parameter, nint previous);
     [LibraryImport("crypt32.dll", EntryPoint = "CertCreateContext", SetLastError = true)] private static partial nint CreateContext(uint type, uint encoding, byte* data, uint length, uint flags, void* parameters);
     [LibraryImport("crypt32.dll", EntryPoint = "CertFreeCertificateContext", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool FreeCertificate(nint certificate);
+    [LibraryImport("crypt32.dll", EntryPoint = "CertGetNameStringW")] private static partial uint GetNameString(nint certificate, uint type, uint flags, nint parameter, char* name, uint length);
     [LibraryImport("crypt32.dll", EntryPoint = "CertGetCertificateContextProperty", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetProperty(nint certificate, uint property, void* data, ref uint length);
     [LibraryImport("crypt32.dll", EntryPoint = "CertSetCertificateContextProperty", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool SetProperty(nint certificate, uint property, uint flags, void* data);
     [LibraryImport("crypt32.dll", EntryPoint = "CryptAcquireCertificatePrivateKey", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool Acquire(nint certificate, uint flags, nint parameters, out nint key, out uint keySpec, [MarshalAs(UnmanagedType.Bool)] out bool callerFree);

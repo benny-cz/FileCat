@@ -17,13 +17,46 @@ public sealed class AppServices : IDisposable
 {
     private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null, Core.Archives.ArchiveJobBackends? archiveBackends = null,
         Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null, IOwnership? ownershipOverride = null,
-        int metadataCacheSize = 50_000, Func<long>? metadataClock = null, IStorageTransforms? storageTransforms = null)
+        int metadataCacheSize = 50_000, Func<long>? metadataClock = null, IStorageTransforms? storageTransforms = null,
+        FileCat.Platform.Windows.AdministratorTransferRegistry? administratorRegistry = null)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
-        Settings = JsonFileStore.Load(paths.SettingsFile, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema,
-            () => new AppSettings(), out var settingsStatus);
+        StateLoadStatus settingsStatus;
+        if (OperatingSystem.IsWindows() && !WindowsTokenAuthority.IsHighIntegrity)
+        {
+            _windowsSettings = new WindowsSettingsFile(paths.SettingsFile);
+            Settings = _windowsSettings.Load(out settingsStatus);
+        }
+        else
+            Settings = JsonFileStore.Load(paths.SettingsFile, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema,
+                () => new AppSettings(), out settingsStatus);
         SettingsStatus = settingsStatus;
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                AdministratorTransfers = AdministratorTransferPreferences.ForProfile(paths, administratorRegistry);
+                if (AdministratorTransfers is { } store)
+                {
+                    var snapshot = store.ReadSnapshot();
+                    try { store.LoadAppearance(Settings, snapshot); }
+                    catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+                    {
+                        AdministratorTransferWarning = "Could not load remembered appearance. " + ex.Message;
+                    }
+                    try { RememberedAdministratorWorkspace = store.LoadWorkspace(snapshot); }
+                    catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+                    {
+                        AdministratorWorkspaceWarning = "Could not load the remembered workspace. " + ex.Message;
+                    }
+                }
+            }
+            catch (Exception ex) when (AdministratorTransferPreferences.IsStoreFailure(ex))
+            {
+                AdministratorTransferWarning = "Could not load remembered transfers. " + ex.Message;
+            }
+        }
         Settings.Terminal.Upgrade();
         History = JsonFileStore.Load(paths.HistoryFile, StateJsonContext.Default.HistoryState, HistoryState.CurrentSchema,
             () => new HistoryState(), out var historyStatus);
@@ -264,6 +297,9 @@ public sealed class AppServices : IDisposable
     /// <param name="sftpConnector">Tests connect to an in-memory server instead of SSH.NET.</param>
     public static AppServices CreateForPaths(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector);
 
+    internal static AppServices CreateForPathsWithAdministratorRegistry(AppPaths paths,
+        FileCat.Platform.Windows.AdministratorTransferRegistry registry) => new(paths, administratorRegistry: registry);
+
     internal static AppServices CreateForPathsWithStorageTransforms(AppPaths paths, IStorageTransforms storageTransforms) =>
         new(paths, storageTransforms: storageTransforms);
 
@@ -457,11 +493,32 @@ public sealed class AppServices : IDisposable
             : $"FileCat could not save its {what}: {ex.Message} It keeps trying; until it can, changes to them will not survive a restart.");
     }
 
+    private readonly WindowsSettingsFile? _windowsSettings;
+    internal AdministratorTransferPreferences? AdministratorTransfers { get; }
+    internal string? AdministratorTransferWarning { get; }
+    internal WorkspaceTransfer? RememberedAdministratorWorkspace { get; }
+    internal string? AdministratorWorkspaceWarning { get; }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    internal WindowsSettingsFile NormalAppearanceSettings => _windowsSettings
+        ?? throw new IOException("Open FileCat normally to access saved appearance settings.");
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    internal string TryReplaceNormalAppearance(WindowsSettingsFile.Review review)
+    {
+        if (SettingsReadOnly) throw new IOException("The normal settings are read-only.");
+        return NormalAppearanceSettings.ReplaceAppearance(review, Settings);
+    }
+
     public void SaveSettings()
     {
         if (!SettingsReadOnly)
         {
-            try { JsonFileStore.Save(Paths.SettingsFile, Settings, StateJsonContext.Default.AppSettings); }
+            try
+            {
+                if (OperatingSystem.IsWindows() && _windowsSettings is not null) _windowsSettings.Save(Settings);
+                else JsonFileStore.Save(Paths.SettingsFile, Settings, StateJsonContext.Default.AppSettings);
+            }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { ReportSaveFailure("settings", ex); }
         }
         Saved?.Invoke();

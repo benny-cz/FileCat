@@ -19,6 +19,7 @@ internal sealed class StorageTransformJournalCollector
     internal StorageJournalOutcome? LastOutcome { get; private set; }
     internal StorageJournalSummary? Summary { get; private set; }
     internal long Sequence => _sequence;
+    internal int? JournalSchema => _version == 0 ? null : _version;
     internal bool EffectUncertain => _damaged || _uncertain || Pending is not null;
     internal bool Damaged => _damaged;
     internal bool Ended => _ended;
@@ -46,7 +47,7 @@ internal sealed class StorageTransformJournalCollector
         {
             ValidateTree(envelope);
             var record = envelope.Deserialize<StorageEnvelope>(Json) ?? throw Invalid();
-            if (_damaged || _ended || record.V is not (StorageJournalPolicy.Version or StorageJournalPolicy.EfsVersion) ||
+            if (_damaged || _ended || record.V is not (StorageJournalPolicy.Version or StorageJournalPolicy.EfsVersion or StorageJournalPolicy.EfsRecoveryVersion) ||
                 _version != 0 && record.V != _version || record.Q != _sequence + 1 || record.Job == Guid.Empty ||
                 _job != Guid.Empty && record.Job != _job) throw Invalid();
             switch (record.T)
@@ -56,7 +57,7 @@ internal sealed class StorageTransformJournalCollector
                     if (Header is not null || _sequence != 0) throw Invalid();
                     var header = Payload<StorageJournalHeader>(record);
                     ValidateHeader(header);
-                    if (header.JobId != record.Job || record.V != StorageJournalPolicy.VersionFor(header.Action)) throw Invalid();
+                    if (header.JobId != record.Job || record.V != StorageJournalPolicy.VersionFor(header)) throw Invalid();
                     _job = record.Job; _version = record.V; Header = header;
                     break;
                 }
@@ -119,6 +120,7 @@ internal sealed class StorageTransformJournalCollector
     {
         if (h.JobId == Guid.Empty || h.ReviewRevision == Guid.Empty || h.CreatedUtc.Kind != DateTimeKind.Utc ||
             !Enum.IsDefined(h.Action) || !Enum.IsDefined(h.Scope) ||
+            h.RequiresEfsRecoveryEvidence && h.Action != StorageAction.EncryptEfs ||
             h.Roots.IsDefault || h.Roots.Length is < 1 or > 64) throw Invalid();
         for (int i = 0; i < h.Roots.Length; i++)
         {
@@ -136,6 +138,14 @@ internal sealed class StorageTransformJournalCollector
         if (_uncertain || i.Call != _lastCall + 1 || i.SourceIndex < 0 || i.SourceIndex >= Header!.Roots.Length || !StoragePaths.IsOrdinaryLocalPath(i.Path) ||
             i.Desired != StorageJournalPolicy.Desired(Header.Action) || i.EfsConsentId != Header.EfsConsent?.ConsentId) throw Invalid();
         ValidateIdentity(i.Identity); ValidateObservation(i.Before);
+        if (Header.RequiresEfsRecoveryEvidence != (i.EfsReviewedKey is not null)) throw Invalid();
+        if (i.EfsReviewedKey is { } key)
+        {
+            ValidateIdentity(key.SetupIdentity);
+            if (key.SetupIdentity.ObjectId.Length != 32 || key.SetupIdentity.ObjectId.Any(c => !char.IsAsciiHexDigitUpper(c)) ||
+                !Guid.TryParse(key.SetupIdentity.VolumeBinding, out _) || !ValidSid(key.InvokerSid) ||
+                !Fingerprint(key.CertificateSha1) || !Enum.IsDefined(key.Choice)) throw Invalid();
+        }
         var root = Header.Roots[i.SourceIndex];
         if (i.Identity.Volume != root.Observation.Identity.Volume || i.Identity.VolumeBinding != root.Observation.Identity.VolumeBinding ||
             (!root.Observation.IsDirectory || Header.Scope == StorageScope.SelectedItems) &&
@@ -158,6 +168,14 @@ internal sealed class StorageTransformJournalCollector
         ValidateObservation(r.Before); if (r.After is not null) ValidateObservation(r.After);
         if (!Enum.IsDefined(r.Effect) || r.Before.Identity != intent.Identity || r.After is not null && r.After.Identity != intent.Identity) throw Invalid();
         if (r.Problem is not null) ValidateProblem(r.Problem);
+        if (r.EfsKeys is { } keys)
+        {
+            if (intent.EfsReviewedKey is null || !r.NativeCallAttempted || r.After?.Efs != StorageObservationState.Enabled ||
+                keys.Keys.IsDefault || keys.Keys.Length > 256 || keys.Keys.Any(key => key is null || !Fingerprint(key.CertificateSha1) || !Enum.IsDefined(key.State)) ||
+                keys.Keys.Select(key => key.CertificateSha1).Distinct(StringComparer.Ordinal).Count() != keys.Keys.Length) throw Invalid();
+        }
+        if (intent.EfsReviewedKey is { } reviewed && r.Effect == StorageEffect.Changed && r.EfsKeys?.Matches(reviewed) != true)
+            throw Invalid();
         if (r.NativeCallAttempted)
         {
             if (r.Effect is not (StorageEffect.Changed or StorageEffect.Failed or StorageEffect.Uncertain)) throw Invalid();
@@ -167,6 +185,11 @@ internal sealed class StorageTransformJournalCollector
         }
         else if (r.Effect is StorageEffect.Changed or StorageEffect.Uncertain) throw Invalid();
     }
+
+    private static bool Fingerprint(string? value) => value is { Length: 40 } && value.All(char.IsAsciiHexDigitUpper);
+
+    private static bool ValidSid(string? value) => value is { Length: >= 5 and <= 256 } && value.StartsWith("S-1-", StringComparison.Ordinal) &&
+        value[4..].Split('-').All(part => part.Length > 0 && part.All(char.IsAsciiDigit));
     private void ValidateSummary(StorageJournalSummary s)
     {
         ValidateCounts(s.Counts);

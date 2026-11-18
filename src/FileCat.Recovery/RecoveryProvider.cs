@@ -39,7 +39,7 @@ public sealed record RecoveryVolumeTag(string FileSystem, string Details) : IDis
 /// <see cref="Location.Session"/> the volume number (none for the list of volumes), and <see cref="Location.Path"/> the
 /// folder inside the volume ('/'-separated; items that share a name carry "\0" and their ordinal).
 /// </summary>
-public sealed class RecoveryProvider : ResourceProvider
+public sealed class RecoveryProvider : ResourceProvider, IUnprotectedContentOutput
 {
     private const int MaxSessions = 4;
     // Unix source paths can differ only by case. Admission and cached scans must not cross that boundary.
@@ -394,7 +394,35 @@ public sealed class RecoveryProvider : ResourceProvider
 
     // ---- Content ----------------------------------------------------------------------------------------------
 
-    public override IContentSource? OpenContent(ItemRef item)
+    public override IContentSource? OpenContent(ItemRef item) => OpenContent(item, output: null);
+
+    IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind) => OpenContent(item, kind);
+
+    void IUnprotectedContentOutput.RequireClearOutputSource(Location location, ContentOutputKind kind)
+    {
+        lock (_scanLock)
+        {
+            var session = GetSession(location, CancellationToken.None);
+            if (!IsDevice(location) && session.Source is ImageFileSource image)
+                VerifyImageOutput(image, kind);
+        }
+    }
+
+    private static void VerifyImageOutput(ImageFileSource image, ContentOutputKind? output)
+    {
+        var protection = image.ObserveEfsProtection();
+        if (output is null || protection == OutputEfsObservation.State.Clear) return;
+        if (protection == OutputEfsObservation.State.Unknown)
+            throw new IOException("FileCat cannot verify Windows EFS protection for this disk image, so it cannot prepare this output.");
+        throw new IOException(output switch
+        {
+            ContentOutputKind.Drag => "This disk image uses Windows EFS. FileCat cannot stage its files for dragging without losing that protection. Use a reviewed recovery that preserves EFS.",
+            ContentOutputKind.DiskCache => "This disk image uses Windows EFS. FileCat cannot keep its recovered content in a disk cache that lacks EFS protection.",
+            _ => "This disk image uses Windows EFS. FileCat cannot verify that this recovery will retain EFS protection.",
+        });
+    }
+
+    private IContentSource? OpenContent(ItemRef item, ContentOutputKind? output)
     {
         lock (_scanLock)
         {
@@ -409,13 +437,24 @@ public sealed class RecoveryProvider : ResourceProvider
             // A same-size in-place rewrite can restore mtime and keep the same file identity. Without
             // a native change token there is no way to attest that a held image still has the scanned
             // bytes, so do not issue a reader that would return unauthenticated deleted-file content.
-            if (!IsDevice(item.Parent) && session.VerifyImageContent is null)
+            bool device = IsDevice(item.Parent);
+            if (!device && session.VerifyImageContent is null)
                 throw new IOException("This disk image is on a filesystem without a usable change token. Move it to a filesystem with change tracking, then open it again before recovering deleted content.");
+            Action? verifySource = device ? session.VerifyListing : session.VerifyImageContent;
+            if (OperatingSystem.IsWindows() && !device && session.Source is ImageFileSource image)
+            {
+                VerifyImageOutput(image, output);
+                var verifyRevision = verifySource;
+                verifySource = () =>
+                {
+                    VerifyImageOutput(image, output);
+                    verifyRevision?.Invoke();
+                };
+            }
             var window = session.Window(volume);
             // A device may change after this content handle opens. Keep the selected path
             // bound around every later read, including reads already in progress at a swap.
-            try { return new RecoveryContent(window, found, ownsVolume: !IsDevice(item.Parent),
-                session.VerifyImageContent ?? (IsDevice(item.Parent) ? session.VerifyListing : null)); }
+            try { return new RecoveryContent(window, found, ownsVolume: !device, verifySource); }
             catch { window.Dispose(); throw; }
         }
     }
@@ -575,6 +614,7 @@ public sealed class RecoveryProvider : ResourceProvider
                     try
                     {
                         var scanned = Scan(cached.Source, device, ct, searchFreeSpace, sink, searchDisk);
+                        if (!device && cached.Source is ImageFileSource image) image.ObserveEfsProtection();
                         VerifySourceListing(cached.Source);
                         cached.Volumes = scanned;
                         cached.DiskSearched = searchDisk;
@@ -648,6 +688,7 @@ public sealed class RecoveryProvider : ResourceProvider
                     };
                 }
                 var volumes = Scan(source, device, ct, searchImageFreeSpace, sink, searchImageDisk);
+                if (!device && source is ImageFileSource scannedImage) scannedImage.ObserveEfsProtection();
                 VerifySourceListing(source);
                 var session = new Session(source, volumes, device,
                     verifyImageContent, () => VerifySourceListing(source))

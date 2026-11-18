@@ -1,0 +1,7 @@
+# EFS admission for legacy ZIP packing
+
+The legacy ZIP rebuilder refuses EFS-protected file sources and selected folders with an EFS default during expansion, before stage creation. It checks the actual input stream before and after each Windows payload read. An observed change stops the rebuild and invokes the existing unpublished-stage cleanup. An input's archive download mark is read only after binding the held source and the mark stream to the same native identity and checking their current protection. Archive moves require the same checks when reviewing the retained original.
+
+The Windows 11 x64 VM passed 38 focused tests with five fixture-specific skips. Both ZIP routes refused an encrypted direct source, an encrypted nested source and an encrypted folder before staging. The legacy fixtures encrypted a clear file after expansion or just before origin-mark acquisition. The resulting refusal kept the payload and original mark and published no ZIP. Ubuntu passed 46 ordinary archive regressions with two Windows-specific skips. macOS passed 42 with six filesystem-specific skips. See `.tmp/filecat-efs-legacy-pack-tests.xml`, `.tmp/filecat-efs-legacy-pack-clear-tests.xml` and the guest `.tmp/efs-legacy-pack/results.xml` files.
+
+Together with the native packing checkpoint, this qualifies E-OUT6 refusal for the tested Windows 11 x64 NTFS source and output routes. The existing archive creation paths keep this boundary until a reviewed export can cover the worker and all temporary artifacts.

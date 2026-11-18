@@ -361,12 +361,13 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             // What this file system cannot replace bound to its review (a link, or on Linux, macOS or a network share, by
             // the owner's policy) is not offered for replacement, and a policy to replace asks instead: before anything
             // is extracted, not refused after it.
-            bool replaceable = !existing.IsDirectory && !existing.IsLink && Fs.CanReplaceReviewed(dst);
+            bool efs = IsEfsProtected(existing);
+            bool replaceable = !existing.IsDirectory && !existing.IsLink && !efs && Fs.CanReplaceReviewed(dst);
             var policy = Job.Request.Options.Conflicts;
             if (!replaceable && policy is ConflictPolicy.Replace or ConflictPolicy.ReplaceIfNewer) policy = ConflictPolicy.Ask;
             DecisionAction Ask(FileSystemItemInfo shown)
             {
-                var request = new ConflictRequest("An item with this name already exists", Path.GetFileName(dst), incoming, shown, item.Name, dst,
+                var request = new ConflictRequest(efs ? "The destination uses Windows EFS" : "An item with this name already exists", Path.GetFileName(dst), incoming, shown, item.Name, dst,
                     replaceable, false, shown.IsDirectory, incoming.ModifiedUtc > shown.ModifiedUtc, Path.GetFileName(Unique(dst)), null);
                 atQuestion = ReviewAtQuestion(request, dst);
                 return Job.Ask(request).Action;
@@ -417,7 +418,10 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         try
         {
             // Read once from start to end: a large archive member is then decompressed straight into the copy.
-            content = Content.ProgressiveContent.Sequential(provider.OpenContent(item));
+            var opened = OperatingSystem.IsWindows() && provider is IUnprotectedContentOutput derived
+                ? derived.OpenUnprotectedOutput(item, ContentOutputKind.Extraction)
+                : provider.OpenContent(item);
+            content = Content.ProgressiveContent.Sequential(opened);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {

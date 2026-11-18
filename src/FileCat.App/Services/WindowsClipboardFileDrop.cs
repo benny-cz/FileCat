@@ -34,6 +34,13 @@ internal static partial class WindowsClipboardFileDrop
     [LibraryImport("user32.dll")]
     private static partial nint GetClipboardData(uint format);
 
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool EmptyClipboard();
+
+    [LibraryImport("user32.dll")]
+    private static partial nint SetClipboardData(uint format, nint memory);
+
     [LibraryImport("user32.dll", EntryPoint = "RegisterClipboardFormatW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial uint RegisterClipboardFormat(string format);
 
@@ -69,6 +76,58 @@ internal static partial class WindowsClipboardFileDrop
     private static extern uint DragQueryFile(nint drop, uint index, StringBuilder? path, uint length);
 
     internal static uint Sequence() => OperatingSystem.IsWindows() ? GetClipboardSequenceNumber() : 0;
+
+    // Use eagerly stored Unicode text only. No file, custom format or OLE data object is used.
+    private const uint CfUnicodeText = 13;
+
+    internal static unsafe string? ReadBoundedText(int maximumCharacters)
+    {
+        if (!OperatingSystem.IsWindows() || !OpenClipboard(0)) return null;
+        try
+        {
+            nint memory = GetClipboardData(CfUnicodeText);
+            nuint bytes = memory != 0 ? GlobalSize(memory) : 0;
+            if (bytes < sizeof(char)) return null;
+            nint pointer = GlobalLock(memory);
+            if (pointer == 0) return null;
+            try
+            {
+                var text = new ReadOnlySpan<char>((void*)pointer, (int)Math.Min(bytes / sizeof(char), (nuint)maximumCharacters + 1));
+                int end = text.IndexOf('\0');
+                return end >= 0 ? new string(text[..end]) : null;
+            }
+            finally { GlobalUnlock(memory); }
+        }
+        finally { CloseClipboard(); }
+    }
+
+    internal static unsafe bool WriteText(nint owner, string text)
+    {
+        if (!OperatingSystem.IsWindows() || owner == 0) return false;
+        nint memory = GlobalAlloc(2 /* GMEM_MOVEABLE */, (nuint)(text.Length + 1) * sizeof(char));
+        if (memory == 0) return false;
+        try
+        {
+            nint pointer = GlobalLock(memory);
+            if (pointer == 0) return false;
+            try
+            {
+                var chars = new Span<char>((void*)pointer, text.Length + 1);
+                text.AsSpan().CopyTo(chars);
+                chars[^1] = '\0';
+            }
+            finally { GlobalUnlock(memory); }
+            if (!OpenClipboard(owner)) return false;
+            try
+            {
+                if (!EmptyClipboard() || SetClipboardData(CfUnicodeText, memory) == 0) return false;
+                memory = 0; // Windows now owns the data, even after the source window exits.
+                return true;
+            }
+            finally { CloseClipboard(); }
+        }
+        finally { if (memory != 0) GlobalFree(memory); }
+    }
 
     internal sealed record VirtualDescriptor(string Name, bool IsDirectory, DateTime? ModifiedUtc = null, long? Size = null);
 

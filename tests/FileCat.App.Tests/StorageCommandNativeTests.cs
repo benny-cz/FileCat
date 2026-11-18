@@ -25,6 +25,71 @@ public sealed class StorageCommandNativeTests
         Dispatcher.UIThread.RunJobs();
     }
 
+    [AvaloniaFact]
+    public async Task Efs_review_transfers_the_displayed_consent_to_real_encryption_and_decryption_jobs()
+    {
+        Assert.SkipWhen(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_UI") != "1" || !WindowsStorageTransforms.IsQualifiedHost,
+            "Explicit disposable Windows 11 x64 client, medium integrity, NTFS EFS review qualification.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 760, height: 620,
+            storageTransforms: new WindowsStorageTransforms().CreateEfsJobCandidate());
+        try
+        {
+            string path = Path.Join(root, "files", "a.txt");
+            var sources = new[] { ItemRef.ForFileSystemPath(path, EntryKind.File) };
+            var decisions = new List<DecisionRequest>();
+            services.Jobs.DecisionRequested += pending =>
+            {
+                decisions.Add(pending.Request);
+                pending.Resolve(pending.Request switch
+                {
+                    ConfirmRequest => new(DecisionAction.Proceed),
+                    StorageEfsRecoveryDecision recovery => new(DecisionAction.DeclareEfsRecovery)
+                        { EfsRecovery = new(recovery.Keys[0].CertificateSha1, 0) },
+                    _ => new(DecisionAction.CancelJob),
+                });
+            };
+
+            async Task Apply(StorageAction action, string label, string secondConsent)
+            {
+                bool encrypt = action == StorageAction.EncryptEfs;
+                using var review = services.Jobs.CaptureStorageSelection(sources);
+                using var form = new StorageChangeDialog(review, services.Io, "fixture", [false], efs: true);
+                var showing = form.ShowAsync(vm.Dialogs);
+                try
+                {
+                    form.Body.Children.OfType<RadioButton>().Single(button => AutomationProperties.GetName(button) == label).IsChecked = true;
+                    await Until(() => form.Ready);
+                    Assert.Equal(encrypt ? StorageObservationState.Disabled : StorageObservationState.Enabled,
+                        Assert.Single(review.State.Roots).Observation?.Efs);
+                    var checks = form.Body.Children.OfType<CheckBox>().Where(control => control.IsVisible).ToArray();
+                    Assert.Equal(2, checks.Length);
+                    Assert.All(checks, check => Assert.False(check.IsChecked));
+                    Assert.Contains(checks, check => AutomationProperties.GetName(check)?.Contains(secondConsent, StringComparison.Ordinal) == true);
+                    foreach (var check in checks) check.IsChecked = true;
+                    var button = window.GetVisualDescendants().OfType<Button>().Single(control => control is not RadioButton && control.Content as string == label);
+                    Assert.True(button.IsEnabled);
+                    button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    using var choice = Assert.IsType<StorageChangeChoice>(await showing);
+                    Assert.Equal(!encrypt, File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+                    var job = services.Jobs.SubmitStorage(choice.Roots, choice.Approval, _ => { }, choice.Mode);
+                    await Until(() => job.State.IsFinished());
+                    Assert.Equal(JobState.Completed, job.State);
+                    Assert.Equal(1, job.StorageResult!.Counts.Changed);
+                    Assert.Equal(choice.Approval.EfsConsent, job.Request.StorageTransform!.EfsConsent);
+                    Assert.Equal(encrypt, File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+                    Assert.Equal("alpha", File.ReadAllText(path));
+                }
+                finally { ((OverlayDialogService)vm.Dialogs).CancelAll(); await showing; }
+            }
+
+            await Apply(StorageAction.EncryptEfs, "Encrypt with EFS", "remove compression from all data streams");
+            await Apply(StorageAction.DecryptEfs, "Decrypt", "selected files will lose EFS protection");
+            Assert.Collection(decisions, request => Assert.IsType<ConfirmRequest>(request),
+                request => Assert.IsType<StorageEfsRecoveryDecision>(request));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData("refresh")]
     [InlineData("marks")]
