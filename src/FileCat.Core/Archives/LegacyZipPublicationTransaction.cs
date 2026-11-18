@@ -11,6 +11,7 @@ internal interface ILegacyZipBackupRestorer
     LegacyZipRollbackResult RollbackLegacyZip(string archive, string backup, string stage,
         LegacyZipRollbackFile published, LegacyZipRollbackFile original);
     string? CleanupLegacyZipBackup(string archive, string backup, LegacyZipRollbackFile published, LegacyZipRollbackFile original);
+    string? CleanupLegacyZipStage(string stage, string identity, ArchiveObjectVersion? verified, string? origin);
 }
 
 internal sealed record LegacyZipRollbackFile(ArchiveObjectVersion Version, string? Origin, bool Encrypted);
@@ -50,6 +51,7 @@ internal sealed class LegacyZipPublicationTransaction
     private string? backup;
     private bool prepared;
     private bool attempted;
+    private string? failureMessage;
     private string? mark;
     private string? requiredOrigin;
     private readonly ArchiveMoveSources? move;
@@ -250,6 +252,7 @@ internal sealed class LegacyZipPublicationTransaction
                 }
                 if (rebuildRetained)
                     RetainForRecovery(temp, $"FileCat restored the original archive. The rebuilt ZIP was kept for review at {temp}.");
+                else stageCreated = false;
                 published = false;
                 if (encryptedBackup)
                     throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
@@ -399,15 +402,29 @@ internal sealed class LegacyZipPublicationTransaction
         if (recoveryRequired) return;
         if (error is ArchiveWriteException { Message: ArchiveOuterEfs.UpdateStageUnavailable })
             RetainForRecovery(temp, error.Message + " The temporary ZIP was kept for review at " + temp + ".");
-        else
-            Journal.Done(step, StepOutcome.Failed, error.Message);
+        else failureMessage = error.Message;
     }
 
     public void CleanupUnpublishedStage()
     {
-        if (published || recoveryRequired || !stageCreated || !File.Exists(temp)) return;
+        if (published || recoveryRequired) return;
         try
         {
+            if (!stageCreated) return;
+            if (updating && Fs is ILegacyZipBackupRestorer native)
+            {
+                string? reason = "The original temporary ZIP identity is unavailable.";
+                if (createdStageIdentity is { } identity)
+                {
+                    ArchiveObjectVersion? verified = intendedPublishedDigest is not null
+                        ? new(identity, intendedPublishedLength, PreparedSha256) : null;
+                    reason = native.CleanupLegacyZipStage(temp, identity, verified, requiredOrigin);
+                }
+                if (reason is not null)
+                    RetainForRecovery(temp, $"FileCat could not confirm cleanup of the temporary ZIP at {temp}. {reason}");
+                return;
+            }
+            if (!File.Exists(temp)) return;
             RequireCreatedStage(Fs.GetFileIdentity(temp));
             if (updating)
             {
@@ -423,6 +440,10 @@ internal sealed class LegacyZipPublicationTransaction
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Issue(IssueSeverity.Warning, temp, "The temporary ZIP was kept at " + temp + ": " + ex.Message, StepOutcome.Failed);
+        }
+        finally
+        {
+            if (!recoveryRequired && failureMessage is { } message) Journal.Done(step, StepOutcome.Failed, message);
         }
     }
 

@@ -194,7 +194,8 @@ public sealed class WindowsArchiveEfsUpdateTests
     [InlineData(true)]
     public void Legacy_update_refuses_changed_or_encrypted_stage_after_verification(bool encrypt)
     {
-        RequireEfs();
+        RequireLocalNtfs();
+        if (encrypt) RequireEfs();
         string root = Directory.CreateTempSubdirectory("filecat-legacy-stage-drift-").FullName;
         string target = Path.Join(root, "original.zip");
         try
@@ -211,13 +212,14 @@ public sealed class WindowsArchiveEfsUpdateTests
             string stage = Assert.IsType<string>(files.Stage);
             Assert.Equal(original, File.ReadAllBytes(target));
             Assert.Empty(Directory.GetFiles(root, "*.bak"));
+            Assert.True(journal.NeedsRecovery);
+            Assert.Equal(files.StageBytes, File.ReadAllBytes(stage));
             if (encrypt)
             {
                 var refusal = Assert.IsType<ArchiveWriteException>(error);
                 Assert.Equal(ArchiveWriteReason.PublicationUnavailable, refusal.Reason);
                 Assert.Equal(ArchiveOuterEfs.UpdateStageUnavailable, refusal.Message);
                 Assert.True(File.GetAttributes(stage).HasFlag(FileAttributes.Encrypted));
-                Assert.Equal(files.StageBytes, File.ReadAllBytes(stage));
                 Assert.Contains(job.Issues, issue => issue.Path == stage && issue.Message.Contains("kept", StringComparison.Ordinal));
                 var cleanup = files.DeleteClearOwnedFile(stage, files.GetFileIdentity(stage)!);
                 Assert.False(cleanup!.Deleted);
@@ -226,7 +228,7 @@ public sealed class WindowsArchiveEfsUpdateTests
             else
             {
                 Assert.Contains("changed after verification", Assert.IsType<IOException>(error).Message, StringComparison.Ordinal);
-                Assert.False(File.Exists(stage));
+                Assert.Contains(job.Issues, issue => issue.Path == stage && issue.Outcome == StepOutcome.Uncertain);
             }
         }
         finally { Directory.Delete(root, recursive: true); }
@@ -638,6 +640,75 @@ public sealed class WindowsArchiveEfsUpdateTests
                 Assert.Contains("before replacement", failure.Message, StringComparison.Ordinal);
                 Assert.Equal(original, File.ReadAllBytes(target));
             }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData("unchanged")]
+    [InlineData("canceled before verification")]
+    [InlineData("changed bytes")]
+    [InlineData("new stream")]
+    [InlineData("encrypted stage")]
+    public void Legacy_abort_confirms_stage_cleanup_before_closing_recovery(string change)
+    {
+        RequireLocalNtfs();
+        if (change == "encrypted stage") RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-legacy-stage-cleanup-").FullName;
+        string archive = Path.Join(root, "original.zip"), journals = Path.Join(root, "journals");
+        try
+        {
+            using (var zip = ZipFile.Open(archive, ZipArchiveMode.Create)) zip.CreateEntry("original.txt");
+            byte[] original = File.ReadAllBytes(archive);
+            var plan = new ArchivePlan(archive, ArchiveBaseline.Of(archive), []);
+            var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan }, "Legacy ZIP aborted stage", "", [], []);
+            bool kept = change is "changed bytes" or "new stream" or "encrypted stage";
+            string stage;
+            using (var journal = JobJournal.Create(journals, job))
+            {
+                var update = new LegacyZipPublicationTransaction(job, new WindowsFileOperations(), journal, plan, archive, root,
+                    replaceFile: (prepared, _, _) =>
+                    {
+                        if (change == "changed bytes")
+                        {
+                            byte[] changed = File.ReadAllBytes(prepared);
+                            changed[0] ^= 1;
+                            File.WriteAllBytes(prepared, changed);
+                        }
+                        else if (change == "new stream") File.WriteAllText(prepared + ":late", "independent stream");
+                        else if (change == "encrypted stage") File.Encrypt(prepared);
+                        throw new IOException("Owned sharing refusal before replacement", unchecked((int)0x80070020));
+                    });
+                using (var source = new ArchiveMutationReadStream(archive)) update.CaptureOpenedSource(source);
+                using (var target = update.CreateStage())
+                using (var zip = new ZipArchive(target, ZipArchiveMode.Create, leaveOpen: true)) zip.CreateEntry("rebuilt.txt");
+                stage = Assert.Single(Directory.GetFiles(root, ".filecat-zip-*.tmp"));
+                Exception failure;
+                if (change == "canceled before verification") failure = new OperationCanceledException("Owned cancellation during rebuild");
+                else
+                {
+                    using (var verify = update.OpenStageRead()) update.CaptureVerifiedStage(verify);
+                    update.Prepare();
+                    failure = Assert.Throws<IOException>(() => update.Publish(() => throw new InvalidOperationException("Unexpected commit.")));
+                }
+                update.RecordFailure(failure);
+                update.CleanupUnpublishedStage();
+                Assert.Equal(kept, journal.NeedsRecovery);
+                if (!kept) journal.Finish(JobState.Failed, "Owned stage cleaned after abort.");
+            }
+
+            Assert.Equal(original, File.ReadAllBytes(archive));
+            Assert.Equal(kept, File.Exists(stage));
+            if (change == "encrypted stage") Assert.True(File.GetAttributes(stage).HasFlag(FileAttributes.Encrypted));
+            if (change == "new stream") Assert.Equal("independent stream", File.ReadAllText(stage + ":late"));
+            if (kept)
+            {
+                var interrupted = Assert.Single(JournalRecovery.Scan(journals));
+                Assert.True(interrupted.HasLegacyZipRecovery);
+                Assert.Equal(stage, Assert.Single(interrupted.OpenIntents).Staged);
+                Assert.Empty(JournalRecovery.FindStagedLeftovers(interrupted));
+            }
+            else Assert.Empty(JournalRecovery.Scan(journals));
         }
         finally { Directory.Delete(root, recursive: true); }
     }

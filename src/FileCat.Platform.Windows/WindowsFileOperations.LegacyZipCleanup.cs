@@ -14,6 +14,40 @@ public partial class WindowsFileOperations
         LegacyZipRollbackFile published, LegacyZipRollbackFile original) =>
         CleanupLegacyZipBackupCore(archive, backup, published, original, beforeCommit: null);
 
+    string? ILegacyZipBackupRestorer.CleanupLegacyZipStage(string stage, string identity, ArchiveObjectVersion? verified,
+        string? origin)
+    {
+        using var parent = LocalIconFileLease.TryOpenPlainDirectory(Path.GetDirectoryName(stage)!);
+        if (parent is null) return "The temporary ZIP's folder could not be held.";
+        try
+        {
+            string leaf = Path.GetFileName(stage);
+            bool transacted = RequireLegacyZipCleanupMode(parent.LastHandle);
+            if (verified is not null)
+            {
+                var expected = new LegacyZipRollbackFile(verified, origin, Encrypted: false);
+                RemoveReviewedZip(parent.LastHandle, leaf, expected, exactOrigin: null, transacted, beforeCommit: null);
+            }
+            else
+            {
+                RemoveZip(parent.LastHandle, leaf, transacted, (file, transaction) =>
+                {
+                    CheckLegacyZipRollbackProtection(file, encrypted: false);
+                    if (ProtectedHexFile.Identity(file).ToString() != identity)
+                        throw new IOException("A different file now has the temporary ZIP's name.");
+                    var mark = ReadZipCleanupOrigin(file, transaction);
+                    RequireZipOrigin(mark, origin);
+                    return (RandomAccess.GetLength(file), mark);
+                }, beforeCommit: null);
+            }
+            return null;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or Win32Exception or NotSupportedException)
+        {
+            return error.Message;
+        }
+    }
+
     internal static string? CleanupLegacyZipBackupCore(string archive, string backup,
         LegacyZipRollbackFile published, LegacyZipRollbackFile original, Action? beforeCommit)
     {
@@ -95,15 +129,15 @@ public partial class WindowsFileOperations
         LegacyZipRollbackFile expected, ArchiveOriginSnapshot? exactOrigin)
     {
         ArchiveOriginSnapshot mark = VerifyLegacyZipRollbackFile(file, expected, allowMissingOrigin: exactOrigin is not null,
-            readOrigin: () => transaction is null ? ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier)
-                : ReadTransactedZipOrigin(file, transaction));
+            readOrigin: () => ReadZipCleanupOrigin(file, transaction));
         if (exactOrigin is not null && mark.Digest != exactOrigin.Digest)
             throw new IOException("The retained ZIP's download mark changed during review.");
         return mark;
     }
 
-    private static ArchiveOriginSnapshot ReadTransactedZipOrigin(SafeFileHandle file, WindowsFileTransaction transaction)
+    private static ArchiveOriginSnapshot ReadZipCleanupOrigin(SafeFileHandle file, WindowsFileTransaction? transaction)
     {
+        if (transaction is null) return ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier);
         CheckLegacyZipRollbackProtection(file, encrypted: false);
         try
         {
@@ -118,18 +152,23 @@ public partial class WindowsFileOperations
     }
 
     private static void RemoveReviewedZip(SafeFileHandle directory, string leaf, LegacyZipRollbackFile expected,
-        ArchiveOriginSnapshot? exactOrigin, bool transacted, Action? beforeCommit)
+        ArchiveOriginSnapshot? exactOrigin, bool transacted, Action? beforeCommit) =>
+        RemoveZip(directory, leaf, transacted,
+            (file, transaction) => (expected.Version.Length, VerifyZipForCleanup(file, transaction, expected, exactOrigin)), beforeCommit);
+
+    private static void RemoveZip(SafeFileHandle directory, string leaf, bool transacted,
+        Func<SafeFileHandle, WindowsFileTransaction?, (long Length, ArchiveOriginSnapshot Origin)> review, Action? beforeCommit)
     {
-        using var transaction = transacted ? new WindowsFileTransaction("FileCat ZIP backup cleanup") : null;
+        using var transaction = transacted ? new WindowsFileTransaction("FileCat ZIP cleanup") : null;
         using (var file = OpenZipForCleanup(directory, leaf, transaction, removing: true))
         {
-            var mark = VerifyZipForCleanup(file, transaction, expected, exactOrigin);
-            WindowsArchiveNative.Regular(file, expected.Version.Length, artifact: true, mayRename: true);
+            var (length, mark) = review(file, transaction);
+            WindowsArchiveNative.Regular(file, length, artifact: true, mayRename: true);
             if (transaction is not null)
             {
                 if (!WindowsArchiveNative.HasNoExtendedAttributes(file))
                     throw new IOException("The retained ZIP has extended attributes or their absence could not be verified.");
-                WindowsArchiveNative.RequireSnapshotStreams(file, expected.Version.Length, mark);
+                WindowsArchiveNative.RequireSnapshotStreams(file, length, mark);
             }
             CheckLegacyZipRollbackProtection(file, encrypted: false);
             if (transaction is null) WindowsArchiveNative.DeleteExact(file);
@@ -144,7 +183,7 @@ public partial class WindowsFileOperations
         int status = TryOpen(directory, leaf, ReadAttributes | Synchronize, ShareAll, Open, OpenReparsePoint, out var remaining);
         using (remaining)
         {
-            if (status != NameNotFound) throw new IOException("FileCat could not confirm that the reviewed backup name is now vacant.");
+            if (status != NameNotFound) throw new IOException("FileCat could not confirm that the reviewed ZIP name is now vacant.");
         }
     }
 }

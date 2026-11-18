@@ -74,15 +74,20 @@ public partial class WindowsFileOperations
                 () => CheckLegacyZipRollbackProtection(file, expected.Encrypted)))
             throw new IOException("A ZIP object's identity or bytes changed before recovery or cleanup.");
         var mark = readOrigin?.Invoke() ?? ReadLegacyZipRollbackOrigin(file, expected.Encrypted);
+        RequireZipOrigin(mark, expected.Origin, allowMissingOrigin);
+        return mark;
+    }
+
+    private static void RequireZipOrigin(ArchiveOriginSnapshot mark, string? expected, bool allowMissingOrigin = false)
+    {
         string? text = null;
         if (mark.State == ArchiveOriginState.Present)
         {
             using var reader = new StreamReader(new MemoryStream(mark.Bytes.ToArray(), writable: false), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
             text = reader.ReadToEnd();
         }
-        if ((!allowMissingOrigin || text is not null) && !string.Equals(text, expected.Origin, StringComparison.Ordinal))
+        if ((!allowMissingOrigin || text is not null) && !string.Equals(text, expected, StringComparison.Ordinal))
             throw new IOException("A ZIP object's download mark changed before recovery or cleanup.");
-        return mark;
     }
 
     private static ArchiveOriginSnapshot ReadLegacyZipRollbackOrigin(SafeFileHandle file, bool encrypted)
