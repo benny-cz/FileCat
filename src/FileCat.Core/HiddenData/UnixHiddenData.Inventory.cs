@@ -54,7 +54,7 @@ public sealed partial class UnixHiddenData
 
     internal sealed record InventoryNames(ImmutableArray<HiddenItem> Items, HiddenInventoryState State, string? Reason);
 
-    private static InventoryNames CollectInventory(string path, Func<byte[]?, nint, nint> list, Func<string, nint> sizeOf,
+    internal static InventoryNames CollectInventory(string path, Func<byte[]?, nint, nint> list, Func<string, nint> sizeOf,
         CancellationToken ct)
     {
         for (int attempt = 0; attempt < 3; attempt++)
@@ -71,7 +71,7 @@ public sealed partial class UnixHiddenData
             nint got = list(names, names.Length);
             error = got < 0 ? Marshal.GetLastPInvokeError() : 0;
             ct.ThrowIfCancellationRequested();
-            if (got < 0 && error == 34 && attempt < 2) continue; // inventory grew, bounded complete restart
+            if (got < 0 && error == 34) continue; // inventory grew, bounded complete restart
             if (got < 0) throw InventoryError(path, error);
             if (got > names.Length) return new([], HiddenInventoryState.Failed, "Native names length exceeds the supplied buffer.");
             var parsed = ParseInventoryNames(names.AsSpan(0, (int)got));

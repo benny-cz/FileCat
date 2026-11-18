@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Runtime.InteropServices;
 using System.Text;
 using FileCat.Core.HiddenData;
 using FileCat.Core.Listing;
@@ -115,6 +116,27 @@ public sealed class HiddenInventoryTests
         var full = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 1025).Select(i => $"user.{i}\0")));
         var bounded = UnixHiddenData.ParseInventoryNames(full);
         Assert.Equal(HiddenInventoryState.Partial, bounded.State); Assert.Equal(1024, bounded.Items.Length);
+    }
+
+    [Fact]
+    public void Growing_Unix_attribute_names_report_partial_after_two_retries_without_reading_lengths()
+    {
+        int probes = 0;
+        int fills = 0;
+        var result = UnixHiddenData.CollectInventory("fixture", (buffer, size) =>
+        {
+            if (buffer is null) return 16 + ++probes;
+            Assert.Equal(16 + probes, size);
+            fills++;
+            Marshal.SetLastPInvokeError(34); // ERANGE: names outgrew the reported size
+            return -1;
+        }, _ => throw new InvalidOperationException("No complete name was returned."), TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, probes);
+        Assert.Equal(3, fills);
+        Assert.Equal(HiddenInventoryState.Partial, result.State);
+        Assert.Empty(result.Items);
+        Assert.Contains("kept growing", result.Reason);
     }
 
     [Fact]
