@@ -30,7 +30,8 @@ public sealed partial class DiskSpaceWindow
             : "This view currently holds no private index reservation.");
         if (scratchDirectory is not null)
             Add("Private scratch folder", AnalysisNames.DisplayPath(scratchDirectory, OperatingSystem.IsWindows() ? AnalysisNameRules.Windows : AnalysisNameRules.Unix));
-        Add("Standard scans", $"Choose up to {AnalysisLimits.Roots:N0} locations. Standard scans use bounded memory and can finish early with partial results. " +
+        Add("Standard scans", $"Choose up to {AnalysisLimits.Roots:N0} locations. Standard scans use bounded memory unless you request a private index and secure scratch is available. " +
+            "A scan that reaches its limit can finish early with partial results. " +
             "For more complete coverage after a limit, scan a smaller folder or exclude folders you do not need.");
         Add("Shared capacity", $"FileCat allows up to {AnalysisLimits.Sessions:N0} open analysis tabs and {AnalysisLimits.ActiveScans:N0} active scans. " +
             "Scans on the same device take turns. Close an analysis to free its capacity.");

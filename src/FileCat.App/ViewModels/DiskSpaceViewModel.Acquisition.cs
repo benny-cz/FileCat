@@ -21,6 +21,7 @@ public sealed partial class DiskSpaceViewModel
     internal AppServices? HistoryServices => _services;
     internal CancellationToken HistoryLifetime => _selectionLifetime.Token;
     internal long? ScratchReservedBytes => _session?.ScratchReservedBytes;
+    internal bool CanChooseStandardIndex => _services is not null && !_indexedStorage;
 
     internal static DiskSpaceViewModel ForCurrentSource(AppServices services, AnalysisKind kind) => new(services, path =>
     {
@@ -74,11 +75,15 @@ public sealed partial class DiskSpaceViewModel
     public Task StartAsync(IReadOnlyList<string> roots, ImmutableArray<AnalysisFolderExclusion> exclusions = default, bool usePanelFilter = false) =>
         StartAnalysisAsync(roots, null, exclusions, usePanelFilter);
 
+    internal Task StartAsync(IReadOnlyList<string> roots, ImmutableArray<AnalysisFolderExclusion> exclusions, bool usePanelFilter, bool usePrivateIndex) =>
+        StartAnalysisAsync(roots, null, exclusions, usePanelFilter, usePrivateIndex: usePrivateIndex);
+
     internal Task StartReviewedCurrentSourceAsync(string path, Func<string, CancellationToken, Task<bool>> review, CancellationToken cancellation) =>
         StartAnalysisAsync([path], null, [], false, review, cancellation);
 
     private async Task StartAnalysisAsync(IReadOnlyList<string> roots, FastNtfsRequest? fast, ImmutableArray<AnalysisFolderExclusion> exclusions,
-        bool usePanelFilter, Func<string, CancellationToken, Task<bool>>? reviewCurrentSource = null, CancellationToken cancellation = default)
+        bool usePanelFilter, Func<string, CancellationToken, Task<bool>>? reviewCurrentSource = null, CancellationToken cancellation = default,
+        bool usePrivateIndex = false)
     {
         if (_disposed || IsPreparing || Running || _services is null) return;
         if (_bindingCloseError is not null) { SetStatus("Analysis handles could not be closed. Close this analysis before starting another."); return; }
@@ -119,16 +124,16 @@ public sealed partial class DiskSpaceViewModel
         {
             WindowsAnalysisBackend.NtfsScan? ntfs = null;
             var components = Components;
-            if (fast is not null || !_preparedInput.SequenceEqual(roots, StringComparer.Ordinal) || _prepared.Count != roots.Count)
+            bool indexedStorage = _indexedStorage || usePrivateIndex || fast is not null;
+            if (fast is not null || _acquisition?.IndexedStorage != indexedStorage ||
+                !_preparedInput.SequenceEqual(roots, StringComparer.Ordinal) || _prepared.Count != roots.Count)
             {
                 await ReleaseUnstartedAsync();
                 preparation.Token.ThrowIfCancellationRequested();
-                // Fast NTFS needs private indexed storage. Standard scans keep their configured storage mode.
-                // Both paths enforce the same native private-state exclusion boundary.
                 // Prepare private directories before capturing sources so those writes cannot stale
                 // a selected source directory version. No decoded inventory configures this mode.
                 _acquisition = await AnalysisIndexedAcquisition.PrepareAsync(_services, preparation.Token,
-                    indexedStorage: _indexedStorage || fast is not null, preparationDeviceChanged: key => _preparationDevice = key);
+                    indexedStorage: indexedStorage, preparationDeviceChanged: key => _preparationDevice = key);
                 SetContinuityNotice(_acquisition.Profile);
                 _privateStorageUnavailable = _acquisition.MemoryPreparationNotice is not null;
                 AcquisitionNotice = _acquisition.MemoryPreparationNotice ?? (_acquisition.IndexedStorage

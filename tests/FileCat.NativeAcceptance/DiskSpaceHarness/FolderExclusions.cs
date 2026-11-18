@@ -7,10 +7,8 @@ using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Analysis;
-using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
-using FileCat.Platform.Windows.Analysis;
 
 namespace DiskSpaceHarness;
 
@@ -74,7 +72,7 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => model.Tree?.Snapshot.Phase == AnalysisPhase.Finished && model.PanelFilterApplied);
             var snapshot = model.Tree!.Snapshot;
             var skipped = snapshot.BoundaryTotals.GetValueOrDefault(AnalysisBoundaryKind.FolderExclusion);
-            if (snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy || model.SourceCloseFailures != 0 || skipped != 1 ||
+            if (snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy || model.SourceCloseFailures != 0 || model.IsIndexedRuntimePreview || skipped != 1 ||
                 snapshot.Nodes.Any(node => node.Name.StartsWith("item-", StringComparison.Ordinal)) ||
                 !snapshot.Nodes.Any(node => node.Name == "Small files" && !node.IncludedByPolicy) ||
                 !snapshot.Nodes.Any(node => node.Name == "photo.png" && node.IncludedByPolicy))
@@ -171,7 +169,7 @@ internal sealed partial class HarnessApp
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
-                readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true };
+                readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true, standardIndexChoice = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }
@@ -241,61 +239,70 @@ internal sealed partial class HarnessApp
     {
         var services = _services!;
         var cancellation = _indexedLifetime.Token;
-        await using var capture = await AnalysisIndexedAcquisition.PrepareAsync(services, cancellation);
-        IAnalysisBackend? source = await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(_fixture), _ => OperatingSystem.IsWindows()
-            ? (IAnalysisBackend)new WindowsAnalysisBackend(_fixture) : new UnixAnalysisBackend(_fixture), cancellation);
-        try
+        _tabs!.SelectedIndex = 1;
+        var model = _models[1];
+        ListBox? IndexedList() => window.GetVisualDescendants().OfType<ListBox>().SingleOrDefault(control =>
+            control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Indexed analysis entries");
+        Button? VisibleButton(string label) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+            button.IsEffectivelyVisible && button.Content as string == label);
+        CheckBox? IndexChoice() => window.GetVisualDescendants().OfType<CheckBox>().SingleOrDefault(control =>
+            control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Use a private index for standard analysis");
+        await ReadyAsync(() => IndexChoice() is { IsEnabled: true } && VisibleButton("Start analysis") is { IsEnabled: true });
+        var option = IndexChoice()!;
+        if (option.IsChecked == true) throw new InvalidOperationException("Standard setup selected private indexing automatically.");
+        option.BringIntoView();
+        await ReadyAsync(() => option.TranslatePoint(default, window) is { } top && top.Y >= 0 &&
+            top.Y + option.Bounds.Height <= window.ClientSize.Height);
+        option.IsChecked = true;
+        VisibleButton("Start analysis")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => model.CanOpenRecordedResult && VisibleButton("Open recorded result") is { IsEnabled: true });
+        if (model.Phase != AnalysisPhase.Finished || model.SourceCloseFailures != 0)
+            throw new IOException("The native standard indexed scan did not finish.");
+        await using var lease = await model.AcquireRecordedDatasetAsync(cancellation);
+        VisibleButton("Open recorded result")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => IndexedList() is { ItemCount: 1 } && VisibleButton("Resource limits…") is { IsEnabled: true });
+        var limits = VisibleButton("Resource limits…")!;
+        limits.BringIntoView();
+        await ReadyAsync(() => limits.TranslatePoint(default, window) is { } top && top.Y >= 0 &&
+            top.Y + limits.Bounds.Height <= window.ClientSize.Height + 1);
+        long reserved = lease.ScratchReservedBytes;
+        if (reserved <= 0) throw new InvalidOperationException("The native recorded index held no scratch reservation.");
+        limits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => VisibleButton("Close limits") is { IsDefault: true, IsCancel: true });
+        var rows = window.GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible).ToArray();
+        var rules = OperatingSystem.IsWindows() ? AnalysisNameRules.Windows : AnalysisNameRules.Unix;
+        var reservation = rows.SingleOrDefault(text => text.Text == $"{DiskSpaceViewModel.Bytes((UInt128)reserved)} for this index and its derived data.");
+        if (!rows.Any(text => text.Text == AnalysisNames.DisplayPath(services.Paths.AnalysisScratchDirectory, rules)) || reservation is null)
+            throw new InvalidOperationException("The limits overlay did not show the recorded index's scratch location and actual reservation.");
+        if (VisibleButton("Close limits") is not { } closeLimits || closeLimits.TranslatePoint(default, window) is not { } closeTop ||
+            closeTop.Y < 0 || closeTop.Y + closeLimits.Bounds.Height > window.ClientSize.Height)
+            throw new InvalidOperationException("The recorded resource limits close button was clipped.");
+        if (reservation.TranslatePoint(default, window) is not { } reservationTop || reservationTop.Y < 0 ||
+            reservationTop.Y + reservation.Bounds.Height >= closeTop.Y)
+            throw new InvalidOperationException("The scratch reservation is below the limits viewport.");
+        await RecipeFrameAsync("folder-exclusions-scratch.png", true, cancellation);
+        closeLimits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => VisibleButton("Close limits") is null);
+        var list = IndexedList()!;
+        var root = list.Items.OfType<AnalysisHierarchyRow>().Single();
+        list.SelectedItem = root;
+        window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible &&
+            button.Content as string == "Explore selected folder").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => list.Items.OfType<AnalysisHierarchyRow>().Any(row => row.Path.Name == "Package.app"));
+        list.SelectedItem = list.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Name == "Package.app");
+        await ReadyAsync(() => VisibleButton("Copy path") is { IsEnabled: true } &&
+            window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+                text.Text == "Captured metadata ready for Package.app."));
+        var copy = VisibleButton("Copy path")!;
+        var viewport = copy.GetVisualAncestors().OfType<ScrollViewer>().First();
+        await ReadyAsync(() =>
         {
-            var session = capture.Start([source]); source = null;
-            using var stop = cancellation.Register(session.Stop);
-            await session.Completion.WaitAsync(TimeSpan.FromSeconds(45), cancellation);
-            if (session.Snapshot().Phase != AnalysisPhase.Finished || session.SourceCloseFailures != 0)
-                throw new IOException("The native clipboard fixture did not finish its indexed scan.");
-            await using var lease = await session.AcquireDatasetAsync(cancellation) ?? throw new IOException("Missing indexed clipboard fixture.");
-            var explorer = await window.AddIndexedSessionAsync(lease, AnalysisMetric.Files, cancellation: cancellation, services: services);
-            ListBox? IndexedList() => window.GetVisualDescendants().OfType<ListBox>().SingleOrDefault(control =>
-                control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Indexed analysis entries");
-            Button? VisibleButton(string label) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
-                button.IsEffectivelyVisible && button.Content as string == label);
-            await ReadyAsync(() => IndexedList() is { ItemCount: 1 } && VisibleButton("Resource limits…") is { IsEnabled: true });
-            var limits = VisibleButton("Resource limits…")!;
-            limits.BringIntoView();
-            await ReadyAsync(() => limits.TranslatePoint(default, window) is { } top && top.Y >= 0 &&
-                top.Y + limits.Bounds.Height <= window.ClientSize.Height + 1);
-            long reserved = lease.ScratchReservedBytes;
-            if (reserved <= 0) throw new InvalidOperationException("The native recorded index held no scratch reservation.");
-            limits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await ReadyAsync(() => VisibleButton("Close limits") is { IsDefault: true, IsCancel: true });
-            var rows = window.GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible).ToArray();
-            var rules = OperatingSystem.IsWindows() ? AnalysisNameRules.Windows : AnalysisNameRules.Unix;
-            var reservation = rows.SingleOrDefault(text => text.Text == $"{DiskSpaceViewModel.Bytes((UInt128)reserved)} for this index and its derived data.");
-            if (!rows.Any(text => text.Text == AnalysisNames.DisplayPath(services.Paths.AnalysisScratchDirectory, rules)) || reservation is null)
-                throw new InvalidOperationException("The limits overlay did not show the recorded index's scratch location and actual reservation.");
-            if (VisibleButton("Close limits") is not { } closeLimits || closeLimits.TranslatePoint(default, window) is not { } closeTop ||
-                closeTop.Y < 0 || closeTop.Y + closeLimits.Bounds.Height > window.ClientSize.Height)
-                throw new InvalidOperationException("The recorded resource limits close button was clipped.");
-            if (reservation.TranslatePoint(default, window) is not { } reservationTop || reservationTop.Y < 0 ||
-                reservationTop.Y + reservation.Bounds.Height >= closeTop.Y)
-                throw new InvalidOperationException("The scratch reservation is below the limits viewport.");
-            await RecipeFrameAsync("folder-exclusions-scratch.png", true, cancellation);
-            closeLimits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await ReadyAsync(() => VisibleButton("Close limits") is null);
-            var list = IndexedList()!;
-            var root = list.Items.OfType<AnalysisHierarchyRow>().Single();
-            list.SelectedItem = root;
-            window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible &&
-                button.Content as string == "Explore selected folder").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await ReadyAsync(() => explorer.Page?.ParentId == root.Path.Id && explorer.PendingRequests == 0);
-            list.SelectedItem = list.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Name == "Package.app");
-            await ReadyAsync(() => explorer.Inspection?.Row.Path.Name == "Package.app" &&
-                window.GetVisualDescendants().OfType<Button>().Any(button => button.IsEffectivelyVisible &&
-                    button.IsEnabled && button.Content as string == "Copy path"));
-            var copy = window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible &&
-                button.Content as string == "Copy path");
-            copy.BringIntoView();
-            await ReadyAsync(() => copy.TranslatePoint(default, window) is { } top && top.Y >= 0 &&
-                top.Y + copy.Bounds.Height <= window.ClientSize.Height + 1);
-        }
-        finally { if (source is not null) await AnalysisIo.ReleaseAsync(services.Io, source); }
+            if (copy.TranslatePoint(default, viewport) is not { } top || viewport.Viewport.Height <= 0) return false;
+            double bottom = top.Y + copy.Bounds.Height;
+            if (top.Y >= 0 && bottom <= viewport.Viewport.Height + 1) return true;
+            double move = top.Y < 0 ? top.Y : bottom - viewport.Viewport.Height;
+            viewport.Offset = new Vector(viewport.Offset.X, Math.Max(0, viewport.Offset.Y + move));
+            return false;
+        });
     }
 }

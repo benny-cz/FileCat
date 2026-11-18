@@ -255,7 +255,9 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly Button _start = new() { Content = "Start analysis", Classes = { "primary" } };
         private readonly ComboBox _components = new() { ItemsSource = new[] { "Standard allocation", "Detailed allocation (partial component support)" }, MinWidth = 250 };
         private const string UsePanelFilterLabel = "Use panel filter for display after scan";
+        private const string UsePrivateIndexLabel = "Use a private index for standard analysis";
         private readonly CheckBox _usePanelFilter = new() { Content = new TextBlock { Text = UsePanelFilterLabel, TextWrapping = TextWrapping.Wrap } };
+        private readonly CheckBox _usePrivateIndex = new() { Content = new TextBlock { Text = UsePrivateIndexLabel, TextWrapping = TextWrapping.Wrap } };
         private readonly TextBlock _panelFilterStatus = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         private readonly TextBox _query = new() { PlaceholderText = "Search within observations…", MinWidth = 180, MaxLength = AnalysisLimits.QueryBytes };
         private readonly CheckBox _case = new() { Content = "Case sensitive" };
@@ -321,6 +323,13 @@ public sealed partial class DiskSpaceWindow : Window
             var scratchDirectory = Model.HistoryServices?.Paths.AnalysisScratchDirectory;
             var setupLimits = window.ResourceLimitsButton(scratchDirectory, () => Model.ScratchReservedBytes);
             _setup.Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _components, setupLimits } });
+            if (Model.CanChooseStandardIndex)
+            {
+                AutomationProperties.SetName(_usePrivateIndex, UsePrivateIndexLabel);
+                ToolTip.SetTip(_usePrivateIndex, new RichTip("Private scratch index", detail:
+                    "Keep recorded metadata for exploration after the scan. Scratch and free-space limits apply. Secure scratch must be available."));
+                _setup.Children.Add(_usePrivateIndex);
+            }
             _setup.Children.Add(new TextBlock { Text = "Scans stay within each filesystem and record links as boundaries. Cloud files use local metadata.", TextWrapping = TextWrapping.Wrap });
             AddFolderExclusionSetup();
             if (Model.OfferedPanelFilter is not null)
@@ -487,7 +496,8 @@ public sealed partial class DiskSpaceWindow : Window
             _reviewCleanup.Margin = new Thickness(10, 0, 10, 4);
             _basketFooter.Children.Add(_reviewCleanup);
             Grid.SetRow(_basketFooter, 3); Children.Add(_basketFooter); Grid.SetRow(_status, 4); _status.Margin = new Thickness(10, 3, 10, 8); Children.Add(_status);
-            _start.Click += async (_, _) => await Model.StartAsync(_rootEditors.Select(e => e.Text ?? "").ToArray(), CaptureFolderExclusions(), _usePanelFilter.IsChecked == true);
+            _start.Click += async (_, _) => await Model.StartAsync(_rootEditors.Select(e => e.Text ?? "").ToArray(), CaptureFolderExclusions(),
+                _usePanelFilter.IsChecked == true, _usePrivateIndex.IsChecked == true);
             _pause.Click += (_, _) => Model.PauseOrResume(); _stop.Click += (_, _) => Model.Stop();
             _mode.SelectionChanged += (_, _) => { Model.Chart = _mode.SelectedIndex switch { 1 => "Sunburst", 2 => "Table", _ => "Treemap" }; Refresh(); };
             _color.SelectionChanged += (_, _) => { Model.ColorDimension = (AnalysisColorDimension)Math.Clamp(_color.SelectedIndex, 0, 2); Refresh(); };
@@ -674,6 +684,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _roots.IsEnabled = !Model.IsPreparing; _start.IsEnabled = !Model.IsPreparing; _start.IsVisible = configuring;
                 _folderExclusionSetup.IsEnabled = !Model.IsPreparing;
                 _usePanelFilter.IsEnabled = !Model.IsPreparing;
+                _usePrivateIndex.IsEnabled = !Model.IsPreparing;
                 RefreshFastNtfsSetup();
                 RowDefinitions[0].Height = setupOnly ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
                 RowDefinitions[2].Height = setupOnly ? new GridLength(0) : new GridLength(1, GridUnitType.Star);

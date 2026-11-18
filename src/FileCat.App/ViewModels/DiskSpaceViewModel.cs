@@ -198,7 +198,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         try { Selection.BindIdentity(tree.Snapshot.Identity); }
         catch { lease?.Dispose(); order.Dispose(); throw; }
         if (_session is not null)
-            AcquisitionNotice = (IsIndexedRuntimePreview ? "A bounded preview is displayed while the scan records its results. Open the recorded result after scanning to explore every recorded entry." :
+            AcquisitionNotice = (IsIndexedRuntimePreview ? "This view displays the bounded preview." :
                 _acquisition?.MemoryPreparationNotice ?? "This analysis uses bounded memory. It stops with partial results if the memory limit is reached.") +
                 (PrivateBoundaryNotice(tree.Snapshot) is { } notice ? " " + notice : "");
         if (Tree is not null && Tree.GroupingDimension != tree.GroupingDimension || Selection.Scope != scope) Selection.ResetNavigation(scope);

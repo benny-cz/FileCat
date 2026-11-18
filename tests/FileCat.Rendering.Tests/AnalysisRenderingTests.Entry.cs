@@ -5,6 +5,7 @@ using Avalonia.VisualTree;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
+using FileCat.Core.Analysis;
 using FileCat.Core.Commands;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
@@ -50,6 +51,7 @@ public sealed partial class AnalysisRenderingTests
             var panelFilter = analyzer.GetVisualDescendants().OfType<CheckBox>().Single(box =>
                 AutomationLabel(box) == "Use panel filter for display after scan");
             Assert.False(panelFilter.IsChecked == true);
+            Assert.False(PrivateIndexChoice(analyzer).IsChecked == true);
 
             Click(AnalyzerButton(analyzer, "Continue in FileCat"));
             Assert.False(analyzer.IsVisible);
@@ -62,6 +64,8 @@ public sealed partial class AnalysisRenderingTests
             Click(AnalyzerButton(analyzer, "Start analysis"));
             await Until(() => analyzer.HasTemporaryWork && analyzer.GetVisualDescendants().OfType<TextBlock>()
                 .Any(text => text.Text?.Contains("Finished", StringComparison.Ordinal) == true), timeout: TimeSpan.FromSeconds(20));
+            Assert.DoesNotContain(analyzer.GetVisualDescendants().OfType<Button>(),
+                button => button.IsEffectivelyVisible && button.Content as string == "Open recorded result");
             var filter = analyzer.GetVisualDescendants().OfType<TextBox>()
                 .Single(box => box.PlaceholderText == "Search within observations…");
             Assert.True(string.IsNullOrEmpty(filter.Text));
@@ -93,6 +97,78 @@ public sealed partial class AnalysisRenderingTests
             Assert.True(analyzer.HasTemporaryWork);
         }
         finally { await CloseDiskSpaceEntryAsync(profile.Services, vm, main); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DiskSpaceEntryStandardIndexChoiceUsesVerifiedScratchOrExplainsMemoryFallback(bool unavailable)
+    {
+        OrdinaryPreparation(); using var styles = new ProductStyles(); using var profile = new PreparationFixture();
+        string source = Path.Combine(profile.Root, "source"); Directory.CreateDirectory(source);
+        string file = Path.Combine(source, "captured.bin"); File.WriteAllText(file, "keep");
+        if (unavailable) await CorruptProfileForMemoryAsync(profile);
+        var originalState = unavailable ? File.ReadAllBytes(profile.Services.Paths.AnalysisPrivateStateFile) : null;
+        profile.Services.DiskSpace.OpenFromTools([source]);
+        var window = profile.Services.DiskSpace.Window!;
+        try
+        {
+            var index = PrivateIndexChoice(window);
+            Assert.False(index.IsChecked == true);
+            index.IsChecked = true;
+            Click(AnalyzerButton(window, "Start analysis"));
+            Button? RecordedResult() => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+                button.IsEffectivelyVisible && button.Content as string == "Open recorded result");
+            if (unavailable)
+            {
+                await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+                    text.Text?.Contains("Secure private storage is unavailable. Using bounded memory", StringComparison.Ordinal) == true));
+                Assert.Null(RecordedResult());
+                Assert.Equal(originalState, File.ReadAllBytes(profile.Services.Paths.AnalysisPrivateStateFile));
+            }
+            else
+            {
+                await Until(() => RecordedResult() is { IsEnabled: true }, timeout: TimeSpan.FromSeconds(30));
+                Click(RecordedResult()!);
+                await Until(() => window.SessionCount == 2 && window.GetVisualDescendants().OfType<ListBox>().Any(list =>
+                    list.IsEffectivelyVisible && AutomationLabel(list) == "Indexed analysis entries" && list.ItemCount == 1), timeout: TimeSpan.FromSeconds(30));
+            }
+            Assert.Equal("keep", File.ReadAllText(file));
+        }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
+    }
+
+    [AvaloniaFact]
+    public async Task DiskSpaceEntryChangingIndexChoiceRequiresReviewOfNewResolvedBinding()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Requires Unix symbolic-link creation.");
+        OrdinaryPreparation(); using var profile = new PreparationFixture();
+        string first = Path.Combine(profile.Root, "first"), second = Path.Combine(profile.Root, "second"), alias = Path.Combine(profile.Root, "alias");
+        Directory.CreateDirectory(first); Directory.CreateDirectory(second);
+        File.WriteAllText(Path.Combine(first, "first.bin"), "first");
+        File.WriteAllText(Path.Combine(second, "second.bin"), "second");
+        Directory.CreateSymbolicLink(alias, first);
+        using var model = new DiskSpaceViewModel(profile.Services);
+        try
+        {
+            await model.StartAsync([alias]);
+            Assert.Equal(AnalysisPhase.Ready, model.Phase);
+            Assert.EndsWith("/first", model.ResolvedTargets, StringComparison.Ordinal);
+            File.Delete(alias); Directory.CreateSymbolicLink(alias, second);
+            await model.StartAsync([alias], [], false, usePrivateIndex: true);
+            Assert.Equal(AnalysisPhase.Ready, model.Phase);
+            Assert.EndsWith("/second", model.ResolvedTargets, StringComparison.Ordinal);
+            File.Delete(alias); Directory.CreateSymbolicLink(alias, first);
+            await model.StartAsync([alias], [], false, usePrivateIndex: true);
+            await Until(() => model.Phase == AnalysisPhase.Finished);
+            await model.RebuildAsync(true);
+            await Until(() => model.CanOpenRecordedResult);
+            await using var captured = await model.AcquireRecordedDatasetAsync(CancellationToken.None);
+            var rows = await captured.ReadPathsAsync(0);
+            Assert.Contains(rows.Rows, row => row.Name == "second.bin");
+            Assert.DoesNotContain(rows.Rows, row => row.Name == "first.bin");
+        }
+        finally { model.Dispose(); await model.CloseCompletion; }
     }
 
     [AvaloniaFact]
@@ -164,6 +240,9 @@ public sealed partial class AnalysisRenderingTests
         Frame(window);
         return window.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == label);
     }
+
+    private static CheckBox PrivateIndexChoice(Window window) => window.GetVisualDescendants().OfType<CheckBox>()
+        .Single(box => AutomationLabel(box) == "Use a private index for standard analysis");
 
     private static MenuItem ContextItem(ContextMenu menu, string label) =>
         menu.Items.OfType<MenuItem>().Single(item => item.Header as string == label);

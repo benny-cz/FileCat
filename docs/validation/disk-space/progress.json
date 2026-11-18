@@ -49,6 +49,13 @@
     "desktop": { "run": "r1537", "windowsVm": "passed", "mac": "passed with Retina compositor capture", "ubuntuVm": "passed" },
     "coverage": "Resource limits shows the configured path and the captured index's current reservation at open, including derived indexes. A bounded-memory view explains that it has no index reservation. The compact desktop cases leave the source unchanged and close their owned processes."
   },
+  "standardIndexChoice": {
+    "mainMergedThrough": "ea79fe36",
+    "tests": { "run": "r1542", "windowsVm": { "passed": 24, "skipped": 1 }, "mac": { "passed": 25, "skipped": 0 }, "ubuntuVm": { "passed": 25, "skipped": 0 } },
+    "desktop": { "run": "r1544", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
+    "coverage": "Ordinary standard scan setup offers an unchecked private-index choice. Verified storage retains the recorded result, unavailable storage gives the bounded-memory fallback, and changed storage choice during resolved-location review requires fresh review. Native results preserve the source and close their owned FileCat processes.",
+    "remaining": "Full-scale, theme, accessibility and release-package qualification remain open."
+  },
   "packageFolderPresentation": {
     "tests": { "run": "r1482", "windowsVm": 109, "mac": 109, "ubuntuVm": 109 },
     "desktop": { "run": "r1483", "windowsVm": "passed", "mac": { "functional": "passed", "compositorRun": "r1488" }, "ubuntuVm": "passed" },
