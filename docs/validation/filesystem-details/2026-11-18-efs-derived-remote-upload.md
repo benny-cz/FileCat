@@ -9,3 +9,7 @@ On the Windows 11 x64 VM at medium integrity, all 34 remote upload and retained 
 The Windows archive, Recovery and stream-staging suite passed all 35 cases. Two controlled source changes verified that retry and read-back both attempted fresh protection admission. The job discarded the owned stage and wrote no final output after the second admission was refused. The result is in `.tmp/filecat-stream-output-readmission-tests.xml`.
 
 Ubuntu and macOS each passed the 944-case upload fault suite, including the 56 provider-close failures found during verification. Each system then passed 2,638 remote cases with 31 fixture skips, including ordinary live FTP, FTPES, FTPS and SFTP coverage. These runs qualify the reader cleanup boundary and ordinary transports. Native EFS input across live transports remains open.
+
+## Live retained edit upload
+
+A follow-up uses the [transaction-backed live edit snapshot](2026-11-17-efs-archive-edit.md#live-native-snapshot-hold-and-retirement). During an SFTP job's controlled server write, the fixture attempted to encrypt the actual 2,097,169-byte snapshot. Windows refused the change, and the job verified and published the exact captured bytes. The full derived upload and retained edit suite passed 34 cases without skips or failures on the Windows 11 x64 VM. See `.tmp/live-snapshot-sftp-r1.xml`.

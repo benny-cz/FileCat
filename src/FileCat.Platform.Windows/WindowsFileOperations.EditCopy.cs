@@ -29,6 +29,69 @@ public partial class WindowsFileOperations : IEditCopyPublisher
         }
     }
 
+    ISealedEditSnapshot? IEditCopyPublisher.SealSnapshot(EditDirectoryLease directory, string leaf, FileStream writer, CancellationToken ct)
+    {
+        const string refusal = ArchiveOuterEfs.EditTemporaryOutputUnavailable;
+        ArchiveOuterEfs.RequireClear(writer.SafeFileHandle, refusal);
+        if (!WindowsFileTransaction.CanEncrypt(writer.SafeFileHandle)) return null;
+
+        string identity = directory.Identify(writer.SafeFileHandle);
+        // Keep the actual file alive across the writer close. TxF cannot open an ordinary file with a live writer.
+        using var anchor = directory.OpenSharedRecord(leaf, ct);
+        if (directory.Identify(anchor.SafeFileHandle) != identity) throw ChangedSnapshot();
+        writer.Dispose();
+        ct.ThrowIfCancellationRequested();
+
+        WindowsFileTransaction? transaction = null;
+        FileStream? payload = null;
+        try
+        {
+            transaction = new WindowsFileTransaction("FileCat retained edit snapshot");
+            SafeFileHandle handle = transaction.OpenHeldChild(directory.Handle, leaf, GenericRead | Delete | Synchronize);
+            try { payload = new FileStream(handle, FileAccess.Read); }
+            catch { handle.Dispose(); throw; }
+            ArchiveOuterEfs.RequireClear(payload.SafeFileHandle, refusal);
+            if (directory.Identify(payload.SafeFileHandle) != identity) throw ChangedSnapshot();
+            return new SealedWindowsEditSnapshot(directory, leaf, payload, transaction);
+        }
+        catch (Exception error)
+        {
+            try { payload?.Dispose(); } finally { transaction?.Dispose(); }
+            ArchiveOuterEfs.RequireClear(anchor.SafeFileHandle, refusal);
+            if (error is Win32Exception) throw new IOException("FileCat could not hold the snapshot's EFS state. " + error.Message, error);
+            throw;
+        }
+
+        static IOException ChangedSnapshot() => new("The private snapshot changed while FileCat sealed it. Its files are kept.");
+    }
+
+    private sealed class SealedWindowsEditSnapshot(EditDirectoryLease directory, string leaf, FileStream payload,
+        WindowsFileTransaction transaction) : ISealedEditSnapshot
+    {
+        public FileStream Payload => payload;
+
+        public void Retire(ArchiveFileObservation expected, CancellationToken ct)
+        {
+            directory.ReviewRemoval(payload, leaf, expected, ct);
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                WindowsFileTransaction.RemoveOnClose(payload.SafeFileHandle);
+                payload.Dispose();
+                transaction.Commit("Windows could not confirm removal of the private edit snapshot.");
+            }
+            catch (Win32Exception error)
+            {
+                throw new IOException("The private edit snapshot could not be removed: " + directory.Path, error);
+            }
+        }
+
+        public void Dispose()
+        {
+            try { payload.Dispose(); } finally { transaction.Dispose(); }
+        }
+    }
+
     string? IEditCopyPublisher.PublishEditCopy(SafeFileHandle capture, string sha256, long length, string destination, Action checkpoint) =>
         PublishEditCopyCore(capture, sha256, length, destination, checkpoint, beforeCommit: null);
 

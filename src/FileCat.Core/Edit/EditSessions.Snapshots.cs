@@ -29,6 +29,7 @@ public sealed partial class EditSessionStore
             if(source.GetRevision()!=revision)throw new IOException("The working file changed during storage admission.");
             var capture=session.CreateDirectory("commit-"+Guid.NewGuid().ToString("N"),ct,removable:true);
             EditDirectoryLease? files=null;FileStream? output=null;var records=new List<EditPublishedRecord>(2);
+            ISealedEditSnapshot? seal = null;
             try
             {
                 files=capture.CreateDirectory("files",ct,removable:true);
@@ -47,8 +48,12 @@ public sealed partial class EditSessionStore
                 var bytes=WriteWorkingCopy(source,path,ct,revision,check:Check,outputFactory:Borrow);
                 output.Flush(true);files.CopyOrigin(output,leaf,origin,ct);
                 File.SetLastWriteTimeUtc(output.SafeFileHandle,new DateTime(revision.ModifiedTicks,DateTimeKind.Utc));output.Flush(true);
+                Check();
+                seal = (fs as IEditCopyPublisher)?.SealSnapshot(files, leaf, output, ct);
+                if (seal is not null) output = seal.Payload;
                 var observed=files.ObserveSnapshot(output,leaf,ct, protectionRefusal: ArchiveOuterEfs.EditTemporaryOutputUnavailable);
-                if(observed.Version.Sha256!=bytes.Sha256||observed.Version.Length!=bytes.Length||source.GetRevision()!=revision||source.ReadOrigin().Digest!=origin.Digest)
+                if(observed.Version.Sha256!=bytes.Sha256||observed.Version.Length!=bytes.Length||observed.Origin.Digest!=origin.Digest||
+                    source.GetRevision()!=revision||source.ReadOrigin().Digest!=origin.Digest)
                     throw new IOException("The working file or private snapshot changed during complete capture.");
                 Check();source.Dispose();
                 // A copy whose bytes are made waits longer for the gate than one asking to start, rather than lose its work.
@@ -58,12 +63,13 @@ public sealed partial class EditSessionStore
                     Identity=observed.Version.Identity,Length=bytes.Length,Sha256=bytes.Sha256,Metadata=observed.MetadataDigest,Origin=origin.Digest},Json),ct));
                 Check();allocation.Review(ct);string rootIdentity=root.Identity;
                 var snapshot=new NativeEditSnapshot(capture,files,output,observed,records.ToArray(),record,admission,
-                    token=>OpenCaptureMutation(rootIdentity,token));
+                    token=>OpenCaptureMutation(rootIdentity,token), seal);
                 var result=new EditCommitCopy(snapshot,bytes.Crc,TrackLiveCapture(record.Id));admission.Transfer();return result;
             }
             catch
             {
-                try{output?.Dispose();}finally{try{foreach(var item in records)item.Dispose();}finally{try{files?.Dispose();}finally{capture.Dispose();}}}
+                try { if (seal is null) output?.Dispose(); else seal.Dispose(); }
+                finally { try { foreach(var item in records)item.Dispose(); } finally { try { files?.Dispose(); } finally { capture.Dispose(); } } }
                 throw; // All uncertain artifacts remain in the recorded session namespace.
             }
         }

@@ -269,6 +269,46 @@ public sealed class WindowsArchiveEfsEditTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_live_snapshot_blocks_encryption_while_jobs_read_it_and_retires_its_own_file(bool marked)
+    {
+        RequireEfs();
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-live-edit-seal-").FullName;
+        string archive = Path.Combine(root, "source.zip");
+        var provider = new ZipProvider(Path.Combine(root, "cache"));
+        try
+        {
+            CreateZip(archive);
+            var store = new EditSessionStore(Path.Combine(root, "sessions"), new WindowsFileOperations(), WindowsEditDirectoryLease.OpenRoot);
+            var record = store.Create(provider, Member(provider, archive), ct);
+            const string zone = "[ZoneTransfer]\r\nZoneId=3\r\n";
+            if (marked) File.WriteAllText(record.WorkingPath + ":Zone.Identifier", zone, Encoding.Unicode);
+            using var copy = store.PrepareCommit(record, root, ct);
+            string capture = Path.GetDirectoryName(Path.GetDirectoryName(copy.Path))!;
+            var retained = Assert.IsAssignableFrom<IArchiveRetainedFile>(copy.Native);
+            var observed = retained.Observe(ct);
+            Assert.Equal(marked, observed.Origin.State == ArchiveOriginState.Present);
+            if (marked) Assert.Equal(File.ReadAllBytes(record.WorkingPath + ":Zone.Identifier"), observed.Origin.Bytes);
+
+            using (var reader = retained.OpenReadView(observed, ct))
+            {
+                AssertBlockedEncryption(Record.Exception(() => File.Encrypt(copy.Path)));
+                using var text = new StreamReader(reader, leaveOpen: true);
+                Assert.Equal(Contents, text.ReadToEnd());
+            }
+            using var other = retained.OpenReadView(observed, ct);
+            Assert.Equal((byte)Contents[0], other.ReadByte());
+            copy.Dispose();
+            Assert.False(Directory.Exists(capture));
+            Assert.False(other.CanRead);
+            Assert.Equal(Contents, File.ReadAllText(record.WorkingPath));
+        }
+        finally { provider.Release(archive); Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
     [InlineData("new")]
     [InlineData("replace")]
     [InlineData("cancel")]
