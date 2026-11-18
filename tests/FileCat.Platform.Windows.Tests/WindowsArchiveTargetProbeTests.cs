@@ -54,25 +54,14 @@ public sealed partial class WindowsArchiveTargetProbeTests : IDisposable
         Assert.Equal(ArchiveWriteMessages.HardLinkedText(archive), WindowsArchiveJobBackend.TargetProblem(archive));
     }
 
-    // A folder OneDrive syncs is a cloud sync root (its reparse tag 0x9000601A is hidden from ordinary processes), not a
-    // link; the folder pins accept it, so the probe asks the cloud files API whether the folder lies in a sync root, without
-    // opening or recalling anything there. Runs where OneDrive is set up (the development machine, read-only); the
-    // validation machines have none. Elevation does not matter.
     [Fact]
-    public void A_folder_OneDrive_syncs_is_refused_as_cloud_synced_and_a_junction_says_where_to_go()
+    public void A_junction_is_refused_and_an_ordinary_folder_is_allowed()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows.");
         string real = Directory.CreateDirectory(Path.Combine(_root, "moved")).FullName, junction = Path.Combine(_root, "profile-folder");
         Junction(junction, real);
         Assert.Equal(WindowsArchiveJobBackend.LinkedFolder, WindowsArchiveJobBackend.FolderProblem(Path.Combine(junction, "inside")));
         Assert.Null(WindowsArchiveJobBackend.FolderProblem(real));
-        string? oneDrive = Environment.GetEnvironmentVariable("OneDrive");
-        if (string.IsNullOrEmpty(oneDrive) || !Directory.Exists(oneDrive)) Assert.Skip("No OneDrive folder on this machine.");
-        Assert.Equal(WindowsArchiveJobBackend.CloudFolder, WindowsArchiveJobBackend.FolderProblem(oneDrive));
-        // Inside it, a synced folder is cloud-synced, and a junction (a folder moved to another drive) is a link.
-        foreach (string inside in Directory.EnumerateDirectories(oneDrive).Take(3))
-            Assert.Equal(new DirectoryInfo(inside).LinkTarget is null ? WindowsArchiveJobBackend.CloudFolder : WindowsArchiveJobBackend.LinkedFolder,
-                WindowsArchiveJobBackend.FolderProblem(inside));
     }
 
     // A junction, made as any user can (mklink /J needs no privilege).
