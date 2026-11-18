@@ -635,7 +635,9 @@ public sealed partial class DiskSpaceWindow : Window
             void UpdateMark() => mark.IsChecked = item.NodeId is { } id && Model.Selection.Marks.Contains(id);
             mark.AttachedToVisualTree += (_, _) => Model.Changed += UpdateMark; mark.DetachedFromVisualTree += (_, _) => Model.Changed -= UpdateMark;
             row.Children.Add(mark);
-            string[] values = [AnalysisNames.Display(item.Name), DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric), DiskSpaceViewModel.LogicalText(item), DiskSpaceViewModel.FilePathsText(item), DiskSpaceViewModel.StatusText(item)];
+            bool package = HasMacPackageName(item, Model.Tree?.Snapshot.Policy);
+            string caption = AnalysisNames.Display(item.Name) + (package ? " (package)" : "");
+            string[] values = [caption, DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric), DiskSpaceViewModel.LogicalText(item), DiskSpaceViewModel.FilePathsText(item), DiskSpaceViewModel.StatusText(item)];
             for (int i = 0; i < values.Length; i++) { var text = new TextBlock { Text = values[i], TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center }; Grid.SetColumn(text, i + 1); row.Children.Add(text); }
             ToolTip.SetTip(row, new RichTip(AnalysisNames.Display(item.Name, 240), detail: $"Active metric: {DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric, true)}. File size: {DiskSpaceViewModel.LogicalText(item, true)}. File paths: {DiskSpaceViewModel.FilePathsText(item)}.", hints: [DiskSpaceViewModel.EntryExplanation(item) ?? (item.Unknown ? "Some measurements or namespace entries are unavailable." : "Observed metadata, not an immutable filesystem snapshot.")]));
             AutomationProperties.SetName(row, string.Join("; ", values)); return row;
@@ -764,7 +766,8 @@ public sealed partial class DiskSpaceWindow : Window
                     var displayPath = Model.FocusedDisplayPath(out var boundary);
                     _inspector.Text = selected is null ? "Choose an entry in either chart or the table. Marks and the review basket are separate." :
                         AnalysisNames.Display(selected.Name) + "\n" + DiskSpaceViewModel.StatusText(selected) + "\n" +
-                        (boundary is not null ? boundary + "\n" : "") + displayPath +
+                        (boundary is not null ? boundary + "\n" : "") +
+                        (HasMacPackageName(selected, tree.Snapshot.Policy) ? MacPackageContents(tree.Snapshot.Policy) + "\n" : "") + displayPath +
                         $"\n\nActive metric: {DiskSpaceViewModel.ValueText(selected, tree.Projection.Metric, true)}\nFile size: {DiskSpaceViewModel.LogicalText(selected, true)}\nFile paths: {DiskSpaceViewModel.FilePathsText(selected)}\n" +
                         (DiskSpaceViewModel.EntryExplanation(selected) is { } explanation ? explanation + "\n" : "") +
                         (selected.NameEvidence is { } evidence ? evidence + "\n" : "") +

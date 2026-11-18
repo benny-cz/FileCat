@@ -39,6 +39,16 @@
     "desktop": { "run": "r1469", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
     "coverage": "Exact native names with a trailing dot and space. Filtered view, captured folder rule, temporary-tab review and owned native exit passed on all three development desktops."
   },
+  "setupAndInspector": {
+    "tests": { "run": "r1478", "windowsVm": 108, "mac": "deferred-busy", "ubuntuVm": 108 },
+    "desktop": { "run": "r1479", "windowsVm": "passed", "mac": "deferred-busy", "ubuntuVm": "passed" },
+    "coverage": "Readable compact headings, exclusion reasons before the location, resource limits dialog, exact captured Windows and Unix clipboard root paths."
+  },
+  "packageFolderPresentation": {
+    "tests": { "run": "r1482", "windowsVm": 109, "mac": "deferred-busy", "ubuntuVm": 109 },
+    "desktop": { "run": "r1483", "windowsVm": "passed", "mac": "deferred-busy", "ubuntuVm": "passed" },
+    "coverage": "Package filename hint for the recorded macOS basis, policy disclosure and captured-content navigation. Finder flags and custom package associations are unqualified."
+  },
   "completedBehaviors": [
     "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",
     "Canonical integer-string policy golden vector, precision-aware three-valued filters, root-label disambiguation and unknown sparse/compressed/cloud states.",

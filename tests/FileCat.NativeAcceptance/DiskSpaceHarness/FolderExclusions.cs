@@ -91,7 +91,23 @@ internal sealed partial class HarnessApp
             RenderNativeFrame("folder-exclusions-result.png");
             Click("Clear filter");
             await ReadyAsync(() => !model.PanelFilterApplied);
-            model.NavigateToScope(AnalysisTree.Key(snapshot.Nodes.Single(node => node.ParentId == 0).Id));
+            string rootScope = AnalysisTree.Key(snapshot.Nodes.Single(node => node.ParentId == 0).Id);
+            string packageScope = AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "Package.app").Id);
+            model.Focus(rootScope, open: true);
+            await ReadyAsync(() => model.Selection.Scope == rootScope);
+            model.Focus(packageScope);
+            Click("Inspect selection");
+            await ReadyAsync(() => VisibleButton("Close details") is not null);
+            bool packageHint = window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+                text.Text?.Contains("The recorded scan policy includes package contents where accessible.", StringComparison.Ordinal) == true);
+            if (packageHint != OperatingSystem.IsMacOS()) throw new InvalidOperationException("The package hint did not match the captured platform.");
+            RenderNativeFrame("folder-exclusions-package.png");
+            Click("Close details");
+            await ReadyAsync(() => VisibleButton("Close details") is null);
+            model.Focus(packageScope, open: true);
+            await ReadyAsync(() => model.Rows.Any(row => row.Name == "Contents"));
+            model.NavigateToScope(rootScope);
+            await ReadyAsync(() => model.Selection.Scope == rootScope);
             model.Focus(AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "Small files").Id));
             Click("Inspect selection");
             await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
@@ -107,7 +123,8 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => _tabs?.SelectedIndex == 0);
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
                 sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
-                panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true };
+                panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
+                packageHint, packageContentsReachable = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }

@@ -288,7 +288,9 @@ public sealed partial class DiskSpaceWindow
             {
                 var item = DisplayItem(row); if (item is null) return new TextBlock();
                 var grid = new Grid { ColumnDefinitions = new("3*,2*,2*,2*,2*"), MinHeight = 32, Margin = new Thickness(6, 3) };
-                string[] cells = [item.Name, DiskSpaceViewModel.ValueText(item, _grouping?.Metric ?? _explorer.Metric), DiskSpaceViewModel.LogicalText(item),
+                string? rawName = row is AnalysisHierarchyRow hierarchy ? hierarchy.Path.Name : null;
+                string caption = item.Name + (HasMacPackageName(item, _explorer.Descriptor.Policy, rawName) ? " (package)" : "");
+                string[] cells = [caption, DiskSpaceViewModel.ValueText(item, _grouping?.Metric ?? _explorer.Metric), DiskSpaceViewModel.LogicalText(item),
                     DiskSpaceViewModel.FilePathsText(item), DiskSpaceViewModel.StatusText(item)];
                 for (int column = 0; column < cells.Length; column++)
                 {
@@ -706,6 +708,7 @@ public sealed partial class DiskSpaceWindow
                 var boundary = detail.Issues.Rows.Select(issue => DiskSpaceViewModel.DescribeBoundary(issue.Code))
                     .FirstOrDefault(description => description is not null);
                 if (boundary is not null) text.AppendLine(boundary);
+                if (HasMacPackageName(item, explorer.Descriptor.Policy, detail.Row.Path.Name)) text.AppendLine(MacPackageContents(explorer.Descriptor.Policy));
                 text.AppendLine((detail.AncestorsComplete ? "" : "… / ") + string.Join(" / ", detail.Ancestors.Select(p => AnalysisNames.DisplayName(p, 128)).Append(AnalysisNames.DisplayName(detail.Row.Path, 256))));
                 bool basketOnly = _basketInspection == path;
                 if (basketOnly)
