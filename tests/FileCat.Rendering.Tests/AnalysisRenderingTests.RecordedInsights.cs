@@ -22,10 +22,14 @@ public sealed partial class AnalysisRenderingTests
         string root = Path.Combine(fixture.Root, "insight-root"), folder = Path.Combine(root, "small-files"),
             nested = Path.Combine(folder, "nested");
         Directory.CreateDirectory(nested);
+        Directory.CreateDirectory(Path.Combine(root, "empty-folder"));
+        string heavyFolder = Directory.CreateDirectory(Path.Combine(root, "bytes-heavy")).FullName;
+        string unmeasuredFolder = Directory.CreateDirectory(Path.Combine(root, "unmeasured-only")).FullName;
+        File.WriteAllText(Path.Combine(unmeasuredFolder, "no-known-length.bin"), "unchanged observation fixture");
         for (int i = 0; i < 33; i++) File.WriteAllBytes(Path.Combine(folder, $"small-{i:D2}.txt"), [1, 2, 3, 4]);
         CreateGroupedNativeAlias(Path.Combine(folder, "small-00.txt"), Path.Combine(folder, "small-alias.txt"));
         File.WriteAllText(Path.Combine(nested, "nested-small.txt"), "nested");
-        string large = Path.Combine(root, "allocation-shape.bin");
+        string large = Path.Combine(heavyFolder, "allocation-shape.bin");
         byte[] payload = new byte[128 * 1024 + 5];
         Array.Fill(payload, (byte)9);
         File.WriteAllBytes(large, payload);
@@ -69,6 +73,35 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Inspect recorded candidate");
             await Until(() => ComparisonControl<TextBlock>(window, "Recorded candidate evidence")?.Text?.Contains("insight-root/small-files", StringComparison.Ordinal) == true,
                 () => ComparisonText(window));
+            Click(window, "Close preview");
+
+            var metric = ComparisonControl<ComboBox>(window, indexed ? "Indexed metric" : "Analysis metric")!;
+            await ChangeMetricAsync(AnalysisMetric.FileSize, "File size:");
+            await SelectInsightAsync("Largest folders");
+            await Until(() => ComparisonControl<ListBox>(window, "Captured recipe candidates")?.ItemCount == 5,
+                () => ComparisonText(window), TimeSpan.FromSeconds(20));
+            var folders = ComparisonControl<ListBox>(window, "Captured recipe candidates")!;
+            var sizes = folders.Items.Cast<string>().ToArray();
+            Assert.Equal(new[] { "insight-root", "bytes-heavy", "small-files", "nested", "empty-folder" }, sizes.Select(Name));
+            Assert.Contains("Some entries are unmeasured", sizes[2]);
+            Assert.Contains("0 B", sizes[4]);
+            Assert.DoesNotContain(root, sizes[1]);
+            folders.SelectedIndex = 1;
+            Click(window, "Inspect recorded candidate");
+            await Until(() => ComparisonControl<TextBlock>(window, "Recorded candidate evidence")?.Text?.Contains("insight-root/bytes-heavy", StringComparison.Ordinal) == true,
+                () => ComparisonText(window));
+            Assert.True(window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible && Equals(button.Content, "Close preview")).IsDefault);
+            Click(window, "Close preview");
+
+            await ChangeMetricAsync(AnalysisMetric.Files, "Files:");
+            await SelectInsightAsync("Largest folders");
+            await Until(() => ComparisonControl<ListBox>(window, "Captured recipe candidates") is not null &&
+                ComparisonText(window).Contains("by recorded file count", StringComparison.Ordinal), () => ComparisonText(window), TimeSpan.FromSeconds(20));
+            var counts = ComparisonControl<ListBox>(window, "Captured recipe candidates")!.Items.Cast<string>().ToArray();
+            Assert.Equal("insight-root", Name(counts[0]));
+            Assert.Equal("small-files", Name(counts[1]));
+            Assert.Contains("1 file path", Assert.Single(counts, item => Name(item) == "bytes-heavy"));
+            Assert.Contains("0 file paths", Assert.Single(counts, item => Name(item) == "empty-folder"));
             Click(window, "Close preview");
 
             await SelectInsightAsync("Logical and allocated size differences");
@@ -119,13 +152,26 @@ public sealed partial class AnalysisRenderingTests
                 ComparisonControl<ListBox>(window, "Locations for candidate preview")!.SelectedIndex = 0;
                 Click(window, "View candidates");
             }
+
+            async Task ChangeMetricAsync(AnalysisMetric measure, string heading)
+            {
+                metric.SelectedIndex = (int)measure;
+                await Until(() => indexed
+                    ? window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+                        text.Text?.StartsWith(heading, StringComparison.Ordinal) == true)
+                    : opened.Memory!.Tree?.Metric == measure, () => ComparisonText(window), TimeSpan.FromSeconds(20));
+            }
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
         await AssertAllRuntimePlacesAvailableAsync(pool);
 
-        static AnalysisEntry Observe(AnalysisEntry entry) => entry.Name == "unreadable.bin"
-            ? AnalysisEntry.Unavailable(entry.RelativeName, entry.RawName, entry.NameEncoding, entry.Kind, MeasurementState.Failed, "insight-fixture-unreadable")
-            : entry;
+        static string Name(string row) => row[..row.IndexOf('\n')];
+        static AnalysisEntry Observe(AnalysisEntry entry) => entry.Name switch
+        {
+            "unreadable.bin" => AnalysisEntry.Unavailable(entry.RelativeName, entry.RawName, entry.NameEncoding, entry.Kind, MeasurementState.Failed, "insight-fixture-unreadable"),
+            "no-known-length.bin" => AnalysisEntry.Unavailable(entry.RelativeName, entry.RawName, entry.NameEncoding, entry.Kind, MeasurementState.Failed, "insight-fixture-no-length"),
+            _ => entry
+        };
     }
 
     [Fact]

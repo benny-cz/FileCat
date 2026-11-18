@@ -9,11 +9,12 @@ import tarfile
 root = Path.cwd()
 temp = root / ".tmp"
 binary = root / "tests/FileCat.NativeAcceptance/DiskSpaceHarness/bin/Debug/net10.0"
-insights = sys.argv[1:] == ["--insights"]
+folders = sys.argv[1:] == ["--folders"]
+insights = sys.argv[1:] == ["--insights"] or folders
 assert not sys.argv[1:] or insights
 native_baseline = "r1377" if insights else "r1370"
-render_revision = "r1379" if insights else "r1376"
-revision = "r1380" if insights else "r1377"
+render_revision = "r1382" if folders else "r1379" if insights else "r1376"
+revision = "r1384" if folders else "r1380" if insights else "r1377"
 label = "recorded-insights" if insights else "duplicate-content"
 template = "r1370"
 drivers = {"DiskSpaceHarness.dll", "DiskSpaceHarness.pdb"}
@@ -64,9 +65,12 @@ for platform in ("windows", "mac", "linux"):
         worker = worker.replace("'baseline': str(baseline),", "'baseline': str(baseline), 'render': str(render),")
         worker = worker.replace("and probe['retainedHiddenMarksAndBasket'] and", "and probe['retainedHiddenMarksAndBasket'] and not probe['contentAvailable'] and probe['contentGroups']==0 and")
         if insights:
-            worker = worker.replace("frame == 'duplicate-review-estimate.png'", "frame == 'recorded-insights-small-files.png'")
+            frame = "recorded-insights-largest-folders.png" if folders else "recorded-insights-small-files.png"
+            worker = worker.replace("frame == 'duplicate-review-estimate.png'", f"frame == '{frame}'")
             worker = worker.replace("run.glob('duplicate-review-*.png')", "list(run.glob('duplicate-review-*.png')) + list(run.glob('recorded-insights-*.png'))")
             worker = worker.replace("probe['contentGroups']==0 and", "probe['contentGroups']==0 and probe['recordedInsightsPassed'] and")
+        if folders:
+            worker = worker.replace("probe['recordedInsightsPassed'] and", "probe['recordedInsightsPassed'] and probe['largestFoldersPassed'] and")
         assert "not probe['contentAvailable']" in worker and "(render if entry['render'] else baseline)" in worker
         compile(worker, "run.py", "exec")
         (stage / "run.py").write_text(worker, encoding="utf-8", newline="\n")
@@ -93,6 +97,8 @@ for platform in ("windows", "mac", "linux"):
         if insights:
             portable = portable.replace("$probe.contentGroups-ne1)", "$probe.contentGroups-ne1-or!$probe.recordedInsightsPassed)")
             portable = portable.replace("-Filter 'duplicate-review-*.png' -File", "-File | Where-Object {$_.Name -like 'duplicate-review-*.png' -or $_.Name -like 'recorded-insights-*.png'}")
+        if folders:
+            portable = portable.replace("-or!$probe.recordedInsightsPassed)", "-or!$probe.recordedInsightsPassed-or!$probe.largestFoldersPassed)")
         assert "$probe.contentGroups-ne1" in portable and "$parent.FullName-ne$inputRoot" in portable
     runner = temp / f"batch-{platform}-{revision}{suffix}"
     runner.write_text(portable.replace(old["bundle"], sha(archive)), encoding="utf-8", newline="\n")

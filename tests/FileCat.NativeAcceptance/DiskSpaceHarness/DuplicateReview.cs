@@ -2,6 +2,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using FileCat.Core.Analysis;
 
 namespace DiskSpaceHarness;
 
@@ -91,7 +92,7 @@ internal sealed partial class HarnessApp
             await OpenInsightAsync("Folders with many small files");
             await ReadyAsync(() => Control<ListBox>("Captured recipe candidates") is { ItemCount: > 0 } small &&
                 small.Items.Any(item => item?.ToString()?.Contains("500 small file paths", StringComparison.Ordinal) == true));
-            await RecipeFrameAsync("recorded-insights-small-files.png", true, _indexedLifetime.Token);
+            await RecipeFrameAsync("recorded-insights-small-files.png", false, _indexedLifetime.Token);
             Click("Close preview");
             await ReadyAsync(() => Control<ListBox>("Captured recipe candidates") is null);
 
@@ -107,11 +108,28 @@ internal sealed partial class HarnessApp
                 throw new IOException("The unavailable extra-data preview displayed a measured candidate.");
             Click("Close preview");
             await ReadyAsync(() => Button("Close preview") is null && Marks(4, 4));
+
+            Control<ComboBox>("Indexed metric")!.SelectedIndex = (int)AnalysisMetric.Files;
+            await ReadyAsync(() => HasText("Files: ") && Matches(1) && Marks(4, 4));
+            await OpenInsightAsync("Largest folders");
+            await ReadyAsync(() => Control<ListBox>("Captured recipe candidates") is { ItemCount: > 2 } &&
+                HasText("by recorded file count"));
+            var folders = Control<ListBox>("Captured recipe candidates")!;
+            if (folders.Items[1] is not string ranked || !ranked.StartsWith("Small files\n", StringComparison.Ordinal) ||
+                !ranked.Contains("500 file paths", StringComparison.Ordinal) || Button("Close preview") is not { IsDefault: true, IsCancel: true })
+                throw new IOException("The native folder ranking did not use the selected measure across the captured location.");
+            folders.SelectedIndex = 1;
+            Click("Inspect recorded candidate");
+            await ReadyAsync(() => Control<TextBlock>("Recorded candidate evidence")?.Text?.Contains("/Small files", StringComparison.Ordinal) == true);
+            await RecipeFrameAsync("recorded-insights-largest-folders.png", true, _indexedLifetime.Token);
+            Click("Close preview");
+            await ReadyAsync(() => Button("Close preview") is null && Marks(4, 4));
+
             _duplicateReviewProbe = new
             {
                 finished = true, passed = true, sessions = window.SessionCount, candidateObjects = 2, knownReadBytes = 8,
                 capturedMarks = 4, additionalHardLinkNames = 1, preservingDefault, retainedHiddenMarksAndBasket = true,
-                contentAvailable, contentGroups, recordedInsightsPassed = true
+                contentAvailable, contentGroups, recordedInsightsPassed = true, largestFoldersPassed = true
             };
         }
         catch (Exception error)

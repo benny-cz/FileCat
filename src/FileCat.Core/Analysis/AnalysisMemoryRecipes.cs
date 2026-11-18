@@ -10,12 +10,16 @@ public static class AnalysisMemoryRecipes
         AnalysisMetric metric, CancellationToken cancellation = default) =>
         PreviewCoreAsync(source, snapshot => new(request, snapshot.Roots, snapshot.Identity, metric), cancellation);
 
+    internal static Task<AnalysisRecipePreview> PreviewFoldersAsync(AnalysisSnapshotLease source, AnalysisTree published,
+        AnalysisRecipeRequest request, CancellationToken cancellation) =>
+        PreviewCoreAsync(source, snapshot => new(request, snapshot.Roots, snapshot.Identity, published.Metric), cancellation, published);
+
     internal static Task<AnalysisRecipePreview> PreviewSavedAsync(AnalysisSnapshotLease source, AnalysisSavedRecipe recipe,
         CancellationToken cancellation) => PreviewCoreAsync(source,
         snapshot => new(recipe, snapshot.Roots, snapshot.Identity, snapshot.Freshness), cancellation);
 
     private static async Task<AnalysisRecipePreview> PreviewCoreAsync(AnalysisSnapshotLease source,
-        Func<AnalysisSnapshot, AnalysisRecipePreviews> prepare, CancellationToken cancellation)
+        Func<AnalysisSnapshot, AnalysisRecipePreviews> prepare, CancellationToken cancellation, AnalysisTree? published = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         cancellation.ThrowIfCancellationRequested();
@@ -30,6 +34,12 @@ public static class AnalysisMemoryRecipes
         }
         if (preview.Recipe == AnalysisMetadataRecipe.UnmeasuredLocations)
             return await Task.Run(() => ReadIssues(snapshot, preview, cancellation), cancellation).ConfigureAwait(false);
+        if (preview.Recipe == AnalysisMetadataRecipe.LargestFolders)
+        {
+            var canonical = published is { FilterApplied: false, GroupingDimension: AnalysisGroupingDimension.FolderHierarchy } &&
+                ReferenceEquals(published.Snapshot, snapshot) ? published : null;
+            return await Task.Run(() => ReadLargestFolders(snapshot, preview, canonical, cancellation), cancellation).ConfigureAwait(false);
+        }
         bool ancestry = preview.NeedsContextMarkers || preview.NeedsRelativePath;
         long cost = 256 * 1024L + snapshot.Objects.Length * 160L +
             (ancestry ? snapshot.Nodes.Length * 256L : 0) + (preview.NeedsAllocation ? snapshot.Facts.Length * 160L : 0) +
@@ -40,6 +50,43 @@ public static class AnalysisMemoryRecipes
             return await Task.Run(() => Evaluate(snapshot, preview, ancestry, cancellation), cancellation).ConfigureAwait(false);
         }
         finally { Interlocked.Add(ref s_reserved, -cost); }
+    }
+
+    private static AnalysisRecipePreview ReadLargestFolders(AnalysisSnapshot snapshot, AnalysisRecipePreviews preview,
+        AnalysisTree? canonical, CancellationToken token)
+    {
+        long cost = 0;
+        if (canonical is null)
+        {
+            cost = 256 * 1024L + snapshot.Objects.Length * 160L + snapshot.Facts.Length * 160L;
+            foreach (var node in snapshot.Nodes)
+            {
+                token.ThrowIfCancellationRequested();
+                cost = checked(cost + 2048L + node.Name.Length * 2L + node.RawName.Length);
+            }
+            Reserve(cost);
+        }
+        try
+        {
+            var tree = canonical ?? AnalysisTree.Build(snapshot, AnalysisAggregate.Project(snapshot, preview.Metric, cancellation: token), false, token);
+            if (tree.Projection.Totals.CompatibleBasis)
+            {
+                foreach (var path in snapshot.Nodes)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (!preview.IncludesFolder(path) || !preview.CanRankFolder(path)) continue;
+                    var row = tree.Items[AnalysisTree.Key(path.Id)];
+                    preview.AddFolder(path, row.Value, row.Unknown, row.SharedElsewhere);
+                }
+            }
+            else preview.ExplainIncompatibleFolderTotals();
+            token.ThrowIfCancellationRequested();
+            return preview.Finish(snapshot.Identity, snapshot.Coverage);
+        }
+        finally
+        {
+            if (cost != 0) Interlocked.Add(ref s_reserved, -cost);
+        }
     }
 
     private static AnalysisRecipePreview Evaluate(AnalysisSnapshot snapshot, AnalysisRecipePreviews preview, bool ancestry, CancellationToken token)

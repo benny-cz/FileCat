@@ -77,7 +77,8 @@ public sealed partial class DiskSpaceWindow
                     using var source = Model.CaptureDisplayedRevision();
                     var snapshot = source.Snapshot;
                     await _window.ShowCandidateRecipesAsync(snapshot.Identity, snapshot.Roots, tree.Metric, Model.PublishedReportView.Query,
-                        Model.HistoryServices, (choice, token) => AnalysisMemoryRecipes.PreviewAsync(source, choice, tree.Metric, token),
+                        Model.HistoryServices, (choice, token) => choice.Recipe == AnalysisMetadataRecipe.LargestFolders
+                            ? AnalysisMemoryRecipes.PreviewFoldersAsync(source, tree, choice, token) : AnalysisMemoryRecipes.PreviewAsync(source, choice, tree.Metric, token),
                         (recipe, token) => AnalysisMemoryRecipes.PreviewSavedAsync(source, recipe, token),
                         (id, token) => ReadRecipeMemoryPathAsync(snapshot, id, token), lifetime);
                 }
@@ -122,7 +123,10 @@ public sealed partial class DiskSpaceWindow
                     var descriptor = _source.Descriptor;
                     var metric = _explorer.Metric;
                     await _window.ShowCandidateRecipesAsync(descriptor.Identity, descriptor.Roots, metric, _explorer.Filter?.Request.Text ?? "", _services,
-                        (choice, token) => _source.PreviewRecipeAsync(choice, metric, token), _source.PreviewSavedRecipeAsync, _source.ReadPathAsync, lifetime);
+                        (choice, token) => choice.Recipe == AnalysisMetadataRecipe.LargestFolders &&
+                            _explorer is { ReportIsSubset: false, Filter: null } explorer && explorer.Metric == metric
+                                ? explorer.PreviewLargestFoldersAsync(choice, token) : _source.PreviewRecipeAsync(choice, metric, token),
+                        _source.PreviewSavedRecipeAsync, _source.ReadPathAsync, lifetime);
                 }
                 catch (OperationCanceledException) { }
                 catch (Exception error) when (Expected(error) || error is FormatException or OverflowException)

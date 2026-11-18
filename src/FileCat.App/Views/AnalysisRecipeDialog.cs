@@ -109,8 +109,11 @@ internal static class AnalysisRecipeDialog
     {
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
         var locations = roots.ToDictionary(root => root.Id, LocationLabel, StringComparer.Ordinal);
+        var shortLocations = preview.RootIds.Select((id, index) => (Id: id, Label: $"Location {index + 1:N0}"))
+            .ToDictionary(location => location.Id, location => location.Label, StringComparer.Ordinal);
+        bool multipleLocations = preview.RootIds.Length > 1;
         var body = new StackPanel { Spacing = 8 };
-        var scope = preview.RootIds.Take(8).Select(id => locations[id]);
+        var scope = preview.RootIds.Take(8).Select(id => multipleLocations ? shortLocations[id] + " — " + locations[id] : locations[id]);
         body.Children.Add(Text("Captured locations — " + string.Join(", ", scope) +
             (preview.RootIds.Length > 8 ? $" and {preview.RootIds.Length - 8:N0} more" : "")));
         body.Children.Add(Text($"Observation {preview.Identity.ObservedUtc.ToLocalTime():g} · revision {preview.Identity.Revision:N0} · rule version {preview.Definition.Version:N0}."));
@@ -125,13 +128,17 @@ internal static class AnalysisRecipeDialog
         {
             AnalysisMetric.OnDisk => "recorded allocation",
             AnalysisMetric.UniqueFileSize => "recorded size with verified identity",
+            AnalysisMetric.Files => "recorded file count",
             _ => "recorded file size"
         };
         string summary = preview.Definition.Recipe switch
         {
+            AnalysisMetadataRecipe.LargestFolders => $"{preview.Candidates:N0} {(preview.Candidates == 1 ? "ranked folder" : "ranked folders")} · {preview.Unknown:N0} unmeasured · {preview.Excluded:N0} excluded." +
+                (preview.Rows.IsEmpty ? "" : $" Showing {preview.Rows.Length:N0} by {measure}."),
             AnalysisMetadataRecipe.AllocationDifference => $"{preview.Candidates:N0} file paths with measured differences · {preview.Unknown:N0} uncertain · {preview.Excluded:N0} excluded." +
                 (preview.Rows.IsEmpty ? "" : $" Showing {preview.Rows.Length:N0} ranked by absolute difference."),
-            AnalysisMetadataRecipe.ManySmallFiles => $"{preview.Candidates:N0} folders meet the count threshold · {preview.Unknown:N0} folders have uncertain counts near the threshold." +
+            AnalysisMetadataRecipe.ManySmallFiles => $"{preview.Candidates:N0} {(preview.Candidates == 1 ? "folder meets" : "folders meet")} the count threshold · " +
+                $"{preview.Unknown:N0} {(preview.Unknown == 1 ? "folder has" : "folders have")} uncertain counts near the threshold." +
                 (preview.Rows.IsEmpty ? "" : $" Showing {preview.Rows.Length:N0} ranked by observed small-file count."),
             AnalysisMetadataRecipe.UnmeasuredLocations => $"{preview.Candidates:N0} captured issue records in scope." +
                 (preview.Rows.IsEmpty ? "" : $" Showing {preview.Rows.Length:N0} ordered by recorded state."),
@@ -144,9 +151,7 @@ internal static class AnalysisRecipeDialog
         if (preview.Rows.Length > 0)
         {
             var rows = new ListBox { MaxHeight = 270, MinHeight = 90, ItemTemplate = DialogLayout.WrappingListText,
-                ItemsSource = preview.Rows.Select(row => $"{row.DisplayName}\n{locations[row.RootId]}" +
-                    (row.PathId == 0 ? "" : $" · captured entry {row.PathId:N0}") +
-                    DetailAmount(row) + $"\n{row.Finding.Evidence}").ToArray() };
+                ItemsSource = preview.Rows.Select(row => $"{row.DisplayName}\n" + RowEvidence(row)).ToArray() };
             ScrollViewer.SetHorizontalScrollBarVisibility(rows, ScrollBarVisibility.Disabled);
             AutomationProperties.SetName(rows, "Captured recipe candidates");
             body.Children.Add(rows);
@@ -177,6 +182,8 @@ internal static class AnalysisRecipeDialog
                 {
                     string described = candidate.PathId == 0 ? "Issue recorded for " + locations[candidate.RootId] :
                         "Recorded path — " + await RecordedPathAsync(candidate.PathId, candidate.RootId, readPath, token);
+                    if (candidate.PathId != 0 && multipleLocations)
+                        described += "\nCaptured location — " + locations[candidate.RootId];
                     var finding = candidate.Finding;
                     if (finding.ContextPath is { } context)
                         described += "\nContext folder — " + await RecordedPathAsync(context, candidate.RootId, readPath, token);
@@ -212,12 +219,23 @@ internal static class AnalysisRecipeDialog
             if (inspection is not null) await inspection;
         }
 
-        string DetailAmount(AnalysisRecipeCandidate row) => preview.Definition.Recipe switch
+        string RowEvidence(AnalysisRecipeCandidate row)
         {
-            AnalysisMetadataRecipe.UnmeasuredLocations => "",
-            AnalysisMetadataRecipe.ManySmallFiles => row.RecordedBytes.Value is { } size ? " · known single-link allocation " + DiskSpaceViewModel.Bytes(size) : "",
-            AnalysisMetadataRecipe.AllocationDifference => " · difference " + DiskSpaceViewModel.Bytes(row.RecordedBytes.Value!.Value),
-            _ => " · " + (row.RecordedBytes.Value is { } amount ? DiskSpaceViewModel.Bytes(amount) : "Size unavailable")
+            var fields = new List<string>(4);
+            if (multipleLocations) fields.Add(shortLocations[row.RootId]);
+            if (row.PathId != 0) fields.Add($"Captured entry {row.PathId:N0}");
+            if (DetailAmount(row) is { } detail) fields.Add(detail);
+            if (row.Finding.Evidence is { } evidence) fields.Add(evidence);
+            return string.Join(" · ", fields);
+        }
+
+        string? DetailAmount(AnalysisRecipeCandidate row) => preview.Definition.Recipe switch
+        {
+            AnalysisMetadataRecipe.UnmeasuredLocations => null,
+            AnalysisMetadataRecipe.ManySmallFiles => row.RecordedBytes.Value is { } size ? "known single-link allocation " + DiskSpaceViewModel.Bytes(size) : null,
+            AnalysisMetadataRecipe.AllocationDifference => "difference " + DiskSpaceViewModel.Bytes(row.RecordedBytes.Value!.Value),
+            AnalysisMetadataRecipe.LargestFolders when row.RecordedFilePaths is { } count => $"{count:N0} {(count == 1 ? "file path" : "file paths")}",
+            _ => row.RecordedBytes.Value is { } amount ? DiskSpaceViewModel.Bytes(amount) : "Size unavailable"
         };
     }
 

@@ -4,7 +4,10 @@ using System.Diagnostics;
 namespace FileCat.Core.Analysis;
 
 public sealed record AnalysisRecipeCandidate(ulong PathId, string RootId, string DisplayName,
-    AnalysisMeasurement RecordedBytes, AnalysisRecipeFinding Finding);
+    AnalysisMeasurement RecordedBytes, AnalysisRecipeFinding Finding)
+{
+    public ulong? RecordedFilePaths { get; init; }
+}
 
 public sealed record AnalysisRecipePreview(SessionIdentity Identity, AnalysisRecipeDefinition Definition, ImmutableArray<string> RootIds,
     AnalysisMetric Metric, NamespaceCoverage Coverage, UInt128? MinimumBytes, int? MinimumAgeDays, ulong Candidates, ulong Unknown,
@@ -31,7 +34,7 @@ internal sealed partial class AnalysisRecipePreviews
         _rootIds = request.RootIds;
         if (!Enum.IsDefined(metric) || request.Recipe == AnalysisMetadataRecipe.LargestFiles && metric == AnalysisMetric.Files)
             throw new ArgumentException("Choose a byte measure for this preview.", nameof(metric));
-        Metric = request.Recipe == AnalysisMetadataRecipe.LargestFiles ? metric : AnalysisMetric.FileSize;
+        Metric = request.Recipe is AnalysisMetadataRecipe.LargestFiles or AnalysisMetadataRecipe.LargestFolders ? metric : AnalysisMetric.FileSize;
     }
 
     internal AnalysisMetric Metric { get; }
@@ -113,6 +116,11 @@ public sealed partial class AnalysisDatasetLease
         cancellation.ThrowIfCancellationRequested();
         using var admission = AnalysisExplorerAdmission.Acquire();
         var preview = await AnalysisIo.Run(_io, "analysis-filter-calendar", _ => prepare(), cancellation).ConfigureAwait(false);
+        if (preview.Recipe == AnalysisMetadataRecipe.LargestFolders)
+        {
+            await using var hierarchy = await BuildHierarchyAsync(preview.Metric, cancellation).ConfigureAwait(false);
+            return await hierarchy.PreviewLargestFoldersAsync(preview, cancellation).ConfigureAwait(false);
+        }
         return await _owned.UseAsync(async reader =>
         {
             if (preview.Recipe is AnalysisMetadataRecipe.UnmeasuredLocations or AnalysisMetadataRecipe.ManySmallFiles or AnalysisMetadataRecipe.LargeExtraData)

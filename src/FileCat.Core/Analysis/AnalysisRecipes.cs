@@ -6,7 +6,7 @@ namespace FileCat.Core.Analysis;
 public enum AnalysisMetadataRecipe
 {
     LargestFiles, OldLargeFiles, DownloadsInstallers, GeneratedBuildOutput, ApplicationCache, CustomFilter, GrowthSinceAnalysis,
-    AllocationDifference, ManySmallFiles, UnmeasuredLocations, LargeExtraData
+    AllocationDifference, ManySmallFiles, UnmeasuredLocations, LargeExtraData, LargestFolders
 }
 
 public sealed record AnalysisRecipeDefinition(AnalysisMetadataRecipe Recipe, string Id, int Version, string Title,
@@ -33,6 +33,9 @@ public sealed class AnalysisRecipes
         new(AnalysisMetadataRecipe.LargestFiles, "largest-files", 1, "Largest files",
             "Rank recorded regular files by the selected byte measure.",
             "Partial observations may change the ranking. Observed size does not establish recoverable space."),
+        new(AnalysisMetadataRecipe.LargestFolders, "largest-folders", 1, "Largest folders",
+            "Rank captured folders by their known subtree totals in the selected measure.",
+            "Use the totals for each folder individually because ancestor and descendant rows overlap. Partial observations may change the ranking."),
         new(AnalysisMetadataRecipe.OldLargeFiles, "old-large-files", 1, "Old large files",
             "Match recorded file size and modification age at the observation time.",
             "Size and modification time must both be known. Modification time does not establish when a file was last used."),
