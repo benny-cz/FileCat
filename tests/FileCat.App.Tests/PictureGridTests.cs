@@ -38,12 +38,7 @@ public sealed class PictureGridTests
                 .Single(item => ReferenceEquals(item.DataContext, panel));
             var list = view.FindControl<FileListControl>("List")!;
             tab.PictureView = true;
-            for (int i = 0; i < 250 && list.CachedPictureThumbnailCount == 0; i++)
-            {
-                Dispatcher.UIThread.RunJobs();
-                window.UpdateLayout();
-                await Task.Delay(20, TestContext.Current.CancellationToken);
-            }
+            await RenderUntilThumbnailAsync(window, list);
             Assert.Equal(1, list.CachedPictureThumbnailCount);
             Assert.Contains(Enumerable.Range(0, tab.Listing.VisibleCount),
                 row => tab.Listing.GetVisible(row).Name == "readme.txt");
@@ -111,11 +106,7 @@ public sealed class PictureGridTests
             Assert.NotNull(list.FocusedRowBounds());
             Assert.InRange(list.FocusedRowBounds()!.Value.Right, 0, list.Bounds.Width + 1);
 
-            for (int i = 0; i < 250 && list.CachedPictureThumbnailCount == 0; i++)
-            {
-                await Task.Delay(20, TestContext.Current.CancellationToken);
-                Dispatcher.UIThread.RunJobs();
-            }
+            await RenderUntilThumbnailAsync(window, list);
             Assert.InRange(list.CachedPictureThumbnailCount, 1, 64);
             Assert.InRange(list.PendingPictureThumbnailCount, 0, list.VisibleRowCapacity + 8);
             tab.PictureView = false;
@@ -126,6 +117,22 @@ public sealed class PictureGridTests
             Assert.Equal(1, tab.Listing.MarkedCount);
         }
         finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    private static async Task RenderUntilThumbnailAsync(Window window, FileListControl list)
+    {
+        // Visible thumbnail requests are posted by RenderPictureGrid. Layout and dispatcher jobs alone
+        // do not guarantee the headless renderer draws a frame after a mode change or resize.
+        var ct = TestContext.Current.CancellationToken;
+        for (int i = 0; i < 250 && list.CachedPictureThumbnailCount == 0; i++)
+        {
+            window.UpdateLayout();
+            window.CaptureRenderedFrame()?.Dispose();
+            Dispatcher.UIThread.RunJobs();
+            if (list.CachedPictureThumbnailCount == 0) await Task.Delay(20, ct);
+        }
+        Assert.True(list.CachedPictureThumbnailCount > 0,
+            $"The rendered picture grid has no thumbnails. Started: {list.PictureThumbnailLoadCount}. Pending: {list.PendingPictureThumbnailCount}.");
     }
 
     private static byte[] Bmp(byte blue)
