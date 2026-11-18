@@ -66,14 +66,20 @@ public sealed partial class DiskSpaceWindow
             {
                 using var owner = Model.RetainDisplayedOwner();
                 var snapshot = tree.Snapshot;
-                await AnalysisCleanupReviewDialog.ShowAsync(_window._dialogs, selection.Paths, selection.Label, verb, basket,
+                var runtime = Model.BranchRuntime;
+                if (await AnalysisCleanupReviewDialog.ShowAsync(_window._dialogs, selection.Paths, selection.Label, verb, basket,
                     snapshot.Identity, snapshot.Roots, snapshot.Origin, snapshot.Taint, snapshot.Phase, snapshot.Coverage, snapshot.Freshness,
-                    Model.BranchRuntime is not null,
+                    runtime is not null,
                     (id, token) => tree.Items.ContainsKey(AnalysisTree.Key(id)) ? FindMemoryPathAsync(snapshot, id, token) : Task.FromResult<AnalysisPathMetadata?>(null),
                     (id, token) => ReadRecipeMemoryPathAsync(snapshot, id, token),
                     (path, token) => ReadMemoryCleanupEvidenceAsync(snapshot, path, token),
                     token => Task.Run(() => tree.ClassifyMarks(selection.Paths, scope, token), token),
-                    token => Task.Run(() => AnalysisMemoryCleanupTotals.Read(snapshot, selection.Paths, token), token), Model.HistoryLifetime);
+                    token => Task.Run(() => AnalysisMemoryCleanupTotals.Read(snapshot, selection.Paths, token), token),
+                    CopyReviewRefusal(runtime, selection.Paths.Count), Model.HistoryLifetime))
+                {
+                    string? status = await _window.ChooseReviewedCopyAsync(runtime!, snapshot.Identity, selection.Paths, Model.HistoryLifetime);
+                    if (status is not null && !_disposed) Model.SetStatus(status);
+                }
             }
             catch (OperationCanceledException) when (_disposed || Model.HistoryLifetime.IsCancellationRequested) { }
             catch (Exception error) when (IndexedExpectedError(error))
@@ -135,13 +141,18 @@ public sealed partial class DiskSpaceWindow
             {
                 // CloseAsync waits for actual view work before releasing this immutable dataset.
                 var descriptor = _source.Descriptor;
-                await AnalysisCleanupReviewDialog.ShowAsync(_window._dialogs, selection.Paths, selection.Label, verb, basket,
+                var runtime = _runtimeAcquisition;
+                if (await AnalysisCleanupReviewDialog.ShowAsync(_window._dialogs, selection.Paths, selection.Label, verb, basket,
                     descriptor.Identity, descriptor.Roots, descriptor.Origin, descriptor.Taint, descriptor.Phase, descriptor.Coverage, descriptor.Freshness,
-                    _runtimeAcquisition?.HasRuntimeRescanContext == true,
+                    runtime?.HasRuntimeRescanContext == true,
                     _source.FindPathAsync, _source.ReadPathAsync, (path, token) => ReadIndexedCleanupEvidenceAsync(_source, path, token),
                     token => grouping is not null ? grouping.ClassifyMarksAsync(selection.Paths, group, token) : explorer.ClassifyMarksAsync(selection.Paths, folder, token),
                     token => _source.ReadCleanupTotalsAsync(selection.Paths, token),
-                    lifetime);
+                    CopyReviewRefusal(runtime, selection.Paths.Count), lifetime))
+                {
+                    string? status = await _window.ChooseReviewedCopyAsync(runtime!, descriptor.Identity, selection.Paths, lifetime);
+                    if (status is not null && !_disposed) _status.Text = status;
+                }
             }
             catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
             catch (Exception error) when (Expected(error))

@@ -123,6 +123,8 @@ internal static class InterruptedRecoveryReport
         Line("Journal: " + JsonSerializer.Serialize(job.JournalPath));
         Line("Destination: " + (job.Destination is null ? "not recorded" : JsonSerializer.Serialize(job.Destination)));
         Line($"Completed journal steps: {Count(job.CompletedSteps)}; open intents: {Count(job.OpenIntents.Count)}");
+        if (job.IsReviewedAnalysisCopy)
+            Line("Inspect the recorded destination to confirm publication. Copy approval ended with the original process. A new copy requires a fresh analysis review.");
         Line($"Recorded source roots: {Count(sources.Count)} retained in this report of " +
              (job.SourceCount >= 0 ? Count(job.SourceCount) + " declared" : "an unknown declared total") + "; " +
              (job.SourceCount == sources.Count ? "all declared roots are represented" : "additional roots may be unavailable"));

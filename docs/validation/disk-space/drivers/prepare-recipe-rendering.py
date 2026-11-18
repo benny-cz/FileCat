@@ -70,7 +70,7 @@ if options.duplicates or options.duplicate_content or options.recorded_insights 
         methods.extend(("*NativeCleanupReview*", "*NativePrimaryPreview*", "*NativeReviewedCopy*", "*CleanupReviewTotalsSeparateBasisCoverageAndOverlappingComponents*",
                         "*ReviewCancelBindingRoutesFromOverlayAndEnterOnAFileOpensDetails*",
                         "*ShortLargeTextPageScrollsAndTheRankedTableRemainsVirtualized*"))
-        expected = 62
+        expected = 64
         name = f"cleanup-review-render-build-{revision}"
     log = (Path.cwd() / f".tmp/{name}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
@@ -89,7 +89,7 @@ retry = options.cleanup_review_fixture or options.reviewed_copy_fixture
 if retry:
     assert re.fullmatch(r"r[0-9]+", retry) and re.fullmatch(r"r[0-9]+", revision) and retry != revision
     methods = ["*NativeReviewedCopy*"] if options.reviewed_copy_fixture else ["*NativeCleanupReview*"]
-    expected = 1 if options.reviewed_copy_fixture else 2
+    expected = 3 if options.reviewed_copy_fixture else 2
     log = (Path.cwd() / f".tmp/cleanup-review-render-build-{revision}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
 root = Path.cwd()

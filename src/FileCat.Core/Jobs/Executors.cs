@@ -72,6 +72,9 @@ public static class JobExecutors
         bool fsSources = r.Sources.All(s => s.Parent.IsFileSystem);
         switch (r.Kind)
         {
+            case JobKind.ReviewedAnalysisCopy:
+                return new ReviewedAnalysisCopyExecutor(job, journal, job.ReviewedAnalysisCopy ??
+                    throw new InvalidOperationException("Reviewed analysis copy requires a live approval."));
             case JobKind.StorageTransform:
                 if (storageTransforms is null || storageOwner is null) throw new InvalidOperationException("Storage dispatch requires its live reviewed owner and platform adapter.");
                 ReviewedStorageRoots.RequireAction(storageTransforms, r.StorageTransform?.Action ?? throw new ArgumentException("Missing storage action."));

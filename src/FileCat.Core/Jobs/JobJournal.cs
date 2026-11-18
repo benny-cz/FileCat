@@ -444,6 +444,7 @@ public sealed partial class JobJournal : IDisposable
     }
 
     public const string RenameViaOp = "rename-via";
+    internal const string ReviewedAnalysisCopyOp = "analysis-copy-new";
 
     /// <summary>Makes every record written so far durable (one flush for a batch of intents).</summary>
     public void Flush()
@@ -716,7 +717,8 @@ public sealed record InterruptedJob(string JournalPath, string Kind, string Titl
 
     public string? TransferIntentProblem { get; init; }
 
-    public bool CanContinueTransfer => !IsStorageTransform && SourcesKnown && TransferIntent is { } intent && intent.Matches(this);
+    public bool IsReviewedAnalysisCopy => Kind == nameof(JobKind.ReviewedAnalysisCopy);
+    public bool CanContinueTransfer => !IsStorageTransform && !IsReviewedAnalysisCopy && SourcesKnown && TransferIntent is { } intent && intent.Matches(this);
 }
 
 public sealed record FillDirectory(string Source, string Destination);
@@ -809,7 +811,9 @@ public static partial class JournalRecovery
                                 open[record.Step] = replacing with { RecoveryPath = record.Get("path") };
                             break;
                         case "done":
-                            if (record.Step > 0) { open.Remove(record.Step); completed++; }
+                            if (record.Step > 0 && !(open.TryGetValue(record.Step, out var operation) &&
+                                operation.Operation == JobJournal.ReviewedAnalysisCopyOp && record.Get("outcome") == nameof(StepOutcome.Uncertain)))
+                            { open.Remove(record.Step); completed++; }
                             break;
                         case "stagedir":
                             if (record.Get("path") is { Length: > 0 } path) directories.Add(path);
@@ -890,7 +894,7 @@ public static partial class JournalRecovery
     /// <summary>Potential staged paths, bounded by <paramref name="limit"/>. Review their current bytes before deletion.</summary>
     public static IReadOnlyList<string> FindStagedLeftovers(InterruptedJob job, int limit = 1000, Action? check = null)
     {
-        if (job.IsStorageTransform) return [];
+        if (job.IsStorageTransform || job.IsReviewedAnalysisCopy) return [];
         if (job.ArchiveTransactions.HasRecords) return []; // Archive artifacts need native object-bound review.
         var id = Path.GetFileNameWithoutExtension(job.JournalPath);
         var shortId = id.Length >= 8 ? id[^8..] : id;
@@ -974,7 +978,7 @@ public static partial class JournalRecovery
 
     /// <summary>Renames that were under way: the item still has its temporary name (<see cref="PendingIntent.Via"/>).</summary>
     public static IReadOnlyList<PendingIntent> FindRenameLeftovers(InterruptedJob job) =>
-        job.IsStorageTransform || job.ArchiveTransactions.HasRecords ? [] :
+        job.IsStorageTransform || job.IsReviewedAnalysisCopy || job.ArchiveTransactions.HasRecords ? [] :
             job.OpenIntents.Where(i => i.Operation == JobJournal.RenameViaOp && i.Via is { } via && (File.Exists(via) || Directory.Exists(via))).ToList();
 
     /// <summary>
@@ -1011,7 +1015,7 @@ public static partial class JournalRecovery
     /// </summary>
     public static CopyReview ReviewCopies(InterruptedJob job, int limit = 1000, Action? check = null)
     {
-        if (job.IsStorageTransform) return new([], [], true);
+        if (job.IsStorageTransform || job.IsReviewedAnalysisCopy) return new([], [], true);
         if (job.ArchiveTransactions.HasRecords) return new([], [], true);
         var incomplete = new List<IncompleteCopy>();
         var differing = new List<string>();

@@ -127,12 +127,12 @@ public sealed partial class AnalysisRenderingTests
             var list = await EntriesAsync(1);
             Assert.Contains("retain-00.bin", list.Items[0]!.ToString());
             Assert.Contains("Marked entries · 1 path · 0 included · 1 kept", ComparisonText(window));
-            AssertDefaultAndDisabled("Recycle included entries");
+            AssertReviewButtons("Recycle included entries");
             var action = ComparisonControl<ComboBox>(window, "Cleanup action")!;
             action.SelectedIndex = 1;
             Frame(window);
             Assert.Contains("Reviewed permanent deletion is unavailable", ComparisonText(window));
-            AssertDefaultAndDisabled("Permanently delete included entries");
+            AssertReviewButtons("Permanently delete included entries");
             list.SelectedIndex = 0;
             Click(window, "Inspect recorded entry");
             await Until(() => ComparisonControl<TextBlock>(window, "Recorded cleanup entry details")?.Text?.Contains("Recorded file size · 4 bytes", StringComparison.Ordinal) == true,
@@ -147,12 +147,14 @@ public sealed partial class AnalysisRenderingTests
             Press(Key.F5, PhysicalKey.F5);
             await EntriesAsync(1);
             Assert.Contains("Copy to a new destination", ComparisonText(window));
-            AssertDefaultAndDisabled("Copy included entries");
-            Click(window, "Cancel / Keep files");
+            if (OperatingSystem.IsWindows()) AssertReviewButtons("Choose copy destination…", enabled: true);
+            else AssertReviewButtons("Copy included entries");
+            Press(Key.Enter, PhysicalKey.Enter);
+            await Until(() => ComparisonControl<ListBox>(window, "Cleanup review entries") is null);
             Press(Key.F6, PhysicalKey.F6);
             await EntriesAsync(1);
             Assert.Contains("Move to a new destination", ComparisonText(window));
-            AssertDefaultAndDisabled("Move included entries");
+            AssertReviewButtons("Move included entries");
             Click(window, "Cancel / Keep files");
 
             Click(window, "Review basket actions…");
@@ -197,15 +199,15 @@ public sealed partial class AnalysisRenderingTests
             return ComparisonControl<ListBox>(window, "Cleanup review entries")!;
         }
 
-        void AssertDefaultAndDisabled(string confirmation)
+        void AssertReviewButtons(string confirmation, bool enabled = false)
         {
             var keep = window.GetVisualDescendants().OfType<Button>()
                 .Single(button => button.IsEffectivelyVisible && Equals(button.Content, "Cancel / Keep files"));
-            var destructive = window.GetVisualDescendants().OfType<Button>()
+            var actionButton = window.GetVisualDescendants().OfType<Button>()
                 .Single(button => button.IsEffectivelyVisible && Equals(button.Content, confirmation));
             Assert.True(keep.IsDefault);
-            Assert.False(destructive.IsEnabled);
-            Assert.False(destructive.IsDefault);
+            Assert.Equal(enabled, actionButton.IsEnabled);
+            Assert.False(actionButton.IsDefault);
         }
     }
 }

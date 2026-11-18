@@ -112,7 +112,7 @@ public sealed partial class MainViewModel
     private async Task<InterruptedReview> ReviewInterruptedAsync(InterruptedJob job, RecoveryActionScope scope)
     {
         // Archive paths are evidence only. This generic review is not an object-bound archive cleanup adapter.
-        if (job.ArchiveTransactions.HasRecords) return new([], [], new([], [], false), false);
+        if (job.ArchiveTransactions.HasRecords || job.IsReviewedAnalysisCopy) return new([], [], new([], [], false), false);
         var paths = new HashSet<string>(PathUtil.SafetyComparer); bool limited = false;
         foreach (var dir in job.StagingDirectories.Distinct(PathUtil.SafetyComparer))
         {
@@ -342,6 +342,7 @@ public sealed partial class MainViewModel
 
     internal async Task<bool> CleanupInterruptedAsync(InterruptedJob job)
     {
+        if (job.IsReviewedAnalysisCopy) { Notify("Use Review report to inspect the copy. A fresh approval is required for any new job."); return false; }
         if (job.IsStorageTransform) { Notify("Use Review storage changes. Storage history cannot authorize partial-file cleanup."); return false; }
         if (!TryBeginRecoveryAction(job, out var scope)) return false;
         InterruptedReview? reviewed = null;

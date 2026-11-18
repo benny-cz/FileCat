@@ -31,14 +31,14 @@ public sealed partial class DiskSpaceWindow
             public override string ToString() => Label;
         }
 
-        internal static async Task ShowAsync(IDialogService dialogs, ImmutableHashSet<ulong> paths, string selection, AnalysisVerb verb, bool basket,
+        internal static async Task<bool> ShowAsync(IDialogService dialogs, ImmutableHashSet<ulong> paths, string selection, AnalysisVerb verb, bool basket,
             SessionIdentity identity, ImmutableArray<RootBinding> roots, AnalysisOrigin origin, AnalysisTaint taint, AnalysisPhase phase,
             NamespaceCoverage coverage, AnalysisFreshness freshness, bool hasRuntimeContext,
             Func<ulong, CancellationToken, Task<AnalysisPathMetadata?>> findPath,
             Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> readPath,
             Func<AnalysisPathMetadata, CancellationToken, Task<AnalysisCleanupReviewEvidence>> readEvidence,
             Func<CancellationToken, Task<AnalysisSelectionVisibility>> classify,
-            Func<CancellationToken, Task<AnalysisCleanupTotals>> summarize, CancellationToken lifetime)
+            Func<CancellationToken, Task<AnalysisCleanupTotals>> summarize, string? copyRefusal, CancellationToken lifetime)
         {
             var ids = paths.Order().ToArray();
             var locations = roots.ToDictionary(location => location.Id, StringComparer.Ordinal);
@@ -119,26 +119,33 @@ public sealed partial class DiskSpaceWindow
             string title = verb == AnalysisVerb.Copy ? "Review copy" : verb == AnalysisVerb.Move ? "Review move" : "Review cleanup";
             var completion = dialogs.ShowCustomAsync(title, body,
                 [new("Cancel / Keep files", false, IsDefault: true, IsCancel: true),
-                 new(choices[initialChoice].Confirmation, true) { Presentation = confirm, IsAvailable = () => false }],
+                 new(choices[initialChoice].Confirmation, true) { Presentation = confirm, IsAvailable = CanChooseCopyFolder }],
                 closer: closer, resizable: true);
             pageWork = LoadPageAsync(0);
             var countsWork = ReadVisibilityAsync();
             var totalsWork = ReadTotalsAsync();
-            try { await completion; }
+            object? selected;
+            try { selected = await completion; }
             finally
             {
                 cancel.Cancel();
                 await Task.WhenAll(pageWork, detailWork, countsWork, totalsWork);
             }
             if (unconfirmed is not null) throw unconfirmed;
+            return selected is true && CanChooseCopyFolder() && !lifetime.IsCancellationRequested;
+
+            bool CanChooseCopyFolder() => action.SelectedItem is ActionChoice { Verb: AnalysisVerb.Copy } &&
+                binding.Length == 0 && copyRefusal is null && !lifetime.IsCancellationRequested;
 
             void DescribeAction()
             {
                 var choice = (ActionChoice?)action.SelectedItem ?? choices[initialChoice];
-                var capability = capabilities.For(choice.Verb);
+                bool choose = CanChooseCopyFolder();
+                string reason = choose ? "Review eligible files and choose which copies to queue. Existing destination files are kept."
+                    : choice.Verb == AnalysisVerb.Copy && copyRefusal is not null ? copyRefusal : capabilities.For(choice.Verb).Reason;
                 availability.Text = (offered.Length == 1 ? choice.Label + ". " : "") +
-                    (binding.Length == 0 ? "" : binding + " ") + capability.Reason;
-                confirm.Update(new(choice.Confirmation, HelpText: capability.Reason));
+                    (binding.Length == 0 ? "" : binding + " ") + reason;
+                confirm.Update(new(choose ? "Choose copy destination…" : choice.Confirmation, HelpText: reason));
             }
 
             void RefreshControls()

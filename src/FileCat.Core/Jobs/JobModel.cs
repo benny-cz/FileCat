@@ -38,6 +38,8 @@ public enum JobKind
     Undo,
     /// <summary>An explicitly reviewed in-place storage transformation; existing numeric values stay stable.</summary>
     StorageTransform,
+    /// <summary>Create new copies from an in-process disk-analysis approval.</summary>
+    ReviewedAnalysisCopy,
 }
 
 public enum RegistryAction { SetValue, DeleteValue, CreateKey, RenameKey, DeleteKey, CopyValue, RenameValue, CopyKey }

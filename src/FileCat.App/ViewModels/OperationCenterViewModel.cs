@@ -372,6 +372,7 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job, bool arc
     public string Title => IsStorage ? Formatters.SafeName(Job.Title) + " · needs review"
         : $"{Formatters.SafeName(Job.Title)} (interrupted {Job.CreatedUtc.ToLocalTime():g})";
     public string Details => IsStorage ? "Result not confirmed. Review the recorded storage changes and uncertainty before acknowledging this history. Historical paths are evidence; this action does not replay changes or delete user files."
+        : Job.IsReviewedAnalysisCopy ? "Inspect the recorded output paths to confirm what was published. A new copy requires a fresh analysis review."
         : Job.ArchiveTransactions.HasRecords ? ArchiveDetails :
         $"{Job.SourceCount:N0} source items · " + (Job.OpenIntents.Count == 0
         ? $"{Job.CompletedSteps:N0} steps had finished. No step was in progress."
@@ -400,7 +401,7 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job, bool arc
     public string ReviewReportLabel => (IsStorage ? "Review storage changes for " : "Review retained recovery report for ") + Formatters.SafeName(Job.Title);
     public string MarkReviewedLabel => (IsStorage ? "Acknowledge reviewed storage history for " : "Mark interrupted recovery reviewed for ") + Formatters.SafeName(Job.Title);
     public string HideLabel => "Hide interrupted recovery notice for " + Formatters.SafeName(Job.Title);
-    public bool CanCleanup => !IsStorage && (!Job.ArchiveTransactions.HasRecords || archiveCleanupAvailable);
+    public bool CanCleanup => !IsStorage && !Job.IsReviewedAnalysisCopy && (!Job.ArchiveTransactions.HasRecords || archiveCleanupAvailable);
     public bool CanReviewArchiveCleanup => Job.ArchiveTransactions.HasRecords && archiveCleanupAvailable;
     public bool CanMarkReviewed => !IsStorage && !Job.ArchiveTransactions.RequiresReview;
 

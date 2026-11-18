@@ -7,7 +7,6 @@ using FileCat.Platform.Windows.Elevation;
 
 namespace FileCat.Platform.Windows.Analysis;
 
-internal sealed record ReviewedNtfsCopy(AnalysisPrimaryContentTarget Target, ImmutableArray<ReviewedNtfsStream> Streams, long TotalBytes);
 internal sealed record ReviewedNtfsStream(string NativeName, long Bytes);
 internal sealed record NtfsCopyReceipt(string Leaf, long Bytes, int Streams);
 
@@ -17,40 +16,128 @@ public sealed unsafe partial class WindowsAnalysisBackend
     private const uint CopyableFileAttributes = (uint)(FileAttributes.Normal | FileAttributes.Archive | FileAttributes.ReadOnly |
         FileAttributes.Hidden | FileAttributes.System | FileAttributes.NotContentIndexed);
 
-    // Metadata only. The returned scope must be matched with new held evidence at execution.
-    internal ReviewedNtfsCopy ReviewCopy(AnalysisPrimaryContentTarget target, CancellationToken cancellation)
+    // Metadata only. Retain the selected namespace, primary file, and each named stream until the review ends.
+    internal ReviewedNtfsCopy ReviewCopy(AnalysisPrimaryContentTarget target, IReadOnlySet<string> protectedDirectories,
+        CancellationToken cancellation) => ReviewedNtfsCopy.Hold(this, target, protectedDirectories, cancellation);
+
+    private void HoldCopyRoot(AnalysisPrimaryContentTarget target, List<OwnedHandle> ancestors, CancellationToken cancellation)
     {
-        var handles = BindPrimaryContent(target, cancellation);
+        string canonical = Root.CanonicalLocator;
+        if (!canonical.StartsWith(@"\\?\", StringComparison.Ordinal) || canonical.Length < 7 || canonical[5] != ':' || canonical[6] != '\\' ||
+            GetDriveType(canonical[4..7]) is not (2 or 3))
+            throw new NotSupportedException("Reviewed copy requires a directly accessible local drive.");
+        var parts = canonical[7..].Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        int directoryCount = parts.Length - (target.RootDirectory is null ? 1 : 0);
+        if (directoryCount < 0 || directoryCount + target.Parents.Length > 32 ||
+            parts.Any(name => !AnalysisNames.IsOrdinaryChild(name, windows: true)))
+            throw new NotSupportedException("The source ancestry exceeds the supported reviewed copy depth or spelling.");
+        var reservation = AnalysisNativeHandles.Acquire();
         try
         {
-            var streams = ReadCopyStreams(handles[^1].Value, target, cancellation);
-            RequirePrimaryBinding(target, handles, cancellation);
-            return new(target, streams, streams.Sum(stream => stream.Bytes));
+            ancestors.Add(new(CreateFile(canonical[..7], 0x100080, 3, 0, 3, 0x02000000 | 0x00200000, 0),
+                reservation, RecordCloseFailure, _nativeClose));
         }
-        finally { AnalysisNativeHandle.CloseAll(handles.AsEnumerable().Reverse()); }
+        catch { reservation.Dispose(); throw; }
+        CheckDirectory(ancestors[0].Value);
+        for (int index = 0; index < directoryCount; index++)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var child = OpenChild(ancestors[^1].Value, parts[index], directory: true);
+            ancestors.Add(child);
+            CheckDirectory(child.Value);
+        }
+        if (target.RootDirectory is { } directory) RequireContentDirectory(ancestors[^1].Value, directory);
+        else
+        {
+            if (!parts[^1].Equals(target.Name, StringComparison.Ordinal)) throw new AnalysisSourceChangedException();
+            using var leaf = OpenChild(ancestors[^1].Value, target.Name, directory: false);
+            RequirePrimaryContent(leaf.Value, target);
+        }
+
+        void CheckDirectory(AnalysisNativeHandle directory)
+        {
+            if (directory.IsInvalid || Volume(directory) != _volume ||
+                Observe(directory, [], [], _namespace, _nativeTimePrecisionTicks) is not
+                    { Kind: AnalysisKind.Directory, Cloud: false, Identity: not null })
+                throw new NotSupportedException("A source ancestor is unavailable or is a link, cloud directory, or mounted volume.");
+        }
     }
 
-    internal NtfsCopyReceipt CopyReviewed(ReviewedNtfsCopy review, WindowsAnalysisPrivateDirectory.ReviewedOutputFolder destination,
-        string leaf, IReadOnlySet<string> protectedDirectories, CancellationToken cancellation)
+    internal sealed class ReviewedNtfsCopy : IAnalysisScratchOwned
     {
-        WindowsAnalysisPrivateDirectory.StagedOutput.ValidateCopyName(leaf);
-        cancellation.ThrowIfCancellationRequested();
-        if (review.Target.RootDirectory is { } root && protectedDirectories.Contains(root.Identity) ||
-            review.Target.Parents.Any(parent => protectedDirectories.Contains(parent.Identity)))
-            throw new IOException("The reviewed source is within protected FileCat artifacts.");
-        destination.VerifyProtection(protectedDirectories);
-        if ((NtFile.GetBasic(destination.Parent).FileAttributes & (uint)(FileAttributes.Encrypted | FileAttributes.Compressed)) != 0)
-            throw new NotSupportedException("Reviewed copy requires a destination without inherited encryption or compression.");
-        RequireCopySpace(destination, review.TotalBytes);
-        var handles = BindPrimaryContent(review.Target, cancellation);
-        bool published = false;
-        try
+        private readonly WindowsAnalysisBackend _source;
+        private readonly List<OwnedHandle> _ancestors, _handles, _named;
+        private bool _disposed;
+        internal AnalysisPrimaryContentTarget Target { get; }
+        internal ImmutableArray<ReviewedNtfsStream> Streams { get; }
+        internal long TotalBytes { get; }
+
+        private ReviewedNtfsCopy(WindowsAnalysisBackend source, AnalysisPrimaryContentTarget target, List<OwnedHandle> ancestors,
+            List<OwnedHandle> handles, List<OwnedHandle> named, ImmutableArray<ReviewedNtfsStream> streams)
         {
+            _source = source;
+            Target = target;
+            _ancestors = ancestors;
+            _handles = handles;
+            _named = named;
+            Streams = streams;
+            TotalBytes = streams.Sum(stream => stream.Bytes);
+        }
+
+        internal static ReviewedNtfsCopy Hold(WindowsAnalysisBackend source, AnalysisPrimaryContentTarget target,
+            IReadOnlySet<string> protectedDirectories, CancellationToken cancellation)
+        {
+            var handles = source.BindPrimaryContent(target, cancellation);
+            var ancestors = new List<OwnedHandle>();
+            var named = new List<OwnedHandle>();
             try
             {
-                var source = handles[^1].Value;
-                var streams = ReadCopyStreams(source, review.Target, cancellation);
-                if (!streams.SequenceEqual(review.Streams) || streams.Sum(stream => stream.Bytes) != review.TotalBytes)
+                source.HoldCopyRoot(target, ancestors, cancellation);
+                var streams = source.ReadCopyStreams(handles[^1].Value, target, cancellation);
+                foreach (var stream in streams)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    if (stream.NativeName != "::$DATA") named.Add(source.OpenCopyStream(handles[^1].Value, stream.NativeName, writing: false));
+                }
+                if (AnalysisNativeHandles.Count > AnalysisLimits.NativeHandles - 8)
+                    throw new NotSupportedException("Review fewer files to leave enough native handles to verify each copy.");
+                var review = new ReviewedNtfsCopy(source, target, ancestors, handles, named, streams);
+                review.VerifySourceProtection(protectedDirectories);
+                source.RequirePrimaryBinding(target, handles, cancellation);
+                return review;
+            }
+            catch
+            {
+                AnalysisNativeHandle.CloseAll(ancestors.Concat(handles).Concat(named).Reverse());
+                throw;
+            }
+        }
+
+        internal void VerifySourceProtection(IReadOnlySet<string> protectedDirectories)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            foreach (var parent in _ancestors.Concat(_handles.Take(_handles.Count - 1)))
+                if (CaptureDirectoryIdentity(parent.Value) is not { } id || protectedDirectories.Contains(id))
+                    throw new IOException("The reviewed source is within protected FileCat artifacts.");
+        }
+
+        internal NtfsCopyReceipt CopyTo(WindowsAnalysisPrivateDirectory.ReviewedOutputFolder destination, string leaf,
+            IReadOnlySet<string> protectedDirectories, CancellationToken cancellation)
+        {
+            WindowsAnalysisPrivateDirectory.StagedOutput.ValidateCopyName(leaf);
+            cancellation.ThrowIfCancellationRequested();
+            VerifySourceProtection(protectedDirectories);
+            destination.VerifyProtection(protectedDirectories);
+            if ((NtFile.GetBasic(destination.Parent).FileAttributes & (uint)(FileAttributes.Encrypted | FileAttributes.Compressed)) != 0)
+                throw new NotSupportedException("Reviewed copy requires a destination without inherited encryption or compression.");
+            destination.RequireNewCopyName(leaf);
+            RequireCopySpace(destination, TotalBytes);
+            bool published = false;
+            try
+            {
+                var source = _handles[^1].Value;
+                var streams = _source.ReadCopyStreams(source, Target, cancellation);
+                if (!streams.SequenceEqual(Streams))
                     throw new AnalysisSourceChangedException();
                 using var output = destination.CreateStage(forExport: false);
                 RequireOrdinaryCopyStorage(output.File, cancellation);
@@ -58,14 +145,15 @@ public sealed unsafe partial class WindowsAnalysisBackend
                 var buffer = ArrayPool<byte>.Shared.Rent(AnalysisLimits.BatchBytes);
                 try
                 {
+                    int namedIndex = 0;
                     foreach (var stream in streams)
                     {
                         cancellation.ThrowIfCancellationRequested();
                         if (stream.NativeName == "::$DATA") CopyStream(source, output.File, stream.Bytes, buffer, cancellation);
                         else
                         {
-                            using var input = OpenCopyStream(source, stream.NativeName, writing: false);
-                            using var staged = OpenCopyStream(output.File, stream.NativeName, writing: true);
+                            var input = _named[namedIndex++];
+                            using var staged = _source.OpenCopyStream(output.File, stream.NativeName, writing: true);
                             RequireOrdinaryCopyStorage(input.Value, cancellation);
                             RequireOrdinaryCopyStorage(staged.Value, cancellation);
                             CopyStream(input.Value, staged.Value, stream.Bytes, buffer, cancellation);
@@ -84,19 +172,26 @@ public sealed unsafe partial class WindowsAnalysisBackend
                     throw new IOException("The private copy could not preserve the reviewed file attributes and times.");
 
                 output.FlushDurable();
-                if (!ReadCopyStreams(source, review.Target, cancellation).SequenceEqual(streams))
+                if (!_source.ReadCopyStreams(source, Target, cancellation).SequenceEqual(streams))
                     throw new AnalysisSourceChangedException();
-                RequirePrimaryBinding(review.Target, handles, cancellation);
+                _source.RequirePrimaryBinding(Target, _handles, cancellation);
+                VerifySourceProtection(protectedDirectories);
                 destination.VerifyProtection(protectedDirectories);
                 cancellation.ThrowIfCancellationRequested();
                 output.PublishCopy(leaf);
                 published = true;
-                return new(leaf, review.TotalBytes, streams.Length);
+                return new(leaf, TotalBytes, streams.Length);
             }
-            finally { AnalysisNativeHandle.CloseAll(handles.AsEnumerable().Reverse()); }
+            catch (Exception error) when (published && error is not AnalysisExportUncertainException)
+            { throw new AnalysisExportUncertainException(leaf, error); }
         }
-        catch (Exception error) when (published && error is not AnalysisExportUncertainException)
-        { throw new AnalysisExportUncertainException(leaf, error); }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            AnalysisNativeHandle.CloseAll(_ancestors.Concat(_handles).Concat(_named).Reverse());
+        }
     }
 
     private ImmutableArray<ReviewedNtfsStream> ReadCopyStreams(AnalysisNativeHandle file,
@@ -109,6 +204,7 @@ public sealed unsafe partial class WindowsAnalysisBackend
         if (ExtendedAttributeBytes(file) != 0)
             throw new NotSupportedException("Reviewed copy cannot preserve this file's extended attributes.");
         var streams = ReadStreamLengths(file, cancellation);
+        if (streams.Length > 16) throw new NotSupportedException("Reviewed copy supports up to 16 primary and named data streams per file.");
         if (streams.Single(stream => stream.NativeName == "::$DATA").Bytes != target.Bytes)
             throw new AnalysisSourceChangedException();
         long total = 0;

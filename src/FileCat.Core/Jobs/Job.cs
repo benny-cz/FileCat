@@ -34,6 +34,13 @@ public sealed partial class Job
     internal FileCat.Core.Edit.ArchiveEditPublication? ArchiveEditPublication => Volatile.Read(ref _archiveEditPublication);
     internal void RecordArchiveEditPublication(FileCat.Core.Edit.ArchiveEditPublication publication) =>
         Interlocked.Exchange(ref _archiveEditPublication, publication);
+    private ReviewedAnalysisCopyOperation? _reviewedAnalysisCopy;
+    internal ReviewedAnalysisCopyOperation? ReviewedAnalysisCopy
+    {
+        get => Volatile.Read(ref _reviewedAnalysisCopy);
+        init => _reviewedAnalysisCopy = value;
+    }
+    internal ReviewedAnalysisCopyOperation? TakeReviewedAnalysisCopy() => Interlocked.Exchange(ref _reviewedAnalysisCopy, null);
     private readonly object _lock = new();
     private readonly List<JobIssue> _issues = [];
     private readonly List<JobCommandResult> _commandResults = [];

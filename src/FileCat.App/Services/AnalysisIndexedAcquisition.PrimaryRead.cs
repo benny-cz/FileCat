@@ -29,7 +29,7 @@ internal sealed partial class AnalysisIndexedAcquisition
         {
             try
             {
-                var item = await PreparePreviewTargetAsync(session, identity, path, cancellation).ConfigureAwait(false);
+                var item = await PreparePrimaryReadTargetAsync(session, identity, path, cancellation).ConfigureAwait(false);
                 string location = PrimaryRuntimeLocation(item.Root, locations);
                 var protectedIds = await _services.AnalysisProtection.CaptureDirectoryIdentitiesAsync(cancellation).ConfigureAwait(false);
                 lock (_gate) RequirePrimaryReadRuntime(session);
@@ -59,7 +59,7 @@ internal sealed partial class AnalysisIndexedAcquisition
         }
     }
 
-    private static async Task<AnalysisPrimaryReadItem> PreparePreviewTargetAsync(AnalysisSession session, SessionIdentity identity,
+    private static async Task<AnalysisPrimaryReadItem> PreparePrimaryReadTargetAsync(AnalysisSession session, SessionIdentity identity,
         ulong path, CancellationToken cancellation)
     {
         if (session.DatasetDescriptor is not null)
@@ -101,7 +101,7 @@ internal sealed partial class AnalysisIndexedAcquisition
             if (current != identity) throw new AnalysisSourceChangedException();
             RequireLiveDuplicateRevision(origin, phase, taint);
             if (freshness != AnalysisFreshness.Observed)
-                throw new NotSupportedException("Preview requires a fresh captured file version.");
+                throw new NotSupportedException("This action requires a fresh captured file version.");
         }
 
         async Task<AnalysisPrimaryReadItem> TargetAsync(IEnumerable<RootBinding> roots,

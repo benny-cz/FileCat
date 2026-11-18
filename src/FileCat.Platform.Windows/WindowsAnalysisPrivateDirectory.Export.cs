@@ -80,6 +80,25 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory
             return ReadSpace(Parent);
         }
 
+        internal void RequireNewCopyName(string name)
+        {
+            StagedOutput.ValidateCopyName(name);
+            Verify();
+            var reservation = AnalysisNativeHandles.Acquire();
+            OwnedHandle? existing = null;
+            try
+            {
+                int status = TryOpen(Parent, name, ReadAttributes | Synchronize, ShareAll, Open, OpenReparsePoint, out var handle);
+                using var opened = handle;
+                if (status == NameNotFound) return;
+                if (status < 0) throw Error(status, "Check the reviewed output name");
+                existing = new(opened, reservation);
+            }
+            finally { if (existing is null) reservation.Dispose(); }
+            existing.Dispose();
+            throw new AnalysisExportTargetExistsException(name, new IOException("The destination name is already in use."));
+        }
+
         internal StagedOutput CreateStage(bool forExport)
         {
             Verify();

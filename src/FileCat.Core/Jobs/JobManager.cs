@@ -194,17 +194,19 @@ public sealed partial class JobManager
     }
 
     private Job Submit(JobRequest request, UndoReservation? reservation, Action<Job>? register = null, ArchiveJobOperation? archiveOperation = null,
-        StorageReviewOwner? storageOwner = null)
+        StorageReviewOwner? storageOwner = null, ReviewedAnalysisCopyOperation? reviewedAnalysisCopy = null)
     {
         Job? job = null;
         List<IDisposable>? readLeases = null;
         try
         {
             ValidateStorageRequest(request, storageOwner);
+            if ((request.Kind == JobKind.ReviewedAnalysisCopy) != (reviewedAnalysisCopy is not null))
+                throw new ArgumentException("A reviewed analysis copy requires its live approval.", nameof(request));
             if (reservation is null && (request.Kind == JobKind.Undo || request.UndoPlan is not null))
                 throw new ArgumentException("An inverse must be admitted through an approved Undo reservation.", nameof(request));
             var (title, device, reads, writes) = Describe(request);
-            job = new Job(request, title, device, reads, writes);
+            job = new Job(request, title, device, reads, writes) { ReviewedAnalysisCopy = reviewedAnalysisCopy };
             readLeases = CaptureReadLeases(request);
             IReadOnlyList<Job> retired = [];
             lock (_lock)
@@ -243,6 +245,7 @@ public sealed partial class JobManager
                     _removeAfterAdmission.Remove(job);
                     _archiveOperations.Remove(job);
                     _storageOwners.Remove(job);
+                    job.TakeReviewedAnalysisCopy();
                     job.Changed -= OnJobChanged;
                 }
             }
@@ -543,11 +546,26 @@ public sealed partial class JobManager
 
     private void RetireUnstarted(Job job, JobState final, bool remove)
     {
+        if (job.ReviewedAnalysisCopy is null) RetireUnstartedCore(job, final, remove);
+        else
+        {
+            lock (_lock) _retiring.Add(job);
+            _ = Task.Run(() =>
+            {
+                RetireUnstartedCore(job, final, remove);
+                Schedule();
+            });
+        }
+    }
+
+    private void RetireUnstartedCore(Job job, JobState final, bool remove)
+    {
         try
         {
             ReleaseArchiveOperation(job);
             ReleaseReadLeases(job);
             ReleaseStorageOwner(job);
+            if (!ReleaseReviewedAnalysisCopy(job)) final = JobState.Failed;
             if (job.Request.StorageTransform is { } storage)
                 job.SetStorageResult(new(storage.Action, storage.Scope, storage.ReviewRevision, new(NotProcessed: storage.Roots.Select(r => r.PinIndex).Distinct().Count()))
                 {
@@ -603,6 +621,11 @@ public sealed partial class JobManager
             final = JobState.Failed;
         }
         finally { ReleaseArchiveOperation(job); ReleaseReadLeases(job); }
+        if (!ReleaseReviewedAnalysisCopy(job))
+        {
+            journal?.RequireRecovery();
+            final = JobState.Failed;
+        }
         if (job.StorageResult is null && job.IsCancellationRequested && final != JobState.Failed) final = JobState.Canceled;
         if (job.Kind == JobKind.Undo && job.UndoReport is null && job.Request.UndoPlan is { } undoPlan)
             job.SetUndoReport(UndoReport.NotStarted(undoPlan, "The inverse could not start. " + (JobIssue.Summarize(job.Issues) ?? final.Describe()), journal?.Path));
@@ -619,7 +642,9 @@ public sealed partial class JobManager
                 journal?.FinishStorage(storageFinal);
                 if (journal is not null) job.SetStorageResult(storageFinal with { DurablePrefix = journal.StoragePrefix });
             }
-            else if (journal is { NeedsRecovery: true }) journal.Note("Temporary items remain unresolved; the journal is retained for recovery.");
+            else if (journal is { NeedsRecovery: true }) journal.Note(job.Kind == JobKind.ReviewedAnalysisCopy
+                ? "Reviewed copy has an unconfirmed outcome or release. Inspect its receipt before a fresh review."
+                : "Temporary items remain unresolved; the journal is retained for recovery.");
             else journal?.Finish(final, job.Summary);
         }
         catch (Exception ex)
@@ -714,6 +739,11 @@ public sealed partial class JobManager
                 }
                 break;
             }
+            case JobKind.ReviewedAnalysisCopy:
+                title = $"Copy reviewed entries ({r.Sources.Count:N0}) to {Analysis.AnalysisNames.Display(Dest())}";
+                AddSourceScopes(reads);
+                AddDestinationScopes();
+                break;
             case JobKind.Copy:
             case JobKind.Extract:
                 title = $"{(r.Kind == JobKind.Copy ? "Copy" : "Extract")} {What()} to {Dest()}";
