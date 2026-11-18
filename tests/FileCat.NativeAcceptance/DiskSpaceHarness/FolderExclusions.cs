@@ -170,7 +170,7 @@ internal sealed partial class HarnessApp
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
                 readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
-                standardIndexChoice = true, scratchThemes };
+                standardIndexChoice = true, scratchThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }
@@ -270,6 +270,7 @@ internal sealed partial class HarnessApp
             top.Y + limits.Bounds.Height <= window.ClientSize.Height + 1);
         long reserved = lease.ScratchReservedBytes;
         if (reserved <= 0) throw new InvalidOperationException("The native recorded index held no scratch reservation.");
+        if (Program.ResourceKeyboardProbe) limits.Focus();
         limits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await ReadyAsync(() => VisibleButton("Close limits") is { IsDefault: true, IsCancel: true });
         var rows = window.GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible).ToArray();
@@ -306,7 +307,13 @@ internal sealed partial class HarnessApp
             }
         }
         finally { ThemeManager.Apply(previousTheme); }
-        closeLimits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (Program.ResourceKeyboardProbe)
+        {
+            await CloseWithNativeKeyAsync("Return");
+            limits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await CloseWithNativeKeyAsync("Escape");
+        }
+        else closeLimits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await ReadyAsync(() => VisibleButton("Close limits") is null);
         var list = IndexedList()!;
         var root = list.Items.OfType<AnalysisHierarchyRow>().Single();
@@ -330,5 +337,18 @@ internal sealed partial class HarnessApp
             return false;
         });
         return themes;
+
+        async Task CloseWithNativeKeyAsync(string key)
+        {
+            await ReadyAsync(() => VisibleButton("Close limits") is { } dismiss && ReferenceEquals(window.FocusManager?.GetFocusedElement(), dismiss));
+            string request = Path.Combine(_run, "resource-key.request"), response = Path.Combine(_run, "resource-key.response");
+            string pending = request + ".pending";
+            await File.WriteAllTextAsync(pending, key, cancellation);
+            File.Move(pending, request);
+            await ReadyAsync(() => File.Exists(response));
+            if (await File.ReadAllTextAsync(response, cancellation) != key) throw new InvalidOperationException("Unexpected native key acknowledgement.");
+            await ReadyAsync(() => VisibleButton("Close limits") is null && ReferenceEquals(window.FocusManager?.GetFocusedElement(), limits));
+            File.Delete(request); File.Delete(response);
+        }
     }
 }
