@@ -243,6 +243,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly StackPanel _setup = new() { Spacing = 6, Margin = new Thickness(10) };
         private readonly ScrollViewer _setupViewport;
         private readonly ScrollViewer _toolbarViewport;
+        private readonly StackPanel _viewSummary;
         private readonly StackPanel _roots = new() { Spacing = 5 };
         private readonly List<TextBox> _rootEditors = [];
         private readonly List<Control> _dataControls = [];
@@ -251,6 +252,9 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly TextBlock _resolved = new() { TextWrapping = TextWrapping.Wrap };
         private readonly Button _start = new() { Content = "Start analysis", Classes = { "primary" } };
         private readonly ComboBox _components = new() { ItemsSource = new[] { "Standard allocation", "Detailed allocation (partial component support)" }, MinWidth = 250 };
+        private const string UsePanelFilterLabel = "Use panel filter for display after scan";
+        private readonly CheckBox _usePanelFilter = new() { Content = new TextBlock { Text = UsePanelFilterLabel, TextWrapping = TextWrapping.Wrap } };
+        private readonly TextBlock _panelFilterStatus = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         private readonly TextBox _query = new() { PlaceholderText = "Search within observations…", MinWidth = 180, MaxLength = AnalysisLimits.QueryBytes };
         private readonly CheckBox _case = new() { Content = "Case sensitive" };
         private readonly ComboBox _metric = new() { ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" }, SelectedIndex = 2, MinWidth = 155 };
@@ -315,11 +319,24 @@ public sealed partial class DiskSpaceWindow : Window
             _setup.Children.Add(_components);
             _setup.Children.Add(new TextBlock { Text = "Scans stay within each filesystem and record links as boundaries. Cloud files use local metadata.", TextWrapping = TextWrapping.Wrap });
             AddFolderExclusionSetup();
+            if (Model.OfferedPanelFilter is not null)
+            {
+                if (Model.OfferedPanelFilter.Length == 0)
+                    _setup.Children.Add(new TextBlock { Text = "This panel filter uses regular expressions or exceeds the display filter limits. Enter a display query after the scan.", TextWrapping = TextWrapping.Wrap });
+                else
+                {
+                    var mask = AnalysisPanelFilter.Restore(Model.OfferedPanelFilter);
+                    AutomationProperties.SetName(_usePanelFilter, UsePanelFilterLabel);
+                    ToolTip.SetTip(_usePanelFilter, new RichTip("Panel filter", detail: AnalysisNames.Display(mask.ResolvedDescription, 240, true) +
+                        ". The inventory includes everything in the scan scope."));
+                    _setup.Children.Add(_usePanelFilter);
+                }
+            }
             AddFastNtfsSetup();
             _setup.Children.Add(_resolved);
             _setupViewport = new ScrollViewer { Content = _setup, MaxHeight = 250, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
             Children.Add(_setupViewport);
-            var toolbar = new StackPanel { Spacing = 6, Margin = new Thickness(10, 4) };
+            var toolbar = new StackPanel { Spacing = 6 };
             var nav = new WrapPanel { ItemSpacing = 7, LineSpacing = 5 };
             nav.Children.Add(_start);
             void DataNavigation(string title, Action action, string help)
@@ -358,19 +375,21 @@ public sealed partial class DiskSpaceWindow : Window
             filters.Children.Add(_rootFilter); filters.Children.Add(_unknown);
             filters.Children.Add(ActionButton("Clear filter", () =>
             {
-                Model.ShowUnknownFilterResults = false; _query.Text = ""; _filterTimer.Stop(); Model.Query = ""; _ = Model.RebuildAsync(true);
+                Model.ShowUnknownFilterResults = false; _query.Text = ""; _filterTimer.Stop(); Model.Query = ""; Model.PanelFilter = null; _ = Model.RebuildAsync(true);
             }, "Remove the display query; scan boundaries remain captured."));
             var ordering = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { new TextBlock { Text = "Sort table", VerticalAlignment = VerticalAlignment.Center }, _sort, _sortDirection } };
             AutomationProperties.SetName(_sort, "Analysis table sort"); AutomationProperties.SetName(_sortDirection, "Analysis table sort direction");
             AutomationProperties.SetName(_breadcrumbs, "Analysis location breadcrumbs");
             ToolTip.SetTip(_sort, new RichTip("Sort observed table rows", detail: "Numeric sorting uses exact recorded integers. Missing numeric values follow known amounts in either direction. Partial amounts rank by their known subtotal. Charts keep their accounting order; focus and marks keep their observation identities."));
-            toolbar.Children.Add(_summary); toolbar.Children.Add(_folderBoundaryCounts); toolbar.Children.Add(nav); toolbar.Children.Add(_breadcrumbs); toolbar.Children.Add(_scope); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(ordering); toolbar.Children.Add(_legend); toolbar.Children.Add(_error);
+            toolbar.Children.Add(nav); toolbar.Children.Add(_breadcrumbs); toolbar.Children.Add(_scope); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(ordering); toolbar.Children.Add(_legend); toolbar.Children.Add(_error);
             AddRecordedResultControls(toolbar);
             toolbar.Children.Add(_runtimeChangeHint);
             _dataControls.AddRange([_mode, _metric, _group, _color, _pause, _inspect, _save, _compare, _breadcrumbs, _scope, _summary, _coverage, filters, ordering]);
             _toolbarViewport = new ScrollViewer { Content = toolbar, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
             AutomationProperties.SetName(_toolbarViewport, "Analysis view controls");
-            Grid.SetRow(_toolbarViewport, 1); Children.Add(_toolbarViewport);
+            _viewSummary = new StackPanel { Spacing = 3, Children = { _summary, _folderBoundaryCounts, _panelFilterStatus } };
+            var header = new StackPanel { Margin = new Thickness(10, 4), Children = { _viewSummary, _toolbarViewport } };
+            Grid.SetRow(header, 1); Children.Add(header);
             _chartHost.Children.Add(_treemap); _chartHost.Children.Add(_sunburst); _explorer.Children.Add(_chartHost);
             var splitter = new GridSplitter { Height = 5, ResizeDirection = GridResizeDirection.Rows, HorizontalAlignment = HorizontalAlignment.Stretch };
             Grid.SetRow(splitter, 1); _explorer.Children.Add(splitter);
@@ -447,7 +466,7 @@ public sealed partial class DiskSpaceWindow : Window
             _reviewCleanup.Margin = new Thickness(10, 0, 10, 4);
             _basketFooter.Children.Add(_reviewCleanup);
             Grid.SetRow(_basketFooter, 3); Children.Add(_basketFooter); Grid.SetRow(_status, 4); _status.Margin = new Thickness(10, 3, 10, 8); Children.Add(_status);
-            _start.Click += async (_, _) => await Model.StartAsync(_rootEditors.Select(e => e.Text ?? "").ToArray(), CaptureFolderExclusions());
+            _start.Click += async (_, _) => await Model.StartAsync(_rootEditors.Select(e => e.Text ?? "").ToArray(), CaptureFolderExclusions(), _usePanelFilter.IsChecked == true);
             _pause.Click += (_, _) => Model.PauseOrResume(); _stop.Click += (_, _) => Model.Stop();
             _mode.SelectionChanged += (_, _) => { Model.Chart = _mode.SelectedIndex switch { 1 => "Sunburst", 2 => "Table", _ => "Treemap" }; Refresh(); };
             _color.SelectionChanged += (_, _) => { Model.ColorDimension = (AnalysisColorDimension)Math.Clamp(_color.SelectedIndex, 0, 2); Refresh(); };
@@ -503,7 +522,7 @@ public sealed partial class DiskSpaceWindow : Window
                 }
                 // Give the results space alongside the wrapped controls on short or large-text displays.
                 // A separate finite list viewport keeps row virtualization active.
-                _toolbarViewport.MaxHeight = Math.Max(96, _viewport.Bounds.Height * .43);
+                _toolbarViewport.MaxHeight = Math.Max(48, _viewport.Bounds.Height / 2 - _viewSummary.DesiredSize.Height);
                 double minimum = Children.Where(c => c.IsVisible && c != _explorer).Sum(c => c.DesiredSize.Height) + (_explorer.IsVisible ? _explorer.MinHeight : 0);
                 double height = Math.Max(_viewport.Bounds.Height, minimum);
                 if (double.IsFinite(height) && Math.Abs(Height - height) > .5) Height = height;
@@ -630,6 +649,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _setupViewport.MinHeight = setupOnly ? 80 : 0;
                 _roots.IsEnabled = !Model.IsPreparing; _start.IsEnabled = !Model.IsPreparing; _start.IsVisible = configuring;
                 _folderExclusionSetup.IsEnabled = !Model.IsPreparing;
+                _usePanelFilter.IsEnabled = !Model.IsPreparing;
                 RefreshFastNtfsSetup();
                 RowDefinitions[0].Height = setupOnly ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
                 RowDefinitions[2].Height = setupOnly ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
@@ -652,6 +672,9 @@ public sealed partial class DiskSpaceWindow : Window
                 _stop.Content = Model.IsPreparing ? "Stop binding" : "Stop";
                 _pause.Content = Model.Phase is AnalysisPhase.Paused or AnalysisPhase.Pausing ? "Resume" : "Pause";
                 var tree = Model.Tree;
+                _panelFilterStatus.IsVisible = Model.PanelFilter is not null || Model.PanelFilterApplied;
+                _panelFilterStatus.Text = Model.PanelFilterApplied ? "Panel filter active" : Model.Running
+                    ? "Panel filter will apply after the scan" : "Preparing panel filter";
                 _group.SelectedIndex = (int)Model.Grouping;
                 _showHierarchy.IsVisible = tree?.GroupingDimension is not null and not AnalysisGroupingDimension.FolderHierarchy;
                 _showHierarchy.IsEnabled = tree?.Items.GetValueOrDefault(Model.Selection.Focus ?? "")?.NodeId is not null;

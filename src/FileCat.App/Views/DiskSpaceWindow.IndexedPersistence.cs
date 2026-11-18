@@ -81,7 +81,7 @@ public sealed partial class DiskSpaceWindow
             string scope = _grouping is null ? _explorer.OtherScopeKey ?? (_scope == 0 ? AnalysisTree.RootKey : AnalysisTree.Key(_scope)) : _grouping.OtherScopeKey ?? _groupKey ?? AnalysisTree.RootKey;
             return new(metric, _chartMode.SelectedIndex == 1 ? "Sunburst" : _chartMode.SelectedIndex == 2 ? "Table" : "Treemap", filter.Text, filter.RootId,
                 scope, filter.CaseSensitive, filter.UnknownOnly, sort, descending)
-            { Grouping = dimension, ColorDimension = (AnalysisColorDimension)_color.SelectedIndex, RootDisplayIds = filter.RootDisplayIds };
+            { Grouping = dimension, ColorDimension = (AnalysisColorDimension)_color.SelectedIndex, RootDisplayIds = filter.RootDisplayIds, PanelFilter = filter.PanelFilter };
         }
         private static AnalysisTableSort IndexedSavedSort(AnalysisHierarchySort sort) => sort switch
         {

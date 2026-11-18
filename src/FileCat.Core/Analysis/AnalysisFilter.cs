@@ -32,6 +32,17 @@ public sealed class AnalysisFilter
         return new(expression, parser.Needs, parser.NamespaceOnly);
     }
 
+    internal AnalysisFilter WithPanelFilter(string? snapshot)
+    {
+        if (snapshot is null) return this;
+        var mask = AnalysisPanelFilter.Restore(snapshot);
+        return new(item => Evaluate(item) switch
+        {
+            AnalysisTruth.False => AnalysisTruth.False,
+            var truth => And(truth, AnalysisPanelFilter.Match(mask, item.Node))
+        }, Needs, namespaceOnly: false);
+    }
+
     public static AnalysisTruth Not(AnalysisTruth v) => v switch { AnalysisTruth.True => AnalysisTruth.False, AnalysisTruth.False => AnalysisTruth.True, _ => AnalysisTruth.Unknown };
     public static AnalysisTruth And(AnalysisTruth a, AnalysisTruth b) => a == AnalysisTruth.False || b == AnalysisTruth.False ? AnalysisTruth.False : a == AnalysisTruth.True && b == AnalysisTruth.True ? AnalysisTruth.True : AnalysisTruth.Unknown;
     public static AnalysisTruth Or(AnalysisTruth a, AnalysisTruth b) => a == AnalysisTruth.True || b == AnalysisTruth.True ? AnalysisTruth.True : a == AnalysisTruth.False && b == AnalysisTruth.False ? AnalysisTruth.False : AnalysisTruth.Unknown;

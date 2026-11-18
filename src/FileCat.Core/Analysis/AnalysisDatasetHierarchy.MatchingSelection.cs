@@ -26,7 +26,7 @@ public sealed partial class AnalysisDatasetHierarchy
             {
                 Kind = AnalysisSelectionKind.VisibleMatches,
                 ScopeSummary = scope == 0 ? "Matching files in the captured analysis" : "Matching files in captured folder " + scope,
-                FilterSummary = Filter is not { } filter ? "" : filter.Request.Text +
+                FilterSummary = Filter is not { } filter ? "" : filter.Request.Summary +
                     (filter.Request.RootId is { } root ? " · captured root " + root : "") +
                     (filter.Request.CaseSensitive ? " · case sensitive" : "") + (filter.Request.UnknownOnly ? " · uncertain results" : "")
             };

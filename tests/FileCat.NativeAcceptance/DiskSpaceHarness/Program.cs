@@ -145,7 +145,10 @@ internal sealed partial class HarnessApp : Application
     {
         if (_window is null || _services is null) return;
         if (!_window.CanAddSession) { _window.ExplainSessionLimit(); return; }
-        var model = new DiskSpaceViewModel(_services, indexedStorage: Program.IndexedDeferredProbe || Program.BranchRefreshProbe || Program.GrowthRecipeProbe || Program.DuplicateReviewProbe);
+        var model = new DiskSpaceViewModel(_services, indexedStorage: Program.IndexedDeferredProbe || Program.BranchRefreshProbe || Program.GrowthRecipeProbe || Program.DuplicateReviewProbe)
+        {
+            OfferedPanelFilter = Program.FolderExclusionProbe ? """{"text":"*.csv","include":[{"kind":"glob","pattern":"*.csv","directoriesOnly":false}],"exclude":[]}""" : null
+        };
         if (Program.IndexedDeferredProbe) { model.Query = "name:future-"; model.Chart = "Table"; }
         if (Program.BranchRefreshProbe) model.Chart = "Table";
         if (Program.GrowthRecipeProbe) { model.Chart = "Table"; model.Metric = AnalysisMetric.FileSize; }

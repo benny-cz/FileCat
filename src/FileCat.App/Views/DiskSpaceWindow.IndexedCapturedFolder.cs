@@ -13,8 +13,9 @@ public sealed partial class DiskSpaceWindow
         private void CancelRequestedFolder()
         { if (_requestedFolder is not null) { _requestedFolder = null; _again = false; _buildCancel?.Cancel(); } }
         private readonly Button _showCapturedFolder = new() { Content = "Show in captured folder" };
+        private string? _panelFilter;
         private AnalysisFilterRequest DraftFilter() => new(_query.Text ?? "", _case.IsChecked == true, _unknown.IsChecked == true, _rootId)
-        { RootDisplayIds = (_grouping?.Filter?.Request ?? _explorer.Filter?.Request)?.RootDisplayIds };
+        { RootDisplayIds = (_grouping?.Filter?.Request ?? _explorer.Filter?.Request)?.RootDisplayIds, PanelFilter = _panelFilter };
         private Task ShowCapturedFolderAsync(ulong? selected = null)
         {
             ulong path = selected ?? _focus;
@@ -38,6 +39,7 @@ public sealed partial class DiskSpaceWindow
                 if (!keepDraft)
                 {
                     _query.Text = effective.Text; _case.IsChecked = effective.CaseSensitive; _unknown.IsChecked = effective.UnknownOnly;
+                    _panelFilter = effective.PanelFilter;
                 }
             }
             finally { _publishing = false; }

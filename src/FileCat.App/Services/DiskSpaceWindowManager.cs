@@ -10,10 +10,10 @@ public sealed class DiskSpaceWindowManager(AppServices services) : IDisposable
     internal DiskSpaceWindow? Window { get; private set; }
     internal bool HasTemporaryWork => Window?.HasTemporaryWork == true;
 
-    internal void OpenFromTools(IReadOnlyList<string> roots)
+    internal void OpenFromTools(IReadOnlyList<string> roots, string? panelFilter = null)
     {
         if (Window is { IsVisible: false, HasSessions: true }) BringForward();
-        else Open(roots);
+        else Open(roots, panelFilter);
     }
 
     internal void BringForward()
@@ -28,10 +28,12 @@ public sealed class DiskSpaceWindowManager(AppServices services) : IDisposable
         BringForward();
     }
 
-    public void Open(IReadOnlyList<string> roots)
+    public void Open(IReadOnlyList<string> roots) => Open(roots, null);
+
+    internal void Open(IReadOnlyList<string> roots, string? panelFilter)
     {
         var window = Window ??= Create();
-        if (window.CanAddSession) window.AddSession(new DiskSpaceViewModel(services), roots);
+        if (window.CanAddSession) window.AddSession(new DiskSpaceViewModel(services) { OfferedPanelFilter = panelFilter }, roots);
         else window.ExplainSessionLimit();
         BringForward();
     }

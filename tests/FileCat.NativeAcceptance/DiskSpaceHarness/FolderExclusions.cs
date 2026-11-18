@@ -34,9 +34,17 @@ internal sealed partial class HarnessApp
             if (window.GetVisualDescendants().OfType<Button>().Any(button => button.IsEffectivelyVisible &&
                 button.Content as string is "Export entire inventory…" or "Export report…"))
                 throw new InvalidOperationException("The ready scanner showed result export commands.");
+            var panelFilter = window.GetVisualDescendants().OfType<CheckBox>().Single(box =>
+                AutomationProperties.GetName(box) == "Use panel filter for display after scan");
+            if (panelFilter.IsChecked == true) throw new InvalidOperationException("A new scan selected the panel display filter automatically.");
+            panelFilter.BringIntoView();
+            await ReadyAsync(() => panelFilter.TranslatePoint(default, window) is { } top && top.Y >= 0 &&
+                top.Y + panelFilter.Bounds.Height <= window.ClientSize.Height + 1);
+            panelFilter.IsChecked = true;
+            await ReadyAsync(() => panelFilter.IsChecked == true);
             RenderNativeFrame("folder-exclusions-setup.png");
             start.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
-            await ReadyAsync(() => model.Tree?.Snapshot.Phase == AnalysisPhase.Finished);
+            await ReadyAsync(() => model.Tree?.Snapshot.Phase == AnalysisPhase.Finished && model.PanelFilterApplied);
             var snapshot = model.Tree!.Snapshot;
             var skipped = snapshot.BoundaryTotals.GetValueOrDefault(AnalysisBoundaryKind.FolderExclusion);
             if (snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy || model.SourceCloseFailures != 0 || skipped != 1 ||
@@ -44,8 +52,14 @@ internal sealed partial class HarnessApp
                 !snapshot.Nodes.Any(node => node.Name == "Small files" && !node.IncludedByPolicy) ||
                 !snapshot.Nodes.Any(node => node.Name == "photo.png" && node.IncludedByPolicy))
                 throw new InvalidDataException("The native scan did not preserve the requested exclusion and sibling evidence.");
+            if (model.Tree.Projection.Totals.Known != 60 || model.Tree.Projection.Totals.MatchingPaths != 1)
+                throw new InvalidDataException("The native view did not apply only the requested panel filename mask.");
             await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
                 text.Text?.Contains("Folder exclusion rules: 1. Folders skipped: 1.", StringComparison.Ordinal) == true));
+            var panelStatus = window.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "Panel filter active");
+            Point? panelTop = panelStatus.TranslatePoint(default, window);
+            if (panelTop is null || panelTop.Value.Y < 0 || panelTop.Value.Y + panelStatus.Bounds.Height > window.ClientSize.Height)
+                throw new InvalidOperationException("The display filter status was clipped in the compact results.");
             var table = window.GetVisualDescendants().OfType<ListBox>().Single(view =>
                 view.IsEffectivelyVisible && AutomationProperties.GetName(view) == "Ranked analysis entries");
             var tableTop = table.TranslatePoint(default, window);
@@ -59,7 +73,8 @@ internal sealed partial class HarnessApp
             window.SelectTemporaryWork();
             await ReadyAsync(() => _tabs?.SelectedIndex == 0);
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
-                sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true };
+                sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
+                panelFilterViewApplied = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }

@@ -63,7 +63,7 @@ public sealed partial class DiskSpaceWindow
                 string? root = saved.Root;
                 if (root is not null && !retained.Descriptor.Roots.Any(r => r.Id == root))
                 { root = null; restoreNotice = "The saved location is absent. Showing all captured locations."; }
-                filter = new(saved.Query, saved.CaseSensitive, saved.ShowUnknown, root) { RootDisplayIds = saved.RootDisplayIds };
+                filter = new(saved.Query, saved.CaseSensitive, saved.ShowUnknown, root) { RootDisplayIds = saved.RootDisplayIds, PanelFilter = saved.PanelFilter };
                 if (saved.Grouping == AnalysisGroupingDimension.FolderHierarchy)
                 {
                     var restored = await RestoreIndexedScopeAsync(retained, saved.Scope, linked.Token);
@@ -230,6 +230,7 @@ public sealed partial class DiskSpaceWindow
             _grouping = groups; _groupPage = groupedPage; _groupKey = groupedPage?.Scope?.Definition.Key;
             Spacing = 10; Margin = new Thickness(10);
             _metric.SelectedIndex = (int)explorer.Metric; _query.Text = filter.Text; _case.IsChecked = filter.CaseSensitive; _unknown.IsChecked = filter.UnknownOnly;
+            _panelFilter = filter.PanelFilter;
             _scope = explorer.Page?.ParentId ?? 0;
             _offset = groupedPage?.Offset ?? explorer.Page?.Children.Offset ?? 0;
             if (saved is not null)
@@ -253,7 +254,7 @@ public sealed partial class DiskSpaceWindow
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             filters.Children.Add(_query); filters.Children.Add(_case); filters.Children.Add(_unknown);
             filters.Children.Add(ActionButton("Apply filter", () => _ = RebuildAsync(), "Apply this query to the captured observations."));
-            filters.Children.Add(ActionButton("Clear filter", () => { _query.Text = ""; _unknown.IsChecked = false; _ = RebuildAsync(); }, "Clear the query and uncertain-results cohort."));
+            filters.Children.Add(ActionButton("Clear filter", () => { _query.Text = ""; _unknown.IsChecked = false; _panelFilter = null; _ = RebuildAsync(); }, "Clear the query, panel display filter and uncertain-results cohort."));
             var navigation = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             AddIndexedPersistenceControls(navigation);
             AddRuntimeRescanControls(navigation);
@@ -625,6 +626,7 @@ public sealed partial class DiskSpaceWindow
             if (missing != 0) _summary.Text += $" · {missing:N0} missing measurements.";
             _status.Text = (explorer.Descriptor.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Complete under captured policy." : "Partial namespace observations; known results so far.") +
                 (explorer.Filter is { } filter ? $" {filter.DefinitePaths:N0} definite matches; {filter.UnknownPaths:N0} uncertain results." : "") + (explorer.Chart?.DetailLimited == true ? " Small chart items are summarized; use the table for every entry." : "");
+            if (explorer.Filter?.Request.PanelFilter is not null) _status.Text += " Panel filter applied to results.";
             int folderRules = AnalysisFolderExclusions.RuleCount(explorer.Descriptor.Policy);
             if (folderRules != 0) _status.Text += $" Folder exclusion rules: {folderRules:N0}. Folders skipped: {explorer.Descriptor.BoundaryTotals.GetValueOrDefault(AnalysisBoundaryKind.FolderExclusion):N0}.";
             _range.Text = page.Children.Total == 0 ? "No entries" : $"Entries {page.Children.Offset + 1:N0}–{page.Children.NextOffset:N0} of {page.Children.Total:N0}";

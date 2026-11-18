@@ -46,7 +46,7 @@ public sealed partial class DiskSpaceWindow
             {
                 nint owner = _window.TryGetPlatformHandle() is { HandleDescriptor: "HWND" } handle ? handle.Handle : 0;
                 await Model.StartFastNtfsAsync(_rootEditors.Select(e => e.Text ?? "").ToArray(), owner,
-                    (scope, token) => ConfirmFastNtfsAsync(_window._dialogs, scope, token), CaptureFolderExclusions());
+                    (scope, token) => ConfirmFastNtfsAsync(_window._dialogs, scope, token), CaptureFolderExclusions(), _usePanelFilter.IsChecked == true);
             };
             _setup.Children.Add(_fastNtfsScan);
             _setup.Children.Add(_fastNtfsHelp);

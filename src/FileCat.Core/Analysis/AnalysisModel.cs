@@ -135,4 +135,5 @@ public sealed record AnalysisProjection(Guid SessionId, long Epoch, long Revisio
     public ImmutableHashSet<ulong> AliasContextNodes { get; init; } = ImmutableHashSet<ulong>.Empty;
     public bool IncludesUnknownFilterResults { get; init; }
     public string FilterText { get; init; } = "";
+    internal bool UsesPanelFilter { get; init; }
 }

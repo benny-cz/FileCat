@@ -37,7 +37,7 @@ public sealed partial class DiskSpaceViewModel
         if (view is not null)
         {
             model.Metric = view.Metric; model.Chart = view.Chart; model.ColorDimension = view.ColorDimension;
-            model.Grouping = view.Grouping; model.Query = view.Query; model.CaseSensitive = view.CaseSensitive;
+            model.Grouping = view.Grouping; model.Query = view.Query; model.CaseSensitive = view.CaseSensitive; model.PanelFilter = view.PanelFilter;
             model.ShowUnknownFilterResults = view.ShowUnknown; model.RootFilter = view.Root; model._rootDisplayIds = view.RootDisplayIds;
             model.Sort = view.Sort; model.SortDescending = view.SortDescending;
             // Numeric IDs from an indexed predecessor are never reused for a memory fallback.
@@ -53,10 +53,14 @@ public sealed partial class DiskSpaceViewModel
             string.Join(", ", unavailable.Select(r => AnalysisNames.Display(r.Label, 120) + " [" + AnalysisNames.Display(r.Id, 64) + "]")) + ". Other verified locations remain available.";
     }
 
-    public Task StartAsync(IReadOnlyList<string> roots, ImmutableArray<AnalysisFolderExclusion> exclusions = default) =>
-        StartAnalysisAsync(roots, null, exclusions);
+    internal string? OfferedPanelFilter { get; init; }
+    internal string? PanelFilter { get; set; }
+    internal bool PanelFilterApplied => _publishedView?.PanelFilter is not null;
 
-    private async Task StartAnalysisAsync(IReadOnlyList<string> roots, FastNtfsRequest? fast, ImmutableArray<AnalysisFolderExclusion> exclusions)
+    public Task StartAsync(IReadOnlyList<string> roots, ImmutableArray<AnalysisFolderExclusion> exclusions = default, bool usePanelFilter = false) =>
+        StartAnalysisAsync(roots, null, exclusions, usePanelFilter);
+
+    private async Task StartAnalysisAsync(IReadOnlyList<string> roots, FastNtfsRequest? fast, ImmutableArray<AnalysisFolderExclusion> exclusions, bool usePanelFilter)
     {
         if (_disposed || IsPreparing || Running || _services is null) return;
         if (_bindingCloseError is not null) { SetStatus("Analysis handles could not be closed. Close this analysis before starting another."); return; }
@@ -158,6 +162,7 @@ public sealed partial class DiskSpaceViewModel
             _fastNtfs = ntfs is not null;
             _session = ntfs is null ? _acquisition!.Start(_prepared.ToArray(), progress, components, exclusions) :
                 _acquisition!.StartNtfs(ntfs, progress, components);
+            PanelFilter = usePanelFilter && OfferedPanelFilter is { Length: > 0 } ? OfferedPanelFilter : null;
             _runtimeRoots = runtimeRoots;
             _runtimeComponents = components;
             HistoryObservation = ObserveHistoryAsync(_acquisition);

@@ -26,7 +26,7 @@ public sealed partial class AnalysisDatasetGrouping
                 return new AnalysisSelection(identity.SessionId, identity.Epoch, identity.Revision, capture.Ids.Order().ToImmutableArray())
                 {
                     Kind = filesOnly ? AnalysisSelectionKind.VisibleMatches : AnalysisSelectionKind.RealGroupMembers, ScopeSummary = (filesOnly ? "Matching files in captured scope: " : "") + capture.Label,
-                    FilterSummary = Filter is not { } filter ? "" : filter.Request.Text +
+                    FilterSummary = Filter is not { } filter ? "" : filter.Request.Summary +
                         (filter.Request.RootId is { } root ? " · captured root " + root : "") +
                         (filter.Request.CaseSensitive ? " · case sensitive" : "") + (filter.Request.UnknownOnly ? " · uncertain results" : "")
                 };

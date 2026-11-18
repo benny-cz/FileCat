@@ -14,7 +14,7 @@ public sealed partial class Mask
     /// <summary>The resolved matching rules, for review; parentheses retain saved-filter grouping.</summary>
     public string ResolvedDescription => Describe(this);
 
-    internal JsonObject? CaptureSnapshot()
+    internal JsonObject? CaptureSnapshot(bool allowRegex = true)
     {
         int parts = 0, characters = 0;
         try { return Capture(this, 0); }
@@ -36,6 +36,7 @@ public sealed partial class Mask
                     array.Add(new JsonObject { ["kind"] = "mask", ["mask"] = Capture(nested, depth + 1) });
                 else if (term.Expression is { } expression)
                 {
+                    if (!allowRegex) throw new ArgumentException("The mask contains a regular expression.");
                     string pattern = expression.ToString(); AddText(pattern);
                     array.Add(new JsonObject { ["kind"] = "regex", ["pattern"] = pattern, ["ignoreCase"] = expression.Options.HasFlag(RegexOptions.IgnoreCase) });
                 }
@@ -54,7 +55,7 @@ public sealed partial class Mask
         }
     }
 
-    internal static bool TryRestoreSnapshot(JsonNode? node, out Mask? mask)
+    internal static bool TryRestoreSnapshot(JsonNode? node, out Mask? mask, bool allowRegex = true)
     {
         int parts = 0, characters = 0;
         try { mask = Restore(node, 0); return true; }
@@ -80,7 +81,7 @@ public sealed partial class Mask
                 {
                     "mask" when term.Count == 2 => new MaskPart(null, null, false) { Nested = Restore(term["mask"], depth + 1) },
                     "glob" when term.Count == 3 => new MaskPart(ReadText(term["pattern"]), null, ReadBool(term["directoriesOnly"])),
-                    "regex" when term.Count == 3 => new MaskPart(null, new Regex(ReadText(term["pattern"]),
+                    "regex" when allowRegex && term.Count == 3 => new MaskPart(null, new Regex(ReadText(term["pattern"]),
                         RegexOptions.CultureInvariant | (ReadBool(term["ignoreCase"]) ? RegexOptions.IgnoreCase : RegexOptions.None), RegexTimeout), false),
                     _ => throw new ArgumentException("Unsupported mask term."),
                 };

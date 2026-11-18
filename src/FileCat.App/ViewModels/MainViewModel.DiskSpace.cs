@@ -19,8 +19,9 @@ public sealed partial class MainViewModel
     {
         if (Scope is null && _dialogs is { IsOpen: true }) return;
         if (AnalysisAdmission.Refusal() is { } reason) { Notify(reason); return; }
-        if (fromTools) Services.DiskSpace.OpenFromTools(roots);
-        else Services.DiskSpace.Open(roots);
+        string? panelFilter = ActiveTab?.Listing is { IsDisposed: false, Filter: { } mask } ? AnalysisPanelFilter.Capture(mask) ?? "" : null;
+        if (fromTools) Services.DiskSpace.OpenFromTools(roots, panelFilter);
+        else Services.DiskSpace.Open(roots, panelFilter);
     }
 
     internal static string? DiskSpaceRoot(TabViewModel tab, int index)

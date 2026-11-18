@@ -110,7 +110,8 @@ public sealed class AnalysisCapturedMemoryReport : AnalysisCapturedReport
                     HasUnmeasuredEvidence = other ? children.Any(item => item.Unknown) : parent.Unknown, HasUnmeasuredLogicalEvidence = logical.UnknownFiles != 0 || (other ? children.Any(item => item.LogicalUnknown) : parent.LogicalUnknown),
                     MeasurementBases = projection.MeasurementBases, DetailedAllocation = snapshot.Policy.ComponentPreset == "detailed",
                     FilterContext = scope == AnalysisReportScope.FilteredView && published.FilterApplied
-                        ? new(context?.Text ?? projection.FilterText, context?.CaseSensitive, projection.IncludesUnknownFilterResults, context is null ? null : context.RootId is not null) : null };
+                        ? new(context?.Text ?? projection.FilterText, context?.CaseSensitive, projection.IncludesUnknownFilterResults, context is null ? null : context.RootId is not null)
+                        { UsesPanelFilter = context?.PanelFilter is not null } : null };
                 var report = new AnalysisCapturedMemoryReport(retained, tree, nodes, order, selected, reservation, io, header, format, scope, referenceScope);
                 retained = null; order = null; reservation = 0; return report;
             }, CancellationToken.None).ConfigureAwait(false);

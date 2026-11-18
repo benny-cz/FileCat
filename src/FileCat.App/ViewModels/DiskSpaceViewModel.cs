@@ -138,7 +138,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         string query = Query, scope = Selection.Scope; var metric = Metric; bool sensitive = CaseSensitive; string? root = RootFilter;
         var sort = Sort; bool descending = SortDescending;
         var grouping = Grouping; var previousGrouping = Tree?.GroupingDimension; var hierarchyTarget = _hierarchyTarget;
-        if (string.IsNullOrWhiteSpace(query) && root is null) ShowUnknownFilterResults = false;
+        string? panelFilter = Running ? null : PanelFilter;
+        if (string.IsNullOrWhiteSpace(query) && root is null && panelFilter is null) ShowUnknownFilterResults = false;
         bool showUnknown = ShowUnknownFilterResults;
         AnalysisSnapshotLease? nextLease = null;
         AnalysisOrderedRows? nextOrder = null;
@@ -150,7 +151,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
                 var s = nextLease?.Snapshot ?? _observation;
                 if (s is null) return null;
                 var capturedView = new AnalysisSavedView(metric, Chart, query, root, scope, sensitive, showUnknown, sort, descending)
-                { Grouping = grouping, RootDisplayIds = _rootDisplayIds };
+                { Grouping = grouping, RootDisplayIds = _rootDisplayIds, PanelFilter = panelFilter };
                 var tree = BuildCapturedTree(s, capturedView, _zone, token);
                 string effectiveScope = ProjectionScope(tree, scope, previousGrouping, hierarchyTarget);
                 nextOrder = _orderRows(tree.ChildrenOf(effectiveScope), sort, descending, token);
@@ -167,7 +168,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             if (_disposed || token.IsCancellationRequested || Sort != sort || SortDescending != descending || Grouping != grouping) { nextLease?.Dispose(); nextOrder?.Dispose(); return; }
             FilterError = null;
             var view = new AnalysisSavedView(metric, Chart, query, root, built.Value.Scope, sensitive, showUnknown, sort, descending)
-            { Grouping = grouping, ColorDimension = ColorDimension, RootDisplayIds = _rootDisplayIds };
+            { Grouping = grouping, ColorDimension = ColorDimension, RootDisplayIds = _rootDisplayIds, PanelFilter = panelFilter };
             if (_interaction > 0)
             {
                 _pending?.Lease?.Dispose(); _pending?.Order.Dispose(); _pending = new(built.Value.Tree, built.Value.Order, nextLease, scope, sort, descending,

@@ -146,7 +146,7 @@ public sealed partial class DiskSpaceViewModel : Services.IAnalysisSavedReferenc
             {
                 var view = entry.View; AnalysisSavedCatalog.ValidateView(view);
                 model._rootDisplayIds = view.RootDisplayIds;
-                model.Metric = view.Metric; model.Chart = view.Chart; model.Query = view.Query; model.ColorDimension = view.ColorDimension;
+                model.Metric = view.Metric; model.Chart = view.Chart; model.Query = view.Query; model.ColorDimension = view.ColorDimension; model.PanelFilter = view.PanelFilter;
                 model.CaseSensitive = view.CaseSensitive; model.ShowUnknownFilterResults = view.ShowUnknown;
                 model.Sort = view.Sort; model.SortDescending = view.SortDescending; model.Grouping = view.Grouping;
                 model.RootFilter = inventory.Snapshot.Roots.Any(r => r.Id == view.Root) ? view.Root : null;

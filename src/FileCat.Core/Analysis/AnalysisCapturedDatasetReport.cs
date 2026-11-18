@@ -63,8 +63,7 @@ public sealed class AnalysisCapturedDatasetReport : AnalysisCapturedReport
                     MeasurementBases = hierarchy.MeasurementBases, DetailedAllocation = descriptor.Policy.ComponentPreset == "detailed",
                     TableOrder = scope == AnalysisReportScope.SelectedRows || scope == AnalysisReportScope.EntireResult && format == AnalysisReportFormat.Csv ? null : AnalysisReportOrder.Folder(sort, descending),
                     FilterTimeZone = descriptor.Identity.TimeZoneId,
-                    FilterContext = scope == AnalysisReportScope.FilteredView && (!string.IsNullOrWhiteSpace(filter.Text) || filter.RootId is not null || filter.UnknownOnly)
-                        ? new(filter.Text, filter.CaseSensitive, filter.UnknownOnly, filter.RootId is not null) : null };
+                    FilterContext = scope == AnalysisReportScope.FilteredView && !filter.IsEmpty ? filter.ReportContext() : null };
             var result = new AnalysisCapturedDatasetReport(retained, hierarchy, io, devices, header, scope, format, folder, selected, sort, descending);
             retained = null; hierarchy = null; return result;
         }

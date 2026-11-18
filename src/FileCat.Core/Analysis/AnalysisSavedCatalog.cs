@@ -14,6 +14,7 @@ public sealed record AnalysisSavedView(AnalysisMetric Metric, string Chart, stri
     public AnalysisGroupingDimension Grouping { get; init; } = AnalysisGroupingDimension.FolderHierarchy;
     public int GroupRuleVersion { get; init; } = AnalysisGroupingRules.RuleVersion;
     public AnalysisRootDisplayIds? RootDisplayIds { get; init; }
+    internal string? PanelFilter { get; init; }
     public static AnalysisSavedView Default { get; } = new(AnalysisMetric.OnDisk, "Treemap", "", null, AnalysisTree.RootKey, false, false);
 }
 
@@ -184,6 +185,7 @@ public sealed partial class AnalysisSavedCatalog
             Encoding.UTF8.GetByteCount(view.Query) > AnalysisLimits.QueryBytes || Encoding.UTF8.GetByteCount(view.Scope) > 256 || view.Root is { } text && Encoding.UTF8.GetByteCount(text) > 256 ||
             !AnalysisPrivateInventoryStore.WellFormedText(view.Query) || !AnalysisPrivateInventoryStore.WellFormedText(view.Scope) ||
             view.Root is { } root && !AnalysisPrivateInventoryStore.WellFormedText(root)) throw Invalid("Unsupported saved analysis view state.");
+        if (view.PanelFilter is { } panelFilter) _ = AnalysisPanelFilter.Restore(panelFilter);
         if (view.Grouping != AnalysisGroupingDimension.FolderHierarchy)
         {
             var scope = SplitAggregationScope(view.Scope).Scope;
@@ -193,7 +195,7 @@ public sealed partial class AnalysisSavedCatalog
 
     private static byte[] EncodeEntry(Guid catalog, AnalysisSavedEntry e) => Encode(w =>
     {
-        w.WriteString("schema", e.View.RootDisplayIds is null ? "4" : "5"); w.WriteString("kind", "named"); w.WriteString("catalog", catalog.ToString("D"));
+        w.WriteString("schema", e.View.PanelFilter is not null ? "6" : e.View.RootDisplayIds is null ? "4" : "5"); w.WriteString("kind", "named"); w.WriteString("catalog", catalog.ToString("D"));
         w.WriteString("inventory", e.InventoryId.ToString("D")); w.WriteString("name", e.Name);
         w.WriteString("bytes", e.Bytes.ToString(CultureInfo.InvariantCulture)); w.WriteString("saved", e.SavedUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
         w.WriteString("coverage", e.Coverage.ToString()); w.WriteString("taint", ((ulong)e.Taint).ToString(CultureInfo.InvariantCulture));
@@ -213,6 +215,8 @@ public sealed partial class AnalysisSavedCatalog
             }
             w.WriteEndObject();
         }
+        else if (e.View.PanelFilter is not null) w.WriteNull("rootIds");
+        if (e.View.PanelFilter is { } panelFilter) w.WriteString("panelFilter", panelFilter);
         w.WriteEndObject();
     });
 
@@ -223,7 +227,7 @@ public sealed partial class AnalysisSavedCatalog
             using var document = Document(data, EntryBytes); var r = document.RootElement;
             Fields(r, "schema", "kind", "catalog", "inventory", "name", "bytes", "saved", "coverage", "taint", "view");
             string schema = Text(r.GetProperty("schema"), 16);
-            if (schema is not ("1" or "2" or "3" or "4" or "5") || Text(r.GetProperty("kind"), 16) != "named")
+            if (schema is not ("1" or "2" or "3" or "4" or "5" or "6") || Text(r.GetProperty("kind"), 16) != "named")
                 throw Invalid("Unsupported saved analysis catalog entry schema. No overwrite or downgrade was attempted.");
             if (Id(r.GetProperty("catalog")) != catalog) throw Invalid("The catalog identity does not match.");
             string name = Text(r.GetProperty("name"), 240); AnalysisPrivateInventoryStore.ValidateName(name);
@@ -238,15 +242,17 @@ public sealed partial class AnalysisSavedCatalog
             else if (schema == "2") Fields(v, "metric", "chart", "query", "root", "scope", "caseSensitive", "showUnknown", "sort", "sortDescending");
             else if (schema == "3") Fields(v, "metric", "chart", "query", "root", "scope", "caseSensitive", "showUnknown", "sort", "sortDescending", "color", "colorRule");
             else if (schema == "4") Fields(v, "metric", "chart", "query", "root", "scope", "caseSensitive", "showUnknown", "sort", "sortDescending", "color", "colorRule", "grouping", "groupRule");
-            else Fields(v, "metric", "chart", "query", "root", "scope", "caseSensitive", "showUnknown", "sort", "sortDescending", "color", "colorRule", "grouping", "groupRule", "rootIds");
+            else if (schema == "5") Fields(v, "metric", "chart", "query", "root", "scope", "caseSensitive", "showUnknown", "sort", "sortDescending", "color", "colorRule", "grouping", "groupRule", "rootIds");
+            else Fields(v, "metric", "chart", "query", "root", "scope", "caseSensitive", "showUnknown", "sort", "sortDescending", "color", "colorRule", "grouping", "groupRule", "rootIds", "panelFilter");
             var view = new AnalysisSavedView(Enumeration<AnalysisMetric>(v.GetProperty("metric")), Text(v.GetProperty("chart"), 16), Text(v.GetProperty("query"), AnalysisLimits.QueryBytes),
                 v.GetProperty("root").ValueKind == JsonValueKind.Null ? null : Text(v.GetProperty("root"), 256), Text(v.GetProperty("scope"), 256), v.GetProperty("caseSensitive").GetBoolean(), v.GetProperty("showUnknown").GetBoolean(),
                 schema == "1" ? AnalysisTableSort.ActiveMetric : Enumeration<AnalysisTableSort>(v.GetProperty("sort")), schema == "1" || v.GetProperty("sortDescending").GetBoolean())
-            { ColorDimension = schema is "3" or "4" or "5" ? Enumeration<AnalysisColorDimension>(v.GetProperty("color")) : AnalysisColorDimension.FileType,
-                ColorRuleVersion = schema is "3" or "4" or "5" ? checked((int)Number(v.GetProperty("colorRule"), int.MaxValue)) : AnalysisChartColors.RuleVersion,
-                Grouping = schema is "4" or "5" ? Enumeration<AnalysisGroupingDimension>(v.GetProperty("grouping")) : AnalysisGroupingDimension.FolderHierarchy,
-                GroupRuleVersion = schema is "4" or "5" ? checked((int)Number(v.GetProperty("groupRule"), int.MaxValue)) : AnalysisGroupingRules.RuleVersion,
-                RootDisplayIds = schema == "5" ? ReadRootDisplayIds(v.GetProperty("rootIds")) : null };
+            { ColorDimension = schema is "3" or "4" or "5" or "6" ? Enumeration<AnalysisColorDimension>(v.GetProperty("color")) : AnalysisColorDimension.FileType,
+                ColorRuleVersion = schema is "3" or "4" or "5" or "6" ? checked((int)Number(v.GetProperty("colorRule"), int.MaxValue)) : AnalysisChartColors.RuleVersion,
+                Grouping = schema is "4" or "5" or "6" ? Enumeration<AnalysisGroupingDimension>(v.GetProperty("grouping")) : AnalysisGroupingDimension.FolderHierarchy,
+                GroupRuleVersion = schema is "4" or "5" or "6" ? checked((int)Number(v.GetProperty("groupRule"), int.MaxValue)) : AnalysisGroupingRules.RuleVersion,
+                RootDisplayIds = schema == "5" || schema == "6" && v.GetProperty("rootIds").ValueKind != JsonValueKind.Null ? ReadRootDisplayIds(v.GetProperty("rootIds")) : null,
+                PanelFilter = schema == "6" ? Text(v.GetProperty("panelFilter"), AnalysisLimits.QueryBytes) : null };
             ValidateView(view); return new(Id(r.GetProperty("inventory")), name, size, saved, coverage, taint, view);
         }
         catch (Exception ex) when (ex is JsonException or FormatException or InvalidOperationException or KeyNotFoundException or ArgumentException or OverflowException)

@@ -16,7 +16,7 @@ internal static class AnalysisDeferredIndexedMatches
         AnalysisSavedCatalog.ValidateView(view);
         if (view.Root is not null && !descriptor.Roots.Any(root => root.Id == view.Root))
             throw new InvalidOperationException("The captured location is absent. No broader selection was substituted.");
-        var filter = new AnalysisFilterRequest(view.Query, view.CaseSensitive, view.ShowUnknown, view.Root) { RootDisplayIds = view.RootDisplayIds };
+        var filter = new AnalysisFilterRequest(view.Query, view.CaseSensitive, view.ShowUnknown, view.Root) { RootDisplayIds = view.RootDisplayIds, PanelFilter = view.PanelFilter };
         var scope = AnalysisSavedCatalog.SplitAggregationScope(view.Scope);
         AnalysisSelection selected;
         if (view.Grouping == AnalysisGroupingDimension.FolderHierarchy)
@@ -64,7 +64,7 @@ internal static class AnalysisDeferredIndexedMatches
             throw new InvalidDataException("Captured matches belong to another revision or exceed the review limit.");
         return selected with
         {
-            FilterSummary = view.Query + (view.Root is { } root ? " · captured location " + root : "") +
+            FilterSummary = view.Query + (view.PanelFilter is not null ? " · captured panel filter" : "") + (view.Root is { } root ? " · captured location " + root : "") +
                 (view.CaseSensitive ? " · case sensitive" : "") + (view.ShowUnknown ? " · uncertain results" : "")
         };
     }

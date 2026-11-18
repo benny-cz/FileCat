@@ -34,6 +34,7 @@ public sealed partial class AnalysisTree
         var identity = Snapshot.Identity;
         return new(identity.SessionId, identity.Epoch, identity.Revision, ids.Order().ToImmutableArray())
         { Kind = AnalysisSelectionKind.VisibleMatches, ScopeSummary = "Matching files in captured scope: " + NameOf(scope), FilterSummary = Projection.FilterText +
+            (Projection.UsesPanelFilter ? " · captured panel filter" : "") +
             (Projection.IncludesUnknownFilterResults ? " · uncertain results" : "") };
     }
 

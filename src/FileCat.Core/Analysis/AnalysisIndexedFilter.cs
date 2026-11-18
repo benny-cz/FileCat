@@ -6,6 +6,11 @@ namespace FileCat.Core.Analysis;
 public sealed record AnalysisFilterRequest(string Text, bool CaseSensitive = false, bool UnknownOnly = false, string? RootId = null)
 {
     public AnalysisRootDisplayIds? RootDisplayIds { get; init; }
+    internal string? PanelFilter { get; init; }
+    internal bool IsEmpty => string.IsNullOrWhiteSpace(Text) && RootId is null && PanelFilter is null;
+    internal string Summary => Text + (PanelFilter is not null ? (Text.Length == 0 ? "Captured panel filter" : " · captured panel filter") : "");
+    internal AnalysisReportFilterContext ReportContext() => new(Text, CaseSensitive, UnknownOnly, RootId is not null)
+    { UsesPanelFilter = PanelFilter is not null };
 }
 public sealed record AnalysisFilterSummary(AnalysisFilterRequest Request, ulong DefinitePaths, ulong UnknownPaths);
 
@@ -33,7 +38,7 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
     internal bool NeedsObject => (Filter.Needs & (AnalysisFilterNeeds.Object | AnalysisFilterNeeds.State)) != 0;
     internal bool NeedsRootWalk => _scopes.Values.Any(s => s.Known && s.Ancestor.HasValue);
     internal bool NamespaceOnly => Filter.NamespaceOnly && !Request.UnknownOnly;
-    internal bool IsUnfiltered => string.IsNullOrWhiteSpace(Request.Text) && Request.RootId is null;
+    internal bool IsUnfiltered => Request.IsEmpty;
     private sealed record Scope(string? Root, ulong? Ancestor, bool Known);
     private AnalysisIndexedFilter(AnalysisFilter filter, AnalysisFilterRequest request, AnalysisIndexedGraphReader source, bool comparison)
     {
@@ -51,14 +56,14 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
     {
         ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(request.Text);
         if (request.RootId is not null && !source.Header.Roots.Any(r => r.Id == request.RootId)) throw new FormatException("Choose a captured root ID.");
-        if (string.IsNullOrWhiteSpace(request.Text) && request.RootId is null) request = request with { UnknownOnly = false };
+        if (request.IsEmpty) request = request with { UnknownOnly = false };
         var filter = await AnalysisIo.Run(io, "analysis-filter-calendar", _ =>
         {
             TimeZoneInfo? zone;
             try { zone = TimeZoneInfo.FindSystemTimeZoneById(source.Header.Identity.TimeZoneId); }
             catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException) { zone = null; }
             return AnalysisFilter.Parse(request.Text, zone ?? TimeZoneInfo.Utc, request.CaseSensitive, roots: source.Header.Roots, allowDateOnly: zone is not null,
-                rootDisplayIds: request.RootDisplayIds, comparison: comparison);
+                rootDisplayIds: request.RootDisplayIds, comparison: comparison).WithPanelFilter(request.PanelFilter);
         }, cancellation).ConfigureAwait(false);
         var result = new AnalysisIndexedFilter(filter, request, source, comparison);
         try

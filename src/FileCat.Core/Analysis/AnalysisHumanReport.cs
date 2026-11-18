@@ -129,6 +129,7 @@ public static partial class AnalysisHumanReport
         static string Choice(bool? value) => value is null ? "not captured" : value.Value ? "yes" : "no";
         string filter = header.FilterContext is { } captured ? "Captured filter query: " + (redact ? "omitted" : captured.Query.Length == 0 ? captured.RootScoped is null ? "query text not captured" : "no text predicate" : Safe(captured.Query)) +
             "; case sensitive: " + Choice(captured.CaseSensitive) + "; captured-location restriction: " + Choice(captured.RootScoped) + "; unknown-results cohort: " + Choice(captured.UnknownOnly) + ". " : "No display predicate limits this captured report scope. ";
+        if (header.FilterContext?.UsesPanelFilter == true) filter += "A captured panel filter also limits this view. ";
         if (header.FilterContext is not null) filter += "Recorded filter timezone: " + (redact ? "omitted" : header.FilterTimeZone is null ? "not captured" : Safe(header.FilterTimeZone)) + ". This describes the captured predicate; it is not rerun when the report is opened. ";
         string basis = header.Metric != AnalysisMetric.OnDisk ? "The active metric uses captured namespace and logical records rather than allocation measurements."
             : header.MeasurementBases is not { } values ? "Provider allocation basis labels were not captured. Use the full inventory for recorded facts."

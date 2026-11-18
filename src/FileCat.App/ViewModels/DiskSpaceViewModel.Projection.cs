@@ -11,7 +11,7 @@ public sealed partial class DiskSpaceViewModel
         bool sensitive = view.CaseSensitive, showUnknown = view.ShowUnknown;
         var rootScopes = new AnalysisRootScopeIndex(s, token);
         var filter = AnalysisFilter.Parse(query, zone ?? TimeZoneInfo.Utc, sensitive, roots: s.Roots, rootScopes: rootScopes, allowDateOnly: zone is not null,
-            rootDisplayIds: view.RootDisplayIds);
+            rootDisplayIds: view.RootDisplayIds).WithPanelFilter(view.PanelFilter);
         var nodes = s.Nodes.ToDictionary(n => n.Id);
         var pathTextAvailable = new Dictionary<ulong, bool>();
         foreach (var node in s.Nodes)
@@ -36,13 +36,14 @@ public sealed partial class DiskSpaceViewModel
             if (truth == AnalysisTruth.Unknown) unknown.Add(n.Id);
             return showUnknown ? truth == AnalysisTruth.Unknown : truth == AnalysisTruth.True;
         }
-        bool filtered = !string.IsNullOrWhiteSpace(query) || root is not null;
+        bool filtered = !string.IsNullOrWhiteSpace(query) || root is not null || view.PanelFilter is not null;
         // A location selector is a namespace scope, not a file predicate. Keep that scope's
         // independent directory allocation; name/type/age predicates do not match non-file facts.
         Func<AnalysisNode, bool>? directoryFilter = filtered && filter.IsNamespaceOnly && !showUnknown
             ? n => Matches(n, null) : null;
         var projection = filtered ? AnalysisAggregate.Project(s, metric, Matches, token, directoryFilter) : all;
-        projection = projection with { UnknownFilterNodes = unknown.ToImmutable(), IncludesUnknownFilterResults = filtered && showUnknown, FilterText = query };
+        projection = projection with { UnknownFilterNodes = unknown.ToImmutable(), IncludesUnknownFilterResults = filtered && showUnknown,
+            FilterText = query, UsesPanelFilter = view.PanelFilter is not null };
         return grouping == AnalysisGroupingDimension.FolderHierarchy ? AnalysisTree.Build(s, projection, filtered, token, directoryFilter)
             : AnalysisTree.BuildGrouped(s, projection, grouping, filtered, token, directoryFilter);
     }

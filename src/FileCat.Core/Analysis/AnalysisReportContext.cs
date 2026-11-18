@@ -2,7 +2,10 @@ using System.Collections.Immutable;
 
 namespace FileCat.Core.Analysis;
 
-public sealed record AnalysisReportFilterContext(string Query, bool? CaseSensitive, bool UnknownOnly, bool? RootScoped);
+public sealed record AnalysisReportFilterContext(string Query, bool? CaseSensitive, bool UnknownOnly, bool? RootScoped)
+{
+    internal bool UsesPanelFilter { get; init; }
+}
 /// <summary>Captured comparison captions only; identities are checked against the chart and never grant source authority.</summary>
 public sealed record AnalysisComparisonChartContext(SessionIdentity Previous, SessionIdentity Current, bool PreviousSide,
     NamespaceCoverage PreviousCoverage, NamespaceCoverage CurrentCoverage, AnalysisFreshness PreviousFreshness,

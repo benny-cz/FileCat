@@ -47,6 +47,9 @@ public sealed partial class AnalysisRenderingTests
             await Until(() => profile.Services.DiskSpace.Window is { IsVisible: true });
             var analyzer = profile.Services.DiskSpace.Window!;
             Assert.Equal(new[] { source }, DiskSpaceEntryRoots(analyzer));
+            var panelFilter = analyzer.GetVisualDescendants().OfType<CheckBox>().Single(box =>
+                AutomationLabel(box) == "Use panel filter for display after scan");
+            Assert.False(panelFilter.IsChecked == true);
 
             Click(AnalyzerButton(analyzer, "Continue in FileCat"));
             Assert.False(analyzer.IsVisible);

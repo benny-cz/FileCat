@@ -51,8 +51,8 @@ public sealed partial class DiskSpaceViewModel
     }
 
     internal Task StartFastNtfsAsync(IReadOnlyList<string> roots, nint owner,
-        Func<FastNtfsScopeReview, CancellationToken, Task<bool>> confirm, ImmutableArray<AnalysisFolderExclusion> exclusions = default) =>
-        StartAnalysisAsync(roots, new(owner, confirm), exclusions);
+        Func<FastNtfsScopeReview, CancellationToken, Task<bool>> confirm, ImmutableArray<AnalysisFolderExclusion> exclusions = default, bool usePanelFilter = false) =>
+        StartAnalysisAsync(roots, new(owner, confirm), exclusions, usePanelFilter);
 
     private sealed record FastNtfsRequest(nint Owner, Func<FastNtfsScopeReview, CancellationToken, Task<bool>> Confirm);
 }

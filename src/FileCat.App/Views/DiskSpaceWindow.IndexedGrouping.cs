@@ -211,6 +211,7 @@ public sealed partial class DiskSpaceWindow
             _status.Text = "Grouped view ready. " + (groups.Descriptor.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Complete under captured policy." : "Partial captured observations.") +
                 (groups.Filter is { } filter ? $" {filter.DefinitePaths:N0} definite matches; {filter.UnknownPaths:N0} uncertain results." : "") +
                 (page.Chart.DetailLimited ? " Chart detail is summarized; every captured member remains in the paged table." : "");
+            if (groups.Filter?.Request.PanelFilter is not null) _status.Text += " Panel filter applied to results.";
             _range.Text = (page.Total == 0 ? "No entries" : $"Entries {page.Offset + 1:N0}–{page.NextOffset:N0} of {page.Total:N0}") + " · " +
                 (page.Sort switch { AnalysisTableSort.Name => "Name", AnalysisTableSort.FilePaths => "File paths", AnalysisTableSort.FileSize => "File size", AnalysisTableSort.MeasurementState => "Metadata state", _ => "Active metric" }) +
                 (page.Descending ? " · Descending" : " · Ascending");

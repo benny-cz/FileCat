@@ -130,7 +130,7 @@ public sealed partial class DiskSpaceViewModel
                             throw new InvalidOperationException("The requested captured scope is absent from the final revision. Choose a scope and capture its current matches.");
                         return tree.CaptureMatchingFiles(request.View.Scope, token) with
                         {
-                            FilterSummary = request.View.Query + (request.View.Root is { } root ? " · captured location " + root : "") +
+                            FilterSummary = request.View.Query + (request.View.PanelFilter is not null ? " · captured panel filter" : "") + (request.View.Root is { } root ? " · captured location " + root : "") +
                                 (request.View.CaseSensitive ? " · case sensitive" : "") + (request.View.ShowUnknown ? " · uncertain results" : "")
                         };
                     }, token);

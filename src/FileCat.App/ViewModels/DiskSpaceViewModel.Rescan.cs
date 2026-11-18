@@ -91,7 +91,7 @@ public sealed partial class DiskSpaceViewModel
                 _session = session, _acquisition = next, _runtimeRoots = _runtimeRoots, _runtimeComponents = _runtimeComponents,
                 Components = _runtimeComponents, Phase = snapshot.Phase, SourceCloseFailures = session.SourceCloseFailures,
                 Metric = view.Metric, Chart = Chart, ColorDimension = ColorDimension, Grouping = view.Grouping,
-                Query = view.Query, RootFilter = view.Root, CaseSensitive = view.CaseSensitive,
+                Query = view.Query, RootFilter = view.Root, CaseSensitive = view.CaseSensitive, PanelFilter = view.PanelFilter,
                 ShowUnknownFilterResults = view.ShowUnknown, Sort = view.Sort, SortDescending = view.SortDescending,
                 _rootDisplayIds = view.RootDisplayIds,
                 _privateStorageUnavailable = next.MemoryPreparationNotice is not null

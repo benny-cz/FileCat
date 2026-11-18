@@ -159,7 +159,7 @@ public sealed partial class AnalysisDatasetHierarchy
                         }, cancellation).ConfigureAwait(false);
                     cancellation.ThrowIfCancellationRequested(); var identity = Descriptor.Identity;
                     return new AnalysisSelection(identity.SessionId, identity.Epoch, identity.Revision, ids.ToImmutable())
-                    { Kind = AnalysisSelectionKind.VisibleMatches, ScopeSummary = "Matching files in captured Other scope", FilterSummary = Filter?.Request.Text ?? "" };
+                    { Kind = AnalysisSelectionKind.VisibleMatches, ScopeSummary = "Matching files in captured Other scope", FilterSummary = Filter?.Request.Summary ?? "" };
             }).ConfigureAwait(false);
         }
         public async Task<AnalysisSelectionVisibility> ClassifyMarksAsync(ImmutableHashSet<ulong> marks, CancellationToken cancellation = default)

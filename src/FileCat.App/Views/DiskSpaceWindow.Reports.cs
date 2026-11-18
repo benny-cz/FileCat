@@ -91,7 +91,7 @@ public sealed partial class DiskSpaceWindow
                     : _grouping.OtherScopeKey is null ? AnalysisReportViewKind.GroupMembers : AnalysisReportViewKind.SmallGroupMembers;
                 var options = await ReviewReportOptionsAsync(_window._dialogs, true, marks.Length, cancel.Token, viewKind);
                 if (options is null) return; cancel.Token.ThrowIfCancellationRequested();
-                var filter = new AnalysisFilterRequest(view.Query, view.CaseSensitive, view.ShowUnknown, view.Root) { RootDisplayIds = view.RootDisplayIds };
+                var filter = new AnalysisFilterRequest(view.Query, view.CaseSensitive, view.ShowUnknown, view.Root) { RootDisplayIds = view.RootDisplayIds, PanelFilter = view.PanelFilter };
                 Task<AnalysisCapturedReport> captureTask = Capture();
                 async Task<AnalysisCapturedReport> Capture() => options.Scope == AnalysisReportScope.FilteredView
                     ? _grouping is not null ? await source.CaptureViewReportAsync(_grouping, _groupKey, options.CaptureFormat, view.Sort, view.SortDescending, cancel.Token)
@@ -143,7 +143,7 @@ public sealed partial class DiskSpaceWindow
                 var options = await ReviewReportOptionsAsync(_window._dialogs, true, marks.Length, cancel.Token, viewKind);
                 if (options is null) return; cancel.Token.ThrowIfCancellationRequested();
                 var captureTask = AnalysisCapturedMemoryReport.CaptureAsync(revision, tree, services.Io, options.CaptureFormat, options.Scope, folder, marks, view.Sort, view.SortDescending, cancel.Token,
-                    context: new(view.Query, view.CaseSensitive, view.ShowUnknown, view.Root));
+                    context: new(view.Query, view.CaseSensitive, view.ShowUnknown, view.Root) { PanelFilter = view.PanelFilter });
                 var closer = new ViewModels.DialogCloser();
                 try
                 {

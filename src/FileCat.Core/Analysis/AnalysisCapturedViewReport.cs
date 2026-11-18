@@ -74,8 +74,7 @@ public sealed class AnalysisCapturedViewReport : AnalysisCapturedReport
             { ViewKind = kind, NamespaceRowsOnly = group is not null || folders is not null, IncludesAccountingReferences = groups is not null,
                 HasUnmeasuredEvidence = unknown, HasUnmeasuredLogicalEvidence = logicalUnknown, MeasurementBases = bases, DetailedAllocation = descriptor.Policy.ComponentPreset == "detailed",
                 TableOrder = folders is not null ? AnalysisReportOrder.Folder(folderSort, descending) : new(sort, descending), FilterTimeZone = descriptor.Identity.TimeZoneId,
-                FilterContext = request is not null && (!string.IsNullOrWhiteSpace(request.Text) || request.RootId is not null || request.UnknownOnly)
-                    ? new(request.Text, request.CaseSensitive, request.UnknownOnly, request.RootId is not null) : null };
+                FilterContext = request is { IsEmpty: false } ? request.ReportContext() : null };
             var report = new AnalysisCapturedViewReport(retained, folderScope, groupScope, parent, group, sort, folderSort, descending, references, io, devices, header, format);
             retained = null; folderScope = null; groupScope = null; return report;
         }
