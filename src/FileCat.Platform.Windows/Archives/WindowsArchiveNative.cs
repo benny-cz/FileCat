@@ -186,6 +186,14 @@ internal static unsafe partial class WindowsArchiveNative
     private static ArchiveWriteException UnexpectedStreams() => new(ArchiveWriteReason.PublicationUnavailable,
         "The new archive's complete data and required origin stream inventory could not be established.");
 
+    internal static bool HasNoExtendedAttributes(SafeFileHandle handle)
+    {
+        uint size = 0;
+        IoStatus io = default;
+        return NtQueryInformationFile(handle, &io, &size, sizeof(uint), 7 /* FileEaInformation */) == 0 &&
+            io.Information == sizeof(uint) && size == 0;
+    }
+
     internal static void DeleteExact(SafeFileHandle handle)
     {
         uint flags = 1 | 2; // DELETE | POSIX_SEMANTICS. Never ignore read-only, reopen a path, or use a fallback.

@@ -186,69 +186,78 @@ public sealed class PagedReader : IDisposable
 
     private bool RecentlyFailed(long index)
     {
-        lock (_lock) return _failed.TryGetValue(index, out var when) && DateTime.UtcNow - when < RetryFailedAfter;
+        lock (_lock) return RecentlyFailedLocked(index);
     }
+
+    private bool RecentlyFailedLocked(long index) =>
+        _failed.TryGetValue(index, out var when) && DateTime.UtcNow - when < RetryFailedAfter;
 
     private void RequestPage(long index)
     {
+        Task<Page?>? shared;
         lock (_lock)
         {
             if (_disposed || !_loading.Add(index)) return;
+            _readsInFlight.TryGetValue((index, _generation), out var load);
+            shared = load?.Task;
         }
+
+        // Join a read already in progress at admission. The device worker could otherwise start
+        // after that read has returned an error and accidentally issue a second source call.
+        if (shared is not null)
+        {
+            _ = FinishSharedPageAsync(index, shared);
+            return;
+        }
+
         if (_io is not null)
         {
             _ = RequestDevicePageAsync(index);
             return;
         }
-        ThreadPool.QueueUserWorkItem(_ =>
+        ThreadPool.QueueUserWorkItem(_ => RunRequestedPage(index));
+    }
+
+    private void FinishRequestedPage(long index)
+    {
+        lock (_lock) _loading.Remove(index);
+        PageLoaded?.Invoke();
+    }
+
+    private async Task FinishSharedPageAsync(long index, Task<Page?> shared)
+    {
+        try { await shared.ConfigureAwait(ConfigureAwaitOptions.ForceYielding); }
+        catch (Exception) { }
+        finally { FinishRequestedPage(index); }
+    }
+
+    private void RunRequestedPage(long index)
+    {
+        Task<Page?>? shared = null;
+        try { StartPage(index, out shared, respectRetryDelay: true); }
+        catch (Exception) { }
+        finally
         {
-            try { LoadPage(index); }
-            catch (Exception) { }
-            finally
-            {
-                lock (_lock) _loading.Remove(index);
-                PageLoaded?.Invoke();
-            }
-        });
+            // An existing read pins the source. Yield this worker, keeping page demand active until it returns.
+            if (shared is null) FinishRequestedPage(index);
+            else _ = FinishSharedPageAsync(index, shared);
+        }
     }
 
     private async Task RequestDevicePageAsync(long index)
     {
-        int state = 0; // queued, active, complete; cancellation cannot retire a still-running source call
-        void Finished()
-        {
-            lock (_lock) _loading.Remove(index);
-            PageLoaded?.Invoke();
-        }
-        async Task FinishSharedAsync(Task<Page?> shared)
-        {
-            // A visible-page waiter must yield its device worker. The owner still pins the
-            // source; page demand stays active until the shared call actually returns.
-            try
-            {
-                try { await shared.ConfigureAwait(false); }
-                finally { Interlocked.Exchange(ref state, 2); Finished(); }
-            }
-            catch (Exception) { } // Same completion/error handling as the scheduled page call.
-        }
+        int claimed = 0; // Either the worker runs the demand or cancellation retires it before the worker starts.
         try
         {
-            await _io!.Run(_deviceKey!, IoPriority.Interactive, ct =>
+            await _io!.Run(_deviceKey!, IoPriority.Interactive, _ =>
             {
-                if (Interlocked.CompareExchange(ref state, 1, 0) != 0) return;
-                Task<Page?>? shared = null;
-                try { StartPage(index, out shared); }
-                finally
-                {
-                    if (shared is not null) _ = FinishSharedAsync(shared);
-                    else { Interlocked.Exchange(ref state, 2); Finished(); }
-                }
+                if (Interlocked.Exchange(ref claimed, 1) == 0) RunRequestedPage(index);
             }, _pageDemand!.Token).ConfigureAwait(false);
         }
         catch (Exception) { }
         finally
         {
-            if (Interlocked.CompareExchange(ref state, 2, 0) == 0) Finished();
+            if (Interlocked.Exchange(ref claimed, 1) == 0) FinishRequestedPage(index);
         }
     }
 
@@ -258,21 +267,24 @@ public sealed class PagedReader : IDisposable
         return shared is null ? page : shared.GetAwaiter().GetResult();
     }
 
-    private Page? StartPage(long index, out Task<Page?>? shared)
+    private Page? StartPage(long index, out Task<Page?>? shared, bool respectRetryDelay = false)
     {
         shared = null;
         (long Index, long Generation) key;
         TaskCompletionSource<Page?> load;
-        bool owner;
         lock (_lock)
         {
             if (_disposed) return null;
             if (_pages.TryGetValue(index, out var existing)) return existing.Value;
             key = (index, _generation);
-            owner = !_readsInFlight.TryGetValue(key, out load!);
-            if (owner) _readsInFlight.Add(key, load = new(TaskCreationOptions.RunContinuationsAsynchronously));
+            if (_readsInFlight.TryGetValue(key, out var active))
+            {
+                shared = active.Task;
+                return null;
+            }
+            if (respectRetryDelay && RecentlyFailedLocked(index)) return null;
+            _readsInFlight.Add(key, load = new(TaskCreationOptions.RunContinuationsAsynchronously));
         }
-        if (!owner) { shared = load.Task; return null; }
         try
         {
             var page = LoadPageOwned(index, key.Generation);

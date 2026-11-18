@@ -445,6 +445,7 @@ public sealed partial class JobJournal : IDisposable
 
     public const string RenameViaOp = "rename-via";
     internal const string ReviewedAnalysisCopyOp = "analysis-copy-new";
+    public const string LegacyZipUpdateOp = "zip-update";
 
     /// <summary>Makes every record written so far durable (one flush for a batch of intents).</summary>
     public void Flush()
@@ -695,6 +696,7 @@ public sealed record InterruptedJob(string JournalPath, string Kind, string Titl
     /// <summary>Manager-scoped storage evidence name. JournalPath is then a bounded row key, not a user-file path.</summary>
     public string? StorageJournalLeaf { get; init; }
     public bool IsStorageTransform => Kind == nameof(JobKind.StorageTransform) || StorageJournalPolicy.IsCandidate(JournalPath);
+    public bool HasLegacyZipRecovery => OpenIntents.Any(intent => intent.Operation == JobJournal.LegacyZipUpdateOp);
     /// <summary>Archive facts requiring their own object-bound review; generic stage cleanup cannot resolve these.</summary>
     public ArchiveTransactionRecovery ArchiveTransactions { get; init; } = new([], false, null);
     /// <summary>Folders that received direct copies (source folder, destination folder), bounded.</summary>
@@ -918,7 +920,7 @@ public static partial class JournalRecovery
     public static IReadOnlyList<string> FindStagedLeftovers(InterruptedJob job, int limit = 1000, Action? check = null)
     {
         if (job.IsStorageTransform || job.IsReviewedAnalysisCopy) return [];
-        if (job.ArchiveTransactions.HasRecords) return []; // Archive artifacts need native object-bound review.
+        if (job.ArchiveTransactions.HasRecords || job.HasLegacyZipRecovery) return []; // Archive paths are evidence only.
         var id = Path.GetFileNameWithoutExtension(job.JournalPath);
         var shortId = id.Length >= 8 ? id[^8..] : id;
         var list = new List<string>();

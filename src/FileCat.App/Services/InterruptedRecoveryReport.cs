@@ -60,6 +60,9 @@ internal static class InterruptedRecoveryReport
         "This local recovery review cannot inspect or delete server files. Inspect the remote destination " +
         "and its temporary files before marking this recovery reviewed.";
 
+    internal const string LegacyZipReviewWarning =
+        "A ZIP update needs manual review. Inspect the recorded archive, backup and temporary ZIP paths before changing or removing any files.";
+
     // The remote uploader names its stage from the journal's eight-digit job ID.
     // This is a search hint, never proof that a server item still belongs to us.
     internal static string? ExpectedRemoteStagePrefix(InterruptedJob job)
@@ -146,6 +149,7 @@ internal static class InterruptedRecoveryReport
         Line("This is a review-time snapshot. Files may change afterward. Closing tracking does not delete or repair files.");
         if (HasUnreviewedRemoteUpload(job))
             Line("Remote upload still requires review: " + RemoteUploadReviewWarning(job));
+        if (job.HasLegacyZipRecovery) Line(LegacyZipReviewWarning);
         if (job.ArchiveTransactions.HasRecords)
         {
             Line();

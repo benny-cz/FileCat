@@ -24,6 +24,26 @@ namespace FileCat.App.Tests;
 
 public sealed class ArchiveInterruptedRecoveryTests
 {
+    [Fact]
+    public void Legacy_ZIP_recovery_offers_a_report_with_all_names_and_withholds_automatic_cleanup()
+    {
+        string root = Path.GetTempPath();
+        string archive = Path.Join(root, "original.zip");
+        string stage = Path.Join(root, ".filecat-zip-owned.tmp");
+        string backup = Path.Join(root, ".filecat-zip-owned.bak");
+        var job = new InterruptedJob(Path.Join(root, "owned.fcj"), nameof(JobKind.ArchiveUpdate), "Legacy ZIP update",
+            DateTime.UtcNow, [], null, [new(1, JobJournal.LegacyZipUpdateOp, archive, null, stage) { RecoveryPath = backup }], [], 0, 0);
+        var row = new InterruptedJobViewModel(job);
+        Assert.False(row.CanCleanup);
+        Assert.True(row.CanMarkReviewed);
+        Assert.Contains("manual review", row.Details);
+        string report = InterruptedRecoveryReport.Format(job, "Inspection only", [], [], new([], [], false), false);
+        Assert.Contains("manual review", report);
+        Assert.Contains(JsonSerializer.Serialize(archive), report);
+        Assert.Contains(JsonSerializer.Serialize(stage), report);
+        Assert.Contains(JsonSerializer.Serialize(backup), report);
+    }
+
     [AvaloniaTheory]
     [InlineData(ArchiveContentRestorationPhase.CommitIntent)]
     [InlineData(ArchiveContentRestorationPhase.Committed)]

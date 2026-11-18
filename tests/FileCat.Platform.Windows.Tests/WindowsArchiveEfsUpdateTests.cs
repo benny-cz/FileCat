@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
 using FileCat.Core.Archives;
 using FileCat.Core.Jobs;
 using FileCat.Core.State;
@@ -228,6 +229,180 @@ public sealed class WindowsArchiveEfsUpdateTests
             Assert.Empty(Directory.GetFiles(root, "*.tmp"));
         }
         finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void Legacy_partial_replace_restores_only_the_exact_encrypted_original_to_a_vacant_name(bool occupied, bool changedBackup)
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-legacy-partial-efs-").FullName;
+        string target = Path.Join(root, "original.zip");
+        string journals = Path.Join(root, "journals");
+        string movedOriginal = Path.Join(root, "original-moved-again.zip");
+        string? backup = null, stage = null;
+        try
+        {
+            using (var zip = ZipFile.Open(target, ZipArchiveMode.Create)) zip.CreateEntry("original.txt");
+            byte[] original = File.ReadAllBytes(target);
+            File.WriteAllText(target + ":fixture", "original named stream");
+            var files = new WindowsFileOperations();
+            string identity = Assert.IsType<string>(files.GetFileIdentity(target));
+            var plan = new ArchivePlan(target, ArchiveBaseline.Of(target), []);
+            var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan }, "Legacy partial ZIP update", "", [], []);
+            using (var journal = JobJournal.Create(journals, job))
+            {
+                var update = new LegacyZipPublicationTransaction(job, files, journal, plan, target, root,
+                    replaceFile: (incoming, archive, retained) =>
+                    {
+                        stage = incoming;
+                        backup = retained;
+                        File.Move(archive, retained, overwrite: false);
+                        File.Encrypt(retained);
+                        // Model Windows reporting the partially applied result with metadata on the replacement.
+                        File.Encrypt(incoming);
+                        if (changedBackup)
+                        {
+                            File.Move(retained, movedOriginal, overwrite: false);
+                            File.WriteAllText(retained, "another file occupies the backup name");
+                        }
+                        if (occupied) File.WriteAllText(archive, "another file occupies the original name");
+                        throw new IOException("Simulated ERROR_UNABLE_TO_MOVE_REPLACEMENT_2", unchecked((int)0x80070499));
+                    });
+                using (var source = new ArchiveMutationReadStream(target)) update.CaptureOpenedSource(source);
+                using (var output = update.CreateStage())
+                using (var zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+                    zip.CreateEntry("rebuilt.txt");
+                using (var read = update.OpenStageRead()) update.CaptureVerifiedStage(read);
+                update.Prepare();
+
+                var failure = Assert.Throws<IOException>(() => update.Publish(() => throw new InvalidOperationException("Publication was not expected.")));
+                update.RecordFailure(failure);
+                update.CleanupUnpublishedStage();
+                Assert.True(journal.NeedsRecovery);
+            }
+
+            string stagePath = Assert.IsType<string>(stage), backupPath = Assert.IsType<string>(backup);
+            string originalPath = changedBackup ? movedOriginal : occupied ? backupPath : target;
+            Assert.Equal(identity, files.GetFileIdentity(originalPath));
+            Assert.Equal(original, File.ReadAllBytes(originalPath));
+            Assert.True(File.GetAttributes(originalPath).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal("original named stream", File.ReadAllText(originalPath + ":fixture"));
+            Assert.True(File.GetAttributes(stagePath).HasFlag(FileAttributes.Encrypted));
+            if (occupied) Assert.Equal("another file occupies the original name", File.ReadAllText(target));
+            if (changedBackup)
+            {
+                Assert.False(File.Exists(target));
+                Assert.Equal("another file occupies the backup name", File.ReadAllText(backupPath));
+            }
+            if (!occupied && !changedBackup) Assert.False(File.Exists(backupPath));
+            var pending = Assert.Single(Assert.Single(JournalRecovery.Scan(journals)).OpenIntents);
+            Assert.Equal(stagePath, pending.Staged);
+            Assert.Equal(backupPath, pending.RecoveryPath);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void Legacy_download_mark_loss_rolls_back_through_the_real_Windows_archive_path()
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-legacy-mark-rollback-").FullName;
+        string target = Path.Join(root, "original.zip");
+        const string mark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        try
+        {
+            using (var zip = ZipFile.Open(target, ZipArchiveMode.Create)) zip.CreateEntry("original.txt");
+            byte[] original = File.ReadAllBytes(target);
+            var files = new RemovePublishedMark(target);
+            Assert.True(files.WriteOriginMark(target, mark));
+            string id = Assert.IsType<string>(files.GetFileIdentity(target));
+            var plan = new ArchivePlan(target, ArchiveBaseline.Of(target), [new(ArchiveChangeKind.CreateFolderEntry, "new-folder")]);
+            var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan }, "Legacy ZIP mark loss", "", [], []);
+            using var journal = JobJournal.Create(Path.Join(root, "journals"), job);
+
+            var failure = Assert.Throws<IOException>(() => new ZipUpdateExecutor(job, files, journal).Execute());
+            Assert.Contains("original was restored", failure.Message, StringComparison.Ordinal);
+            Assert.True(files.Removed);
+            Assert.Equal(id, files.GetFileIdentity(target));
+            Assert.Equal(original, File.ReadAllBytes(target));
+            Assert.Equal(mark, files.ReadOriginMark(target));
+            Assert.False(journal.NeedsRecovery);
+            Assert.Equal([target], Directory.GetFiles(root));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Held_ZIP_rollback_preserves_a_new_archive_occupant_or_a_new_stream_on_the_rebuild(bool occupyArchive)
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-held-zip-rollback-").FullName;
+        string target = Path.Join(root, "original.zip");
+        string backup = Path.Join(root, ".filecat-zip-owned.bak");
+        string stage = Path.Join(root, ".filecat-zip-owned.tmp");
+        const string mark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        try
+        {
+            using (var zip = ZipFile.Open(target, ZipArchiveMode.Create)) zip.CreateEntry("rebuilt.txt");
+            using (var zip = ZipFile.Open(backup, ZipArchiveMode.Create)) zip.CreateEntry("original.txt");
+            byte[] rebuilt = File.ReadAllBytes(target), original = File.ReadAllBytes(backup);
+            var files = new WindowsFileOperations();
+            string rebuildId = Assert.IsType<string>(files.GetFileIdentity(target));
+            string originalId = Assert.IsType<string>(files.GetFileIdentity(backup));
+            Assert.True(files.WriteOriginMark(backup, mark));
+            File.Encrypt(backup);
+            var current = new LegacyZipRollbackFile(new(rebuildId, rebuilt.Length, Convert.ToHexString(SHA256.HashData(rebuilt))), null, Encrypted: false);
+            var retained = new LegacyZipRollbackFile(new(originalId, original.Length, Convert.ToHexString(SHA256.HashData(original))), mark, Encrypted: true);
+
+            var result = WindowsFileOperations.RollbackLegacyZipCore(target, backup, stage, current, retained, afterRetire: () =>
+            {
+                if (occupyArchive)
+                    File.WriteAllText(target, "independent archive-name occupant");
+                else
+                {
+                    using var stream = new FileStream(stage + ":fixture", FileMode.CreateNew, FileAccess.Write, FileShare.Read | FileShare.Delete);
+                    using var writer = new StreamWriter(stream);
+                    writer.Write("independent named-stream data");
+                }
+            });
+
+            Assert.Equal(!occupyArchive, result.Restored);
+            Assert.True(result.RebuildRetained);
+            Assert.Equal(rebuildId, files.GetFileIdentity(stage));
+            Assert.Equal(rebuilt, File.ReadAllBytes(stage));
+            string originalPath = occupyArchive ? backup : target;
+            Assert.Equal(originalId, files.GetFileIdentity(originalPath));
+            Assert.Equal(original, File.ReadAllBytes(originalPath));
+            Assert.True(File.GetAttributes(originalPath).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(mark, files.ReadOriginMark(originalPath));
+            if (occupyArchive) Assert.Equal("independent archive-name occupant", File.ReadAllText(target));
+            else
+            {
+                Assert.False(File.Exists(backup));
+                Assert.Equal("independent named-stream data", File.ReadAllText(stage + ":fixture"));
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private sealed class RemovePublishedMark(string target) : WindowsFileOperations
+    {
+        public bool Removed { get; private set; }
+
+        public override string? ReadOriginMark(string path)
+        {
+            if (!Removed && path == target && Directory.GetFiles(Path.GetDirectoryName(path)!, ".filecat-zip-*.bak").Length == 1)
+            {
+                File.Delete(path + ":Zone.Identifier");
+                Removed = true;
+            }
+            return base.ReadOriginMark(path);
+        }
     }
 
     private sealed class ChangeStageDuringPreparation(string target, bool encrypt) : WindowsFileOperations
