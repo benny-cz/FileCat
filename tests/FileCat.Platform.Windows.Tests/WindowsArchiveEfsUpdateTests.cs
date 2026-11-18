@@ -14,9 +14,11 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class WindowsArchiveEfsUpdateTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Legacy_zip_publication_preserves_the_original_object_or_leaves_its_hard_link_unchanged(bool hardLinked)
+    [InlineData(false, FileAttributes.Normal)]
+    [InlineData(false, FileAttributes.Compressed)]
+    [InlineData(false, FileAttributes.SparseFile)]
+    [InlineData(true, FileAttributes.Normal)]
+    public void Legacy_zip_publication_preserves_the_original_object_or_leaves_its_hard_link_unchanged(bool hardLinked, FileAttributes storage)
     {
         RequireLocalNtfs();
         string root = Directory.CreateTempSubdirectory("filecat-zip-publication-").FullName;
@@ -25,8 +27,11 @@ public sealed partial class WindowsArchiveEfsUpdateTests
         try
         {
             using (var zip = ZipFile.Open(target, ZipArchiveMode.Create)) zip.CreateEntry("original.txt");
+            RequireZipPublicationVolume(target, storage);
             File.WriteAllText(target + ":filecat-fixture", "other stream");
             File.WriteAllText(target + ":Zone.Identifier", mark, Encoding.Unicode);
+            if (storage != FileAttributes.Normal) ConfigureZipStorage(target, storage);
+            if (storage == FileAttributes.Compressed) ConfigureZipStorage(target + ":filecat-fixture", storage);
             var originalMark = File.ReadAllBytes(target + ":Zone.Identifier");
             var original = File.ReadAllBytes(target);
             var creation = File.GetCreationTimeUtc(target);
@@ -55,6 +60,14 @@ public sealed partial class WindowsArchiveEfsUpdateTests
             Assert.Equal(creation, File.GetCreationTimeUtc(target));
             Assert.Equal(originalMark, File.ReadAllBytes(target + ":Zone.Identifier"));
             Assert.Equal("other stream", File.ReadAllText(target + ":filecat-fixture"));
+            const FileAttributes storageMask = FileAttributes.Compressed | FileAttributes.SparseFile;
+            Assert.Equal(storage & storageMask, File.GetAttributes(target) & storageMask);
+            if (storage == FileAttributes.Compressed)
+            {
+                Assert.Equal(2, ReadZipCompression(target));
+                Assert.Equal(2, ReadZipCompression(target + ":filecat-fixture"));
+                Assert.Equal(0, ReadZipCompression(target + ":Zone.Identifier"));
+            }
             Assert.Equal([target], Directory.GetFiles(root));
             Assert.False(journal.NeedsRecovery);
         }
@@ -64,6 +77,42 @@ public sealed partial class WindowsArchiveEfsUpdateTests
     [LibraryImport("kernel32.dll", EntryPoint = "CreateHardLinkW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CreateHardLink(string name, string original, nint security);
+
+    private static void RequireZipPublicationVolume(string path, FileAttributes storage = FileAttributes.Normal)
+    {
+        using var file = File.OpenHandle(path);
+        uint flags = WindowsArchiveNative.Volume(file, requirePrivateNtfs: false).Flags;
+        Assert.SkipUnless((flags & 0x00200000 /* FILE_SUPPORTS_TRANSACTIONS */) != 0, "Requires NTFS transaction support.");
+        if (storage == FileAttributes.Compressed)
+            Assert.SkipUnless((flags & 0x10 /* FILE_FILE_COMPRESSION */) != 0, "Requires NTFS per-file compression support.");
+        if (storage == FileAttributes.SparseFile)
+            Assert.SkipUnless((flags & 0x40 /* FILE_SUPPORTS_SPARSE_FILES */) != 0, "Requires NTFS sparse file support.");
+    }
+
+    private static unsafe void ConfigureZipStorage(string path, FileAttributes storage)
+    {
+        using var file = File.OpenHandle(path, access: FileAccess.ReadWrite);
+        ushort lznt1 = 2;
+        bool configured = storage == FileAttributes.Compressed
+            ? ZipStorageControl(file, 0x0009C040 /* FSCTL_SET_COMPRESSION */, &lznt1, 2, null, 0, out _, 0)
+            : ZipStorageControl(file, 0x000900C4 /* FSCTL_SET_SPARSE */, null, 0, null, 0, out _, 0);
+        Assert.True(configured, $"Could not set {storage} on the owned fixture ({Marshal.GetLastPInvokeError()}).");
+    }
+
+    private static unsafe ushort ReadZipCompression(string path)
+    {
+        using var file = File.OpenHandle(path);
+        ushort format;
+        Assert.True(ZipStorageControl(file, 0x0009003C /* FSCTL_GET_COMPRESSION */, null, 0, &format, 2, out uint returned, 0),
+            $"Could not read compression on the owned fixture ({Marshal.GetLastPInvokeError()}).");
+        Assert.Equal(2u, returned);
+        return format;
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "DeviceIoControl", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static unsafe partial bool ZipStorageControl(SafeFileHandle file, uint code, void* input, uint inputLength,
+        void* output, uint outputLength, out uint returned, nint overlapped);
 
     private static void LegacyReplace(string stage, string target, string backup) =>
         File.Replace(stage, target, backup, ignoreMetadataErrors: true);
@@ -83,6 +132,7 @@ public sealed partial class WindowsArchiveEfsUpdateTests
             var files = new WindowsFileOperations();
             ILegacyZipInPlacePublisher publisher = files;
             var original = WriteReviewedZip(target, "original.txt", null);
+            RequireZipPublicationVolume(target);
             var rebuilt = WriteReviewedZip(stage, "replacement.txt", mark);
             var oldBytes = File.ReadAllBytes(target);
             var newBytes = File.ReadAllBytes(stage);
