@@ -342,6 +342,8 @@ public sealed partial class DiskSpaceWindow
             _inspector.Children.Add(_showCapturedFolder);
             _previewFile.Click += (_, _) => _ = PreviewFocusedAsync();
             _inspector.Children.Add(_previewFile);
+            _bindIndexedSource.Click += (_, _) => _ = BindIndexedSourceAsync();
+            _inspector.Children.Add(_bindIndexedSource);
             _copyCapturedPath.Click += (_, _) => _ = CopyCapturedPathAsync();
             _inspector.Children.Add(_copyCapturedPath);
             _inspector.Children.Add(ActionButton("Copy details", () => _ = CopyCapturedTextAsync(_details.Text), "Copy the information shown in the inspector."));
@@ -712,6 +714,7 @@ public sealed partial class DiskSpaceWindow
                 if (!await explorer.InspectAsync(path, alias, fact, issue, maximum: 32) || _disposed || version != _inspection || !ReferenceEquals(explorer, _explorer)) return;
                 var detail = explorer.Inspection!; _shownInspection = detail;
                 SetClipboardInspection(detail);
+                _bindIndexedSource.IsVisible = IndexedRecordedChoice() is not null;
                 RefreshBranchAvailability();
                 UpdatePreviewButton(_previewFile, PreviewRefusal(FocusedPreviewPath, _runtimeAcquisition));
                 var item = _selectedGroupedItem?.NodeId == path ? _selectedGroupedItem : AnalysisIndexedChart.Row(detail.Row, explorer.Metric);

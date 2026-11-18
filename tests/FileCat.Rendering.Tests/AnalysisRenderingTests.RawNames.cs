@@ -78,6 +78,7 @@ public sealed partial class AnalysisRenderingTests
             var copy = window.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Copy path");
             Assert.Equal(encoding == "utf8", copy.IsEnabled);
             if (encoding != "utf8") Assert.Contains("no lossless clipboard path", AutomationProperties.GetHelpText(copy));
+            Assert.Contains(window.GetVisualDescendants().OfType<Button>(), button => button.IsEffectivelyVisible && button.Content as string == "Bind current source…");
             var chart = window.GetVisualDescendants().OfType<AnalysisChartControl>().Single(control => control.IsEffectivelyVisible); Assert.True(chart.Focus()); Frame(window);
             var tip = Assert.IsType<RichTip>(ToolTip.GetTip(chart)); Assert.Contains(display, tip.Text);
             if (encoding != "utf8") Assert.Contains("Raw name (" + encoding + "): " + Convert.ToHexString(raw), tip.Text);

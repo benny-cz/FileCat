@@ -130,10 +130,24 @@ internal sealed partial class HarnessApp
             window.SelectTemporaryWork();
             await ReadyAsync(() => _tabs?.SelectedIndex == 0);
             await CheckIndexedCopyPathAsync(window);
+            var saved = await model.SaveNewAsync("native-current-source.fcdsa", _indexedLifetime.Token);
+            var historical = await model.OpenSavedAsync(saved.Name, _indexedLifetime.Token);
+            historical.Chart = "Table";
+            window.AddSession(historical);
+            await historical.RebuildAsync(true, _indexedLifetime.Token);
+            historical.Focus(AnalysisTree.Key(historical.Tree!.Snapshot.Nodes.Single(node => node.Name == "photo.png").Id));
+            await ReadyAsync(() => VisibleButton("Inspect selection") is { IsEnabled: true });
+            Click("Inspect selection");
+            await ReadyAsync(() => VisibleButton("Bind current source…") is { IsEnabled: true });
+            Click("Close details");
+            await ReadyAsync(() => VisibleButton("Close details") is null);
+            if (window.SessionCount != 4 || historical.Tree?.Snapshot.Origin == AnalysisOrigin.LiveSession)
+                throw new InvalidOperationException("The historical inspector did not preserve its offline source.");
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
                 sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
-                packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true };
+                packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
+                currentSourceBindingAvailable = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }

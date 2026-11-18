@@ -64,6 +64,11 @@
     "desktop": { "run": "r1496", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
     "coverage": "Copies displayed summary and coverage text and current inspector details in memory and indexed analyses. Compact memory review remains pinned to displayed details."
   },
+  "currentSourceBinding": {
+    "tests": { "run": "r1498", "windowsVm": 134, "mac": 134, "ubuntuVm": 134 },
+    "desktop": { "run": "r1499", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
+    "coverage": "The user chooses a current local item, reviews a fresh Standard scan with Cancel as default and leaves the historical analysis offline. Desktop checks covered the command on a reopened inventory. Direct normal-panel reveal remains pending."
+  },
   "completedBehaviors": [
     "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",
     "Canonical integer-string policy golden vector, precision-aware three-valued filters, root-label disambiguation and unknown sparse/compressed/cloud states.",

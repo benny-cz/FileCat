@@ -121,6 +121,7 @@ public sealed partial class DiskSpaceWindow
             RefreshBranchAvailability();
             UpdatePreviewButton(_previewFile, PreviewRefusal(FocusedPreviewPath, _runtimeAcquisition));
             RefreshClipboardButton();
+            _bindIndexedSource.IsVisible = IndexedRecordedChoice() is not null;
             ScheduleMarkVisibility();
             _markFocused.IsEnabled = _focus != 0;
             _showCapturedFolder.IsEnabled = _focus != 0;

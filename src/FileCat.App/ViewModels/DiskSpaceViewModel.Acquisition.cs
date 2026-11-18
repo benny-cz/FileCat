@@ -21,6 +21,19 @@ public sealed partial class DiskSpaceViewModel
     internal AppServices? HistoryServices => _services;
     internal CancellationToken HistoryLifetime => _selectionLifetime.Token;
 
+    internal static DiskSpaceViewModel ForCurrentSource(AppServices services, AnalysisKind kind) => new(services, path =>
+    {
+        var source = Prepare(path);
+        try
+        {
+            if (source.RootEntry.Kind != kind || PathUtil.IsOnNetwork(source.Root.CanonicalLocator) ||
+                OperatingSystem.IsWindows() && source.Root.CanonicalLocator.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase))
+                throw new IOException("The chosen item changed type or resolves to a network location. Choose a current local item again.");
+            return source;
+        }
+        catch { source.Dispose(); throw; }
+    });
+
     internal static DiskSpaceViewModel AdoptAcquisition(AnalysisIndexedAcquisition acquisition, AppServices services, AnalysisSavedView? view)
     {
         var session = acquisition.RuntimeSession;

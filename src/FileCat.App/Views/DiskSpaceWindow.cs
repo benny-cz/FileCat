@@ -452,7 +452,9 @@ public sealed partial class DiskSpaceWindow : Window
             _inspectorPanel.Children.Add(new TextBlock { Text = "Selection inspector", FontSize = 18 }); _inspectorPanel.Children.Add(_inspector);
             _previewFile.Click += (_, _) => _ = PreviewFocusedAsync();
             _inspectorPanel.Children.Add(_previewFile);
-            _inspectorPanel.Children.Add(Unavailable("Reveal in panel", "A historical path is not a current source binding. Explicit live rebinding is required."));
+            _inspectorPanel.Children.Add(Unavailable("Reveal in panel", "Direct panel navigation is unavailable for this analysis."));
+            _bindCurrentSource.Click += (_, _) => { if (RecordedChoice() is { } choice) _ = BindRecordedSourceAsync(choice); };
+            _inspectorPanel.Children.Add(_bindCurrentSource);
             _inspectorPanel.Children.Add(ActionButton("Copy path", () => _ = CopyCapturedTextAsync(Model.FocusedClipboardPath()), "Copy the selected path as literal text."));
             _copyDetails = ActionButton("Copy details", () => _ = CopyCapturedTextAsync((_inspector.Text, "")), "Copy the information shown in the selection inspector.");
             _inspectorPanel.Children.Add(_copyDetails);
@@ -768,6 +770,7 @@ public sealed partial class DiskSpaceWindow : Window
                     _treemap.SetView(tree, Model.Selection.Scope, Model.Selection.Focus, Model.Selection.Marks, Model.ColorDimension);
                     _sunburst.SetView(tree, Model.Selection.Scope, Model.Selection.Focus, Model.Selection.Marks, Model.ColorDimension);
                     var selected = tree.Items.GetValueOrDefault(Model.Selection.Focus ?? "");
+                    _bindCurrentSource.IsVisible = RecordedChoice() is not null;
                     _copyDetails.IsEnabled = selected is not null;
                     var displayPath = Model.FocusedDisplayPath(out var boundary);
                     _inspector.Text = selected is null ? "Choose an entry in either chart or the table. Marks and the review basket are separate." :
@@ -824,10 +827,15 @@ public sealed partial class DiskSpaceWindow : Window
             bool previewRequested = false;
             preview.Click += (_, _) => { previewRequested = true; closer.Close(null); };
             body.Children.Add(preview);
+            RecordedSourceChoice? bindRequested = null;
+            if (RecordedChoice() is { } recorded)
+                body.Children.Add(ActionButton("Bind current source…", () => { bindRequested = recorded; closer.Close(null); },
+                    "Choose a current item for a fresh Standard analysis."));
             Model.Interaction(true);
             try { await _window._dialogs.ShowCustomAsync("Selection inspector", body, [new DialogButton("Close details", true, IsDefault: true, IsCancel: true)], closer: closer); }
             finally { Model.Interaction(false); }
             if (previewRequested) await PreviewAsync(path, reviewIdentity);
+            else if (bindRequested is not null) await BindRecordedSourceAsync(bindRequested);
         }
         public void HandleKeys(KeyEventArgs e)
         {
