@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Text;
 using FileCat.Core.Analysis;
 using FileCat.Core.Resources;
@@ -23,8 +24,7 @@ internal sealed partial class AnalysisIndexedAcquisition
         AnalysisPanelFolder listing;
         try
         {
-            listing = await AnalysisIo.Run(_services.Io, folder.IoDeviceKey, token => Read(folder, runtime, token), cancellation)
-                .ConfigureAwait(false);
+            listing = await ReadCurrentPanelAsync(folder, runtime, cancellation).ConfigureAwait(false);
         }
         finally { await AnalysisIo.ReleaseAsync(_services.Io, folder).ConfigureAwait(false); }
 
@@ -33,7 +33,7 @@ internal sealed partial class AnalysisIndexedAcquisition
         return listing;
     }
 
-    private static AnalysisPanelFolder Read(IAnalysisBackend folder, RuntimeBranch runtime, CancellationToken cancellation)
+    private async Task<AnalysisPanelFolder> ReadCurrentPanelAsync(IAnalysisBackend folder, RuntimeBranch runtime, CancellationToken cancellation)
     {
         var exclusions = new AnalysisFolderExclusions([folder], runtime.Session.ExclusionsForBranch(runtime.RootIndex, runtime.Selection.Children));
         var encoded = exclusions.EncodePaths([folder.Root], 0);
@@ -41,12 +41,39 @@ internal sealed partial class AnalysisIndexedAcquisition
         int nameBytes = 0;
         var selectedFile = runtime.Selection.SelectedFile;
         string? focusName = null;
-        folder.ValidateReadScope(folder.RootEntry);
-        foreach (var observed in folder.Children(folder.RootEntry, cancellation))
+        AnalysisIoDevices device = folder.IoDeviceKey;
+        var cursor = await AnalysisIo.Run(_services.Io, device,
+            _ => folder.Children(folder.RootEntry, cancellation).GetEnumerator(), cancellation).ConfigureAwait(false);
+        await using var cursorOwner = AnalysisIo.OwnCursor(_services.Io, device, cursor);
+        bool finished;
+        do { finished = await AnalysisIo.Run(_services.Io, device, ReadBatch, cancellation).ConfigureAwait(false); }
+        while (!finished);
+
+        cancellation.ThrowIfCancellationRequested();
+        if (selectedFile is not null && focusName is null) throw new AnalysisSourceChangedException();
+        if (focusName is not null && rows.Count(row => row.Name == focusName) != 1)
+            throw new NotSupportedException("Two entries have the same displayed name. Reveal cannot focus the exact file here.");
+        return new(AnalysisNames.DisplayPath(RuntimeReopenLocator(folder), folder.Root.NameRules), rows.ToImmutable(), focusName);
+
+        bool ReadBatch(CancellationToken token)
         {
-            cancellation.ThrowIfCancellationRequested();
-            if (runtime.Session.IsPrivateAnalysisEntry(observed)) continue;
-            var entry = AnalysisFolderExclusions.Apply(observed, encoded);
+            folder.ValidateReadScope(folder.RootEntry);
+            var clock = Stopwatch.StartNew();
+            bool atEnd = false;
+            for (int read = 0; read < AnalysisLimits.BatchRecords; read++)
+            {
+                token.ThrowIfCancellationRequested();
+                if (!cursor.MoveNext()) { atEnd = true; break; }
+                var observed = cursor.Current;
+                if (!runtime.Session.IsPrivateAnalysisEntry(observed)) Append(AnalysisFolderExclusions.Apply(observed, encoded));
+                if (clock.ElapsedMilliseconds >= 20) break;
+            }
+            folder.ValidateReadScope(folder.RootEntry);
+            return atEnd;
+        }
+
+        void Append(AnalysisEntry entry)
+        {
             var node = new AnalysisNode(0, folder.Root.Id, 0, entry.Name, entry.Kind) { NameEncoding = entry.NameEncoding, RawName = entry.RawName };
             string name = AnalysisNames.DisplayName(node, AnalysisLimits.RawNameBytes);
             if (selectedFile is not null && selectedFile.NameEncoding == entry.NameEncoding &&
@@ -74,10 +101,5 @@ internal sealed partial class AnalysisIndexedAcquisition
                 Flags = flags
             });
         }
-        folder.ValidateReadScope(folder.RootEntry);
-        if (selectedFile is not null && focusName is null) throw new AnalysisSourceChangedException();
-        if (focusName is not null && rows.Count(row => row.Name == focusName) != 1)
-            throw new NotSupportedException("Two entries have the same displayed name. Reveal cannot focus the exact file here.");
-        return new(AnalysisNames.DisplayPath(RuntimeReopenLocator(folder), folder.Root.NameRules), rows.ToImmutable(), focusName);
     }
 }
