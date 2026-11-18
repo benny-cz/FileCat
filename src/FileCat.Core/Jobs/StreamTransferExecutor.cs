@@ -361,7 +361,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             // What this file system cannot replace bound to its review (a link, or on Linux, macOS or a network share, by
             // the owner's policy) is not offered for replacement, and a policy to replace asks instead: before anything
             // is extracted, not refused after it.
-            bool efs = IsEfsDestination(existing);
+            bool efs = IsEfsProtected(existing);
             bool replaceable = !existing.IsDirectory && !existing.IsLink && !efs && Fs.CanReplaceReviewed(dst);
             var policy = Job.Request.Options.Conflicts;
             if (!replaceable && policy is ConflictPolicy.Replace or ConflictPolicy.ReplaceIfNewer) policy = ConflictPolicy.Ask;

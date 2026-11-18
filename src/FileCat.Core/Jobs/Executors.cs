@@ -271,8 +271,8 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
                 Reason: "This file system cannot bind replacement to the exact reviewed destination; it was kept.");
     }
 
-    protected static bool IsEfsDestination(FileSystemItemInfo existing) =>
-        OperatingSystem.IsWindows() && existing.Attributes.HasFlag(FileAttributes.Encrypted);
+    protected static bool IsEfsProtected(FileSystemItemInfo item) =>
+        OperatingSystem.IsWindows() && item.Attributes.HasFlag(FileAttributes.Encrypted);
 
     /// <summary>
     /// How a bound replacement that published nothing is journaled: refused before any change, failed with the original
@@ -1211,9 +1211,13 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
         bool copied = false;
         bool allowDecrypted = false;
+        bool decryptedCopyApproved = false;
         int quietRetries = 0;
         while (!copied)
         {
+            // A retry first tries to preserve protection again.
+            bool approvedForAttempt = allowDecrypted;
+            allowDecrypted = false;
             long reported = 0;
             var pace = new TransferPace();
             try
@@ -1223,7 +1227,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     CopyLinkAsLink = !followLink,
                     NoBuffering = info.Size > 256L * 1024 * 1024,
                     DisablePreallocation = direct,
-                    AllowDecryptedDestination = allowDecrypted,
+                    AllowDecryptedDestination = approvedForAttempt,
                     // A move deletes the source next: the copy must be on the device first, not in the write cache.
                     FlushDestination = Move,
                 };
@@ -1238,6 +1242,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     return Job.IsCancellationRequested ? CopyProgressAction.Cancel : CopyProgressAction.Continue;
                 }, Job.Token);
                 copied = true;
+                decryptedCopyApproved = approvedForAttempt;
             }
             catch (OperationCanceledException)
             {
@@ -1263,11 +1268,17 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     // exists but cannot be inspected gets the ordinary question below).
                     return CopyFileItem(src, dst, info, firstAttempt: false, expectedTarget: expectedTarget, followLink: followLink);
                 }
-                if (cls == "encryption" && !allowDecrypted)
+                if (cls == "encryption" && !approvedForAttempt)
                 {
-                    var d = Job.Ask(new ConfirmRequest("Encrypted file",
-                        $"\"{Path.GetFileName(src)}\" is encrypted with Windows EFS, and the destination cannot keep it encrypted. Copy it decrypted?",
-                        src, "decrypt", [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob]) { ProceedLabel = "Copy decrypted" });
+                    string stage = direct ? "" : $"\nTemporary copy: {writeTo}";
+                    string effect = Move ? "\nA successful move can remove the original after verifying the copy." : "";
+                    var d = Job.Ask(new ConfirmRequest("Copy without Windows EFS?",
+                        $"Windows could not preserve EFS for this copy. Allow one attempt that can write unencrypted data?\n\nSource: {src}\nDestination: {target}{stage}{effect}",
+                        src, "decrypt", [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob])
+                    {
+                        ProceedLabel = "Copy decrypted",
+                        OffersApplyToAll = false,
+                    });
                     if (d.Action == DecisionAction.Proceed)
                     {
                         allowDecrypted = true;
@@ -1293,8 +1304,6 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 throw new OperationCanceledException();
             }
         }
-        if (allowDecrypted) Issue(IssueSeverity.Warning, src, "Copied decrypted: the destination cannot store EFS encryption.", StepOutcome.Committed);
-
         // Verification at the selected profile. A copy that fails it is removed: this job created it.
         var writtenInfo = Fs.TryGetInfo(writeTo);
         if (writtenInfo is null || writtenInfo.Size != info.Size && info.Size >= 0)
@@ -1375,6 +1384,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Journal.Done(step, StepOutcome.Committed);
         }
         if (!Fs.CopyPreservesMetadata && Options.PreserveAttributes && (info.Attributes & FileAttributes.ReadOnly) != 0) TrySetAttributes(target, info.Attributes);
+        if (decryptedCopyApproved && !writtenInfo.Attributes.HasFlag(FileAttributes.Encrypted))
+            Issue(IssueSeverity.Warning, src, "Copied decrypted with approval.", StepOutcome.Committed);
         if (!Move)
         {
             Job.ItemDone();
@@ -1403,7 +1414,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 "Copy published", "Observed at publication; later external changes are possible");
             return Result.Skipped;
         }
-        return DeleteMovedSource(src, target, info);
+        return DeleteMovedSource(src, target, info, decryptedCopyApproved);
     }
 
     /// <summary>
@@ -1480,7 +1491,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     /// </summary>
     private static string Holder(VolumeInfo vol) => vol.IsRemote ? "the network share" : vol.FileSystem ?? "the destination";
 
-    private Result DeleteMovedSource(string src, string target, FileSystemItemInfo before)
+    private Result DeleteMovedSource(string src, string target, FileSystemItemInfo before, bool decryptedCopyApproved)
     {
         // Revalidate: a source that changed while it was copied is kept (plan §9.2).
         var now = Fs.TryGetInfo(src);
@@ -1524,6 +1535,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         // including when read-back verification already passed before publication. This is still a path check, not an
         // atomic native-handle guarantee: later changes and aliases require separate native qualification.
         bool matching = false;
+        bool requireEfs = !decryptedCopyApproved && (IsEfsProtected(before) || IsEfsProtected(now));
+        bool protectionVerified = !requireEfs;
         try
         {
             if (!now.IsDirectory && !now.IsLink && (now.Attributes & FileAttributes.ReparsePoint) == 0 &&
@@ -1542,10 +1555,20 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 matching &= after is { IsDirectory: false, IsLink: false } && after.Size == now.Size && after.ModifiedUtc == now.ModifiedUtc &&
                     (after.Attributes & FileAttributes.ReparsePoint) == 0 && copyAfter is { IsDirectory: false, IsLink: false } &&
                     copyAfter.Size == copy.Size && copyAfter.ModifiedUtc == copy.ModifiedUtc && (copyAfter.Attributes & FileAttributes.ReparsePoint) == 0;
+                requireEfs |= !decryptedCopyApproved && after is not null && IsEfsProtected(after);
+                protectionVerified = !requireEfs || copyAfter is not null && IsEfsProtected(copyAfter);
                 if (after is not null) now = after;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { }
+        if (!protectionVerified)
+        {
+            TransferIssue(IssueSeverity.Warning, src, target, "The published copy could not be verified as EFS-encrypted. The original was kept.",
+                StepOutcome.PartiallyApplied, "Copy published; source deletion refused", "Original kept",
+                "EFS protection not verified", "No approval to lose EFS protection");
+            Job.ItemDone();
+            return Result.Failed;
+        }
         if (!matching)
         {
             TransferIssue(IssueSeverity.Warning, src, target, "Not deleted: the source and published copy changed or their complete bytes could not be checked. The source stays.",
@@ -1557,6 +1580,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         int step = Journal.Intent("delete-source", src);
         bool ok = TryIo(src, "delete the moved source", () =>
         {
+            if (requireEfs && (Fs.TryGetInfo(target) is not { IsDirectory: false, IsLink: false } protectedCopy || !IsEfsProtected(protectedCopy)))
+                throw new IOException("The published copy could no longer be verified as EFS-encrypted.");
             if (now.IsReadOnly) Fs.SetAttributes(src, now.Attributes & ~FileAttributes.ReadOnly);
             Fs.DeleteFile(src);
         });
@@ -1724,7 +1749,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         out QuestionReview? atQuestion, bool replaceable = true)
     {
         atQuestion = null;
-        bool efs = IsEfsDestination(existing);
+        bool efs = IsEfsProtected(existing);
         replaceable &= !efs;
         bool typeMismatch = incoming.IsDirectory != existing.IsDirectory;
         bool same = SameItem(src, dst);
@@ -2284,7 +2309,7 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
         {
             // Replace as a Move replaces (review finding C7 of f134ba37): offered only where the destination can be replaced
             // bound to its review, and only the destination the question showed.
-            bool efs = IsEfsDestination(existing);
+            bool efs = IsEfsProtected(existing);
             bool replaceable = !existing.IsDirectory && !existing.IsLink && !info.IsDirectory && !efs && Fs.CanReplaceReviewed(dst);
             var request = new ConflictRequest(efs ? "The destination uses Windows EFS" : "An item with this name already exists", newName, info, existing, src, dst,
                 CanReplace: replaceable, false, existing.IsDirectory != info.IsDirectory, false, null, null);
