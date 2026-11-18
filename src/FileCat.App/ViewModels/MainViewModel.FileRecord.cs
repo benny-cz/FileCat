@@ -44,8 +44,8 @@ public sealed partial class MainViewModel
             using var targetReader = new FileDetailsReader(records, Services.Io, Services.Providers.For(target).GetDeviceKey(target), targetPath);
             var observed = await targetReader.ReadAsync(FileDetailsTier.Summary, ct);
             ct.ThrowIfCancellationRequested();
-            if (observed.Summary.Kind is not (FileObjectKind.File or FileObjectKind.Directory))
-                throw new NotSupportedException("The target is another link or special object; inspect it before navigating further.");
+            if (!FileDetailsTargets.IsOrdinaryNavigationTarget(observed.Summary, OperatingSystem.IsWindows()))
+                throw new NotSupportedException("The target could not be confirmed as an ordinary file or folder.");
             if (requiresDirectory && observed.Summary.Kind != FileObjectKind.Directory)
                 throw new NotSupportedException("The stored target requires a directory.");
             var location = observed.Summary.Kind == FileObjectKind.Directory ? target

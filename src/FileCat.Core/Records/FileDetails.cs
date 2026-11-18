@@ -59,12 +59,16 @@ public sealed record FileDetailsSnapshot(string Path, DateTimeOffset ObservedAt,
                 ("Scope", "Focused item only; marked items are not included."), ("File system", FileSystem.Describe())]),
         };
         if (Target.State == FactState.Known && Target.Value is { } target)
+        {
+            string calculated = FileDetailsTargets.TryResolve(this, OperatingSystem.IsWindows(), out string path, out _) ? path : "Unavailable";
             sections.Add(new("Target", [("Stored path", target.SubstituteName), ("Print name", target.PrintName),
-                ("Relative", target.Relative ? "Yes" : "No"), ("Observation", Target.Source), ("Target status", "Not checked")])
+                ("Relative", target.Relative ? "Yes" : "No"), ("Calculated path", calculated),
+                ("Observation", Target.Source), ("Target status", "Not checked")])
                 { Lines = ["The link object was inspected. Target contents were not read."] });
+        }
         else if (Kind == FileObjectKind.SymbolicLink || ReparseTag.State == FactState.Known && ReparseTag.Value == ReparseLinks.MountPointTag)
             sections.Add(new("Target", [("Stored path", Target.Describe(t => t.SubstituteName)),
-                ("Observation", Target.Source), ("Target status", "Not checked")]));
+                ("Calculated path", "Unavailable"), ("Observation", Target.Source), ("Target status", "Not checked")]));
         sections.Add(new("Storage", [("Logical size", LogicalSize.Describe(RecordText.Bytes)),
             ("Allocated", Allocated.Describe(RecordText.Bytes) + $" · {Allocated.Scope} · {Allocated.Source}"),
             (CompressionLabel + (Compression.Scope == FactScope.DirectoryPolicy ? " creation default" : ""), Compression.Describe(OnOff)),

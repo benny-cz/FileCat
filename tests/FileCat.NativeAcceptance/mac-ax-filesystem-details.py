@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise File-system details with native keyboard events and optional muted VoiceOver speech.
 
-Usage: mac-ax-filesystem-details.py BUNDLE.app AX_OBSERVER.swift REPORT.json [--voiceover] [--narrow]
+Usage: mac-ax-filesystem-details.py BUNDLE.app AX_OBSERVER.swift REPORT.json [--voiceover] [--narrow] [--link-target]
 """
 
 import hashlib
@@ -17,28 +17,43 @@ import time
 
 def main():
     options = sys.argv[4:]
-    if len(sys.argv) < 4 or len(options) != len(set(options)) or set(options) - {"--voiceover", "--narrow"}:
+    if len(sys.argv) < 4 or len(options) != len(set(options)) or set(options) - {"--voiceover", "--narrow", "--link-target"}:
         raise SystemExit(__doc__)
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle, source = (Path(arg).resolve(strict=True) for arg in sys.argv[1:3])
     report_path = Path(sys.argv[3]).resolve()
     voiceover, narrow = "--voiceover" in options, "--narrow" in options
+    link_target = "--link-target" in options
     if bundle.parent != validation or bundle.suffix != ".app" or report_path.parent != validation or report_path.exists():
         raise ValueError("Use a dedicated application and a fresh result under ~/FileCatValidation.")
     app = bundle / "Contents" / "MacOS" / "FileCat"
-    if subprocess.run(["/usr/bin/pgrep", "-x", "FileCat"], capture_output=True).returncode == 0:
-        raise RuntimeError("Another FileCat process is already running.")
+    for process in ("dotnet", "testhost", "FileCat", "VoiceOver") if not voiceover else ("dotnet", "testhost", "FileCat"):
+        if subprocess.run(["/usr/bin/pgrep", "-x", process], capture_output=True).returncode == 0:
+            raise RuntimeError(f"An unrelated {process} process is already active.")
     fixture = Path(tempfile.mkdtemp(prefix="filesystem-details-ax-", dir=validation))
     root, target, state = (fixture / name for name in ("source", "target", "state"))
     if narrow:
         root = (root / "archived-project-material-for-the-native-file-system-details-review" /
                 "working-notes-and-background-files-for-the-reviewed-path-and-its-clipboard-report")
-    for folder in (root, target, state):
+    for folder in (target, state):
         folder.mkdir(parents=True)
-    original = root / "alpha-details.txt"
-    original.write_text("FILECAT-DATA-PAYLOAD-CANARY", encoding="utf-8")
+    if link_target:
+        destination = fixture / "actual-parent"
+        subfolder = destination / "child"
+        subfolder.mkdir(parents=True)
+        root.parent.mkdir(parents=True, exist_ok=True)
+        root.symlink_to(subfolder, target_is_directory=True)
+        target_file = destination / "landed.txt"
+        (root.parent / target_file.name).write_text("incorrect lexical target", encoding="utf-8")
+        original = root / "alpha-link"
+        stored_target = f"../{target_file.name}"
+        original.symlink_to(stored_target)
+    else:
+        root.mkdir(parents=True)
+        target_file = original = root / "alpha-details.txt"
+    target_file.write_text("FILECAT-DATA-PAYLOAD-CANARY", encoding="utf-8")
     (root / "beta-not-selected.txt").write_text("alternative", encoding="utf-8")
-    subprocess.run(["/usr/bin/xattr", "-w", "org.filecat.details", "FILECAT-XATTR-PAYLOAD-CANARY", str(original)], check=True)
+    subprocess.run(["/usr/bin/xattr", "-w", "org.filecat.details", "FILECAT-XATTR-PAYLOAD-CANARY", str(target_file)], check=True)
     observer = fixture / "ax-observer"
     subprocess.run(["/usr/bin/swiftc", "-framework", "ApplicationServices", str(source), "-o", str(observer)], check=True, timeout=120)
     evidence = dict(passed=False, platform="macOS accessibility bridge", voiceOver=voiceover, fixture=str(fixture),
@@ -167,6 +182,17 @@ error "The owned details window is unavailable"''')
         speech("VoiceOver announces the details window", "File-system details")
         if narrow:
             resize_report()
+        if link_target:
+            assert destination.name not in window_titles()
+            tab_to("Open target location")
+            key("key code 49")
+            wait(lambda: destination.name in window_titles(), "the real target directory tab")
+            expect_focus("Workspace selects the resolved destination item", target_file.name)
+            speech("VoiceOver announces the resolved destination item", target_file.name)
+            assert os.readlink(original) == stored_target
+            assert target_file.read_text(encoding="utf-8") == "FILECAT-DATA-PAYLOAD-CANARY"
+            evidence.update(passed=True, storedTarget=stored_target, destination=str(destination))
+            return
         tab_to("Read full record")
         key("key code 49")
         speech("VoiceOver announces the full observation", "full", "observation")

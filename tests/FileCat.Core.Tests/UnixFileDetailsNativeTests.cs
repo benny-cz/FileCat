@@ -31,7 +31,11 @@ public sealed partial class UnixFileDetailsNativeTests
             Assert.NotEqual(regular.Identity.Value, symbolic.Identity.Value);
             Assert.Equal(FactState.Known, symbolic.Target.State);
             Assert.Equal(new StoredLinkTarget("file.txt", "", true), symbolic.Target.Value);
-            Assert.Contains(("Observation", symbolic.Target.Source), Assert.Single(symbolic.ToReport().Sections, section => section.Title == "Target").Fields);
+            var target = Assert.Single(symbolic.ToReport().Sections, section => section.Title == "Target");
+            Assert.Contains(("Observation", symbolic.Target.Source), target.Fields);
+            Assert.Contains(("Stored path", "file.txt"), target.Fields);
+            Assert.Contains(("Calculated path", file), target.Fields);
+            Assert.Contains(("Target status", "Not checked"), target.Fields);
             File.Delete(file);
             Assert.Equal(symbolic.Target, reader.ReadSummary(link, ct).Target);
             File.WriteAllText(file, "payload-sentinel-must-not-appear-in-report");

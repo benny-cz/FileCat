@@ -191,6 +191,8 @@ public sealed partial class ReportWindow
             if (_closing.IsCancellationRequested) return;
             if (fresh.Summary.Target != captured.Summary.Target || fresh.Summary.Identity != captured.Summary.Identity)
             {
+                _copying?.Cancel();
+                _saving?.Cancel();
                 _detailsObservation = fresh;
                 _detailsTier = _detailsDisplayedTier = FileDetailsTier.Summary;
                 _detailsNotice = "Stored target or source identity changed; review the refreshed details before navigating";

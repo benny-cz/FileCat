@@ -5,6 +5,10 @@ namespace FileCat.Core.Records;
 /// <summary>Pure filesystem-namespace validation. Stored/display names are never passed to a shell.</summary>
 public static class FileDetailsTargets
 {
+    public static bool IsOrdinaryNavigationTarget(FileDetailsSnapshot snapshot, bool windows) =>
+        (snapshot.Kind is FileObjectKind.File or FileObjectKind.Directory) &&
+        (!windows || snapshot.ReparseTag.State == FactState.NotApplicable);
+
     public static bool TryResolve(FileDetailsSnapshot snapshot, bool windows, out string path, out bool network)
     {
         path = ""; network = false;
