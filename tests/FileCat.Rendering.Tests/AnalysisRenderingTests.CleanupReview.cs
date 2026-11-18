@@ -127,11 +127,14 @@ public sealed partial class AnalysisRenderingTests
             var list = await EntriesAsync(1);
             Assert.Contains("retain-00.bin", list.Items[0]!.ToString());
             Assert.Contains("Marked entries · 1 path · 0 included · 1 kept", ComparisonText(window));
+            Assert.Contains("Files moved to Trash on the same volume may still occupy space there.", ComparisonText(window));
             AssertReviewButtons("Recycle included entries");
             var action = ComparisonControl<ComboBox>(window, "Cleanup action")!;
             action.SelectedIndex = 1;
             Frame(window);
             Assert.Contains("Reviewed permanent deletion is unavailable", ComparisonText(window));
+            Assert.Contains("Other links, shared blocks and snapshots can retain it.", ComparisonText(window));
+            Assert.DoesNotContain("Files moved to Trash on the same volume", ComparisonText(window));
             AssertReviewButtons("Permanently delete included entries");
             list.SelectedIndex = 0;
             Click(window, "Inspect recorded entry");
@@ -147,6 +150,7 @@ public sealed partial class AnalysisRenderingTests
             Press(Key.F5, PhysicalKey.F5);
             await EntriesAsync(1);
             Assert.Contains("Copy to a new destination", ComparisonText(window));
+            Assert.Contains("Copying needs space at the destination and keeps the source data in place.", ComparisonText(window));
             if (OperatingSystem.IsWindows()) AssertReviewButtons("Choose copy destination…", enabled: true);
             else AssertReviewButtons("Copy included entries");
             Press(Key.Enter, PhysicalKey.Enter);
@@ -154,6 +158,7 @@ public sealed partial class AnalysisRenderingTests
             Press(Key.F6, PhysicalKey.F6);
             await EntriesAsync(1);
             Assert.Contains("Move to a new destination", ComparisonText(window));
+            Assert.Contains("Moving within a filesystem usually keeps the data there.", ComparisonText(window));
             AssertReviewButtons("Move included entries");
             Click(window, "Cancel / Keep files");
 

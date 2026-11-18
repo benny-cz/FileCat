@@ -26,7 +26,7 @@ public sealed partial class DiskSpaceWindow
             public override string ToString() => Label;
         }
 
-        private sealed record ActionChoice(AnalysisVerb Verb, string Label, string Confirmation)
+        private sealed record ActionChoice(AnalysisVerb Verb, string Label, string Confirmation, string SpaceEffect)
         {
             public override string ToString() => Label;
         }
@@ -45,10 +45,14 @@ public sealed partial class DiskSpaceWindow
             var capabilities = new AnalysisCapabilities();
             ActionChoice[] choices =
             [
-                new(AnalysisVerb.Recycle, "Recycle / Trash", "Recycle included entries"),
-                new(AnalysisVerb.PermanentDelete, "Permanent deletion", "Permanently delete included entries"),
-                new(AnalysisVerb.Copy, "Copy to a new destination", "Copy included entries"),
-                new(AnalysisVerb.Move, "Move to a new destination", "Move included entries")
+                new(AnalysisVerb.Recycle, "Recycle / Trash", "Recycle included entries",
+                    "Files moved to Trash on the same volume may still occupy space there. Recovery and free-space gain are separate."),
+                new(AnalysisVerb.PermanentDelete, "Permanent deletion", "Permanently delete included entries",
+                    "Permanent deletion can release storage after open handles close. Other links, shared blocks and snapshots can retain it."),
+                new(AnalysisVerb.Copy, "Copy to a new destination", "Copy included entries",
+                    "Copying needs space at the destination and keeps the source data in place."),
+                new(AnalysisVerb.Move, "Move to a new destination", "Move included entries",
+                    "Moving within a filesystem usually keeps the data there. Moving across filesystems needs destination space, and source space depends on the outcome.")
             ];
             int initialChoice = Array.FindIndex(choices, choice => choice.Verb == verb);
             ActionChoice[] offered = basket ? choices : verb == AnalysisVerb.Recycle ? choices[..2] : [choices[initialChoice]];
@@ -144,7 +148,7 @@ public sealed partial class DiskSpaceWindow
                 string reason = choose ? "Review eligible files and choose which copies to queue. Existing destination files are kept."
                     : choice.Verb == AnalysisVerb.Copy && copyRefusal is not null ? copyRefusal : capabilities.For(choice.Verb).Reason;
                 availability.Text = (offered.Length == 1 ? choice.Label + ". " : "") +
-                    (binding.Length == 0 ? "" : binding + " ") + reason;
+                    (binding.Length == 0 ? "" : binding + " ") + reason + "\n" + choice.SpaceEffect;
                 confirm.Update(new(choose ? "Choose copy destination…" : choice.Confirmation, HelpText: reason));
             }
 
