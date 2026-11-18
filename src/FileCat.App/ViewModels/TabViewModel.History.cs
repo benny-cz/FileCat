@@ -7,7 +7,7 @@ namespace FileCat.App.ViewModels;
 
 public sealed partial class TabViewModel
 {
-    private const int MaxHistory = 50;
+    private int HistoryLimit => Math.Max(20, Services.Settings.HistorySize);
     private readonly List<HistoryVisit> _back = [];
     private readonly List<HistoryVisit> _forward = [];
     private HistoryJump? _loadingHistory;

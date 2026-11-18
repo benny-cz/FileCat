@@ -51,6 +51,74 @@ public sealed class NavigationHistoryTests
     private static MenuItem[] Rows(MainWindow window) =>
         Assert.IsType<MenuItem[]>(Assert.IsType<ContextMenu>(window.HistoryMenu).ItemsSource);
 
+    [AvaloniaFact]
+    public async Task A_straight_sequence_of_source_choices_keeps_every_visit_within_the_history_limit()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            services.Settings.HistorySize = 64;
+            var panel = vm.Workspace.ActivePanel!;
+            var first = Folder(root, "first");
+            var tab = panel.OpenTab(first);
+            services.Providers.Register(new HistoryProvider(Schemes.Mtp));
+            services.Providers.Register(new HistoryProvider(Schemes.Network));
+            var sources = new[]
+            {
+                Folder(root, "disk"),
+                new Location(Schemes.Mtp, "Internal storage", session: "phone-one"),
+                new Location(Schemes.Network, "server"),
+            };
+            var visited = new List<Location> { first };
+            window.Activate();
+            for (int i = 0; i < services.Settings.HistorySize + 3; i++)
+            {
+                var location = sources[i % sources.Length];
+                await vm.OpenPlaceAsync(panel, new Place("Source", null, location, () => null), newTab: false);
+                await At(tab, location);
+                visited.Add(location);
+                if (i is not (2 or 5 or 58 or 66)) continue;
+
+                Click(window, Button(window, CommandIds.Back), MouseButton.Right);
+                var expected = visited.Take(visited.Count - 1).TakeLast(services.Settings.HistorySize)
+                    .Reverse().Select(services.Providers.Display);
+                Assert.Equal(expected, Rows(window).Select(AutomationProperties.GetName));
+                KeyPress(window, Key.Escape, PhysicalKey.Escape);
+                Assert.False(tab.CanGoForward);
+            }
+
+            int limit = services.Settings.HistorySize;
+            Assert.True(tab.JumpHistory(false, limit, tab.HistoryRevision));
+            await At(tab, visited[^(limit + 1)]);
+            Click(window, Button(window, CommandIds.Forward), MouseButton.Right);
+            Assert.Equal(visited.TakeLast(limit).Select(services.Providers.Display), Rows(window).Select(AutomationProperties.GetName));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Straight_navigation_preserves_exact_provider_locations_in_the_trail()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var provider = new HistoryProvider(Schemes.Mtp, compareCaseInsensitively: true);
+            services.Providers.Register(provider);
+            var first = new Location(Schemes.Mtp, "Photos", session: "phone-one");
+            var differentlyCased = first.WithPath("photos");
+            var otherSource = Folder(root, "disk");
+            var tab = vm.Workspace.ActivePanel!.OpenTab(first);
+            await At(tab, first);
+            tab.Navigate(differentlyCased);
+            await At(tab, differentlyCased);
+            tab.Navigate(differentlyCased);
+            tab.Navigate(otherSource);
+            await At(tab, otherSource);
+            Assert.Equal(new[] { first, differentlyCased }, tab.BackHistory);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
@@ -188,9 +256,13 @@ public sealed class NavigationHistoryTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
-    private sealed class HistoryProvider : FileCat.Core.Resources.ResourceProvider
+    private sealed class HistoryProvider(string scheme = "history-source", bool compareCaseInsensitively = false)
+        : FileCat.Core.Resources.ResourceProvider
     {
-        public override string Scheme => "history-source";
+        public override string Scheme => scheme;
+        public override bool IsSameLocation(Location a, Location b) =>
+            compareCaseInsensitively && a.Scheme == b.Scheme && a.Session == b.Session &&
+            a.Path.Equals(b.Path, StringComparison.OrdinalIgnoreCase) || base.IsSameLocation(a, b);
         public bool Offline { get; set; }
         public TaskCompletionSource<Location>? Preparation { get; set; }
         public CancellationToken PreparationToken { get; private set; }

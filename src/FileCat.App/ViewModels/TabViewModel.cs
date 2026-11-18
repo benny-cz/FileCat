@@ -619,8 +619,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             if (jump is null) Panel.OpenTab(location, focusName, activate: true);
             return false;
         }
-        bool historyChanged = jump is not null || record && Location is not null &&
-            (Location.Scheme != location.Scheme || !Services.Providers.For(location).IsSameLocation(location, Location));
+        // The provider's equivalence may be conservative for safety checks. A visit keeps the exact address opened.
+        bool historyChanged = jump is not null || record && Location is not null && Location != location;
         if (jump is not null)
             MoveHistory(jump);
         else if (historyChanged)
@@ -628,7 +628,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             if (Location is { Scheme: not Schemes.AnalysisFolder })
             {
                 _back.Add(CaptureVisit());
-                if (_back.Count > MaxHistory) _back.RemoveAt(0);
+                int excess = _back.Count - HistoryLimit;
+                if (excess > 0) _back.RemoveRange(0, excess);
             }
             _forward.Clear();
         }
@@ -1179,7 +1180,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrEmpty(s.Filter)) SetFilter(s.Filter);
         _back.Clear();
         _back.AddRange(s.BackHistory.Where(location => location.Scheme != Schemes.AnalysisFolder)
-            .TakeLast(MaxHistory).Select(location => new HistoryVisit(location, null, null)));
+            .TakeLast(HistoryLimit).Select(location => new HistoryVisit(location, null, null)));
         _forward.Clear();
         NotifyHistoryChanged();
     }
