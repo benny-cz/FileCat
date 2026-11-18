@@ -14,6 +14,11 @@ public sealed record AnalysisRecipePreview(SessionIdentity Identity, AnalysisRec
     ulong Excluded, ImmutableArray<AnalysisRecipeCandidate> Rows)
 {
     public string? CoverageNote { get; init; }
+    internal bool SupportsStaging => Definition.Recipe is AnalysisMetadataRecipe.LargestFiles or AnalysisMetadataRecipe.OldLargeFiles
+        or AnalysisMetadataRecipe.DownloadsInstallers or AnalysisMetadataRecipe.GeneratedBuildOutput or AnalysisMetadataRecipe.ApplicationCache
+        or AnalysisMetadataRecipe.CustomFilter or AnalysisMetadataRecipe.AllocationDifference;
+    internal bool CanInclude(AnalysisRecipeCandidate row) => SupportsStaging && row.PathId != 0 &&
+        row.Finding.Match == AnalysisRecipeMatch.Candidate && RootIds.Contains(row.RootId);
 }
 
 internal sealed partial class AnalysisRecipePreviews

@@ -104,8 +104,8 @@ internal static class AnalysisRecipeDialog
             initialFocus: recipe, closer: closer, resizable: true) as Choice;
     }
 
-    internal static async Task ShowAsync(IDialogService dialogs, AnalysisRecipePreview preview, ImmutableArray<RootBinding> roots,
-        Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> readPath, CancellationToken lifetime)
+    internal static async Task<ImmutableArray<ulong>> ShowAsync(IDialogService dialogs, AnalysisRecipePreview preview, ImmutableArray<RootBinding> roots,
+        Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> readPath, bool canStage, CancellationToken lifetime)
     {
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
         var locations = roots.ToDictionary(root => root.Id, LocationLabel, StringComparer.Ordinal);
@@ -147,6 +147,11 @@ internal static class AnalysisRecipeDialog
                 (preview.Rows.IsEmpty ? "No definite candidates to show." : $"Showing {preview.Rows.Length:N0} ranked by {measure}. Shared files can appear under more than one name.")
         };
         if (summary.Length != 0) body.Children.Add(Text(summary));
+        var closer = new DialogCloser();
+        var included = new HashSet<ulong>();
+        bool includeRows = canStage && preview.Rows.Any(preview.CanInclude);
+        if (preview.SupportsStaging && preview.Rows.Length != 0 && !canStage)
+            body.Children.Add(Text("Adding recipe candidates to the review basket requires a finished live analysis."));
         Task? inspection = null;
         if (preview.Rows.Length > 0)
         {
@@ -173,6 +178,52 @@ internal static class AnalysisRecipeDialog
             };
             body.Children.Add(inspect);
             body.Children.Add(details);
+
+            if (includeRows)
+            {
+                var include = new Button { Content = "Include selected candidate" };
+                var exclude = new Button { Content = "Exclude selected candidate" };
+                var stage = new Button { Content = "Add included to review basket" };
+                var count = Text("");
+                AutomationProperties.SetLiveSetting(count, AutomationLiveSetting.Polite);
+                body.Children.Add(count);
+                body.Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { include, exclude, stage } });
+                rows.SelectionChanged += (_, _) => UpdateInclusion();
+                include.Click += (_, _) => ChangeInclusion(true);
+                exclude.Click += (_, _) => ChangeInclusion(false);
+                stage.Click += (_, _) =>
+                {
+                    if (included.Count != 0)
+                        closer.Close(preview.Rows.Where(row => included.Contains(row.PathId)).Select(row => row.PathId).ToImmutableArray());
+                };
+                UpdateInclusion();
+
+                void ChangeInclusion(bool add)
+                {
+                    int index = rows.SelectedIndex;
+                    if (index < 0 || !preview.CanInclude(preview.Rows[index])) return;
+                    ulong id = preview.Rows[index].PathId;
+                    if (add) included.Add(id);
+                    else included.Remove(id);
+                    string evidence = details.Text ?? "";
+                    rows.ItemsSource = preview.Rows.Select(row => $"{row.DisplayName}\n" +
+                        (included.Contains(row.PathId) ? "Included for review · " : "") + RowEvidence(row)).ToArray();
+                    rows.SelectedIndex = index;
+                    details.Text = evidence;
+                    UpdateInclusion();
+                }
+
+                void UpdateInclusion()
+                {
+                    var row = rows.SelectedIndex >= 0 ? preview.Rows[rows.SelectedIndex] : null;
+                    bool eligible = row is not null && preview.CanInclude(row);
+                    bool isIncluded = eligible && included.Contains(row!.PathId);
+                    include.IsEnabled = eligible && !isIncluded;
+                    exclude.IsEnabled = isIncluded;
+                    stage.IsEnabled = included.Count != 0;
+                    count.Text = $"{included.Count:N0} included. FileCat checks live identity and protection before adding references.";
+                }
+            }
 
             async Task InspectAsync(int index)
             {
@@ -205,13 +256,13 @@ internal static class AnalysisRecipeDialog
                 }
             }
         }
-        var closer = new DialogCloser();
         using var close = lifetime.Register(() => Dispatcher.UIThread.Post(() => closer.Close(null)));
         lifetime.ThrowIfCancellationRequested();
         try
         {
-            await dialogs.ShowCustomAsync(preview.Definition.Title, body,
+            var result = await dialogs.ShowCustomAsync(preview.Definition.Title, body,
                 [new DialogButton("Close preview", false, IsDefault: true, IsCancel: true)], closer: closer, resizable: true);
+            return result is ImmutableArray<ulong> paths ? paths : [];
         }
         finally
         {

@@ -52,7 +52,10 @@ internal sealed partial class HarnessApp : Application
         if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
         _run = Path.Combine(AppContext.BaseDirectory, "native-validation", "dsa-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_run);
-        _fixture = Path.Combine(_run, "fixture"); Directory.CreateDirectory(_fixture);
+        _fixture = Program.DuplicateReviewProbe
+            ? Path.Combine(Directory.GetParent(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory))!.FullName, "source-" + Path.GetFileName(_run))
+            : Path.Combine(_run, "fixture");
+        Directory.CreateDirectory(_fixture);
         CreateFixture();
         if (Program.IndexedDeferredProbe) for (int i = 0; i < DeferredNativePaths; i++) Add($"Deferred/future-{i:D5}.bin", 1);
         if (Program.IndexedInventoryProbe) for (int i = 0; i < 4200; i++) Add($"Streamed/row-{i:D4}.bin", 1);

@@ -11,6 +11,22 @@ internal sealed class AnalysisProtectedObjects(AppPaths paths, DeviceIoScheduler
 {
     private const int MaximumDirectories = 64;
 
+    internal static bool IsSystemManagedLocation(string location)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            string drive = Path.GetPathRoot(location)!;
+            string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            return windows.Length != 0 && PathUtil.IsSameOrUnder(location, windows) ||
+                PathUtil.IsSameOrUnder(location, Path.Combine(drive, "$Recycle.Bin")) ||
+                PathUtil.IsSameOrUnder(location, Path.Combine(drive, "System Volume Information"));
+        }
+        if (OperatingSystem.IsMacOS())
+            return PathUtil.IsSameOrUnder(location, "/System") && !PathUtil.IsSameOrUnder(location, "/System/Volumes/Data") ||
+                PathUtil.IsSameOrUnder(location, "/private/var/db");
+        return new[] { "/boot", "/dev", "/etc", "/proc", "/sys", "/run" }.Any(root => PathUtil.IsSameOrUnder(location, root));
+    }
+
     internal async Task<IReadOnlySet<string>> CaptureDirectoryIdentitiesAsync(CancellationToken cancellation)
     {
         var protectedPaths = paths.WriteFolders.Select(item => item.Folder).Append(AppContext.BaseDirectory)

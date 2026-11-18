@@ -121,15 +121,42 @@ internal sealed partial class HarnessApp
             folders.SelectedIndex = 1;
             Click("Inspect recorded candidate");
             await ReadyAsync(() => Control<TextBlock>("Recorded candidate evidence")?.Text?.Contains("/Small files", StringComparison.Ordinal) == true);
-            await RecipeFrameAsync("recorded-insights-largest-folders.png", true, _indexedLifetime.Token);
+            await RecipeFrameAsync("recorded-insights-largest-folders.png", false, _indexedLifetime.Token);
             Click("Close preview");
             await ReadyAsync(() => Button("Close preview") is null && Marks(4, 4));
+
+            await OpenInsightAsync("Downloads and installers");
+            await ReadyAsync(() => Control<ListBox>("Captured recipe candidates")?.ItemCount == 1);
+            var downloads = Control<ListBox>("Captured recipe candidates")!;
+            if (downloads.Items[0] is not string archive || !archive.StartsWith("archive.zip\n", StringComparison.Ordinal) ||
+                Button("Add included to review basket")?.IsEnabled != false)
+                throw new IOException("Recipe staging did not start with the candidate excluded.");
+            downloads.SelectedIndex = 0;
+            Click("Include selected candidate");
+            Click("Exclude selected candidate");
+            if (Button("Add included to review basket")?.IsEnabled != false)
+                throw new IOException("Excluding the only candidate did not disable the staging command.");
+            Click("Include selected candidate");
+            Click("Inspect recorded candidate");
+            await ReadyAsync(() => Control<TextBlock>("Recorded candidate evidence")?.Text?.Contains("Archives/archive.zip", StringComparison.Ordinal) == true);
+            if (Button("Close preview") is not { IsDefault: true, IsCancel: true })
+                throw new IOException("Recipe staging changed the preserving default.");
+            await RecipeFrameAsync("recipe-staging-included.png", true, _indexedLifetime.Token);
+            Click("Add included to review basket");
+            await ReadyAsync(() => Button("Close preview") is null && Marks(4, 5) && HasText("Added 1 captured reference"));
+            Click("Review captured basket");
+            await ReadyAsync(() => Control<ListBox>("Captured basket entries")?.ItemCount == 5);
+            var basket = Control<ListBox>("Captured basket entries")!;
+            basket.SelectedItem = basket.Items.Cast<object>().Single(row => row.ToString()!.Contains("archive.zip", StringComparison.Ordinal));
+            Click("Remove selected from basket");
+            Click("Keep files / Close review");
+            await ReadyAsync(() => Control<ListBox>("Captured basket entries") is null && Marks(4, 4));
 
             _duplicateReviewProbe = new
             {
                 finished = true, passed = true, sessions = window.SessionCount, candidateObjects = 2, knownReadBytes = 8,
                 capturedMarks = 4, additionalHardLinkNames = 1, preservingDefault, retainedHiddenMarksAndBasket = true,
-                contentAvailable, contentGroups, recordedInsightsPassed = true, largestFoldersPassed = true
+                contentAvailable, contentGroups, recordedInsightsPassed = true, largestFoldersPassed = true, recipeStagingPassed = true
             };
         }
         catch (Exception error)

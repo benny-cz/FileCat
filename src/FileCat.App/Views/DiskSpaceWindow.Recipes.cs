@@ -9,8 +9,8 @@ namespace FileCat.App.Views;
 
 public sealed partial class DiskSpaceWindow
 {
-    private async Task ShowCandidateRecipesAsync(SessionIdentity identity, ImmutableArray<RootBinding> roots, AnalysisMetric metric, string seedQuery,
-        AppServices? services, Func<AnalysisRecipeRequest, CancellationToken, Task<AnalysisRecipePreview>> builtIn,
+    private async Task<AnalysisRecipeStaging?> ShowCandidateRecipesAsync(SessionIdentity identity, ImmutableArray<RootBinding> roots, AnalysisMetric metric, string seedQuery,
+        AppServices? services, AnalysisIndexedAcquisition? runtime, Func<AnalysisRecipeRequest, CancellationToken, Task<AnalysisRecipePreview>> builtIn,
         Func<AnalysisSavedRecipe, CancellationToken, Task<AnalysisRecipePreview>> saved,
         Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> readPath, CancellationToken lifetime)
     {
@@ -24,11 +24,15 @@ public sealed partial class DiskSpaceWindow
         else if (choice is AnalysisRecipeDialog.Choice.Saved && services is not null)
         {
             var recipe = await ChooseSavedRecipeAsync(services, identity, roots, metric, seedQuery, lifetime);
-            if (recipe is null) return;
+            if (recipe is null) return null;
             result = await IndexedComparisonProgressAsync("Reading saved recipe candidates", token => saved(recipe, token), lifetime);
         }
-        else return;
-        await AnalysisRecipeDialog.ShowAsync(_dialogs, result, roots, readPath, lifetime);
+        else return null;
+        if (result.Identity != identity) throw new InvalidOperationException("The preview belongs to another observation.");
+        var selectedPaths = await AnalysisRecipeDialog.ShowAsync(_dialogs, result, roots, readPath, runtime?.CanStageRecipe == true, lifetime);
+        if (selectedPaths.IsEmpty || runtime is null) return null;
+        return await IndexedComparisonProgressAsync("Checking included candidates against the live source",
+            token => runtime.QualifyRecipeStagingAsync(result, selectedPaths, readPath, token), lifetime);
     }
 
     private async Task<AnalysisSavedRecipe?> ChooseSavedRecipeAsync(AppServices services, SessionIdentity identity, ImmutableArray<RootBinding> roots,
@@ -72,15 +76,24 @@ public sealed partial class DiskSpaceWindow
                 if (_disposed || _window._dialogs.IsOpen || Model.Tree is not { } tree) return;
                 using var work = _actualWork.Enter();
                 var lifetime = Model.HistoryLifetime;
+                Model.Interaction(true);
                 try
                 {
                     using var source = Model.CaptureDisplayedRevision();
                     var snapshot = source.Snapshot;
-                    await _window.ShowCandidateRecipesAsync(snapshot.Identity, snapshot.Roots, tree.Metric, Model.PublishedReportView.Query,
-                        Model.HistoryServices, (choice, token) => choice.Recipe == AnalysisMetadataRecipe.LargestFolders
+                    var staged = await _window.ShowCandidateRecipesAsync(snapshot.Identity, snapshot.Roots, tree.Metric, Model.PublishedReportView.Query,
+                        Model.HistoryServices, Model.BranchRuntime, (choice, token) => choice.Recipe == AnalysisMetadataRecipe.LargestFolders
                             ? AnalysisMemoryRecipes.PreviewFoldersAsync(source, tree, choice, token) : AnalysisMemoryRecipes.PreviewAsync(source, choice, tree.Metric, token),
                         (recipe, token) => AnalysisMemoryRecipes.PreviewSavedAsync(source, recipe, token),
                         (id, token) => ReadRecipeMemoryPathAsync(snapshot, id, token), lifetime);
+                    lifetime.ThrowIfCancellationRequested();
+                    if (staged is not null && !_disposed && !_actualWork.HasUnconfirmedClose && Model.Tree?.Snapshot.Identity == snapshot.Identity)
+                    {
+                        Model.Selection.BindIdentity(snapshot.Identity);
+                        int previous = Model.Selection.Basket.Count;
+                        Model.Selection.StageCaptured(staged.Paths);
+                        Model.SetStatus(staged.Describe(Model.Selection.Basket.Count - previous));
+                    }
                 }
                 catch (OperationCanceledException) { }
                 catch (Exception error) when (IndexedExpectedError(error) || error is FormatException or OverflowException)
@@ -88,6 +101,7 @@ public sealed partial class DiskSpaceWindow
                     if (AnalysisCloseUnconfirmedException.IsPresent(error)) _window.RecordIndexedCloseFailure(error);
                     if (!_disposed) Model.SetStatus("Candidate preview unavailable. " + AnalysisNames.Display(error.Message, 400));
                 }
+                finally { Model.Interaction(false); }
             };
         }
 
@@ -118,15 +132,26 @@ public sealed partial class DiskSpaceWindow
                 if (_disposed || _window._dialogs.IsOpen) return;
                 using var work = _actualWork.Enter();
                 var lifetime = _selectionLifetime.Token;
+                Interaction(true);
                 try
                 {
                     var descriptor = _source.Descriptor;
                     var metric = _explorer.Metric;
-                    await _window.ShowCandidateRecipesAsync(descriptor.Identity, descriptor.Roots, metric, _explorer.Filter?.Request.Text ?? "", _services,
+                    var staged = await _window.ShowCandidateRecipesAsync(descriptor.Identity, descriptor.Roots, metric, _explorer.Filter?.Request.Text ?? "", _services,
+                        _runtimeAcquisition,
                         (choice, token) => choice.Recipe == AnalysisMetadataRecipe.LargestFolders &&
                             _explorer is { ReportIsSubset: false, Filter: null } explorer && explorer.Metric == metric
                                 ? explorer.PreviewLargestFoldersAsync(choice, token) : _source.PreviewRecipeAsync(choice, metric, token),
                         _source.PreviewSavedRecipeAsync, _source.ReadPathAsync, lifetime);
+                    lifetime.ThrowIfCancellationRequested();
+                    if (staged is not null && !_disposed && !_actualWork.HasUnconfirmedClose && _source.Descriptor.Identity == descriptor.Identity)
+                    {
+                        _selection.BindIdentity(descriptor.Identity);
+                        int previous = _selection.Basket.Count;
+                        _selection.StageCaptured(staged.Paths);
+                        RefreshSelection();
+                        _status.Text = staged.Describe(_selection.Basket.Count - previous);
+                    }
                 }
                 catch (OperationCanceledException) { }
                 catch (Exception error) when (Expected(error) || error is FormatException or OverflowException)
@@ -134,6 +159,7 @@ public sealed partial class DiskSpaceWindow
                     RememberViewCloseFailure(error);
                     if (!_disposed) _status.Text = "Candidate preview unavailable. " + AnalysisNames.Display(error.Message, 400);
                 }
+                finally { Interaction(false); }
             };
         }
     }

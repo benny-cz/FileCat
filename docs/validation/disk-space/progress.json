@@ -15958,5 +15958,18 @@
     "publicEntryEnabled": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "recipeCandidateStaging": {
+    "status": "qualified-live-single-link-file-references",
+    "packet": "source-manifest-r1393-recipe-staging.json",
+    "document": "RECIPE_STAGING_QUALIFICATION.md",
+    "regressionsPassedPerPlatform": 49,
+    "correctedStagingCasesPassedPerPlatform": 2,
+    "nativeWindowRevision": "r1390",
+    "macActualCompositorQualified": true,
+    "physicalInputQualified": false,
+    "publicEntryEnabled": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }

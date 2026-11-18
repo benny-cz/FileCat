@@ -9,13 +9,14 @@ import tarfile
 root = Path.cwd()
 temp = root / ".tmp"
 binary = root / "tests/FileCat.NativeAcceptance/DiskSpaceHarness/bin/Debug/net10.0"
-folders = sys.argv[1:] == ["--folders"]
+staging = sys.argv[1:] == ["--recipe-staging"]
+folders = sys.argv[1:] == ["--folders"] or staging
 insights = sys.argv[1:] == ["--insights"] or folders
 assert not sys.argv[1:] or insights
 native_baseline = "r1377" if insights else "r1370"
-render_revision = "r1382" if folders else "r1379" if insights else "r1376"
-revision = "r1384" if folders else "r1380" if insights else "r1377"
-label = "recorded-insights" if insights else "duplicate-content"
+render_revision = "r1389" if staging else "r1382" if folders else "r1379" if insights else "r1376"
+revision = "r1390" if staging else "r1384" if folders else "r1380" if insights else "r1377"
+label = "recipe-staging" if staging else "recorded-insights" if insights else "duplicate-content"
 template = "r1370"
 drivers = {"DiskSpaceHarness.dll", "DiskSpaceHarness.pdb"}
 log = (temp / f"{label}-native-build-{revision}.txt").read_text(encoding="utf-8-sig")
@@ -65,12 +66,15 @@ for platform in ("windows", "mac", "linux"):
         worker = worker.replace("'baseline': str(baseline),", "'baseline': str(baseline), 'render': str(render),")
         worker = worker.replace("and probe['retainedHiddenMarksAndBasket'] and", "and probe['retainedHiddenMarksAndBasket'] and not probe['contentAvailable'] and probe['contentGroups']==0 and")
         if insights:
-            frame = "recorded-insights-largest-folders.png" if folders else "recorded-insights-small-files.png"
+            frame = "recipe-staging-included.png" if staging else "recorded-insights-largest-folders.png" if folders else "recorded-insights-small-files.png"
             worker = worker.replace("frame == 'duplicate-review-estimate.png'", f"frame == '{frame}'")
             worker = worker.replace("run.glob('duplicate-review-*.png')", "list(run.glob('duplicate-review-*.png')) + list(run.glob('recorded-insights-*.png'))")
             worker = worker.replace("probe['contentGroups']==0 and", "probe['contentGroups']==0 and probe['recordedInsightsPassed'] and")
         if folders:
             worker = worker.replace("probe['recordedInsightsPassed'] and", "probe['recordedInsightsPassed'] and probe['largestFoldersPassed'] and")
+        if staging:
+            worker = worker.replace("probe['largestFoldersPassed'] and", "probe['largestFoldersPassed'] and probe['recipeStagingPassed'] and")
+            worker = worker.replace("list(run.glob('recorded-insights-*.png'))", "list(run.glob('recorded-insights-*.png')) + list(run.glob('recipe-staging-*.png'))")
         assert "not probe['contentAvailable']" in worker and "(render if entry['render'] else baseline)" in worker
         compile(worker, "run.py", "exec")
         (stage / "run.py").write_text(worker, encoding="utf-8", newline="\n")
@@ -99,6 +103,9 @@ for platform in ("windows", "mac", "linux"):
             portable = portable.replace("-Filter 'duplicate-review-*.png' -File", "-File | Where-Object {$_.Name -like 'duplicate-review-*.png' -or $_.Name -like 'recorded-insights-*.png'}")
         if folders:
             portable = portable.replace("-or!$probe.recordedInsightsPassed)", "-or!$probe.recordedInsightsPassed-or!$probe.largestFoldersPassed)")
+        if staging:
+            portable = portable.replace("-or!$probe.largestFoldersPassed)", "-or!$probe.largestFoldersPassed-or!$probe.recipeStagingPassed)")
+            portable = portable.replace("$_.Name -like 'recorded-insights-*.png'", "$_.Name -like 'recorded-insights-*.png' -or $_.Name -like 'recipe-staging-*.png'")
         assert "$probe.contentGroups-ne1" in portable and "$parent.FullName-ne$inputRoot" in portable
     runner = temp / f"batch-{platform}-{revision}{suffix}"
     runner.write_text(portable.replace(old["bundle"], sha(archive)), encoding="utf-8", newline="\n")
@@ -107,6 +114,10 @@ for platform in ("windows", "mac", "linux"):
 
 (temp / f"cache-input-{revision}").mkdir()
 harness = root / "tests/FileCat.NativeAcceptance/DiskSpaceHarness/DuplicateReview.cs"
+native_sources = {str(harness.relative_to(root).as_posix()): sha(harness)}
+if staging:
+    program = harness.with_name("Program.cs")
+    native_sources[program.relative_to(root).as_posix()] = sha(program)
 (temp / f"{label}-native-proof-{revision}.json").write_text(json.dumps(
-    {"harnessSource": sha(harness), "platforms": proof}, indent=2) + "\n", encoding="utf-8")
+    {"harnessSource": sha(harness), "sources": native_sources, "platforms": proof}, indent=2) + "\n", encoding="utf-8")
 print(json.dumps({platform: values["bytes"] for platform, values in proof.items()}))

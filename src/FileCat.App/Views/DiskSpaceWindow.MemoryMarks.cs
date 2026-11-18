@@ -14,6 +14,7 @@ public sealed partial class DiskSpaceWindow
     private sealed partial class SessionView
     {
         private readonly Button _reviewMarks = new() { Content = "Review marked entries" },
+            _reviewMemoryBasket = new() { Content = "Review captured basket" },
             _markMatches = new() { Content = "Mark matching files in this scope" },
             _clearMemoryMarks = new() { Content = "Clear marks" },
             _retryMarkCounts = new() { Content = "Update mark counts", IsVisible = false };
@@ -24,12 +25,13 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetAutomationId(_basket, "Captured selection summary");
             AutomationProperties.SetLiveSetting(_basket, AutomationLiveSetting.Polite);
             _basketHost.Children.Add(_markMatches); _basketHost.Children.Add(_clearMemoryMarks); _basketHost.Children.Add(_reviewMarks);
-            _basketHost.Children.Add(_reviewDuplicates); _basketHost.Children.Add(_retryMarkCounts);
+            _basketHost.Children.Add(_reviewDuplicates); _basketHost.Children.Add(_reviewMemoryBasket); _basketHost.Children.Add(_retryMarkCounts);
             ToolTip.SetTip(_markMatches, new RichTip("Capture matching files", detail: "Marks regular-file matches in the displayed scope and revision. Focus does not narrow this scope. Context folders, hidden aliases and future observations are excluded. At most 100,000 distinct paths can be marked."));
             ToolTip.SetTip(_reviewMarks, new RichTip("Review captured marks", detail: "Inspect marked entries across locations and filters. Unmarking an entry leaves the independent review basket unchanged."));
             _markMatches.Click += async (_, _) => await Model.MarkMatchingFilesAsync();
             _clearMemoryMarks.Click += (_, _) => Model.ClearMarks();
             _reviewMarks.Click += async (_, _) => await ReviewMarksAsync();
+            _reviewMemoryBasket.Click += async (_, _) => await ReviewMarksAsync(basket: true);
             _reviewDuplicates.Click += (_, _) => _ = ReviewDuplicatesAsync();
             _retryMarkCounts.Click += (_, _) => { Model.ScheduleMarkVisibility(retry: true); Refresh(); };
             AddDeferredSelectionControls();
@@ -39,6 +41,7 @@ public sealed partial class DiskSpaceWindow
             Model.ScheduleMarkVisibility();
             RefreshDeferredSelection();
             _reviewMarks.IsEnabled = Model.Tree is not null && Model.Selection.Marks.Count != 0 && !_reviewingMarks;
+            _reviewMemoryBasket.IsEnabled = Model.Tree is not null && Model.Selection.Basket.Count != 0 && !_reviewingMarks;
             _reviewDuplicates.IsEnabled = _reviewMarks.IsEnabled;
             _markMatches.IsEnabled = Model.Tree is not null && !Model.IsCapturingMatches;
             _clearMemoryMarks.IsEnabled = Model.Selection.Marks.Count != 0 || Model.IsCapturingMatches;
@@ -54,59 +57,64 @@ public sealed partial class DiskSpaceWindow
             if (_basket.Text != text) _basket.Text = text;
         }
         private sealed record MarkedEntry(ulong Id, string Label) { public override string ToString() => Label; }
-        private async Task ReviewMarksAsync()
+        private async Task ReviewMarksAsync(bool basket = false)
         {
-            if (_disposed || _reviewingMarks || Model.Tree is not { } tree || Model.Selection.Marks.Count == 0) return;
+            if (_disposed || _reviewingMarks || Model.Tree is not { } tree || Current().Count == 0) return;
             using var actual = _actualWork.Enter(); using var owner = Model.RetainDisplayedOwner();
             _reviewingMarks = true; var closer = new DialogCloser(); _markReviewCloser = closer;
             Model.Interaction(true);
             try
             {
-                var captured = Model.Selection.Marks; var ids = await Task.Run(() => captured.Order().ToImmutableArray());
+                var captured = Current(); var ids = await Task.Run(() => captured.Order().ToImmutableArray());
                 if (_disposed || _window._dialogs.IsOpen) return;
                 int offset = 0;
                 var list = new ListBox { MinHeight = 120, MaxHeight = 300 };
-                AutomationProperties.SetName(list, "Captured marked entries");
+                AutomationProperties.SetName(list, basket ? "Captured basket entries" : "Captured marked entries");
                 var label = new TextBlock { TextWrapping = TextWrapping.Wrap };
                 var details = new TextBlock { TextWrapping = TextWrapping.Wrap };
-                AutomationProperties.SetName(details, "Captured marked entry details");
-                var previous = new Button { Content = "Previous marked entries" }; var next = new Button { Content = "Next marked entries" };
-                var unmark = new Button { Content = "Unmark selected entry" };
+                AutomationProperties.SetName(details, basket ? "Captured basket entry details" : "Captured marked entry details");
+                var previous = new Button { Content = basket ? "Previous basket entries" : "Previous marked entries" };
+                var next = new Button { Content = basket ? "Next basket entries" : "Next marked entries" };
+                var remove = new Button { Content = basket ? "Remove selected from basket" : "Unmark selected entry" };
                 var body = new StackPanel { Spacing = 8, Children =
                 {
-                    new TextBlock { Text = "Captured marks, including entries elsewhere or hidden by filters. Unmarking changes only marks; the review basket is independent. No files are changed here.", TextWrapping = TextWrapping.Wrap },
-                    label, list, new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { previous, next, unmark } }, details
+                    new TextBlock { Text = basket
+                        ? "Captured entries for review, including entries hidden by the current scope or filters. Removing an entry changes only this basket."
+                        : "Captured marks, including entries elsewhere or hidden by filters. Unmarking changes only marks; the review basket is independent. No files are changed here.", TextWrapping = TextWrapping.Wrap },
+                    label, list, new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { previous, next, remove } }, details
                 } };
                 list.SelectionChanged += (_, _) =>
                 {
-                    unmark.IsEnabled = list.SelectedItem is MarkedEntry entry && Model.Selection.Marks.Contains(entry.Id);
+                    remove.IsEnabled = list.SelectedItem is MarkedEntry entry && Current().Contains(entry.Id);
                     details.Text = list.SelectedItem is MarkedEntry selected ? Describe(selected.Id) : "Choose a captured entry for its observation details.";
                 };
                 previous.Click += (_, _) => { if (offset > 0) Load(Math.Max(0, offset - 128)); };
                 next.Click += (_, _) => { if (offset + 128 < ids.Length) Load(offset + 128); };
-                unmark.Click += (_, _) =>
+                remove.Click += (_, _) =>
                 {
-                    if (list.SelectedItem is not MarkedEntry entry || !Model.Selection.Marks.Contains(entry.Id)) return;
-                    Model.Selection.ToggleMark(entry.Id); Load(offset, entry.Id); Refresh();
+                    if (list.SelectedItem is not MarkedEntry entry || !Current().Contains(entry.Id)) return;
+                    if (basket) Model.Selection.RemoveFromBasket(entry.Id); else Model.Selection.ToggleMark(entry.Id);
+                    Load(offset, entry.Id); Refresh();
                 };
                 Load(0);
-                await _window._dialogs.ShowCustomAsync("Review marked entries", body,
+                await _window._dialogs.ShowCustomAsync(basket ? "Review captured basket" : "Review marked entries", body,
                     [new DialogButton("Keep files / Close review", false, IsDefault: true, IsCancel: true)], closer: closer);
                 void Load(int start, ulong? focus = null)
                 {
                     offset = start;
                     list.ItemsSource = ids.Skip(offset).Take(128).Select(id => new MarkedEntry(id,
                         AnalysisNames.Display(tree.Items.GetValueOrDefault(AnalysisTree.Key(id))?.Name ?? "Missing observation", 256) + " · entry " + id +
-                        (Model.Selection.Marks.Contains(id) ? "" : " · no longer marked"))).ToArray();
+                        (Current().Contains(id) ? "" : basket ? " · removed from basket" : " · no longer marked"))).ToArray();
                     if (focus is { } id) list.SelectedItem = list.Items.OfType<MarkedEntry>().FirstOrDefault(row => row.Id == id);
                     previous.IsEnabled = offset > 0; next.IsEnabled = offset + list.ItemCount < ids.Length;
-                    unmark.IsEnabled = list.SelectedItem is MarkedEntry selected && Model.Selection.Marks.Contains(selected.Id);
-                    label.Text = $"Captured entries {offset + 1:N0}–{offset + list.ItemCount:N0} of {ids.Length:N0}. Currently marked: {Model.Selection.Marks.Count:N0}.";
+                    remove.IsEnabled = list.SelectedItem is MarkedEntry selected && Current().Contains(selected.Id);
+                    label.Text = $"Captured entries {offset + 1:N0}–{offset + list.ItemCount:N0} of {ids.Length:N0}. " +
+                        (basket ? $"Current basket: {Current().Count:N0}." : $"Currently marked: {Current().Count:N0}.");
                 }
                 string Describe(ulong id)
                 {
                     var node = tree.Snapshot.Nodes.FirstOrDefault(node => node.Id == id);
-                    if (node is null) return "This entry is absent from the captured revision. Its retained mark can be removed here.";
+                    if (node is null) return "This entry is absent from the captured revision. Its reference can be removed here.";
                     return $"Captured entry {id} · {node.Kind} · location {AnalysisNames.Display(node.RootId, 64)}\n" + AnalysisNames.DisplayName(node, 512) +
                         $"\nMetadata: {node.MetadataState} · " + (node.IncludedByPolicy ? "included by scan policy" : "excluded by scan policy") +
                         $"\nObservation revision {tree.Snapshot.Identity.Revision:N0}. This reference does not authorize filesystem actions.";
@@ -117,6 +125,7 @@ public sealed partial class DiskSpaceWindow
                 closer.Close(null); if (ReferenceEquals(_markReviewCloser, closer)) _markReviewCloser = null;
                 _reviewingMarks = false; Model.Interaction(false); if (!_disposed) Refresh();
             }
+            ImmutableHashSet<ulong> Current() => basket ? Model.Selection.Basket : Model.Selection.Marks;
         }
     }
 }
