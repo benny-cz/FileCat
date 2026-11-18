@@ -19,9 +19,12 @@ internal sealed partial class NtfsMetadataChannel : IDisposable
     private readonly ulong _started;
     private ulong _since;
     private Phase _phase;
+    private Phase _beforeCancel, _beforeTerminal;
     private int _disposed, _reading, _writing;
     private uint _inbound, _outbound, _delivered, _lastProgress;
     internal bool IsClosed => Volatile.Read(ref _disposed) != 0;
+    internal bool Active { get { lock (_gate) return _phase == Phase.Active; } }
+    internal bool CancelPending { get { lock (_gate) return _phase == Phase.Canceling; } }
 
     internal NtfsMetadataChannel(Stream authenticated, string nonce, bool helper, Func<ulong>? ticks = null)
     {
@@ -43,14 +46,22 @@ internal sealed partial class NtfsMetadataChannel : IDisposable
             RequireOpen();
             if (_inbound == uint.MaxValue) throw NtfsMetadataProtocol.InvalidFrame();
             var frame = await NtfsMetadataProtocol.ReadAsync(_stream, _nonce, _inbound++, cancellation).ConfigureAwait(false);
-            Advance(frame, fromHelper: !_helper);
+            Advance(frame, fromHelper: !_helper, racingSend: false);
             return frame;
         }
         catch { Dispose(); throw; }
         finally { Volatile.Write(ref _reading, 0); }
     }
 
-    internal async ValueTask SendAsync(NtfsMetadataFrame frame, CancellationToken cancellation)
+    internal async ValueTask SendAsync(NtfsMetadataFrame frame, CancellationToken cancellation) =>
+        _ = await WriteAsync(frame, cancellation, racingSend: false).ConfigureAwait(false);
+
+    // One local writer uses this for commands or output that may lose a race to the peer's
+    // independently ordered stream. A lost race leaves the channel and its sequence untouched.
+    internal ValueTask<bool> TrySendAsync(NtfsMetadataFrame frame, CancellationToken cancellation) =>
+        WriteAsync(frame, cancellation, racingSend: true);
+
+    private async ValueTask<bool> WriteAsync(NtfsMetadataFrame frame, CancellationToken cancellation, bool racingSend)
     {
         if (Interlocked.Exchange(ref _writing, 1) != 0) throw new InvalidOperationException("A metadata write is already in progress.");
         try
@@ -59,30 +70,45 @@ internal sealed partial class NtfsMetadataChannel : IDisposable
             cancellation.ThrowIfCancellationRequested();
             if (_outbound == uint.MaxValue) throw NtfsMetadataProtocol.InvalidFrame();
             NtfsMetadataProtocol.ValidatePayload(frame.Kind, frame.Payload);
-            Advance(frame, fromHelper: _helper);
+            if (!Advance(frame, fromHelper: _helper, racingSend)) return false;
             await NtfsMetadataProtocol.WriteAsync(_stream, _nonce, _outbound++, frame, cancellation).ConfigureAwait(false);
+            return true;
         }
         catch { Dispose(); throw; }
         finally { Volatile.Write(ref _writing, 0); }
     }
 
-    private void Advance(NtfsMetadataFrame frame, bool fromHelper)
+    private bool Advance(NtfsMetadataFrame frame, bool fromHelper, bool racingSend)
     {
         lock (_gate)
         {
             RequireOpen();
             ulong now = _ticks();
             if (Expired(now)) throw new TimeoutException("The NTFS metadata session expired.");
-            var next = (frame.Kind, fromHelper, _phase) switch
+            var kind = frame.Kind;
+            bool canceled = kind == NtfsMetadataMessage.Complete &&
+                frame.Payload.GetProperty("Outcome").GetString() == nameof(NtfsMetadataCompletion.Canceled);
+            if (racingSend && CanYieldToPeer(kind, canceled)) return false;
+
+            if (_helper && !fromHelper && _phase == Phase.Terminal)
+            {
+                // One client command may have been in flight when a terminal frame was committed.
+                // Validate it against the state it could have seen and leave the terminal write alone.
+                _beforeTerminal = _beforeTerminal != Phase.Terminal && ControlNext(kind, _beforeTerminal) is not null
+                    ? Phase.Terminal : throw NtfsMetadataProtocol.InvalidFrame();
+                return true;
+            }
+
+            bool crossingCancel = !_helper && fromHelper && _phase == Phase.Canceling && !canceled && kind != NtfsMetadataMessage.Refused;
+            var current = crossingCancel ? _beforeCancel : _phase;
+            var next = (kind, fromHelper, current) switch
             {
                 (NtfsMetadataMessage.Hello, false, Phase.New) => Phase.Handshaking,
                 (NtfsMetadataMessage.Accepted, true, Phase.Handshaking) => Phase.Active,
-                (NtfsMetadataMessage.Pause, false, Phase.Active) => Phase.Pausing,
+                (_, false, _) => ControlNext(kind, current) ?? throw NtfsMetadataProtocol.InvalidFrame(),
                 (NtfsMetadataMessage.Paused, true, Phase.Pausing) => Phase.Paused,
-                (NtfsMetadataMessage.Resume, false, Phase.Paused) => Phase.Active,
-                (NtfsMetadataMessage.Cancel, false, Phase.Active or Phase.Pausing or Phase.Paused) => Phase.Canceling,
-                (NtfsMetadataMessage.ObservationBatch or NtfsMetadataMessage.Progress, true, Phase.Active or Phase.Pausing) => _phase,
-                (NtfsMetadataMessage.Issue, true, Phase.Active or Phase.Pausing or Phase.Paused) => _phase,
+                (NtfsMetadataMessage.ObservationBatch or NtfsMetadataMessage.Progress, true, Phase.Active or Phase.Pausing) => current,
+                (NtfsMetadataMessage.Issue, true, Phase.Active or Phase.Pausing or Phase.Paused) => current,
                 (NtfsMetadataMessage.Complete, true, Phase.Active or Phase.Pausing or Phase.Canceling) => Phase.Terminal,
                 (NtfsMetadataMessage.Refused, true, Phase.Handshaking or Phase.Active or Phase.Pausing or Phase.Paused or Phase.Canceling) => Phase.Terminal,
                 _ => throw NtfsMetadataProtocol.InvalidFrame(),
@@ -102,21 +128,48 @@ internal sealed partial class NtfsMetadataChannel : IDisposable
                     break;
                 case NtfsMetadataMessage.Complete:
                     uint final = NtfsMetadataProtocol.ReadCount(frame.Payload.GetProperty("Seen"));
-                    string? outcome = frame.Payload.GetProperty("Outcome").GetString();
-                    if (final < _lastProgress || final != _delivered ||
-                        (_phase == Phase.Canceling) != (outcome == nameof(NtfsMetadataCompletion.Canceled)))
+                    if (final < _lastProgress || final != _delivered || (current == Phase.Canceling) != canceled)
                         throw NtfsMetadataProtocol.InvalidFrame();
                     break;
             }
 
             // Pause requests do not restart the active heartbeat deadline. Only an actual Paused
             // acknowledgment starts the idle deadline, and Resume never restarts the session lifetime.
-            if (frame.Kind is NtfsMetadataMessage.Accepted or NtfsMetadataMessage.Paused or NtfsMetadataMessage.Resume or
+            if (!crossingCancel && kind is NtfsMetadataMessage.Accepted or NtfsMetadataMessage.Paused or NtfsMetadataMessage.Resume or
                 NtfsMetadataMessage.Progress or NtfsMetadataMessage.Cancel)
                 _since = now;
-            _phase = next;
+            if (crossingCancel && next != Phase.Terminal) _beforeCancel = next;
+            else
+            {
+                if (next == Phase.Canceling) _beforeCancel = current;
+                if (next == Phase.Terminal) _beforeTerminal = current;
+                _phase = next;
+            }
+            return true;
         }
     }
+
+    private bool CanYieldToPeer(NtfsMetadataMessage kind, bool canceled)
+    {
+        if (_helper)
+            return _phase == Phase.Canceling && !canceled && kind is NtfsMetadataMessage.ObservationBatch or
+                NtfsMetadataMessage.Progress or NtfsMetadataMessage.Issue or NtfsMetadataMessage.Paused or NtfsMetadataMessage.Complete;
+        return kind switch
+        {
+            NtfsMetadataMessage.Pause => _phase is Phase.Pausing or Phase.Paused or Phase.Canceling or Phase.Terminal,
+            NtfsMetadataMessage.Resume => _phase is Phase.Active or Phase.Pausing or Phase.Canceling or Phase.Terminal,
+            NtfsMetadataMessage.Cancel => _phase is Phase.Canceling or Phase.Terminal,
+            _ => false,
+        };
+    }
+
+    private static Phase? ControlNext(NtfsMetadataMessage kind, Phase phase) => (kind, phase) switch
+    {
+        (NtfsMetadataMessage.Pause, Phase.Active) => Phase.Pausing,
+        (NtfsMetadataMessage.Resume, Phase.Paused) => Phase.Active,
+        (NtfsMetadataMessage.Cancel, Phase.Active or Phase.Pausing or Phase.Paused) => Phase.Canceling,
+        _ => null
+    };
 
     private bool Expired(ulong now) => now - _started >= SessionMilliseconds || now - _since >= (_phase switch
     {

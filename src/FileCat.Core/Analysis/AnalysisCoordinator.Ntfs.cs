@@ -2,6 +2,8 @@ namespace FileCat.Core.Analysis;
 
 internal enum AnalysisNtfsOutcome { Finished, Partial, Canceled }
 
+internal sealed record AnalysisNtfsControl(Func<bool> PauseRequested, Action<bool> ReportPaused, Action<uint> ReportProgress);
+
 /// <summary>One trusted, explicitly selected volume. Discovery data cannot implement this capability.</summary>
 internal interface IAnalysisNtfsScan
 {
@@ -10,7 +12,7 @@ internal interface IAnalysisNtfsScan
     void ValidateVolume(CancellationToken cancellation);
     // Null means the protection root was proved to be on a different volume. Uncertain identity must throw.
     UInt128? GetPrivateBoundaryId(IAnalysisBackend protection);
-    Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, Action<uint> progress, CancellationToken cancellation);
+    Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, AnalysisNtfsControl control, CancellationToken cancellation);
     /// <summary>Ordinary, independently anchored observations. Null leaves that discovery row unmeasured.</summary>
     AnalysisEntry?[] Measure(IReadOnlyList<AnalysisNtfsObservation> ancestors, IReadOnlyList<AnalysisNtfsObservation> children,
         bool detailed, CancellationToken cancellation);
@@ -37,9 +39,9 @@ public sealed partial class AnalysisCoordinator
 public sealed partial class AnalysisSession
 {
     private readonly IAnalysisNtfsScan? _ntfs;
-    private bool _ntfsDiscoveryPending;
+    private bool _ntfsDiscoveryPending, _ntfsControlReady;
     private uint? _ntfsDiscoveryRecords;
-    internal bool CanPause { get { lock (_sync) return !_ntfsDiscoveryPending; } }
+    internal bool CanPause { get { lock (_sync) return !_ntfsDiscoveryPending || _ntfsControlReady; } }
     private AnalysisTaint SourceTaint => _ntfs is null ? AnalysisTaint.OrdinarySensitive : AnalysisPrivacy.Join(AnalysisTaint.PrivilegedDerived);
 
     private void ReportNtfsDiscovery(uint records)
@@ -50,6 +52,27 @@ public sealed partial class AnalysisSession
             _ntfsDiscoveryRecords = records;
         }
         Report();
+    }
+
+    private bool NtfsPauseRequested()
+    {
+        lock (_sync) return _resume is not null && !_disposed && _phase != AnalysisPhase.Stopped;
+    }
+
+    private void ReportNtfsPaused(bool paused)
+    {
+        bool changed;
+        lock (_sync)
+        {
+            if (!_ntfsDiscoveryPending || _disposed || _phase == AnalysisPhase.Stopped) return;
+            changed = !_ntfsControlReady;
+            _ntfsControlReady = true;
+            var previous = _phase;
+            if (paused && _resume is not null && _phase == AnalysisPhase.Pausing) _phase = AnalysisPhase.Paused;
+            if (!paused && _resume is null && _phase is AnalysisPhase.Pausing or AnalysisPhase.Paused) _phase = AnalysisPhase.Scanning;
+            changed |= previous != _phase;
+        }
+        if (changed) Report();
     }
 
     private void FailNtfsDiscovery(MeasurementState state)
@@ -82,8 +105,17 @@ public sealed partial class AnalysisSession
             ?? throw new IOException("The private analysis store could not record the approved NTFS root.");
         await using var catalog = await OnStorageDeviceAsync(() => _writer!.CreateNtfsDiscoveryAsync(scan.RootId, token)).ConfigureAwait(false);
         AnalysisNtfsOutcome capture;
-        try { capture = await OnStorageDeviceAsync(() => scan.CaptureAsync(catalog, ReportNtfsDiscovery, token)).ConfigureAwait(false); }
-        finally { lock (_sync) _ntfsDiscoveryPending = false; }
+        var control = new AnalysisNtfsControl(NtfsPauseRequested, ReportNtfsPaused, ReportNtfsDiscovery);
+        try { capture = await OnStorageDeviceAsync(() => scan.CaptureAsync(catalog, control, token)).ConfigureAwait(false); }
+        finally
+        {
+            lock (_sync)
+            {
+                _ntfsDiscoveryPending = false;
+                _ntfsControlReady = false;
+                if (_resume is null && _phase is AnalysisPhase.Pausing or AnalysisPhase.Paused) _phase = AnalysisPhase.Scanning;
+            }
+        }
         Report();
         if (capture == AnalysisNtfsOutcome.Canceled) { Stop(); return; }
         if (capture == AnalysisNtfsOutcome.Partial) Issue("ntfs-discovery-record-limit", rootPath, MeasurementState.Unsupported, root.Id);

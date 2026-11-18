@@ -178,16 +178,12 @@ public sealed partial class WindowsAnalysisBackend
         public AnalysisEntry?[] Measure(IReadOnlyList<AnalysisNtfsObservation> ancestors, IReadOnlyList<AnalysisNtfsObservation> children,
             bool detailed, CancellationToken cancellation) => source.MeasureDiscoveryChildren(ancestors, children, detailed, cancellation);
 
-        public async Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, Action<uint> progress, CancellationToken cancellation)
+        public async Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, AnalysisNtfsControl control, CancellationToken cancellation)
         {
             try
             {
                 await using var client = await NtfsMetadataClient.StartAsync(volume, portable, exchange, owner, cancellation).ConfigureAwait(false);
-                progress(0);
-                return await client.CaptureAsync(discovery, frame =>
-                {
-                    if (frame.Kind == NtfsMetadataMessage.Progress) progress(NtfsMetadataProtocol.ReadCount(frame.Payload.GetProperty("Seen")));
-                }, cancellation).ConfigureAwait(false) switch
+                return await client.CaptureAsync(discovery, control, cancellation).ConfigureAwait(false) switch
                 {
                     NtfsMetadataCompletion.Finished => AnalysisNtfsOutcome.Finished,
                     NtfsMetadataCompletion.Partial => AnalysisNtfsOutcome.Partial,

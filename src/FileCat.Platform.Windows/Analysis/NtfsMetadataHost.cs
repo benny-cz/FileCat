@@ -40,18 +40,18 @@ internal static class NtfsMetadataHost
             while (true)
             {
                 Check();
-                if (control.IsCompleted)
+                if (control.IsCompleted || channel.CancelPending)
                 {
                     var request = await control.ConfigureAwait(false);
                     if (request.Kind == NtfsMetadataMessage.Cancel)
-                        return await Complete(NtfsMetadataCompletion.Canceled).ConfigureAwait(false);
+                        return await Complete(NtfsMetadataCompletion.Canceled).ConfigureAwait(false) ?? throw NtfsMetadataProtocol.InvalidFrame();
                     state = request.Kind == NtfsMetadataMessage.Pause ? ScanState.Pausing : ScanState.Active;
                     control = channel.ReceiveAsync(token).AsTask();
                     heartbeat = NtfsMetadataChannel.MonotonicMilliseconds();
                 }
                 if (state == ScanState.Pausing && (pending is null || pending.IsCompleted))
                 {
-                    await Send(NtfsMetadataMessage.Paused, new { }).ConfigureAwait(false);
+                    if (!await Send(NtfsMetadataMessage.Paused, new { }).ConfigureAwait(false)) continue;
                     state = ScanState.Paused;
                 }
                 if (state == ScanState.Active)
@@ -61,24 +61,29 @@ internal static class NtfsMetadataHost
                     {
                         var page = await pending.ConfigureAwait(false);
                         pending = null;
-                        if (page is null) return await Complete(NtfsMetadataCompletion.Finished).ConfigureAwait(false);
+                        if (page is null)
+                        {
+                            if (await Complete(NtfsMetadataCompletion.Finished).ConfigureAwait(false) is { } finished) return finished;
+                            continue;
+                        }
                         int accepted = Math.Min(page.Records.Length, AnalysisLimits.Observations - delivered);
                         if (accepted > 0)
                         {
-                            await Send(NtfsMetadataMessage.ObservationBatch, new { Records = page.Records.Take(accepted) }).ConfigureAwait(false);
+                            if (!await Send(NtfsMetadataMessage.ObservationBatch, new { Records = page.Records.Take(accepted) }).ConfigureAwait(false)) continue;
                             delivered += accepted;
                         }
                         if (delivered == AnalysisLimits.Observations)
                         {
-                            await Issue(NtfsMetadataMessage.Issue, NtfsMetadataIssue.LimitReached).ConfigureAwait(false);
-                            return await Complete(NtfsMetadataCompletion.Partial).ConfigureAwait(false);
+                            if (!await Issue(NtfsMetadataMessage.Issue, NtfsMetadataIssue.LimitReached).ConfigureAwait(false)) continue;
+                            if (await Complete(NtfsMetadataCompletion.Partial).ConfigureAwait(false) is { } partial) return partial;
+                            continue;
                         }
                     }
                 }
                 ulong now = NtfsMetadataChannel.MonotonicMilliseconds();
                 if (state != ScanState.Paused && now - heartbeat >= 600)
                 {
-                    await Send(NtfsMetadataMessage.Progress, new { Seen = delivered }).ConfigureAwait(false);
+                    if (!await Send(NtfsMetadataMessage.Progress, new { Seen = delivered }).ConfigureAwait(false)) continue;
                     heartbeat = now;
                 }
                 if (state == ScanState.Active && pending is null) continue;
@@ -137,13 +142,19 @@ internal static class NtfsMetadataHost
             token.ThrowIfCancellationRequested();
             if (channel.IsClosed) throw new TimeoutException();
         }
-        ValueTask Send<T>(NtfsMetadataMessage kind, T body) =>
-            channel.SendAsync(new(kind, JsonSerializer.SerializeToElement(body)), token);
-        ValueTask Issue(NtfsMetadataMessage kind, NtfsMetadataIssue reason) => Send(kind, new { Code = reason.ToString() });
-        async Task<ElevatedStepResult> Complete(NtfsMetadataCompletion outcome)
+        ValueTask<bool> Send<T>(NtfsMetadataMessage kind, T body) =>
+            channel.TrySendAsync(new(kind, JsonSerializer.SerializeToElement(body)), token);
+        ValueTask<bool> Issue(NtfsMetadataMessage kind, NtfsMetadataIssue reason) => Send(kind, new { Code = reason.ToString() });
+        async Task<ElevatedStepResult?> Complete(NtfsMetadataCompletion outcome)
         {
-            await Send(NtfsMetadataMessage.Complete, new { Seen = delivered, Outcome = outcome.ToString() }).ConfigureAwait(false);
-            return new(0, outcome == NtfsMetadataCompletion.Finished ? ElevatedOutcome.Committed : ElevatedOutcome.PartiallyApplied,
+            if (!await Send(NtfsMetadataMessage.Complete, new { Seen = delivered, Outcome = outcome.ToString() }).ConfigureAwait(false)) return null;
+            var settled = outcome switch
+            {
+                NtfsMetadataCompletion.Finished => ElevatedOutcome.Committed,
+                NtfsMetadataCompletion.Canceled when delivered == 0 => ElevatedOutcome.NotRun,
+                _ => ElevatedOutcome.PartiallyApplied
+            };
+            return new(0, settled,
                 outcome == NtfsMetadataCompletion.Finished ? "NTFS metadata enumeration finished." : "The NTFS metadata session ended with partial observations.",
                 delivered);
         }

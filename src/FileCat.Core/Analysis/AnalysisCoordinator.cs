@@ -147,7 +147,7 @@ public sealed partial class AnalysisSession : IDisposable
     {
         lock (_sync)
         {
-            if (_disposed || _workerFinished || _ntfsDiscoveryPending || _phase is not (AnalysisPhase.Scanning or AnalysisPhase.Refreshing)) return;
+            if (_disposed || _workerFinished || !CanPause || _phase is not (AnalysisPhase.Scanning or AnalysisPhase.Refreshing)) return;
             _resume = new(TaskCreationOptions.RunContinuationsAsynchronously); _phase = AnalysisPhase.Pausing;
         }
         Report();
@@ -158,7 +158,8 @@ public sealed partial class AnalysisSession : IDisposable
         lock (_sync)
         {
             if (_disposed || _workerFinished || _phase is not (AnalysisPhase.Paused or AnalysisPhase.Pausing)) return;
-            resume = _resume; _resume = null; _phase = _identity.Epoch > 1 ? AnalysisPhase.Refreshing : AnalysisPhase.Scanning;
+            resume = _resume; _resume = null;
+            if (!_ntfsDiscoveryPending) _phase = _identity.Epoch > 1 ? AnalysisPhase.Refreshing : AnalysisPhase.Scanning;
         }
         resume?.TrySetResult(); Report();
     }

@@ -103,8 +103,10 @@ public sealed class BrokerNtfsMetadataTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    [Fact]
-    public async Task FastNtfsMetadata_elevated_native_host_completes_a_live_volume_stream()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FastNtfsMetadata_elevated_native_host_pauses_and_settles_a_live_volume_stream(bool cancel)
     {
         if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_FAST_NTFS_NATIVE_PROBE") != "1")
             Assert.Skip("Requires the owned elevated NTFS validation run.");
@@ -126,8 +128,9 @@ public sealed class BrokerNtfsMetadataTests
             var accepted = await client.ReceiveAsync(timeout.Token);
             Assert.Equal(NtfsMetadataMessage.Accepted, accepted.Kind);
             Assert.Equal(volume.RootFileId, accepted.Payload.GetProperty("RootId").GetString());
+            await client.SendAsync(new(NtfsMetadataMessage.Pause, System.Text.Json.JsonSerializer.SerializeToElement(new { })), timeout.Token);
             string wanted = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(leaf));
-            bool found = false;
+            bool found = false, paused = false;
             int observed = 0;
             while (true)
             {
@@ -135,19 +138,29 @@ public sealed class BrokerNtfsMetadataTests
                 Assert.NotEqual(NtfsMetadataMessage.Refused, frame.Kind);
                 if (frame.Kind == NtfsMetadataMessage.Complete)
                 {
-                    Assert.Equal("Finished", frame.Payload.GetProperty("Outcome").GetString());
+                    Assert.Equal(cancel ? "Canceled" : "Finished", frame.Payload.GetProperty("Outcome").GetString());
                     Assert.Equal(observed, frame.Payload.GetProperty("Seen").GetInt32());
                     break;
+                }
+                if (frame.Kind == NtfsMetadataMessage.Paused)
+                {
+                    Assert.False(paused);
+                    paused = true;
+                    var action = cancel ? NtfsMetadataMessage.Cancel : NtfsMetadataMessage.Resume;
+                    await client.SendAsync(new(action, System.Text.Json.JsonSerializer.SerializeToElement(new { })), timeout.Token);
+                    continue;
                 }
                 if (frame.Kind != NtfsMetadataMessage.ObservationBatch) continue;
                 var records = frame.Payload.GetProperty("Records");
                 observed += records.GetArrayLength();
                 found |= records.EnumerateArray().Any(record => record.GetProperty("NameUtf16").GetString() == wanted);
             }
-            Assert.True(found, "The owned fixture did not appear in the metadata stream.");
+            Assert.True(paused, "The live metadata host did not acknowledge Pause.");
+            if (!cancel) Assert.True(found, "The owned fixture did not appear in the metadata stream.");
             var result = await serving.WaitAsync(timeout.Token);
-            Assert.Equal(ElevatedOutcome.Committed, result.Outcome);
+            Assert.Equal(cancel ? observed == 0 ? ElevatedOutcome.NotRun : ElevatedOutcome.PartiallyApplied : ElevatedOutcome.Committed, result.Outcome);
             Assert.Equal(observed, result.ItemsDone);
+            Assert.Equal(new byte[] { 1, 3, 7 }, File.ReadAllBytes(Path.Combine(root, leaf)));
         }
         finally
         {

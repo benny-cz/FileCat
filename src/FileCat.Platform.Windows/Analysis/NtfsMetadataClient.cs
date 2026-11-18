@@ -74,13 +74,85 @@ internal sealed class NtfsMetadataClient : IAsyncDisposable
         }
     }
 
-    internal ValueTask<NtfsMetadataFrame> ReceiveAsync(CancellationToken cancellation) => _channel.ReceiveAsync(cancellation);
-    internal ValueTask PauseAsync(CancellationToken cancellation) => _channel.SendAsync(Empty(NtfsMetadataMessage.Pause), cancellation);
-    internal ValueTask ResumeAsync(CancellationToken cancellation) => _channel.SendAsync(Empty(NtfsMetadataMessage.Resume), cancellation);
-    internal ValueTask CancelAsync(CancellationToken cancellation) => _channel.SendAsync(Empty(NtfsMetadataMessage.Cancel), cancellation);
+    internal Task<NtfsMetadataCompletion> CaptureAsync(AnalysisNtfsDiscovery discovery, AnalysisNtfsControl control,
+        CancellationToken cancellation) => CaptureControlledAsync(_channel, discovery, control, cancellation);
 
-    internal Task<NtfsMetadataCompletion> CaptureAsync(AnalysisNtfsDiscovery discovery, Action<NtfsMetadataFrame>? status,
-        CancellationToken cancellation) => CaptureAsync(ReceiveAsync, discovery, status, cancellation);
+    internal static async Task<NtfsMetadataCompletion> CaptureControlledAsync(NtfsMetadataChannel channel, AnalysisNtfsDiscovery discovery,
+        AnalysisNtfsControl control, CancellationToken cancellation)
+    {
+        using var receiver = new ControlledReceiver(channel, control);
+        control.ReportProgress(0);
+        control.ReportPaused(false);
+        try
+        {
+            return await CaptureAsync(receiver.ReceiveAsync, discovery, frame =>
+            {
+                if (frame.Kind == NtfsMetadataMessage.Progress)
+                    control.ReportProgress(NtfsMetadataProtocol.ReadCount(frame.Payload.GetProperty("Seen")));
+            }, cancellation).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            await receiver.CancelAsync().ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private sealed class ControlledReceiver(NtfsMetadataChannel channel, AnalysisNtfsControl control) : IDisposable
+    {
+        private Task<NtfsMetadataFrame>? _pending;
+        private Task _controlTick = Task.CompletedTask;
+
+        internal async ValueTask<NtfsMetadataFrame> ReceiveAsync(CancellationToken cancellation)
+        {
+            while (true)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (_pending is { IsCompleted: true })
+                {
+                    var frame = await _pending.ConfigureAwait(false);
+                    _pending = null;
+                    if (frame.Kind == NtfsMetadataMessage.Paused) control.ReportPaused(true);
+                    return frame;
+                }
+                bool pause = control.PauseRequested();
+                await channel.TrySendAsync(Empty(pause ? NtfsMetadataMessage.Pause : NtfsMetadataMessage.Resume), cancellation).ConfigureAwait(false);
+                if (!pause && channel.Active) control.ReportPaused(false);
+
+                // A single read remains owned while UI intent changes. Canceling the read itself
+                // would discard valid frames that the helper sent before seeing a Cancel command.
+                _pending ??= channel.ReceiveAsync(CancellationToken.None).AsTask();
+                if (_pending.IsCompleted) continue;
+                if (_controlTick.IsCompleted) _controlTick = Task.Delay(75, cancellation);
+                await Task.WhenAny(_pending, _controlTick).ConfigureAwait(false);
+            }
+        }
+
+        internal async Task CancelAsync()
+        {
+            using var grace = new CancellationTokenSource(TimeSpan.FromMilliseconds(750));
+            try
+            {
+                if (channel.IsClosed || !await channel.TrySendAsync(Empty(NtfsMetadataMessage.Cancel), grace.Token).ConfigureAwait(false)) return;
+                while (true)
+                {
+                    _pending ??= channel.ReceiveAsync(CancellationToken.None).AsTask();
+                    var frame = await _pending.WaitAsync(grace.Token).ConfigureAwait(false);
+                    _pending = null;
+                    if (frame.Kind is NtfsMetadataMessage.Complete or NtfsMetadataMessage.Refused) return;
+                }
+            }
+            catch (Exception error) when (error is OperationCanceledException or IOException or InvalidDataException or InvalidOperationException or TimeoutException)
+            { /* Disconnect and the owned broker stop marker remain the fallback. */ }
+        }
+
+        public void Dispose()
+        {
+            if (_pending is { } read)
+                _ = read.ContinueWith(static task => _ = task.Exception, CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        }
+    }
 
     internal static async Task<NtfsMetadataCompletion> CaptureAsync(Func<CancellationToken, ValueTask<NtfsMetadataFrame>> receive,
         AnalysisNtfsDiscovery discovery, Action<NtfsMetadataFrame>? status, CancellationToken cancellation)

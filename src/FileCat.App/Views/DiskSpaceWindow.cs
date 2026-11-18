@@ -302,7 +302,7 @@ public sealed partial class DiskSpaceWindow : Window
             AutomationProperties.SetName(_components, "Allocation components");
             ToolTip.SetTip(_components, new RichTip("Allocation components", detail: "Standard records reported file allocation. Detailed also records supported directory self-allocation. " + AnalysisComponents.UnmeasuredExplanation));
             _setup.Children.Add(_components);
-            _setup.Children.Add(new TextBlock { Text = "Stay within each filesystem. Links and cloud contents are not followed. Detailed adds directory allocation; separate streams, forks and xattrs are not measured.", TextWrapping = TextWrapping.Wrap });
+            _setup.Children.Add(new TextBlock { Text = "Scans stay within each filesystem and record links as boundaries. Cloud files use local metadata.", TextWrapping = TextWrapping.Wrap });
             AddFastNtfsSetup();
             _setup.Children.Add(_resolved);
             _setupViewport = new ScrollViewer { Content = _setup, MaxHeight = 250, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };

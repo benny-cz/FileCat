@@ -162,6 +162,45 @@ public sealed partial class AnalysisRenderingTests
     private static AnalysisPrivateDirectory OpenNtfsFixtureDirectory(NtfsFixture profile) => OperatingSystem.IsWindows()
         ? new WindowsAnalysisPrivateDirectory(profile.Root, "ntfs-projection") : new UnixAnalysisPrivateDirectory(profile.Root, "ntfs-projection");
 
+    [Fact]
+    public async Task FastNtfsDiscoverySessionPublishesPausedOnlyAfterBrokerAcknowledgment()
+    {
+        OrdinaryPreparation(); using var profile = new NtfsFixture();
+        var token = TestContext.Current.CancellationToken;
+        string device = PathUtil.GetDeviceKey(profile.Root);
+        var accepted = new TaskCompletionSource<AnalysisNtfsControl>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var root = new NtfsProjectionRoot(profile.Root, "held-volume");
+        var scan = new NtfsProjectionScan(root, broker: async (control, cancellation) =>
+        {
+            accepted.TrySetResult(control);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellation);
+        });
+        var storage = new AnalysisStorageOptions(device, () => OpenNtfsFixtureDirectory(profile),
+            [new(device, () => new NtfsProjectionRoot(profile.Root, "held-private"))]);
+        using var session = new AnalysisCoordinator(profile.Io).StartNtfs(scan, storage);
+        try
+        {
+            var control = await accepted.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+            Assert.True(session.CanPause);
+            session.Pause();
+            Assert.True(control.PauseRequested());
+            Assert.Equal(AnalysisPhase.Pausing, session.Snapshot().Phase);
+            control.ReportPaused(true);
+            Assert.Equal(AnalysisPhase.Paused, session.Snapshot().Phase);
+            session.Resume();
+            Assert.False(control.PauseRequested());
+            Assert.Equal(AnalysisPhase.Paused, session.Snapshot().Phase);
+            control.ReportPaused(false);
+            Assert.Equal(AnalysisPhase.Scanning, session.Snapshot().Phase);
+            session.Stop();
+            await session.Completion.WaitAsync(TimeSpan.FromSeconds(10), token);
+            Assert.Equal(AnalysisPhase.Stopped, session.Snapshot().Phase);
+            Assert.Single(session.Snapshot().Nodes);
+            Assert.Equal(1, root.Disposals);
+        }
+        finally { session.Stop(); await session.Completion.WaitAsync(token); session.Dispose(); await session.DatasetCloseCompletion; }
+    }
+
     private sealed class NtfsFixture : IDisposable
     {
         internal string Root { get; } = Path.Combine(Environment.CurrentDirectory, ".tmp", "analysis-ntfs-" + Guid.NewGuid().ToString("N"));
@@ -195,7 +234,8 @@ public sealed partial class AnalysisRenderingTests
         public void Dispose() => Disposals++;
     }
 
-    private sealed class NtfsProjectionScan(NtfsProjectionRoot root, bool unverifiedBoundary = false, bool supplement = false) : IAnalysisNtfsScan
+    private sealed class NtfsProjectionScan(NtfsProjectionRoot root, bool unverifiedBoundary = false, bool supplement = false,
+        Func<AnalysisNtfsControl, CancellationToken, Task>? broker = null) : IAnalysisNtfsScan
     {
         public IAnalysisBackend Source => root;
         public UInt128 RootId => 1;
@@ -221,14 +261,16 @@ public sealed partial class AnalysisRenderingTests
             }
             return measured;
         }
-        public async Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, Action<uint> progress, CancellationToken cancellation)
+        public async Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, AnalysisNtfsControl control, CancellationToken cancellation)
         {
             Captures++;
+            control.ReportPaused(false);
+            if (broker is not null) await broker(control, cancellation);
             ImmutableArray<AnalysisNtfsObservation> rows = [Row(4, 2, "file"), Row(5, 3, "private-child"), Row(6, 7, "target"),
                 Row(7, 1, "link", FileAttributes.Directory | FileAttributes.ReparsePoint), Row(3, 1, "private-name", FileAttributes.Directory),
                 Row(2, 1, "folder", FileAttributes.Directory), Row(8, 1, "dup"), Row(9, 1, "dup"), Row(10, 99, "orphan")];
             await discovery.AppendAsync(rows, cancellation);
-            progress((uint)rows.Length);
+            control.ReportProgress((uint)rows.Length);
             await discovery.SealAsync((ulong)rows.Length, cancellation);
             return AnalysisNtfsOutcome.Finished;
         }

@@ -104,6 +104,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         {
             AnalysisPhase.Failed => "Fast NTFS scan could not finish. Standard analysis is available in a new tab.",
             AnalysisPhase.Stopped => "Fast NTFS scan stopped. Standard analysis is available in a new tab.",
+            AnalysisPhase.Pausing when progress.NtfsDiscoveryRecords is not null => "Waiting for the Fast NTFS helper to confirm it has paused.",
+            AnalysisPhase.Paused when progress.NtfsDiscoveryRecords is { } count => $"Fast NTFS helper paused · {count:N0} discovery records.",
             _ when progress.NtfsDiscoveryRecords is { } records => $"Reading approved NTFS metadata · {records:N0} discovery records.",
             _ => $"Fast NTFS · {progress.Phase} · {progress.ObservedPaths:N0} observed paths · {progress.Issues:N0} issues. Coverage is partial."
         } : $"{progress.Phase} · {progress.ObservedPaths:N0} observed paths · {progress.Issues:N0} issues. Values are observations over time.";
