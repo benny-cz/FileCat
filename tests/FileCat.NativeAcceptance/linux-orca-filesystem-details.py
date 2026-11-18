@@ -3,24 +3,29 @@
 
 Build FileCat in Release in an owned checkout below ~/FileCatValidation, then run:
 FILECAT_ORCA_ISOLATED_DISPLAY=1 dbus-run-session -- xvfb-run -a /usr/bin/python3 \
-    linux-orca-filesystem-details.py CHECKOUT REPORT.json
+    linux-orca-filesystem-details.py CHECKOUT REPORT.json [--link-target]
 
 The report destination must be below ~/FileCatValidation. The runner reads Orca's actual
 speech log, sets only the owned top-level window focus, and keeps the fixture and log.
 """
 
+import argparse
 import json
 import os
 from pathlib import Path
 import runpy
 import subprocess
-import sys
 import tempfile
 import time
 
 def main():
-    checkout = Path(sys.argv[1]).resolve(strict=True)
-    report_path = Path(sys.argv[2]).resolve()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("checkout", type=Path)
+    parser.add_argument("report", type=Path)
+    parser.add_argument("--link-target", action="store_true")
+    args = parser.parse_args()
+    checkout = args.checkout.resolve(strict=True)
+    report_path = args.report.resolve()
     approved = (Path.home() / "FileCatValidation").resolve(strict=True)
     if approved not in checkout.parents or approved not in report_path.parents:
         raise ValueError("Use a dedicated checkout and result below ~/FileCatValidation.")
@@ -30,8 +35,8 @@ def main():
     app = checkout / "src" / "FileCat.App" / "bin" / "Release" / "net10.0" / "FileCat"
     helpers = runpy.run_path(str(native / "linux-orca-speech.py"))
     os.environ.setdefault("DOTNET_ROOT", str(Path.home() / ".dotnet"))
-    for name in ("FileCat", "orca"):
-        running = subprocess.run(["/usr/bin/pgrep", "-u", str(os.getuid()), "-x", name], capture_output=True)
+    for name in ("dotnet", "testhost", "FileCat", "orca"):
+        running = subprocess.run(["/usr/bin/pgrep", "-x", name], capture_output=True)
         if running.returncode == 0:
             raise RuntimeError(f"An unrelated {name} process is already active.")
 
@@ -39,22 +44,36 @@ def main():
     source = fixture / "source"
     target = fixture / "target"
     data = fixture / "state"
-    for directory in (source, target, data):
+    for directory in (target, data):
         directory.mkdir()
-    focused = source / "alpha-details.txt"
+    if args.link_target:
+        destination = fixture / "actual-parent"
+        subfolder = destination / "subfolder"
+        subfolder.mkdir(parents=True)
+        source.symlink_to(subfolder, target_is_directory=True)
+        observed_file = destination / "landed.txt"
+        (fixture / observed_file.name).write_text("unexpected lexical target", encoding="utf-8")
+        focused = source / "alpha-link"
+        stored_target = f"../{observed_file.name}"
+        focused.symlink_to(stored_target)
+    else:
+        source.mkdir()
+        focused = observed_file = source / "alpha-details.txt"
     other = source / "beta-not-selected.txt"
-    focused.write_text("FILECAT-DATA-PAYLOAD-CANARY", encoding="utf-8")
+    observed_file.write_text("FILECAT-DATA-PAYLOAD-CANARY", encoding="utf-8")
     other.write_text("another item", encoding="utf-8")
-    os.setxattr(focused, "user.filecat-details", b"FILECAT-XATTR-PAYLOAD-CANARY")
+    os.setxattr(observed_file, "user.filecat-details", b"FILECAT-XATTR-PAYLOAD-CANARY")
     sha256 = helpers["sha256"]
-    expected_digest = sha256(focused)
+    expected_digest = sha256(observed_file)
     speech = helpers["SpeechLog"](fixture / "orca-debug.log")
     evidence = dict(passed=False, appDllSha256=sha256(app.with_name("FileCat.dll")), fixture=str(fixture),
                     speechLog=str(speech.path), input="XTEST on dedicated Xvfb display", steps=[])
-    orca = application = None
+    dispatcher = orca = application = None
+    speech_runtime = tempfile.TemporaryDirectory(prefix="filecat-details-speech-", dir="/tmp")
     os.environ["GSETTINGS_BACKEND"] = "memory"
     os.environ["XDG_CONFIG_HOME"] = str(fixture / "xdg-config")
     os.environ.pop("WAYLAND_DISPLAY", None)
+    os.environ.pop("AT_SPI_BUS_ADDRESS", None)
 
     def wait(check, description, seconds=12):
         deadline = time.monotonic() + seconds
@@ -95,7 +114,8 @@ def main():
         subprocess.run(["/usr/bin/xdotool", "windowfocus", "--sync", window], check=True, timeout=5)
 
     def key(chord):
-        keys = {"down": "Down", "ctrl+alt+enter": "ctrl+alt+Return", "tab": "Tab", "space": "space", "escape": "Escape"}
+        keys = {"home": "Home", "down": "Down", "ctrl+alt+enter": "ctrl+alt+Return",
+                "tab": "Tab", "space": "space", "escape": "Escape"}
         current = subprocess.run(["/usr/bin/xdotool", "getwindowfocus"], check=True, capture_output=True, text=True, timeout=5)
         if current.stdout.strip() not in windows():
             raise AssertionError("The focused X11 window is outside the owned FileCat windows.")
@@ -116,11 +136,29 @@ def main():
         evidence["steps"].append(dict(step=f"Tab reaches {label}", heard=spoken))
         raise AssertionError(f"Orca never spoke the {label} action")
 
+    def clipboard():
+        result = subprocess.run(["/usr/bin/xclip", "-selection", "clipboard", "-out"],
+                                capture_output=True, text=True, timeout=5)
+        return result.stdout if result.returncode == 0 else ""
+
     try:
         evidence["orca"] = subprocess.check_output(["/usr/bin/orca", "--version"], text=True, timeout=10).strip()
+        runtime = Path(speech_runtime.name)
+        socket = runtime / "speech.sock"
+        speech_config = Path(os.environ["XDG_CONFIG_HOME"]) / "speech-dispatcher"
+        speech_config.mkdir(parents=True)
+        # Synthesize through the real dispatcher without taking over the desktop's sound device.
+        (speech_config / "speechd.conf").write_text('AudioOutputMethod "alsa"\nAudioALSADevice "null"\n', encoding="utf-8")
+        with (fixture / "speech-dispatcher.log").open("wb") as dispatcher_log:
+            dispatcher = subprocess.Popen(["/usr/bin/speech-dispatcher", "--run-single", "--timeout", "0", "--pid-file",
+                                           str(runtime / "speech.pid"), "--communication-method", "unix_socket",
+                                           "--socket-path", str(socket), "--log-dir", str(fixture), "--config-dir", str(speech_config)],
+                                          stdout=dispatcher_log, stderr=subprocess.STDOUT)
+        wait(socket.is_socket, "the dedicated speech socket", seconds=8)
         with (fixture / "orca.err").open("wb") as errors:
-            orca = subprocess.Popen(["/usr/bin/python3", "-c", helpers["ORCA_WRAPPER"], str(speech.path)],
-                                    env={**os.environ, "GDK_BACKEND": "x11"},
+            isolated_wrapper = helpers["ORCA_WRAPPER"].replace(', "--replace"', "")
+            orca = subprocess.Popen(["/usr/bin/python3", "-c", isolated_wrapper, str(speech.path)],
+                                    env={**os.environ, "GDK_BACKEND": "x11", "SPEECHD_ADDRESS": f"unix_socket:{socket}"},
                                     stdout=subprocess.DEVNULL, stderr=errors)
         hear("Screen reader starts", "Screen reader on", seconds=20)
         with (fixture / "app.log").open("wb") as app_log:
@@ -128,13 +166,28 @@ def main():
                                             "--right", str(target)], cwd=fixture, stdout=app_log, stderr=subprocess.STDOUT)
         app_window = wait(lambda: window_named("source"), "the native FileCat window", seconds=40)
         focus(app_window)
-        hear("Native file panel announces its starting row", "Go to parent location")
+        hear("Native file panel opens on the owned source", "Panel 1, source")
+        key("home")
         key("down")
         hear("Keyboard focuses the selected file", focused.name)
         key("ctrl+alt+enter")
         details_window = wait(lambda: window_named("File-system details"), "the separate details window")
         focus(details_window)
         hear("Details window opens from the keyboard", "File-system details")
+        if args.link_target:
+            focus_button("Copy stored target")
+            key("space")
+            wait(lambda: clipboard() == stored_target, "the exact relative target on the clipboard")
+            assert window_named("actual-parent") is None
+            focus_button("Open target location")
+            key("space")
+            expected_window = wait(lambda: window_named(destination.name), "the real target folder tab")
+            assert expected_window == app_window
+            focus(app_window)
+            hear("Workspace selects the file in the resolved folder", observed_file.name)
+            assert sha256(observed_file) == expected_digest and os.readlink(focused) == stored_target
+            evidence.update(passed=True, storedTarget=stored_target, destination=str(destination))
+            return
         focus_button("Read full record")
         key("space")
         hear("Orca announces the full record", "Full · observation")
@@ -142,11 +195,8 @@ def main():
         key("space")
 
         def copied_metadata():
-            result = subprocess.run(["/usr/bin/xclip", "-selection", "clipboard", "-out"],
-                                    capture_output=True, text=True, timeout=5)
-            if result.returncode == 0 and str(focused) in result.stdout and "Full record" in result.stdout:
-                return result.stdout
-            return None
+            copied = clipboard()
+            return copied if str(focused) in copied and "Full record" in copied else None
 
         copied = wait(copied_metadata, "the full record on the clipboard")
         assert "metadata only" in copied
@@ -168,7 +218,7 @@ def main():
         evidence["error"] = f"{type(error).__name__}: {error}"
         raise
     finally:
-        for process in (application, orca):
+        for process in (application, orca, dispatcher):
             if process is not None and process.poll() is None:
                 process.terminate()
                 try:
@@ -176,6 +226,7 @@ def main():
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(5)
+        speech_runtime.cleanup()
         report_path.write_text(json.dumps(evidence, indent=2), encoding="utf-8")
 
 

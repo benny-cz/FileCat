@@ -200,6 +200,7 @@ public sealed partial class FileListControl : Control
                 int top = (int)Math.Round(_vbar.Value);
                 if (top != _topRow)
                 {
+                    _listing?.CancelVisitViewport();
                     ClearNameClick();
                     ClearTip();
                     _viewportIntentGeneration++;
@@ -562,6 +563,7 @@ public sealed partial class FileListControl : Control
             CancelColumnResize();
             if (change.OldValue is TabViewModel oldTab)
             {
+                oldTab.DetachHistoryViewport(ReadHistoryTopItem);
                 oldTab.Listing.Changed -= OnListingChanged;
                 oldTab.ColumnsChanged -= OnColumnsChanged;
                 oldTab.ExplicitSortRequested -= OnExplicitSortRequested;
@@ -572,6 +574,7 @@ public sealed partial class FileListControl : Control
             if (change.NewValue is TabViewModel tab)
             {
                 _listing = tab.Listing;
+                if (_viewEventsAttached) tab.ReadHistoryTop = ReadHistoryTopItem;
                 _listing.Changed += OnListingChanged;
                 if (!ReferenceEquals(_metadataSource, tab.Services.Metadata))
                 {
@@ -605,6 +608,7 @@ public sealed partial class FileListControl : Control
             _horizontalOffset = 0;
             _refreshTopRow = null;
             EnsureFocusVisible();
+            RestoreVisitViewport();
             RefreshGitStatuses();
             _automationPeer?.QueueUpdate(ListingChange.Reset);
             InvalidateMeasure();
@@ -704,6 +708,7 @@ public sealed partial class FileListControl : Control
     {
         base.OnAttachedToVisualTree(e);
         _viewEventsAttached = true;
+        if (Tab is { } tab) tab.ReadHistoryTop = ReadHistoryTopItem;
         if (_metadataSource is not null) _metadataSource.ValuesChanged += _metadataHandler;
         AttachIconEvents();
         if (_identityPanel is not null) _identityPanel.PropertyChanged += OnPanelIdentityChanged;
@@ -715,11 +720,13 @@ public sealed partial class FileListControl : Control
         UpdateDateScale(); // the format may have changed while this list was not shown
         ResolveBrushes();
         RefreshGitStatuses();
+        RestoreVisitViewport();
         _automationPeer?.QueueUpdate(ListingChange.Rows | ListingChange.Focus | ListingChange.Marks);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        Tab?.DetachHistoryViewport(ReadHistoryTopItem);
         base.OnDetachedFromVisualTree(e);
         _viewEventsAttached = false;
         if (_metadataSource is not null) _metadataSource.ValuesChanged -= _metadataHandler;
@@ -926,6 +933,7 @@ public sealed partial class FileListControl : Control
             }
         }
         if ((change & ListingChange.RefreshComplete) != 0) _refreshTopRow = null;
+        RestoreVisitViewport();
         bool hadVerticalBar = _vbar.IsVisible;
         UpdateScrollBar();
         if (hadVerticalBar != _vbar.IsVisible) InvalidateArrange();
@@ -2050,6 +2058,7 @@ public sealed partial class FileListControl : Control
             return;
         }
         int previousTop = _topRow;
+        if (e.Delta.Y != 0) _listing?.CancelVisitViewport();
         int maxTop = Math.Max(0, (_listing?.VisibleCount ?? 0) - VisibleRowCapacity);
         if (PictureMode) maxTop = (int)Math.Ceiling(maxTop / (double)_pictureColumns) * _pictureColumns;
         bool beyondEnd = e.Delta.Y > 0 && _topRow == 0 || e.Delta.Y < 0 && _topRow >= maxTop;
@@ -2077,6 +2086,23 @@ public sealed partial class FileListControl : Control
 
     internal ListingModel? AutomationListing => _viewEventsAttached && _listing is { IsDisposed: false } ? _listing : null;
     internal int TopRow => _topRow;
+
+    private ItemRef? ReadHistoryTopItem()
+    {
+        if (_listing is not { IsDisposed: false, Location: { } location } listing || (uint)_topRow >= (uint)listing.VisibleCount)
+            return null;
+        int index = listing.GetStoreIndex(_topRow);
+        return listing.GetVisible(_topRow).Kind == EntryKind.Parent
+            ? new ItemRef(location, "..", EntryKind.Parent) : listing.GetItemRef(index);
+    }
+
+    private void RestoreVisitViewport()
+    {
+        if (!_viewEventsAttached || _listing is not { State: ListingState.Complete, VisitTopStoreIndex: >= 0 } listing) return;
+        int row = listing.GetVisibleIndex(listing.VisitTopStoreIndex);
+        listing.CancelVisitViewport();
+        if (row >= 0) ScrollToTopRow(row);
+    }
     internal int VerticalScrollStep => PictureMode ? _pictureColumns : 1;
     internal int MaximumTopRow => PictureMode
         ? (int)Math.Ceiling(Math.Max(0, (AutomationListing?.VisibleCount ?? 0) - VisibleRowCapacity) / (double)_pictureColumns) * _pictureColumns
@@ -2113,6 +2139,7 @@ public sealed partial class FileListControl : Control
 
     internal void ScrollToTopRow(int row)
     {
+        _listing?.CancelVisitViewport();
         _wheelRows.Reset();
         int previousTop = _topRow;
         _topRow = row;

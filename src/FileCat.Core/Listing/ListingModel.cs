@@ -61,6 +61,7 @@ public sealed class ListingModel : IDisposable
     private int _appliedCount;
     private Pipeline? _pipeline;
     private Pipeline? _pendingRefresh;
+    private StagedNavigation? _stagedNavigation;
     /// <summary>A refresh was asked for while one was under way: it runs when that one has finished.</summary>
     private bool _refreshAgain;
     /// <summary>The pipeline that began as a refresh and has not finished yet (it becomes the main one when it swaps in).</summary>
@@ -78,6 +79,9 @@ public sealed class ListingModel : IDisposable
     private bool _focusAnchored;
     private string? _pendingFocusName;
     private EntryKind? _pendingFocusKind;
+    private ItemRef? _pendingVisitFocus;
+    private ItemRef? _pendingVisitTop;
+    public int VisitTopStoreIndex { get; private set; } = -1;
     private Dictionary<EntryKind, HashSet<string>>? _pendingMarks;
     private HashSet<ItemRef>? _pendingSupplementaryMarks;
     private ItemRef? _pendingSupplementaryFocus;
@@ -390,6 +394,7 @@ public sealed class ListingModel : IDisposable
         _pendingFocusName = null;
         _pendingFocusKind = null;
         _pendingSupplementaryFocus = null;
+        CancelVisitViewport();
         _focusAnchored = true;
         if (store == _focusStore) return;
         _focusStore = store;
@@ -405,10 +410,62 @@ public sealed class ListingModel : IDisposable
         return true;
     }
 
+    /// <summary>A user scroll takes precedence over the pending history viewport.</summary>
+    public void CancelVisitViewport()
+    {
+        _pendingVisitFocus = null;
+        _pendingVisitTop = null;
+        VisitTopStoreIndex = -1;
+    }
+
     // ---- Loading -----------------------------------------------------------------------------------------
 
     /// <summary>Navigates to a location. Marks are cleared; <paramref name="focusName"/> is focused when it arrives.</summary>
-    public void Load(Location location, string? focusName = null)
+    public void Load(Location location, string? focusName = null) => Load(location, focusName, null, null, null);
+
+    /// <summary>Starts a history read while leaving the current listing usable. The caller owns admission and cancellation.</summary>
+    public (Task Ready, Task Enumeration) StageNavigation(Location location)
+    {
+        CancelStagedNavigation();
+        var provider = _providers.For(location);
+        bool hasParent = provider.GetParent(location) is not null;
+        var store = CreateStore(location);
+        try
+        {
+            if (hasParent) store.Append(new EntryData("..", EntryKind.Parent));
+            var pipeline = StartPipeline(location, provider, store, isRefresh: false);
+            var stage = _stagedNavigation = new StagedNavigation(pipeline, hasParent);
+            return (stage.Ready.Task, pipeline.LoadTask!);
+        }
+        catch
+        {
+            store.Dispose();
+            throw;
+        }
+    }
+
+    public void CancelStagedNavigation()
+    {
+        if (_stagedNavigation is not { } stage) return;
+        _stagedNavigation = null;
+        stage.Latest?.External?.Dispose();
+        stage.Pipeline.Retire();
+        stage.Ready.TrySetCanceled();
+    }
+
+    public void LoadStagedNavigation(Location location, ItemRef? focus, ItemRef? top)
+    {
+        if (_stagedNavigation is not { Latest: { } result } stage || stage.Pipeline.Location != location)
+            throw new InvalidOperationException("The requested navigation listing is not ready.");
+        _stagedNavigation = null;
+        Load(location, null, stage, focus, top);
+        if (ReferenceEquals(_pipeline, stage.Pipeline))
+            ApplyResult(stage.Pipeline, result with { Completion = result.Done });
+        else
+            result.External?.Dispose();
+    }
+
+    private void Load(Location location, string? focusName, StagedNavigation? stage, ItemRef? visitFocus, ItemRef? visitTop)
     {
         // A closed tab's listing stays closed: work that finishes after it (a connection, a search) must not start reading
         // a folder for nobody (release issue I88's kind).
@@ -419,12 +476,12 @@ public sealed class ListingModel : IDisposable
         CancelPipelines();
         Location = location;
         Provider = provider;
-        _store = CreateStore(location);
-        HasParentRow = provider.GetParent(location) is not null;
-        if (HasParentRow) _store.Append(new EntryData("..", EntryKind.Parent));
+        _store = stage?.Pipeline.Store ?? CreateStore(location);
+        HasParentRow = stage?.HasParent ?? provider.GetParent(location) is not null;
+        if (stage is null && HasParentRow) _store.Append(new EntryData("..", EntryKind.Parent));
         _visible = HasParentRow ? [0] : [];
         _positions = HasParentRow ? [0] : [];
-        _appliedCount = _store.Count;
+        _appliedCount = HasParentRow ? 1 : 0;
         _marks = new MarkSet();
         _statsCache = null;
         _issues.Clear();
@@ -432,9 +489,12 @@ public sealed class ListingModel : IDisposable
         LastRefreshError = null;
         _focusStore = HasParentRow ? 0 : -1;
         _focusVisibleHint = 0;
-        _focusAnchored = false;
+        _focusAnchored = HasParentRow && visitFocus?.Kind == EntryKind.Parent;
         _pendingFocusName = focusName;
         _pendingFocusKind = null;
+        _pendingVisitFocus = visitFocus?.Kind == EntryKind.Parent ? null : visitFocus;
+        _pendingVisitTop = visitTop?.Kind == EntryKind.Parent ? null : visitTop;
+        VisitTopStoreIndex = HasParentRow && visitTop?.Kind == EntryKind.Parent ? 0 : -1;
         _pendingMarks = null;
         _pendingSupplementaryMarks = null;
         _pendingSupplementaryFocus = null;
@@ -446,7 +506,7 @@ public sealed class ListingModel : IDisposable
         LoadError = null;
         State = ListingState.Loading;
         CompletedAtUtc = null;
-        _pipeline = StartPipeline(location, provider, _store, isRefresh: false);
+        _pipeline = stage?.Pipeline ?? StartPipeline(location, provider, _store, isRefresh: false);
         Raise(ListingChange.Reset | ListingChange.State);
     }
 
@@ -549,6 +609,7 @@ public sealed class ListingModel : IDisposable
 
     private void CancelPipelines()
     {
+        CancelStagedNavigation();
         if (_pipeline is null) _store.Dispose();
         _diskView?.Dispose();
         _diskView = null;
@@ -569,6 +630,7 @@ public sealed class ListingModel : IDisposable
         var spec = CurrentSpec();
         _pipeline?.UpdateSpec(spec);
         _pendingRefresh?.UpdateSpec(spec);
+        _stagedNavigation?.Pipeline.UpdateSpec(spec);
     }
 
     // ---- Pipeline results (UI thread) --------------------------------------------------------------------
@@ -581,6 +643,25 @@ public sealed class ListingModel : IDisposable
         if (r.ProgressOnly)
         {
             if (ReferenceEquals(p, _pipeline) || ReferenceEquals(p, _pendingRefresh)) Raise(ListingChange.State);
+            return;
+        }
+        if (_stagedNavigation is { } stage && ReferenceEquals(p, stage.Pipeline))
+        {
+            if (stage.Latest is null && (r.PreserveCurrent || r.Canceled || r.Done && r.Error is not null &&
+                    r.Count <= (stage.HasParent ? 1 : 0)))
+            {
+                stage.Ready.TrySetException(r.Error ?? new OperationCanceledException());
+                r.External?.Dispose();
+                CancelStagedNavigation();
+            }
+            else if (r.PreserveCurrent || !r.Done && r.Count <= (stage.HasParent ? 1 : 0))
+                r.External?.Dispose();
+            else
+            {
+                stage.Latest?.External?.Dispose();
+                stage.Latest = r;
+                stage.Ready.TrySetResult();
+            }
             return;
         }
         if (ReferenceEquals(p, _pendingRefresh))
@@ -626,6 +707,7 @@ public sealed class ListingModel : IDisposable
 
     private void SwapToRefresh(Pipeline p)
     {
+        CancelVisitViewport();
         var supplementary = Location?.Scheme == Schemes.HiddenData ? CaptureSupplementarySelection() : default;
         // Carry marks and focus by exact name into the new generation.
         var marked = new Dictionary<EntryKind, HashSet<string>>();
@@ -710,7 +792,9 @@ public sealed class ListingModel : IDisposable
 
         // Resolve names that were waiting for their entry to arrive.
         List<(int Index, long Size, bool LowerBound)>? sized = null;
-        if (_pendingMarks is not null || _pendingFocusName is not null || _pendingSizes is not null || _pendingSupplementaryMarks is not null || _pendingSupplementaryFocus is not null)
+        if (_pendingMarks is not null || _pendingFocusName is not null || _pendingSizes is not null ||
+            _pendingSupplementaryMarks is not null || _pendingSupplementaryFocus is not null ||
+            _pendingVisitFocus is not null || _pendingVisitTop is not null)
         {
             using var scan = new EntryStore.Scan(_store, r.Count, r.Count - previousCount);
             for (int i = previousCount; i < r.Count; i++)
@@ -742,6 +826,18 @@ public sealed class ListingModel : IDisposable
                         _focusAnchored = true;
                         change |= ListingChange.Focus;
                     }
+                }
+                if (_pendingVisitFocus is not null && VisitItemMatches(_pendingVisitFocus, i, e) && GetVisibleIndex(i) >= 0)
+                {
+                    _focusStore = i;
+                    _pendingVisitFocus = null;
+                    _focusAnchored = true;
+                    change |= ListingChange.Focus;
+                }
+                if (_pendingVisitTop is not null && VisitItemMatches(_pendingVisitTop, i, e))
+                {
+                    VisitTopStoreIndex = i;
+                    _pendingVisitTop = null;
                 }
                 // A folder whose own time is unchanged keeps the size computed for it before the refresh.
                 if (_pendingSizes is not null && e.Kind == EntryKind.Directory && _pendingSizes.GetAlternateLookup<ReadOnlySpan<char>>().Remove(e.Name, out _, out var kept))
@@ -814,6 +910,8 @@ public sealed class ListingModel : IDisposable
             _pendingMarks = null;
             _pendingSupplementaryMarks = null;
             _pendingSupplementaryFocus = null;
+            _pendingVisitFocus = null;
+            _pendingVisitTop = null;
             _pendingSizes = null;
             _awaitingEntries = false;
             _pendingFocusName = null;
@@ -844,6 +942,11 @@ public sealed class ListingModel : IDisposable
         }
         Raise(change);
     }
+
+    private bool VisitItemMatches(ItemRef anchor, int index, in EntryView entry) =>
+        Location is { IsFileSystem: true } && anchor.Parent == Location
+            ? anchor.Kind == entry.Kind && entry.Name.SequenceEqual(anchor.Name)
+            : anchor.Equals(GetItemRef(index));
 
     private bool RemovePendingMark(EntryKind kind, ReadOnlySpan<char> name) =>
         _pendingMarks is not null && _pendingMarks.TryGetValue(kind, out var names) &&
@@ -1256,6 +1359,7 @@ public sealed class ListingModel : IDisposable
         _pendingSizes = null;
         _pendingFocusName = null;
         _pendingFocusKind = null;
+        CancelVisitViewport();
         _lastOperation = null; // Borrowed selection: drop our reference without releasing another owner's lease.
         _statsCache = null;
         _nameIndex.Clear();
@@ -1276,6 +1380,14 @@ public sealed class ListingModel : IDisposable
 
     /// <param name="Completion">True exactly once per pipeline: the first result after enumeration ended.</param>
     private sealed record PipelineResult(int[] Visible, int Count, bool Done, Exception? Error, bool Canceled, bool Completion = false, DiskView? External = null, bool PreserveCurrent = false, bool ProgressOnly = false, int SpecVersion = 0, MetadataOrderCoverage? MetadataCoverage = null);
+
+    private sealed class StagedNavigation(Pipeline pipeline, bool hasParent)
+    {
+        public Pipeline Pipeline { get; } = pipeline;
+        public bool HasParent { get; } = hasParent;
+        public TaskCompletionSource Ready { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public PipelineResult? Latest { get; set; }
+    }
 
     private sealed class Pipeline
     {

@@ -8,6 +8,7 @@ using FileCat.Core.Analysis;
 using FileCat.Core.Commands;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
+using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.Rendering.Tests;
 
@@ -119,6 +120,51 @@ public sealed partial class AnalysisRenderingTests
 
         static string[] PanelNames(TabViewModel tab) => Enumerable.Range(0, tab.Listing.Store.Count)
             .Select(index => tab.Listing.Store[index].Name).Order(StringComparer.Ordinal).ToArray();
+    }
+
+    [AvaloniaFact]
+    public async Task AnalysisPanelVisitsDoNotEnterNavigationHistoryOrKeepTheirLease()
+    {
+        OrdinaryPreparation();
+        using var styles = new ProductStyles();
+        using var profile = new PreparationFixture();
+        var vm = new MainViewModel(profile.Services);
+        var main = new MainWindow(vm, null);
+        vm.Initialize(null);
+        var start = Location.FileSystem(Directory.CreateDirectory(Path.Combine(profile.Root, "start")).FullName);
+        var next = Location.FileSystem(Directory.CreateDirectory(Path.Combine(profile.Root, "next")).FullName);
+        var token = TestContext.Current.CancellationToken;
+        main.Show();
+        try
+        {
+            var provider = profile.Services.AnalysisPanelFolders;
+            var tab = vm.Workspace.ActivePanel!.OpenTab(start);
+            await Until(() => tab.Location == start && tab.Listing.State == ListingState.Complete);
+            Location first = OpenAnalysisPanel(tab, provider);
+            await Until(() => tab.Location == first && tab.Listing.State == ListingState.Complete);
+            Assert.Equal(start, Assert.Single(tab.BackHistory));
+
+            tab.GoBack();
+            await Until(() => tab.Location == start && tab.Listing.State == ListingState.Complete);
+            Assert.Empty(tab.ForwardHistory);
+            await Assert.ThrowsAsync<DirectoryNotFoundException>(() => provider.PrepareNavigationAsync(first, token));
+
+            Location second = OpenAnalysisPanel(tab, provider);
+            await Until(() => tab.Location == second && tab.Listing.State == ListingState.Complete);
+            tab.Navigate(next);
+            await Until(() => tab.Location == next && tab.Listing.State == ListingState.Complete);
+            Assert.Equal(start, Assert.Single(tab.BackHistory));
+            Assert.Equal(start, Assert.Single(tab.ToState().BackHistory));
+            await Assert.ThrowsAsync<DirectoryNotFoundException>(() => provider.PrepareNavigationAsync(second, token));
+        }
+        finally { await CloseDiskSpaceEntryAsync(profile.Services, vm, main); }
+
+        static Location OpenAnalysisPanel(TabViewModel tab, AnalysisPanelFolderProvider provider)
+        {
+            using var pending = provider.Publish(new("Read-only fixture", [], null));
+            tab.Navigate(pending.Location);
+            return pending.Location;
+        }
     }
 
     [AvaloniaTheory]

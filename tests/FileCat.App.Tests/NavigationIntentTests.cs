@@ -117,7 +117,7 @@ public sealed class NavigationIntentTests
             tab.Navigate(new Location(provider.Scheme, "A"));
             tab.GoBack();
             Assert.True(provider.Token.IsCancellationRequested);
-            Assert.NotEqual(Location.FileSystem(next), tab.Location);
+            await Until(() => tab.Location != Location.FileSystem(next));
             var history = tab.ForwardHistory.ToArray();
             string? banner = tab.Banner;
             provider.Fail(new IOException("Obsolete error"));
@@ -172,11 +172,12 @@ public sealed class NavigationIntentTests
             tab.Navigate(Location.FileSystem(middle));
             tab.Navigate(Location.FileSystem(forward));
             tab.GoBack();
-            Assert.Equal(Location.FileSystem(middle), tab.Location);
+            await Until(() => tab.Location == Location.FileSystem(middle));
             tab.Navigate(new Location(provider.Scheme, "A"));
             tab.GoForward();
             Assert.True(provider.Token.IsCancellationRequested);
             provider.Complete(Location.FileSystem(obsolete));
+            await Until(() => tab.Location == Location.FileSystem(forward));
             await Drain();
             Assert.Equal(Location.FileSystem(forward), tab.Location);
             Assert.Contains(Location.FileSystem(middle), tab.BackHistory);
@@ -198,6 +199,9 @@ public sealed class NavigationIntentTests
             tab.Navigate(new Location(provider.Scheme, "A"));
             Assert.Contains("Opening", tab.Banner);
             window.Activate();
+            window.FocusActivePanel();
+            Dispatcher.UIThread.RunJobs();
+            vm.ClearNotification();
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             Assert.True(provider.Token.IsCancellationRequested);
             Assert.Equal(originalBanner, tab.Banner);
