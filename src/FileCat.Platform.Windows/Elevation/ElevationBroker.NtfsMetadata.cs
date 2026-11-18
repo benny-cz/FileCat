@@ -14,6 +14,24 @@ internal interface INtfsMetadataAdmission : IDisposable
 
 public static partial class ElevationBroker
 {
+    internal static string? LocateNtfsMetadata(bool portable, out string? reason)
+    {
+        string? helper = Locate(portable, out _);
+        if (helper is null)
+        {
+            reason = "The installed read-only NTFS helper is missing or its installation could not be verified. Use standard analysis here.";
+            return null;
+        }
+        string requester = Path.Combine(Path.GetDirectoryName(helper)!, RequesterExecutableName);
+        if (!string.Equals(Environment.ProcessPath, requester, StringComparison.OrdinalIgnoreCase) || !HasTrustedExecutable(requester))
+        {
+            reason = "Start the protected FileCat installation to use Fast NTFS. Use standard analysis here.";
+            return null;
+        }
+        reason = null;
+        return helper;
+    }
+
     internal static INtfsMetadataAdmission AdmitNtfsMetadata(ElevationPlan plan, string brokerDirectory)
     {
         if (plan.Steps is not [var step] || ElevationPlanCodec.MetadataStepProblem(step) is not null ||

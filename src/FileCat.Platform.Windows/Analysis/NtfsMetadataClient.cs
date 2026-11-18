@@ -32,8 +32,7 @@ internal sealed class NtfsMetadataClient : IAsyncDisposable
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (AnalysisAdmission.Refusal() is { } refusal) throw new UnauthorizedAccessException(refusal);
-        string helperImage = ElevationBroker.Locate(portable, out _) ??
-            throw new NotSupportedException("The installed NTFS metadata helper is unavailable. Use standard analysis.");
+        string helperImage = ElevationBroker.LocateNtfsMetadata(portable, out var unavailable) ?? throw new NotSupportedException(unavailable);
         using var requester = NtfsMetadataPeer.HoldSelf(elevated: false);
         string requesterImage = Path.Combine(Path.GetDirectoryName(helperImage)!, ElevationBroker.RequesterExecutableName);
         requester.RequireIdentity(requesterImage, requester.Session, elevated: false);

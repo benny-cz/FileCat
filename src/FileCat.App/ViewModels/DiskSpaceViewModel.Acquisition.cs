@@ -98,15 +98,15 @@ public sealed partial class DiskSpaceViewModel
             {
                 await ReleaseUnstartedAsync();
                 preparation.Token.ThrowIfCancellationRequested();
-                // Indexed preview is internal until its complete lifecycle/resource gates qualify.
-                // Both paths use the SAME native private-state exclusion boundary.
+                // Fast NTFS needs private indexed storage. Standard scans keep their configured storage mode.
+                // Both paths enforce the same native private-state exclusion boundary.
                 // Prepare private directories before capturing sources so those writes cannot stale
                 // a selected source directory version. No decoded inventory configures this mode.
                 _acquisition = await AnalysisIndexedAcquisition.PrepareAsync(_services, preparation.Token,
-                    indexedStorage: _indexedStorage, preparationDeviceChanged: key => _preparationDevice = key);
+                    indexedStorage: _indexedStorage || fast is not null, preparationDeviceChanged: key => _preparationDevice = key);
                 SetContinuityNotice(_acquisition.Profile);
                 _privateStorageUnavailable = _acquisition.MemoryPreparationNotice is not null;
-                AcquisitionNotice = _acquisition.MemoryPreparationNotice ?? (_indexedStorage
+                AcquisitionNotice = _acquisition.MemoryPreparationNotice ?? (_acquisition.IndexedStorage
                     ? "A private index retains recorded paths. The live preview is bounded."
                     : "This analysis uses bounded memory. It stops with partial results if the memory limit is reached.");
                 if (fast is not null)

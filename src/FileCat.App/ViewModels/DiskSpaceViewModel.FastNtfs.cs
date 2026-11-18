@@ -9,6 +9,11 @@ internal sealed record FastNtfsScopeReview(string Selection, string Volume, Anal
 public sealed partial class DiskSpaceViewModel
 {
     private const string StandardOnly = "Use standard analysis here.";
+#if FILECAT_FAST_NTFS_QUALIFICATION
+    private const bool InstalledFastNtfsQualification = true;
+#else
+    private const bool InstalledFastNtfsQualification = false;
+#endif
     private string? _fastHelperProblem = "Checking the installed read-only NTFS helper…";
     private bool _fastHelperCheckStarted;
     private bool _fastNtfs;
@@ -16,7 +21,7 @@ public sealed partial class DiskSpaceViewModel
     private string? FastNtfsConfigurationProblem => _services is null ? "Open a new live analysis to choose a scan."
         : !OperatingSystem.IsWindows() ? "Fast NTFS scan requires Windows and a local NTFS volume. " + StandardOnly
         : _services.Paths.IsPortable ? "Fast NTFS scan requires the installed Windows edition. " + StandardOnly
-        : !_indexedStorage ? "Fast NTFS scan is unavailable in this build. " + StandardOnly
+        : !_indexedStorage && !InstalledFastNtfsQualification ? new AnalysisCapabilities().For(AnalysisVerb.FastNtfs).Reason
         : AnalysisAdmission.Refusal();
 
     internal string? FastNtfsUnavailableReason => FastNtfsConfigurationProblem ?? _fastHelperProblem;
@@ -33,8 +38,7 @@ public sealed partial class DiskSpaceViewModel
         try
         {
             problem = await AnalysisIo.Run(_services.Io, PathUtil.GetDeviceKey(AppContext.BaseDirectory), _token =>
-                ElevationBroker.Locate(_services.Paths.IsPortable, out _) is null
-                    ? "The installed read-only NTFS helper is missing or its installation could not be verified. " + StandardOnly : null, token);
+                ElevationBroker.LocateNtfsMetadata(_services.Paths.IsPortable, out var reason) is null ? reason : null, token);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException)

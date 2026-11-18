@@ -19,6 +19,9 @@
     <AvaloniaAccessUnstablePrivateApis>true</AvaloniaAccessUnstablePrivateApis>
     <NoWarn>$(NoWarn);AVA3001</NoWarn>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(FileCatFastNtfsQualification)' == 'true' and ('$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64')">
+    <DefineConstants>$(DefineConstants);FILECAT_FAST_NTFS_QUALIFICATION</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>

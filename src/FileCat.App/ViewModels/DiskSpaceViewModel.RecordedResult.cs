@@ -6,7 +6,7 @@ namespace FileCat.App.ViewModels;
 public sealed partial class DiskSpaceViewModel
 {
     private string? _capturedPreviewNotice;
-    internal bool IsIndexedRuntimePreview => !_disposed && _indexedStorage && _session is not null && !_session.UsesMemoryFallback;
+    internal bool IsIndexedRuntimePreview => !_disposed && _acquisition?.IndexedStorage == true && _session is { UsesMemoryFallback: false };
     internal string? RuntimePreviewNotice => _capturedPreviewNotice ?? (IsIndexedRuntimePreview
         ? "Live preview of a bounded subset. Marks and selection apply to this displayed revision. Open the recorded result after scanning to explore every recorded entry."
         : null);
