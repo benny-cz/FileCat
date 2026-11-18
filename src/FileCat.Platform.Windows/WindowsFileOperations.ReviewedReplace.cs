@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Security.Cryptography;
+using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Platform.Windows.Elevation;
 using FileCat.Platform.Windows.Shell;
@@ -8,7 +9,7 @@ using static FileCat.Platform.Windows.Elevation.NtFile;
 
 namespace FileCat.Platform.Windows;
 
-public partial class WindowsFileOperations
+public partial class WindowsFileOperations : ILegacyZipBackupRestorer
 {
     private const string EfsReplacementUnavailable = "This replacement cannot preserve the destination's EFS protection. The protected file was kept.";
     /// <summary>
@@ -23,6 +24,28 @@ public partial class WindowsFileOperations
     }
 
     public override bool CanReplaceReviewed(string destination) => OperatingSystem.IsWindows() && IsReplaceVolume(destination);
+
+    bool ILegacyZipBackupRestorer.TryRestoreLegacyZipBackup(string backup, string archive, string originalIdentity)
+    {
+        string parentPath = Path.GetDirectoryName(archive)!;
+        if (!PathUtil.SafetyComparer.Equals(parentPath, Path.GetDirectoryName(backup))) return false;
+        using var parent = LocalIconFileLease.TryOpenPlainDirectory(parentPath);
+        if (parent is null) return false;
+        try
+        {
+            // Open metadata and rename rights only. Renaming the same original preserves EFS and its streams.
+            using var file = OpenOrThrow(parent.LastHandle, Path.GetFileName(backup), ReadAttributes | Delete | Synchronize,
+                ShareRead, Open, NonDirectoryFile | OpenReparsePoint, "Open retained ZIP original");
+            if (GetReparseTag(file) != 0 || ProtectedHexFile.Identity(file).ToString() != originalIdentity) return false;
+            NtFile.Rename(file, parent.LastHandle, Path.GetFileName(archive), replace: false);
+            WriteThrough(parentPath);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
+        {
+            return false;
+        }
+    }
 
     public override BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct)

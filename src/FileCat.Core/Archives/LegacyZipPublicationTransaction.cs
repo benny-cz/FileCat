@@ -5,6 +5,11 @@ using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Archives;
 
+internal interface ILegacyZipBackupRestorer
+{
+    bool TryRestoreLegacyZipBackup(string backup, string archive, string originalIdentity);
+}
+
 /// <summary>
 /// Compatibility boundary for the existing ZIP publication/rollback/cleanup protocol. This deliberately retains its
 /// pathname-based semantics, metadata behavior and journal ordering. It is not a qualified publication adapter for new
@@ -22,7 +27,9 @@ internal sealed class LegacyZipPublicationTransaction
     private readonly bool updating;
     private readonly string temp;
     private readonly int step;
+    private readonly Action<string, string, string> replaceFile;
     private byte[]? openedSourceDigest;
+    private string? openedSourceIdentity;
     private byte[]? intendedPublishedDigest;
     private string? createdStageIdentity;
     private string? intendedPublishedIdentity;
@@ -32,6 +39,7 @@ internal sealed class LegacyZipPublicationTransaction
     private bool originalMarkReadable;
     private bool published;
     private bool stageCreated;
+    private bool recoveryRequired;
     private string? backup;
     private bool prepared;
     private bool attempted;
@@ -44,16 +52,17 @@ internal sealed class LegacyZipPublicationTransaction
     internal string? RequiredOrigin => requiredOrigin;
 
     public LegacyZipPublicationTransaction(Job job, IFileSystemOperations fs, JobJournal journal, ArchivePlan plan,
-        string archive, string folder, ArchiveMoveSources? move = null)
+        string archive, string folder, ArchiveMoveSources? move = null, Action<string, string, string>? replaceFile = null)
     {
         if (plan.Profile is not null)
             throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
                 "A new archive profile cannot use the legacy ZIP publication protocol.");
         Job = job; Fs = fs; Journal = journal; this.plan = plan; this.archive = archive; this.folder = folder;
         this.move = move;
+        this.replaceFile = replaceFile ?? ((stage, target, retained) => File.Replace(stage, target, retained, ignoreMetadataErrors: true));
         updating = plan.Baseline is not null;
         temp = Path.Combine(folder, ".filecat-zip-" + Guid.NewGuid().ToString("N") + ".tmp");
-        step = Journal.Intent("zip-update", archive, null, temp);
+        step = Journal.Intent(JobJournal.LegacyZipUpdateOp, archive, null, temp);
     }
 
     public FileStream CreateStage()
@@ -101,6 +110,7 @@ internal sealed class LegacyZipPublicationTransaction
     public void CaptureOpenedSource(ArchiveMutationReadStream source)
     {
         if (!updating || openedSourceDigest is not null || prepared) throw new InvalidOperationException("Invalid ZIP source capture phase.");
+        openedSourceIdentity = Fs.GetOpenedFileIdentity(source.Handle);
         openedSourceDigest = DigestOpened(source);
         if (!string.Equals(Convert.ToHexString(openedSourceDigest), plan.Baseline!.Sha256Hex, StringComparison.Ordinal))
             throw new IOException("The archive changed after it was opened, so this change was not applied. Open it again and repeat the change.");
@@ -145,14 +155,15 @@ internal sealed class LegacyZipPublicationTransaction
                 if (!DigestOpened(current).AsSpan().SequenceEqual(intendedPublishedDigest))
                     throw new IOException("The rebuilt ZIP changed after verification; the original archive was kept.");
             }
+            backup = Path.Combine(folder, ".filecat-zip-" + Guid.NewGuid().ToString("N") + ".bak");
+            Journal.ReplacementRecovery(step, backup);
             RequireCreatedStage(Fs.GetFileIdentity(temp));
             RequireClearPath(temp, ArchiveOuterEfs.UpdateStageUnavailable);
             RequireClearPath(archive, ArchiveOuterEfs.UpdateUnavailable);
             // ReplaceFile keeps the original's security, attributes, and creation time on the rebuilt file.
             // Keep the actual original even when it was unmarked at the earlier read. Another
             // process can add a download mark without changing ZIP bytes or last-write time.
-            backup = Path.Combine(folder, ".filecat-zip-" + Guid.NewGuid().ToString("N") + ".bak");
-            File.Replace(temp, archive, backup, ignoreMetadataErrors: true);
+            ReplaceOriginal(backup);
         }
         else File.Move(temp, archive, overwrite: false);
         published = true;
@@ -241,8 +252,7 @@ internal sealed class LegacyZipPublicationTransaction
                         ? "Restoration could not be verified; inspect the archive before using it."
                         : $"Restoration would overwrite changed archive bytes or could not be verified. The backup remains at {backup}; inspect both files before using them.";
                     guidance = integrityError.Message + " " + guidance;
-                    Journal.Done(step, StepOutcome.Uncertain, guidance);
-                    Issue(IssueSeverity.Error, archive, guidance, StepOutcome.Uncertain, "security");
+                    RetainForRecovery(archive, guidance);
                     throw new IOException("The archive changed and restoration could not be verified.",
                         new AggregateException(integrityError, restoreError));
                 }
@@ -298,11 +308,58 @@ internal sealed class LegacyZipPublicationTransaction
         }
     }
 
-    public void RecordFailure(Exception error) => Journal.Done(step, StepOutcome.Failed, error.Message);
+    private void ReplaceOriginal(string recoveryPath)
+    {
+        try { replaceFile(temp, archive, recoveryPath); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            if (!ReplacementMayBePartial(error, recoveryPath)) throw;
+            bool restored = openedSourceIdentity is { } identity && Fs is ILegacyZipBackupRestorer native &&
+                native.TryRestoreLegacyZipBackup(recoveryPath, archive, identity);
+            string guidance = restored
+                ? $"The ZIP replacement failed. FileCat returned the original file to {archive}. The rebuilt ZIP remains for review at {temp}."
+                : $"The ZIP replacement failed after it may have moved the original. Inspect {archive}, the possible original backup at {recoveryPath}, and the rebuilt ZIP at {temp}.";
+            RetainForRecovery(archive, guidance);
+            throw new IOException(guidance, error);
+        }
+    }
+
+    private bool ReplacementMayBePartial(Exception error, string recoveryPath)
+    {
+        const int unableToMoveReplacement = unchecked((int)0x80070499);
+        if (error.HResult == unableToMoveReplacement) return true;
+        try { File.GetAttributes(recoveryPath); return true; }
+        catch (FileNotFoundException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return true; }
+        try
+        {
+            const FileAttributes unexpected = FileAttributes.Encrypted | FileAttributes.Directory | FileAttributes.ReparsePoint;
+            return (File.GetAttributes(archive) & unexpected) != 0 ||
+                openedSourceIdentity is not null && Fs.GetFileIdentity(archive) != openedSourceIdentity;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return true; }
+    }
+
+    private void RetainForRecovery(string path, string guidance)
+    {
+        recoveryRequired = true;
+        Journal.RequireRecovery();
+        // The open intent retains the exact three names after restart. A terminal step would hide the backup from review.
+        Issue(IssueSeverity.Error, path, guidance, StepOutcome.Uncertain, "security");
+    }
+
+    public void RecordFailure(Exception error)
+    {
+        if (recoveryRequired) return;
+        if (error is ArchiveWriteException { Message: ArchiveOuterEfs.UpdateStageUnavailable })
+            RetainForRecovery(temp, error.Message + " The temporary ZIP was kept for review at " + temp + ".");
+        else
+            Journal.Done(step, StepOutcome.Failed, error.Message);
+    }
 
     public void CleanupUnpublishedStage()
     {
-        if (published || !stageCreated || !File.Exists(temp)) return;
+        if (published || recoveryRequired || !stageCreated || !File.Exists(temp)) return;
         try
         {
             RequireCreatedStage(Fs.GetFileIdentity(temp));

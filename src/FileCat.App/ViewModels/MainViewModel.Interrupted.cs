@@ -112,7 +112,7 @@ public sealed partial class MainViewModel
     private async Task<InterruptedReview> ReviewInterruptedAsync(InterruptedJob job, RecoveryActionScope scope)
     {
         // Archive paths are evidence only. This generic review is not an object-bound archive cleanup adapter.
-        if (job.ArchiveTransactions.HasRecords) return new([], [], new([], [], false), false);
+        if (job.ArchiveTransactions.HasRecords || job.HasLegacyZipRecovery) return new([], [], new([], [], false), false);
         var paths = new HashSet<string>(PathUtil.SafetyComparer); bool limited = false;
         foreach (var dir in job.StagingDirectories.Distinct(PathUtil.SafetyComparer))
         {
@@ -350,6 +350,11 @@ public sealed partial class MainViewModel
             if (!await MutationIoAsync(job.JournalPath, () => Services.Jobs.IsInterrupted(job, scope.StopSource.Token), scope.Check)) return false;
             job = await RefreshArchiveRecoveryAsync(job, scope);
             if (job.ArchiveTransactions.HasRecords) return await CleanupArchiveRetainedAsync(job, scope);
+            if (job.HasLegacyZipRecovery)
+            {
+                Notify(InterruptedRecoveryReport.LegacyZipReviewWarning, true);
+                return false;
+            }
             var review = reviewed = await ReviewInterruptedAsync(job, scope);
             var renames = new List<JournalRecovery.RenameReview>(); var unreviewedRenames = new List<string>(); bool renameLimited = false;
             long renameBytes = JournalRecovery.StagedReviewByteLimit; int renameItems = 1000;
@@ -529,6 +534,7 @@ public sealed partial class MainViewModel
                 "A bounded, copyable report of the known paths and review limits will remain in Operations under Reviewed recovery reports. " +
                 (renames > 0 ? $"\n\n{renames:N0} interrupted rename intent{(renames == 1 ? " has" : "s have")} a temporary name. Its path and possible target remain in the report; inspect or finish it before stopping reminders. " : "") +
                 (replacements > 0 ? $"\n\n{replacements:N0} interrupted replacement intent{(replacements == 1 ? " has" : "s have")} a recorded recovery name. Inspect any retained original there before stopping reminders. " : "") +
+                (job.HasLegacyZipRecovery ? "\n\n" + InterruptedRecoveryReport.LegacyZipReviewWarning : "") +
                 (unresolvedRemoteUpload ? "\n\n" + InterruptedRecoveryReport.RemoteUploadReviewWarning(job) : "") +
                 (review.Limited || review.Copies.LimitReached || job.FillDirectoriesCut
                     ? "\n\nThe review reached a limit. Other affected files may exist; their count and paths are unknown. " : "") +
