@@ -12,7 +12,7 @@ internal sealed partial class OutputEfsObservation
     private const int ClearSeen = 1, EfsSeen = 2, UnknownSeen = 4;
     internal const int MaxContributors = 1024, MaxContributorBytes = 1024 * 1024;
     internal readonly record struct Contributor(FileIdentity Identity, string Revision);
-    internal sealed record Receipt(State Protection, ImmutableArray<Contributor> Contributors);
+    internal sealed record Receipt(State Protection, ImmutableArray<Contributor> Contributors, bool HasUnknownInput);
     private readonly object _contributorLock = new();
     private readonly HashSet<Contributor> _contributors = [];
     private int _contributorBytes;
@@ -50,6 +50,7 @@ internal sealed partial class OutputEfsObservation
         lock (_contributorLock)
         {
             int state = receipt.Protection switch { State.Clear => ClearSeen, State.Encrypted => EfsSeen, _ => UnknownSeen };
+            if (receipt.HasUnknownInput) state |= UnknownSeen;
             foreach (var input in receipt.Contributors)
             {
                 if (Remember(input)) continue;
@@ -64,9 +65,10 @@ internal sealed partial class OutputEfsObservation
     {
         lock (_contributorLock)
         {
-            var state = Status;
-            if (OperatingSystem.IsWindows() && state == State.Clear && _contributors.Count == 0) state = State.Unknown;
-            return new(state, _contributors.ToImmutableArray());
+            int seen = Volatile.Read(ref _seen);
+            if (OperatingSystem.IsWindows() && _contributors.Count == 0) seen |= UnknownSeen;
+            var state = ProtectionOf(seen);
+            return new(state, _contributors.ToImmutableArray(), state == State.Unknown || (seen & UnknownSeen) != 0);
         }
     }
 
@@ -87,15 +89,13 @@ internal sealed partial class OutputEfsObservation
         }
     }
 
-    internal State Status
+    internal State Status => ProtectionOf(Volatile.Read(ref _seen));
+
+    private static State ProtectionOf(int seen)
     {
-        get
-        {
-            if (!OperatingSystem.IsWindows()) return State.Clear;
-            int state = Volatile.Read(ref _seen);
-            if ((state & EfsSeen) != 0) return State.Encrypted;
-            return state == ClearSeen ? State.Clear : State.Unknown;
-        }
+        if (!OperatingSystem.IsWindows()) return State.Clear;
+        if ((seen & EfsSeen) != 0) return State.Encrypted;
+        return seen == ClearSeen ? State.Clear : State.Unknown;
     }
 
     [StructLayout(LayoutKind.Sequential)]
