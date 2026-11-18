@@ -9,15 +9,15 @@ namespace FileCat.Platform.Windows;
 
 public sealed unsafe partial class WindowsFileRecords
 {
-    public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct) => ReadDetails(path, ct).Summary;
+    public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct) => ReadDetails(path, fullReport: false, ct).Summary;
 
     public FileDetailsReport ReadFull(string path, FileDetailsPolicy policy, CancellationToken ct)
     {
         if (policy != FileDetailsPolicy.MetadataOnly) throw new NotSupportedException("This details route supports metadata only.");
-        return ReadDetails(path, ct);
+        return ReadDetails(path, fullReport: true, ct);
     }
 
-    private static FileDetailsReport ReadDetails(string path, CancellationToken ct)
+    private static FileDetailsReport ReadDetails(string path, bool fullReport, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ct.ThrowIfCancellationRequested();
@@ -110,6 +110,19 @@ public sealed unsafe partial class WindowsFileRecords
         }
         if (reparse) fields.Add(("Reparse tag", hasTag ? RecordText.ReparseTag(reparseTag) : "Unavailable"));
         ct.ThrowIfCancellationRequested();
-        return FileDetailsReport.Metadata(snapshot, new InspectionSection("Native metadata", fields.ToArray()));
+        var metadata = new InspectionSection("Native metadata", fields.ToArray());
+        if (!fullReport || !hasBasic || !hasStandard || folder || reparse || format != "NTFS" ||
+            (attributes & (0x1000u | 0x580000u)) != 0 || !StoragePaths.IsOrdinaryLocalPath(full) || !WindowsFileOperations.IsReplaceVolume(full))
+            return FileDetailsReport.Metadata(snapshot, metadata);
+        // A fixed drive letter can reach another provider through a parent. Qualify the volume of the held object.
+        try { _ = WindowsStorageTransforms.ActualVolumeBinding(item, rootOnly: false, ct); }
+        catch (StorageInspectionException) { return FileDetailsReport.Metadata(snapshot, metadata); }
+
+        var extents = RetrievalSection(item, ct);
+        var report = FileDetailsReport.Metadata(snapshot, metadata, extents);
+        return report with { Technical = report.Technical with
+        {
+            Warnings = ["Not acquired: supplementary-data values and previews, raw volumes and journals, security value collectors, hard-link names and allocated byte ranges."],
+        } };
     }
 }
