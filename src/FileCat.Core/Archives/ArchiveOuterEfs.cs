@@ -11,6 +11,17 @@ internal static class ArchiveOuterEfs
     internal const string SpoolUnavailable = "This archive uses Windows EFS. FileCat cannot keep its extracted content in a disk cache that lacks EFS protection.";
     internal const string SpoolUnknown = "FileCat cannot verify Windows EFS protection for every archive input, so it cannot use a disk cache for this content.";
 
+    internal static string OutputUnavailable(ArchiveOutputKind method) => method switch
+    {
+        ArchiveOutputKind.Extraction => "This archive uses Windows EFS. FileCat cannot verify that this extraction will retain EFS protection.",
+        ArchiveOutputKind.Drag => "This archive uses Windows EFS. FileCat cannot stage its members for dragging without losing that protection.",
+        _ => SpoolUnavailable,
+    };
+
+    internal static string OutputUnknown(ArchiveOutputKind method) => method == ArchiveOutputKind.DiskCache
+        ? SpoolUnknown
+        : "FileCat cannot verify Windows EFS protection for every archive input, so it cannot prepare this output.";
+
     internal static void RequireClear(SafeFileHandle source, string reason = UpdateUnavailable)
     {
         if (OperatingSystem.IsWindows()) RequireClear(File.GetAttributes(source), reason);

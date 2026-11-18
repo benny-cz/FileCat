@@ -3,6 +3,9 @@ using System.IO.Compression;
 using FileCat.Archives;
 using FileCat.Core.Archives;
 using FileCat.Core.Content;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
+using FileCat.Core.Operations;
 using FileCat.Core.Resources;
 
 namespace FileCat.Core.Tests;
@@ -101,6 +104,83 @@ public sealed class ArchiveEfsSpoolTests
             Assert.False(Directory.Exists(cache));
         }
         finally { zip.Release(archive); }
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    public async Task Protected_memory_and_forward_only_members_cannot_publish_an_extraction_or_drag_stage(bool legacyZip, bool large)
+    {
+        if (!IsEfsFixture) Assert.Skip(FixtureRequirement);
+        using var directory = new TempDir();
+        string path = Path.Join(directory.Path, legacyZip ? "source.zip" : "source.tar.gz");
+        string cache = Path.Join(directory.Path, "cache"), drag = Path.Join(directory.Path, "drag-temp");
+        string destination = directory.Dir("destination");
+        byte[] payload = new byte[large ? 33 * 1024 * 1024 : 4];
+        payload[0] = 50;
+        if (legacyZip)
+        {
+            using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
+            using var member = archive.CreateEntry("payload.bin").Open();
+            member.Write(payload);
+        }
+        else
+        {
+            using var file = File.Create(path);
+            using var compressed = new GZipStream(file, CompressionLevel.Fastest);
+            using var writer = new TarWriter(compressed);
+            using var content = new MemoryStream(payload);
+            writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, "payload.bin") { DataStream = content });
+        }
+
+        File.Encrypt(path);
+        var providers = new ProviderRegistry();
+        var files = new IdentityAwareTestFiles();
+        var zip = new ZipProvider(cache) { GetSourceIdentity = files.GetFileIdentity, GetOpenedSourceIdentity = files.GetHandleIdentity };
+        var archives = new ArchiveProvider(cache, providers) { GetSourceIdentity = files.GetFileIdentity, GetOpenedSourceIdentity = files.GetHandleIdentity };
+        providers.Register(zip);
+        providers.Register(archives);
+        providers.Register(new LocalFileSystemProvider());
+        var location = legacyZip ? ZipProvider.ForFile(path) : ArchiveProvider.ForFile(path);
+        var item = new ItemRef(location, "payload.bin", EntryKind.File, payload.Length);
+        var ct = TestContext.Current.CancellationToken;
+        try
+        {
+            using (var read = ProgressiveContent.Sequential(providers.For(location).OpenContent(item))!)
+            {
+                byte[] first = new byte[1];
+                Assert.Equal(1, read.Read(0, first));
+                Assert.Equal(payload[0], first[0]);
+            }
+
+            var staged = DragStaging.Stage([item], providers, files, drag, ct);
+            Assert.Null(staged.Paths);
+            Assert.Contains(ArchiveOuterEfs.OutputUnavailable(ArchiveOutputKind.Drag), staged.Refusal);
+            if (Directory.Exists(drag)) Assert.Empty(Directory.EnumerateFiles(drag, "*", SearchOption.AllDirectories));
+
+            var manager = new JobManager(files, providers, Path.Join(directory.Path, "journal"));
+            var retired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            manager.JobFinished += _ => retired.TrySetResult();
+            var job = manager.Submit(new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [item],
+                Destination = Location.FileSystem(destination),
+            });
+            try { await retired.Task.WaitAsync(TimeSpan.FromSeconds(20), ct); }
+            finally { if (!job.State.IsFinished()) job.Cancel(); }
+            Assert.Contains(job.Issues, issue => issue.Message.Contains(ArchiveOuterEfs.OutputUnavailable(ArchiveOutputKind.Extraction), StringComparison.Ordinal));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(destination));
+            Assert.False(Directory.Exists(cache));
+            Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+        }
+        finally
+        {
+            zip.Release(path);
+            archives.Release(path);
+        }
     }
 
     [System.Runtime.Versioning.SupportedOSPlatformGuard("windows")]

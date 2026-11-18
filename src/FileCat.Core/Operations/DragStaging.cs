@@ -1,3 +1,4 @@
+using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -54,7 +55,10 @@ public static class DragStaging
                 ct.ThrowIfCancellationRequested();
                 if (SafeNames.Validate(item.Name) is { } bad) return Fail(folder, $"\"{item.Name}\" cannot be dragged: {bad}");
                 var provider = providers.Get(item.Parent.Scheme);
-                using var content = Content.ProgressiveContent.Sequential(provider.OpenContent(item));
+                var opened = OperatingSystem.IsWindows() && provider is IUnprotectedArchiveOutput archive
+                    ? archive.OpenUnprotectedOutput(item, ArchiveOutputKind.Drag)
+                    : provider.OpenContent(item);
+                using var content = Content.ProgressiveContent.Sequential(opened);
                 if (content is null) return Fail(folder, $"\"{item.Name}\" has no readable content (for example an encrypted archive entry).");
                 string target = Unique(folder, item.Name);
                 bool tooLarge = false;

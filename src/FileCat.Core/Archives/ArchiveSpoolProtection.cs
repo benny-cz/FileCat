@@ -23,13 +23,13 @@ internal sealed class ArchiveSpoolProtection
         Interlocked.Or(ref _seen, state);
     }
 
-    internal void RequireClear()
+    internal void RequireClear(ArchiveOutputKind method)
     {
         if (!OperatingSystem.IsWindows()) return;
         int state = Volatile.Read(ref _seen);
         if ((state & EfsSeen) != 0)
-            throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnavailable);
+            throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.OutputUnavailable(method));
         if (state != ClearSeen)
-            throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnknown);
+            throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.OutputUnknown(method));
     }
 }

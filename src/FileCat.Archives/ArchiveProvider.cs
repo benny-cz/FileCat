@@ -32,7 +32,7 @@ public sealed record ArchiveMemberTag(string FullName, int Index, long Size, lon
 /// not opened; archives inside archives (of any supported format, ZIP included) open read-only from a private spool.
 /// Mark-of-the-Web propagates on extraction from the outermost marked file.
 /// </summary>
-public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
+public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider, IUnprotectedArchiveOutput
 {
     public const int MaxEntries = 1_000_000;
     public const long MaxMemberInMemory = 32L * 1024 * 1024;
@@ -228,9 +228,11 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
 
     // ---- Content -----------------------------------------------------------------------------------------
 
-    public override IContentSource? OpenContent(ItemRef item) => OpenContent(item, forDiskSpool: false);
+    public override IContentSource? OpenContent(ItemRef item) => OpenContent(item, output: null);
 
-    private IContentSource? OpenContent(ItemRef item, bool forDiskSpool)
+    IContentSource? IUnprotectedArchiveOutput.OpenUnprotectedOutput(ItemRef item, ArchiveOutputKind kind) => OpenContent(item, kind);
+
+    private IContentSource? OpenContent(ItemRef item, ArchiveOutputKind? output)
     {
         var root = item.Parent.WithPath(string.Empty);
         using var source = ArchiveFile(root, 0);
@@ -247,7 +249,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             if (tag.Kind is MemberKind.SymbolicLink or MemberKind.HardLink)
                 throw new InvalidDataException("Links inside archives are not followed or extracted" + (tag.LinkTarget is { } target ? $" (it points to \"{target}\")." : "."));
             if (tag.Kind == MemberKind.Special) throw new InvalidDataException("Device and pipe entries have no content to extract.");
-            try { return index.Extract(tag, _tempDirectory, forDiskSpool); }
+            try { return index.Extract(tag, _tempDirectory, output); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // A lazy source-open refusal invalidates the index and closes its witness too. A later request
@@ -259,11 +261,11 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         }
     }
 
-    private void RequireClearForDiskSpool(Location location)
+    void IUnprotectedArchiveOutput.RequireClearOutputSource(Location location, ArchiveOutputKind kind)
     {
         var root = location.WithPath(string.Empty);
         using var source = ArchiveFile(root, 0);
-        lock (_cacheLock) GetIndex(root, source, CancellationToken.None).RequireClearSpoolSource();
+        lock (_cacheLock) GetIndex(root, source, CancellationToken.None).RequireClearOutputSource(kind);
     }
 
     // ---- Index ---------------------------------------------------------------------------------------------
@@ -417,6 +419,9 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         var folder = member.WithPath(slash < 0 ? string.Empty : member.Path[..slash]);
         string name = member.Path[(slash + 1)..];
         var provider = _providers.For(member);
+        var admittedProvider = OperatingSystem.IsWindows()
+            ? provider as IUnprotectedArchiveOutput ?? throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnknown)
+            : null;
         string outer = OutermostFile(member);
         var outerInfo = new FileInfo(outer);
         string key = $"{member}|{outerInfo.Length}|{outerInfo.LastWriteTimeUtc.Ticks}|{SourceIdentityKey(outer)}|{SourceChangeKey(outer)}";
@@ -426,15 +431,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         {
             if (_spools.TryGetValue(key, out var existing))
             {
-                if (OperatingSystem.IsWindows())
-                {
-                    switch (provider)
-                    {
-                        case ArchiveProvider archive: archive.RequireClearForDiskSpool(folder); break;
-                        case ZipProvider zip: zip.RequireClearForDiskSpool(folder); break;
-                        default: throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnknown);
-                    }
-                }
+                admittedProvider?.RequireClearOutputSource(folder, ArchiveOutputKind.DiskCache);
                 existing.Used = DateTime.UtcNow;
                 return existing.Acquire();
             }
@@ -443,12 +440,8 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             try
             {
                 var item = new ItemRef(folder, name, EntryKind.File);
-                var content = OperatingSystem.IsWindows() ? provider switch
-                {
-                    ArchiveProvider archive => archive.OpenContent(item, forDiskSpool: true),
-                    ZipProvider zip => zip.OpenForDiskSpool(item),
-                    _ => throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnknown),
-                } : provider.OpenContent(item);
+                var content = admittedProvider is null ? provider.OpenContent(item) :
+                    admittedProvider.OpenUnprotectedOutput(item, ArchiveOutputKind.DiskCache);
                 using var source = ProgressiveContent.Sequential(content)
                     ?? throw new NotSupportedException("The inner archive is encrypted and cannot be opened here.");
                 Directory.CreateDirectory(_tempDirectory);
@@ -539,12 +532,14 @@ internal sealed class ArchiveIndex : IDisposable
     }
     internal void KeepSpoolProtection(ArchiveSpoolProtection protection) => _spoolProtection = protection;
 
-    internal void RequireClearSpoolSource()
+    private void RequireClearSpoolSource() => RequireClearOutputSource(ArchiveOutputKind.DiskCache);
+
+    internal void RequireClearOutputSource(ArchiveOutputKind kind)
     {
         if (!OperatingSystem.IsWindows()) return;
         if (_witnessHandle is { } witness) _spoolProtection.Observe(witness);
         foreach (var volume in _volumes) _spoolProtection.Observe(volume.Stream.SafeFileHandle);
-        _spoolProtection.RequireClear();
+        _spoolProtection.RequireClear(kind);
     }
     private Microsoft.Win32.SafeHandles.SafeFileHandle? _witnessHandle;
     // Whether the source had a change token when its catalog was started (not only when it was finished).
@@ -825,7 +820,7 @@ internal sealed class ArchiveIndex : IDisposable
     /// privately spooled); larger ones are decompressed as they are read (<see cref="ProgressiveContent"/>), so the first
     /// bytes are there at once. Sizes are never trusted.
     /// </summary>
-    public IContentSource Extract(ArchiveMemberTag tag, string tempDirectory, bool forDiskSpool = false)
+    public IContentSource Extract(ArchiveMemberTag tag, string tempDirectory, ArchiveOutputKind? output = null)
     {
         LastUsed = DateTime.UtcNow;
         lock (_lock)
@@ -833,7 +828,7 @@ internal sealed class ArchiveIndex : IDisposable
             void VerifyInput()
             {
                 VerifySource();
-                if (forDiskSpool) RequireClearSpoolSource();
+                if (output is { } purpose) RequireClearOutputSource(purpose);
             }
             VerifyInput();
             if (_closing && _leases == 0) throw new IOException("The archive was closed; open it again.");
@@ -862,7 +857,8 @@ internal sealed class ArchiveIndex : IDisposable
             try
             {
                 using var src = new DamageReportingStream(OpenFor(null, tag.Index));
-                limits.CopyAll(src, dst, default, declared < 0 || forDiskSpool ? RequireClearSpoolSource : null);
+                Action? verify = output is not null ? VerifyInput : declared < 0 ? RequireClearSpoolSource : null;
+                limits.CopyAll(src, dst, default, verify);
                 VerifyInput();
             }
             catch (Exception ex)
