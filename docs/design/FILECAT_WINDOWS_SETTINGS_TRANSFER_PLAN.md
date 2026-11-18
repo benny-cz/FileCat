@@ -9,7 +9,7 @@ Use a disposable profile with schema 1, the `Psychedelic` theme, compact rows, a
 | Where | Action | Result |
 |---|---|---|
 | Normal Settings | **Copy appearance and workspace for administrator** | Copies saved appearance and the current panel layout and local-folder tabs as a single value. |
-| Administrator Settings | **Use copied appearance and workspace** | Accepts one paste and shows one review for both parts. Select **Remember for future administrator launches** to restore both together. |
+| Administrator Settings | **Use copied appearance and workspace** | Accepts one paste and shows one review for both parts. **Apply and remember** restores both together on later launches. Clear **Remember for future administrator launches** to apply for the current session. |
 | Normal Settings | **Copy saved appearance for administrator** | Copies the active profile’s saved display preferences. Shows the source profile and path. An open Settings draft stays separate. |
 | Administrator Settings | **Use copied appearance for this session** | Shows the incoming changes and applies them to the running UI. Select **Remember for future administrator launches** to load these values again. |
 | Normal Settings | **Copy current workspace for administrator** | Copies the current panel arrangement and open local-folder tabs from the running window. |
@@ -18,7 +18,7 @@ Use a disposable profile with schema 1, the `Psychedelic` theme, compact rows, a
 | Administrator Settings, under **Copy back…** | **Copy this session’s appearance** | Copies the current display preferences, including changes made since import. The administrator process performs no profile write. |
 | Normal Settings, under **Copy back…** | **Review administrator appearance** | Shows old and proposed values and the exact destination `settings.json`. **Keep my settings** has default focus. Only **Replace these appearance settings** commits. Opening the review, pressing Escape, or closing it leaves both live and saved normal settings alone. |
 
-Use an explicitly copied, versioned plain-text value. Keep it available after the source window closes, and allow manual entry when the two desktops do not share a clipboard. Remembrance is off until selected during review.
+Use an explicitly copied, versioned plain-text value. Keep it available after the source window closes, and allow manual entry when the two desktops do not share a clipboard. The combined review selects remembrance by default where it is available. Separate transfers start with remembrance off.
 
 ## Transfer scope and security decisions
 

@@ -56,9 +56,10 @@ internal static class AppearanceTransferDialog
         var closer = new DialogCloser();
         var store = services.AdministratorTransfers;
 
-        CheckBox? RememberChoice() => store is null ? null : new CheckBox
+        CheckBox? RememberChoice(bool selectedByDefault = false) => store is null ? null : new CheckBox
         {
             Content = "Remember for future administrator launches",
+            IsChecked = selectedByDefault,
         };
 
         void ClearCopy()
@@ -104,8 +105,10 @@ internal static class AppearanceTransferDialog
                 ? "Replace the panels and tabs in this administrator session."
                 : "Apply the appearance and replace the panels and tabs in this administrator session.";
             description += " Only available local folders open. You can restore the previous workspace.";
-            var remember = RememberChoice();
-            string apply = appearance is null ? "Apply workspace for this session" : "Apply appearance and workspace";
+            if (paths.DataRoot is not null)
+                description += " This launch uses --data. The transfer applies for this session only.";
+            var remember = RememberChoice(selectedByDefault: appearance is not null);
+            string apply = appearance is null ? "Apply workspace for this session" : "Apply for this session";
             if (await ConfirmChangesAsync(vm, $"Use {subject} in this administrator session",
                 description, changes, apply, remember) &&
                 await vm.UseTransferredWorkspaceAsync(transfer, remember?.IsChecked == true, appearance))
@@ -336,10 +339,18 @@ internal static class AppearanceTransferDialog
         IReadOnlyList<string> changes, string confirm, CheckBox? remember = null)
     {
         var body = new StackPanel { Spacing = 8, Children = { Note(description) } };
-        if (remember is not null) body.Children.Add(remember);
+        var apply = new DialogButton(confirm, true);
+        if (remember is not null)
+        {
+            body.Children.Add(remember);
+            DialogButtonSnapshot ApplyLabel() => new(remember.IsChecked == true ? "Apply and remember" : confirm);
+            var presentation = new DialogButtonPresentation(ApplyLabel());
+            remember.IsCheckedChanged += (_, _) => presentation.Update(ApplyLabel());
+            apply = apply with { Presentation = presentation };
+        }
         foreach (string change in changes) body.Children.Add(Note(change));
         return await vm.Dialogs.ShowCustomAsync(title, body,
-            [new DialogButton(Keep, false, IsDefault: true, IsCancel: true), new DialogButton(confirm, true)],
+            [new DialogButton(Keep, false, IsDefault: true, IsCancel: true), apply],
             behavior: Modal) is true;
     }
 

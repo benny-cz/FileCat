@@ -357,7 +357,8 @@ public sealed class ViewerSourceCopyTests
             Assert.Equal("A\tB\r\nr", await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
             await window.CopyTextAsync(displayed: true, explicitVisible: false);
             Assert.Equal("A   B\r\nr", await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
-            Invoke(window, "Show", "replacement\tcurrent");
+            report = "replacement\tcurrent";
+            await window.RefreshDetailsForTestAsync();
             await Wait(() => view.SourceGlyphBounds(0) is not null);
             string previous = (await ClipboardExtensions.TryGetTextAsync(window.Clipboard!))!;
             await window.CopyTextAsync(displayed: false, explicitVisible: false);

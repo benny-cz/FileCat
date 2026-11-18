@@ -232,18 +232,30 @@ public sealed class StorageCommandIntegrationTests
             File.WriteAllText(Path.Join(vm.ActiveTab!.Location!.Path, "b.txt"), "alpha");
             vm.Execute(CommandIds.FindFiles); await Until(() => FindWindow.OpenWindows.Count == 1);
             find = FindWindow.OpenWindows.Single(); find.NamesBox.Text = "*.txt";
+            if (!duplicates)
+            {
+                find.StartSearch(RefineMode.Replace);
+                await Until(() => find.StorageCommandAvailability.Enabled);
+            }
             // The initial enumeration and the final publication use the same result-set queue.
+            // Queue a barrier for any replacement worker the watchdog starts during a slow test run.
             string device = services.ResultSets.GetDeviceKey(new Location(Schemes.ResultSet, string.Empty));
             int workers = 0;
-            blocked = Task.WhenAll(Enumerable.Range(0, services.Io.ThreadsPerDevice).Select(_ => services.Io.RunOwned(device, IoPriority.Interactive, token =>
+            blocked = Task.WhenAll(Enumerable.Range(0, services.Io.MaxThreadsPerDevice).Select(_ => services.Io.RunOwned(device, IoPriority.Interactive, token =>
             {
                 if (Interlocked.Increment(ref workers) == services.Io.ThreadsPerDevice) entered.Set();
-                if (!release.Wait(TimeSpan.FromSeconds(15))) throw new TimeoutException(); return true;
+                release.Wait(token);
+                return true;
             }, TestContext.Current.CancellationToken)));
             await Until(() => entered.IsSet);
-            find.StartSearch(RefineMode.Replace, duplicates ? DuplicateCriteria.Size : null);
+            find.StartSearch(duplicates ? RefineMode.Replace : RefineMode.Intersect, duplicates ? DuplicateCriteria.Size : null);
             await Until(() => find.Session!.Finished && find.IsIdle &&
                 (!duplicates || services.ResultSets.Get(find.ResultsTab!.Location!)?.ShowsGroups == true));
+            if (!duplicates)
+            {
+                Assert.Equal(ListingState.Complete, find.ResultsTab!.Listing.State);
+                Assert.True(find.ResultsTab.Listing.IsRefreshing);
+            }
             Assert.False(find.StorageCommandAvailability.Enabled);
             Assert.Contains("results to finish updating", find.StorageCommandAvailability.Reason);
             find.Run(CommandIds.StorageAttributes);
