@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using FileCat.App.Services;
@@ -26,7 +28,12 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => model.CanRequestDeferredSelection && model.PublishedReportView.Query == "name:future-" &&
                 model.Tree!.Snapshot.Nodes.Any(node => node.Kind == AnalysisKind.File));
             Require(model.Running, "The scan completed before the native deferred request could be captured.");
-            model.PauseOrResume();
+            double? pauseKeyToLayoutMilliseconds = null;
+            if (Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_PAUSE_FEEDBACK") == "1")
+                pauseKeyToLayoutMilliseconds = await MeasureNativePauseFeedbackAsync(
+                    Button("Pause") ?? throw new IOException("The active scan has no visible Pause button."), token);
+            else
+                model.PauseOrResume();
             await ReadyAsync(() => model.Phase == AnalysisPhase.Paused);
             Require(model.IsIndexedRuntimePreview, "This native fixture requires actual indexed storage.");
             int previewPaths = model.Tree!.Snapshot.Nodes.Length;
@@ -84,7 +91,8 @@ internal sealed partial class HarnessApp
             RenderNativeFrame("deferred-recorded-tab.png");
             _indexedDeferredProbe = new { finished = true, passed = true, previewPaths, completedMatches = DeferredNativePaths, reviewedMarks = DeferredNativePaths,
                 sessions = window.SessionCount, preservingDefault = true, previewAndReferencesKept = true, pageLimit = 128, frames,
-                nativeWindowControlEvents = true, osInputQualified = false, compositorCaptureQualified = false, assistiveTechnologyQualified = false };
+                nativeWindowControlEvents = true, osInputQualified = false, compositorCaptureQualified = false, assistiveTechnologyQualified = false,
+                pauseKeyToLayoutMilliseconds };
             WriteReport("indexed-deferred-finished");
         }
         catch (Exception error)
@@ -105,6 +113,36 @@ internal sealed partial class HarnessApp
             button.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
         }
         static void Require(bool value, string detail) { if (!value) throw new IOException(detail); }
+    }
+
+    private async Task<double> MeasureNativePauseFeedbackAsync(Button pause, CancellationToken token)
+    {
+        var window = _window!;
+        window.Activate();
+        if (OperatingSystem.IsWindows())
+            WindowsGuestInput.ActivateFromDesktop(window.TryGetPlatformHandle()?.Handle ?? 0);
+        if (!pause.IsEnabled || !pause.Focus(NavigationMethod.Tab))
+            throw new IOException("Could not focus the visible Pause button during a scan.");
+
+        Stopwatch? observedKey = null;
+        void Observe(object? sender, KeyEventArgs key)
+        {
+            if (key.Key == Key.Space) observedKey ??= Stopwatch.StartNew();
+        }
+
+        pause.AddHandler(InputElement.KeyDownEvent, Observe, RoutingStrategies.Tunnel, handledEventsToo: true);
+        try
+        {
+            if (OperatingSystem.IsWindows())
+                WindowsGuestInput.Key(0x20);
+            else
+                await File.WriteAllTextAsync(Path.Combine(_run, "scan-feedback.request"), "Space", token);
+            await WaitForNativeLayoutAsync(Stopwatch.StartNew(), () => observedKey is not null, "the native Pause key", token);
+            return await WaitForNativeLayoutAsync(observedKey!, () => pause.IsEffectivelyVisible &&
+                pause.Bounds.Width > 0 && pause.Bounds.Height > 0 && Equals(pause.Content, "Resume"),
+                "the visible Resume button", token);
+        }
+        finally { pause.RemoveHandler(InputElement.KeyDownEvent, Observe); }
     }
 }
 
