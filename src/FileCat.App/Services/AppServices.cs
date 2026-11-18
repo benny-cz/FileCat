@@ -283,6 +283,9 @@ public sealed class AppServices : IDisposable
     internal AnalysisProtectedObjects AnalysisProtection { get; }
     public IUiDispatcher Ui { get; }
     internal AnalysisSavedReferences AnalysisSavedReferences { get; }
+    private DiskSpaceWindowManager? _diskSpace;
+    internal DiskSpaceWindowManager DiskSpace => _diskSpace ??= new(this);
+    internal bool HasTemporaryAnalyses => _diskSpace?.HasTemporaryWork == true;
     internal AnalysisRollingHistoryController AnalysisHistory { get; }
     public CommandRegistry Commands { get; }
     public Keymap Keymap { get; private set; }
@@ -597,6 +600,8 @@ public sealed class AppServices : IDisposable
 
     public void Dispose()
     {
+        _diskSpace?.Dispose();
+        _diskSpace = null;
         // Cancellation requests stop; the controller retains its owner until actual I/O
         // and release complete, including the existing shutdown-only close worker.
         _ = AnalysisHistory.StopMaintenanceAsync();

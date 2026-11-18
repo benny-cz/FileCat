@@ -79,6 +79,8 @@ public sealed partial class DiskSpaceWindow : Window
     private long _nextTabNumber;
     public int SessionCount => _sessions.Count;
     internal bool CanAddSession => !_closed && _admissionPool.HasCapacity;
+    internal bool HasSessions => _sessions.Count > 0;
+    internal bool HasTemporaryWork => _sessions.Any(session => session.HasTemporaryWork);
     protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => new DescendantFocusWindowAutomationPeer(this);
     public DiskSpaceWindow(Action? newAnalysis = null, Func<Keymap>? keymap = null) : this(newAnalysis, keymap, AnalysisSessionAdmission.Shared) { }
     internal DiskSpaceWindow(Action? newAnalysis, Func<Keymap>? keymap, AnalysisSessionAdmission admissionPool)
@@ -112,8 +114,8 @@ public sealed partial class DiskSpaceWindow : Window
         }, RoutingStrategies.Bubble);
         Closing += (_, e) =>
         {
-            if (_forceClose) return;
-            if (_sessions.Any(s => s.HasTemporaryWork))
+            if (_forceClose || e.CloseReason is WindowCloseReason.ApplicationShutdown or WindowCloseReason.OSShutdown) return;
+            if (HasTemporaryWork)
             {
                 e.Cancel = true;
                 if (!_askingClose) _ = ConfirmCloseAsync();

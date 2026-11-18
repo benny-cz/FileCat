@@ -207,6 +207,7 @@ public static class CommandIcons
         [CommandIds.ToggleDriveButtons] = [new("M1.5,4.5 L7,4.5 L7,9.5 L1.5,9.5 Z M9,4.5 L14.5,4.5 L14.5,9.5 L9,9.5 Z"), new("M3,7 L4,7 M10.5,7 L11.5,7", "ActiveAccent"), new("M1.5,12.5 L14.5,12.5", "TextMuted")],
         [CommandIds.ToggleToolbar] = [new("M1.5,3 L14.5,3 L14.5,7.5 L1.5,7.5 Z"), new("M4,5.25 L5,5.25 M7.5,5.25 L8.5,5.25 M11,5.25 L12,5.25", "ActiveAccent"), new("M1.5,10.5 L14.5,10.5 M1.5,13.5 L10,13.5", "TextMuted")],
         [CommandIds.AnalyzeFolder] = [new(Circle), new("M8,8 L8,1.5 M8,8 L13.6,11.2", "ActiveAccent")],
+        [CommandIds.DiskSpace] = [new(Box), new("M6.5,2.5 L6.5,13.5 M6.5,7 L13.5,7 M10,7 L10,13.5", "ActiveAccent")],
         [CommandIds.ThemePick] = [new(PaletteShape),
             new("M4.5,7 L4.6,7 M6.5,4.5 L6.6,4.5 M9.8,4.5 L9.9,4.5 M11.8,6.8 L11.9,6.8", "ActiveAccent")],
         // Next and previous: the palette muted, an arrow across it (as Next tab and Previous tab draw theirs).

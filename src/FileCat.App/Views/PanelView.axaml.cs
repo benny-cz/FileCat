@@ -39,7 +39,8 @@ public partial class PanelView : UserControl
         List.OpenRequested += (_, _) => OpenRequested?.Invoke();
         List.RenameRequested += (_, _) => RenameRequested?.Invoke();
         List.MiddleClickRequested += (_, row) => MiddleClick?.Invoke(row);
-        List.ContextMenuRequested += (_, point) => ShowContextMenu(point: point, extended: List.ContextWithShift);
+        List.ContextMenuRequested += (_, context) => ShowContextMenu(point: context.Point, extended: List.ContextWithShift,
+            invokedStoreIndex: context.StoreIndex);
         List.InspectRequested += (_, report) => _ = ShowInspectionAsync(report);
         AutomationProperties.SetHelpText(List, "Ctrl+Shift+I inspects every full value in the focused row. Shift+F10 opens item actions.");
         List.BackgroundContextRequested += (_, point) => ShowBackgroundContextMenu(point, List.ContextWithShift);
@@ -392,6 +393,8 @@ public partial class PanelView : UserControl
         if (_main is { } main)
         {
             items.Add(new Separator());
+            if (!Environment.IsPrivilegedProcess && place.Drive is { } analysisDrive && MainViewModel.DiskSpaceDriveRoot(analysisDrive) is { } root)
+                items.Add(ContextMenuFactory.Analyze(main, MainViewModel.AnalyzeDiskSpaceTitle, [root]));
             bool pinned = main.Services.Settings.PinnedPlaces?.Contains(PlaceBarPolicy.Key(place), StringComparer.Ordinal) == true;
             var pin = new MenuItem { Header = pinned ? "Unpin from Places bar" : "Pin to Places bar",
                 IsEnabled = !main.Services.SettingsReadOnly };
@@ -1115,12 +1118,12 @@ public partial class PanelView : UserControl
 
     /// <summary>The item context menu: at the pointer for a right click, at the focused row from the keyboard.</summary>
     /// <param name="extended">Shift was held for the right click: Windows adds its extended verbs, as in Explorer.</param>
-    public void ShowContextMenu(bool atFocus = false, Avalonia.Point? point = null, bool extended = false)
+    public void ShowContextMenu(bool atFocus = false, Avalonia.Point? point = null, bool extended = false, int? invokedStoreIndex = null)
     {
         long request = ++_menuRequest;
         _openItemMenu?.Close();
         _openItemMenu = null;
-        _ = ShowContextMenuAsync(atFocus, point, extended && point is not null, request);
+        _ = ShowContextMenuAsync(atFocus, point, extended && point is not null, request, invokedStoreIndex);
     }
 
     /// <summary>
@@ -1278,15 +1281,26 @@ public partial class PanelView : UserControl
         }
     }
 
-    private async Task ShowContextMenuAsync(bool atFocus, Avalonia.Point? point, bool extended, long request)
+    private async Task ShowContextMenuAsync(bool atFocus, Avalonia.Point? point, bool extended, long request, int? invokedStoreIndex)
     {
         if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm) return;
         if (Panel is { ActiveTab: { Location: { } current } parentTab } parentPanel &&
+            (invokedStoreIndex is null || invokedStoreIndex == parentTab.Listing.FocusedStoreIndex) &&
             parentTab.Listing.TryGetFocused(out var focused) && focused.Kind == Core.Resources.EntryKind.Parent &&
             vm.Services.Providers.For(current).GetParent(current) is { } parent)
         {
             if (request == _menuRequest) ShowParentContextMenu(vm, parentPanel, parentTab, current, parent, atFocus, request);
             return;
+        }
+        string? invokedAnalysisRoot = null;
+        IReadOnlyList<string>? markedAnalysisRoots = null;
+        if (!Environment.IsPrivilegedProcess && Panel?.ActiveTab is { } source)
+        {
+            if (invokedStoreIndex is { } invoked)
+                invokedAnalysisRoot = MainViewModel.DiskSpaceRoot(source, invoked);
+            else if (source.Listing.TryGetFocused(out _))
+                invokedAnalysisRoot = MainViewModel.DiskSpaceRoot(source, source.Listing.FocusedStoreIndex);
+            markedAnalysisRoots = MainViewModel.MarkedDiskSpaceRoots(source);
         }
         if (HasNativeWindow() && Panel?.ActiveTab is { Location.IsFileSystem: true } tab &&
             tab.Listing.MarkedCount <= WindowsContextMenu.MaxItems)
@@ -1297,7 +1311,8 @@ public partial class PanelView : UserControl
                 var anchor = point ?? (List.FocusedRowBounds() is { } bounds
                     ? new Avalonia.Point(bounds.Left + 12, bounds.Bottom) : new Avalonia.Point(0, 0));
                 var screen = List.PointToScreen(anchor);
-                var result = await WindowsContextMenu.ShowAsync(paths!, screen.X, screen.Y, extended);
+                var result = await WindowsContextMenu.ShowAsync(paths!, screen.X, screen.Y, extended,
+                    analyze: invokedAnalysisRoot is not null, analyzeSelected: markedAnalysisRoots is { Count: > 0 });
                 if (request != _menuRequest) return;
                 if (result == WindowsContextMenu.Result.Handled) return;
                 if (result == WindowsContextMenu.Result.Properties)
@@ -1336,6 +1351,16 @@ public partial class PanelView : UserControl
                     vm.RecoverImage(paths[0]!);
                     return;
                 }
+                if (result == WindowsContextMenu.Result.AnalyzeDiskSpace)
+                {
+                    if (invokedAnalysisRoot is not null) vm.OpenDiskSpace([invokedAnalysisRoot]);
+                    return;
+                }
+                if (result == WindowsContextMenu.Result.AnalyzeSelectedFolders)
+                {
+                    if (markedAnalysisRoots is { Count: > 0 }) vm.OpenDiskSpace(markedAnalysisRoots);
+                    return;
+                }
                 if (result == WindowsContextMenu.Result.ActionFailed)
                 {
                     vm.Notify("Windows could not complete that action.", true);
@@ -1350,7 +1375,7 @@ public partial class PanelView : UserControl
             }
         }
         if (request != _menuRequest) return;
-        var menu = ContextMenuFactory.Build(vm);
+        var menu = ContextMenuFactory.Build(vm, invokedAnalysisRoot, markedAnalysisRoots);
         AppendInspectionItem(menu);
         if (atFocus && List.FocusedRowBounds() is { } row)
         {

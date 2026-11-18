@@ -1337,10 +1337,11 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     {
         base.OnClosing(e);
         if (_forceClose || e.Cancel) return;
-        if (!_vm.CanCloseImmediately())
+        bool reviewAnalyses = e.CloseReason is not (WindowCloseReason.ApplicationShutdown or WindowCloseReason.OSShutdown);
+        if (!_vm.CanCloseImmediately(reviewAnalyses))
         {
             e.Cancel = true;
-            _ = ConfirmCloseAsync();
+            _ = ConfirmCloseAsync(reviewAnalyses);
             return;
         }
         SavePlacement();
@@ -1352,9 +1353,9 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         base.OnClosed(e);
     }
 
-    private async Task ConfirmCloseAsync()
+    private async Task ConfirmCloseAsync(bool reviewAnalyses)
     {
-        if (await _vm.ConfirmExitWithActiveWorkAsync())
+        if (await _vm.ConfirmExitWithActiveWorkAsync(reviewAnalyses))
         {
             _forceClose = true;
             SavePlacement();

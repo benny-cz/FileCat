@@ -95,11 +95,13 @@ public sealed partial class MainViewModel
         return false;
     }
 
-    public bool CanCloseImmediately() => !Services.Jobs.HasActiveWork && UnsavedHexEditors().Count == 0;
+    public bool CanCloseImmediately(bool reviewAnalyses = true) => !Services.Jobs.HasActiveWork && UnsavedHexEditors().Count == 0 &&
+        (!reviewAnalyses || !Services.HasTemporaryAnalyses);
 
     /// <summary>Closing presents unsaved edits and active work: finish, cancel safely, or keep the app open (plan §9.3).</summary>
-    public async Task<bool> ConfirmExitWithActiveWorkAsync()
+    public async Task<bool> ConfirmExitWithActiveWorkAsync(bool reviewAnalyses = true)
     {
+        if (reviewAnalyses && !await ConfirmExitWithAnalysesAsync()) return false;
         if (!await ConfirmCloseHexEditorsAsync()) return false;
         var active = Services.Jobs.Jobs.Where(j => !j.State.IsFinished()).ToList();
         if (active.Count == 0) return true;

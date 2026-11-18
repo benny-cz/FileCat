@@ -72,9 +72,25 @@ public static class ContextMenuFactory
         CommandIds.CopyNames, CommandIds.OpenInNewTab, CommandIds.OpenTerminal, CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.StorageAttributes,
     ];
 
-    public static ContextMenu Build(MainViewModel vm)
+    public static ContextMenu Build(MainViewModel vm, string? invokedAnalysisRoot = null, IReadOnlyList<string>? markedAnalysisRoots = null)
     {
         var items = BuildItems(vm, Items);
+        if (invokedAnalysisRoot is not null || markedAnalysisRoots is { Count: > 0 })
+        {
+            var analysis = new List<Control>();
+            if (invokedAnalysisRoot is not null) analysis.Add(Analyze(vm, MainViewModel.AnalyzeDiskSpaceTitle, [invokedAnalysisRoot]));
+            if (markedAnalysisRoots is { Count: > 0 }) analysis.Add(Analyze(vm, MainViewModel.AnalyzeSelectedFoldersTitle, markedAnalysisRoots));
+            analysis.Add(new Separator());
+            string? properties = vm.Services.Commands.Get(CommandIds.Properties)?.Title;
+            int at = items.FindIndex(c => c is MenuItem { Header: string h } && h == properties);
+            if (at < 0)
+            {
+                analysis.RemoveAt(analysis.Count - 1);
+                if (items.Count > 0) items.Add(new Separator());
+                items.AddRange(analysis);
+            }
+            else items.InsertRange(at, analysis);
+        }
         // A drive or a disk image: its deleted files, straight from here (plan §17), above Properties.
         if (vm.RecoveryOfferForFocus() is { } recovery)
         {
@@ -95,6 +111,13 @@ public static class ContextMenuFactory
             else items.Insert(at, verify);
         }
         return new ContextMenu { ItemsSource = items };
+    }
+
+    internal static MenuItem Analyze(MainViewModel vm, string title, IReadOnlyList<string> roots)
+    {
+        var item = new MenuItem { Header = title, Icon = MenuIconFactory.Create(CommandIds.DiskSpace) };
+        item.Click += (_, _) => vm.OpenDiskSpace(roots);
+        return item;
     }
 
     private static List<Control> BuildItems(MainViewModel vm, IReadOnlyList<string> items)

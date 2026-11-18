@@ -50,7 +50,7 @@ public static class MainMenuModel
             CommandIds.ColumnProfilePrefix + "5", CommandIds.ColumnProfilePrefix + "6", CommandIds.ColumnProfilePrefix + "7",
             CommandIds.ColumnProfilePrefix + "8", CommandIds.ColumnProfilePrefix + "9", "-", CommandIds.ThemePick, CommandIds.ThemeCycle, CommandIds.ThemePrevious, "-",
             CommandIds.ToggleToolbar, CommandIds.ToggleDriveButtons]),
-        ("_Tools", [CommandIds.FindDeleted, CommandIds.ChangeJournal, "-", CommandIds.Operations, CommandIds.RecentNotifications,
+        ("_Tools", [CommandIds.DiskSpace, CommandIds.FindDeleted, CommandIds.ChangeJournal, "-", CommandIds.Operations, CommandIds.RecentNotifications,
             CommandIds.ViewerWindows, CommandIds.ClearHistory, CommandIds.Palette, CommandIds.Settings, "-", CommandIds.SaveWorkspace, CommandIds.LoadWorkspace, CommandIds.RestorePreviousWorkspace, "-",
             CommandIds.DiagnosticsExport, CommandIds.HexRecovery]),
         ("_Help", [CommandIds.Help, CommandIds.ChangeShortcut, CommandIds.CheckUpdates, CommandIds.About]),

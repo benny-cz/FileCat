@@ -269,7 +269,7 @@ public sealed partial class FindWindow : Window, IViewActions
         _emptyLog.Click += (_, _) => _ = ShowLogAsync();
         _timer.Tick += (_, _) => OnTick();
         _list.OpenRequested += (_, _) => OpenFocused();
-        _list.ContextMenuRequested += (_, point) => ShowListMenu(point);
+        _list.ContextMenuRequested += (_, context) => ShowListMenu(context.Point);
         _list.DragRequested += async (_, press) => await DragAsync(press);
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         Controls.AltChords.Attach(this);

@@ -1,6 +1,8 @@
 # Disk space implementation checkpoint
 
-This branch is under development. W0, W1, W2 and W3 are in progress; no release or security gate is closed. The new window is exercised directly by tests. `tools.diskSpace` is not registered in the product yet. Preview, jobs, destructive actions, content analysis and the privileged metadata helper remain off.
+The standard analyzer opens from Tools → Disk space…, command search, and the folder and drive context menus. Live file operations require their corresponding source and operation admission checks. The indexed runtime, installed Fast NTFS, and whole-tool qualification remain in progress.
+
+Run r1441 passed 93 of 93 renderer and filesystem checks on the Windows and Ubuntu VMs. The Mac passed all 93 in r1442, reusing its r1441 package after another FileCat instance exited. The new application-entry cases verified the active folder, command search, the invoked row with a different focused folder, explicit marks, drive roots, an empty setup from This PC, and reopening a hidden analysis. They also ran the standard scan after main-panel navigation, checked that the analyzer had its own filter, and exercised the preserving exit choice for unsaved results. The separate Windows Shell probe constructed both native context menu actions and confirmed their absence when neither was offered. It exercised menu construction without a physical click. All three completed runs reported empty FileCat and test process inventories.
 
 The [history runtime checkpoint](HISTORY_RUNTIME_QUALIFICATION.md) connects once-per-acquisition memory/indexed capture, all three private-store exclusions and separately reviewed finite Settings changes. Twelve new native/headless cases and applicable Settings/broad regressions pass Windows, Mac and Ubuntu. Disabling preserves history. Browsing/pinning, idle age retention, recovery/deletion UI and full fault/resource/desktop qualification remain open.
 

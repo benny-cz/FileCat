@@ -34,8 +34,13 @@ public sealed partial class MainViewModel
     {
         if (!MainMenuModel.IsPlatformApplicable(id))
             return CommandAvailability.No("UNC paths are available on Windows network shares and mapped drives.");
-        if (Services.Commands.Get(id)?.Context is CommandContext.Find or CommandContext.FindCriteria or CommandContext.FindResults)
+        if (id == CommandIds.DiskSpace && Environment.IsPrivilegedProcess)
+            return CommandAvailability.No("Start an ordinary, unelevated FileCat to analyze storage.");
+        var context = Services.Commands.Get(id)?.Context;
+        if (context is CommandContext.Find or CommandContext.FindCriteria or CommandContext.FindResults)
             return CommandAvailability.No("Open Find to use this action; its shortcut can be changed in the keyboard reference.");
+        if (context is CommandContext.DiskSpace or CommandContext.DiskSpaceReview)
+            return CommandAvailability.No("Open Disk space to use this action. Its shortcut can be changed in the keyboard reference.");
         var tab = ActiveTab;
         var loc = tab?.Location;
         var caps = loc is null ? LocationCapabilities.None : Services.Providers.For(loc).GetCapabilities(loc);

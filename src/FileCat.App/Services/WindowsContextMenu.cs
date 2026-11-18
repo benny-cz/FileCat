@@ -28,6 +28,7 @@ internal static class WindowsContextMenu
     internal const string BackgroundOption = "--background";
     /// <summary>Shift was held: the Shell's extended verbs too (Copy as path, Open PowerShell window here, …).</summary>
     internal const string ExtendedOption = "--extended";
+    internal const string AnalyzeOption = "--analyze-disk-space", AnalyzeSelectedOption = "--analyze-selected-folders";
     internal const string ProbeOption = "--probe", VerbProbeOption = "--probe-verbs";
     /// <summary>Tests: runs one New command (NewFolder or a type's ".ext") in a folder without showing the menu.</summary>
     internal const string NewProbeOption = "--probe-new";
@@ -35,7 +36,8 @@ internal static class WindowsContextMenu
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan InteractiveTimeout = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan InvokeTimeout = TimeSpan.FromSeconds(20);
-    internal enum Result { Handled, FileCatActions, ActionFailed, Failed, RecoverImage, Properties, CompressedZip, Copy, Cut, ShareInExplorer, Created }
+    internal enum Result { Handled, FileCatActions, ActionFailed, Failed, RecoverImage, Properties, CompressedZip, Copy, Cut, ShareInExplorer, Created,
+        AnalyzeDiskSpace, AnalyzeSelectedFolders }
 
     /// <summary>What came of a menu: the result, and for <see cref="Result.Created"/> the new item's name in the folder.</summary>
     internal readonly record struct Outcome(Result Result, string? Created = null);
@@ -67,11 +69,14 @@ internal static class WindowsContextMenu
     internal static bool CanShowBackground(string? folder) =>
         OperatingSystem.IsWindows() && folder is not null && Path.IsPathFullyQualified(folder) && !folder.Contains('\0');
 
-    internal static async Task<Result> ShowAsync(IReadOnlyList<string?> paths, int x, int y, bool extended = false)
+    internal static async Task<Result> ShowAsync(IReadOnlyList<string?> paths, int x, int y, bool extended = false,
+        bool analyze = false, bool analyzeSelected = false)
     {
         if (!CanShow(paths)) return Result.Failed;
-        var arguments = new List<string>(paths.Count + 3);
+        var arguments = new List<string>(paths.Count + 5);
         if (extended) arguments.Add(ExtendedOption);
+        if (analyze) arguments.Add(AnalyzeOption);
+        if (analyzeSelected) arguments.Add(AnalyzeSelectedOption);
         arguments.Add(x.ToString(CultureInfo.InvariantCulture));
         arguments.Add(y.ToString(CultureInfo.InvariantCulture));
         foreach (string? path in paths) arguments.Add(path!);
@@ -132,12 +137,12 @@ internal static class WindowsContextMenu
             }
             if (child.ExitCode == 11 && details.Length != 0)
                 AppLog.Warn("Windows context menu action failed: " + details[..Math.Min(240, details.Length)].Trim());
-            if (child.ExitCode is not (0 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 17 or 19))
+            if (child.ExitCode is not (0 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 17 or 19 or 20 or 21))
                 AppLog.Warn("Windows context menu helper exited with code " + child.ExitCode +
                     (details.Length == 0 ? string.Empty : ": " + details[..Math.Min(240, details.Length)].Trim()));
             var result = child.ExitCode switch { 0 => Result.Handled, 10 => Result.FileCatActions, 11 => Result.ActionFailed, 12 => Result.RecoverImage,
                 13 => Result.Properties, 14 => Result.CompressedZip, 15 => Result.Copy, 16 => Result.Cut,
-                17 => Result.ShareInExplorer, 19 => Result.Created, _ => Result.Failed };
+                17 => Result.ShareInExplorer, 19 => Result.Created, 20 => Result.AnalyzeDiskSpace, 21 => Result.AnalyzeSelectedFolders, _ => Result.Failed };
             if (result != Result.Created) return new(result);
             // The new item's name is the helper's last line, read until its output closed with its exit.
             try { await report.Drained.WaitAsync(TimeSpan.FromSeconds(5)); }
@@ -357,7 +362,7 @@ internal static class WindowsContextMenu
     }
 
     // Test/probe modes construct the real menu without displaying it; only --probe-new invokes, and only a New command.
-    //   --native-context-menu [--background] [--extended] X Y PATH…          the menu at X, Y (screen pixels)
+    //   --native-context-menu [--extended] [--background | analysis action options] X Y PATH…
     //   --native-context-menu --probe|--probe-verbs [--background] [--extended] PATH…
     //   --native-context-menu --probe-new VERB FOLDER                         NewFolder or a type's ".ext", no menu shown
     internal static int RunHost(string[] args)
@@ -365,6 +370,7 @@ internal static class WindowsContextMenu
         if (!CanStartHost()) return 1;
         int i = 1;
         bool probe = false, verbProbe = false, background = false, extended = false;
+        bool analyze = false, analyzeSelected = false;
         string? newVerb = null;
         if (i < args.Length && args[i] is ProbeOption or VerbProbeOption)
         {
@@ -378,10 +384,15 @@ internal static class WindowsContextMenu
             i += 2;
             if (!IsNewItemVerb(newVerb)) return 1;
         }
-        for (; i < args.Length && args[i] is BackgroundOption or ExtendedOption; i++)
+        for (; i < args.Length && args[i] is BackgroundOption or ExtendedOption or AnalyzeOption or AnalyzeSelectedOption; i++)
         {
-            if (args[i] == BackgroundOption) background = true;
-            else extended = true;
+            switch (args[i])
+            {
+                case BackgroundOption: background = true; break;
+                case ExtendedOption: extended = true; break;
+                case AnalyzeOption: analyze = true; break;
+                case AnalyzeSelectedOption: analyzeSelected = true; break;
+            }
         }
         int x = 0, y = 0;
         if (!probe && newVerb is null)
@@ -391,8 +402,9 @@ internal static class WindowsContextMenu
             i += 2;
         }
         string[] paths = args[i..];
+        if (background && (analyze || analyzeSelected)) return 1;
         if (background ? paths.Length != 1 || !CanShowBackground(paths[0]) : !CanShow(paths)) return 1;
-        try { return Display(paths, background, extended, probe, verbProbe, newVerb, x, y); }
+        try { return Display(paths, background, extended, probe, verbProbe, newVerb, x, y, analyze, analyzeSelected); }
         // Any failure is this helper's answer, not a crash with an error dialog: Shell results become many exception types
         // (a folder deleted meanwhile is FileNotFound or DirectoryNotFound; a refused interface InvalidCast).
         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -412,6 +424,7 @@ internal static class WindowsContextMenu
             verb.IndexOfAny(['\\', '/', ':', '*', '?', '"', '<', '>', '|']) < 0);
 
     private const uint ShellFirst = 1, ShellLast = 0x6fff, FileCatCommand = 0x7001, RecoverCommand = 0x7002;
+    private const uint AnalyzeCommand = 0x7003, AnalyzeSelectedCommand = 0x7004;
     private const uint TpmReturnCmd = 0x0100, TpmRightButton = 0x0002;
     private const uint CmfExtendedVerbs = 0x100, WmInitMenuPopup = 0x117;
     private static readonly Guid ShellUiObject = new("3981e225-f559-11d3-8e3a-00c04f6837d5");
@@ -421,7 +434,8 @@ internal static class WindowsContextMenu
     private static IContextMenu2? _menu2;
     private static IContextMenu3? _menu3;
 
-    private static int Display(string[] paths, bool background, bool extended, bool probe, bool verbProbe, string? newVerb, int x, int y)
+    private static int Display(string[] paths, bool background, bool extended, bool probe, bool verbProbe, string? newVerb, int x, int y,
+        bool analyze, bool analyzeSelected)
     {
         var pidls = new nint[paths.Length];
         IShellItemArray? items = null;
@@ -482,10 +496,13 @@ internal static class WindowsContextMenu
             {
                 // Submenus that fill themselves when opened (New) are filled as opening them would.
                 if (verbProbe || newVerb is not null) FillSubmenus(menu, popup);
-                if (probe) PrintMenu(menu, popup, verbProbe, 0);
             }
 
+            if (probe && !analyze && !analyzeSelected) PrintMenu(menu, popup, verbProbe, 0);
             AppendMenuW(popup, 0x800, 0, null); // Separator before FileCat's own commands.
+            if (analyze) AppendMenuW(popup, 0, AnalyzeCommand, ViewModels.MainViewModel.AnalyzeDiskSpaceTitle);
+            if (analyzeSelected) AppendMenuW(popup, 0, AnalyzeSelectedCommand, ViewModels.MainViewModel.AnalyzeSelectedFoldersTitle);
+            if (probe && (analyze || analyzeSelected)) PrintMenu(menu, popup, verbProbe, 0);
             // A disk image: its deleted files, one click away (plan §17).
             if (!background && paths.Length == 1 && DiskImages.IsImageName(paths[0])) AppendMenuW(popup, 0, RecoverCommand, "Recover deleted files from this disk image…");
             AppendMenuW(popup, 0, FileCatCommand, "FileCat actions…");
@@ -510,6 +527,8 @@ internal static class WindowsContextMenu
             if (selected == 0) return 0;
             if (selected == FileCatCommand) return 10;
             if (selected == RecoverCommand) return 12;
+            if (selected == AnalyzeCommand && analyze) return 20;
+            if (selected == AnalyzeSelectedCommand && analyzeSelected) return 21;
             if (selected < ShellFirst || selected > ShellLast) return 11;
             // A Properties sheet needs a persistent owner. The short-lived Shell-extension host is destroyed
             // immediately after InvokeCommand, which can leave the sheet invisible. Dispatch the canonical

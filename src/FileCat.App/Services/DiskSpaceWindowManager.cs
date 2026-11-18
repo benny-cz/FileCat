@@ -7,29 +7,47 @@ namespace FileCat.App.Services;
 /// <summary>Lazy per-instance ownership. Construction performs no source enumeration.</summary>
 public sealed class DiskSpaceWindowManager(AppServices services) : IDisposable
 {
-    private DiskSpaceWindow? _window;
+    internal DiskSpaceWindow? Window { get; private set; }
+    internal bool HasTemporaryWork => Window?.HasTemporaryWork == true;
+
+    internal void OpenFromTools(IReadOnlyList<string> roots)
+    {
+        if (Window is { IsVisible: false, HasSessions: true }) BringForward();
+        else Open(roots);
+    }
+
+    internal void BringForward()
+    {
+        if (Window is not { } window) return;
+        if (!window.IsVisible) window.Show();
+        window.Activate();
+    }
+
     public void Open(IReadOnlyList<string> roots)
     {
-        _window ??= Create();
-        if (!_window.CanAddSession) { _window.ExplainSessionLimit(); _window.Show(); _window.Activate(); return; }
-        _window.AddSession(new DiskSpaceViewModel(services), roots); _window.Show(); _window.Activate();
+        var window = Window ??= Create();
+        if (window.CanAddSession) window.AddSession(new DiskSpaceViewModel(services), roots);
+        else window.ExplainSessionLimit();
+        BringForward();
     }
     public void OpenObservations(AnalysisSnapshot snapshot)
     {
-        _window ??= Create();
-        if (!_window.CanAddSession) { _window.ExplainSessionLimit(); _window.Show(); _window.Activate(); return; }
-        _window.AddSession(new DiskSpaceViewModel(snapshot)); _window.Show(); _window.Activate();
+        var window = Window ??= Create();
+        if (window.CanAddSession) window.AddSession(new DiskSpaceViewModel(snapshot));
+        else window.ExplainSessionLimit();
+        BringForward();
     }
     internal void OpenIndexedPreview(IReadOnlyList<string> roots)
     {
-        _window ??= Create(indexedPreview: true);
-        if (!_window.CanAddSession) { _window.ExplainSessionLimit(); _window.Show(); _window.Activate(); return; }
-        _window.AddSession(new DiskSpaceViewModel(services, indexedStorage: true), roots); _window.Show(); _window.Activate();
+        var window = Window ??= Create(indexedPreview: true);
+        if (window.CanAddSession) window.AddSession(new DiskSpaceViewModel(services, indexedStorage: true), roots);
+        else window.ExplainSessionLimit();
+        BringForward();
     }
     private DiskSpaceWindow Create(bool indexedPreview = false)
     {
         var window = new DiskSpaceWindow(() => { if (indexedPreview) OpenIndexedPreview([]); else Open([]); }, () => services.Keymap);
-        window.Closed += (_, _) => _window = null; return window;
+        window.Closed += (_, _) => Window = null; return window;
     }
-    public void Dispose() { _window?.ForceClose(); _window = null; }
+    public void Dispose() { Window?.ForceClose(); Window = null; }
 }

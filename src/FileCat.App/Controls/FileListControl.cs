@@ -335,7 +335,7 @@ public sealed partial class FileListControl : Control
     /// <summary>Raised when the control is clicked so the owning panel becomes active.</summary>
     public event EventHandler? ActivateRequested;
 
-    public event EventHandler<Point>? ContextMenuRequested;
+    public event EventHandler<(Point Point, int StoreIndex)>? ContextMenuRequested;
     /// <summary>Keyboard inspection of the focused row's already-rendered safe values.</summary>
     public event EventHandler<string>? InspectRequested;
     /// <summary>A right click on listing whitespace, independent of focused or marked rows.</summary>
@@ -1746,7 +1746,7 @@ public sealed partial class FileListControl : Control
                 _listing.SetFocus(row);
             }
             ContextWithShift = (mods & KeyModifiers.Shift) != 0;
-            ContextMenuRequested?.Invoke(this, pos);
+            ContextMenuRequested?.Invoke(this, (pos, _listing.GetStoreIndex(row)));
             e.Handled = true;
             return;
         }
