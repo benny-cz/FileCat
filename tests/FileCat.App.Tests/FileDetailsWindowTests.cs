@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using FileCat.App.Views;
 using FileCat.Core.Inspect;
@@ -100,5 +101,48 @@ public sealed class FileDetailsWindowTests
             Assert.True(window.MinWidth <= 320);
         }
         finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Unix_link_navigation_requires_a_new_activation_after_the_source_changes()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(), "Uses a native Unix symbolic link.");
+        using var io = new DeviceIoScheduler();
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-link-ui-").FullName;
+        string path = Path.Combine(root, "link");
+        var destination = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var reader = new FileDetailsReader(new UnixFileRecords(), io, "details-link", path);
+        var window = new ReportWindow(path, reader, openTarget: (target, _) =>
+        {
+            destination.SetResult(target);
+            return Task.CompletedTask;
+        });
+        try
+        {
+            File.CreateSymbolicLink(path, "first.txt");
+            window.Show();
+            await window.Reading!;
+            Assert.Contains("first.txt", window.Text);
+            var open = Assert.Single(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Open target location");
+            Assert.True(open.IsEffectivelyVisible);
+            Assert.False(destination.Task.IsCompleted);
+
+            string replacement = Path.Combine(root, "replacement");
+            File.CreateSymbolicLink(replacement, "second.txt");
+            File.Move(replacement, path, overwrite: true);
+            open.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            string notice = "Stored target or source identity changed";
+            for (int i = 0; i < 300 && (!open.IsEnabled || !window.StatusText.Contains(notice)); i++)
+                await Task.Delay(20, ct);
+            Assert.Contains(notice, window.StatusText);
+            Assert.True(open.IsEnabled);
+            Assert.Contains("second.txt", window.Text);
+            Assert.False(destination.Task.IsCompleted);
+
+            open.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(Path.Combine(root, "second.txt"), await destination.Task.WaitAsync(TimeSpan.FromSeconds(6), ct));
+        }
+        finally { window.Close(); Directory.Delete(root, recursive: true); }
     }
 }
