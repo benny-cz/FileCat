@@ -15,7 +15,7 @@ $ErrorActionPreference='Stop'
 $base='@BASE@'
 Set-Location -LiteralPath $base
 $names=@()
-foreach($name in @('state.txt','cache-proof.json','failure.txt','space-preflight.json','environment.json','task-outcome.json','task-limit-extension.json','task-limit-precheck.json','owned-cancellation-request.json','owned-child-stop.json','owned-cleanup-precheck.json','owned-fixture-cleanup-start.json','owned-fixture-cleanup-finished.json','owned-fixture-cleanup-retry-error.json','retain-creation-observation.txt','retain-creation-error.json','retain-source-error.json','reshape.json','reshape.json.error.json','reshape-negative.json.error.json')){if(Test-Path -LiteralPath (Join-Path $base $name)){$names+=$name}}
+foreach($name in @('state.txt','cache-proof.json','failure.txt','space-preflight.json','interactive-preflight.json','environment.json','task-outcome.json','task-limit-extension.json','task-limit-precheck.json','owned-cancellation-request.json','owned-child-stop.json','owned-cleanup-precheck.json','owned-fixture-cleanup-start.json','owned-fixture-cleanup-finished.json','owned-fixture-cleanup-retry-error.json','retain-creation-observation.txt','retain-creation-error.json','retain-source-error.json','reshape.json','reshape.json.error.json','reshape-negative.json.error.json')){if(Test-Path -LiteralPath (Join-Path $base $name)){$names+=$name}}
 foreach($count in 1000,1000000){foreach($shape in 'wide','deep'){
  foreach($leaf in 'receipt.json','tests.xml','test.log','progress.json','retained-source-request.json','cancel.txt','planned-phase-boundary.json'){
   $name='case-'+$count+'-'+$shape+'/'+$leaf

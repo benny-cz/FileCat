@@ -36,15 +36,25 @@ if((Get-FileHash -LiteralPath (Join-Path $base 'run.ps1') -Algorithm SHA256).Has
  else{throw 'Windows payload size is unknown; prepare a verified full stage or cache plan'}
  $space=@'
 $ErrorActionPreference='Stop'
+if ('@INTERACTIVE@' -eq 'yes') {
+ $expected=$env:COMPUTERNAME+'\filecatdsa_r2'
+ $console=(Get-CimInstance Win32_ComputerSystem).UserName
+ [ordered]@{expected=$expected;console=$console;available=($console -eq $expected)}|ConvertTo-Json|Set-Content -LiteralPath '@GUEST@\interactive-preflight.json'
+ if ($console -ne $expected) {
+  'FAILED phase=interactive-account'|Set-Content -LiteralPath '@GUEST@\state.txt'
+  exit 76
+ }
+}
 $drive=Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
 $reserve=[long][Math]::Min(2GB,[Math]::Max(256MB,[Math]::Ceiling($drive.Size/100.0)))
 $required=$reserve+[long]@EXTRA@+256MB
 [ordered]@{available=[long]$drive.FreeSpace;required=$required;reserve=$reserve;incomingBytes=[long]@EXTRA@}|ConvertTo-Json|Set-Content -LiteralPath '@GUEST@\space-preflight.json'
 if($drive.FreeSpace-lt$required){exit 74}
 '@
- $space=$space.Replace('@EXTRA@',[string]$extra).Replace('@GUEST@',$guest)
+ $interactive=if($InteractiveWindows){'yes'}else{'no'}
+ $space=$space.Replace('@EXTRA@',[string]$extra).Replace('@GUEST@',$guest).Replace('@INTERACTIVE@',$interactive)
  $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($space))
- & $v -T ws -vp a -gu filecatdsa_r2 -gp a runProgramInGuest $vm 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoProfile -WindowStyle Hidden -EncodedCommand $encoded;Check 'Windows free-space preflight failed before transfer; inspect space-preflight.json'
+ & $v -T ws -vp a -gu filecatdsa_r2 -gp a runProgramInGuest $vm 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoProfile -WindowStyle Hidden -EncodedCommand $encoded;Check 'Windows placement preflight failed before transfer; inspect interactive-preflight.json or space-preflight.json'
  & $v -T ws -vp a -gu filecatdsa_r2 -gp a copyFileFromHostToGuest $vm $archive ($guest+'\bundle.tgz');Check 'Windows candidate copy failed'
  & $v -T ws -vp a -gu filecatdsa_r2 -gp a copyFileFromHostToGuest $vm (Join-Path $PWD ('.tmp/batch-windows-'+$Revision+'.ps1')) ($guest+'\run.ps1');Check 'Windows runner copy failed'
  }
@@ -56,7 +66,12 @@ $base='@BASE@';$taskName='FileCatDsaR2-@REV@';$script=Join-Path $base 'run.ps1'
 if((Get-FileHash -LiteralPath $script -Algorithm SHA256).Hash-ne'@HASH@'){throw 'Runner changed'}
 if(Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue){throw 'A fresh test task is required'}
 if(@(Get-Process -Name 'FileCat*',dotnet -ErrorAction SilentlyContinue).Count){'BUSY phase=verify'|Set-Content (Join-Path $base 'state.txt');exit 75}
-$principal=New-ScheduledTaskPrincipal -UserId ($env:COMPUTERNAME+'\filecatdsa_r2') -LogonType Interactive -RunLevel Limited
+$expected=$env:COMPUTERNAME+'\filecatdsa_r2'
+if ((Get-CimInstance Win32_ComputerSystem).UserName -ne $expected) {
+ 'FAILED phase=interactive-account'|Set-Content (Join-Path $base 'state.txt')
+ exit 76
+}
+$principal=New-ScheduledTaskPrincipal -UserId $expected -LogonType Interactive -RunLevel Limited
 $action=New-ScheduledTaskAction -Execute 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File '+$script)
 $settings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes @TASKLIMIT@)
 Register-ScheduledTask -TaskName $taskName -Principal $principal -Action $action -Settings $settings|Out-Null
@@ -64,6 +79,12 @@ $began=Get-Date;Start-ScheduledTask -TaskName $taskName
 do{
  Start-Sleep -Milliseconds 500
  $state=Get-ScheduledTask -TaskName $taskName;$info=Get-ScheduledTaskInfo -TaskName $taskName
+ if ($state.State -eq 'Ready' -and $info.LastTaskResult -eq 0x41303 -and
+     (Get-Date) -ge $began.AddSeconds(30) -and (Get-CimInstance Win32_ComputerSystem).UserName -ne $expected) {
+  'FAILED phase=interactive-account'|Set-Content (Join-Path $base 'state.txt')
+  Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+  exit 76
+ }
  if($info.LastRunTime-ge$began.AddSeconds(-2)-and$state.State-ne'Running'){
   $result=$info.LastTaskResult
   [ordered]@{name=$taskName;lastRunTime=$info.LastRunTime.ToString('o');terminalExit=$result;principal=$principal.UserId;logonType=[string]$principal.LogonType;runLevel=[string]$principal.RunLevel;timeLimitMinutes=@TASKLIMIT@}|ConvertTo-Json|Set-Content (Join-Path $base 'task-outcome.json')
