@@ -16,6 +16,9 @@ public sealed class WindowsStorageScaleTests
     {
         Assert.SkipUnless(WindowsStorageReviewEvidence.IsSupportedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_SCALE") == "1",
             "Requires the disposable normal-user Windows NTFS storage scale fixture.");
+        string? worker = Environment.GetEnvironmentVariable("FILECAT_STORAGE_CLOUD_WORKER_EXECUTABLE");
+        Assert.SkipUnless(Path.IsPathFullyQualified(worker ?? "") && File.Exists(worker), "Requires the built Windows FileCat cloud query worker.");
+        using var cloud = WindowsStorageCloudQuery.UseWorker(worker!, Environment.GetEnvironmentVariable("FILECAT_STORAGE_CLOUD_WORKER_ASSEMBLY"));
         var ct = TestContext.Current.CancellationToken;
         var output = TestContext.Current.TestOutputHelper!;
         string root = Directory.CreateTempSubdirectory("filecat-storage-scale-").FullName;
@@ -109,6 +112,7 @@ public sealed class WindowsStorageScaleTests
             var retried = manager.ReadStorageHistory(StorageJournalPolicy.FileName(retry.CreatedUtc, retry.Id), ct: ct);
             Assert.Equal(1, retried.LastCall?.Call);
             output.WriteLine($"Fresh pass {second.Elapsed.TotalSeconds:F2}s. Journal {retried.Prefix.ByteLength:N0} bytes, one call. Process handles {startHandles:N0} to {peakHandles:N0}; sampled working set {startWorkingSet:N0} to {peakWorkingSet:N0} bytes.");
+            Assert.True(peakHandles <= startHandles + 256, $"The application process grew from {startHandles:N0} handles to {peakHandles:N0}.");
 
             Job Submit()
             {

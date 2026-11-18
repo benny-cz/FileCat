@@ -152,8 +152,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
 
     internal static StorageProblem? SyncRootProblem(SafeFileHandle file, CancellationToken ct)
     {
-        ct.ThrowIfCancellationRequested(); long rootId = 0;
-        int result = CfGetSyncRootInfoByHandle(file, 0 /* CF_SYNC_ROOT_INFO_BASIC */, &rootId, sizeof(long), out uint returned);
+        int result = WindowsStorageCloudQuery.Query(file, ct);
         ct.ThrowIfCancellationRequested();
         if (result == 0) return Problem(StorageReasonKind.FileCatBoundary, "cloud-sync-root", "This item is inside a registered cloud sync root, including hydrated or pinned content.");
         if (result == unchecked((int)0x80070186) /* ERROR_CLOUD_FILE_NOT_UNDER_SYNC_ROOT (390) */) return null;
@@ -168,7 +167,4 @@ internal sealed unsafe partial class WindowsStorageTransforms
     [LibraryImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", SetLastError = true)]
     private static partial uint FinalPath(SafeFileHandle file, char* text, uint chars, uint flags);
     [LibraryImport("ntdll.dll")] private static partial int NtQueryVolumeInformationFile(SafeFileHandle file, IoStatus* io, void* output, uint length, int infoClass);
-    [LibraryImport("cldapi.dll")]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    private static partial int CfGetSyncRootInfoByHandle(SafeFileHandle file, int infoClass, void* buffer, uint length, out uint returned);
 }
