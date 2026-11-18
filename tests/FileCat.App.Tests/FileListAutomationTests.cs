@@ -461,6 +461,10 @@ public sealed class FileListAutomationTests
         f.Tab.Listing.MarkAll(true);
         f.Tab.Listing.Filter = Mask.Parse("item-00*");
         await FileListFixture.Wait(() => f.Tab.Listing.VisibleCount == 10);
+        // Detaching the listing saves its top row for navigation history before the review opens.
+        f.Window.Content = null;
+        Dispatcher.UIThread.RunJobs();
+        int references = f.Provider.ItemReferencesRequested;
         using var review = new MarkedItemsReview(f.Tab);
         f.Window.Content = review;
         Dispatcher.UIThread.RunJobs();
@@ -488,7 +492,7 @@ public sealed class FileListAutomationTests
         f.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
         Assert.Equal("item-064", review.CurrentItems[0].Name);
         Assert.Equal(130, f.Tab.Listing.MarkedCount);
-        Assert.Equal(0, f.Provider.ItemReferencesRequested);
+        Assert.Equal(references, f.Provider.ItemReferencesRequested);
 
         var store = f.Tab.Listing.Store;
         f.Tab.Refresh();
