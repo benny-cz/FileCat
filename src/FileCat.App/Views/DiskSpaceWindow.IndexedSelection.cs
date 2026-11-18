@@ -120,6 +120,7 @@ public sealed partial class DiskSpaceWindow
             if (_disposed) return;
             RefreshBranchAvailability();
             UpdatePreviewButton(_previewFile, PreviewRefusal(FocusedPreviewPath, _runtimeAcquisition));
+            UpdateRevealButton(_revealFolder, PanelRevealRefusal(_services, _runtimeAcquisition, FocusedRevealFolder));
             RefreshClipboardButton();
             _bindIndexedSource.IsVisible = IndexedRecordedChoice() is not null;
             ScheduleMarkVisibility();

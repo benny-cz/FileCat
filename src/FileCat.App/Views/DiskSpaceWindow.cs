@@ -452,7 +452,8 @@ public sealed partial class DiskSpaceWindow : Window
             _inspectorPanel.Children.Add(new TextBlock { Text = "Selection inspector", FontSize = 18 }); _inspectorPanel.Children.Add(_inspector);
             _previewFile.Click += (_, _) => _ = PreviewFocusedAsync();
             _inspectorPanel.Children.Add(_previewFile);
-            _inspectorPanel.Children.Add(Unavailable("Reveal in panel", "Direct panel navigation is unavailable for this analysis."));
+            _revealFolder.Click += (_, _) => _ = RevealFocusedFolderAsync(FocusedRevealFolder, Model.Tree?.Snapshot.Identity);
+            _inspectorPanel.Children.Add(_revealFolder);
             _bindCurrentSource.Click += (_, _) => { if (RecordedChoice() is { } choice) _ = BindRecordedSourceAsync(choice); };
             _inspectorPanel.Children.Add(_bindCurrentSource);
             _inspectorPanel.Children.Add(ActionButton("Copy path", () => _ = CopyCapturedTextAsync(Model.FocusedClipboardPath()), "Copy the selected path as literal text."));
@@ -827,6 +828,12 @@ public sealed partial class DiskSpaceWindow : Window
             bool previewRequested = false;
             preview.Click += (_, _) => { previewRequested = true; closer.Close(null); };
             body.Children.Add(preview);
+            var directory = FocusedRevealFolder;
+            var reveal = RevealButton();
+            UpdateRevealButton(reveal, PanelRevealRefusal(Model.HistoryServices, Model.BranchRuntime, directory));
+            bool revealRequested = false;
+            reveal.Click += (_, _) => { revealRequested = true; closer.Close(null); };
+            body.Children.Add(reveal);
             RecordedSourceChoice? bindRequested = null;
             if (RecordedChoice() is { } recorded)
                 body.Children.Add(ActionButton("Bind current source…", () => { bindRequested = recorded; closer.Close(null); },
@@ -835,6 +842,7 @@ public sealed partial class DiskSpaceWindow : Window
             try { await _window._dialogs.ShowCustomAsync("Selection inspector", body, [new DialogButton("Close details", true, IsDefault: true, IsCancel: true)], closer: closer); }
             finally { Model.Interaction(false); }
             if (previewRequested) await PreviewAsync(path, reviewIdentity);
+            else if (revealRequested) await RevealFocusedFolderAsync(directory, reviewIdentity);
             else if (bindRequested is not null) await BindRecordedSourceAsync(bindRequested);
         }
         public void HandleKeys(KeyEventArgs e)

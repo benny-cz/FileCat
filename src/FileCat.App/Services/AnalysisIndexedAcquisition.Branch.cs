@@ -26,6 +26,37 @@ internal sealed partial class AnalysisIndexedAcquisition
         IProgress<AnalysisProgress>? progress = null, CancellationToken cancellation = default,
         Action<string>? preparationDeviceChanged = null)
     {
+        var runtime = await CaptureRuntimeBranchAsync(expected, directory, cancellation).ConfigureAwait(false);
+        var next = await PrepareRescanAsync(this, cancellation, preparationDeviceChanged).ConfigureAwait(false);
+        // A branch has a different root set and separate totals. It can coexist
+        // with the original analysis and leaves its full-scan successor available.
+        next._rescanPredecessor = null;
+        IAnalysisBackend? branch = null;
+        try
+        {
+            branch = await OpenRuntimeBranchAsync(runtime, cancellation, preparationDeviceChanged).ConfigureAwait(false);
+            cancellation.ThrowIfCancellationRequested();
+            lock (_gate) ObjectDisposedException.ThrowIf(_close is not null, this);
+            next.Start([branch], progress, runtime.Components, runtime.Session.ExclusionsForBranch(runtime.RootIndex, runtime.Selection.Children));
+            branch = null;
+            return next;
+        }
+        catch (Exception failure)
+        {
+            var closing = new List<Task> { next.DisposeAsync().AsTask() };
+            if (branch is not null) closing.Add(AnalysisIo.ReleaseAsync(_services.Io, branch));
+            try { await Task.WhenAll(closing).ConfigureAwait(false); }
+            catch (Exception close) when (AnalysisCloseUnconfirmedException.IsPresent(close))
+            { throw new AnalysisCloseUnconfirmedException(new AggregateException(failure, close)); }
+            throw;
+        }
+    }
+
+    private sealed record RuntimeBranch(AnalysisSession Session, AnalysisComponentPreset Components, BranchSelection Selection,
+        int RootIndex, string Location);
+
+    private async Task<RuntimeBranch> CaptureRuntimeBranchAsync(SessionIdentity expected, ulong directory, CancellationToken cancellation)
+    {
         AnalysisSession session;
         string[] locations;
         AnalysisComponentPreset components;
@@ -41,16 +72,18 @@ internal sealed partial class AnalysisIndexedAcquisition
         if (!int.TryParse(selection.Root.Id, NumberStyles.None, CultureInfo.InvariantCulture, out int ordinal) ||
             ordinal < 1 || ordinal > locations.Length || ordinal.ToString(CultureInfo.InvariantCulture) != selection.Root.Id)
             throw new InvalidOperationException("The recorded folder has no verified runtime root.");
+        return new(session, components, selection, ordinal - 1, locations[ordinal - 1]);
+    }
 
-        var next = await PrepareRescanAsync(this, cancellation, preparationDeviceChanged).ConfigureAwait(false);
-        // A branch has a different root set and separate totals. It can coexist
-        // with the original analysis and leaves its full-scan successor available.
-        next._rescanPredecessor = null;
+    private async Task<IAnalysisBackend> OpenRuntimeBranchAsync(RuntimeBranch runtime, CancellationToken cancellation,
+        Action<string>? preparationDeviceChanged = null)
+    {
+        var selection = runtime.Selection;
+        var location = runtime.Location;
         IAnalysisBackend? parent = null;
         IAnalysisBackend? branch = null;
         try
         {
-            var location = locations[ordinal - 1];
             var device = PathUtil.GetDeviceKey(location);
             preparationDeviceChanged?.Invoke(device);
             parent = await AnalysisIo.Run(_services.Io, device, _ => PrepareRoot(location), cancellation).ConfigureAwait(false);
@@ -82,13 +115,13 @@ internal sealed partial class AnalysisIndexedAcquisition
 
             cancellation.ThrowIfCancellationRequested();
             lock (_gate) ObjectDisposedException.ThrowIf(_close is not null, this);
-            next.Start([branch], progress, components, session.ExclusionsForBranch(ordinal - 1, selection.Children));
+            var openedBranch = branch;
             branch = null;
-            return next;
+            return openedBranch;
         }
         catch (Exception failure)
         {
-            var closing = new List<Task> { next.DisposeAsync().AsTask() };
+            var closing = new List<Task>();
             if (parent is not null) closing.Add(AnalysisIo.ReleaseAsync(_services.Io, parent));
             if (branch is not null) closing.Add(AnalysisIo.ReleaseAsync(_services.Io, branch));
             try { await Task.WhenAll(closing).ConfigureAwait(false); }

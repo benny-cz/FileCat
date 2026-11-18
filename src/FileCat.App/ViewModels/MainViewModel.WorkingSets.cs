@@ -29,6 +29,11 @@ public sealed partial class MainViewModel
     /// <summary>Add to working set: the marked or focused items become references in a chosen or new set.</summary>
     private async Task AddToWorkingSetAsync()
     {
+        if (ActiveTab?.Location is { Scheme: Schemes.AnalysisFolder })
+        {
+            Notify("A read-only analysis folder only contains recorded metadata. Open a current folder to add items to a working set.");
+            return;
+        }
         if (ResultSetProvider.IsWorkingSetList(ActiveTab?.Location))
         {
             Notify("These are working sets, not items: open a folder and mark what to add.");
@@ -72,7 +77,7 @@ public sealed partial class MainViewModel
 
     private void AddMembers(ResultSet set, IReadOnlyList<ItemRef> items)
     {
-        var candidates = items.Where(i => i.Parent.Scheme != Schemes.ResultSet && i.Kind != EntryKind.Parent).ToList();
+        var candidates = items.Where(i => i.Parent.Scheme is not (Schemes.ResultSet or Schemes.AnalysisFolder) && i.Kind != EntryKind.Parent).ToList();
         if (candidates.Count == 0)
         {
             Notify("A working set holds files, folders, and Registry items, not other sets.", true);

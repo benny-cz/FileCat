@@ -47,6 +47,7 @@ public sealed partial class MainViewModel : ObservableObject
         Services = services;
         services.Archives.PreparePasswordNavigation = PrepareArchiveReadNavigationAsync;
         Workspace = new WorkspaceViewModel(services);
+        services.ShowAnalysisPanelFolder = ShowReadOnlyAnalysisFolder;
         AttachRemoteInteraction();
         _drives = services.Drives.Listen(change => services.Ui.Post(() => OnDrivesChanged(change)));
         services.Saved += OnStateSaved;

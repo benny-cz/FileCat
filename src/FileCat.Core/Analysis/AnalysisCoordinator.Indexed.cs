@@ -142,6 +142,7 @@ public sealed partial class AnalysisSession
         return OnStorageDeviceAsync(async () => { await _writer.PublishEnumerationAsync(progress, _cancel.Token).ConfigureAwait(false); return true; });
     }
     private bool IsProtected(AnalysisEntry entry) => entry.Identity is { } identity && _protectedIdentities.Contains(identity);
+    internal bool IsPrivateAnalysisEntry(AnalysisEntry entry) => IsProtected(entry);
     private async Task<T> OnStorageDeviceAsync<T>(Func<Task<T>> work)
     {
         AnalysisIoDevices? previous;

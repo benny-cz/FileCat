@@ -97,9 +97,20 @@
     },
     {
       "id": "reveal-in-panel",
-      "enabled": false,
-      "lastQualifiedBuild": null,
-      "reason": "Direct panel navigation requires a qualified binding retained through the panel's directory listing."
+      "enabled": true,
+      "platform": "Windows, macOS and Linux",
+      "filesystem": "Verified live local folder with a recorded identity and creation-time evidence",
+      "packageTier": "Ordinary application",
+      "method": "Read through the held folder, then publish metadata to a temporary read-only workspace tab",
+      "assurance": "Revalidated live folder and recorded ancestors",
+      "qualificationTests": [
+        "AnalysisRenderingTests.NativeAnalysisPanelRevealDisplaysBoundMetadataWithoutOpeningThePathAgain",
+        "AnalysisRenderingTests.NativeAnalysisPanelRevealRefusesAnOversizedCurrentFolderWithoutPublishingPartOfIt",
+        "AnalysisRenderingTests.NativeBranchRefreshRefusesAReplacedAncestorEvenWhenTheSelectedDirectoryMovedBack"
+      ],
+      "evidence": "README.md",
+      "lastQualifiedBuild": "r1519 and r1520 development",
+      "reason": "Select a verified live folder. The read-only tab is limited to 4,096 entries and 2 MiB of displayed names."
     },
     {
       "id": "working-set-or-result-set-handoff",

@@ -4,9 +4,12 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using FileCat.App.Services;
+using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Analysis;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Listing;
+using FileCat.Core.Resources;
 using FileCat.Platform.Windows.Analysis;
 
 namespace DiskSpaceHarness;
@@ -161,11 +164,13 @@ internal sealed partial class HarnessApp
                 top.Y + comparedPath.Bounds.Height <= window.ClientSize.Height);
             Click("Close");
             await ReadyAsync(() => VisibleButton("Close") is null);
+            await CheckPanelRevealAsync(window, model, packageScope);
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
                 sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
-                currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true };
+                currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
+                readOnlyPanelReveal = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }
@@ -174,6 +179,37 @@ internal sealed partial class HarnessApp
             _indexedProbeError = error.GetType().Name + ": " + error.Message;
             try { RenderNativeFrame("folder-exclusions-failure.png"); } catch (Exception) { }
             WriteReport("folder-exclusion-probe-failed");
+        }
+    }
+
+    private async Task CheckPanelRevealAsync(DiskSpaceWindow window, DiskSpaceViewModel model, string folder)
+    {
+        var vm = new MainViewModel(_services!);
+        var main = new MainWindow(vm, null);
+        vm.Initialize(null);
+        main.Show();
+        try
+        {
+            window.Activate();
+            await ReadyAsync(() => _tabs is { IsVisible: true });
+            _tabs!.SelectedIndex = 0;
+            model.Focus(folder);
+            Button? Find(string label) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+                button.IsEffectivelyVisible && button.Content as string == label);
+            await ReadyAsync(() => Find("Inspect selection") is { IsEnabled: true });
+            Find("Inspect selection")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await ReadyAsync(() => Find("Reveal in panel") is { IsEnabled: true });
+            Find("Reveal in panel")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await ReadyAsync(() => vm.ActiveTab is { Location.Scheme: Schemes.AnalysisFolder, Listing.State: ListingState.Complete });
+            var shown = vm.ActiveTab!;
+            if (shown.Listing.Provider?.GetCapabilities(shown.Location!) != LocationCapabilities.Enumerate ||
+                shown.Listing.Store.Count != 1 || shown.Listing.Store[0].Name != "Contents" || shown.Listing.GetItemRef(0).FileSystemPath is not null)
+                throw new InvalidOperationException("Reveal did not show the verified package folder in a read-only workspace tab.");
+        }
+        finally
+        {
+            main.Close();
+            foreach (var tab in vm.Workspace.Panels.SelectMany(panel => panel.Tabs).ToArray()) tab.Dispose();
         }
     }
 

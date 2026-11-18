@@ -42,6 +42,7 @@ public sealed partial class DiskSpaceWindow
             Model.ScheduleMarkVisibility();
             RefreshDeferredSelection();
             UpdatePreviewButton(_previewFile, PreviewRefusal(FocusedPreviewPath, Model.BranchRuntime));
+            UpdateRevealButton(_revealFolder, PanelRevealRefusal(Model.HistoryServices, Model.BranchRuntime, FocusedRevealFolder));
             _reviewMarks.IsEnabled = Model.Tree is not null && Model.Selection.Marks.Count != 0 && !_reviewingMarks;
             _reviewMemoryBasket.IsEnabled = Model.Tree is not null && Model.Selection.Basket.Count != 0 && !_reviewingMarks;
             _reviewMemoryBasketActions.IsEnabled = Model.Tree is not null && Model.Selection.Basket.Count != 0;

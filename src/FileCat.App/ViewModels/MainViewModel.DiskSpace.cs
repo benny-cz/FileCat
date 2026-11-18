@@ -1,3 +1,4 @@
+using FileCat.App.Services;
 using FileCat.Core.Analysis;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
@@ -22,6 +23,17 @@ public sealed partial class MainViewModel
         string? panelFilter = ActiveTab?.Listing is { IsDisposed: false, Filter: { } mask } ? AnalysisPanelFilter.Capture(mask) ?? "" : null;
         if (fromTools) Services.DiskSpace.OpenFromTools(roots, panelFilter);
         else Services.DiskSpace.Open(roots, panelFilter);
+    }
+
+    private bool ShowReadOnlyAnalysisFolder(AnalysisPanelFolder folder)
+    {
+        if (_view?.TopLevel is not Avalonia.Controls.Window { IsVisible: true } main || Workspace.ActivePanel is not { } panel)
+            return false;
+        using var pending = Services.AnalysisPanelFolders.Publish(folder);
+        panel.OpenTab(pending.Location);
+        main.Activate();
+        _view.FocusActivePanel();
+        return true;
     }
 
     internal static string? DiskSpaceRoot(TabViewModel tab, int index)

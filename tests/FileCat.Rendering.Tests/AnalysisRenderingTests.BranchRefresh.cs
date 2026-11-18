@@ -71,6 +71,7 @@ public sealed partial class AnalysisRenderingTests
 
         await Assert.ThrowsAsync<AnalysisSourceChangedException>(() =>
             original.BeginBranchRefreshAsync(revision, selected, cancellation: token));
+        await Assert.ThrowsAsync<AnalysisSourceChangedException>(() => original.ReadPanelFolderAsync(revision, selected, token));
         Assert.True(original.HasRuntimeRescanContext);
         Assert.Equal("original", File.ReadAllText(Path.Combine(branch, "keep.txt")));
     }

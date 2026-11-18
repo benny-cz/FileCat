@@ -378,6 +378,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void OnLoadCompleted()
     {
+        if (Location is { Scheme: Schemes.AnalysisFolder } analysisFolder && Banner is null)
+            Banner = LocationBanner(analysisFolder);
         if (_registryDirty && Location?.Scheme == Schemes.Registry)
         {
             _registryDirty = false;
@@ -597,8 +599,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
         if (record && Location is not null && Location != location)
         {
-            _back.Add(Location);
-            if (_back.Count > MaxHistory) _back.RemoveAt(0);
+            if (Location.Scheme != Schemes.AnalysisFolder)
+            {
+                _back.Add(Location);
+                if (_back.Count > MaxHistory) _back.RemoveAt(0);
+            }
             _forward.Clear();
             NotifyHistoryChanged();
         }
@@ -724,7 +729,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (!OwnsNavigation(intent)) return;
         var target = _back[^1];
         _back.RemoveAt(_back.Count - 1);
-        _forward.Add(Location);
+        if (Location.Scheme != Schemes.AnalysisFolder) _forward.Add(Location);
         NotifyHistoryChanged();
         NavigateHistory(target, intent);
     }
@@ -736,7 +741,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (!OwnsNavigation(intent)) return;
         var target = _forward[^1];
         _forward.RemoveAt(_forward.Count - 1);
-        _back.Add(Location);
+        if (Location.Scheme != Schemes.AnalysisFolder) _back.Add(Location);
         NotifyHistoryChanged();
         NavigateHistory(target, intent);
     }
@@ -749,7 +754,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Banner = LocationBanner(target);
         FilterValidationError = null;
         _navigatedFocus = (target, null);
+        bool leavingAnalysisFolder = Location?.Scheme == Schemes.AnalysisFolder;
         Listing.Load(target);
+        if (leavingAnalysisFolder)
+        {
+            _preparedLocation?.Dispose();
+            _preparedLocation = null;
+        }
         if (IsActiveTab) StartWatching();
         UpdateTitle();
         AnnounceColumns();
@@ -765,6 +776,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (Core.Search.ResultSetProvider.IsWorkingSet(location))
             return $"Working set: references to items in other places · F5 from another panel adds · {Key(CommandIds.RemoveFromSet, "Remove from set")} removes " +
                    $"from the set (never deletes) · {Key(CommandIds.Delete, "F8")} deletes the originals";
+        if (location.Scheme == Schemes.AnalysisFolder)
+            return "Read-only folder metadata captured by Disk space. Reopen from the analysis to check the current contents.";
         return null;
     }
 
@@ -1155,18 +1168,20 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         {
             // Working sets outlive the session; search results and other result sets do not. A drive's deleted items are
             // not reopened at startup either: that would ask for administrator approval before anyone asked to scan.
-            Location = Location is { Scheme: Schemes.ResultSet } && !Core.Search.ResultSetProvider.IsPersistent(Location) ||
+            Location = Location is { Scheme: Schemes.AnalysisFolder } ||
+                       Location is { Scheme: Schemes.ResultSet } && !Core.Search.ResultSetProvider.IsPersistent(Location) ||
                        Location is { Scheme: Schemes.Recovery } && FileCat.Recovery.RecoveryProvider.IsDevice(Location) ? null : Location,
             Locked = IsLocked,
             ReturnToRoot = ReturnToRoot,
-            LockedRoot = LockedRoot,
+            LockedRoot = LockedRoot is { Scheme: Schemes.AnalysisFolder } ? null : LockedRoot,
             SortField = Listing.Sort.Field,
             SortDescending = Listing.Sort.Descending,
             Filter = Listing.Filter?.Text,
             ColumnProfile = ColumnProfile,
             PictureView = PictureView,
-            FocusName = focus,
-            BackHistory = _back.TakeLast(10).Where(l => (l.Scheme != Schemes.ResultSet || Core.Search.ResultSetProvider.IsPersistent(l)) &&
+            FocusName = Location is { Scheme: Schemes.AnalysisFolder } ? null : focus,
+            BackHistory = _back.TakeLast(10).Where(l => l.Scheme != Schemes.AnalysisFolder &&
+                                                         (l.Scheme != Schemes.ResultSet || Core.Search.ResultSetProvider.IsPersistent(l)) &&
                                                          !(l.Scheme == Schemes.Recovery && FileCat.Recovery.RecoveryProvider.IsDevice(l))).ToList(),
         };
     }
@@ -1183,7 +1198,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Listing.Sort = Listing.Sort with { Field = s.SortField, Descending = s.SortDescending };
         if (!string.IsNullOrEmpty(s.Filter)) SetFilter(s.Filter);
         _back.Clear();
-        _back.AddRange(s.BackHistory);
+        _back.AddRange(s.BackHistory.Where(location => location.Scheme != Schemes.AnalysisFolder));
         NotifyHistoryChanged();
     }
 

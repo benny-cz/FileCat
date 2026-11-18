@@ -87,6 +87,7 @@ public sealed class AppServices : IDisposable
         }
         ResultSets = new Core.Search.ResultSetProvider(Providers, Platform.FileOperations);
         Providers.Register(ResultSets);
+        Providers.Register(AnalysisPanelFolders);
         WorkingSets = new Core.Search.WorkingSets(paths.WorkingSetsFile, ResultSets);
         WorkingSets.SaveFailed += ex => ReportSaveFailure("working sets", ex);
         // Provider caches identify the actual local source, including a final symlink target.
@@ -257,6 +258,8 @@ public sealed class AppServices : IDisposable
     /// <summary>Persistent external edits of archive members (plan §14.2).</summary>
     public Core.Edit.EditSessionStore EditSessions { get; }
     public Core.Search.ResultSetProvider ResultSets { get; }
+    internal AnalysisPanelFolderProvider AnalysisPanelFolders { get; } = new();
+    internal Func<AnalysisPanelFolder, bool>? ShowAnalysisPanelFolder { get; set; }
     /// <summary>Shell thumbnails and per-file icons from the restricted helper; null where this build has none.</summary>
     public FileCat.Platform.Windows.Shell.ShellPreviews? ShellPictures { get; }
 

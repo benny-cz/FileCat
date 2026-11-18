@@ -67,7 +67,7 @@
   "currentSourceBinding": {
     "tests": { "run": "r1498", "windowsVm": 134, "mac": 134, "ubuntuVm": 134 },
     "desktop": { "run": "r1499", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
-    "coverage": "The user chooses a current local item, reviews a fresh Standard scan with Cancel as default and leaves the historical analysis offline. Desktop checks covered the command on a reopened inventory. Direct normal-panel reveal remains pending.",
+    "coverage": "The user chooses a current local item, reviews a fresh Standard scan with Cancel as default and leaves the historical analysis offline. Desktop checks covered the command on a reopened inventory.",
     "heldSourceReview": {
       "mainMerge": "c49afb27",
       "tests": {
@@ -96,6 +96,11 @@
       "desktop": { "run": "r1516", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
       "coverage": "Copy the selected side's displayed text with filename escaping. An unavailable display, cleared selection or another member page disables the old target. Saved indexed views restore the exact captured alias."
     }
+  },
+  "readOnlyPanelReveal": {
+    "tests": { "run": "r1519", "windowsVm": 12, "mac": 12, "ubuntuVm": 12 },
+    "desktop": { "run": "r1520", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
+    "coverage": "Reads a verified current folder and publishes immutable metadata in a temporary read-only workspace tab. Replaced ancestors, oversized listings and expired tabs are refused. Working-set references and file reveal remain open."
   },
   "completedBehaviors": [
     "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",
