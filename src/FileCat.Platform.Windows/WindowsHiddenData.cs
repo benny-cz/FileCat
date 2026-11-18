@@ -20,6 +20,7 @@ public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValue
 
     public bool IsSupported => true;
     public bool SupportsEaValueQuery => true;
+    bool IHiddenValueOutput.SupportsValueReports => true;
 
     public IReadOnlyList<HiddenItem> List(string path)
     {

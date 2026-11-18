@@ -35,7 +35,7 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
     public override string Scheme => Schemes.HiddenData;
 
     public IHiddenData Data => hidden;
-    internal bool SupportsValueReports => OperatingSystem.IsWindows() && hidden is IHiddenValueOutput;
+    internal bool SupportsValueReports => hidden is IHiddenValueOutput { SupportsValueReports: true };
 
     /// <summary>The hidden data of the file or folder at <paramref name="path"/>.</summary>
     public static Location Of(string path) => new(Schemes.HiddenData, string.Empty, Location.FileSystem(path));
@@ -116,8 +116,7 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
 
     void IUnprotectedContentOutput.RequireClearOutputSource(Location location, ContentOutputKind kind)
     {
-        if (!OperatingSystem.IsWindows()) return;
-        OutputAdapter().RequireClearSource(FileOf(location));
+        if (SupportsValueReports || OperatingSystem.IsWindows()) OutputAdapter().RequireClearSource(FileOf(location));
     }
 
     IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind)
@@ -130,10 +129,10 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
     {
         provenance = new OutputEfsObservation();
         if (!OperatingSystem.IsWindows()) return OpenContent(item);
-        return OpenWindowsOutput(FileOf(item.Parent), RequestedValue(item), provenance, reviewed: null);
+        return OpenBoundOutput(FileOf(item.Parent), RequestedValue(item), provenance, reviewed: null);
     }
 
-    private HiddenContentSource OpenWindowsOutput(string file, HiddenItem value, OutputEfsObservation provenance, FileIdentity? reviewed) =>
+    private HiddenContentSource OpenBoundOutput(string file, HiddenItem value, OutputEfsObservation provenance, FileIdentity? reviewed) =>
         new(OutputAdapter().OpenClearValue(file, value, provenance, reviewed), file, value, provenance);
 
     internal SupplementaryValueReport ReadValueReport(ItemRef item, FileIdentity reviewed, CancellationToken ct)
@@ -143,7 +142,7 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
         string file = FileOf(item.Parent);
         var value = RequestedValue(item);
         var protection = new OutputEfsObservation();
-        using var source = OpenWindowsOutput(file, value, protection, reviewed);
+        using var source = OpenBoundOutput(file, value, protection, reviewed);
         const int limit = 4096;
         byte[] excerpt = new byte[limit];
         try
@@ -199,6 +198,7 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
 
 internal interface IHiddenValueOutput
 {
+    bool SupportsValueReports { get; }
     void RequireClearSource(string path);
     Stream OpenClearValue(string path, HiddenItem item, OutputEfsObservation observation, FileIdentity? reviewed);
 

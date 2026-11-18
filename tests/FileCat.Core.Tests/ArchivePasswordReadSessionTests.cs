@@ -77,6 +77,27 @@ public sealed class ArchivePasswordReadSessionTests
         finally { provider.Release(path); }
     }
 
+    [Fact]
+    public void Stored_seven_zip_member_checks_the_inherited_folder_crc_before_accepting_a_password()
+    {
+        using var temp = new TempDir();
+        string path = Path.Combine(temp.Path, "stored.7z");
+        ArchivePasswordReadFixture.Create(path, rar: false, hidden: false, sevenZipCodec: ArchiveSevenZipCodec.Copy);
+        var provider = Provider(temp.Path);
+        var root = ArchiveProvider.ForFile(path);
+        try
+        {
+            using var wrong = new ArchiveJobPassword("PUBLIC-WRONG");
+            // The Copy coder can return a complete member with either password. The inherited CRC must reject bad bytes.
+            Assert.Contains("CRC-32", Assert.Throws<InvalidDataException>(() => provider.OpenReadView(root, wrong, Ct)).Message);
+            Assert.Equal(0, provider.RetainedIndexes);
+            using var correct = new ArchiveJobPassword(ArchivePasswordReadFixture.Password);
+            using var view = provider.OpenReadView(root, correct, Ct);
+            Assert.Equal(1, provider.RetainedIndexes);
+        }
+        finally { provider.Release(path); }
+    }
+
     [Theory, MemberData(nameof(Profiles))]
     public async Task Changed_archive_never_inherits_password_even_when_path_length_and_mtime_match(bool rar, bool hidden)
     {

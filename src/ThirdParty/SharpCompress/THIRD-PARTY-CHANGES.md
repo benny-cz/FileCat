@@ -113,6 +113,9 @@ FileCat reads RAR archives with its own reader (`src/FileCat.Archives/Rar`), ZIP
 with .NET's `System.IO.Compression`, and TAR with its own reader; it checks each 7z member's CRC-32 as it
 reads the member (`SevenZipMemberStream` in `src/FileCat.Archives/ArchiveFormats.cs`).
 
+- `Common/SevenZip/ArchiveReader.cs`: a sole substream inherits its folder's CRC when the substream CRC block is
+  omitted. This lets member reads and password checks verify the uncompressed bytes of archives FileCat writes.
+
 - `Compressors/LZMA/Bcj2DecoderStream.cs`: dispose the iterator and all four packed input streams, including the
   range stream. Nested cleanup also closes the remaining inputs when an earlier disposal throws; encrypted range
   streams must release their decryptor/buffer ownership with the folder.

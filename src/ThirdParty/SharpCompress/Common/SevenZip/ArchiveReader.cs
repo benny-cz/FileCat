@@ -552,9 +552,15 @@ internal partial class ArchiveReader
                     if (digests is null)
                     {
                         digests = new List<uint?>(numDigestsTotal);
-                        for (var i = 0; i < numDigestsTotal; i++)
+                        for (var i = 0; i < folders.Count; i++)
                         {
-                            digests.Add(null);
+                            // A sole substream inherits its folder's CRC even without an explicit CRC block.
+                            var numSubstreams = numUnpackStreamsInFolders[i];
+                            var crc = numSubstreams == 1 ? folders[i]._unpackCrc : null;
+                            for (var j = 0; j < numSubstreams; j++)
+                            {
+                                digests.Add(crc);
+                            }
                         }
                     }
                     return;
