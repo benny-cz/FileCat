@@ -738,13 +738,18 @@ public sealed partial class EditSessionStore
     public EditSessionRecord Create(ResourceProvider zip, ItemRef member, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        if (member.Parent.Scheme != Schemes.Zip || member.Parent.Container is not { IsFileSystem: true } archiveFile)
+        if (member.Parent.Scheme != Schemes.Zip)
             throw new NotSupportedException("Edit sessions work on members of archives in folders.");
+        if (member.Parent.Container is not { IsFileSystem: true } archiveFile)
+            throw new NotSupportedException(ZipProvider.NestedEditUnavailable);
         string archive = Path.GetFullPath(archiveFile.Path);
         string memberPath = member.Parent.Path.Length == 0 ? member.Name : member.Parent.Path + "/" + member.Name;
-        var baseline = ArchiveBaseline.OfForMutation(archive, ct.ThrowIfCancellationRequested, ArchiveOuterEfs.EditUnavailable);
-        uint expectedCrc; long expectedLength;
         using var archiveBytes = new ArchiveMutationReadStream(archive, ArchiveOuterEfs.EditUnavailable);
+        using var protection = HoldClearEditInput(archiveBytes.Handle, ArchiveOuterEfs.EditUnavailable);
+        string? heldIdentity = fs is IEditCopyPublisher ? fs.GetOpenedFileIdentity(archiveBytes.Handle)
+            ?? throw new IOException("The archive's held identity could not be read.") : null;
+        var baseline = ArchiveBaseline.OfHeld(archiveBytes, ct.ThrowIfCancellationRequested);
+        uint expectedCrc; long expectedLength;
         using (var catalog = new System.IO.Compression.ZipArchive(archiveBytes, System.IO.Compression.ZipArchiveMode.Read, leaveOpen: true))
         {
             if (catalog.Entries.Count > ZipProvider.MaxEntries) throw new InvalidDataException("Too many archive members to prepare an edit.");
@@ -764,7 +769,8 @@ public sealed partial class EditSessionStore
         return CreateSession(member.Name, (working,open) =>
         {
             ct.ThrowIfCancellationRequested();
-            var content = zip is ZipProvider provider ? provider.OpenEditContent(member) : zip.OpenContent(member);
+            var content = zip is ZipProvider provider ? provider.OpenEditContent(member, heldIdentity is null ? null : VerifyOpenedArchive)
+                : zip.OpenContent(member);
             var source = Content.ProgressiveContent.Sequential(content) ?? throw new NotSupportedException("This member is encrypted and cannot be edited here.");
             return ReadOwned(source, () =>
             {
@@ -788,6 +794,12 @@ public sealed partial class EditSessionStore
                 WorkingPath = working,
             };
         }, ct);
+
+        void VerifyOpenedArchive(Microsoft.Win32.SafeHandles.SafeFileHandle opened)
+        {
+            if (fs.GetOpenedFileIdentity(opened) != heldIdentity)
+                throw new IOException("The edit reader opened a different archive from the held source.");
+        }
     }
 
     // A close failure prevents publication. When the copy already failed, retain its primary error.

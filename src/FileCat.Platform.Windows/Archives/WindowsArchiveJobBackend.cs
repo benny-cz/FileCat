@@ -111,10 +111,11 @@ internal static partial class WindowsArchiveJobBackend
             openReview: (path, ct) => new ReadLease(path, ct));
     }
 
-    private sealed class ReadLease : IArchiveTargetReadLease
+    internal sealed class ReadLease : IArchiveTargetReadLease
     {
         private readonly WindowsArchiveDirectory directory;
         private readonly WindowsArchiveFile file;
+        private readonly IDisposable? protection;
         public IArchiveRetainedFile File => file;
         internal ReadLease(string path, CancellationToken ct)
         {
@@ -123,12 +124,24 @@ internal static partial class WindowsArchiveJobBackend
             try
             {
                 file = directory.OpenSource(Path.GetFileName(path));
-                try { file.BindUpdateSource(); }
+                try
+                {
+                    file.BindUpdateSource();
+                    protection = file.HoldClearUpdateInput();
+                }
                 catch { file.Dispose(); throw; }
             }
             catch { directory.Dispose(); throw; }
         }
-        public void Dispose() { try { file.Dispose(); } finally { directory.Dispose(); } }
+        public void Dispose()
+        {
+            try { protection?.Dispose(); }
+            finally
+            {
+                try { file.Dispose(); }
+                finally { directory.Dispose(); }
+            }
+        }
     }
 
     private sealed class Scope : IArchiveJobNativeScope<WindowsArchiveFile>

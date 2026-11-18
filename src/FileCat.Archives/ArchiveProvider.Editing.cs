@@ -70,7 +70,8 @@ public sealed partial class ArchiveProvider
     {
         Location root;
         lock (_cacheLock)
-            root = _cache.Values.FirstOrDefault(index => index.ContainerPath == target.Path)?.ContainerLocation ??
+            root = _cache.Values.FirstOrDefault(index => index.ContainerPath == target.Path &&
+                index.ContainerLocation?.Container is { IsFileSystem: true })?.ContainerLocation ??
                 ForFile(target.Path, ReaderKind(target.Profile.Format));
         using var view = OpenReadView(root, password, ct, requireRevision: true);
         ResolveEditRevision(root, ct);
@@ -81,12 +82,12 @@ public sealed partial class ArchiveProvider
             {
                 if (rawPath != ArchiveStandalone.MemberName || StandaloneSingleFile(index) is not { } single)
                     throw new IOException("A compressed file's only member is its whole contents.");
-                ct.ThrowIfCancellationRequested(); return index.Extract(single, _tempDirectory);
+                ct.ThrowIfCancellationRequested(); return index.Extract(single, _tempDirectory, ContentOutputKind.EditSession);
             }
             var matches = index.Children.Values.SelectMany(nodes => nodes).Where(node => node.Tag?.FullName == rawPath).Take(2).ToArray();
             if (matches.Length != 1 || matches[0].Tag is not { Kind: MemberKind.File, UnsafeReason: null } tag)
                 throw new IOException("Direct editing needs one exact regular member. Extract the selected occurrence with F5 instead.");
-            ct.ThrowIfCancellationRequested(); return index.Extract(tag, _tempDirectory);
+            ct.ThrowIfCancellationRequested(); return index.Extract(tag, _tempDirectory, ContentOutputKind.EditSession);
         }
     }
 

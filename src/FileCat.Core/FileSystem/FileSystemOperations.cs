@@ -241,6 +241,9 @@ public interface IFileSystemOperations
     /// <summary>Reads the download mark of a captured archive input under the platform's output admission policy.</summary>
     string? ReadArchiveSourceOriginMark(string path, string? identity, CancellationToken ct) => ReadOriginMark(path);
 
+    /// <summary>Holds the already opened archive payload against a change in native encryption state while it is read.</summary>
+    IDisposable? HoldArchivePackingInput(SafeFileHandle source) => null;
+
     /// <summary>Writes origin data; returns false when the destination cannot store it (reported as a security loss).</summary>
     bool WriteOriginMark(string path, string mark);
 
@@ -768,6 +771,8 @@ public class PortableFileOperations : IFileSystemOperations
     public virtual string? ReadOriginMark(string path) => null;
 
     public virtual string? ReadArchiveSourceOriginMark(string path, string? identity, CancellationToken ct) => ReadOriginMark(path);
+
+    public virtual IDisposable? HoldArchivePackingInput(SafeFileHandle source) => null;
 
     public virtual bool WriteOriginMark(string path, string mark) => false;
 

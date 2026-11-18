@@ -8,10 +8,109 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed class HexJournalProvenanceTests
 {
     [Fact]
+    public void A_journal_encrypted_after_review_is_kept_and_recovery_does_not_write_the_target()
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-hex-journal-encrypted-after-review-").FullName;
+        try
+        {
+            var record = Stopped(root);
+            byte[] journal = File.ReadAllBytes(record.JournalPath);
+            File.Encrypt(record.JournalPath);
+
+            Assert.Contains("EFS-encrypted", HexSaveJournal.Inspect(record).Blocker);
+            var error = Assert.Throws<IOException>(() => HexSaveJournal.Recover(record, rollback: false));
+            Assert.Contains("EFS-encrypted", error.Message);
+            Assert.True(File.GetAttributes(record.JournalPath).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(journal, File.ReadAllBytes(record.JournalPath));
+            Assert.Equal([1, 2, 3, 4], File.ReadAllBytes(record.TargetPath));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void A_different_file_at_the_reviewed_journal_name_is_left_in_place()
+    {
+        string root = Directory.CreateTempSubdirectory("filecat-hex-journal-substituted-").FullName;
+        try
+        {
+            var record = Stopped(root);
+            byte[] journal = File.ReadAllBytes(record.JournalPath);
+            string moved = record.JournalPath + ".kept";
+            File.Move(record.JournalPath, moved);
+            File.WriteAllBytes(record.JournalPath, journal);
+
+            Assert.Contains("journal changed", HexSaveJournal.Inspect(record).Blocker);
+            Assert.Contains("journal changed", Assert.Throws<IOException>(() => HexSaveJournal.Recover(record, rollback: false)).Message);
+            Assert.Equal(journal, File.ReadAllBytes(record.JournalPath));
+            Assert.Equal(journal, File.ReadAllBytes(moved));
+            Assert.Equal([1, 2, 3, 4], File.ReadAllBytes(record.TargetPath));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Same_size_changes_to_the_reviewed_journal_stop_recovery()
+    {
+        string root = Directory.CreateTempSubdirectory("filecat-hex-journal-changed-").FullName;
+        try
+        {
+            var stopped = Stopped(root);
+            using (var append = new FileStream(stopped.JournalPath, FileMode.Append)) append.WriteByte(0);
+            var record = HexSaveJournal.Read(stopped.JournalPath);
+            using (var change = new FileStream(record.JournalPath, FileMode.Open, FileAccess.Write))
+            {
+                change.Position = change.Length - 1;
+                change.WriteByte(1);
+            }
+            byte[] changed = File.ReadAllBytes(record.JournalPath);
+
+            Assert.Contains("journal changed", Assert.Throws<IOException>(() => HexSaveJournal.Recover(record, rollback: false)).Message);
+            Assert.Equal(changed, File.ReadAllBytes(record.JournalPath));
+            Assert.Equal([1, 2, 3, 4], File.ReadAllBytes(record.TargetPath));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Recovery_holds_the_clear_journal_through_each_write_and_retires_only_on_success(bool interrupt)
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-hex-journal-held-").FullName;
+        try
+        {
+            var record = Stopped(root);
+            byte[] journal = File.ReadAllBytes(record.JournalPath);
+            var error = Record.Exception(() => HexSaveJournal.Recover(record, rollback: false, afterDurableStep: _ =>
+            {
+                var refusal = Assert.Throws<IOException>(() => File.Encrypt(record.JournalPath));
+                Assert.Contains(refusal.HResult, new[] { unchecked((int)0x80071AAF), unchecked((int)0x80071A90), unchecked((int)0x80070020) });
+                if (interrupt) throw new IOException("test interruption");
+            }));
+
+            if (interrupt)
+            {
+                Assert.Equal("test interruption", Assert.IsType<IOException>(error).Message);
+                Assert.Equal(journal, File.ReadAllBytes(record.JournalPath));
+                File.Encrypt(record.JournalPath);
+                Assert.True(File.GetAttributes(record.JournalPath).HasFlag(FileAttributes.Encrypted));
+            }
+            else
+            {
+                Assert.Null(error);
+                Assert.False(File.Exists(record.JournalPath));
+            }
+            Assert.Equal([1, 9, 3, 4], File.ReadAllBytes(record.TargetPath));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
     public void An_actual_Efs_journal_is_a_protected_input_even_when_its_original_sources_and_current_target_are_clear()
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1", "Disposable normal-user Windows EFS journal-input qualification.");
-        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
+        RequireEfs();
         string root = Directory.CreateTempSubdirectory("filecat-hex-journal-efs-input-").FullName;
         try
         {
@@ -26,6 +125,12 @@ public sealed class HexJournalProvenanceTests
             Assert.False(File.Exists(record.JournalPath)); Assert.Equal([1, 9, 3, 4], File.ReadAllBytes(record.TargetPath));
         }
         finally { Directory.Delete(root, true); }
+    }
+
+    private static void RequireEfs()
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1", "Disposable normal-user Windows EFS journal-input qualification.");
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
     }
 
     [Fact]

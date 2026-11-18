@@ -23,6 +23,20 @@ Builds passed with zero warnings/errors. Tests ran only on the supplied machines
 
 The EFS save test opens actual encrypted synthetic content, reads it, stages edits, performs Undo/Redo and attempts Save. It observes unchanged target bytes, retained edits/Undo/Redo and no journal directory. Each recovery direction first creates a genuine interrupted clear-file save, then encrypts that same target explicitly after its handle closes. Inspection and both recovery-handle routes refuse; journal bytes and current target bytes remain unchanged. Explicit fixture decryption restores the ordinary recovery route, which finishes/rolls back correctly and removes its journal. FileCat never decrypts as a fallback.
 
+## Protection changes during save and recovery
+
+Windows applied EFS to an owned NTFS fixture while the hex editor held its write handle. Save now checks the held target again before writing the journal and before each in-place write. Save and recovery also check before and after final readback. An observed change stops the operation and preserves the journal and any completed writes.
+
+The native Windows 11 x64 fixtures applied EFS after the journal flush and after the final save write. The first case preserved all original bytes and a journal with zero completed ranges. The second retained the journal and the completed write before verification. The Finish and Rollback fixtures applied EFS between two ranges. Both preserved the completed first write and the exact journal and left the second range untouched. The Windows hex suite passed 36 cases with one optional benchmark skipped. See `.tmp/hex-journal-late-efs-r1.xml`.
+
+## Reviewed journal admission and retirement
+
+Recovery reopens the journal and checks the identity, complete length, current EFS state and digest before reading any ranges into the write path. On the tested EFS-capable NTFS volume, a read transaction keeps the clear journal bound through the last target verification and retires that exact file after successful recovery. A failed recovery closes the transaction with the journal intact. Inspection also detects a replacement or an observed protection change on re-opening the journal.
+
+The Windows 11 x64 VM refused a journal encrypted after review and kept the target bytes and journal. Attempts to encrypt the held journal during recovery were refused. On success, FileCat removed the journal. After a simulated interruption, Windows could encrypt it again and FileCat had retained its exact bytes. The native hex suite passed 41 cases with one optional benchmark skipped. Ubuntu and macOS each passed 11 portable provenance cases with four Windows-only skips. All three detected a byte-identical replacement and a same-size content change and preserved both the target and the journal. See `.tmp/hex-recovery-held-r2.xml` and `hex-recovery-held-r2.trx` in the Unix checkouts.
+
+Recovery closes the ordinary identity witness once the transacted handle has verified the journal. The transacted handle alone owns the journal through recovery, and FileCat closes it before committing retirement. The Windows rerun passed 41 cases with one optional benchmark skipped. [Microsoft's transactional deletion contract](https://learn.microsoft.com/en-us/windows/win32/fileio/programming-considerations-for-transacted-fileio-#deleting-a-file).
+
 The editor case types an edit in a real EFS-backed `HexEditorWindow`, confirms Save in place and observes the refusal message, unsaved state, unchanged target and no `.fcj` output. It dismisses the message before closing the fixture. This is headless UI behavior with native EFS I/O, not screen-reader/theme/geometry or whole-workflow qualification. Broader unknown-metadata/concurrency/provider/output matrices remain separate.
 
 ## Retained inputs

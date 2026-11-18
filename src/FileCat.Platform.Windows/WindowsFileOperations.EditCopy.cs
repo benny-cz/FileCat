@@ -16,16 +16,19 @@ public partial class WindowsFileOperations : IEditCopyPublisher
 {
     private const string EditCopyMarkLost = "Its download mark was not kept: the destination cannot store it, so the system may not warn when the copy is opened.";
 
-    IDisposable? IEditCopyPublisher.HoldClearEditInput(SafeFileHandle source, string refusal) => HoldClearEditInput(source, refusal);
+    IDisposable? IEditCopyPublisher.HoldClearEditInput(SafeFileHandle source, string refusal) => HoldClearFileInput(source, refusal);
 
-    private static WindowsFileTransaction? HoldClearEditInput(SafeFileHandle source, string refusal)
+    internal static WindowsFileTransaction? HoldClearFileInput(SafeFileHandle source, string refusal)
     {
         ArchiveOuterEfs.RequireClear(source, refusal);
         try { return WindowsFileTransaction.PinSource(source, refusal); }
         catch (Win32Exception error)
         {
             ArchiveOuterEfs.RequireClear(source, refusal);
-            throw new IOException("FileCat could not hold the edit input's EFS state. " + error.Message, error);
+            const int SharingViolation = 32, TransactionalConflict = 6800;
+            if (error.NativeErrorCode is SharingViolation or TransactionalConflict)
+                throw new IOException("The input is busy, so FileCat could not hold its EFS state. Close any program writing the file, then retry.", error);
+            throw new IOException("FileCat could not hold the input's EFS state. " + error.Message, error);
         }
     }
 
@@ -109,7 +112,7 @@ public partial class WindowsFileOperations : IEditCopyPublisher
             checkpoint();
             CheckEditCapture(capture);
             WindowsArchiveNative.Regular(capture, length, artifact: false, mayRename: false);
-            using var heldSource = HoldClearEditInput(capture, ArchiveOuterEfs.EditSnapshotUnavailable);
+            using var heldSource = HoldClearFileInput(capture, ArchiveOuterEfs.EditSnapshotUnavailable);
             CheckEditCapture(capture);
 
             using var local = LocalIconFileLease.TryOpenPlainDirectory(folder);

@@ -31,6 +31,34 @@ public sealed class PageViewTests : IDisposable
     }
 
     [Fact]
+    public void The_first_page_reports_a_browser_profile_startup_failure()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");
+        string profile = Path.Combine(Directory.CreateDirectory(_dir).FullName, "profile");
+        File.WriteAllText(profile, "This path is an ordinary file.");
+        StaPump.Run(async () =>
+        {
+            nint parent = StaPump.CreateHiddenWindow();
+            try
+            {
+                using var view = new WebView2Page(parent, profile);
+                using var source = new MemoryContentSource("test.html", "<p>Test page</p>"u8.ToArray());
+                var completion = new TaskCompletionSource<(bool Success, string? Error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+                view.Loaded += (ok, why) => completion.TrySetResult((ok, why));
+                view.Show(new HtmlPage(source, "test.html"));
+                var first = await completion.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.False(first.Success);
+                Assert.False(string.IsNullOrWhiteSpace(first.Error));
+
+                completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                view.Show(new HtmlPage(source, "test.html"));
+                Assert.Equal(first, await completion.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+            }
+            finally { StaPump.DestroyWindow(parent); }
+        }, TimeSpan.FromSeconds(15));
+    }
+
+    [Fact]
     public void Host_restores_a_rendered_page_viewport_and_clamps_it_when_the_new_page_is_shorter()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");
@@ -344,25 +372,33 @@ public sealed class PageViewTests : IDisposable
         StaPump.Run(async () =>
         {
             nint parent = StaPump.CreateHiddenWindow();
-            using var source = new FileContentSource(readme);
-            using var view = new WebView2Page(parent, Path.Combine(_dir, "webview"));
-            var done = new TaskCompletionSource();
-            view.Served += (path, found) => served.Enqueue((path, found));
-            view.Blocked += blocked.Enqueue;
-            view.Loaded += (ok, why) =>
+            try
             {
-                loaded = (ok, why);
-                done.TrySetResult();
-            };
-            view.SetSize(900, 1000);
-            view.Show(HtmlPage.ForMarkdown(source, readme));
-            await done.Task;
-            for (int i = 0; i < 100 && !served.Any(s => s.Path == "/pic.png"); i++) await Task.Delay(50);
-            await Task.Delay(500); // anything else the page would ask for
-            title = view.Title;
-            if (!string.IsNullOrEmpty(capture))
-                await using (var png = File.Create(capture)) await view.CaptureAsync(png);
-            StaPump.DestroyWindow(parent);
+                using var source = new FileContentSource(readme);
+                using var view = new WebView2Page(parent, Path.Combine(_dir, "webview"));
+                var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                view.Served += (path, found) => served.Enqueue((path, found));
+                view.Blocked += blocked.Enqueue;
+                view.Loaded += (ok, why) =>
+                {
+                    loaded = (ok, why);
+                    done.TrySetResult();
+                };
+                view.SetSize(900, 1000);
+                view.Show(HtmlPage.ForMarkdown(source, readme));
+                try { await done.Task.WaitAsync(TimeSpan.FromSeconds(55)); }
+                catch (TimeoutException error)
+                {
+                    string requests = served.IsEmpty ? "none" : string.Join(", ", served.Select(resource => resource.Path));
+                    throw new TimeoutException($"WebView2 {WebView2Page.RuntimeVersion} did not report Markdown navigation completion. Served requests: {requests}.", error);
+                }
+                for (int i = 0; i < 100 && !served.Any(s => s.Path == "/pic.png"); i++) await Task.Delay(50);
+                await Task.Delay(500); // anything else the page would ask for
+                title = view.Title;
+                if (!string.IsNullOrEmpty(capture))
+                    await using (var png = File.Create(capture)) await view.CaptureAsync(png);
+            }
+            finally { StaPump.DestroyWindow(parent); }
         }, TimeSpan.FromSeconds(60));
 
         Assert.True(loaded is { Ok: true }, $"The page did not load: {loaded?.Why}");

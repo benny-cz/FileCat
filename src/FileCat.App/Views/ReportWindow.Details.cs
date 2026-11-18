@@ -85,9 +85,12 @@ public sealed partial class ReportWindow
         var requested = requestedTier ?? (_detailsObservation is null ? _detailsTier : _detailsDisplayedTier);
         _detailsTier = requested;
         _detailsNotice = _detailsObservation is null ? "Reading…" : "Previous observation · reading…";
-        if (_detailsObservation is null) Show("Reading file-system metadata…");
-        else PublishDetails();
-        _status.Text = _detailsNotice;
+        if (_detailsObservation is null)
+        {
+            Show("Reading file-system metadata…");
+            UpdateDetailsStatus(announce: false);
+        }
+        else PublishDetails(announceStatus: false);
         SetDetailsActions();
         try
         {
@@ -126,7 +129,7 @@ public sealed partial class ReportWindow
         }
     }
 
-    private void PublishDetails()
+    private void PublishDetails(bool announceStatus = true)
     {
         if (_detailsObservation is not { } observation) return;
         string text = _detailsDisplayedTier == FileDetailsTier.Full && observation.Full is { } full ? full.ToText() : observation.Summary.ToReport().ToText();
@@ -138,14 +141,18 @@ public sealed partial class ReportWindow
         Show(text);
         if (top > 0 && top < System.Text.Encoding.UTF8.GetByteCount(text)) _view.ScrollToOffset(top);
         _readAt = observation.Summary.ObservedAt.LocalDateTime;
-        UpdateDetailsStatus();
+        UpdateDetailsStatus(announceStatus);
     }
 
-    private void UpdateDetailsStatus()
+    private void UpdateDetailsStatus(bool announce = true)
     {
+        // The report itself exposes the pending read. Keep the status live event for the outcome,
+        // since a fast read can otherwise lose its completion announcement behind the pending event.
+        if (!announce) AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Off);
         _status.Text = _detailsObservation is { } observation
             ? $"{_detailsNotice}{(_detailsNotice is null ? "" : " · ")}{_detailsDisplayedTier} · observation {observation.Summary.ObservedAt.LocalDateTime:T} · F5 reads this tier again"
             : _detailsNotice ?? "No observation";
+        if (!announce) AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
     }
 
     internal Task SwitchDetailsTierForTestAsync() => SwitchDetailsTierAsync();

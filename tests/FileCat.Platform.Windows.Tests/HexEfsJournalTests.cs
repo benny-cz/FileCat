@@ -32,6 +32,72 @@ public sealed class HexEfsJournalTests
     }
 
     [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Efs_applied_after_a_journal_flush_stops_save_and_keeps_the_journal(int writtenRanges)
+    {
+        NativeFixture();
+        string directory = Directory.CreateTempSubdirectory("filecat-hex-efs-late-save-").FullName;
+        string target = Path.Join(directory, "target.bin"), journals = Path.Join(directory, "journals");
+        byte[] original = [1, 2, 3, 4];
+        File.WriteAllBytes(target, original);
+        try
+        {
+            string journal;
+            using (var file = new ProtectedHexFile(target))
+            using (var overlay = new HexPatchOverlay(file))
+            {
+                overlay.Write(1, [9]);
+                var error = Assert.Throws<HexSaveInterruptedException>(() => HexSaveJournal.Save(file, overlay, journals,
+                    step => { if (step == writtenRanges) File.Encrypt(target); }));
+                Assert.Contains("EFS files cannot be saved in place", error.Message);
+                Assert.Equal(1, overlay.DirtyBytes);
+                journal = error.JournalPath;
+            }
+
+            Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(writtenRanges == 0 ? original : [1, 9, 3, 4], File.ReadAllBytes(target));
+            var record = HexSaveJournal.Read(journal);
+            Assert.Equal(writtenRanges, record.WrittenRanges);
+            Assert.Contains("EFS", HexSaveJournal.Inspect(record).Blocker);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Efs_applied_during_recovery_stops_the_next_write_and_keeps_the_journal(bool rollback)
+    {
+        NativeFixture();
+        string directory = Directory.CreateTempSubdirectory("filecat-hex-efs-late-recovery-").FullName;
+        string target = Path.Join(directory, "target.bin"), journals = Path.Join(directory, "journals");
+        File.WriteAllBytes(target, [1, 2, 3, 4]);
+        try
+        {
+            string journal;
+            using (var file = new ProtectedHexFile(target))
+            using (var overlay = new HexPatchOverlay(file))
+            {
+                overlay.Write(1, [9]);
+                overlay.Write(3, [8]);
+                int lastWrite = rollback ? 2 : 0;
+                journal = Assert.Throws<HexSaveInterruptedException>(() => HexSaveJournal.Save(file, overlay, journals,
+                    step => { if (step == lastWrite) throw new IOException("test interruption"); })).JournalPath;
+            }
+
+            byte[] journalBefore = File.ReadAllBytes(journal);
+            var record = HexSaveJournal.Read(journal);
+            Assert.Contains("EFS", Assert.Throws<IOException>(() => HexSaveJournal.Recover(record, rollback,
+                afterDurableStep: step => { if (step == 1) File.Encrypt(target); })).Message);
+            Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(rollback ? new byte[] { 1, 2, 3, 8 } : [1, 9, 3, 4], File.ReadAllBytes(target));
+            Assert.Equal(journalBefore, File.ReadAllBytes(journal));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void A_target_encrypted_after_a_clear_save_interruption_blocks_recovery_and_retains_the_journal(bool rollback)

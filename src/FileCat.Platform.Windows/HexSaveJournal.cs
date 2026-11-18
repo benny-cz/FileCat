@@ -4,6 +4,7 @@ using System.Text;
 using FileCat.Core.Content;
 using FileCat.Core.FileSystem;
 using FileCat.Core.State;
+using FileCat.Platform.Windows.Elevation;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
@@ -15,6 +16,7 @@ public sealed record HexRecoveryRecord(string JournalPath, string TargetPath, Fi
 {
     public ImmutableArray<HexContentContributor> Contributors { get; init; } = [HexContentContributor.Unknown];
     public ImmutableArray<HexContentContributor> JournalInputs { get; init; } = [HexContentContributor.Unknown];
+    internal (long Length, string Sha256)? JournalRevision { get; init; }
     internal string? ProtectionProblem => new HexSaveSnapshot([], Contributors).UnprotectedOutputProblem("Recovery") ??
         new HexSaveSnapshot([], JournalInputs).UnprotectedOutputProblem("Recovery");
 }
@@ -40,6 +42,8 @@ public static class HexSaveJournal
     private static readonly UTF8Encoding Utf8 = new(false, true);
     public const int MaxJournalBytes = 48 * 1024 * 1024;
     private const int RangeHeaderBytes = 12;
+    private const string JournalChanged = "The hex recovery journal changed since it was read. The journal is retained for review.";
+    private const string JournalEncrypted = "The hex recovery journal is EFS-encrypted. The journal is retained for review.";
 
     public static IReadOnlyList<string> Pending(string directory) => !WindowsTokenAuthority.IsHighIntegrity && Directory.Exists(directory)
         ? Directory.EnumerateFiles(directory, "hex-*.fcj", SearchOption.TopDirectoryOnly).Order(StringComparer.Ordinal).ToArray()
@@ -64,6 +68,7 @@ public static class HexSaveJournal
             snapshot.RequireUnprotectedOutput("In-place saving");
             file.ValidateForSave(ranges);
             byte[] payload = Serialize(file, snapshot);
+            file.RequireUnencryptedJournalTarget();
             Directory.CreateDirectory(journalDirectory);
             string journalPath = Path.Combine(journalDirectory, "hex-" + Guid.NewGuid().ToString("N") + ".fcj");
             FileStream stream;
@@ -129,14 +134,19 @@ public static class HexSaveJournal
         // Open once: a journal may be replaced or grown after a pathname size query.
         // Never let ReadAllBytes allocate from a different, unbounded file.
         using var stream = new FileStream(journalPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        var beforeInput = ProtectedHexFile.CaptureHexOrigin(stream.SafeFileHandle, stream.Name);
+        return ReadOpenedJournal(stream.Name, stream);
+    }
+
+    private static HexRecoveryRecord ReadOpenedJournal(string journalPath, FileStream stream)
+    {
+        var beforeInput = ProtectedHexFile.CaptureHexOrigin(stream.SafeFileHandle, journalPath);
         long journalSize = stream.Length;
         if (journalSize < 44 || journalSize > MaxJournalBytes + 5L * (HexPatchOverlay.MaxTouchedBytes + 1))
             throw new InvalidDataException("Invalid hex journal size.");
         var bytes = new byte[checked((int)journalSize)];
         stream.ReadExactly(bytes);
         if (stream.ReadByte() != -1) throw new InvalidDataException("Hex journal grew while being read.");
-        var afterInput = ProtectedHexFile.CaptureHexOrigin(stream.SafeFileHandle, stream.Name);
+        var afterInput = ProtectedHexFile.CaptureHexOrigin(stream.SafeFileHandle, journalPath);
         int payloadLength = BitConverter.ToInt32(bytes, 0);
         if (payloadLength < 0 || payloadLength > MaxJournalBytes - 36 || bytes.Length < payloadLength + 36)
             throw new InvalidDataException("Hex journal is truncated or oversized.");
@@ -185,7 +195,11 @@ public static class HexSaveJournal
         }
         return new HexRecoveryRecord(journalPath, target, identity, length, ranges, written,
             File.GetCreationTimeUtc(stream.SafeFileHandle))
-        { Contributors = contributors, JournalInputs = beforeInput == afterInput ? [beforeInput] : [beforeInput, afterInput] };
+        {
+            Contributors = contributors,
+            JournalInputs = beforeInput == afterInput ? [beforeInput] : [beforeInput, afterInput],
+            JournalRevision = (journalSize, Convert.ToHexString(SHA256.HashData(bytes))),
+        };
     }
 
     /// <summary>
@@ -196,6 +210,15 @@ public static class HexSaveJournal
     public static HexRecoveryInspection Inspect(HexRecoveryRecord record, ProtectedHexFile? openFile = null)
     {
         if (record.ProtectionProblem is { } originProblem) return new(0, 0, 0, originProblem + " The journal is retained for review.");
+        try
+        {
+            using var journal = new FileStream(record.JournalPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            RequireCurrentJournal(record, journal);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            return new(0, 0, 0, error.Message);
+        }
         if (openFile is not null)
         {
             if (openFile.FileIdentity != record.Identity)
@@ -238,6 +261,56 @@ public static class HexSaveJournal
     {
         RefuseElevatedJournal();
         if (record.ProtectionProblem is { } originProblem) throw new IOException(originProblem + " The journal is retained for review.");
+        using (var journal = new FileStream(record.JournalPath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
+        {
+            RequireCurrentJournal(record, journal);
+            if (OperatingSystem.IsWindows() && WindowsFileTransaction.CanEncrypt(journal.SafeFileHandle))
+            {
+                using var transaction = new WindowsFileTransaction("FileCat hex journal recovery");
+                using var held = transaction.OpenExisting(WindowsFileTransaction.HeldPath(journal.SafeFileHandle),
+                    NtFile.GenericRead | NtFile.Delete | NtFile.Synchronize, NtFile.ShareRead, "Hold the hex recovery journal");
+                WindowsFileTransaction.RequireOrdinaryFile(held, JournalEncrypted);
+                using var bytes = new FileStream(held, FileAccess.Read);
+                var current = ReadCurrentJournal(record, bytes);
+                // The transacted handle now owns the exact journal. Close the ordinary witness so retirement can commit.
+                journal.Dispose();
+                RecoverRanges(current, rollback, openFile, afterDurableStep);
+                RequireCurrentJournal(record, bytes);
+                WindowsFileTransaction.RemoveOnClose(held);
+                bytes.Dispose();
+                transaction.Commit("Windows could not confirm removal of the reviewed hex recovery journal.");
+                return;
+            }
+
+            RecoverRanges(ReadCurrentJournal(record, journal), rollback, openFile, afterDurableStep);
+            using var atName = new FileStream(record.JournalPath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+            RequireCurrentJournal(record, atName);
+        }
+        File.Delete(record.JournalPath);
+    }
+
+    private static void RequireCurrentJournal(HexRecoveryRecord record, FileStream journal)
+    {
+        var current = ProtectedHexFile.CaptureHexOrigin(journal.SafeFileHandle, record.JournalPath);
+        if (current.Protection == HexEfsOriginState.Efs) throw new IOException(JournalEncrypted);
+        if (current.Protection != HexEfsOriginState.NotEfs || current.Identity is null ||
+            record.JournalInputs.Length != 1 || record.JournalInputs[0].Identity != current.Identity ||
+            record.JournalRevision is not { } revision || journal.Length != revision.Length)
+            throw new IOException(JournalChanged);
+    }
+
+    private static HexRecoveryRecord ReadCurrentJournal(HexRecoveryRecord record, FileStream journal)
+    {
+        RequireCurrentJournal(record, journal);
+        var current = ReadOpenedJournal(record.JournalPath, journal);
+        if (current.ProtectionProblem is { } problem) throw new IOException(problem + " The journal is retained for review.");
+        if (current.JournalRevision != record.JournalRevision) throw new IOException(JournalChanged);
+        return current;
+    }
+
+    private static void RecoverRanges(HexRecoveryRecord record, bool rollback, ProtectedHexFile? openFile,
+        Action<int>? afterDurableStep)
+    {
         var owned = openFile is null ? new ProtectedHexFile(record.TargetPath) : null;
         var file = openFile ?? owned!;
         try
@@ -257,7 +330,6 @@ public static class HexSaveJournal
             VerifyReadBack(file, record.Ranges, rollback);
         }
         finally { owned?.Dispose(); }
-        File.Delete(record.JournalPath);
     }
 
     /// <summary>Removes a journal without touching its target (the user accepts the file as it is).</summary>
@@ -300,6 +372,7 @@ public static class HexSaveJournal
 
     private static void VerifyReadBack(ProtectedHexFile file, IReadOnlyList<HexPatchRange> ranges, bool rollback)
     {
+        file.RequireUnencryptedJournalTarget();
         foreach (var range in ranges)
         {
             var expected = rollback ? range.Original : range.Replacement;
@@ -307,6 +380,7 @@ public static class HexSaveJournal
             if (file.Read(range.Offset, actual) != actual.Length || !actual.AsSpan().SequenceEqual(expected))
                 throw new IOException($"Written bytes at 0x{range.Offset:X} read back differently.");
         }
+        file.RequireUnencryptedJournalTarget();
     }
 
     private static void TryDelete(string path)

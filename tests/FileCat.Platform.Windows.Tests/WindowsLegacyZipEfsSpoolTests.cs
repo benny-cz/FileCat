@@ -1,16 +1,19 @@
 using System.IO.Compression;
 using FileCat.Core.Archives;
 using FileCat.Core.Content;
+using FileCat.Core.Edit;
 using FileCat.Core.Resources;
 
 namespace FileCat.Platform.Windows.Tests;
 
 public sealed class WindowsLegacyZipEfsSpoolTests
 {
-    [Fact]
-    public void Nested_spooling_refuses_an_encrypted_outer_zip_before_creating_a_cache_file()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Nested_edit_is_refused_before_cache_or_working_output(bool encrypted)
     {
-        RequireEfs();
+        if (encrypted) RequireEfs();
         string root = Directory.CreateTempSubdirectory("filecat-efs-nested-zip-").FullName;
         string path = Path.Join(root, "outer.zip"), cache = Path.Join(root, "cache");
         var zip = new ZipProvider(cache);
@@ -23,12 +26,21 @@ public sealed class WindowsLegacyZipEfsSpoolTests
             using (var archive = ZipFile.Open(path, ZipArchiveMode.Create))
             using (var member = archive.CreateEntry("inner.zip").Open())
                 member.Write(inner.ToArray());
-            File.Encrypt(path);
+            if (encrypted) File.Encrypt(path);
             var location = new Location(Schemes.Zip, "", ZipProvider.ForFile(path).WithPath("inner.zip"));
             var item = new ItemRef(location, "payload.bin", EntryKind.File);
-            Assert.Equal(ArchiveOuterEfs.SpoolUnavailable, Assert.Throws<ArchiveWriteException>(() => zip.OpenContent(item)).Message);
+            string sessions = Path.Join(root, "sessions");
+            var store = new EditSessionStore(sessions, new WindowsFileOperations());
+            Assert.Equal(ZipProvider.NestedEditUnavailable, Assert.Throws<NotSupportedException>(() => zip.OpenEditContent(item)).Message);
+            Assert.Equal(ZipProvider.NestedEditUnavailable, Assert.Throws<NotSupportedException>(() => store.Create(zip, item, TestContext.Current.CancellationToken)).Message);
+            Assert.False(Directory.Exists(sessions));
             Assert.False(Directory.Exists(cache));
-            Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+            if (encrypted)
+            {
+                Assert.Equal(ArchiveOuterEfs.SpoolUnavailable, Assert.Throws<ArchiveWriteException>(() => zip.OpenContent(item)).Message);
+                Assert.False(Directory.Exists(cache));
+                Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+            }
         }
         finally
         {
