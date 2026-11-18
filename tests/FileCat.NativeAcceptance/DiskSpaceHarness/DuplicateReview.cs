@@ -169,7 +169,7 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => Control<TextBlock>("Recorded candidate evidence")?.Text?.Contains("Archives/archive.zip", StringComparison.Ordinal) == true);
             if (Button("Close preview") is not { IsDefault: true, IsCancel: true })
                 throw new IOException("Recipe staging changed the preserving default.");
-            await RecipeFrameAsync("recipe-staging-included.png", !Program.DetailedStreamProbe, _indexedLifetime.Token);
+            await RecipeFrameAsync("recipe-staging-included.png", !Program.DetailedStreamProbe && !Program.CleanupReviewProbe, _indexedLifetime.Token);
             Click("Add included to review basket");
             await ReadyAsync(() => Button("Close preview") is null && Marks(4, 5) && HasText("Added 1 captured reference"));
             Click("Review captured basket");
@@ -179,6 +179,7 @@ internal sealed partial class HarnessApp
             Click("Remove selected from basket");
             Click("Keep files / Close review");
             await ReadyAsync(() => Control<ListBox>("Captured basket entries") is null && Marks(4, 4));
+            if (Program.CleanupReviewProbe) await CheckCleanupReviewAsync();
             if (_extraDataPath is { } extraPath && Hash(extraPath) != _extraDataDigest)
                 throw new IOException("Extra data changed during the preview and review.");
 
@@ -188,7 +189,7 @@ internal sealed partial class HarnessApp
                 capturedMarks = 4, additionalHardLinkNames = 1, preservingDefault, retainedHiddenMarksAndBasket = true,
                 contentAvailable, contentGroups, recordedInsightsPassed = true, largestFoldersPassed = true, recipeStagingPassed = true,
                 detailedStreamProbe = Program.DetailedStreamProbe, namedAllocationAvailable, namedStreamBytesPreserved = true,
-                resourceAllocationAvailable, resourceForkBytesPreserved = true
+                resourceAllocationAvailable, resourceForkBytesPreserved = true, cleanupReviewPassed = Program.CleanupReviewProbe
             };
         }
         catch (Exception error)
@@ -211,6 +212,34 @@ internal sealed partial class HarnessApp
             text.Text?.StartsWith($"{marked:N0} marked · {basket:N0} in review basket", StringComparison.Ordinal) == true);
         bool HasText(string value) => _window!.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
             text.Text?.Contains(value, StringComparison.Ordinal) == true);
+        async Task CheckCleanupReviewAsync()
+        {
+            Click("Review cleanup");
+            await ReadyAsync(() => Control<ListBox>("Cleanup review entries")?.ItemCount == 4 && HasText("3 hidden by filters"));
+            if (Button("Cancel / Keep files") is not { IsDefault: true, IsCancel: true } ||
+                Button("Recycle included entries") is not { IsEnabled: false, IsDefault: false } ||
+                !HasText("Marked entries · 4 paths · 0 included · 4 kept"))
+                throw new IOException("The native cleanup review changed its membership or preserving default.");
+            Control<ComboBox>("Cleanup action")!.SelectedIndex = 1;
+            if (Button("Permanently delete included entries") is not { IsEnabled: false, IsDefault: false })
+                throw new IOException("The exact-entry removal capability is unavailable and must be disabled.");
+            var review = Control<ListBox>("Cleanup review entries")!;
+            review.SelectedItem = review.Items.Single(row => row?.ToString()?.Contains("duplicate-review-unique.bin", StringComparison.Ordinal) == true);
+            Click("Inspect recorded entry");
+            await ReadyAsync(() => Control<TextBlock>("Recorded cleanup entry details")?.Text?.Contains("Recorded file size · 1 byte", StringComparison.Ordinal) == true &&
+                HasText("Reported allocation"));
+            await RecipeFrameAsync("cleanup-review-preserving.png", true, _indexedLifetime.Token);
+            Click("Cancel / Keep files");
+            await ReadyAsync(() => Control<ListBox>("Cleanup review entries") is null && Marks(4, 4));
+            Click("Clear marks");
+            await ReadyAsync(() => Marks(0, 4));
+            Click("Review basket actions…");
+            await ReadyAsync(() => Control<ListBox>("Cleanup review entries")?.ItemCount == 4 && HasText("Review basket · 4 paths"));
+            Click("Cancel / Keep files");
+            await ReadyAsync(() => Control<ListBox>("Cleanup review entries") is null && Marks(0, 4));
+            if (_originals.Any(file => !File.Exists(file.Key) || Hash(file.Key) != file.Value))
+                throw new IOException("Cleanup review changed an original file.");
+        }
         async Task OpenInsightAsync(string title)
         {
             Click("Candidate recipes…");

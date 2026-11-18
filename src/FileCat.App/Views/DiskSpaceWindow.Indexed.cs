@@ -15,6 +15,7 @@ using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Analysis;
+using FileCat.Core.Commands;
 
 namespace FileCat.App.Views;
 
@@ -733,7 +734,20 @@ public sealed partial class DiskSpaceWindow
         }
         public void HandleKeys(KeyEventArgs args)
         {
-            if (_disposed || args.Handled || _window._dialogs.IsOpen || _query.IsKeyboardFocusWithin) return;
+            if (_disposed || args.Handled) return;
+            if (_window._dialogs.IsOpen)
+            {
+                if (_window.ResolveAnalysisKey(args, CommandContext.DiskSpaceReview) == CommandIds.DiskSpaceReviewCancel)
+                { _window._dialogs.CancelAll(); args.Handled = true; }
+                return;
+            }
+            if (_window.FocusManager?.GetFocusedElement() is TextBox) return;
+            if (CleanupVerb(_window.ResolveAnalysisKey(args, CommandContext.DiskSpace)) is { } verb)
+            {
+                _ = ReviewCleanupAsync(verb);
+                args.Handled = true;
+                return;
+            }
             if (args.Key == Key.Space && _list.IsKeyboardFocusWithin && _window.FocusManager?.GetFocusedElement() is not CheckBox)
             { if (_focus != 0) ToggleMark(_focus); args.Handled = true; return; }
             if (args.Key == Key.Enter && _list.IsKeyboardFocusWithin)

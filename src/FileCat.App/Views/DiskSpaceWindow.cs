@@ -425,8 +425,11 @@ public sealed partial class DiskSpaceWindow : Window
             };
             AutomationProperties.SetName(basketViewport, "Selection and review controls");
             _basketFooter.Children.Add(basketViewport);
-            var cleanupReview = ActionButton("Review cleanup", () => _ = ReviewAsync(), "Review the captured references and their supported actions. Expected free-space gain is unknown.");
-            cleanupReview.HorizontalAlignment = HorizontalAlignment.Left; cleanupReview.Margin = new Thickness(10, 0, 10, 4); _basketFooter.Children.Add(cleanupReview);
+            _reviewCleanup.Click += (_, _) => _ = ReviewCleanupAsync(AnalysisVerb.Recycle);
+            AutomationProperties.SetHelpText(_reviewCleanup, "Review marked entries, or the focused real entry when there are no marks.");
+            _reviewCleanup.HorizontalAlignment = HorizontalAlignment.Left;
+            _reviewCleanup.Margin = new Thickness(10, 0, 10, 4);
+            _basketFooter.Children.Add(_reviewCleanup);
             Grid.SetRow(_basketFooter, 3); Children.Add(_basketFooter); Grid.SetRow(_status, 4); _status.Margin = new Thickness(10, 3, 10, 8); Children.Add(_status);
             _start.Click += async (_, _) => await Model.StartAsync(_rootEditors.Select(e => e.Text ?? "").ToArray());
             _pause.Click += (_, _) => Model.PauseOrResume(); _stop.Click += (_, _) => Model.Stop();
@@ -744,34 +747,16 @@ public sealed partial class DiskSpaceWindow : Window
             try { await _window._dialogs.ShowCustomAsync("Selection inspector", body, [new DialogButton("Close details", true, IsDefault: true, IsCancel: true)], closer: closer); }
             finally { Model.Interaction(false); }
         }
-        private async Task ReviewAsync()
-        {
-            if (_disposed) return;
-            using var actualWork = _actualWork.Enter();
-            var captured = Model.Selection.Basket.Order().ToImmutableArray(); var tree = Model.Tree;
-            string paths = tree is null ? "" : string.Join(Environment.NewLine, captured.Take(200).Select(id => AnalysisNames.Display(tree.Items.GetValueOrDefault(AnalysisTree.Key(id))?.Name ?? "Missing observation")));
-            var body = new StackPanel { Spacing = 8 };
-            body.Children.Add(new TextBlock { Text = $"0 included · {captured.Length:N0} skipped. Expected free-space gain: unknown.", TextWrapping = TextWrapping.Wrap });
-            body.Children.Add(new TextBlock { Text = new AnalysisCapabilities().For(AnalysisVerb.Recycle).Reason, TextWrapping = TextWrapping.Wrap });
-            body.Children.Add(new ScrollViewer { MaxHeight = 260, Content = new TextBlock { Text = paths, TextWrapping = TextWrapping.Wrap } });
-            body.Children.Add(Unavailable("Recycle selected entries", "A qualified live binding and a fresh exact-entry review are required. These references remain skipped."));
-            Model.Interaction(true);
-            try { await _window._dialogs.ShowCustomAsync("Review cleanup — keep files", body, [new DialogButton("Cancel / Keep files", false, IsDefault: true, IsCancel: true)]); }
-            finally { Model.Interaction(false); }
-        }
         public void HandleKeys(KeyEventArgs e)
         {
-            if (e.Handled || KeyMapper.ToChord(e.Key, e.KeyModifiers) is not { } chord) return;
-            var keymap = _window._keymap();
-            string? Resolve(CommandContext context) => keymap.Resolve(chord, context) ??
-                (OperatingSystem.IsMacOS() && KeyMapper.MacCommandAlias(chord) is { } alias ? keymap.Resolve(alias, context) : null);
+            if (e.Handled) return;
             if (_window._dialogs.IsOpen)
             {
-                if (Resolve(CommandContext.DiskSpaceReview) == CommandIds.DiskSpaceReviewCancel)
+                if (_window.ResolveAnalysisKey(e, CommandContext.DiskSpaceReview) == CommandIds.DiskSpaceReviewCancel)
                 { _window._dialogs.CancelAll(); e.Handled = true; }
                 return;
             }
-            string? command = Resolve(CommandContext.DiskSpace);
+            string? command = _window.ResolveAnalysisKey(e, CommandContext.DiskSpace);
             bool editor = _window.FocusManager?.GetFocusedElement() is TextBox;
             if (command == CommandIds.DiskSpaceClose) { _window.Close(); e.Handled = true; return; }
             if (Model.Comparison is not null)
@@ -781,16 +766,19 @@ public sealed partial class DiskSpaceWindow : Window
             }
             if (command == CommandIds.DiskSpaceFilter) { _query.Focus(); e.Handled = true; return; }
             if (editor) return;
+            if (CleanupVerb(command) is { } verb)
+            {
+                _ = ReviewCleanupAsync(verb);
+                e.Handled = true;
+                return;
+            }
             bool handled = true;
             switch (command)
             {
-                case CommandIds.DiskSpaceReview: _ = ReviewAsync(); break;
                 case CommandIds.DiskSpaceBack: Model.Back(); break;
                 case CommandIds.DiskSpaceForward: Model.Forward(); break;
                 case CommandIds.DiskSpaceParent: Model.Parent(); break;
                 case CommandIds.DiskSpacePreview: Model.SetStatus(new AnalysisCapabilities().For(AnalysisVerb.Preview).Reason); break;
-                case CommandIds.DiskSpaceCopy: Model.SetStatus(new AnalysisCapabilities().For(AnalysisVerb.Copy).Reason); break;
-                case CommandIds.DiskSpaceMove: Model.SetStatus(new AnalysisCapabilities().For(AnalysisVerb.Move).Reason); break;
                 case CommandIds.DiskSpaceMark when _list.IsKeyboardFocusWithin || _treemap.IsKeyboardFocusWithin || _sunburst.IsKeyboardFocusWithin: Model.ToggleFocusedMark(); break;
                 case CommandIds.DiskSpaceEnter when _list.IsKeyboardFocusWithin || _treemap.IsKeyboardFocusWithin || _sunburst.IsKeyboardFocusWithin:
                     if (Model.Selection.Focus is { } focus) ActivateItem(focus, false, true);

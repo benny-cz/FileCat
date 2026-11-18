@@ -66,6 +66,14 @@ public sealed partial class AnalysisDatasetLease : IAsyncDisposable
         _owned.RunAsync((reader, token) => Page(offset, maximum, Descriptor.Paths, n => AnalysisPathMetadata.From(reader.ReadPathRow(n + 1, token)), PathBytes, token), cancellation);
     public Task<AnalysisPathMetadata> ReadPathAsync(ulong id, CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, token) => AnalysisPathMetadata.From(reader.ReadPath(id, token)), cancellation);
+    internal Task<AnalysisPathMetadata?> FindPathAsync(ulong id, CancellationToken cancellation) =>
+        _owned.RunAsync<AnalysisPathMetadata?>((reader, token) =>
+        {
+            if (reader.FindPathRow(id, token) is not { } row) return null;
+            var path = reader.ReadPathRow(row, token);
+            if (path.Id != id) throw new InvalidDataException("The recorded path index points to a different entry.");
+            return AnalysisPathMetadata.From(path);
+        }, cancellation);
     public Task<AnalysisDatasetPage<AnalysisObjectMetadata>> ReadObjectsAsync(ulong offset, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, token) => Page(offset, maximum, Descriptor.Objects, n => AnalysisObjectMetadata.From(reader.ReadObject(n + 1, token)),
             o => 256 + o.Id.Length * 2 + (o.VerifiedIdentity?.Length ?? 0) * 2 + (o.VersionEvidence?.Length ?? 0) * 2, token), cancellation);

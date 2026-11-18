@@ -51,7 +51,7 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetAutomationId(_selectionSummary, "Indexed captured selection");
             AutomationProperties.SetLiveSetting(_selectionSummary, AutomationLiveSetting.Polite);
             var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
-            foreach (var button in new[] { _markFocused, _markMembers, _markMatches, _clearMarks, _reviewMarked, _reviewDuplicates, _stageBasket, _reviewBasket, _clearBasket, _recountMarks }) bar.Children.Add(button);
+            foreach (var button in new[] { _markFocused, _markMembers, _markMatches, _clearMarks, _reviewMarked, _reviewDuplicates, _reviewCleanup, _stageBasket, _reviewBasket, _reviewBasketActions, _clearBasket, _recountMarks }) bar.Children.Add(button);
             _main.Children.Add(_selectionSummary); _main.Children.Add(bar);
             var deferred = new Button { Content = "Select all after scan completes", IsEnabled = false };
             const string deferredReason = "This is a captured inventory. Use Mark matching files in this scope, or start a new live analysis to request selection after its scan.";
@@ -73,6 +73,9 @@ public sealed partial class DiskSpaceWindow
                 catch (InvalidOperationException error) { _status.Text = error.Message; }
             };
             _reviewBasket.Click += (_, _) => _ = ReviewCapturedAsync(basket: true);
+            _reviewCleanup.Click += (_, _) => _ = ReviewCleanupAsync(AnalysisVerb.Recycle);
+            AutomationProperties.SetHelpText(_reviewCleanup, "Review marked entries, or the focused real entry when there are no marks.");
+            _reviewBasketActions.Click += (_, _) => _ = ReviewCleanupAsync(AnalysisVerb.Recycle, basket: true);
             _reviewMarked.Click += (_, _) => _ = ReviewCapturedAsync(basket: false);
             _reviewDuplicates.Click += (_, _) => _ = ReviewDuplicatesAsync();
             _recountMarks.Click += (_, _) => { _visibilityOwner = null; RefreshSelection(); };
@@ -124,6 +127,8 @@ public sealed partial class DiskSpaceWindow
             _clearMarks.IsEnabled = _selection.Marks.Count != 0 || _capturingMembers;
             _stageBasket.IsEnabled = _selection.Marks.Count != 0 || _focus != 0;
             _reviewBasket.IsEnabled = _selection.Basket.Count != 0 && !_reviewingBasket;
+            _reviewCleanup.IsEnabled = _selection.Marks.Count != 0 || _focus != 0;
+            _reviewBasketActions.IsEnabled = _selection.Basket.Count != 0;
             _reviewMarked.IsEnabled = _selection.Marks.Count != 0 && !_reviewingBasket;
             _reviewDuplicates.IsEnabled = _reviewMarked.IsEnabled;
             _clearBasket.IsEnabled = _selection.Basket.Count != 0;

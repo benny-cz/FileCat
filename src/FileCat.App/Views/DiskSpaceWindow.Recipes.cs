@@ -105,19 +105,22 @@ public sealed partial class DiskSpaceWindow
             };
         }
 
-        private static Task<AnalysisPathMetadata> ReadRecipeMemoryPathAsync(AnalysisSnapshot source, ulong id, CancellationToken token)
+        private static async Task<AnalysisPathMetadata> ReadRecipeMemoryPathAsync(AnalysisSnapshot source, ulong id, CancellationToken token) =>
+            await FindMemoryPathAsync(source, id, token) ?? throw new InvalidDataException("The candidate path is absent from this observation.");
+
+        private static Task<AnalysisPathMetadata?> FindMemoryPathAsync(AnalysisSnapshot source, ulong id, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
             if (id > 0 && id <= (ulong)source.Nodes.Length && source.Nodes[(int)id - 1] is { } direct && direct.Id == id)
-                return Task.FromResult(AnalysisPathMetadata.From(direct));
-            return Task.Run(() =>
+                return Task.FromResult<AnalysisPathMetadata?>(AnalysisPathMetadata.From(direct));
+            return Task.Run<AnalysisPathMetadata?>(() =>
             {
                 foreach (var node in source.Nodes)
                 {
                     token.ThrowIfCancellationRequested();
                     if (node.Id == id) return AnalysisPathMetadata.From(node);
                 }
-                throw new InvalidDataException("The candidate path is absent from this observation.");
+                return null;
             }, token);
         }
     }
