@@ -49,6 +49,7 @@
     "desktop": { "run": "r1537", "windowsVm": "passed", "mac": "passed with Retina compositor capture", "ubuntuVm": "passed" },
     "themeDesktop": { "run": "r1547", "themes": 8, "windowsVmScale": 1, "macCompositorScale": 2, "ubuntuVmScale": 1, "fontSizeDip": 20, "widthDip": 380, "heightDip": 430 },
     "nativeKeyboard": { "run": "r1553", "ubuntuVm": "Enter and Escape closed Resource limits through X11 and restored focus to the opener", "driver": "drivers/resource-keyboard-x11.py" },
+    "nativeAccessibility": { "run": "r1559", "ubuntuVm": "AT-SPI showed the dialog title, scratch amount and enabled focused Close limits button in a private test session", "driver": "drivers/inspect-resource-atspi.py" },
     "coverage": "Resource limits shows the configured path and the captured index's current reservation at open, including derived indexes. A bounded-memory view explains that it has no index reservation. The compact desktop cases leave the source unchanged and close their owned processes."
   },
   "standardIndexChoice": {
