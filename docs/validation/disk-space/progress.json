@@ -71,7 +71,7 @@
     "heldSourceReview": {
       "mainMerge": "c49afb27",
       "tests": {
-        "windowsVm": { "run": "r1507", "passed": 7, "skipped": 1, "total": 8 },
+        "windowsVm": { "run": "r1514", "passed": 7, "skipped": 1, "total": 8 },
         "mac": { "run": "r1514", "passed": 8, "total": 8 },
         "ubuntuVm": { "run": "r1512", "passed": 8, "total": 8 }
       },
@@ -81,6 +81,7 @@
       "coreSha256": "0347ebd7e6dcdfc6746beb83083cfd0daea40908622f9c0289774eacb3dfc916",
       "integratedRendering": {
         "run": "r1508",
+        "windowsVm": { "passed": 962, "skipped": 6, "failed": 0, "total": 968 },
         "mac": { "passed": 962, "skipped": 6, "failed": 0, "total": 968 },
         "ubuntuVm": { "passed": 962, "skipped": 6, "failed": 0, "total": 968 }
       }
@@ -89,7 +90,12 @@
   "comparisonClipboardAndCancellation": {
     "tests": { "windowsVm": "r1503 150 passed", "mac": "r1503 149 passed and r1506 both binding checks passed", "ubuntuVm": "r1503 150 passed" },
     "desktop": { "run": "r1504", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
-    "coverage": "Copies displayed comparison summary and side-specific recorded details. Comparison and ordinary inventory staging wait for export cancellation to end the producer before closing the staged output."
+    "coverage": "Copies displayed comparison summary and side-specific recorded details. Comparison and ordinary inventory staging wait for export cancellation to end the producer before closing the staged output.",
+    "displayedPath": {
+      "tests": { "run": "r1515", "windowsVm": 7, "mac": 7, "ubuntuVm": 7 },
+      "desktop": { "run": "r1516", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
+      "coverage": "Copy the selected side's displayed text with filename escaping. An unavailable display, cleared selection or another member page disables the old target. Saved indexed views restore the exact captured alias."
+    }
   },
   "completedBehaviors": [
     "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",

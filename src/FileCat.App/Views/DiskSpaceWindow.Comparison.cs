@@ -270,6 +270,16 @@ public sealed partial class DiskSpaceWindow
                     ItemTemplate = new FuncDataTemplate<string>((path, _) => SessionText(path ?? ""))
                 };
                 AutomationProperties.SetName(paths, title + " observed paths"); body.Children.Add(paths);
+                var copyPath = ActionButton("Copy displayed " + title + " path", () =>
+                {
+                    if (paths.SelectedItem is string path && CanCopyDisplayedComparisonPath(path))
+                        _ = CopyCapturedTextAsync((path, ""));
+                }, "Select an observed path to copy its displayed text, including any filename escapes.");
+                ToolTip.SetShowOnDisabled(copyPath, true);
+                UpdateComparisonPathCopy(copyPath, null);
+                paths.SelectionChanged += (_, _) => UpdateComparisonPathCopy(copyPath, paths.SelectedItem as string);
+                if (entity.Paths.Length == 1) paths.SelectedIndex = 0;
+                body.Children.Add(copyPath);
             }
             Side("Previous", row.Previous); Side("Current", row.Current);
             if (comparison.Metric == AnalysisMetric.OnDisk)

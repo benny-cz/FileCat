@@ -129,10 +129,9 @@ public sealed partial class DiskSpaceWindow
             string location = await new AnalysisReportLineage(side.Previous ? _previousSource : _currentSource).ResolveAsync(selected, token);
             token.ThrowIfCancellationRequested();
             _publishing = true;
-            try { side.Page = page; side.Members.ItemsSource = page.Rows; side.Members.SelectedItem = selected; SideRange(side); }
+            try { ShowMembers(side, page); side.Members.SelectedItem = selected; }
             finally { _publishing = false; }
-            _focusedPath = selected.Id; _previousFocus = side.Previous;
-            side.Details.Text = "Selected recorded path: " + location + "\nPath " + selected.Id.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\n" + side.Heading;
+            ShowLocatedPath(side, selected, location);
             if (_selected is { } row) FocusChart(row, _before.Page, _after.Page);
         }
 

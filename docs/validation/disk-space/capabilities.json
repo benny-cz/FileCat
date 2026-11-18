@@ -92,7 +92,7 @@
         "AnalysisRenderingTests.CurrentSourceBindingKeepsTheReviewedTargetWhenTheChosenAliasChanges"
       ],
       "evidence": "README.md",
-      "lastQualifiedBuild": "r1507, r1509, r1512 and r1513 development",
+      "lastQualifiedBuild": "r1508, r1509 and r1512–r1514 development",
       "reason": "Choose a current local file or folder explicitly. Saved locations stay offline."
     },
     {

@@ -17,6 +17,22 @@ namespace FileCat.App.Views;
 
 public sealed partial class DiskSpaceWindow
 {
+    private static bool CanCopyDisplayedComparisonPath(string? path) => path is { Length: > 0 } && path != AnalysisReportLineage.TooLong &&
+        System.Text.Encoding.UTF8.GetByteCount(path) <= AnalysisLimits.LocatorBytes;
+
+    private static void UpdateComparisonPathCopy(Button button, string? path, bool ready = true)
+    {
+        bool available = CanCopyDisplayedComparisonPath(path);
+        button.IsEnabled = ready && available;
+        string help = available ? "Copy the displayed recorded path, including any filename escapes."
+            : path is null ? "Select an observed path to copy its displayed text."
+            : "The displayed path exceeds the clipboard limit. The inventory retains its raw names.";
+        if (Equals(button.Tag, help)) return;
+        button.Tag = help;
+        AutomationProperties.SetHelpText(button, help);
+        ToolTip.SetTip(button, new FileCat.App.Controls.RichTip("Copy displayed path", detail: help));
+    }
+
     internal delegate Task<AnalysisIndexedComparison> IndexedComparisonBuilder(AnalysisDatasetLease previous, AnalysisDatasetLease current,
         AnalysisMetric metric, IReadOnlyDictionary<string, string>? structuralRoots, CancellationToken cancellation);
 
@@ -120,9 +136,13 @@ public sealed partial class DiskSpaceWindow
             internal readonly ListBox Members = new() { MinHeight = 90, MaxHeight = 220 };
             internal readonly TextBlock Range = Text("");
             internal readonly Button Back = new() { Content = "Previous members" }, Next = new() { Content = "Next members" };
+            internal Button CopyPath = null!;
             internal AnalysisDatasetPage<AnalysisPathMetadata>? Page;
             internal AnalysisComparisonAccountingEntity? Entity;
             internal string Heading = "";
+            internal (ulong Id, string Text)? LocatedPath;
+            internal string? SelectedDisplayPath => LocatedPath is { } located && Members.SelectedItem is AnalysisPathMetadata path && path.Id == located.Id
+                ? located.Text : null;
         }
 
         internal IndexedComparisonView(DiskSpaceWindow window, AnalysisSessionAdmission.Slot admission,
@@ -195,8 +215,13 @@ public sealed partial class DiskSpaceWindow
                 AutomationProperties.SetName(side.Back, label + " previous observed paths"); AutomationProperties.SetName(side.Next, label + " next observed paths");
                 side.Back.Click += async (_, _) => await MembersAsync(side, false); side.Next.Click += async (_, _) => await MembersAsync(side, true);
                 side.Members.SelectionChanged += async (_, _) => { if (!_publishing && !_busy) await LocateAsync(side); };
+                side.CopyPath = Button("Copy displayed " + label + " path", () =>
+                {
+                    if (side.SelectedDisplayPath is { } path && CanCopyDisplayedComparisonPath(path)) _ = CopyComparisonTextAsync(path);
+                }, "Select an observed path to copy its displayed text, including any filename escapes.");
+                ToolTip.SetShowOnDisabled(side.CopyPath, true);
                 Children.Add(new Expander { Header = label + " recorded side", IsExpanded = true, HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                    Content = new StackPanel { Spacing = 6, Children = { side.Details, new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { side.Back, side.Next, side.Range } }, side.Members } } });
+                    Content = new StackPanel { Spacing = 6, Children = { side.Details, new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { side.Back, side.Next, side.Range } }, side.Members, side.CopyPath } } });
             }
             _metric.SelectionChanged += async (_, _) => { if (!_publishing && !_busy) await ChangeMetricAsync(); };
             _rows.SelectionChanged += async (_, _) => { if (!_publishing && !_busy) await InspectAsync(); };
@@ -276,7 +301,12 @@ public sealed partial class DiskSpaceWindow
             finally { _publishing = false; }
         }
         private static void ClearSide(Side side)
-        { side.Entity = null; side.Page = null; side.Members.ItemsSource = null; side.Details.Text = "Select a comparison row to inspect this recorded side."; side.Range.Text = ""; }
+        {
+            side.Entity = null;
+            side.Heading = "Select a comparison row to inspect this recorded side.";
+            ShowMembers(side, null);
+            side.Range.Text = "";
+        }
         private void Refresh()
         {
             bool usable = !_disposed && !_busy && !_work.HasUnconfirmedClose;
@@ -292,6 +322,7 @@ public sealed partial class DiskSpaceWindow
                 side.Members.IsEnabled = usable && _result is not null;
                 side.Back.IsEnabled = usable && _result is not null && side.Page?.Offset > 0;
                 side.Next.IsEnabled = usable && _result is not null && side.Page?.HasMore == true;
+                UpdateComparisonPathCopy(side.CopyPath, side.SelectedDisplayPath, usable);
             }
             RefreshCharts(usable);
             RefreshOutputs(usable);
@@ -426,11 +457,9 @@ public sealed partial class DiskSpaceWindow
             _publishing = true;
             try
             {
-                ApplySide(_before, before); ApplySide(_after, after);
+                ApplySide(_before, before, row.Explanation); ApplySide(_after, after, row.Explanation);
                 _previousFocus = _chartOwner?.Previous == true || row.Current is null;
                 _focusedPath = (_previousFocus ? before.Page : after.Page)?.Rows.FirstOrDefault()?.Id ?? 0;
-                _before.Details.Text = row.Explanation + "\n" + _before.Details.Text;
-                _after.Details.Text = row.Explanation + "\n" + _after.Details.Text;
                 FocusChart(row, before.Page, after.Page);
             }
             finally { _publishing = false; }
@@ -450,13 +479,22 @@ public sealed partial class DiskSpaceWindow
                 "\nAttribution parent: " + (full.AttributionParent?.ToString(CultureInfo.InvariantCulture) ?? "Unavailable") +
                 "\nThis is captured metadata, not proof of unchanged content or reclaimable physical space.");
         }
-        private static void ApplySide(Side side, SideRead value)
+        private static void ApplySide(Side side, SideRead value, string explanation)
         {
-            side.Entity = value.Entity; side.Page = value.Page; side.Heading = value.Details; side.Details.Text = value.Details;
-            side.Members.ItemsSource = value.Page?.Rows; side.Members.SelectedIndex = -1; SideRange(side);
+            side.Entity = value.Entity;
+            side.Heading = explanation + "\n" + value.Details;
+            ShowMembers(side, value.Page);
         }
-        private static void SideRange(Side side) => side.Range.Text = side.Page is not { } page || page.Rows.Length == 0 ? "No observed paths on this side" :
-            $"{page.Offset + 1:N0}–{page.NextOffset:N0} of {page.Total:N0} observed paths";
+        private static void ShowMembers(Side side, AnalysisDatasetPage<AnalysisPathMetadata>? page)
+        {
+            side.Page = page;
+            side.LocatedPath = null;
+            side.Details.Text = side.Heading;
+            side.Members.ItemsSource = page?.Rows;
+            side.Members.SelectedIndex = -1;
+            side.Range.Text = page is null || page.Rows.Length == 0 ? "No observed paths on this side" :
+                $"{page.Offset + 1:N0}–{page.NextOffset:N0} of {page.Total:N0} observed paths";
+        }
         private Task MembersAsync(Side side, bool next) => RunAsync("Reading observed paths…", async token =>
         {
             if (_result is null || _selected is null || side.Entity is null || side.Page is null || !next && side.Page.Offset == 0 || next && !side.Page.HasMore) return;
@@ -464,16 +502,25 @@ public sealed partial class DiskSpaceWindow
                 : await _result.ReadMembersBeforeAsync(side.Previous, side.Entity.Id, side.Page.Offset, PageSize, token);
             token.ThrowIfCancellationRequested();
             _publishing = true;
-            try { side.Page = page; side.Members.ItemsSource = page.Rows; side.Members.SelectedIndex = -1; SideRange(side); }
+            try { ShowMembers(side, page); }
             finally { _publishing = false; }
         });
         private Task LocateAsync(Side side) => RunAsync("Reading the recorded location…", async token =>
         {
+            side.LocatedPath = null;
+            side.Details.Text = side.Heading;
             if (side.Members.SelectedItem is not AnalysisPathMetadata path) return;
             string location = await new AnalysisReportLineage(side.Previous ? _previousSource : _currentSource).ResolveAsync(path, token);
-            token.ThrowIfCancellationRequested(); _focusedPath = path.Id; _previousFocus = side.Previous;
-            side.Details.Text = "Selected recorded path: " + location + "\nPath " + path.Id.ToString(CultureInfo.InvariantCulture) + "\n" + side.Heading;
+            token.ThrowIfCancellationRequested();
+            ShowLocatedPath(side, path, location);
         });
+        private void ShowLocatedPath(Side side, AnalysisPathMetadata path, string location)
+        {
+            _focusedPath = path.Id;
+            _previousFocus = side.Previous;
+            side.LocatedPath = (path.Id, location);
+            side.Details.Text = "Selected recorded path: " + location + "\nPath " + path.Id.ToString(CultureInfo.InvariantCulture) + "\n" + side.Heading;
+        }
         public ScrollViewer CreateViewport() => new() { Content = this, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         public void HandleKeys(KeyEventArgs args)
         {

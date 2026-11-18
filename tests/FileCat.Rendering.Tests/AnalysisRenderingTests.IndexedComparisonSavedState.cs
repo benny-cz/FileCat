@@ -1,5 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input.Platform;
+using Avalonia.VisualTree;
 using FileCat.App.Services;
 using FileCat.App.Views;
 using FileCat.Core.Analysis;
@@ -46,7 +48,13 @@ public sealed partial class AnalysisRenderingTests
             aliases = ComparisonControl<ListBox>(window, "Previous observed comparison paths")!;
             Assert.Equal(focused, Assert.IsType<AnalysisPathMetadata>(aliases.SelectedItem).Id);
             Assert.Equal(focused, Assert.IsType<AnalysisPathMetadata>(aliases.Items[0]).Id);
-            Assert.Contains("Selected recorded path:", ComparisonControl<TextBox>(window, "Previous comparison details")!.Text!);
+            string displayedPath = ComparisonControl<TextBox>(window, "Previous comparison details")!.Text!.Split('\n')[0];
+            const string selectedPathLabel = "Selected recorded path: ";
+            Assert.StartsWith(selectedPathLabel, displayedPath);
+            Assert.True(window.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Copy displayed Previous path").IsEnabled);
+            Click(window, "Copy displayed Previous path");
+            Assert.Equal(displayedPath[selectedPathLabel.Length..], await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
+            await UntilComparisonPersistence(() => aliases.IsEnabled);
             if (removed)
             {
                 // The invalidation signal needs only the saved receipt identity.

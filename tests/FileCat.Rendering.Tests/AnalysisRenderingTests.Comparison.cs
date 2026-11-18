@@ -182,8 +182,13 @@ public sealed partial class AnalysisRenderingTests
     public async Task ComparisonPaneFiltersGrowthInspectsBothSidesAndKeepsItsCloseDefault()
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
-        using var previous = new DiskSpaceViewModel(fixture.Services, ImportedFixture()); await previous.RebuildAsync(true); await previous.SaveNewAsync("before.fcdsa");
-        var s = Fixture(); s = s with { Objects = s.Objects.SetItem(0, s.Objects[0] with { LogicalLength = AnalysisMeasurement.Known(131072) }) };
+        AnalysisSnapshot NamedFixture()
+        {
+            var snapshot = Fixture();
+            return snapshot with { Nodes = snapshot.Nodes.SetItem(3, snapshot.Nodes[3] with { Name = "source\u202E.cs" }) };
+        }
+        using var previous = new DiskSpaceViewModel(fixture.Services, ImportedFixture(NamedFixture())); await previous.RebuildAsync(true); await previous.SaveNewAsync("before.fcdsa");
+        var s = NamedFixture(); s = s with { Objects = s.Objects.SetItem(0, s.Objects[0] with { LogicalLength = AnalysisMeasurement.Known(131072) }) };
         using var current = new DiskSpaceViewModel(fixture.Services, ImportedFixture(s)) { Metric = AnalysisMetric.FileSize }; await current.RebuildAsync(true);
         var comparison = await CompareStructurallyAsync(current, "before.fcdsa"); var window = new DiskSpaceWindow { Width = 380, Height = 430, FontSize = 20 };
         window.AddSession(comparison); window.Show();
@@ -205,7 +210,15 @@ public sealed partial class AnalysisRenderingTests
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Inspect comparison entry" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("No current source or content proof", StringComparison.Ordinal) == true);
-            Assert.Contains(window.GetVisualDescendants().OfType<ListBox>(), l => AutomationLabel(l) == "Previous observed paths");
+            foreach (string side in new[] { "Previous", "Current" })
+            {
+                var paths = window.GetVisualDescendants().OfType<ListBox>().Single(list => AutomationLabel(list) == side + " observed paths");
+                paths.SelectedIndex = 0;
+                Click(window, "Copy displayed " + side + " path");
+                string displayed = Assert.IsType<string>(paths.SelectedItem);
+                Assert.Contains("source\\u202E.cs", displayed);
+                Assert.Equal(displayed, await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
+            }
             Click(window, "Copy details");
             string? details = await ClipboardExtensions.TryGetTextAsync(window.Clipboard!);
             Assert.Contains("Previous:", details);

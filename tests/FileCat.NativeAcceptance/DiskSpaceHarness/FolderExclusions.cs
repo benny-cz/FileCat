@@ -151,13 +151,21 @@ internal sealed partial class HarnessApp
             ComparedRows()!.SelectedIndex = 0;
             Click("Inspect comparison entry");
             await ReadyAsync(() => VisibleButton("Copy details") is { IsEnabled: true });
+            var currentPaths = window.GetVisualDescendants().OfType<ListBox>().Single(list => list.IsEffectivelyVisible &&
+                AutomationProperties.GetName(list) == "Current observed paths");
+            currentPaths.SelectedIndex = 0;
+            await ReadyAsync(() => VisibleButton("Copy displayed Current path") is { IsEnabled: true });
+            var comparedPath = VisibleButton("Copy displayed Current path")!;
+            comparedPath.BringIntoView();
+            await ReadyAsync(() => comparedPath.TranslatePoint(default, window) is { } top && top.Y >= 0 &&
+                top.Y + comparedPath.Bounds.Height <= window.ClientSize.Height);
             Click("Close");
             await ReadyAsync(() => VisibleButton("Close") is null);
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
                 sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
-                currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true };
+                currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }

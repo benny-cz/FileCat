@@ -10,7 +10,7 @@ internal sealed class AnalysisReportLineage
     { _descriptor = descriptor; _read = read; }
     internal const long BudgetBytes = 2L * 1024 * 1024;
     internal const int MaximumEntries = 2048;
-    private const string TooLong = "[Displayed location exceeds the report bound; use the full inventory for raw names.]";
+    internal const string TooLong = "[Displayed location exceeds the report bound; use the full inventory for raw names.]";
     private sealed record Entry(ulong Id, string Root, string Location, bool Limited, bool RootPrefix, long Bytes);
     private readonly Dictionary<ulong, LinkedListNode<Entry>> _cache = new();
     private readonly LinkedList<Entry> _order = new();
