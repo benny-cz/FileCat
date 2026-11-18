@@ -151,6 +151,8 @@ public enum CommitCheck
     MemberChanged,
     /// <summary>The archive is gone, moved, or unreadable.</summary>
     ArchiveMissing,
+    /// <summary>The archive is protected by Windows EFS and the legacy commit cannot preserve that protection.</summary>
+    ArchiveProtectedByEfs,
 }
 
 /// <summary>The archive version reviewed before an explicit overwrite/rebase decision.</summary>
@@ -694,10 +696,9 @@ public sealed partial class EditSessionStore
             throw new NotSupportedException("Edit sessions work on members of archives in folders.");
         string archive = Path.GetFullPath(archiveFile.Path);
         string memberPath = member.Parent.Path.Length == 0 ? member.Name : member.Parent.Path + "/" + member.Name;
-        var baseline = ArchiveBaseline.Of(archive);
+        var baseline = ArchiveBaseline.OfForMutation(archive, ct.ThrowIfCancellationRequested, ArchiveOuterEfs.EditUnavailable);
         uint expectedCrc; long expectedLength;
-        using var archiveBytes = new FileStream(archive, FileMode.Open, FileAccess.Read, FileShare.Read);
-        ArchiveOuterEfs.RequireClear(archiveBytes.SafeFileHandle, ArchiveOuterEfs.EditUnavailable);
+        using var archiveBytes = new ArchiveMutationReadStream(archive, ArchiveOuterEfs.EditUnavailable);
         using (var catalog = new System.IO.Compression.ZipArchive(archiveBytes, System.IO.Compression.ZipArchiveMode.Read, leaveOpen: true))
         {
             if (catalog.Entries.Count > ZipProvider.MaxEntries) throw new InvalidDataException("Too many archive members to prepare an edit.");
@@ -712,7 +713,8 @@ public sealed partial class EditSessionStore
             if (found is null || found.FullName.EndsWith('/')) throw new FileNotFoundException("The archive member no longer exists.");
             expectedCrc = found.Crc32; expectedLength = found.Length; ValidateLength(expectedLength);
         }
-        if (!baseline.Matches(archive)) throw new IOException("The archive changed while its edit was being prepared.");
+        if (!baseline.MatchesForMutation(archive, ct.ThrowIfCancellationRequested, ArchiveOuterEfs.EditUnavailable))
+            throw new IOException("The archive changed while its edit was being prepared.");
         return CreateSession(member.Name, (working,open) =>
         {
             ct.ThrowIfCancellationRequested();
@@ -721,7 +723,8 @@ public sealed partial class EditSessionStore
             return ReadOwned(source, () =>
             {
                 var copy = WriteWorkingCopy(source, working, ct,outputFactory:open);
-                if (copy.Length != expectedLength || copy.Crc != expectedCrc || !baseline.Matches(archive))
+                if (copy.Length != expectedLength || copy.Crc != expectedCrc ||
+                    !baseline.MatchesForMutation(archive, ct.ThrowIfCancellationRequested, ArchiveOuterEfs.EditUnavailable))
                     throw new IOException("The archive member changed or is damaged; no edit session was created.");
                 return copy;
             });
@@ -852,9 +855,10 @@ public sealed partial class EditSessionStore
         ct.ThrowIfCancellationRequested();
         try
         {
-            var baseline = ArchiveBaseline.Of(record.ArchivePath);
+            var baseline = ArchiveBaseline.OfForMutation(record.ArchivePath, ct.ThrowIfCancellationRequested);
             if (baseline == record.Baseline) return new(CommitCheck.Ready, baseline);
-            using var archive = System.IO.Compression.ZipFile.OpenRead(record.ArchivePath);
+            using var source = new ArchiveMutationReadStream(record.ArchivePath);
+            using var archive = new System.IO.Compression.ZipArchive(source, System.IO.Compression.ZipArchiveMode.Read, leaveOpen: true);
             if (archive.Entries.Count > ZipProvider.MaxEntries) throw new InvalidDataException("Too many archive members to review an edit commit.");
             System.IO.Compression.ZipArchiveEntry? found = null; bool duplicate = false;
             foreach (var entry in archive.Entries)
@@ -863,11 +867,14 @@ public sealed partial class EditSessionStore
                 if (ArchivePaths.Normalize(entry.FullName) != record.MemberPath) continue;
                 duplicate |= found is not null; found = entry;
             }
-            if (!baseline.Matches(record.ArchivePath)) throw new IOException("The archive changed while its edit commit was reviewed.");
+            if (!baseline.MatchesForMutation(record.ArchivePath, ct.ThrowIfCancellationRequested))
+                throw new IOException("The archive changed while its edit commit was reviewed.");
             var check = !duplicate && found is not null && !found.FullName.EndsWith('/') && found.Crc32 == record.MemberCrc32 && found.Length == record.MemberLength
                 ? CommitCheck.ArchiveChanged : CommitCheck.MemberChanged;
             return new(check, baseline);
         }
+        catch (ArchiveWriteException error) when (error.Reason == ArchiveWriteReason.PublicationUnavailable)
+        { return new(CommitCheck.ArchiveProtectedByEfs, null); }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException) { return new(CommitCheck.ArchiveMissing, null); }
     }
 
@@ -1085,7 +1092,7 @@ public sealed partial class EditSessionStore
 
     /// <summary>The update that writes the working copy back; <paramref name="rebase"/> accepts the archive's current version.</summary>
     public ArchivePlan CommitPlan(EditSessionRecord record, bool rebase) =>
-        new(record.ArchivePath, rebase ? ArchiveBaseline.Of(record.ArchivePath) : record.Baseline,
+        new(record.ArchivePath, rebase ? ArchiveBaseline.OfForMutation(record.ArchivePath) : record.Baseline,
             [new ArchiveChange(ArchiveChangeKind.Replace, record.MemberPath, record.WorkingPath)]) { LegacyEditCommit = true };
 
     internal IRetainedEditUpload? RemoteCommitInput(EditSessionRecord record,EditCommitCopy copy)
@@ -1112,13 +1119,14 @@ public sealed partial class EditSessionStore
 
     private EditSessionRecord CommittedArchive(EditSessionRecord record, string committedSha256, EditCommitCopy? copy)
     {
-        var baseline = ArchiveBaseline.Of(record.ArchivePath);
-        using var archive = System.IO.Compression.ZipFile.OpenRead(record.ArchivePath);
+        var baseline = ArchiveBaseline.OfForMutation(record.ArchivePath);
+        using var source = new ArchiveMutationReadStream(record.ArchivePath);
+        using var archive = new System.IO.Compression.ZipArchive(source, System.IO.Compression.ZipArchiveMode.Read, leaveOpen: true);
         if (archive.Entries.Count > ZipProvider.MaxEntries) throw new InvalidDataException("Too many archive members to confirm an edit commit.");
         var matches = archive.Entries.Where(e => ArchivePaths.Normalize(e.FullName) == record.MemberPath).Take(2).ToArray();
         if (matches.Length != 1 || matches[0].FullName.EndsWith('/')) throw new IOException("The committed archive member is missing or ambiguous; the previous edit baseline is kept.");
         var member = matches[0];
-        if (copy is not null && (member.Crc32 != copy.Crc32 || member.Length != copy.Length) || !baseline.Matches(record.ArchivePath))
+        if (copy is not null && (member.Crc32 != copy.Crc32 || member.Length != copy.Length) || !baseline.MatchesForMutation(record.ArchivePath))
             throw new IOException("The archive changed after the commit; the previous edit baseline is kept.");
         var updated = record with
         {

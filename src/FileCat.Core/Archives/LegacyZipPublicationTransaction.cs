@@ -54,11 +54,10 @@ internal sealed class LegacyZipPublicationTransaction
         step = Journal.Intent("zip-update", archive, null, temp);
     }
 
-    public void CaptureOpenedSource(FileStream source)
+    public void CaptureOpenedSource(ArchiveMutationReadStream source)
     {
         if (!updating || openedSourceDigest is not null || prepared) throw new InvalidOperationException("Invalid ZIP source capture phase.");
-        var handle = OperatingSystem.IsWindows() ? source.SafeFileHandle : null;
-        openedSourceDigest = DigestOpened(source, checkProtection: handle is null ? null : () => ArchiveOuterEfs.RequireClear(handle));
+        openedSourceDigest = DigestOpened(source);
         if (!string.Equals(Convert.ToHexString(openedSourceDigest), plan.Baseline!.Sha256Hex, StringComparison.Ordinal))
             throw new IOException("The archive changed after it was opened, so this change was not applied. Open it again and repeat the change.");
     }
@@ -66,7 +65,7 @@ internal sealed class LegacyZipPublicationTransaction
     public void Prepare()
     {
         if (prepared || updating && openedSourceDigest is null) throw new InvalidOperationException("Invalid ZIP publication preparation phase.");
-        if (updating && !plan.Baseline!.Matches(archive, Job.Checkpoint))
+        if (updating && !plan.Baseline!.MatchesForMutation(archive, Job.Checkpoint))
             throw new IOException("The archive changed while it was being rebuilt; the original was kept.");
         mark = updating ? Fs.ReadOriginMark(archive) : null;
         requiredOrigin = move?.RequiredOrigin(mark) ?? mark;
@@ -245,7 +244,7 @@ internal sealed class LegacyZipPublicationTransaction
         return DigestOpened(stream, checkCancellation);
     }
 
-    private byte[] DigestOpened(Stream stream, bool checkCancellation = true, Action? checkProtection = null)
+    private byte[] DigestOpened(Stream stream, bool checkCancellation = true)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var buffer = new byte[BufferSize];
@@ -254,9 +253,7 @@ internal sealed class LegacyZipPublicationTransaction
             while (true)
             {
                 if (checkCancellation) Job.Checkpoint();
-                checkProtection?.Invoke();
                 int read = stream.Read(buffer, 0, buffer.Length);
-                checkProtection?.Invoke();
                 if (read == 0) break;
                 hash.AppendData(buffer, 0, read);
             }

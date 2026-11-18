@@ -66,7 +66,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         {
             if (OperatingSystem.IsWindows())
                 ArchiveOuterEfs.RequireClear(File.GetAttributes(archive), ArchiveOuterEfs.UpdateUnavailable);
-            if (!plan.Baseline!.Matches(archive, Job.Checkpoint))
+            if (!plan.Baseline!.MatchesForMutation(archive, Job.Checkpoint))
                 throw new IOException("The archive changed after it was opened, so this change was not applied. Open it again and repeat the change.");
             if ((File.GetAttributes(archive) & FileAttributes.ReadOnly) != 0)
                 throw new UnauthorizedAccessException("The archive is read-only; clear its read-only attribute first.");
@@ -84,14 +84,8 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
 
         var move = plan.MoveSources ? new ArchiveMoveSources(Job, Fs, Journal, plan, archive) : null;
         var additions = ExpandAdditions(plan, move);
-        using var sourceStream = updating ?
-            new FileStream(archive, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.SequentialScan) : null;
-        var sourceHandle = OperatingSystem.IsWindows() ? sourceStream?.SafeFileHandle : null;
-        void CheckOuterProtection()
-        {
-            if (sourceHandle is not null) ArchiveOuterEfs.RequireClear(sourceHandle);
-        }
-        CheckOuterProtection();
+        using var sourceStream = updating ? new ArchiveMutationReadStream(archive) : null;
+        void CheckOuterProtection() => sourceStream?.RequireClear();
         var publication = new LegacyZipPublicationTransaction(Job, Fs, Journal, plan, archive, folder, move);
         string temp = publication.StagePath;
         ZipArchive? source = null;

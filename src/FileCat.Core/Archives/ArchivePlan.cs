@@ -28,35 +28,46 @@ public sealed record ArchiveChange(ArchiveChangeKind Kind, string MemberPath, st
 /// <summary>The archive as the plan saw it; any later change makes the update refuse instead of losing that change.</summary>
 public sealed record ArchiveBaseline(long Length, long LastWriteUtcTicks, string Sha256Hex)
 {
-    public static ArchiveBaseline Of(string path, Action? checkpoint = null)
+    public static ArchiveBaseline Of(string path, Action? checkpoint = null) => ReadRevision(path, checkpoint, null);
+
+    internal static ArchiveBaseline OfForMutation(string path, Action? checkpoint = null,
+        string efsRefusal = ArchiveOuterEfs.UpdateUnavailable) => ReadRevision(path, checkpoint, efsRefusal);
+
+    private static ArchiveBaseline ReadRevision(string path, Action? checkpoint, string? efsRefusal)
     {
         var info = new FileInfo(path);
         if (!info.Exists) throw new FileNotFoundException("The archive no longer exists.", path);
         long length = info.Length;
         long modified = info.LastWriteTimeUtc.Ticks;
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
-            64 * 1024, FileOptions.SequentialScan);
+        using Stream stream = efsRefusal is null
+            ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.SequentialScan)
+            : new ArchiveMutationReadStream(path, efsRefusal);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var buffer = new byte[1024 * 1024];
-        int read;
-        while ((read = stream.Read(buffer, 0, buffer.Length)) != 0)
+        while (true)
         {
             checkpoint?.Invoke();
+            int read = stream.Read(buffer, 0, buffer.Length);
+            if (read == 0) break;
             hash.AppendData(buffer, 0, read);
         }
-        checkpoint?.Invoke();
         info.Refresh();
         if (!info.Exists || info.Length != length || info.LastWriteTimeUtc.Ticks != modified)
             throw new IOException("The archive changed while its revision was being read.");
         return new ArchiveBaseline(length, modified, Convert.ToHexString(hash.GetHashAndReset()));
     }
 
-    public bool Matches(string path, Action? checkpoint = null)
+    public bool Matches(string path, Action? checkpoint = null) => Matches(path, checkpoint, null);
+
+    internal bool MatchesForMutation(string path, Action? checkpoint = null,
+        string efsRefusal = ArchiveOuterEfs.UpdateUnavailable) => Matches(path, checkpoint, efsRefusal);
+
+    private bool Matches(string path, Action? checkpoint, string? efsRefusal)
     {
         var info = new FileInfo(path);
         if (!info.Exists || info.Length != Length || info.LastWriteTimeUtc.Ticks != LastWriteUtcTicks)
             return false;
-        try { return this == Of(path, checkpoint); }
+        try { return this == ReadRevision(path, checkpoint, efsRefusal); }
         catch (FileNotFoundException) { return false; }
         catch (DirectoryNotFoundException) { return false; }
     }

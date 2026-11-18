@@ -8,6 +8,33 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed class WindowsArchiveEfsUpdateTests
 {
+    [Fact]
+    public void Legacy_revision_does_not_hash_an_archive_encrypted_after_the_reader_opens()
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-legacy-efs-revision-").FullName;
+        string target = Path.Join(root, "original.zip");
+        try
+        {
+            using (var archive = ZipFile.Open(target, ZipArchiveMode.Create))
+            using (var writer = new StreamWriter(archive.CreateEntry("original.txt").Open()))
+                writer.Write("Original archive member");
+            byte[] bytes = File.ReadAllBytes(target);
+            int checkpoints = 0;
+            var refusal = Assert.Throws<ArchiveWriteException>(() => ArchiveBaseline.OfForMutation(target, () =>
+            {
+                if (++checkpoints == 1) File.Encrypt(target);
+            }));
+            Assert.Equal(ArchiveWriteReason.PublicationUnavailable, refusal.Reason);
+            Assert.Equal(ArchiveOuterEfs.UpdateUnavailable, refusal.Message);
+            Assert.Equal(1, checkpoints);
+            Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(bytes, File.ReadAllBytes(target));
+            Assert.Equal([target], Directory.GetFiles(root));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
