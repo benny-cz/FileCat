@@ -138,7 +138,7 @@ public sealed partial class AnalysisDatasetLease : IAsyncDisposable
         return new(offset, total, rows.ToImmutable());
     }
     private static long PathBytes(AnalysisPathMetadata p) => 320L + p.Name.Length * 2L + p.RawName.Length + p.RootId.Length * 2L + (p.ObjectId?.Length ?? 0) * 2L + (p.ObservedIdentity?.Length ?? 0) * 2L;
-    private static long FactBytes(StorageFact f) => 384L + f.Id.Length * 2L + (f.ObjectId?.Length ?? 0) * 2L + f.ComponentId.Length * 2L + f.BasisId.Length * 2L + f.Method.Length * 2L + f.Includes.Sum(s => 32L + s.Length * 2L);
+    internal static long FactBytes(StorageFact f) => 384L + f.Id.Length * 2L + (f.ObjectId?.Length ?? 0) * 2L + f.ComponentId.Length * 2L + f.BasisId.Length * 2L + f.Method.Length * 2L + f.Includes.Sum(s => 32L + s.Length * 2L);
     private static long IssueBytes(AnalysisIssue i) => 128L + i.Code.Length * 2L + (i.RootId?.Length ?? 0) * 2L;
     public ValueTask DisposeAsync() => _owned.DisposeAsync();
 }

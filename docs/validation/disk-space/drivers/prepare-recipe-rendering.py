@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tarfile
@@ -20,6 +21,7 @@ scope.add_argument("--recipe-staging-fixture", action="store_true")
 scope.add_argument("--ntfs-streams", action="store_true")
 scope.add_argument("--apfs-forks", action="store_true")
 scope.add_argument("--cleanup-review", action="store_true")
+scope.add_argument("--cleanup-review-fixture", metavar="BASE_REVISION")
 options = parser.parse_args()
 revision = options.revision
 methods = ["*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*"]
@@ -64,9 +66,10 @@ if options.duplicates or options.duplicate_content or options.recorded_insights 
         expected = 54
         name = f"apfs-forks-render-build-{revision}"
     if options.cleanup_review:
-        methods.extend(("*NativeCleanupReview*", "*ReviewCancelBindingRoutesFromOverlayAndEnterOnAFileOpensDetails*",
+        methods.extend(("*NativeCleanupReview*", "*CleanupReviewTotalsSeparateBasisCoverageAndOverlappingComponents*",
+                        "*ReviewCancelBindingRoutesFromOverlayAndEnterOnAFileOpensDetails*",
                         "*ShortLargeTextPageScrollsAndTheRankedTableRemainsVirtualized*"))
-        expected = 58
+        expected = 59
         name = f"cleanup-review-render-build-{revision}"
     log = (Path.cwd() / f".tmp/{name}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
@@ -80,6 +83,13 @@ if options.recipe_staging_fixture:
     methods = ["*NativeRecipeStaging*"]
     expected = 2
     log = (Path.cwd() / f".tmp/recipe-staging-render-build-{revision}.txt").read_text(encoding="utf-8-sig")
+    assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
+retry = options.cleanup_review_fixture
+if retry:
+    assert re.fullmatch(r"r[0-9]+", retry) and re.fullmatch(r"r[0-9]+", revision) and retry != revision
+    methods = ["*NativeCleanupReview*"]
+    expected = 2
+    log = (Path.cwd() / f".tmp/cleanup-review-render-build-{revision}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
 root = Path.cwd()
 temp = root / ".tmp"
@@ -96,31 +106,57 @@ def sha(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 proof = {}
+retry_proof = json.loads((temp / f"recipe-rendering-proof-{retry}.json").read_text(encoding="utf-8")) if retry else None
 for platform in ("windows", "mac", "linux"):
     baseline = temp / f"batch-r1334-{platform}/render"
-    template = temp / f"focused-delta-{platform}-r1345"
+    template_revision = retry or "r1345"
+    template = temp / f"focused-delta-{platform}-{template_revision}"
     plan = json.loads((template / "plan.json").read_text(encoding="utf-8"))
+    if retry:
+        tag = "ubuntu" if platform == "linux" else platform
+        old = retry_proof[platform]
+        assert sha(temp / f"dsa-batch-{platform}-{retry}.tgz") == old["archive"]
+        cached = json.loads((temp / f"{tag}-batch-{retry}-cache-proof.json").read_text(encoding="utf-8-sig"))
+        assert cached["revision"] == retry and cached["files"] == plan["files"], platform
+        ending = "\\render" if platform == "windows" else "/render"
+        assert plan["baseline"].endswith(ending) and "r1334" in plan["baseline"]
+        prior_baseline = plan["baseline"]
+        plan["baseline"] = prior_baseline[:-len(ending)].replace("r1334", retry)
     plan["revision"] = revision
     plan["methods"] = methods
     changes = set()
     for entry in plan["files"]:
         name = entry["path"]
-        assert sha(baseline / name) == entry["baselineSha256"], name
+        if retry:
+            entry["baselineSha256"] = entry["sha256"]
+        else:
+            assert sha(baseline / name) == entry["baselineSha256"], name
         entry["sha256"] = sha(binary / name)
         entry["patch"] = entry["sha256"] != entry["baselineSha256"]
         if entry["patch"]:
             changes.add(name)
     assert changes <= allow, f"Review changed rendering inputs: {sorted(changes - allow)}"
-    assert {"FileCat.Core.dll", "FileCat.dll", "FileCat.Rendering.Tests.dll"} <= changes
+    if retry:
+        assert changes == {"FileCat.Rendering.Tests.dll", "FileCat.Rendering.Tests.pdb"}, sorted(changes)
+    else:
+        assert {"FileCat.Core.dll", "FileCat.dll", "FileCat.Rendering.Tests.dll"} <= changes
     stage = temp / f"focused-delta-{platform}-{revision}"
     (stage / "patch").mkdir(parents=True)
     for name in sorted(changes):
         shutil.copyfile(binary / name, stage / "patch" / name)
     (stage / "plan.json").write_text(json.dumps(plan, indent=2), encoding="utf-8")
     if platform != "windows":
-        worker = (template / "run.py").read_text(encoding="utf-8").replace(
-            "(plan['assembly'],plan['assembly'][:-4]+'.pdb','FileCat.dll','FileCat.pdb')", repr(tuple(sorted(changes)))
-        ).replace("[10,10,0,0,0]", f"[{expected},{expected},0,0,0]")
+        worker = (template / "run.py").read_text(encoding="utf-8")
+        if retry:
+            prior_patch = repr(tuple(old["patch"]))
+            assert worker.count(prior_patch) == 1
+            worker = worker.replace(prior_patch, repr(tuple(sorted(changes))))
+            worker, replaced = re.subn(r"\[\d+,\d+,0,0,0\]", f"[{expected},{expected},0,0,0]", worker)
+            assert replaced == 1
+        else:
+            worker = worker.replace(
+                "(plan['assembly'],plan['assembly'][:-4]+'.pdb','FileCat.dll','FileCat.pdb')", repr(tuple(sorted(changes)))
+            ).replace("[10,10,0,0,0]", f"[{expected},{expected},0,0,0]")
         compile(worker, "run.py", "exec")
         (stage / "run.py").write_text(worker, encoding="utf-8", newline="\n")
     archive = temp / f"dsa-batch-{platform}-{revision}.tgz"
@@ -130,21 +166,32 @@ for platform in ("windows", "mac", "linux"):
             if path.is_file():
                 output.add(path, arcname=path.relative_to(stage).as_posix(), recursive=False)
     suffix = ".ps1" if platform == "windows" else ".sh"
-    runner = (temp / f"batch-{platform}-r1345{suffix}").read_text(encoding="utf-8").replace(
-        sha(temp / f"dsa-batch-{platform}-r1345.tgz"), sha(archive)
-    ).replace("r1345", revision)
+    launcher = temp / f"batch-{platform}-{template_revision}{suffix}"
+    if retry:
+        assert sha(launcher) == old["runner"]
+    runner = launcher.read_text(encoding="utf-8").replace(
+        sha(temp / f"dsa-batch-{platform}-{template_revision}.tgz"), sha(archive)
+    ).replace(template_revision, revision)
     if platform == "windows":
         quoted = ",".join(f"'{name}'" for name in sorted(changes))
-        runner = runner.replace("$plan.assembly,($plan.assembly-replace'[.]dll$','.pdb'),'FileCat.dll','FileCat.pdb'", f"@({quoted})").replace(
-            "[int]$a.total-ne10-or[int]$a.passed-ne10", f"[int]$a.total-ne{expected}-or[int]$a.passed-ne{expected}"
-        )
+        if retry:
+            prior_quoted = ",".join(f"'{name}'" for name in old["patch"])
+            assert prior_baseline in runner and runner.count(f"@({prior_quoted})") == 1
+            runner = runner.replace(prior_baseline, plan["baseline"]).replace(f"@({prior_quoted})", f"@({quoted})")
+            runner, replaced = re.subn(r"\[int\]\$a\.total-ne\d+-or\[int\]\$a\.passed-ne\d+",
+                                       f"[int]$a.total-ne{expected}-or[int]$a.passed-ne{expected}", runner)
+            assert replaced == 1
+        else:
+            runner = runner.replace("$plan.assembly,($plan.assembly-replace'[.]dll$','.pdb'),'FileCat.dll','FileCat.pdb'", f"@({quoted})").replace(
+                "[int]$a.total-ne10-or[int]$a.passed-ne10", f"[int]$a.total-ne{expected}-or[int]$a.passed-ne{expected}"
+            )
     runner_path = temp / f"batch-{platform}-{revision}{suffix}"
     runner_path.write_text(runner, encoding="utf-8", newline="\n")
     proof[platform] = {"archive": sha(archive), "runner": sha(runner_path), "size": archive.stat().st_size, "patch": sorted(changes)}
 (temp / f"cache-input-{revision}").mkdir()
 (temp / f"recipe-rendering-proof-{revision}.json").write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
-if options.growth or options.duplicates or options.duplicate_content or options.recorded_insights or options.protected_objects or options.recipe_staging or options.recipe_staging_fixture or options.ntfs_streams or options.apfs_forks or options.cleanup_review:
-    slice_name = ("cleanup-review" if options.cleanup_review else "apfs-forks" if options.apfs_forks else "ntfs-streams" if options.ntfs_streams else "recipe-staging" if options.recipe_staging or options.recipe_staging_fixture else "protected-objects" if options.protected_objects else "growth" if options.growth else "recorded-insights" if options.recorded_insights else
+if options.growth or options.duplicates or options.duplicate_content or options.recorded_insights or options.protected_objects or options.recipe_staging or options.recipe_staging_fixture or options.ntfs_streams or options.apfs_forks or options.cleanup_review or retry:
+    slice_name = ("cleanup-review" if options.cleanup_review or retry else "apfs-forks" if options.apfs_forks else "ntfs-streams" if options.ntfs_streams else "recipe-staging" if options.recipe_staging or options.recipe_staging_fixture else "protected-objects" if options.protected_objects else "growth" if options.growth else "recorded-insights" if options.recorded_insights else
                   "duplicate-content" if options.duplicate_content else "duplicate-estimate")
     source_changes = set(subprocess.check_output(["git", "diff", "--name-only", "HEAD", "--", "src", "tests"], text=True).splitlines())
     source_changes.update(subprocess.check_output(["git", "ls-files", "--others", "--exclude-standard", "src", "tests"], text=True).splitlines())

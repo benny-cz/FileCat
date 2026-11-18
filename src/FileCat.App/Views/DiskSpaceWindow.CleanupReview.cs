@@ -72,7 +72,8 @@ public sealed partial class DiskSpaceWindow
                     (id, token) => tree.Items.ContainsKey(AnalysisTree.Key(id)) ? FindMemoryPathAsync(snapshot, id, token) : Task.FromResult<AnalysisPathMetadata?>(null),
                     (id, token) => ReadRecipeMemoryPathAsync(snapshot, id, token),
                     (path, token) => ReadMemoryCleanupEvidenceAsync(snapshot, path, token),
-                    token => Task.Run(() => tree.ClassifyMarks(selection.Paths, scope, token), token), Model.HistoryLifetime);
+                    token => Task.Run(() => tree.ClassifyMarks(selection.Paths, scope, token), token),
+                    token => Task.Run(() => AnalysisMemoryCleanupTotals.Read(snapshot, selection.Paths, token), token), Model.HistoryLifetime);
             }
             catch (OperationCanceledException) when (_disposed || Model.HistoryLifetime.IsCancellationRequested) { }
             catch (Exception error) when (IndexedExpectedError(error))
@@ -139,6 +140,7 @@ public sealed partial class DiskSpaceWindow
                     _runtimeAcquisition?.HasRuntimeRescanContext == true,
                     _source.FindPathAsync, _source.ReadPathAsync, (path, token) => ReadIndexedCleanupEvidenceAsync(_source, path, token),
                     token => grouping is not null ? grouping.ClassifyMarksAsync(selection.Paths, group, token) : explorer.ClassifyMarksAsync(selection.Paths, folder, token),
+                    token => _source.ReadCleanupTotalsAsync(selection.Paths, token),
                     lifetime);
             }
             catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }

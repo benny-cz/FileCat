@@ -216,6 +216,7 @@ internal sealed partial class HarnessApp
         {
             Click("Review cleanup");
             await ReadyAsync(() => Control<ListBox>("Cleanup review entries")?.ItemCount == 4 && HasText("3 hidden by filters"));
+            await ReadyAsync(() => HasText("13 bytes across 4 measured file paths") && HasText("3 distinct verified objects measured"));
             if (Button("Cancel / Keep files") is not { IsDefault: true, IsCancel: true } ||
                 Button("Recycle included entries") is not { IsEnabled: false, IsDefault: false } ||
                 !HasText("Marked entries · 4 paths · 0 included · 4 kept"))

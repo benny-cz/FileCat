@@ -37,7 +37,8 @@ public sealed partial class DiskSpaceWindow
             Func<ulong, CancellationToken, Task<AnalysisPathMetadata?>> findPath,
             Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> readPath,
             Func<AnalysisPathMetadata, CancellationToken, Task<AnalysisCleanupReviewEvidence>> readEvidence,
-            Func<CancellationToken, Task<AnalysisSelectionVisibility>> classify, CancellationToken lifetime)
+            Func<CancellationToken, Task<AnalysisSelectionVisibility>> classify,
+            Func<CancellationToken, Task<AnalysisCleanupTotals>> summarize, CancellationToken lifetime)
         {
             var ids = paths.Order().ToArray();
             var locations = roots.ToDictionary(location => location.Id, StringComparer.Ordinal);
@@ -65,6 +66,8 @@ public sealed partial class DiskSpaceWindow
 
             var pageLabel = Text("", live: true);
             var visibility = Text("Checking selection against the displayed scope and filters…", live: true);
+            var selectionTotals = Text("Measuring the selected observations…", live: true);
+            AutomationProperties.SetName(selectionTotals, "Recorded cleanup selection totals");
             var list = new ListBox { MinHeight = 120, MaxHeight = 248, ItemTemplate = DialogLayout.WrappingListText };
             ScrollViewer.SetHorizontalScrollBarVisibility(list, ScrollBarVisibility.Disabled);
             AutomationProperties.SetName(list, "Cleanup review entries");
@@ -82,7 +85,7 @@ public sealed partial class DiskSpaceWindow
                 {
                     Text($"{selection} · {ids.Length:N0} {(ids.Length == 1 ? "path" : "paths")} · 0 included · {ids.Length:N0} kept"),
                     Text($"{OriginLabel(origin)} · revision {identity.Revision:N0} · observed {identity.ObservedUtc.ToLocalTime():g}"),
-                    visibility, action, availability,
+                    visibility, action, availability, selectionTotals,
                     Text("Expected free-space gain is unknown."),
                     pageLabel, list, navigation, details
                 }
@@ -120,11 +123,12 @@ public sealed partial class DiskSpaceWindow
                 closer: closer, resizable: true);
             pageWork = LoadPageAsync(0);
             var countsWork = ReadVisibilityAsync();
+            var totalsWork = ReadTotalsAsync();
             try { await completion; }
             finally
             {
                 cancel.Cancel();
-                await Task.WhenAll(pageWork, detailWork, countsWork);
+                await Task.WhenAll(pageWork, detailWork, countsWork, totalsWork);
             }
             if (unconfirmed is not null) throw unconfirmed;
 
@@ -195,7 +199,14 @@ public sealed partial class DiskSpaceWindow
                     string location = await AnalysisRecipeDialog.RecordedPathAsync(entry.Id, path.RootId, readPath, token);
                     var evidence = await readEvidence(path, token);
                     if (!token.IsCancellationRequested && ReferenceEquals(list.SelectedItem, entry))
+                    {
                         details.Text = DescribeEntry(path, locations[path.RootId], location, evidence);
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            if (!token.IsCancellationRequested && ReferenceEquals(list.SelectedItem, entry))
+                                details.BringIntoView();
+                        }, DispatcherPriority.Loaded);
+                    }
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested) { }
                 catch (Exception error) when (IndexedExpectedError(error))
@@ -229,6 +240,24 @@ public sealed partial class DiskSpaceWindow
                 }
             }
 
+            async Task ReadTotalsAsync()
+            {
+                try
+                {
+                    var totals = await summarize(token);
+                    token.ThrowIfCancellationRequested();
+                    if (totals.Identity != identity || totals.Selected != ids.Length)
+                        throw new InvalidDataException("Totals belong to a different captured selection.");
+                    selectionTotals.Text = DescribeTotals(totals);
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+                catch (Exception error) when (IndexedExpectedError(error))
+                {
+                    if (!CloseOnUnconfirmed(error) && !token.IsCancellationRequested)
+                        selectionTotals.Text = "Selection totals unavailable. " + AnalysisNames.Display(error.Message, 240);
+                }
+            }
+
             bool CloseOnUnconfirmed(Exception error)
             {
                 if (!AnalysisCloseUnconfirmedException.IsPresent(error)) return false;
@@ -236,6 +265,32 @@ public sealed partial class DiskSpaceWindow
                 closer.Close(null);
                 return true;
             }
+        }
+
+        private static string DescribeTotals(AnalysisCleanupTotals totals)
+        {
+            var lines = new List<string>();
+            if (totals.MeasuredFiles > 0)
+                lines.Add($"Recorded file size · {Bytes(totals.LogicalBytes)} across {totals.MeasuredFiles:N0} measured file paths.");
+            if (totals.UnknownSizes > 0) lines.Add($"File size unavailable for {totals.UnknownSizes:N0} selected file paths.");
+            if (totals.Folders > 0) lines.Add($"Selected folders · {totals.Folders:N0}. Folder contents require a separate review.");
+            if (totals.Excluded > 0) lines.Add($"Excluded by scan policy · {totals.Excluded:N0} selected entries.");
+
+            if (totals.AllocationLabelsExceeded)
+                lines.Add("The selection has too many allocation bases to summarize. Inspect individual entries.");
+            else if (!totals.Allocation.IsEmpty)
+            {
+                lines.Add($"Reported file allocation by basis · {totals.MeasuredAllocationObjects:N0} distinct verified objects measured.");
+                foreach (var component in totals.Allocation.Take(4))
+                    lines.Add($"{Bytes(component.Bytes)} · {AnalysisNames.Display(component.Component, 64)} · {AnalysisNames.Display(component.Basis, 100)}");
+                if (totals.Allocation.Length > 4) lines.Add($"Showing 4 of {totals.Allocation.Length:N0} component and basis combinations.");
+            }
+            if (totals.IncompleteAllocationPaths > 0)
+                lines.Add($"Complete, distinct allocation unavailable for {totals.IncompleteAllocationPaths:N0} selected file paths.");
+            if (lines.Count == 0) return "No measured file sizes or allocation in this selection.";
+            return string.Join(Environment.NewLine, lines);
+
+            static string Bytes(System.Numerics.BigInteger value) => value == 1 ? "1 byte" : $"{value:N0} bytes";
         }
 
         private static string DescribeEntry(AnalysisPathMetadata path, RootBinding root, string location, AnalysisCleanupReviewEvidence evidence)
