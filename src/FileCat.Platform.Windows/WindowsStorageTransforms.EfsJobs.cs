@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 
@@ -14,7 +15,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
 
     private sealed class EfsJobs(WindowsStorageTransforms adapter,
         Func<Job, string, StorageEfsConsent, CancellationToken, StorageEfsRecoveryApproval?> recoveryDecision)
-        : IStorageTransforms, IStorageEfsJobAdapter
+        : IStorageTransforms, IStorageEfsJobAdapter, IStorageEfsFileBackup
     {
         public StorageProblem? Unavailable(StorageAction action)
         {
@@ -25,6 +26,12 @@ internal sealed unsafe partial class WindowsStorageTransforms
 
         public StorageProblem? ScopeUnavailable(StorageScope scope) => Enum.IsDefined(scope) ? null
             : Problem(StorageReasonKind.FileCatBoundary, "efs-scope", "Choose an explicit EFS scope.");
+
+        public StorageEfsFileBackupReview InspectFiles(ImmutableArray<StorageTarget> targets, CancellationToken ct) =>
+            adapter.InspectBackupFiles(this, targets, ct);
+
+        public StorageEfsFileBackupResult BackUpFileKey(StorageEfsFileBackupReview review, string certificateSha1, nint ownerWindow, CancellationToken ct) =>
+            adapter.BackUpFileKey(this, review, certificateSha1, ownerWindow, ct);
 
         public IStorageReviewLease InspectRoot(StorageTarget target, StorageAction? action, CancellationToken ct) =>
             action is StorageAction.EncryptEfs or StorageAction.DecryptEfs

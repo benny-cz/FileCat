@@ -12,6 +12,67 @@ public sealed class WindowsEfsJobTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public void Backup_review_lists_only_selected_files_and_rechecks_their_exact_identities()
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-efs-selected-backup-").FullName;
+        try
+        {
+            string first = Write(root, "first.bin"), second = Write(root, "second.bin"), clear = Write(root, "clear.bin");
+            string folder = Directory.CreateDirectory(Path.Join(root, "unscanned")).FullName;
+            string unselected = Write(folder, "unselected.bin");
+            File.Encrypt(first); File.Encrypt(second); File.Encrypt(unselected);
+            ItemRef Select(string path) => ItemRef.ForFileSystemPath(path, EntryKind.File);
+            var manager = Manager(root, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            StorageEfsFileBackupReview reviewed;
+            string hash;
+            using (StorageReviewResources.EnterNative(Ct))
+            {
+                reviewed = manager.PrepareEfsFileBackup([Select(first), Select(second), Select(clear),
+                    ItemRef.ForFileSystemPath(folder, EntryKind.Directory)], Ct);
+                var key = Assert.Single(reviewed.Keys);
+                Assert.Equal(StorageEfsKeyState.MatchedAvailable, key.State);
+                hash = key.CertificateSha1;
+                Assert.Equal(4, reviewed.Items.Length);
+                Assert.Equal(hash, Assert.Single(reviewed.Items[0].Certificates));
+                Assert.Equal(hash, Assert.Single(reviewed.Items[1].Certificates));
+                Assert.NotEqual(reviewed.Items[0].Identity, reviewed.Items[1].Identity);
+                Assert.Equal("efs-backup-encrypted-file", reviewed.Items[2].Problem?.Code);
+                Assert.Equal("efs-backup-file-only", reviewed.Items[3].Problem?.Code);
+                Assert.Empty(reviewed.Items[3].Certificates);
+
+                var unowned = manager.BackUpEfsFileKey(reviewed, hash, ownerWindow: 0, Ct);
+                Assert.False(unowned.WindowsReportedExport);
+                Assert.Equal("efs-backup-owner", unowned.Problem?.Code);
+                string outside = new(hash[0] == 'A' ? 'B' : 'A', 40);
+                var refused = Assert.Throws<StorageInspectionException>(() => manager.BackUpEfsFileKey(reviewed, outside, ownerWindow: 0, Ct));
+                Assert.Equal("efs-backup-reviewed-key", refused.Problem.Code);
+            }
+
+            // The replacements carry the same user's key, but the original review may cover only the original IDs.
+            foreach (string path in new[] { first, second })
+            {
+                File.Move(path, path + ".original");
+                File.WriteAllText(path, "Replacement bytes");
+                File.Encrypt(path);
+            }
+            using (StorageReviewResources.EnterNative(Ct))
+            {
+                var changed = manager.BackUpEfsFileKey(reviewed, hash, ownerWindow: 0, Ct);
+                Assert.False(changed.WindowsReportedExport);
+                Assert.Empty(changed.CoveredItems);
+                Assert.Equal("efs-backup-association-changed", changed.Problem?.Code);
+            }
+            Assert.Equal("Synthetic user content", File.ReadAllText(first + ".original"));
+            Assert.Equal("Replacement bytes", File.ReadAllText(first));
+            Assert.True(IsEncrypted(first));
+            Assert.True(IsEncrypted(unselected));
+            Assert.False(IsEncrypted(clear));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void Efs_round_trips_on_a_prepared_64_KiB_NTFS_volume_without_compression_support()
     {
         RequireEfs();

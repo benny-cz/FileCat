@@ -150,6 +150,19 @@ public sealed partial class JobManager
 
     public StorageSelectionReview CaptureStorageSelection(IReadOnlyList<ItemRef> sources) => new(_storageTransforms, sources);
 
+    internal StorageProblem? EfsFileBackupUnavailable => _storageTransforms.Unavailable(StorageAction.DecryptEfs) ??
+        (_storageTransforms is IStorageEfsFileBackup ? null : new(StorageReasonKind.FileCatBoundary, "efs-backup-unavailable",
+            "Backup of selected EFS keys is unavailable in this build.", false));
+
+    internal StorageEfsFileBackupReview PrepareEfsFileBackup(IReadOnlyList<ItemRef> sources, CancellationToken ct) =>
+        RequireFileBackup().InspectFiles(StoragePaths.Capture(sources), ct);
+
+    internal StorageEfsFileBackupResult BackUpEfsFileKey(StorageEfsFileBackupReview review, string certificateSha1,
+        nint ownerWindow, CancellationToken ct) => RequireFileBackup().BackUpFileKey(review, certificateSha1, ownerWindow, ct);
+
+    private IStorageEfsFileBackup RequireFileBackup() => EfsFileBackupUnavailable is { } unavailable
+        ? throw new StorageInspectionException(unavailable) : (IStorageEfsFileBackup)_storageTransforms;
+
     /// <summary>The registration names the captured origin, or explicitly supplies a detached no-selection disposition.</summary>
     public Job SubmitStorage(ReviewedStorageRoots reviewed, StorageReviewApproval approval, Action<Job> register, QueueMode mode = QueueMode.Start)
     {
