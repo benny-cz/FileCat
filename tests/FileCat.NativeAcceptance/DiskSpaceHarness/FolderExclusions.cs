@@ -190,9 +190,14 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => VisibleButton("Close") is null);
             string photo = AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "photo.png").Id);
             var warmShell = await CheckPanelRevealAsync(window, model, packageScope, photo);
-            string? chartFrameFixture = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_CHART_FRAMES");
-            var chartFrames = chartFrameFixture is "1" or "hierarchy"
-                ? await MeasureChartFramesAsync(chartFrameFixture == "hierarchy", _indexedLifetime.Token) : null;
+            var token = _indexedLifetime.Token;
+            ChartFrameTiming[]? chartFrames = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_CHART_FRAMES") switch
+            {
+                "1" => await MeasureChartFramesAsync(false, token),
+                "hierarchy" => await MeasureChartFramesAsync(true, token),
+                "both" => [.. await MeasureChartFramesAsync(false, token), .. await MeasureChartFramesAsync(true, token)],
+                _ => null
+            };
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
                 sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
