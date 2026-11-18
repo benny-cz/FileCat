@@ -36,7 +36,7 @@ public sealed partial class MainViewModel
         job.Request.Sources.Any(source => source.Kind == EntryKind.Directory && source.FileSystemPath is { } path && PathUtil.IsSameOrUnder(location.Path, path));
 
     /// <summary>Bound before allocation, using marked store indices instead of a full-list selection scan.</summary>
-    internal static (ItemRef[] Items, bool[] Hidden) CaptureStorageItems(ListingModel listing)
+    internal static (ItemRef[] Items, bool[] Hidden) CaptureStorageItems(ListingModel listing, bool efs = false)
     {
         const string limit = "Select at most 64 items. A selected folder can include its existing contents.";
         if (listing.MarkedCount > 64) throw new ArgumentException(limit);
@@ -49,7 +49,7 @@ public sealed partial class MainViewModel
         }
         else if (listing.TryGetFocused(out var focused) && focused.Kind != EntryKind.Parent)
         { indices[0] = listing.FocusedStoreIndex; count = 1; }
-        else throw new ArgumentException("Focus or mark files or folders to change NTFS compression.");
+        else throw new ArgumentException(efs ? "Focus or mark items to review their EFS protection." : "Focus or mark files or folders to change NTFS compression.");
         if (count == 0) throw new ArgumentException("The captured selection is no longer available.");
         var items = new ItemRef[count]; var hidden = new bool[count];
         for (int i = 0; i < count; i++)
@@ -60,21 +60,23 @@ public sealed partial class MainViewModel
         return (items, hidden);
     }
 
-    private async Task ChangeStorageAttributesAsync()
+    private async Task ChangeStorageAttributesAsync(bool efs = false)
     {
+        string command = efs ? Core.Commands.CommandIds.EfsProtection : Core.Commands.CommandIds.StorageAttributes;
+        string feature = efs ? "EFS protection" : "NTFS compression";
         // Dispatch also reaches this guard directly from scoped Find commands.
-        if (GetAvailability(Core.Commands.CommandIds.StorageAttributes) is { Enabled: false } unavailable)
-        { Notify(unavailable.Reason ?? "NTFS compression is unavailable here."); return; }
+        if (GetAvailability(command) is { Enabled: false } unavailable)
+        { Notify(unavailable.Reason ?? feature + " is unavailable here."); return; }
         if (ActiveTab is not { Location: not null } tab) return;
         var origin = StorageSelectionOrigin.Capture(tab);
         using var initial = new PreparationScope(tab, Services.Io);
         try
         {
-            var captured = CaptureStorageItems(tab.Listing);
-            if (await StorageRejectedSelectionDialog.ShowIfRejectedAsync(Dialogs, captured.Items, captured.Hidden)) return;
+            var captured = CaptureStorageItems(tab.Listing, efs);
+            if (await StorageRejectedSelectionDialog.ShowIfRejectedAsync(Dialogs, captured.Items, captured.Hidden, efs)) return;
             using var review = Services.Jobs.CaptureStorageSelection(captured.Items);
             string device = Services.Providers.For(captured.Items[0].Parent).GetDeviceKey(captured.Items[0].Parent);
-            using var form = new StorageChangeDialog(review, Services.Io, device, captured.Hidden, initial.Stop.Token, initial.Detach);
+            using var form = new StorageChangeDialog(review, Services.Io, device, captured.Hidden, initial.Stop.Token, initial.Detach, efs);
             using var choice = await form.ShowAsync(Dialogs);
             if (choice is null)
             {
@@ -101,6 +103,6 @@ public sealed partial class MainViewModel
         }
         catch (OperationCanceledException) { }
         catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException)
-        { Notify("Cannot prepare NTFS compression: " + error.Message, true); }
+        { Notify("Could not prepare " + feature + ". " + error.Message, true); }
     }
 }

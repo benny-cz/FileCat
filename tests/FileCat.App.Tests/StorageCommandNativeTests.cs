@@ -26,6 +26,45 @@ public sealed class StorageCommandNativeTests
     }
 
     [AvaloniaFact]
+    public async Task The_qualified_candidate_opens_Efs_protection_and_selected_file_backup_from_commands()
+    {
+        Assert.SkipWhen(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_UI") != "1" || !WindowsStorageTransforms.IsQualifiedHost,
+            "Explicit disposable Windows 11 x64 client, medium integrity, NTFS EFS review qualification.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420,
+            storageTransforms: new WindowsStorageTransforms().CreateEfsJobCandidate());
+        try
+        {
+            string path = Path.Join(root, "files", "a.txt");
+            File.Encrypt(path);
+            var listing = vm.ActiveTab!.Listing;
+            await Until(() => listing.State == ListingState.Complete && listing.VisibleCount == 3);
+            listing.MarkNames(["a.txt"], true);
+            Assert.True(vm.GetAvailability(CommandIds.EfsProtection).Enabled);
+            Assert.True(vm.GetAvailability(CommandIds.EfsFileBackup).Enabled);
+
+            var protecting = vm.ExecuteAsync(CommandIds.EfsProtection);
+            await Until(() => window.GetVisualDescendants().OfType<RadioButton>().Any(button => AutomationProperties.GetName(button) == "Decrypt"));
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            await protecting;
+
+            var backingUp = vm.ExecuteAsync(CommandIds.EfsFileBackup);
+            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => AutomationProperties.GetName(control) == "Selected file EFS certificate"));
+            var controls = window.GetVisualDescendants().ToArray();
+            var keys = Assert.Single(controls.OfType<ComboBox>(), control => AutomationProperties.GetName(control) == "Selected file EFS certificate");
+            Assert.Equal(-1, keys.SelectedIndex);
+            Assert.Single(keys.Items);
+            Assert.Contains(controls.OfType<TextBox>(), control => control.Text?.Contains("a.txt", StringComparison.Ordinal) == true);
+            Assert.False(Assert.Single(controls.OfType<Button>(), button => button.Content as string == "Back up selected key…").IsEnabled);
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            await backingUp;
+            Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal("alpha", File.ReadAllText(path));
+            Assert.Empty(services.Jobs.Jobs);
+        }
+        finally { ((OverlayDialogService)vm.Dialogs).CancelAll(); AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Efs_review_transfers_the_displayed_consent_to_real_encryption_and_decryption_jobs()
     {
         Assert.SkipWhen(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_UI") != "1" || !WindowsStorageTransforms.IsQualifiedHost,

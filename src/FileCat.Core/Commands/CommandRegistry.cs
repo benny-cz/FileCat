@@ -74,6 +74,8 @@ public static class CommandIds
     public const string Undo = "file.undo";
     public const string Attributes = "file.attributes";
     public const string StorageAttributes = "file.storageAttributes";
+    public const string EfsProtection = "file.efsProtection";
+    public const string EfsFileBackup = "file.efsFileBackup";
     public const string CreateLink = "file.createLink";
     public const string BulkRename = "file.bulkRename";
     public const string ApplyCommand = "file.applyCommand";
@@ -320,6 +322,8 @@ public sealed class CommandRegistry
         Add(CommandIds.Undo, "Undo last operation…", F, null, CommandContext.Panel, "Ctrl+Z");
         Add(CommandIds.Attributes, "Change attributes and times…", F);
         Add(CommandIds.StorageAttributes, "NTFS compression…", F);
+        Add(CommandIds.EfsProtection, "EFS protection…", F);
+        Add(CommandIds.EfsFileBackup, "Back up EFS key…", F);
         Add(CommandIds.CreateLink, "Create link…", F);
         Add(CommandIds.BulkRename, "Bulk rename…", F, null, CommandContext.Panel, "Ctrl+M");
         Add(CommandIds.ApplyCommand, "Run a command for each item…", F, null, CommandContext.Panel, "Ctrl+G");
@@ -567,6 +571,10 @@ public sealed class CommandRegistry
         K(CommandIds.Attributes, "read-only", "hidden", "timestamps", "dates", "touch", "modified time");
         K(CommandIds.StorageAttributes, "NTFS", "compression", "remove compression", "uncompress");
         r.Describe(CommandIds.StorageAttributes, "Changes NTFS compression in place for the captured selected items: main file data or folder defaults. Optional folder scope includes existing contents. Alternate data streams keep their own compression settings.");
+        K(CommandIds.EfsProtection, "EFS", "encrypt", "decrypt");
+        r.Describe(CommandIds.EfsProtection, "Reviews the selected files and folders before changing Windows EFS protection.");
+        K(CommandIds.EfsFileBackup, "EFS", "key backup", "certificate", "private key");
+        r.Describe(CommandIds.EfsFileBackup, "Reviews the certificates associated with selected encrypted files and opens the Windows key export wizard.");
         K(CommandIds.CreateLink, "symlink", "symbolic link", "junction", "hard link", "shortcut");
         K(CommandIds.ApplyCommand, "run for each", "batch", "execute for each");
         K(CommandIds.HexEdit, "binary", "bytes", "patch");

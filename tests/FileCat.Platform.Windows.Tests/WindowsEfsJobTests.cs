@@ -73,6 +73,42 @@ public sealed class WindowsEfsJobTests
     }
 
     [Fact]
+    public void Files_encrypted_with_distinct_real_Efs_keys_keep_independent_backup_choices()
+    {
+        RequireEfs();
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_BACKUP_MULTIPLE_KEYS") == "1" &&
+            Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_ROTATE_KEY") == "1",
+            "Requires a disposable account that allows changing its default EFS certificate.");
+        string root = Directory.CreateTempSubdirectory("filecat-efs-backup-distinct-keys-").FullName;
+        try
+        {
+            string first = Write(root, "before-rotation.bin"), second = Write(root, "after-rotation.bin");
+            File.Encrypt(first);
+            var manager = Manager(root, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            var items = new[] { ItemRef.ForFileSystemPath(first, EntryKind.File), ItemRef.ForFileSystemPath(second, EntryKind.File) };
+            string originalKey;
+            using (StorageReviewResources.EnterNative(Ct))
+                originalKey = Assert.Single(manager.PrepareEfsFileBackup([items[0]], Ct).Keys).CertificateSha1;
+
+            WindowsEfsSetupTests.RotateDisposableDefaultKey();
+            File.Encrypt(second);
+            using (StorageReviewResources.EnterNative(Ct))
+            {
+                var review = manager.PrepareEfsFileBackup(items, Ct);
+                Assert.Equal(2, review.Keys.Length);
+                Assert.All(review.Keys, key => Assert.Equal(StorageEfsKeyState.MatchedAvailable, key.State));
+                Assert.Equal(originalKey, Assert.Single(review.Items[0].Certificates));
+                Assert.NotEqual(originalKey, Assert.Single(review.Items[1].Certificates));
+                Assert.All(review.Items, item => Assert.Null(item.Problem));
+            }
+            Assert.True(IsEncrypted(first) && IsEncrypted(second));
+            Assert.Equal("Synthetic user content", File.ReadAllText(first));
+            Assert.Equal("Synthetic user content", File.ReadAllText(second));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void Efs_round_trips_on_a_prepared_64_KiB_NTFS_volume_without_compression_support()
     {
         RequireEfs();

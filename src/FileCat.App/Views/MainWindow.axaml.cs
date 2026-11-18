@@ -759,7 +759,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 continue;
             }
             if (entry is not string id) continue;
-            if (!MainMenuModel.IsPlatformApplicable(id)) continue;
+            if (!MainMenuModel.IsPlatformApplicable(id) || !_vm.AdvertisesEfsCommand(id)) continue;
             if (id == "-")
             {
                 children.Add(new Separator());

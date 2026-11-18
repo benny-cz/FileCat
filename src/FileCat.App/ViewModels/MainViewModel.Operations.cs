@@ -57,6 +57,8 @@ public sealed partial class MainViewModel
         switch (id)
         {
             case CommandIds.StorageAttributes: await ChangeStorageAttributesAsync(); return true;
+            case CommandIds.EfsProtection: await ChangeStorageAttributesAsync(efs: true); return true;
+            case CommandIds.EfsFileBackup: await BackUpSelectedEfsKeysAsync(); return true;
             case CommandIds.AddToWorkingSet: await AddToWorkingSetAsync(); return true;
             case CommandIds.WorkingSets: OpenWorkingSets(); return true;
             case CommandIds.Copy:

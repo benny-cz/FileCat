@@ -18,6 +18,7 @@ public static class MainMenuModel
             CommandIds.Move, CommandIds.Rename, CommandIds.MakeDirectory, CommandIds.Delete, CommandIds.DeletePermanent, "-",
             new Submenu("_Archives", [CommandIds.Pack, CommandIds.Unpack, CommandIds.TestArchive]), "-",
             new Submenu("_Inspect", [CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.Attributes, CommandIds.StorageAttributes,
+                CommandIds.EfsProtection, CommandIds.EfsFileBackup,
                 CommandIds.HiddenData, CommandIds.FileRecord]),
             CommandIds.CreateLink, CommandIds.BulkRename, CommandIds.ApplyCommand,
             new Submenu("_Working sets", [CommandIds.AddToWorkingSet, CommandIds.RemoveFromSet]),

@@ -150,9 +150,13 @@ public sealed partial class JobManager
 
     public StorageSelectionReview CaptureStorageSelection(IReadOnlyList<ItemRef> sources) => new(_storageTransforms, sources);
 
-    internal StorageProblem? EfsFileBackupUnavailable => _storageTransforms.Unavailable(StorageAction.DecryptEfs) ??
-        (_storageTransforms is IStorageEfsFileBackup ? null : new(StorageReasonKind.FileCatBoundary, "efs-backup-unavailable",
-            "Backup of selected EFS keys is unavailable in this build.", false));
+    internal StorageProblem? EfsSelectionUnavailable => _storageTransforms is not IStorageEfsJobAdapter
+        ? new(StorageReasonKind.FileCatBoundary, "efs-unavailable", "EFS changes are unavailable in this build.", false)
+        : _storageTransforms.Unavailable(StorageAction.DecryptEfs) is null ? null : _storageTransforms.Unavailable(StorageAction.EncryptEfs);
+
+    internal StorageProblem? EfsFileBackupUnavailable => _storageTransforms is IStorageEfsFileBackup
+        ? _storageTransforms.Unavailable(StorageAction.DecryptEfs)
+        : new(StorageReasonKind.FileCatBoundary, "efs-backup-unavailable", "Backup of selected EFS keys is unavailable in this build.", false);
 
     internal StorageEfsFileBackupReview PrepareEfsFileBackup(IReadOnlyList<ItemRef> sources, CancellationToken ct) =>
         RequireFileBackup().InspectFiles(StoragePaths.Capture(sources), ct);

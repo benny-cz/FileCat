@@ -16,10 +16,11 @@ internal static class StorageRejectedSelectionDialog
     private sealed record Row(string Name, string DisplayLocation, string Locator, string[] Paths, string Provider, bool Hidden, string Reason);
 
     internal static async Task<bool> ShowIfRejectedAsync(IDialogService dialogs, IReadOnlyList<ItemRef> sources,
-        IReadOnlyList<bool> hidden)
+        IReadOnlyList<bool> hidden, bool efs = false)
     {
         if (sources.Count is < 1 or > 64 || sources.Count != hidden.Count) throw new ArgumentException("The captured selection is invalid.");
-        var problems = sources.Select(StoragePaths.SourceProblem).ToArray();
+        string feature = efs ? "EFS protection" : "NTFS compression";
+        var problems = sources.Select(item => StoragePaths.SourceProblem(item, feature)).ToArray();
         if (problems.All(problem => problem is null)) return false;
         var rows = ImmutableArray.CreateBuilder<Row>(sources.Count);
         long characters = 0;
@@ -52,7 +53,7 @@ internal static class StorageRejectedSelectionDialog
             var matches = captured.Where(row => row.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                 row.DisplayLocation.Contains(filter, StringComparison.OrdinalIgnoreCase) || row.Paths.Any(path => path.Contains(filter, StringComparison.OrdinalIgnoreCase)));
             items.Text = string.Join("\n\n", matches.Select(row =>
-                $"Name: {JsonSerializer.Serialize(row.Name)}\nOriginal location: {JsonSerializer.Serialize(row.DisplayLocation)}\nCaptured locator: {row.Locator}\nProvider: {JsonSerializer.Serialize(row.Provider)}\nHidden mark: {(row.Hidden ? "Yes" : "No")}\nCompression: Not inspected\nEligibility: {JsonSerializer.Serialize(row.Reason)}"));
+                $"Name: {JsonSerializer.Serialize(row.Name)}\nOriginal location: {JsonSerializer.Serialize(row.DisplayLocation)}\nCaptured locator: {row.Locator}\nProvider: {JsonSerializer.Serialize(row.Provider)}\nHidden mark: {(row.Hidden ? "Yes" : "No")}\n{(efs ? "EFS" : "Compression")}: Not inspected\nEligibility: {JsonSerializer.Serialize(row.Reason)}"));
             if (items.Text.Length == 0) items.Text = "No selected items match this search.";
         }
         search.TextChanged += (_, _) => Render(); Render();
@@ -62,10 +63,10 @@ internal static class StorageRejectedSelectionDialog
         var body = new StackPanel { Spacing = 10, Children =
         {
             new TextBlock { Text = $"{captured.Length} selected items. Includes {captured.Count(row => row.Hidden)} marked items hidden by the filter.", TextWrapping = Avalonia.Media.TextWrapping.Wrap },
-            new TextBlock { Text = "Some selected items cannot use NTFS compression. Cancel and change the selection. The original locations below are captured; no selected item was inspected or changed.", TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+            new TextBlock { Text = $"Some selected items cannot use {feature}. Cancel and change the selection. The original locations below are captured; no selected item was inspected or changed.", TextWrapping = Avalonia.Media.TextWrapping.Wrap },
             disclosure,
         } };
-        await dialogs.ShowCustomAsync("NTFS compression…", body, [new DialogButton("Cancel", "cancel", IsCancel: true, IsDefault: true)],
+        await dialogs.ShowCustomAsync(feature + "…", body, [new DialogButton("Cancel", "cancel", IsCancel: true, IsDefault: true)],
             search, resizable: true, behavior: new DialogBehavior { KeepOperationsUsable = true });
         return true;
     }
