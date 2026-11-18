@@ -41,7 +41,8 @@ public sealed partial class AnalysisDatasetSummaryTests
             snapshot.Identity, snapshot.Roots, snapshot.Policy, Cancellation, () => AnalysisProfileQuota.Open(profile));
         var root = new AnalysisEntry([], "Root", [82, 111, 111, 116], AnalysisKind.Directory, "fixture:root", AnalysisMeasurement.Known(0),
             AnalysisMeasurement.Missing(MeasurementState.Unsupported), AnalysisMeasurement.Missing(MeasurementState.Unsupported), null, "v1");
-        await Assert.ThrowsAsync<IOException>(() => writer.AppendBatchAsync([new(root, 0, "r", "fixture-v1")], Cancellation));
+        var error = await Assert.ThrowsAsync<AnalysisScratchLimitException>(() => writer.AppendBatchAsync([new(root, 0, "r", "fixture-v1")], Cancellation));
+        Assert.Equal(AnalysisScratchLimit.Budget, error.Limit);
         await writer.DisposeAsync();
         Assert.True(directory.Closed); Assert.Equal(0, directory.WrittenBytes);
         occupied.Release(AnalysisLimits.ProfileScratchBytes);

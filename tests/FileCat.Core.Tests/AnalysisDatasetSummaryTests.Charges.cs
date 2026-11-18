@@ -173,7 +173,8 @@ public sealed partial class AnalysisDatasetSummaryTests
         await using var lease = await dataset.AcquireAsync(Cancellation);
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(Cancellation); stop.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => lease.BuildObjectChargesAsync(AnalysisMetric.OnDisk, stop.Token));
-        await Assert.ThrowsAsync<IOException>(() => lease.BuildObjectChargesAsync(AnalysisMetric.OnDisk, Cancellation));
+        var error = await Assert.ThrowsAsync<AnalysisScratchLimitException>(() => lease.BuildObjectChargesAsync(AnalysisMetric.OnDisk, Cancellation));
+        Assert.Equal(AnalysisScratchLimit.Budget, error.Limit);
         Assert.Equal((UInt128)80, (await lease.SummarizeAsync(AnalysisMetric.OnDisk, Cancellation)).Totals.Known);
         Assert.Equal(6UL, (await lease.ReadPathsAsync(0, cancellation: Cancellation)).Total);
     }

@@ -150,7 +150,8 @@ public sealed partial class AnalysisDatasetSummaryTests
             Assert.Equal(28 * 1024, workspace.ReservedBytes);
         });
         using var reserved = filler!; await using var lease = await dataset.AcquireAsync(Cancellation);
-        await Assert.ThrowsAsync<IOException>(() => lease.BuildHierarchyAsync(AnalysisMetric.FileSize, Cancellation));
+        var error = await Assert.ThrowsAsync<AnalysisScratchLimitException>(() => lease.BuildHierarchyAsync(AnalysisMetric.FileSize, Cancellation));
+        Assert.Equal(AnalysisScratchLimit.Budget, error.Limit);
         Assert.Equal(6UL, (await lease.ReadPathsAsync(0, cancellation: Cancellation)).Total);
         Assert.Equal((UInt128)220, (await lease.SummarizeAsync(AnalysisMetric.FileSize, Cancellation)).Totals.Known);
     }

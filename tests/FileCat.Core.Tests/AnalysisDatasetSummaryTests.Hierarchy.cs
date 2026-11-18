@@ -61,7 +61,8 @@ public sealed partial class AnalysisDatasetSummaryTests
         Ordinary(); using var io = new DeviceIoScheduler();
         await using var dataset = await Build(AnalysisAccountingTests.Golden(), io, sessionLimit: 28 * 1024);
         await using var lease = await dataset.AcquireAsync(Cancellation);
-        await Assert.ThrowsAsync<IOException>(() => lease.BuildLogicalHierarchyAsync(Cancellation));
+        var error = await Assert.ThrowsAsync<AnalysisScratchLimitException>(() => lease.BuildLogicalHierarchyAsync(Cancellation));
+        Assert.Equal(AnalysisScratchLimit.Budget, error.Limit);
         Assert.Equal(6UL, (await lease.ReadPathsAsync(0, cancellation: Cancellation)).Total);
         Assert.Equal((UInt128)3, (await lease.SummarizeAsync(AnalysisMetric.Files, Cancellation)).Totals.Known);
     }

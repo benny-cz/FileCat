@@ -55,6 +55,9 @@ public sealed class AnalysisStoreTests
         store.Append(boundary, 1, "r", "fixture", true);
         var s = Snapshot(store, false); AnalysisValidation.Validate(s, TestContext.Current.CancellationToken);
         Assert.DoesNotContain(s.Facts, f => f.DirectoryId.HasValue);
-        Assert.Single(AnalysisComponents.Summarize(s)); Assert.Contains("unqualified", AnalysisComponents.Describe(s));
+        Assert.Equal("reported-data", Assert.Single(AnalysisComponents.Summarize(s)).ComponentId);
+        string description = AnalysisComponents.Describe(s);
+        Assert.StartsWith("Standard allocation", description);
+        Assert.Contains("Named streams and resource forks are not separately measured.", description);
     }
 }
