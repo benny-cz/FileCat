@@ -118,18 +118,12 @@ public sealed unsafe partial class WindowsFileRecords
         try { _ = WindowsStorageTransforms.ActualVolumeBinding(item, rootOnly: false, ct); }
         catch (StorageInspectionException) { return FileDetailsReport.Metadata(snapshot, metadata); }
 
-        var extents = RetrievalSection(item, ct);
-        var report = FileDetailsReport.Metadata(snapshot, metadata, extents);
+        var sections = new List<InspectionSection> { metadata, RetrievalSection(item, ct) };
+        var warnings = new List<string> { "Not acquired: supplementary-data values and previews, raw volumes and journals, and security value collectors." };
         bool collectRanges = hasId && (attributes & (uint)(FileAttributes.SparseFile | FileAttributes.Compressed)) != 0;
-        string omissions = "Not acquired: supplementary-data values and previews, raw volumes and journals, security value collectors and hard-link names.";
-        if (collectRanges)
-        {
-            var ranges = AllocatedRangesSection(item, id, BinaryPrimitives.ReadInt64LittleEndian(standard[8..]), ct);
-            return report with { Technical = report.Technical with { Sections = [metadata, extents, ranges], Warnings = [omissions] } };
-        }
-        return report with { Technical = report.Technical with
-        {
-            Warnings = [omissions, "Allocated byte ranges are available for qualified sparse or compressed files."],
-        } };
+        if (collectRanges) sections.Add(AllocatedRangesSection(item, id, BinaryPrimitives.ReadInt64LittleEndian(standard[8..]), ct));
+        else warnings.Add("Allocated byte ranges are available for qualified sparse or compressed files.");
+        if (snapshot.LinkCount.Value > 1) sections.Add(HardLinkSection(item, ct));
+        return new(snapshot, new("Full record · metadata only", sections.ToArray(), warnings.ToArray()), ReportContentKind.MetadataOnly);
     }
 }

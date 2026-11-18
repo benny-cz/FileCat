@@ -1,0 +1,7 @@
+# Bounded NTFS hard-link names
+
+The full record inventories hard-link names when a held local NTFS file reports multiple names. `FileHardLinkInformation` queries the existing object handle. It retains the returned leaf and parent file ID and resolves the displayed volume-relative paths through the parent IDs on that volume when permitted. Each resolved path is report text. The summary keeps its separate native link-count observation.
+
+The collector allows two growth retries and bounds native storage to 1 MiB and retained names to 1,024. It validates counts, returned bytes, aligned offsets and UTF-16 names. When a later record is malformed, the valid prefix remains visible as partial. A count at the exact limit can be complete. Denied or unqualified parent resolution leaves the captured leaf and parent ID visible with an unavailable path. [Microsoft's held-file query contract](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/content/ntifs/nf-ntifs-ntqueryinformationfile). [Microsoft's hard-link entry layout](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_link_entry_information).
+
+The Windows 11 x64 VM passed all 31 hard-link and extent details tests. The native fixtures resolved a Unicode alias in a second directory and completed a 66-name inventory that required a resized buffer. Both Ubuntu and macOS passed 26 portable tests, with four NTFS fixtures skipped. See `.tmp/filecat-record-hardlinks-tests.xml` and `.tmp/record-hardlinks/results.xml` in the guest checkouts.
