@@ -21,6 +21,7 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
     private readonly WindowsArchiveArtifactKind? createdKind;
     private bool rebuildClaimed, evidenceClaimed;
     private bool writable, disposed, removed, namespaceChanged;
+    private bool packingSource;
     private long position;
     public FileIdentity Identity { get; }
     public string KnownName { get; private set; }
@@ -54,7 +55,7 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
             // Physical input length is admitted at open; never grant an out-of-budget read if a mapped writer grew it.
             if (RandomAccess.GetLength(handle) > maximumLength) throw Limit();
             int count = (int)Math.Min(buffer.Length, maximumLength - position);
-            int read = RandomAccess.Read(handle, buffer[..count], position); position += read; return read;
+            int read = ReadHeldPayload(handle, buffer[..count], position); position += read; return read;
         }
     }
 
@@ -105,7 +106,7 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
     {
         lock (parent.Gate)
         {
-            EnsureLive(); Validate();
+            EnsureLive(); Validate(); CheckPackingProtection(handle);
             if (writable) throw new InvalidOperationException("Seal the private archive file before reviewing its version.");
             long length = RandomAccess.GetLength(handle);
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -113,14 +114,39 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
             while (offset < length)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                int read = RandomAccess.Read(handle, buffer.AsSpan(0, (int)Math.Min(buffer.Length, length - offset)), offset);
+                int read = ReadHeldPayload(handle, buffer.AsSpan(0, (int)Math.Min(buffer.Length, length - offset)), offset);
                 if (read == 0) throw new IOException("The archive file changed while being reviewed.");
                 hash.AppendData(buffer.AsSpan(0, read)); offset += read;
             }
-            cancellationToken.ThrowIfCancellationRequested(); Validate();
+            cancellationToken.ThrowIfCancellationRequested(); Validate(); CheckPackingProtection(handle);
             if (RandomAccess.GetLength(handle) != length) throw new IOException("The archive file changed while being reviewed.");
             return new(Identity.ToString(), length, Convert.ToHexString(hash.GetHashAndReset()));
         }
+    }
+
+    internal void BindPackingSource()
+    {
+        lock (parent.Gate)
+        {
+            EnsureLive();
+            ArchiveOuterEfs.RequireClear(handle, ArchiveOuterEfs.PackUnavailable);
+            packingSource = true;
+        }
+    }
+
+    private int ReadHeldPayload(SafeFileHandle input, Span<byte> buffer, long offset)
+    {
+        CheckPackingProtection(input);
+        int read = RandomAccess.Read(input, buffer, offset);
+        CheckPackingProtection(input);
+        return read;
+    }
+
+    private void CheckPackingProtection(SafeFileHandle input)
+    {
+        if (!packingSource) return;
+        ArchiveOuterEfs.RequireClear(handle, ArchiveOuterEfs.PackUnavailable);
+        if (!ReferenceEquals(input, handle)) ArchiveOuterEfs.RequireClear(input, ArchiveOuterEfs.PackUnavailable);
     }
 
     internal void ReviewLegacyStreams(long length,ArchiveOriginSnapshot origin,CancellationToken ct)

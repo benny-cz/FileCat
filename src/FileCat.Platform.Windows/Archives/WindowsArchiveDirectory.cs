@@ -151,7 +151,14 @@ internal sealed partial class WindowsArchiveDirectory : IDisposable, IArchiveDes
         OpenExisting(leaf, maximumLength, artifact: false, mayRename: false, expected: null);
 
     internal void CaptureSource(ArchiveCapturedInputs inputs, int id, string leaf, CancellationToken ct)
-    { ArgumentNullException.ThrowIfNull(inputs); ValidateLeaf(leaf); inputs.Capture(id, () => OpenSource(leaf, ArchiveWritePolicy.MaxPayloadBytes), ct); }
+    { ArgumentNullException.ThrowIfNull(inputs); ValidateLeaf(leaf); inputs.Capture(id, () => OpenPackingSource(leaf), ct); }
+
+    internal WindowsArchiveFile OpenPackingSource(string leaf)
+    {
+        var source = OpenSource(leaf, ArchiveWritePolicy.MaxPayloadBytes);
+        try { source.BindPackingSource(); return source; }
+        catch { source.Dispose(); throw; }
+    }
 
     public WindowsArchiveFile OpenReviewedTarget(string leaf) =>
         OpenExisting(leaf, ArchiveWritePolicy.MaxPhysicalBytes, artifact: false, mayRename: true, expected: null);

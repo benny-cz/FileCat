@@ -51,7 +51,7 @@ internal sealed partial class WindowsArchiveDirectory
             {
                 ct.ThrowIfCancellationRequested(); uint links = WindowsArchiveNative.SourceDirectory(held);
                 var basic = GetBasic(held); byte[] security = WindowsArchiveNative.ReadOuterSecurity(held);
-                var origin = ReadDirectoryOrigin(leaf, identity, ct);
+                var origin = ReadDirectoryOrigin(leaf, identity, held, ct);
                 var metadata = new WindowsArchiveOuterMetadata(identity, basic, links, security, origin);
                 // A directory's change time also detects native changes whose last-write time was restored.
                 Span<byte> changed = stackalloc byte[8]; BinaryPrimitives.WriteInt64LittleEndian(changed, basic.ChangeTime);
@@ -88,7 +88,7 @@ internal sealed partial class WindowsArchiveDirectory
             {
                 ct.ThrowIfCancellationRequested(); uint links = WindowsArchiveNative.SourceDirectory(held);
                 var basic = GetBasic(held); var security = WindowsArchiveNative.ReadOuterSecurity(held);
-                var origin = ReadDirectoryOrigin(leaf, identity, ct);
+                var origin = ReadDirectoryOrigin(leaf, identity, held, ct);
                 var metadata = new WindowsArchiveOuterMetadata(identity, basic, links, security, origin);
                 string current = RemovalDigest(metadata, basic.ChangeTime); basic.LastWriteTime = 0;
                 return (current, new WindowsArchiveOuterMetadata(identity, basic, links, security, origin).Digest);
@@ -116,7 +116,7 @@ internal sealed partial class WindowsArchiveDirectory
             if (identity.ToString() != expected.Version.Identity) throw ChangedDirectory();
             uint links = WindowsArchiveNative.SourceDirectory(held);
             var basic = GetBasic(held);
-            var origin = ReadDirectoryOrigin(leaf, identity, ct);
+            var origin = ReadDirectoryOrigin(leaf, identity, held, ct);
             var metadata = new WindowsArchiveOuterMetadata(identity, basic, links, WindowsArchiveNative.ReadOuterSecurity(held), origin);
             if (RemovalDigest(metadata, basic.ChangeTime) != currentRemovalDigest || origin.Digest != expected.Origin.Digest) throw ChangedDirectory();
             WindowsArchiveNative.RequireCreationStreams(held, 0, origin, directory: true);
@@ -134,14 +134,20 @@ internal sealed partial class WindowsArchiveDirectory
         if (ProtectedHexFile.Identity(named) != expected) throw ChangedDirectory();
     }
 
-    private ArchiveOriginSnapshot ReadDirectoryOrigin(string leaf, FileIdentity identity, CancellationToken ct)
+    private ArchiveOriginSnapshot ReadDirectoryOrigin(string leaf, FileIdentity identity, SafeFileHandle directory, CancellationToken ct)
     {
+        ArchiveOuterEfs.RequireClear(directory, ArchiveOuterEfs.PackUnavailable);
         RequireDirectoryName(leaf, identity);
         int status = TryOpen(Handle, leaf + ":Zone.Identifier", GenericRead | Synchronize, ShareAll, NtFile.Open,
             OpenReparsePoint, out var stream);
         using (stream)
         {
-            if (status == NameNotFound) { RequireDirectoryName(leaf, identity); return ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier); }
+            if (status == NameNotFound)
+            {
+                ArchiveOuterEfs.RequireClear(directory, ArchiveOuterEfs.PackUnavailable);
+                RequireDirectoryName(leaf, identity);
+                return ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier);
+            }
             if (status < 0) throw Error(status, "Read selected folder origin");
             WindowsArchiveNative.DirectoryOriginStream(stream);
             if (ProtectedHexFile.Identity(stream) != identity) throw ChangedDirectory();
@@ -150,12 +156,20 @@ internal sealed partial class WindowsArchiveDirectory
             byte[] bytes = new byte[(int)length]; int offset = 0;
             while (offset < bytes.Length)
             {
-                ct.ThrowIfCancellationRequested(); int read = RandomAccess.Read(stream, bytes.AsSpan(offset), offset);
+                ct.ThrowIfCancellationRequested(); CheckProtection();
+                int read = RandomAccess.Read(stream, bytes.AsSpan(offset), offset);
+                CheckProtection();
                 if (read == 0) throw ChangedDirectory(); offset += read;
             }
-            RequireDirectoryName(leaf, identity); ct.ThrowIfCancellationRequested();
+            CheckProtection(); RequireDirectoryName(leaf, identity); ct.ThrowIfCancellationRequested();
             if (RandomAccess.GetLength(stream) != length) throw ChangedDirectory();
             return ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier, bytes);
+
+            void CheckProtection()
+            {
+                ArchiveOuterEfs.RequireClear(directory, ArchiveOuterEfs.PackUnavailable);
+                ArchiveOuterEfs.RequireClear(stream, ArchiveOuterEfs.PackUnavailable);
+            }
         }
     }
     private static ArchiveWriteException ChangedDirectory() => new(ArchiveWriteReason.SourceChanged, "The captured folder's identity or metadata changed.");
