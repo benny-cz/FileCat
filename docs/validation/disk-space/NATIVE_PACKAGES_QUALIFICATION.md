@@ -62,3 +62,12 @@ The r1674 Ubuntu run sent 42 native X11 Space events during a real 200,000-file 
 The Mac r1674 run completed the same 42-key sequence and 200,000-file fixture through System Events on its regular native desktop. Pause p95 was 10.15 ms, Resume p95 was 4.86 ms, and Stop reached the laid-out Stopped status in 5.54 ms. The app exited with its source unchanged and its process inventory empty. The raw result SHA-256 is `bdb8ef17dda72dee19b253bba1a77607ffad9d257521951c30ae073e3955bdce`.
 
 The Mac r1680 hierarchy fixture supplied 4,096 file observations across eight folders at the same 1,100 × 700 DIP size and 2× scale. The charts applied their normal visible-area grouping rules. Treemap focus and revised-layout p95 were 12.04 ms and 14.16 ms. Sunburst measured 2.17 ms and 4.27 ms. Both met the 33 ms frame-work target for this fixture. The app exited and the source was unchanged. The raw result SHA-256 is `bcb02c1ce6c69a9a9d7dfa147c371319c874eaf7eaad7e636f2b4da77337a403`.
+
+### Merged regression run
+
+Revision r1676 used one verified compact overlay of the merged build on each Unix test machine. Each ran the analysis Core selection and full Renderer suite, saving each suite's result independently. Core passed 2,034 of 2,038 cases on each machine, with four expected skips. Rendering passed 982 of 992 on both, with ten identical expected skips covering platform-only and opt-in measurements. All failure and error counts were zero. Both terminal process inventories were empty. The Windows repeat remains queued behind its large native fixture.
+
+| Platform | Core XML SHA-256 | Renderer XML SHA-256 |
+|---|---|---|
+| Mac | `beb6e935328617dce4a0fb4ee9c1c5a7bf36adb48c48708af0e66775d7091565` | `86fc5246c09fd0def773af4dbeaca319ef5587a8c5015ca4ba72e8eab143afab` |
+| Ubuntu VM | `6dfc263dcf6f2f6e464bdc4eca12deb9b92781853af453adae1e68c423b93549` | `18e9167618643eee35ffca62b43749828a6fe95f4f54dd1edb5a982b6ce3f39b` |

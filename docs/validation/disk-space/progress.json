@@ -15,8 +15,14 @@
   },
   "mergedRendererQualification": {
     "windowsVm": { "run": "r1598", "groups": 40, "passed": 981, "skipped": 8, "failed": 0, "errors": 0, "total": 989 },
-    "mac": { "run": "r1571", "passed": 982, "skipped": 7, "failed": 0, "errors": 0, "total": 989 },
-    "ubuntuVm": { "run": "r1571", "passed": 982, "skipped": 7, "failed": 0, "errors": 0, "total": 989 },
+    "mac": { "run": "r1676", "passed": 982, "skipped": 10, "failed": 0, "errors": 0, "total": 992 },
+    "ubuntuVm": { "run": "r1676", "passed": 982, "skipped": 10, "failed": 0, "errors": 0, "total": 992 },
+    "qualification": "NATIVE_PACKAGES_QUALIFICATION.md"
+  },
+  "mergedCoreQualification": {
+    "selection": "*Analysis*",
+    "mac": { "run": "r1676", "passed": 2034, "skipped": 4, "failed": 0, "errors": 0, "total": 2038 },
+    "ubuntuVm": { "run": "r1676", "passed": 2034, "skipped": 4, "failed": 0, "errors": 0, "total": 2038 },
     "qualification": "NATIVE_PACKAGES_QUALIFICATION.md"
   },
   "folderExclusions": {
