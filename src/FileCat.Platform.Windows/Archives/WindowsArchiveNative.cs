@@ -85,6 +85,14 @@ internal static unsafe partial class WindowsArchiveNative
         return info;
     }
 
+    internal static byte[] PrivateSecurityDescriptor(string owner)
+    {
+        var descriptor = new RawSecurityDescriptor($"O:{owner}D:P(A;;FA;;;{owner})(A;;FA;;;SY)");
+        var bytes = new byte[descriptor.BinaryLength];
+        descriptor.GetBinaryForm(bytes, 0);
+        return bytes;
+    }
+
     internal static void RequirePrivateSecurity(SafeFileHandle handle, string owner)
         =>RequireScopedPrivateSecurity(handle,owner,false,false);
     internal static void RequirePrivateEditSecurity(SafeFileHandle handle,string owner,bool directory)

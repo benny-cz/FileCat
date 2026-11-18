@@ -15,7 +15,12 @@ internal sealed class WindowsEditSaveCopyDestination:EditSaveCopyDestination
     internal override ArchiveArtifactReservation Reserve(Guid nonce,ArchiveArtifactKind kind,long maximum,CancellationToken ct)
     {ct.ThrowIfCancellationRequested();return directory.ReserveArtifact(nonce,(WindowsArchiveArtifactKind)kind,maximum);}
     internal override IArchiveRetainedStage Create(ArchiveArtifactReservation reservation,CancellationToken ct)
-    {ct.ThrowIfCancellationRequested();return directory.CreateArtifact(reservation);}
+    {
+        ct.ThrowIfCancellationRequested();
+        var output = directory.CreateArtifact(reservation);
+        try { output.BindEditSaveCopyArtifact(); return output; }
+        catch { output.Dispose(); throw; }
+    }
     internal override IArchiveRetainedArtifact? OpenReadOrAbsent(string leaf,long maximum,CancellationToken ct)
     {ct.ThrowIfCancellationRequested();return directory.OpenSavedCopyOrAbsent(leaf,maximum);}
     internal override void Review(CancellationToken ct){ct.ThrowIfCancellationRequested();directory.VerifyNamespace();}

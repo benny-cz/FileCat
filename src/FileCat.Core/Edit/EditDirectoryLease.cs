@@ -40,6 +40,13 @@ internal abstract class EditDirectoryLease : IDisposable
     internal virtual FileStream OpenWorkingFileForReview(string leaf,CancellationToken ct)=>OpenWorkingFile(leaf,ct);
     internal abstract FileCat.Core.Resources.ContentRevision ReviewWorkingFile(FileStream file,string leaf,CancellationToken ct);
     internal abstract ArchiveOriginSnapshot ReadOrigin(FileStream file,string leaf,CancellationToken ct);
+    internal virtual ArchiveOriginSnapshot ReadOutputOrigin(FileStream file, string leaf, CancellationToken ct, string refusal)
+    {
+        ArchiveOuterEfs.RequireClear(file.SafeFileHandle, refusal);
+        var origin = ReadOrigin(file, leaf, ct);
+        ArchiveOuterEfs.RequireClear(file.SafeFileHandle, refusal);
+        return origin;
+    }
     internal abstract void CopyOrigin(FileStream file,string leaf,ArchiveOriginSnapshot origin,CancellationToken ct);
     internal abstract void DeleteSnapshot(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct,bool working=false);
     internal virtual bool CanDiscardReviewedSession=>false;
@@ -106,8 +113,14 @@ internal abstract class EditDirectoryLease : IDisposable
         catch (System.Text.EncoderFallbackException error) { throw new ArgumentException("The edit filename has invalid Unicode.", nameof(value), error); }
     }
     internal static void ValidateLeaf(string value)=>Leaf(value);
-    internal EditFileVersion Inspect(FileStream file,CancellationToken ct,long maximumBytes=EditSessionStore.MaxMemberBytes,bool working=false)
+    internal EditFileVersion Inspect(FileStream file,CancellationToken ct,long maximumBytes=EditSessionStore.MaxMemberBytes,bool working=false,
+        string? protectionRefusal = null)
     {
+        void CheckProtection()
+        {
+            if (protectionRefusal is not null) ArchiveOuterEfs.RequireClear(file.SafeFileHandle, protectionRefusal);
+        }
+        CheckProtection();
         ct.ThrowIfCancellationRequested();file.Flush();
         string identity=working?IdentifyWorking(file.SafeFileHandle):Identify(file.SafeFileHandle);
         long length=RandomAccess.GetLength(file.SafeFileHandle);
@@ -116,23 +129,27 @@ internal abstract class EditDirectoryLease : IDisposable
         byte[] buffer=length==0?[]:new byte[(int)Math.Min(1024*1024,length)];long offset=0;
         while(offset<length)
         {
-            ct.ThrowIfCancellationRequested();int count=RandomAccess.Read(file.SafeFileHandle,buffer.AsSpan(0,(int)Math.Min(buffer.Length,length-offset)),offset);
+            ct.ThrowIfCancellationRequested(); CheckProtection();
+            int count=RandomAccess.Read(file.SafeFileHandle,buffer.AsSpan(0,(int)Math.Min(buffer.Length,length-offset)),offset);
+            CheckProtection();
             if(count<=0)throw new IOException("The edit artifact ended during complete inspection.");hash.AppendData(buffer,0,count);offset+=count;
         }
-        ct.ThrowIfCancellationRequested();
+        ct.ThrowIfCancellationRequested(); CheckProtection();
         if(RandomAccess.GetLength(file.SafeFileHandle)!=length||
             (working?IdentifyWorking(file.SafeFileHandle):Identify(file.SafeFileHandle))!=identity)throw new IOException("The held edit artifact changed during inspection.");
         return new(identity,length,Convert.ToHexString(hash.GetHashAndReset()));
     }
     internal ArchiveFileObservation ObserveSnapshot(FileStream file,string leaf,CancellationToken ct,long maximumBytes=EditSessionStore.MaxMemberBytes,
-        bool working=false)
+        bool working=false, string? protectionRefusal = null)
     {
         lock(Gate)
         {
+            ArchiveOriginSnapshot ReadMark() => protectionRefusal is null ? ReadOrigin(file, leaf, ct)
+                : ReadOutputOrigin(file, leaf, ct, protectionRefusal);
             RequireOpen();Leaf(leaf);var before=ReviewWorkingFile(file,leaf,ct);
-            var origin=ReadOrigin(file,leaf,ct);var version=Inspect(file,ct,maximumBytes,working);
+            var origin=ReadMark();var version=Inspect(file,ct,maximumBytes,working,protectionRefusal);
             var after=ReviewWorkingFile(file,leaf,ct);
-            if(before!=after||origin.Digest!=ReadOrigin(file,leaf,ct).Digest||
+            if(before!=after||origin.Digest!=ReadMark().Digest||
                 version.Identity!=(working?IdentifyWorking(file.SafeFileHandle):Identify(file.SafeFileHandle)))
                 throw new IOException("The native commit snapshot changed during complete review.");
             string metadata=Convert.ToHexString(SHA256.HashData(ArchiveWritePolicy.Utf8.GetBytes(

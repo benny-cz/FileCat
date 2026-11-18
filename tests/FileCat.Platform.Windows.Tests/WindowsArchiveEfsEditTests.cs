@@ -146,6 +146,97 @@ public sealed class WindowsArchiveEfsEditTests
         finally { provider.Release(archive); Directory.Delete(path, recursive: true); }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Save_copy_capture_refuses_an_efs_inherited_temporary_file_before_payload(bool nativeStorage)
+    {
+        RequireEfs();
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-efs-edit-output-").FullName;
+        string archive = Path.Join(root, "source.zip");
+        var provider = new ZipProvider(Path.Join(root, "cache"));
+        try
+        {
+            CreateZip(archive);
+            var store = new EditSessionStore(Path.Join(root, "sessions"), new WindowsFileOperations(),
+                nativeStorage ? WindowsEditDirectoryLease.OpenRoot : null);
+            var record = store.Create(provider, Member(provider, archive), ct);
+            string output = Directory.CreateDirectory(Path.Join(root, "encrypted-temp")).FullName;
+            File.Encrypt(output);
+            string control = Path.Join(output, "inheritance-control.bin");
+            File.WriteAllBytes(control, []);
+            Assert.True(File.GetAttributes(control).HasFlag(FileAttributes.Encrypted));
+            File.Delete(control);
+
+            Assert.Equal(ArchiveOuterEfs.EditTemporaryOutputUnavailable,
+                Assert.Throws<ArchiveWriteException>(() => store.CaptureSaveCopy(record, output, new LocalFileSystemProvider(),
+                    ct.ThrowIfCancellationRequested)).Message);
+            Assert.Empty(Directory.EnumerateFileSystemEntries(output));
+            Assert.Equal(Contents, File.ReadAllText(record.WorkingPath));
+            Assert.False(File.GetAttributes(record.WorkingPath).HasFlag(FileAttributes.Encrypted));
+        }
+        finally { provider.Release(archive); Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData("initial source")]
+    [InlineData("late source")]
+    [InlineData("destination stage")]
+    public void Recovered_save_copy_keeps_efs_payloads_out_of_unreviewed_publication(string placement)
+    {
+        RequireEfs();
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-efs-recovered-edit-").FullName;
+        string archive = Path.Join(root, "source.zip");
+        var provider = new ZipProvider(Path.Join(root, "cache"));
+        try
+        {
+            CreateZip(archive);
+            var operations = new WindowsFileOperations();
+            var store = new EditSessionStore(Path.Join(root, "sessions"), operations, WindowsEditDirectoryLease.OpenRoot,
+                WindowsEditSaveCopyDestination.Open);
+            var record = store.Create(provider, Member(provider, archive), ct);
+            var copy = store.PrepareCommit(record, root, ct);
+            string capture = Path.GetDirectoryName(Path.GetDirectoryName(copy.Path))!;
+            string keep = Path.Join(capture, "simulate-restart.txt");
+            File.WriteAllText(keep, "Keep this owned capture during disposal.");
+            Assert.ThrowsAny<IOException>(copy.Dispose);
+            File.Delete(keep);
+
+            string destination = Directory.CreateDirectory(Path.Join(root, "output")).FullName;
+            string target = Path.Join(destination, "saved.txt");
+            var restarted = new EditSessionStore(store.Root, operations, WindowsEditDirectoryLease.OpenRoot,
+                WindowsEditSaveCopyDestination.Open);
+            bool sourceProtected = placement == "initial source";
+            if (sourceProtected)
+            {
+                File.Encrypt(copy.Path);
+                var finding = Assert.Single(restarted.ReviewRetainedCaptures(record, ct));
+                Assert.Equal(EditCaptureRecoveryState.NeedsReview, finding.State);
+                Assert.Contains(ArchiveOuterEfs.EditSnapshotUnavailable, finding.Reason, StringComparison.Ordinal);
+            }
+            if (placement == "destination stage") File.Encrypt(destination);
+
+            var failure = Assert.Throws<ArchiveWriteException>(() => restarted.SaveRecoveredNativeCopy(record, capture, target, ct, () =>
+            {
+                if (placement != "late source" || sourceProtected || !Directory.EnumerateFiles(destination).Any()) return;
+                File.Encrypt(copy.Path);
+                sourceProtected = true;
+            }));
+            Assert.Equal(placement == "destination stage" ? ArchiveOuterEfs.EditTemporaryOutputUnavailable
+                : ArchiveOuterEfs.EditSnapshotUnavailable, failure.Message);
+            Assert.Equal(placement != "destination stage", sourceProtected);
+            Assert.False(File.Exists(target));
+            Assert.Equal(placement != "initial source", File.Exists(Path.Combine(capture, EditSaveCopyIntent.FileName)));
+            Assert.All(Directory.EnumerateFiles(destination), file => Assert.Equal(0, new FileInfo(file).Length));
+            Assert.Equal(Contents, File.ReadAllText(copy.Path));
+            Assert.Equal(Contents, File.ReadAllText(record.WorkingPath));
+            Assert.Equal(sourceProtected, File.GetAttributes(copy.Path).HasFlag(FileAttributes.Encrypted));
+        }
+        finally { provider.Release(archive); Directory.Delete(root, recursive: true); }
+    }
+
     private static void RequireEfs()
     {
         Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",

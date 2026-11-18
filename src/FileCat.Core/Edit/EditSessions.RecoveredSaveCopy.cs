@@ -47,7 +47,7 @@ public sealed partial class EditSessionStore
         if(start.Session!=end.Session||start.SessionRecord!=end.SessionRecord||start.Directory!=end.Directory||
             start.Files!=end.Files||start.Leaf!=end.Leaf)throw RecoveredChanged();
         using var payload=files.OpenFile(start.Leaf,end.Identity,ct);
-        var observed=files.ObserveSnapshot(payload,start.Leaf,ct);
+        var observed=files.ObserveSnapshot(payload,start.Leaf,ct, protectionRefusal: ArchiveOuterEfs.EditSnapshotUnavailable);
         if(observed.Version.Length!=end.Length||observed.Version.Sha256!=end.Sha256||
             observed.MetadataDigest!=end.Metadata||observed.Origin.Digest!=end.Origin)throw RecoveredChanged();
         void CheckRecord(CancellationToken token)
@@ -108,15 +108,23 @@ public sealed partial class EditSessionStore
                 ["capture.json","captured.json","files",EditSaveCopyIntent.FileName];
             if(!capture.Names(ct).Order(StringComparer.Ordinal).SequenceEqual(names.Order(StringComparer.Ordinal))||
                 !files.Names(ct).SequenceEqual([expected.LeafName])||
-                !files.ObserveSnapshot(payload,expected.LeafName,ct).Matches(expected))throw RecoveredChanged();
+                !files.ObserveSnapshot(payload,expected.LeafName,ct, protectionRefusal: ArchiveOuterEfs.EditSnapshotUnavailable).Matches(expected))
+                throw RecoveredChanged();
             link?.Review(ct);capture.Review(ct);
         }
         public Stream OpenReadView(ArchiveFileObservation reviewed,CancellationToken ct)
         {
             Review(reviewed,ct);
-            return new ArchiveRetainedReadStream(expected.Version.Length,
-                (offset,buffer)=>RandomAccess.Read(payload.SafeFileHandle,buffer,offset),
-                ()=>!payload.SafeFileHandle.IsClosed);
+            return new ArchiveRetainedReadStream(expected.Version.Length, ReadAt, () => !payload.SafeFileHandle.IsClosed);
+
+            int ReadAt(long offset, Span<byte> buffer)
+            {
+                ct.ThrowIfCancellationRequested();
+                ArchiveOuterEfs.RequireClear(payload.SafeFileHandle, ArchiveOuterEfs.EditSnapshotUnavailable);
+                int read = RandomAccess.Read(payload.SafeFileHandle, buffer, offset);
+                ArchiveOuterEfs.RequireClear(payload.SafeFileHandle, ArchiveOuterEfs.EditSnapshotUnavailable);
+                return read;
+            }
         }
         internal void Link(EditPublishedRecord record)
         {if(link is not null)throw RecoveredChanged();link=record;}

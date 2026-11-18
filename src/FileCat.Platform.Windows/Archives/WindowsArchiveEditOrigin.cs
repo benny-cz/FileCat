@@ -13,6 +13,7 @@ internal static class WindowsArchiveEditOrigin
     internal static void Copy(FileStream working,string workingPath,ArchiveOriginSnapshot origin,CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        ArchiveOuterEfs.RequireClear(working.SafeFileHandle, ArchiveOuterEfs.EditTemporaryOutputUnavailable);
         if (origin.Format != ArchiveOriginFormat.WindowsZoneIdentifier || origin.State == ArchiveOriginState.Unavailable)
             throw new IOException("The archive download mark cannot be preserved on the private edit copy.");
         if (origin.State == ArchiveOriginState.Absent) return;
@@ -24,6 +25,7 @@ internal static class WindowsArchiveEditOrigin
     internal static void Copy(FileStream working,SafeFileHandle parent,string leaf,ArchiveOriginSnapshot origin,CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        ArchiveOuterEfs.RequireClear(working.SafeFileHandle, ArchiveOuterEfs.EditTemporaryOutputUnavailable);
         if (origin.Format != ArchiveOriginFormat.WindowsZoneIdentifier || origin.State == ArchiveOriginState.Unavailable)
             throw new IOException("The archive download mark cannot be preserved on the private edit copy.");
         if (origin.State == ArchiveOriginState.Absent) return;
@@ -38,12 +40,15 @@ internal static class WindowsArchiveEditOrigin
             ShareRead | ShareDelete, Create, NonDirectoryFile | OpenReparsePoint, "Create private edit origin"))
         {
             if (ProtectedHexFile.Identity(stream) != identity) throw new IOException("The private edit origin belongs to a different file.");
+            CheckProtection(stream);
             RandomAccess.Write(stream, origin.Bytes, 0); WindowsArchiveNative.Flush(stream);
             byte[] bytes = new byte[origin.Bytes.Length]; int offset = 0;
             while (offset < bytes.Length)
             {
                 ct.ThrowIfCancellationRequested();
+                CheckProtection(stream);
                 int read = RandomAccess.Read(stream, bytes.AsSpan(offset), offset);
+                CheckProtection(stream);
                 if (read <= 0) throw new IOException("The private edit origin ended before complete readback.");
                 offset += read;
             }
@@ -52,5 +57,12 @@ internal static class WindowsArchiveEditOrigin
         }
         SetBasic(handle, new BasicInfo { LastWriteTime = before.LastWriteTime });
         WindowsArchiveNative.Flush(handle); ct.ThrowIfCancellationRequested();
+        ArchiveOuterEfs.RequireClear(handle, ArchiveOuterEfs.EditTemporaryOutputUnavailable);
+
+        void CheckProtection(SafeFileHandle stream)
+        {
+            ArchiveOuterEfs.RequireClear(handle, ArchiveOuterEfs.EditTemporaryOutputUnavailable);
+            ArchiveOuterEfs.RequireClear(stream, ArchiveOuterEfs.EditTemporaryOutputUnavailable);
+        }
     }
 }

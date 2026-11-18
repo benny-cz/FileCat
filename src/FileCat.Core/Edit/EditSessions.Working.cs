@@ -112,7 +112,9 @@ public sealed partial class EditSessionStore
             RequireClearForCopy();
             return directory.ReviewWorkingFile(stream, leaf, ct);
         }
-        internal FileCat.Core.Archives.ArchiveOriginSnapshot ReadOrigin()=>directory.ReadOrigin(stream,leaf,ct);
+        internal ArchiveOriginSnapshot ReadOrigin() => checkEfs
+            ? directory.ReadOutputOrigin(stream, leaf, ct, ArchiveOuterEfs.WorkingCopyUnavailable)
+            : directory.ReadOrigin(stream, leaf, ct);
         public int Read(long offset,Span<byte> buffer)
         {
             ct.ThrowIfCancellationRequested();

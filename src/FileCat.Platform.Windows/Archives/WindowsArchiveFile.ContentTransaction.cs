@@ -220,8 +220,8 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
                 RequireStage(destination, original.Version.Length);
                 var oldOrigin = ArchiveWindowsOriginZone.Parse(original.Origin);
                 phase = Phase.Retaining; // A partially claimed snapshot cannot be replaced by a retry.
-                var stream = ((IArchiveRetainedStage)destination).BeginRebuild(original.Version.Length, ct);
-                string copied = Copy(data!, original.Version.Length, stream, ct);
+                ((IArchiveRetainedStage)destination).BeginRebuild(original.Version.Length, ct);
+                string copied = Copy(data!, original.Version.Length, destination, ct);
                 var retained = ((IArchiveRetainedStage)destination).SealForVerification(ct);
                 // A separately retained byte copy must not shed the original's declared zone. Raw URL evidence
                 // remains in the scoped provenance sidecar; the private snapshot receives the canonical zone.
@@ -251,6 +251,7 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
                 phase = Phase.Preparing; // Failure cannot retry a partially modified private view.
                 using (var source = ((IArchiveRetainedFile)verifiedFile).OpenReadView(verified.Stage, ct))
                 {
+                    ArchiveOuterEfs.RequireClear(data!);
                     RandomAccess.SetLength(data!, 0);
                     string copied = CopyToHandle(source, data!, verified.Stage.Version.Length, ct);
                     if (copied != verified.Stage.Version.Sha256) throw Changed();
@@ -300,6 +301,7 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
                         ownsParentChild = false; // The published reader now owns the already-counted source child.
                     }
                     catch { handle.Dispose(); throw; }
+                    published.BindClearSource(ArchiveOuterEfs.NativeUpdateOutputUnavailable);
                     var actual = ((IArchiveRetainedFile)published).Observe(CancellationToken.None);
                     RequirePublished(actual, review);
                     pin!.Dispose(); pin = null; return actual;
@@ -349,7 +351,7 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
             using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256); byte[] buffer = new byte[128 * 1024];
             for (long offset = 0; offset < length;)
             {
-                ct.ThrowIfCancellationRequested(); int read = RandomAccess.Read(file, buffer.AsSpan(0, (int)Math.Min(buffer.Length, length - offset)), offset);
+                ct.ThrowIfCancellationRequested(); int read = ReadClearTransactionData(file, buffer.AsSpan(0, (int)Math.Min(buffer.Length, length - offset)), offset);
                 if (read == 0) throw Changed(); digest.AppendData(buffer, 0, read); offset += read;
             }
             var after = CaptureMetadata(file, ct); if (after.Digest != before.Digest || RandomAccess.GetLength(file) != length) throw Changed();
@@ -360,6 +362,7 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
         {
             ct.ThrowIfCancellationRequested();
             if (ProtectedHexFile.Identity(file) != identity || WindowsArchiveNative.Regular(file, ArchiveWritePolicy.MaxPhysicalBytes, false, true) != 1) throw Changed();
+            ArchiveOuterEfs.RequireClear(file);
             return new(identity, NtFile.GetBasic(file), 1, WindowsArchiveNative.ReadOuterSecurity(file), ReadOrigin(ct));
         }
         private ArchiveOriginSnapshot ReadOrigin(CancellationToken ct)
@@ -375,7 +378,8 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
             if (ProtectedHexFile.Identity(mark) != identity) throw Changed();
             long length = RandomAccess.GetLength(mark); byte[] bytes = new byte[(int)length];
             for (int offset = 0; offset < bytes.Length;)
-            { ct.ThrowIfCancellationRequested(); int read = RandomAccess.Read(mark, bytes.AsSpan(offset), offset); if (read == 0) throw Changed(); offset += read; }
+            { ct.ThrowIfCancellationRequested(); int read = ReadClearTransactionData(mark, bytes.AsSpan(offset), offset); if (read == 0) throw Changed(); offset += read; }
+            ArchiveOuterEfs.RequireClear(mark);
             if (RandomAccess.GetLength(mark) != length) throw Changed();
             return ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier, bytes);
         }
@@ -383,7 +387,8 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
         {
             if (ReadOrigin(ct).Digest != original.Origin.Digest || required.State != ArchiveOriginState.Present) throw Changed();
             using var mark = Open(leaf + ":Zone.Identifier", 0xc0000000, 7, original.Origin.State == ArchiveOriginState.Absent ? 1u : 3u);
-            ct.ThrowIfCancellationRequested(); RandomAccess.Write(mark, required.Bytes, 0); RandomAccess.SetLength(mark, required.Bytes.Length);
+            ct.ThrowIfCancellationRequested(); ArchiveOuterEfs.RequireClear(mark);
+            RandomAccess.Write(mark, required.Bytes, 0); RandomAccess.SetLength(mark, required.Bytes.Length);
             WindowsArchiveNative.Flush(mark);
             if (ReadOrigin(CancellationToken.None).Digest != required.Digest) throw Changed();
             ct.ThrowIfCancellationRequested();
@@ -412,6 +417,7 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
             file.EnsureLive();
             if (!ReferenceEquals(file.parent, parent) || !file.artifact || !file.createdWritable || file.createdKind != WindowsArchiveArtifactKind.Stage ||
                 file.namespaceChanged || file.Identity == identity || file.maximumLength != bound) throw Changed();
+            file.BindClearSource(ArchiveOuterEfs.NativeUpdateArtifactUnavailable);
         }
         private void Require(Phase wanted) { if (phase != wanted) throw new InvalidOperationException("The native content transaction is not in the required phase."); }
         private SafeFileHandle Open(string name, uint access, uint sharing, uint disposition)
@@ -420,18 +426,44 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
             if (!result.IsInvalid) return result;
             int error = Marshal.GetLastPInvokeError(); result.Dispose(); throw Native(error, "Open native transactional archive view");
         }
-        private static string Copy(SafeFileHandle source, long length, Stream destination, CancellationToken ct)
+        private static int ReadClearTransactionData(SafeFileHandle source, Span<byte> destination, long offset)
+        {
+            ArchiveOuterEfs.RequireClear(source);
+            int read = RandomAccess.Read(source, destination, offset);
+            ArchiveOuterEfs.RequireClear(source);
+            return read;
+        }
+
+        private static string Copy(SafeFileHandle source, long length, WindowsArchiveFile destination, CancellationToken ct)
         {
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256); byte[] buffer = new byte[128 * 1024];
             for (long offset = 0; offset < length;)
-            { ct.ThrowIfCancellationRequested(); int read = RandomAccess.Read(source, buffer.AsSpan(0, (int)Math.Min(buffer.Length, length - offset)), offset); if (read == 0) throw Changed(); destination.Write(buffer, 0, read); hash.AppendData(buffer, 0, read); offset += read; }
+            {
+                ct.ThrowIfCancellationRequested();
+                int read = ReadClearTransactionData(source, buffer.AsSpan(0, (int)Math.Min(buffer.Length, length - offset)), offset);
+                if (read == 0) throw Changed();
+                destination.CheckSourceProtection(destination.handle);
+                destination.Write(buffer, 0, read);
+                destination.CheckSourceProtection(destination.handle);
+                hash.AppendData(buffer, 0, read);
+                offset += read;
+            }
             return Convert.ToHexString(hash.GetHashAndReset());
         }
         private static string CopyToHandle(Stream source, SafeFileHandle destination, long length, CancellationToken ct)
         {
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256); byte[] buffer = new byte[128 * 1024];
             for (long offset = 0; offset < length;)
-            { ct.ThrowIfCancellationRequested(); int read = source.Read(buffer, 0, (int)Math.Min(buffer.Length, length - offset)); if (read == 0) throw Changed(); RandomAccess.Write(destination, buffer.AsSpan(0, read), offset); hash.AppendData(buffer, 0, read); offset += read; }
+            {
+                ct.ThrowIfCancellationRequested();
+                int read = source.Read(buffer, 0, (int)Math.Min(buffer.Length, length - offset));
+                if (read == 0) throw Changed();
+                ArchiveOuterEfs.RequireClear(destination);
+                RandomAccess.Write(destination, buffer.AsSpan(0, read), offset);
+                hash.AppendData(buffer, 0, read);
+                offset += read;
+            }
+            ArchiveOuterEfs.RequireClear(destination);
             if (source.ReadByte() != -1 || RandomAccess.GetLength(destination) != length) throw Changed();
             return Convert.ToHexString(hash.GetHashAndReset());
         }

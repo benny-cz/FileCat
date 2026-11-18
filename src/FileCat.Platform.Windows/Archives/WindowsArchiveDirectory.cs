@@ -1,4 +1,3 @@
-using System.Security.AccessControl;
 using System.Security.Principal;
 using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
@@ -54,9 +53,7 @@ internal sealed partial class WindowsArchiveDirectory : IDisposable, IArchiveDes
             using var identity = WindowsIdentity.GetCurrent();
             owner = identity.User?.Value ?? throw new UnauthorizedAccessException("The archive owner is unavailable.");
             // Applied in FILE_CREATE itself, never after a window of inherited access. No package/AAP/Everyone ACE.
-            var descriptor = new RawSecurityDescriptor($"O:{owner}D:P(A;;FA;;;{owner})(A;;FA;;;SY)");
-            privateSecurity = new byte[descriptor.BinaryLength];
-            descriptor.GetBinaryForm(privateSecurity, 0);
+            privateSecurity = WindowsArchiveNative.PrivateSecurityDescriptor(owner);
         }
         catch { directory.Dispose(); throw; }
     }

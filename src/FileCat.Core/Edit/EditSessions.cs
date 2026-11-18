@@ -172,9 +172,15 @@ public sealed class EditCommitCopy : IDisposable
     internal EditCommitCopy(string path, string sha256, uint crc32, long length, IFileSystemOperations? files = null)
     {
         Path = path; Sha256 = sha256; Crc32 = crc32; Length = length;
-        _pin = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        // Recorded while pinned: Dispose removes only this object (risk R21).
-        _files = files; _identity = files?.GetFileIdentity(path);
+        var pin = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        try
+        {
+            ArchiveOuterEfs.RequireClear(pin.SafeFileHandle, ArchiveOuterEfs.EditSnapshotUnavailable);
+            // Recorded while pinned: Dispose removes only this object (risk R21).
+            _files = files; _identity = files?.GetFileIdentity(path);
+            _pin = pin;
+        }
+        catch { pin.Dispose(); throw; }
     }
     private Action? _released;
     internal EditCommitCopy(NativeEditSnapshot snapshot,uint crc32,Action? released=null)
@@ -655,17 +661,23 @@ public sealed partial class EditSessionStore
         var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.ReadWrite, Share = FileShare.None };
         if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
         using var output = outputFactory?.Invoke(length) ?? new FileStream(working, options);
+        var outputHandle = OperatingSystem.IsWindows() ? output.SafeFileHandle : null;
+        void CheckOutput()
+        {
+            if (outputHandle is not null) ArchiveOuterEfs.RequireClear(outputHandle, ArchiveOuterEfs.EditTemporaryOutputUnavailable);
+        }
+        CheckOutput();
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var buffer = new byte[1024 * 1024];
         uint crc = 0; long offset = 0;
         while (true)
         {
-            Check(); CheckComplete(source);
+            Check(); CheckOutput(); CheckComplete(source);
             // A one-byte read at the declared end checks actual EOF (and archive checksum validation) without
             // accepting or writing bytes beyond either the declared size or the edit-session size limit.
             int want = (int)Math.Min(buffer.Length, length - offset + 1);
             int n = source.Read(offset, buffer.AsSpan(0, want));
-            Check(); CheckComplete(source);
+            Check(); CheckOutput(); CheckComplete(source);
             if (n < 0 || n > want) throw new InvalidDataException("The edit source returned an invalid byte count.");
             if (n == 0)
             {
@@ -680,8 +692,9 @@ public sealed partial class EditSessionStore
         Check();
         if (source.Length != length || source.GetRevision() != before) throw new IOException("The file's length or revision changed while its edit was copied.");
         Check(); CheckComplete(source);
+        CheckOutput();
         if (finalize is not null) { output.Flush(flushToDisk: true); finalize(output); }
-        Check();
+        Check(); CheckOutput();
         return new WorkingCopy(Convert.ToHexString(hash.GetHashAndReset()), crc, offset);
     }
 

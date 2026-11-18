@@ -50,8 +50,8 @@ public partial class WindowsFileOperations
                 return new(false, false, "The original could not return to its name. The rebuilt ZIP returned to the archive name. " + error.Message);
             }
 
-            bool kept = !TryDiscardLegacyZipRebuild(rebuild, published.Version.Length, rebuildMark);
-            if (!kept) rebuild.Dispose();
+            rebuild.Dispose();
+            bool kept = !TryDiscardLegacyZipRebuild(parent.LastHandle, Path.GetFileName(stage), published, rebuildMark);
             WriteThrough(folder);
             return new(true, kept);
         }
@@ -61,28 +61,37 @@ public partial class WindowsFileOperations
         }
     }
 
-    private static SafeFileHandle OpenLegacyZipRollbackFile(SafeFileHandle parent, string name) =>
-        OpenOrThrow(parent, name, ReadData | ReadAttributes | Delete | Synchronize, ShareRead, Open,
-            NonDirectoryFile | OpenReparsePoint, "Open ZIP file for rollback");
+    private static SafeFileHandle OpenLegacyZipRollbackFile(SafeFileHandle parent, string name, bool allowDelete = true) =>
+        OpenOrThrow(parent, name, ReadData | ReadAttributes | Synchronize | (allowDelete ? Delete : 0), ShareRead, Open,
+            NonDirectoryFile | OpenReparsePoint, "Open held ZIP file");
 
     private static ArchiveOriginSnapshot VerifyLegacyZipRollbackFile(SafeFileHandle file, LegacyZipRollbackFile expected,
-        bool allowMissingOrigin)
+        bool allowMissingOrigin, Func<ArchiveOriginSnapshot>? readOrigin = null, Action? checkpoint = null)
     {
         WindowsArchiveNative.Regular(file, expected.Version.Length, artifact: false, mayRename: true);
         if (ProtectedHexFile.Identity(file).ToString() != expected.Version.Identity ||
             !DigestMatches(file, expected.Version.Sha256, expected.Version.Length, CancellationToken.None,
-                () => CheckLegacyZipRollbackProtection(file, expected.Encrypted)))
-            throw new IOException("A ZIP object's identity or bytes changed before rollback.");
-        var mark = ReadLegacyZipRollbackOrigin(file, expected.Encrypted);
+                () =>
+                {
+                    checkpoint?.Invoke();
+                    CheckLegacyZipRollbackProtection(file, expected.Encrypted);
+                }))
+            throw new IOException("A ZIP object's identity or bytes changed before recovery or cleanup.");
+        var mark = readOrigin?.Invoke() ?? ReadLegacyZipRollbackOrigin(file, expected.Encrypted);
+        RequireZipOrigin(mark, expected.Origin, allowMissingOrigin);
+        return mark;
+    }
+
+    private static void RequireZipOrigin(ArchiveOriginSnapshot mark, string? expected, bool allowMissingOrigin = false)
+    {
         string? text = null;
         if (mark.State == ArchiveOriginState.Present)
         {
             using var reader = new StreamReader(new MemoryStream(mark.Bytes.ToArray(), writable: false), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
             text = reader.ReadToEnd();
         }
-        if ((!allowMissingOrigin || text is not null) && !string.Equals(text, expected.Origin, StringComparison.Ordinal))
-            throw new IOException("A ZIP object's download mark changed before rollback.");
-        return mark;
+        if ((!allowMissingOrigin || text is not null) && !string.Equals(text, expected, StringComparison.Ordinal))
+            throw new IOException("A ZIP object's download mark changed before recovery or cleanup.");
     }
 
     private static ArchiveOriginSnapshot ReadLegacyZipRollbackOrigin(SafeFileHandle file, bool encrypted)
@@ -94,25 +103,30 @@ public partial class WindowsFileOperations
         {
             if (status == NameNotFound) return ArchiveOriginSnapshot.Absent(format);
             if (status < 0) throw Error(status, "Open held ZIP download mark");
-            if (ProtectedHexFile.Identity(zone) != ProtectedHexFile.Identity(file))
-                throw new IOException("The download mark does not belong to the held ZIP.");
-            long size = RandomAccess.GetLength(zone);
-            if (size < 0 || size > MaxOriginMarkBytes) throw new IOException("The ZIP download mark exceeds the inspection limit.");
-            var bytes = new byte[(int)size];
-            int offset = 0;
-            while (offset < bytes.Length)
-            {
-                CheckLegacyZipRollbackProtection(file, encrypted);
-                CheckLegacyZipRollbackProtection(zone, encrypted);
-                int count = RandomAccess.Read(zone, bytes.AsSpan(offset), offset);
-                if (count == 0) throw new IOException("The download mark changed during rollback review.");
-                offset += count;
-            }
+            return ReadHeldZipOrigin(file, zone, encrypted);
+        }
+    }
+
+    private static ArchiveOriginSnapshot ReadHeldZipOrigin(SafeFileHandle file, SafeFileHandle zone, bool encrypted)
+    {
+        if (ProtectedHexFile.Identity(zone) != ProtectedHexFile.Identity(file))
+            throw new IOException("The download mark does not belong to the held ZIP.");
+        long size = RandomAccess.GetLength(zone);
+        if (size < 0 || size > MaxOriginMarkBytes) throw new IOException("The ZIP download mark exceeds the inspection limit.");
+        var bytes = new byte[(int)size];
+        int offset = 0;
+        while (offset < bytes.Length)
+        {
             CheckLegacyZipRollbackProtection(file, encrypted);
             CheckLegacyZipRollbackProtection(zone, encrypted);
-            if (RandomAccess.GetLength(zone) != size) throw new IOException("The download mark changed during rollback review.");
-            return ArchiveOriginSnapshot.Present(format, bytes);
+            int count = RandomAccess.Read(zone, bytes.AsSpan(offset), offset);
+            if (count == 0) throw new IOException("The download mark changed during review.");
+            offset += count;
         }
+        CheckLegacyZipRollbackProtection(file, encrypted);
+        CheckLegacyZipRollbackProtection(zone, encrypted);
+        if (RandomAccess.GetLength(zone) != size) throw new IOException("The download mark changed during review.");
+        return ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier, bytes);
     }
 
     private static void CheckLegacyZipRollbackProtection(SafeFileHandle file, bool encrypted)
@@ -120,24 +134,6 @@ public partial class WindowsFileOperations
         var attributes = (FileAttributes)GetBasic(file).FileAttributes;
         if ((attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0 ||
             attributes.HasFlag(FileAttributes.Encrypted) != encrypted)
-            throw new IOException("A held ZIP object's protection changed before rollback.");
-    }
-
-    private static bool TryDiscardLegacyZipRebuild(SafeFileHandle rebuild, long length, ArchiveOriginSnapshot expectedOrigin)
-    {
-        try
-        {
-            WindowsArchiveNative.Regular(rebuild, length, artifact: true, mayRename: true);
-            var mark = ReadLegacyZipRollbackOrigin(rebuild, encrypted: false);
-            if (mark.Digest != expectedOrigin.Digest || !WindowsArchiveNative.HasNoExtendedAttributes(rebuild)) return false;
-            WindowsArchiveNative.RequireSnapshotStreams(rebuild, length, mark);
-            CheckLegacyZipRollbackProtection(rebuild, encrypted: false);
-            WindowsArchiveNative.DeleteExact(rebuild);
-            return true;
-        }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or Win32Exception)
-        {
-            return false;
-        }
+            throw new IOException("A held ZIP object's protection changed before recovery or cleanup.");
     }
 }

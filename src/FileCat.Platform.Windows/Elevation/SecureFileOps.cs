@@ -433,11 +433,11 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         try
         {
             if (IsEncrypted(GetBasic(targetDirectory).FileAttributes)) throw new IOException(EncryptedCopyFolder);
-            using var sourceProtection = CopyFileTransaction.PinSource(source, EncryptedCopySource);
+            using var sourceProtection = WindowsFileTransaction.PinSource(source, EncryptedCopySource);
             // The source mark remains held without write or delete sharing until publication.
             var (sourceZone, mark) = ReadZoneIdentifier(source);
             using var heldSourceZone = sourceZone;
-            int skipped = replaceIdentity is { } reviewed && CopyFileTransaction.CanEncrypt(targetDirectory)
+            int skipped = replaceIdentity is { } reviewed && WindowsFileTransaction.CanEncrypt(targetDirectory)
                 ? CopyReplacingTransacted(source, targetDirectory, targetName, reviewed, mark)
                 : CopyStaged(source, targetDirectory, targetName, replaceIdentity, mark, report);
             report.StreamsNotCopied += skipped;
@@ -451,35 +451,35 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
     {
         if (ProtectedHexFile.Identity(source) == reviewedTarget)
             throw new IOException("The copy source and replacement destination identify the same file.");
-        using var transaction = new CopyFileTransaction();
-        string folder = CopyFileTransaction.HeldPath(directory);
+        using var transaction = new WindowsFileTransaction();
+        string folder = WindowsFileTransaction.HeldPath(directory);
         string destination = Path.Combine(folder, name);
         const uint access = GenericRead | GenericWrite | Delete | Synchronize;
         using (var original = transaction.OpenExisting(destination, access, ShareRead, "Hold the reviewed replacement destination"))
         {
-            CopyFileTransaction.RequireOrdinaryFile(original, EncryptedCopyTarget);
+            WindowsFileTransaction.RequireOrdinaryFile(original, EncryptedCopyTarget);
             using (var atName = OpenOrThrow(directory, name, ReadAttributes | Synchronize, ShareAll, Open, NonDirectoryFile | OpenReparsePoint,
                 "Recheck the held replacement name"))
             {
-                CopyFileTransaction.RequireOrdinaryFile(atName, EncryptedCopyTarget);
+                WindowsFileTransaction.RequireOrdinaryFile(atName, EncryptedCopyTarget);
                 if (ProtectedHexFile.Identity(original) != reviewedTarget || ProtectedHexFile.Identity(atName) != reviewedTarget ||
-                    !string.Equals(CopyFileTransaction.HeldPath(original), destination, StringComparison.OrdinalIgnoreCase))
+                    !string.Equals(WindowsFileTransaction.HeldPath(original), destination, StringComparison.OrdinalIgnoreCase))
                     throw new IOException("The reviewed replacement destination changed while the administrator helper was opening it.");
             }
             // All later opens occur after the exact original has been moved inside the private transaction.
             // NTFS keeps its old name visible outside this transaction and pins the modified file's ancestors.
             NtFile.Rename(original, directory, ".filecat-admin-" + Guid.NewGuid().ToString("N") + ".old", replace: false);
-            CopyFileTransaction.RemoveOnClose(original);
+            WindowsFileTransaction.RemoveOnClose(original, clearReadOnly: true);
         }
-        if (IsLink(directory) || !string.Equals(CopyFileTransaction.HeldPath(directory), folder, StringComparison.Ordinal))
+        if (IsLink(directory) || !string.Equals(WindowsFileTransaction.HeldPath(directory), folder, StringComparison.Ordinal))
             throw new IOException("The held replacement folder changed during staging.");
         if (IsEncrypted(GetBasic(directory).FileAttributes)) throw new IOException(EncryptedCopyFolder);
         string stagePath = Path.Combine(folder, ".filecat-admin-" + Guid.NewGuid().ToString("N") + ".tmp");
         int skipped;
         using (var output = transaction.CreateFile(stagePath, access, ShareAll, "Create the private replacement copy"))
         {
-            CopyFileTransaction.RequireOrdinaryFile(output, EncryptedCopyFolder);
-            if (!string.Equals(CopyFileTransaction.HeldPath(output), stagePath, StringComparison.Ordinal))
+            WindowsFileTransaction.RequireOrdinaryFile(output, EncryptedCopyFolder);
+            if (!string.Equals(WindowsFileTransaction.HeldPath(output), stagePath, StringComparison.Ordinal))
                 throw new IOException("The replacement stage was opened outside the held destination folder.");
             skipped = WriteAndRenameCopy(source, output, directory, name, null, mark, transaction);
             RandomAccess.FlushToDisk(output);
@@ -513,7 +513,7 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
     }
 
     private int WriteAndRenameCopy(SafeFileHandle source, SafeFileHandle output, SafeFileHandle directory, string name,
-        FileIdentity? reviewedTarget, byte[]? mark, CopyFileTransaction? transaction = null)
+        FileIdentity? reviewedTarget, byte[]? mark, WindowsFileTransaction? transaction = null)
     {
         var buffer = new byte[1024 * 1024];
         for (long offset = 0; ;)
@@ -595,13 +595,13 @@ public sealed class SecureFileOps(Action checkpoint, Func<string, string>? displ
         throw new IOException("The download mark exceeds the 64 KiB copy limit; the file was not published.");
     }
 
-    private static SafeFileHandle WriteZoneIdentifier(SafeFileHandle output, byte[] mark, CopyFileTransaction? transaction)
+    private static SafeFileHandle WriteZoneIdentifier(SafeFileHandle output, byte[] mark, WindowsFileTransaction? transaction)
     {
         const string stream = ":Zone.Identifier";
         const uint access = GenericRead | GenericWrite | Synchronize;
         var target = transaction is null ? OpenOrThrow(output, stream, access, ShareRead | ShareDelete,
             Create, NonDirectoryFile, "Copy the download mark") :
-            transaction.CreateFile(CopyFileTransaction.HeldPath(output) + stream, access, ShareAll, "Copy the private replacement download mark");
+            transaction.CreateFile(WindowsFileTransaction.HeldPath(output) + stream, access, ShareAll, "Copy the private replacement download mark");
         try
         {
             if (transaction is not null && ProtectedHexFile.Identity(target) != ProtectedHexFile.Identity(output))

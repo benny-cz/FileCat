@@ -93,6 +93,8 @@ public sealed partial class EditSessionStore
             if(name.Length!=39||!Guid.TryParseExact(name.AsSpan(7),"N",out _))
             {result.Add(new(path,EditCaptureRecoveryState.NeedsReview,"This captured folder has an unknown name. Its files are kept."));continue;}
             try{result.Add(ReviewCapture(session,name,history,ref remainingBytes,ct));}
+            catch (ArchiveWriteException error) when (error.Message == ArchiveOuterEfs.EditSnapshotUnavailable)
+            { result.Add(new(path, EditCaptureRecoveryState.NeedsReview, error.Message + " Its files are kept.")); }
             catch(Exception error)when(error is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException)
             {result.Add(new(path,EditCaptureRecoveryState.NeedsReview,"This retained copy is in use, changed, or cannot be read completely. Its files are kept."));}
         }
@@ -214,7 +216,7 @@ public sealed partial class EditSessionStore
         if(cost>remainingBytes)return new(capture.Path,EditCaptureRecoveryState.NeedsReview,
             "This copy needs a separate review because the byte limit for this batch has been reached. Its files are kept.");
         remainingBytes-=cost;
-        var observed=files.ObserveSnapshot(payload,start.Leaf,ct);
+        var observed=files.ObserveSnapshot(payload,start.Leaf,ct, protectionRefusal: ArchiveOuterEfs.EditSnapshotUnavailable);
         if(observed.Version.Length!=end.Length||observed.Version.Sha256!=end.Sha256||observed.MetadataDigest!=end.Metadata||observed.Origin.Digest!=end.Origin)
             throw new IOException("The capture no longer matches its complete receipt.");
         EditSavedCopyRecovery? saved=null;
@@ -226,7 +228,8 @@ public sealed partial class EditSessionStore
         }
         header.Review(ct);receipt.Review(ct);files.Review(ct);capture.Review(ct);
         if(!capture.Names(ct).Order(StringComparer.Ordinal).SequenceEqual(names)||!files.Names(ct).SequenceEqual(fileNames)||
-            !files.ObserveSnapshot(payload,start.Leaf,ct).Matches(observed))throw new IOException("The retained copy changed during review.");
+            !files.ObserveSnapshot(payload,start.Leaf,ct, protectionRefusal: ArchiveOuterEfs.EditSnapshotUnavailable).Matches(observed))
+            throw new IOException("The retained copy changed during review.");
         bool unfinished=left.Length!=0||asideFiles.Length!=0;
         return new(capture.Path,EditCaptureRecoveryState.Complete,"The complete retained copy matches its verification record. Its files are kept."+
             (unfinished?" FileCat also left unfinished work of its own beside it, which goes with it when it is removed.":""),end.Length,end.Sha256)

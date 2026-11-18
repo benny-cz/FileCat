@@ -84,6 +84,7 @@ internal sealed partial class WindowsArchiveFile
                 if (ProtectedHexFile.Identity(stream) != Identity)
                     throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "The archive origin stream belongs to a different file; retain the evidence.");
                 cancellationToken.ThrowIfCancellationRequested();
+                CheckSourceProtection(stream);
                 RandomAccess.Write(stream, origin.Bytes, 0);
                 WindowsArchiveNative.Flush(stream);
             }

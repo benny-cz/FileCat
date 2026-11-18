@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
@@ -10,16 +11,28 @@ internal interface ILegacyZipBackupRestorer
     bool TryRestoreLegacyZipBackup(string backup, string archive, string originalIdentity);
     LegacyZipRollbackResult RollbackLegacyZip(string archive, string backup, string stage,
         LegacyZipRollbackFile published, LegacyZipRollbackFile original);
+    string? CleanupLegacyZipBackup(string archive, string backup, LegacyZipRollbackFile published, LegacyZipRollbackFile original);
+    string? CleanupLegacyZipStage(string stage, string identity, ArchiveObjectVersion? verified, string? origin);
 }
 
 internal sealed record LegacyZipRollbackFile(ArchiveObjectVersion Version, string? Origin, bool Encrypted);
 internal sealed record LegacyZipRollbackResult(bool Restored, bool RebuildRetained, string? Reason = null);
 
+internal interface ILegacyZipInPlacePublisher
+{
+    SafeFileHandle? PinLegacyZipForPublication(SafeFileHandle file);
+    LegacyZipInPlaceResult? TryPublishLegacyZipInPlace(string archive, string stage, string backup,
+        LegacyZipRollbackFile original, SafeFileHandle originalPin, LegacyZipRollbackFile rebuilt, SafeFileHandle stagePin,
+        Action checkpoint);
+}
+
+internal sealed record LegacyZipInPlaceResult(bool Published, string? ReviewReason = null, Exception? Failure = null);
+
 /// <summary>
 /// Legacy ZIP publication and metadata handling, with recovery recorded before replacement.
 /// Windows rollback uses the qualified held-file adapter. New archive profiles use their own publication transactions.
 /// </summary>
-internal sealed class LegacyZipPublicationTransaction
+internal sealed class LegacyZipPublicationTransaction : IDisposable
 {
     private const int BufferSize = 1024 * 1024;
     private readonly Job Job;
@@ -31,7 +44,10 @@ internal sealed class LegacyZipPublicationTransaction
     private readonly bool updating;
     private readonly string temp;
     private readonly int step;
-    private readonly Action<string, string, string> replaceFile;
+    private readonly Action<string, string, string>? replaceFile;
+    private readonly ILegacyZipInPlacePublisher? inPlacePublisher;
+    private SafeFileHandle? originalPin;
+    private SafeFileHandle? stagePin;
     private byte[]? openedSourceDigest;
     private string? openedSourceIdentity;
     private byte[]? intendedPublishedDigest;
@@ -49,6 +65,7 @@ internal sealed class LegacyZipPublicationTransaction
     private string? backup;
     private bool prepared;
     private bool attempted;
+    private string? failureMessage;
     private string? mark;
     private string? requiredOrigin;
     private readonly ArchiveMoveSources? move;
@@ -65,7 +82,8 @@ internal sealed class LegacyZipPublicationTransaction
                 "A new archive profile cannot use the legacy ZIP publication protocol.");
         Job = job; Fs = fs; Journal = journal; this.plan = plan; this.archive = archive; this.folder = folder;
         this.move = move;
-        this.replaceFile = replaceFile ?? ((stage, target, retained) => File.Replace(stage, target, retained, ignoreMetadataErrors: true));
+        this.replaceFile = replaceFile;
+        if (replaceFile is null) inPlacePublisher = fs as ILegacyZipInPlacePublisher;
         updating = plan.Baseline is not null;
         temp = Path.Combine(folder, ".filecat-zip-" + Guid.NewGuid().ToString("N") + ".tmp");
         step = Journal.Intent(JobJournal.LegacyZipUpdateOp, archive, null, temp);
@@ -120,6 +138,7 @@ internal sealed class LegacyZipPublicationTransaction
         openedSourceDigest = DigestOpened(source);
         if (!string.Equals(Convert.ToHexString(openedSourceDigest), plan.Baseline!.Sha256Hex, StringComparison.Ordinal))
             throw new IOException("The archive changed after it was opened, so this change was not applied. Open it again and repeat the change.");
+        originalPin = inPlacePublisher?.PinLegacyZipForPublication(source.Handle);
     }
 
     public void CaptureVerifiedStage(Stream stage)
@@ -129,6 +148,7 @@ internal sealed class LegacyZipPublicationTransaction
             intendedPublishedLength = stage.Length;
             intendedPublishedDigest = DigestOpened(stage);
             intendedPublishedIdentity = createdStageIdentity ?? Fs.GetFileIdentity(temp);
+            if (stage is ArchiveMutationReadStream retained) stagePin = inPlacePublisher?.PinLegacyZipForPublication(retained.Handle);
         }
     }
 
@@ -167,6 +187,9 @@ internal sealed class LegacyZipPublicationTransaction
             RequireCreatedStage(Fs.GetFileIdentity(temp));
             RequireClearPath(temp, ArchiveOuterEfs.UpdateStageUnavailable);
             RequireClearPath(archive, ArchiveOuterEfs.UpdateUnavailable);
+            if (OperatingSystem.IsWindows() && openedSourceIdentity is not null && Fs.GetFileIdentity(archive) != openedSourceIdentity)
+                throw new IOException("A different file now has the archive name. The ZIP update was stopped before replacement.");
+            if (TryPublishInPlace(backup, onCommitted)) return;
             // ReplaceFile keeps the original's security, attributes, and creation time on the rebuilt file.
             // Keep the actual original even when it was unmarked at the earlier read. Another
             // process can add a download mark without changing ZIP bytes or last-write time.
@@ -190,6 +213,8 @@ internal sealed class LegacyZipPublicationTransaction
                 // The backup is the pathname's actual file at replacement time. It may differ
                 // from the opened source even when a late check of path metadata passed.
                 replacedOriginalIdentity = Fs.GetFileIdentity(backup!);
+                if (OperatingSystem.IsWindows() && openedSourceIdentity is not null && replacedOriginalIdentity != openedSourceIdentity)
+                    throw new IOException("The retained ZIP is a different file from the archive reviewed for update.");
                 using (var original = new ArchiveMutationReadStream(backup!, ArchiveOuterEfs.UpdateUnavailable))
                 {
                     if (OperatingSystem.IsWindows() && replacedOriginalIdentity is not null &&
@@ -245,6 +270,7 @@ internal sealed class LegacyZipPublicationTransaction
                 }
                 if (rebuildRetained)
                     RetainForRecovery(temp, $"FileCat restored the original archive. The rebuilt ZIP was kept for review at {temp}.");
+                else stageCreated = false;
                 published = false;
                 if (encryptedBackup)
                     throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
@@ -252,9 +278,43 @@ internal sealed class LegacyZipPublicationTransaction
                 throw new IOException("The archive source or download mark changed; the original was restored.", integrityError);
             }
         }
-        Journal.Done(step, StepOutcome.Committed);
+        bool nativeCleanup = backup is not null && Fs is ILegacyZipBackupRestorer;
+        if (nativeCleanup) CleanupWindowsZipBackup((ILegacyZipBackupRestorer)Fs, backup!);
+        if (!recoveryRequired) Journal.Done(step, StepOutcome.Committed);
         onCommitted();
-        if (backup is not null) CleanupOriginalBackup(backup);
+        if (backup is not null && !nativeCleanup) CleanupPortableBackup(backup);
+    }
+
+    private bool TryPublishInPlace(string backup, Action onCommitted)
+    {
+        if (inPlacePublisher is null || originalPin is null || stagePin is null ||
+            openedSourceIdentity is null || intendedPublishedIdentity is null) return false;
+
+        var original = new LegacyZipRollbackFile(new(openedSourceIdentity, plan.Baseline!.Length, plan.Baseline.Sha256Hex),
+            mark, Encrypted: false);
+        var rebuild = new LegacyZipRollbackFile(new(intendedPublishedIdentity, intendedPublishedLength, PreparedSha256),
+            requiredOrigin, Encrypted: false);
+        var result = inPlacePublisher.TryPublishLegacyZipInPlace(archive, temp, backup, original, originalPin, rebuild, stagePin, Job.Checkpoint);
+        if (result is null) return false;
+        if (result.Failure is { } error)
+        {
+            if (result.ReviewReason is { } review)
+                RetainForRecovery(archive, $"{review} Inspect {archive}, the possible snapshot at {backup} and the rebuilt ZIP at {temp}.");
+            ExceptionDispatchInfo.Capture(error).Throw();
+        }
+
+        if (!result.Published) throw new InvalidOperationException("The ZIP publication returned no outcome.");
+        published = true;
+        if (result.ReviewReason is { } reason)
+        {
+            recoveryRequired = true;
+            Journal.RequireRecovery();
+            Issue(IssueSeverity.Warning, archive,
+                $"The ZIP update was published. Review the snapshot at {backup} and the rebuilt ZIP at {temp}. {reason}", StepOutcome.Committed, "security");
+        }
+        else Journal.Done(step, StepOutcome.Committed);
+        onCommitted();
+        return true;
     }
 
     private bool RollbackWindowsZip(string? publishedIdentity, bool encryptedBackup)
@@ -294,7 +354,29 @@ internal sealed class LegacyZipPublicationTransaction
             throw new IOException("The archive's bytes or protection could not be verified after restoration.");
     }
 
-    private void CleanupOriginalBackup(string backup)
+    private void CleanupWindowsZipBackup(ILegacyZipBackupRestorer native, string backup)
+    {
+        string? reason;
+        if (openedSourceIdentity is null || replacedOriginalIdentity != openedSourceIdentity || intendedPublishedIdentity is null ||
+            replacedOriginalDigest is null || !originalMarkReadable)
+            reason = "The published ZIP and the original backup could not both be bound to reviewed files.";
+        else
+        {
+            var original = new LegacyZipRollbackFile(new(openedSourceIdentity, replacedOriginalLength,
+                Convert.ToHexString(replacedOriginalDigest)), replacedOriginalMark, Encrypted: false);
+            var rebuild = new LegacyZipRollbackFile(new(intendedPublishedIdentity, intendedPublishedLength, PreparedSha256),
+                requiredOrigin, Encrypted: false);
+            reason = native.CleanupLegacyZipBackup(archive, backup, rebuild, original);
+        }
+        if (reason is null) return;
+
+        recoveryRequired = true;
+        Journal.RequireRecovery();
+        Issue(IssueSeverity.Warning, backup, $"The rebuilt ZIP was published. FileCat could not confirm cleanup of the original backup. Review {backup}. {reason}",
+            StepOutcome.Committed, "security");
+    }
+
+    private void CleanupPortableBackup(string backup)
     {
         string retainedBackup = backup;
         try
@@ -327,7 +409,11 @@ internal sealed class LegacyZipPublicationTransaction
 
     private void ReplaceOriginal(string recoveryPath)
     {
-        try { replaceFile(temp, archive, recoveryPath); }
+        try
+        {
+            if (replaceFile is { } replace) replace(temp, archive, recoveryPath);
+            else File.Replace(temp, archive, recoveryPath, ignoreMetadataErrors: true);
+        }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
             if (!ReplacementMayBePartial(error, recoveryPath)) throw;
@@ -370,15 +456,29 @@ internal sealed class LegacyZipPublicationTransaction
         if (recoveryRequired) return;
         if (error is ArchiveWriteException { Message: ArchiveOuterEfs.UpdateStageUnavailable })
             RetainForRecovery(temp, error.Message + " The temporary ZIP was kept for review at " + temp + ".");
-        else
-            Journal.Done(step, StepOutcome.Failed, error.Message);
+        else failureMessage = error.Message;
     }
 
     public void CleanupUnpublishedStage()
     {
-        if (published || recoveryRequired || !stageCreated || !File.Exists(temp)) return;
+        if (published || recoveryRequired) return;
         try
         {
+            if (!stageCreated) return;
+            if (updating && Fs is ILegacyZipBackupRestorer native)
+            {
+                string? reason = "The original temporary ZIP identity is unavailable.";
+                if (createdStageIdentity is { } identity)
+                {
+                    ArchiveObjectVersion? verified = intendedPublishedDigest is not null
+                        ? new(identity, intendedPublishedLength, PreparedSha256) : null;
+                    reason = native.CleanupLegacyZipStage(temp, identity, verified, requiredOrigin);
+                }
+                if (reason is not null)
+                    RetainForRecovery(temp, $"FileCat could not confirm cleanup of the temporary ZIP at {temp}. {reason}");
+                return;
+            }
+            if (!File.Exists(temp)) return;
             RequireCreatedStage(Fs.GetFileIdentity(temp));
             if (updating)
             {
@@ -394,6 +494,10 @@ internal sealed class LegacyZipPublicationTransaction
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Issue(IssueSeverity.Warning, temp, "The temporary ZIP was kept at " + temp + ": " + ex.Message, StepOutcome.Failed);
+        }
+        finally
+        {
+            if (!recoveryRequired && failureMessage is { } message) Journal.Done(step, StepOutcome.Failed, message);
         }
     }
 
@@ -423,5 +527,11 @@ internal sealed class LegacyZipPublicationTransaction
             return hash.GetHashAndReset();
         }
         finally { stream.Position = 0; }
+    }
+
+    public void Dispose()
+    {
+        stagePin?.Dispose();
+        originalPin?.Dispose();
     }
 }

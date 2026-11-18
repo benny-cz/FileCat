@@ -47,7 +47,7 @@ public sealed partial class EditSessionStore
                 var bytes=WriteWorkingCopy(source,path,ct,revision,check:Check,outputFactory:Borrow);
                 output.Flush(true);files.CopyOrigin(output,leaf,origin,ct);
                 File.SetLastWriteTimeUtc(output.SafeFileHandle,new DateTime(revision.ModifiedTicks,DateTimeKind.Utc));output.Flush(true);
-                var observed=files.ObserveSnapshot(output,leaf,ct);
+                var observed=files.ObserveSnapshot(output,leaf,ct, protectionRefusal: ArchiveOuterEfs.EditTemporaryOutputUnavailable);
                 if(observed.Version.Sha256!=bytes.Sha256||observed.Version.Length!=bytes.Length||source.GetRevision()!=revision||source.ReadOrigin().Digest!=origin.Digest)
                     throw new IOException("The working file or private snapshot changed during complete capture.");
                 Check();source.Dispose();

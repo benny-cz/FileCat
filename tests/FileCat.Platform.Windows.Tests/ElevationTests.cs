@@ -409,7 +409,7 @@ public sealed class ElevationTests
             {
                 int checkpoints = 0;
                 var blocked = new SecureFileOps(() => checkpoints++).CopyTree(sourceVolume, destinationVolume, "existing.exe", replace: true);
-                Assert.Equal(!CopyFileTransaction.CanEncrypt(held.SafeFileHandle), checkpoints > 0);
+                Assert.Equal(!WindowsFileTransaction.CanEncrypt(held.SafeFileHandle), checkpoints > 0);
                 Assert.Equal((0, 1), (blocked.Done, blocked.Failed));
                 Assert.Equal("ORIGINAL", File.ReadAllText(existing));
                 var plan = ValidPlan(new ElevatedStep(ElevatedVerb.CopyTree)
