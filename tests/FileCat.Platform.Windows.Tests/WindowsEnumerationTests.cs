@@ -55,6 +55,75 @@ public sealed class WindowsEnumerationTests
     }
 
     [Fact]
+    public async Task Native_listing_matches_long_paths_and_distinguishes_junction_and_symlink_tags()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable("FILECAT_ENUM_NATIVE_LINKS") == "1",
+            "Requires the prepared Windows NTFS link fixture.");
+        string root = Directory.CreateTempSubdirectory("fc-enum-reparse-").FullName;
+        string junction = Path.Join(root, "junction"), link = Path.Join(root, "file-link");
+        try
+        {
+            string folder = Directory.CreateDirectory(Path.Join(root, new string('d', 128))).FullName;
+            string file = Path.Join(folder, new string('字', 140) + ".bin");
+            File.WriteAllBytes(file, [6, 12, 24]);
+            Assert.True(file.Length > 260);
+            Junction.Create(junction, folder);
+            File.CreateSymbolicLink(link, file);
+
+            var ct = TestContext.Current.CancellationToken;
+            var native = new WindowsFileSystemProvider { UseNativeEnumeration = true };
+            var legacy = new WindowsFileSystemProvider();
+            var rootLocation = Location.FileSystem(root);
+            var managedResult = new Sink();
+            var nativeResult = new Sink();
+            await legacy.EnumerateAsync(rootLocation, managedResult, ct);
+            await native.EnumerateAsync(rootLocation, nativeResult, ct);
+            Assert.Equal(managedResult.Entries.Keys.Order(StringComparer.Ordinal), nativeResult.Entries.Keys.Order(StringComparer.Ordinal));
+            foreach (var (name, entry) in managedResult.Entries)
+            {
+                Assert.Equal(entry.Kind, nativeResult.Entries[name].Kind);
+                Assert.Equal(entry.Flags, nativeResult.Entries[name].Flags);
+            }
+            Assert.Equal(0xA0000003u, nativeResult.Entries["junction"].NativeReparseTag);
+            Assert.Equal(0xA000000Cu, nativeResult.Entries["file-link"].NativeReparseTag);
+
+            var longPath = new Sink();
+            await native.EnumerateAsync(Location.FileSystem(folder), longPath, ct);
+            var item = Assert.Single(longPath.Entries).Value;
+            Assert.Equal(Path.GetFileName(file), item.Name);
+            Assert.Equal(3, item.Size);
+            Assert.Equal(0u, item.NativeReparseTag);
+        }
+        finally
+        {
+            if (File.Exists(link)) File.Delete(link);
+            if (Directory.Exists(junction)) Directory.Delete(junction);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_empty_directory_has_no_entries_and_a_missing_directory_fails_before_publication(bool native)
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Windows enumeration.");
+        string root = Directory.CreateTempSubdirectory("fc-enum-empty-").FullName;
+        try
+        {
+            var provider = new WindowsFileSystemProvider { UseNativeEnumeration = native };
+            var entries = new Sink();
+            var ct = TestContext.Current.CancellationToken;
+            await provider.EnumerateAsync(Location.FileSystem(root), entries, ct);
+            Assert.Empty(entries.Entries);
+            var missing = Location.FileSystem(Path.Join(root, "missing"));
+            await Assert.ThrowsAsync<DirectoryNotFoundException>(() => provider.EnumerateAsync(missing, entries, ct));
+            Assert.Empty(entries.Entries);
+        }
+        finally { Directory.Delete(root); }
+    }
+
+    [Fact]
     public async Task Enumeration_performance_records_native_and_managed_timings_on_a_prepared_directory()
     {
         if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows enumeration performance."); return; }
