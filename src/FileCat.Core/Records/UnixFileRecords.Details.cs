@@ -26,7 +26,7 @@ public sealed unsafe partial class UnixFileRecords
         FileSystem.PathUtil.RefuseAmbiguousUnixName(path);
         ct.ThrowIfCancellationRequested();
         string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-        return OperatingSystem.IsLinux() ? LinuxDetails(full, fullReport, ct) : MacDetails(full, ct);
+        return OperatingSystem.IsLinux() ? LinuxDetails(full, fullReport, ct) : MacDetails(full, fullReport, ct);
     }
 
     private static FileDetailsReport LinuxDetails(string path, bool fullReport, CancellationToken ct)
@@ -192,13 +192,26 @@ public sealed unsafe partial class UnixFileRecords
         0x6000 => FileObjectKind.BlockDevice, _ => FileObjectKind.Unknown,
     };
 
-    private static FileDetailsReport MacDetails(string path, CancellationToken ct)
+    private static FileDetailsReport MacDetails(string path, bool fullReport, CancellationToken ct)
     {
         byte[] fields = ReadMacDetailsFields(path, ct);
         var report = ParseMacDetails(path, fields);
-        if (report.Summary.Kind != FileObjectKind.SymbolicLink) return report;
-        var target = ReadMacStoredTarget(path, report.Summary.Identity, fields, ct);
-        return report with { Summary = report.Summary with { Target = target } };
+        if (report.Summary.Kind == FileObjectKind.SymbolicLink)
+        {
+            var target = ReadMacStoredTarget(path, report.Summary.Identity, fields, ct);
+            report = report with { Summary = report.Summary with { Target = target } };
+        }
+        if (fullReport && report.Summary is
+            {
+                Kind: FileObjectKind.File or FileObjectKind.Directory or FileObjectKind.SymbolicLink,
+                Identity.State: FactState.Known,
+                NativeAttributes.State: FactState.Known,
+            } summary && (summary.NativeAttributes.Value & 0x40000000) == 0) // SF_DATALESS
+        {
+            uint device = BinaryPrimitives.ReadUInt32LittleEndian(fields.AsSpan(24));
+            report = AddMacApfsNamespace(report, device, ct);
+        }
+        return report;
     }
 
     private static byte[] ReadMacDetailsFields(string path, CancellationToken ct)
