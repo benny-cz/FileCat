@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$NvdaPath,
-    [Parameter(Mandatory)][string]$ReportPath
+    [Parameter(Mandatory)][string]$ReportPath,
+    [switch]$NarrowHighContrast
 )
 
 $ErrorActionPreference = 'Stop'
@@ -110,6 +111,15 @@ $right = Join-Path $fixture 'right'
 $data = Join-Path $fixture 'state'
 $config = Join-Path $fixture 'nvda'
 New-Item -ItemType Directory -Force -Path $left,$right,$data,$config | Out-Null
+$requestedWidth = 520
+$requestedHeight = 420
+$widthLimit = 540
+if ($NarrowHighContrast) {
+    [IO.File]::WriteAllText((Join-Path $data 'settings.json'), '{"SchemaVersion":1,"Theme":"HighContrast","ThemeAnimations":false}')
+    $requestedWidth = 336
+    $requestedHeight = 560
+    $widthLimit = 324
+}
 $file = Join-Path $left 'alpha-details.txt'
 $other = Join-Path $left 'beta-other.txt'
 $payload = 'FILECAT-OWNED-FILE-PAYLOAD-CANARY'
@@ -126,14 +136,12 @@ $result = [ordered]@{
     Passed = $false; Stage = 'start'; Session = $session; OS = [Environment]::OSVersion.Version.ToString()
     AppDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $appPath) 'FileCat.dll')).Hash
     NvdaVersion = (Get-Item -LiteralPath $nvdaPath).VersionInfo.ProductVersion
+    NarrowHighContrast = [bool]$NarrowHighContrast
     Fixture = Split-Path $fixture -Leaf; Steps = @(); Error = $null
 }
 try {
     $clipboardBefore = Get-Clipboard -Raw -ErrorAction SilentlyContinue
     Set-Clipboard -Value 'FileCat details clipboard sentinel'
-    $reader = Start-Process -FilePath $nvdaPath -WindowStyle Hidden -PassThru -ArgumentList @(
-        "--log-file=`"$speechPath`"", '--log-level=12', "--config-path=`"$config`"", '--disable-addons')
-    Await { (Test-Path -LiteralPath $speechPath) -and (Select-String -LiteralPath $speechPath -SimpleMatch 'NVDA initialized' -Quiet) } 'NVDA' 30 | Out-Null
     $application = Start-Process -FilePath $appPath -WorkingDirectory (Split-Path $appPath) -WindowStyle Normal -PassThru `
         -ArgumentList @('--new-instance', '--data', "`"$data`"", '--left', "`"$left`"", '--right', "`"$right`"")
     $main = Await {
@@ -148,6 +156,10 @@ try {
     [void][DetailsNativeInput]::SetForegroundWindow([IntPtr]$main.Current.NativeWindowHandle)
     $list.SetFocus()
     Await { $ui::FocusedElement.Current.ProcessId -eq $application.Id } 'focus in FileCat' | Out-Null
+    $reader = Start-Process -FilePath $nvdaPath -WindowStyle Hidden -PassThru -ArgumentList @(
+        "--log-file=`"$speechPath`"", '--log-level=12', "--config-path=`"$config`"", '--disable-addons')
+    Await { (Test-Path -LiteralPath $speechPath) -and (Select-String -LiteralPath $speechPath -SimpleMatch 'NVDA initialized' -Quiet) } 'NVDA' 30 | Out-Null
+    Hear 'the active FileCat window' 'FileCat.{0,180}window|Panel 1, source'
     Send-Key $main @(0x24) $true
     [void](Take-Speech)
     Send-Key $main @(0x28) $true
@@ -161,11 +173,11 @@ try {
     $handle = [IntPtr]$details.Current.NativeWindowHandle
     $dpi = [DetailsNativeInput]::GetDpiForWindow($handle)
     if ($dpi -lt 96 -or ![DetailsNativeInput]::SetWindowPos($handle, [IntPtr]::Zero, 70, 70,
-        [int](520 * $dpi / 96), [int](420 * $dpi / 96), 0x0014)) { throw 'Could not resize the owned details window.' }
+        [int]($requestedWidth * $dpi / 96), [int]($requestedHeight * $dpi / 96), 0x0014)) { throw 'Could not resize the owned details window.' }
     $result.Dpi = $dpi
     $bounds = Await {
         $rectangle = $details.Current.BoundingRectangle
-        if ($rectangle.Width * 96 / $dpi -le 540 -and $rectangle.Height * 96 / $dpi -le 440) { $rectangle }
+        if ($rectangle.Width * 96 / $dpi -le $widthLimit -and $rectangle.Height * 96 / $dpi -le ($requestedHeight + 20)) { $rectangle }
     } 'the narrow details window'
     $result.WindowSizeDip = @([int]($bounds.Width * 96 / $dpi), [int]($bounds.Height * 96 / $dpi))
     Tab-To $details 'Read full record'

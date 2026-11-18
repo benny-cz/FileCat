@@ -301,12 +301,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-26]
     runs-on: ${{ matrix.os }}
-    # macOS Core, Remote, App and native smoke steps together exceeded 30 minutes
-    # in run 38449751526, which cancelled a still-running App suite before qualification.
-    # Per-test blame-hang limits remain in place; this is the aggregate job budget.
-    # Archive writing and native edit storage added about 15 minutes to every test job: in
-    # run 43762060868 macOS was still in its App suite after 50 minutes (45 for the whole
-    # job on main), and Ubuntu took 42 (30 on main).
+    # This is the aggregate job budget. The macOS App suite runs on its own runner.
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -440,8 +435,9 @@ jobs:
       - run: python tests/FileCat.NativeAcceptance/test_win_ftp_owned_stage.py
       # A hang (a test server that never answers) fails in minutes with a dump of where, not at the job's time limit.
       - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --logger "trx;LogFileName=remote-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
-      # P9: the UI runs headless on Linux and macOS too.
-      - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      # P9: the Linux UI runs headless. The macOS App suite runs in macos-app.
+      - if: runner.os == 'Linux'
+        run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       # Pixels drawn with Skia (scaled icons), read back.
       - run: dotnet test tests/FileCat.Rendering.Tests -c Release --no-build --logger "trx;LogFileName=rendering-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       # D-51: web pages drawn by WebKitGTK, on a virtual X display; a missing engine fails here instead of skipping.
@@ -497,15 +493,47 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: app-test-results-${{ matrix.os }}
+          name: ${{ runner.os == 'macOS' && format('portable-test-results-{0}', matrix.os) || format('app-test-results-{0}', matrix.os) }}
           path: |
             **/TestResults/*.trx
             **/TestResults/**/Sequence_*.xml
 
+  macos-app:
+    name: macos-26 (App tests)
+    needs: producer-policy
+    runs-on: macos-26
+    # The App suite took 27–30 minutes in recent runs. Keep its per-test hang bounds.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - run: dotnet build tests/FileCat.App.Tests -c Release -p:RestoreLockedMode=true
+      - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: app-test-results-macos-26
+          path: |
+            tests/FileCat.App.Tests/TestResults/*.trx
+            tests/FileCat.App.Tests/TestResults/**/Sequence_*.xml
+            tests/FileCat.App.Tests/TestResults/**/*.dmp
+
   package:
     name: Package (tags only)
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [producer-policy, windows, windows-arm64, portable]
+    needs: [producer-policy, windows, windows-arm64, portable, macos-app]
     runs-on: windows-2025-vs2026
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -574,7 +602,7 @@ jobs:
   package-linux:
     name: Package Linux (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [producer-policy, windows, windows-arm64, portable]
+    needs: [producer-policy, windows, windows-arm64, portable, macos-app]
     runs-on: ubuntu-24.04
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
@@ -644,7 +672,7 @@ jobs:
   package-macos:
     name: Package macOS (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [producer-policy, windows, windows-arm64, portable]
+    needs: [producer-policy, windows, windows-arm64, portable, macos-app]
     runs-on: macos-26
     outputs:
       manifest_sha256: ${{ steps.assets.outputs.manifest_sha256 }}
