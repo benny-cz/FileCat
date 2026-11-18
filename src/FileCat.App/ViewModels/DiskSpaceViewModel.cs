@@ -301,7 +301,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     {
         if (Tree is not { } tree || tree.Items.GetValueOrDefault(Selection.Focus ?? "")?.CapturedNode is not { } node)
             return (null, "Choose a captured entry with a literal path.");
-        return CapturedClipboardPath(tree, node, tree.Snapshot.Roots.First(root => root.Id == node.RootId));
+        return AnalysisClipboardPath.Format(tree.Snapshot.Roots.First(root => root.Id == node.RootId), ClipboardAncestry(tree, node));
     }
     public string FocusedDisplayPath() => FocusedDisplayPath(out _);
 
@@ -311,36 +311,20 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         if (Tree is not { } tree || tree.Items.GetValueOrDefault(Selection.Focus ?? "")?.CapturedNode is not { } node) return "Accounting group";
         boundary = node.IssueCodes.Select(DescribeBoundary).FirstOrDefault(description => description is not null);
         var root = tree.Snapshot.Roots.First(r => r.Id == node.RootId);
-        var (path, refusal) = CapturedClipboardPath(tree, node, root);
+        var (path, refusal) = AnalysisClipboardPath.Format(root, ClipboardAncestry(tree, node));
         return path is not null ? AnalysisNames.DisplayPath(path, root.NameRules) : refusal;
     }
 
-    private static (string? Path, string Refusal) CapturedClipboardPath(AnalysisTree tree, AnalysisNode node, RootBinding root)
+    private static IEnumerable<AnalysisClipboardPath.Part> ClipboardAncestry(AnalysisTree tree, AnalysisNode node)
     {
-        const string tooLong = "The captured path exceeds the clipboard limit. The inventory retains its raw names.";
-        string locator = root.CanonicalLocator;
-        if (locator.Length == 0) return (null, "No location was recorded for this entry.");
-        bool windows = root.NameRules == AnalysisNameRules.Windows || root.NameRules == AnalysisNameRules.Provider &&
-            (locator.StartsWith("\\\\", StringComparison.Ordinal) || locator.Length > 1 && locator[1] == ':');
-        string prefix = node.ParentId == 0 ? locator : windows ? locator.TrimEnd('/', '\\') : locator.TrimEnd('/');
-        int bytes = Encoding.UTF8.GetByteCount(prefix);
-        if (bytes > AnalysisLimits.LocatorBytes) return (null, tooLong);
-        var names = new Stack<string>();
         var current = node;
         while (true)
         {
-            if (!AnalysisRawNames.HasLosslessText(current)) return (null, "Raw name has no lossless clipboard path.");
-            if (current.ParentId == 0) break;
-            bytes += Encoding.UTF8.GetByteCount(current.Name) + 1;
-            if (bytes > AnalysisLimits.LocatorBytes) return (null, tooLong);
-            if (names.Count == AnalysisLimits.Depth || tree.Items.GetValueOrDefault(AnalysisTree.Key(current.ParentId))?.CapturedNode is not { } parent)
-                return (null, "The captured path is unavailable.");
-            names.Push(current.Name);
+            yield return new(current.Name, current.NameEncoding, current.RawName, current.ParentId == 0);
+            if (current.ParentId == 0 || tree.Items.GetValueOrDefault(AnalysisTree.Key(current.ParentId))?.CapturedNode is not { } parent)
+                yield break;
             current = parent;
         }
-        if (names.Count == 0) return (locator, "");
-        char separator = windows ? '\\' : '/';
-        return (prefix + separator + string.Join(separator, names), "");
     }
     internal static string? DescribeBoundary(string code) => code switch
     {

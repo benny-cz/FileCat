@@ -1,5 +1,7 @@
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input.Platform;
+using Avalonia.VisualTree;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Analysis;
@@ -59,6 +61,39 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Copy path");
             Frame(window);
             Assert.Equal("/fixture/Projects/source.cs", await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
+        }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
+    }
+
+    [AvaloniaFact]
+    public async Task ClipboardPathFromIndexedInspectorUsesCapturedLocationAfterTheSourceMoves()
+    {
+        OrdinaryPreparation();
+        using var styles = new ProductStyles();
+        await using var fixture = await IndexedFixture.CreateAsync();
+        var source = fixture.Lease!.Descriptor.Roots.Single();
+        Directory.Move(Path.Combine(fixture.Root, "source"), Path.Combine(fixture.Root, "moved"));
+        var window = new DiskSpaceWindow();
+        var explorer = await window.AddIndexedSessionAsync(fixture.Lease!, AnalysisMetric.Files, cancellation: TestContext.Current.CancellationToken);
+        window.Show(); Frame(window);
+        try
+        {
+            var copy = window.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Copy path");
+            Assert.False(copy.IsEnabled);
+            var list = IndexedList(window);
+            list.SelectedItem = Assert.Single(list.Items.OfType<AnalysisHierarchyRow>());
+            Click(window, "Explore selected folder");
+            await Until(() => IndexedReady(window, explorer, 1));
+            list.SelectedItem = list.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Name == "folder");
+            Click(window, "Explore selected folder");
+            await Until(() => explorer.Page?.Scope?.Path.Name == "folder");
+            list.SelectedItem = list.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Name == "match-target.bin");
+            await Until(() => copy.IsEnabled && explorer.Inspection?.Row.Path.Name == "match-target.bin");
+            Click(window, "Copy path"); Frame(window);
+            string expected = Path.Combine(source.CanonicalLocator, "folder", "match-target.bin");
+            Assert.Equal(expected, await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
+            Assert.False(File.Exists(fixture.PayloadPath));
+            Assert.Equal(fixture.Payload, File.ReadAllBytes(Path.Combine(fixture.Root, "moved", "folder", "match-target.bin")));
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }

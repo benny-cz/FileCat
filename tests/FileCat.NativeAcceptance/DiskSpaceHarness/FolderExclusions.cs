@@ -3,7 +3,11 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using FileCat.App.Services;
+using FileCat.App.Views;
 using FileCat.Core.Analysis;
+using FileCat.Core.FileSystem;
+using FileCat.Platform.Windows.Analysis;
 
 namespace DiskSpaceHarness;
 
@@ -121,10 +125,11 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => window.SessionCount == 2 && _tabs?.SelectedIndex == 1);
             window.SelectTemporaryWork();
             await ReadyAsync(() => _tabs?.SelectedIndex == 0);
+            await CheckIndexedCopyPathAsync(window);
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
                 sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
-                packageHint, packageContentsReachable = true };
+                packageHint, packageContentsReachable = true, indexedCopyPathReachable = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }
@@ -134,5 +139,43 @@ internal sealed partial class HarnessApp
             try { RenderNativeFrame("folder-exclusions-failure.png"); } catch (Exception) { }
             WriteReport("folder-exclusion-probe-failed");
         }
+    }
+
+    private async Task CheckIndexedCopyPathAsync(DiskSpaceWindow window)
+    {
+        var services = _services!;
+        var cancellation = _indexedLifetime.Token;
+        await using var capture = await AnalysisIndexedAcquisition.PrepareAsync(services, cancellation);
+        IAnalysisBackend? source = await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(_fixture), _ => OperatingSystem.IsWindows()
+            ? (IAnalysisBackend)new WindowsAnalysisBackend(_fixture) : new UnixAnalysisBackend(_fixture), cancellation);
+        try
+        {
+            var session = capture.Start([source]); source = null;
+            using var stop = cancellation.Register(session.Stop);
+            await session.Completion.WaitAsync(TimeSpan.FromSeconds(45), cancellation);
+            if (session.Snapshot().Phase != AnalysisPhase.Finished || session.SourceCloseFailures != 0)
+                throw new IOException("The native clipboard fixture did not finish its indexed scan.");
+            await using var lease = await session.AcquireDatasetAsync(cancellation) ?? throw new IOException("Missing indexed clipboard fixture.");
+            var explorer = await window.AddIndexedSessionAsync(lease, AnalysisMetric.Files, cancellation: cancellation);
+            ListBox? IndexedList() => window.GetVisualDescendants().OfType<ListBox>().SingleOrDefault(control =>
+                control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Indexed analysis entries");
+            await ReadyAsync(() => IndexedList() is { ItemCount: 1 });
+            var list = IndexedList()!;
+            var root = list.Items.OfType<AnalysisHierarchyRow>().Single();
+            list.SelectedItem = root;
+            window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible &&
+                button.Content as string == "Explore selected folder").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await ReadyAsync(() => explorer.Page?.ParentId == root.Path.Id && explorer.PendingRequests == 0);
+            list.SelectedItem = list.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Name == "Package.app");
+            await ReadyAsync(() => explorer.Inspection?.Row.Path.Name == "Package.app" &&
+                window.GetVisualDescendants().OfType<Button>().Any(button => button.IsEffectivelyVisible &&
+                    button.IsEnabled && button.Content as string == "Copy path"));
+            var copy = window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible &&
+                button.Content as string == "Copy path");
+            copy.BringIntoView();
+            await ReadyAsync(() => copy.TranslatePoint(default, window) is { } top && top.Y >= 0 &&
+                top.Y + copy.Bounds.Height <= window.ClientSize.Height + 1);
+        }
+        finally { if (source is not null) await AnalysisIo.ReleaseAsync(services.Io, source); }
     }
 }

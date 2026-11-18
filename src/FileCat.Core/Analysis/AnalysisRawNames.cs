@@ -44,12 +44,14 @@ public static class AnalysisRawNames
         catch (EncoderFallbackException) { throw Invalid(); }
         throw Invalid();
     }
-    public static bool HasLosslessText(AnalysisNode node)
+    public static bool HasLosslessText(AnalysisNode node) => HasLosslessText(node.NameEncoding, node.RawName.AsSpan(), node.Name);
+
+    internal static bool HasLosslessText(string encoding, ReadOnlySpan<byte> raw, string name)
     {
         try
         {
-            if (node.NameEncoding == "unix-bytes" && !node.RawName.IsDefaultOrEmpty) _ = Utf8.GetCharCount(node.RawName.AsSpan());
-            _ = Utf8.GetByteCount(node.Name);
+            if (encoding == "unix-bytes" && !raw.IsEmpty) _ = Utf8.GetCharCount(raw);
+            _ = Utf8.GetByteCount(name);
             return true;
         }
         catch (DecoderFallbackException) { return false; }

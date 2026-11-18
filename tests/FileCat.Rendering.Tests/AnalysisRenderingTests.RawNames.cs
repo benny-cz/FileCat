@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
@@ -74,6 +75,9 @@ public sealed partial class AnalysisRenderingTests
             }
             await Until(() => IndexedDetails(window).Text?.Contains("Raw name bytes: " + Convert.ToHexString(raw), StringComparison.Ordinal) == true);
             Assert.Contains(display, IndexedDetails(window).Text);
+            var copy = window.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Copy path");
+            Assert.Equal(encoding == "utf8", copy.IsEnabled);
+            if (encoding != "utf8") Assert.Contains("no lossless clipboard path", AutomationProperties.GetHelpText(copy));
             var chart = window.GetVisualDescendants().OfType<AnalysisChartControl>().Single(control => control.IsEffectivelyVisible); Assert.True(chart.Focus()); Frame(window);
             var tip = Assert.IsType<RichTip>(ToolTip.GetTip(chart)); Assert.Contains(display, tip.Text);
             if (encoding != "utf8") Assert.Contains("Raw name (" + encoding + "): " + Convert.ToHexString(raw), tip.Text);

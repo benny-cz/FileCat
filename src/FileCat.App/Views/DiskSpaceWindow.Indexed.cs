@@ -340,6 +340,9 @@ public sealed partial class DiskSpaceWindow
             _inspector.Children.Add(_showCapturedFolder);
             _previewFile.Click += (_, _) => _ = PreviewFocusedAsync();
             _inspector.Children.Add(_previewFile);
+            _copyCapturedPath.Click += (_, _) => _ = CopyCapturedPathAsync();
+            _inspector.Children.Add(_copyCapturedPath);
+            SetClipboardInspection(null);
             var evidence = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             string[] captions = ["First aliases", "More aliases", "First facts", "More facts", "First issues", "More issues"];
             for (int index = 0; index < captions.Length; index++)
@@ -421,6 +424,7 @@ public sealed partial class DiskSpaceWindow
             if (!chart.Items.TryGetValue(key, out var item) || item.NodeId is not { } id)
             {
                 ++_inspection; _focus = 0; _shownInspection = null;
+                SetClipboardInspection(null);
                 foreach (var button in _evidence) button.IsEnabled = false;
                 _inspectorStatus.Text = "Captured accounting bucket.";
                 _details.Text = "This accounting group is not a filesystem entry. Explore its parent in the table to inspect the captured file paths.";
@@ -432,6 +436,7 @@ public sealed partial class DiskSpaceWindow
         private void FocusOtherChartItem()
         {
             ++_inspection; _focus = 0; _shownInspection = null; _groupFocus = null;
+            SetClipboardInspection(null);
             foreach (var button in _evidence) button.IsEnabled = false;
             _inspectorStatus.Text = "Other small items — captured accounting subset.";
             _details.Text = "This bucket summarizes captured items and is not a file path. Press Enter or double-click to explore its exact subset. Marks and the review basket remain separate.";
@@ -613,6 +618,7 @@ public sealed partial class DiskSpaceWindow
             _groupCharges.IsEnabled = _firstCharges.IsEnabled = _moreCharges.IsEnabled = false;
             if (explorer.Page is not { } page) return;
             _shownPage = page; _shownChart = explorer.Chart; _shownInspection = null;
+            SetClipboardInspection(null);
             bool focusTable = _list.IsKeyboardFocusWithin; _publishing = true;
             try { _list.ItemsSource = page.Children.Rows; _list.SelectedItem = page.Children.Rows.FirstOrDefault(row => row.Path.Id == _focus); }
             finally { _publishing = false; }
@@ -657,6 +663,7 @@ public sealed partial class DiskSpaceWindow
                 var button = ActionButton(title + " · " + amount, () =>
                 {
                     ++_inspection; _focus = 0; _chartFocusKey = null; foreach (var control in _evidence) control.IsEnabled = false;
+                    SetClipboardInspection(null);
                     _details.Text = title + $": {bucket.Totals.Known} known bytes; {bucket.Totals.IdentityUnverified} identity-unverified path bytes; {bucket.Objects:N0} observed objects; {bucket.ObservedAliases:N0} observed aliases; {bucket.Charges:N0} charges. This accounting bucket is not a file path. " +
                         (bucket.Kind == AnalysisHierarchyBucketKind.SharedFiles ? "Shared charges remain at their original common ancestor. The matching paths remain available in the table." : "Directory metadata allocation is separate from file contents and file-path counts.") +
                         (bucket.ReferenceLogical is null ? "" : "\nMatching reference paths: " + DiskSpaceViewModel.FilePathsText(bucketItem) +
@@ -694,12 +701,14 @@ public sealed partial class DiskSpaceWindow
             if (_disposed || _actualWork.HasUnconfirmedClose) return;
             using var actualWork = _actualWork.Enter();
             if (_disposed) return; int version = ++_inspection; _focus = path; RefreshSelection(); var explorer = _explorer;
+            SetClipboardInspection(null);
             foreach (var button in _evidence) button.IsEnabled = false;
             _inspectorStatus.Text = "Loading captured metadata…";
             try
             {
                 if (!await explorer.InspectAsync(path, alias, fact, issue, maximum: 32) || _disposed || version != _inspection || !ReferenceEquals(explorer, _explorer)) return;
                 var detail = explorer.Inspection!; _shownInspection = detail;
+                SetClipboardInspection(detail);
                 RefreshBranchAvailability();
                 UpdatePreviewButton(_previewFile, PreviewRefusal(FocusedPreviewPath, _runtimeAcquisition));
                 var item = _selectedGroupedItem?.NodeId == path ? _selectedGroupedItem : AnalysisIndexedChart.Row(detail.Row, explorer.Metric);
@@ -802,7 +811,7 @@ public sealed partial class DiskSpaceWindow
             _runtimeRescanCancel?.Cancel(); StopRuntimeRescan();
             var actualWork = _actualWork.CloseAsync();
             _treemap.Clear(); _sunburst.Clear(); _list.ItemsSource = null; _details.Text = ""; _breadcrumbs.Children.Clear(); _buckets.Children.Clear();
-            _shownPage = null; _shownChart = null; _shownInspection = null;
+            _shownPage = null; _shownChart = null; _shownInspection = null; _clipboardPath = null;
             _groupPage = null; _selectedGroupedItem = null; _chargePage = null;
             CloseCompletion = CloseAsync(actualWork);
             _window.TrackIndexedClose(CloseCompletion, _admission);

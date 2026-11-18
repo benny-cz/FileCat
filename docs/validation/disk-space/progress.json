@@ -50,8 +50,14 @@
     "coverage": "Package filename hint for the recorded macOS basis, policy disclosure and captured-content navigation. Finder flags and custom package associations are unqualified."
   },
   "capturedClipboardPath": {
-    "tests": { "run": "r1486", "windowsVm": 116, "mac": 116, "ubuntuVm": "in-progress" },
+    "tests": { "run": "r1486", "windowsVm": 116, "mac": 116, "ubuntuVm": 116 },
     "coverage": "The memory inspector walks captured ancestors, bounds clipboard path bytes and keeps the path displayed in the compact inspector pinned across later focus changes."
+  },
+  "indexedClipboardPath": {
+    "tests": { "run": "r1491", "windowsVm": 117, "mac": 117, "ubuntuVm": 117 },
+    "desktop": { "run": "r1493", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
+    "rawNames": { "run": "r1494", "windowsVm": 12, "mac": 12, "ubuntuVm": 12 },
+    "coverage": "Copies a bounded, literal recorded path after a native source move. Desktop checks verified the control was reachable without replacing the system clipboard contents."
   },
   "completedBehaviors": [
     "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",
