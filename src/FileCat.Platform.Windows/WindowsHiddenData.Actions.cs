@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using FileCat.Core.FileSystem;
 using FileCat.Core.HiddenData;
 using FileCat.Platform.Windows.Elevation;
 using Microsoft.Win32.SafeHandles;
@@ -51,11 +52,16 @@ public sealed unsafe partial class WindowsHiddenData
         return Encoding.Latin1.GetBytes(name);
     }
 
-    private static byte[] ReadExactEa(string path, HiddenItem item, int max)
+    private static byte[] ReadExactEa(string path, HiddenItem item, int max, OutputEfsObservation? observation = null)
     {
         byte[] name = EaName(item.Name);
         using var file = OpenForEas(path, FileReadEa | 0x80 | 0x100000);
         RefuseManagedObject(file);
+        if (observation is not null)
+        {
+            observation.ObserveOpened(file);
+            IHiddenValueOutput.RequireClear(observation);
+        }
         byte[] filter = new byte[6 + name.Length];
         filter[4] = (byte)name.Length;
         name.CopyTo(filter, 5);
@@ -65,6 +71,11 @@ public sealed unsafe partial class WindowsHiddenData
             int status; IoStatusBlock io;
             fixed (byte* output = buffer)
             fixed (byte* wanted = filter) status = NtQueryEaFile(file, out io, output, (uint)buffer.Length, 1, wanted, (uint)filter.Length, null, 1);
+            if (observation is not null)
+            {
+                observation.Observe(file);
+                IHiddenValueOutput.RequireClear(observation);
+            }
             if (status < 0) throw Error(RtlNtStatusToDosError(status), path);
             long got = io.Information;
             if (got < 9 || got > buffer.Length) throw new IOException("The EA value query returned an invalid length.");

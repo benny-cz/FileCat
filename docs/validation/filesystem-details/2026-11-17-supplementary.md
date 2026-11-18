@@ -2,6 +2,14 @@
 
 Implementation remains in progress on `main`, following the [foundation receipt](2026-11-17-foundation.md). This checkpoint implements the bounded supplementary-data route and part of its qualification. It does not close F5, F6, NTFS compression, or EFS.
 
+## Windows EFS output follow-up, 18 November 2026
+
+The supplementary provider reads output through a separate admission path on Windows. It records the held file identity, revision and protection from the actual selected stream or the held file used by the filtered EA query. Each stream read checks the same handle around acquisition. The EA query checks the held file before and after the native buffer arrives. Observed EFS or unknown protection refuses derived output. The existing explicit viewer can still read the selected value when the invoking account has access.
+
+All 12 focused Windows native cases passed at medium integrity. The tests exercised actual clear and encrypted ADS and EA values and an EFS change after opening a previously clear stream for output. The next read refused before returning bytes. All 11 focused application cases passed on the same VM. FileCat's F5 action completed an ordinary export and refused an EFS-protected stream before creating a destination file or stage. The saved source stream stayed encrypted with its original bytes. Details report ownership and ordinary inventory regressions also passed. See `.tmp/filecat-hidden-efs-output-tests.xml` and `.tmp/filecat-hidden-efs-output-app-tests.xml`.
+
+This verifies the tested supplementary F5 portion of E-OUT12. It leaves the report's explicit payload route, additional sinks and wider native qualification open.
+
 ## Implemented behavior
 
 The existing supplementary tab now inventories names, typed categories and lengths without previews. It retains per-category Complete/Partial/Not inspected/Denied/Unsupported/Changed/Failed state, observation time, scope and the exact bound/failure reason. Limits are 1,024 retained entries, 1 MiB retained name metadata, bounded native acquisitions/retries, and cancellation between calls. Windows inventories named ADS by default; its separate header action explicitly admits the native EA buffer containing names and values. Values are discarded and the buffer cleared. EA enumeration requires a terminal exhaustion result rather than treating one successful chunk as complete.

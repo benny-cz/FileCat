@@ -51,12 +51,7 @@ public sealed class HiddenDataUiTests
             {
                 // The headless services use the portable platform. This native-stream job also needs
                 // actual Windows file identities for its backing-file safety review.
-                Assert.Empty(services.Jobs.Jobs);
-                Assert.False(services.Jobs.HasActiveWork);
-                typeof(JobManager).GetField("_fs", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-                    .SetValue(services.Jobs, new FileCat.Platform.Windows.WindowsFileOperations());
-                Assert.IsType<FileCat.Platform.Windows.WindowsFileOperations>(
-                    typeof(JobManager).GetField("_fs", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(services.Jobs));
+                UseWindowsFileOperations(services.Jobs);
                 var nativeStreams = new FileCat.Platform.Windows.WindowsHiddenData();
                 services.Providers.Register(new HiddenDataProvider(nativeStreams));
                 BuiltInFields.HiddenDataSource = nativeStreams;
@@ -147,6 +142,53 @@ public sealed class HiddenDataUiTests
             BuiltInFields.HiddenDataSource = previousHiddenSource;
             AccessibilityTests.Close(services, window, root);
         }
+    }
+
+    [AvaloniaFact]
+    public async Task Copying_a_protected_stream_refuses_before_creating_any_output()
+    {
+        Assert.SkipUnless(FileCat.Platform.Windows.WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires a disposable Windows VM with EFS enabled.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string file = Path.Combine(root, "files", "protected.bin");
+            string destination = Directory.CreateDirectory(Path.Combine(root, "out")).FullName;
+            File.WriteAllText(file, "original main data");
+            File.WriteAllText(file + ":payload", "protected supplementary data");
+            File.Encrypt(file);
+            UseWindowsFileOperations(services.Jobs);
+            services.Providers.Register(new HiddenDataProvider(new FileCat.Platform.Windows.WindowsHiddenData()));
+            var sourcePanel = vm.Workspace.Panels[0];
+            var tab = sourcePanel.ActiveTab!;
+            vm.Workspace.Panels[1].ActiveTab!.Navigate(Location.FileSystem(destination));
+            tab.Navigate(HiddenDataProvider.Of(file));
+            vm.Workspace.Activate(sourcePanel);
+            await Until(() => tab.Listing.State == ListingState.Complete && Rows(tab).Any(row => row.Name == "payload"),
+                () => "the protected stream is listed. " + tab.SupplementaryInventoryText);
+            tab.Listing.SetFocus(Rows(tab).FindIndex(row => row.Name == "payload") + (tab.Listing.HasParentRow ? 1 : 0));
+
+            vm.Execute(CommandIds.Copy);
+            await Click(window, "Copy");
+            await Until(() => services.Jobs.Jobs.Count > 0 && services.Jobs.Jobs[^1].State.IsFinished(), "the EFS copy refusal finishes");
+
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Contains(job.Issues, issue => issue.Message.Contains("Windows EFS", StringComparison.Ordinal));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(destination));
+            Assert.True(File.GetAttributes(file).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal("protected supplementary data", File.ReadAllText(file + ":payload"));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    private static void UseWindowsFileOperations(JobManager jobs)
+    {
+        Assert.Empty(jobs.Jobs);
+        Assert.False(jobs.HasActiveWork);
+        var field = typeof(JobManager).GetField("_fs", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        field.SetValue(jobs, new FileCat.Platform.Windows.WindowsFileOperations());
+        Assert.IsType<FileCat.Platform.Windows.WindowsFileOperations>(field.GetValue(jobs));
     }
 
     private static List<EntryData> Rows(FileCat.App.ViewModels.TabViewModel tab) =>

@@ -16,7 +16,7 @@ public sealed record HiddenEntryTag(HiddenItem Item, string Summary, IReadOnlyLi
 /// progress and the file's download mark), and F8 deletes it. The file's own location is the container; up goes back
 /// to its folder with the file under the cursor.
 /// </summary>
-public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider
+public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, IUnprotectedContentOutput
 {
     /// <summary>Maximum explicit decoded preview size; enumeration does not read previews.</summary>
     public const int SummaryBytes = 64 * 1024;
@@ -100,13 +100,40 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider
     }
 
     public override IContentSource? OpenContent(ItemRef item)
+        => new HiddenContentSource(hidden, FileOf(item.Parent), RequestedValue(item));
+
+    void IUnprotectedContentOutput.RequireClearOutputSource(Location location, ContentOutputKind kind)
     {
+        if (!OperatingSystem.IsWindows()) return;
+        OutputAdapter().RequireClearSource(FileOf(location));
+    }
+
+    IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind)
+        => OpenForOutput(item, out _);
+
+    IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind,
+        out OutputEfsObservation? provenance) => OpenForOutput(item, out provenance);
+
+    private IContentSource? OpenForOutput(ItemRef item, out OutputEfsObservation? provenance)
+    {
+        provenance = new OutputEfsObservation();
+        if (!OperatingSystem.IsWindows()) return OpenContent(item);
         string file = FileOf(item.Parent);
+        var value = RequestedValue(item);
+        var opened = OutputAdapter().OpenClearValue(file, value, provenance);
+        return new HiddenContentSource(opened, file, value, provenance);
+    }
+
+    private IHiddenValueOutput OutputAdapter() => hidden as IHiddenValueOutput
+        ?? throw new NotSupportedException("FileCat could not verify Windows EFS protection for this supplementary value.");
+
+    private static HiddenItem RequestedValue(ItemRef item)
+    {
         var kind = HiddenIdentities.Kind(item.Ordinal) ?? throw new NotSupportedException("The supplementary category is missing or obsolete; refresh required.");
         if ((item.Flags & EntryFlags.Unavailable) != 0) throw new NotSupportedException("A bound supplementary-data action is unavailable for this observation.");
         // The native adapter acquires and resolves this exact category/name on its held source. Do not issue a
         // combined inventory here: merely opening an ADS must never trigger an EA-value query.
-        return new HiddenContentSource(hidden, file, new HiddenItem(item.Name, kind, item.Size));
+        return new(item.Name, kind, item.Size);
     }
 
     /// <summary>The exact category and native name, resolved under the current file authority.</summary>
@@ -121,15 +148,33 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider
     }
 }
 
+internal interface IHiddenValueOutput
+{
+    void RequireClearSource(string path);
+    Stream OpenClearValue(string path, HiddenItem item, OutputEfsObservation observation);
+
+    internal static void RequireClear(OutputEfsObservation observation)
+    {
+        if (observation.Status == OutputEfsObservation.State.Encrypted)
+            throw new NotSupportedException("This supplementary value uses Windows EFS. This output route cannot preserve its protection.");
+        if (observation.Status != OutputEfsObservation.State.Clear)
+            throw new NotSupportedException("FileCat could not verify Windows EFS protection for this supplementary value.");
+    }
+}
+
 /// <summary>One stream or attribute, read as content (the viewer, saving as a file).</summary>
 public sealed class HiddenContentSource : IContentSource
 {
     private readonly Stream _stream;
+    private readonly OutputEfsObservation? _output;
     private readonly object _lock = new();
 
-    public HiddenContentSource(IHiddenData hidden, string file, HiddenItem item)
+    public HiddenContentSource(IHiddenData hidden, string file, HiddenItem item) : this(hidden.Open(file, item), file, item, null) { }
+
+    internal HiddenContentSource(Stream stream, string file, HiddenItem item, OutputEfsObservation? output)
     {
-        _stream = hidden.Open(file, item);
+        _stream = stream;
+        _output = output;
         DisplayName = $"{Path.GetFileName(file)} › {item.Name}";
     }
 
@@ -145,9 +190,18 @@ public sealed class HiddenContentSource : IContentSource
     {
         lock (_lock)
         {
+            RequireClear();
             if (_stream.CanSeek) _stream.Position = offset;
-            return _stream.Read(buffer);
+            int read = _stream.Read(buffer);
+            RequireClear();
+            return read;
         }
+    }
+    private void RequireClear()
+    {
+        if (_output is null || _stream is not FileStream file) return;
+        _output.Observe(file.SafeFileHandle);
+        IHiddenValueOutput.RequireClear(_output);
     }
 
     public ContentRevision? GetRevision() => null;
