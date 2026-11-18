@@ -2,6 +2,7 @@ using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Platform.Windows.Elevation;
 
 namespace FileCat.Platform.Windows.Tests;
 
@@ -21,9 +22,8 @@ public sealed class ZipSourceLinkTests
     }
 
     [Fact]
-    public async Task A_source_another_program_is_writing_is_still_added()
+    public async Task A_source_with_an_active_writer_requires_a_retry_when_packing_needs_an_Efs_hold()
     {
-        // Finding F-M6 of f134ba37: the source's hold shared reading only, so a live log failed and ended the whole Add.
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows file handles are required.");
         string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-zip-live-" + Guid.NewGuid().ToString("N"))).FullName;
         try
@@ -32,28 +32,42 @@ public sealed class ZipSourceLinkTests
             var providers = new ProviderRegistry();
             providers.Register(new LocalFileSystemProvider());
             var jobs = new JobManager(new WindowsFileOperations(), providers, Path.Combine(root, "journal"));
+            var request = new JobRequest
+            {
+                Kind = JobKind.ArchiveUpdate,
+                Sources = [],
+                Archive = new ArchivePlan(zip, null, [new ArchiveChange(ArchiveChangeKind.AddFile, "live.log", log)]),
+            };
             Job job;
             using (var writer = new FileStream(log, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite))
             {
+                Assert.SkipUnless(WindowsFileTransaction.CanEncrypt(writer.SafeFileHandle), "Requires an EFS-capable NTFS source volume.");
                 writer.Write("line 1\n"u8);
                 writer.Flush();
-                job = jobs.Submit(new JobRequest
-                {
-                    Kind = JobKind.ArchiveUpdate,
-                    Sources = [],
-                    Archive = new ArchivePlan(zip, null, [new ArchiveChange(ArchiveChangeKind.AddFile, "live.log", log)]),
-                });
-                var deadline = DateTime.UtcNow.AddSeconds(20);
-                while (!job.State.IsFinished())
-                {
-                    Assert.True(DateTime.UtcNow < deadline);
-                    await Task.Delay(10, TestContext.Current.CancellationToken);
-                }
+                job = await PackAsync();
             }
+            Assert.Equal(JobState.Failed, job.State);
+            Assert.Contains(job.Issues, issue => issue.Message.Contains("Close any program writing the file, then retry", StringComparison.Ordinal));
+            Assert.False(File.Exists(zip));
+            Assert.Equal("line 1\n", File.ReadAllText(log));
+
+            job = await PackAsync();
             Assert.True(job.State == JobState.Completed, string.Join("; ", job.Issues.Select(i => i.Message)));
             using var archive = System.IO.Compression.ZipFile.OpenRead(zip);
             using var entry = new StreamReader(Assert.Single(archive.Entries).Open());
             Assert.Equal("line 1\n", entry.ReadToEnd());
+
+            async Task<Job> PackAsync()
+            {
+                var pack = jobs.Submit(request);
+                var deadline = DateTime.UtcNow.AddSeconds(20);
+                while (!pack.State.IsFinished())
+                {
+                    Assert.True(DateTime.UtcNow < deadline);
+                    await Task.Delay(10, TestContext.Current.CancellationToken);
+                }
+                return pack;
+            }
         }
         finally
         {

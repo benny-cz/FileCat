@@ -25,6 +25,9 @@ public partial class WindowsFileOperations : IEditCopyPublisher
         catch (Win32Exception error)
         {
             ArchiveOuterEfs.RequireClear(source, refusal);
+            const int SharingViolation = 32, TransactionalConflict = 6800;
+            if (error.NativeErrorCode is SharingViolation or TransactionalConflict)
+                throw new IOException("The input is busy, so FileCat could not hold its EFS state. Close any program writing the file, then retry.", error);
             throw new IOException("FileCat could not hold the input's EFS state. " + error.Message, error);
         }
     }

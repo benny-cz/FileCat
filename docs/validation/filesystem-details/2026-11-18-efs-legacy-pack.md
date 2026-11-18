@@ -7,3 +7,9 @@ The Windows 11 x64 VM passed 38 focused tests with five fixture-specific skips. 
 Together with the native packing checkpoint, this qualifies E-OUT6 refusal for the tested Windows 11 x64 NTFS source and output routes. The existing archive creation paths keep this boundary until a reviewed export can cover the worker and all temporary artifacts.
 
 The [held protection checkpoint](2026-11-18-efs-native-pack.md#held-protection-during-file-reads) also exercises legacy ZIP copy and move. Legacy packing holds the actual clear payload during the rebuild. The move's file download-mark reader acquires the same hold independently. Windows refused encryption during the held reads. The clear move published the exact ZIP member and download mark, then removed its source. The clear copy retained its original, which Windows could encrypt after the job released it.
+
+## An active writer on NTFS
+
+The Windows x64 and ARM64 CI jobs exposed an earlier expectation that a live log would still be added while another handle was writing it. On the Windows x64 VM, an owned NTFS probe returned `ERROR_TRANSACTIONAL_CONFLICT` for all nine combinations of read, attribute-only or zero access with read, read/write or full sharing. The same transacted read could open after the writer closed. [Microsoft's transacted open contract](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfiletransactedw).
+
+When FileCat cannot secure the input's EFS state because the file is busy, it asks the user to close the writer and retry. The legacy ZIP regression checks that the first attempt publishes no archive and preserves the source, and that a fresh attempt packs the expected bytes after the writer closes. The Windows x64 VM passed 33 focused tests, with five skips for Unix permissions or the case-sensitive NTFS fixture. See `.tmp/filecat-archive-writer-txf-probe.log` and `.tmp/filecat-archive-packing-writer-r3.xml`.
