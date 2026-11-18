@@ -349,7 +349,12 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         : item.IsFilterContext ? "Alias context"
         : item.IsNonFileLeaf ? item.Kind == AnalysisKind.Link ? "Link not followed" : "Special entry not traversed"
         : item.IdentityUnverified > 0 ? "Identity unverified" : item.Unknown ? "Partial" : item.SharedElsewhere ? "Shared links" : item.Synthetic ? "Group" : "Observed";
-    public static string? EntryExplanation(AnalysisTreeItem item) => item.IsFilterContext
+    internal const string SharedHierarchyExplanation =
+        "When several names refer to one file, the chart counts its measured amount once at their common parent in this analysis. Removing one name can leave the file reachable through its other names.";
+
+    public static string? EntryExplanation(AnalysisTreeItem item) => item.Synthetic && item.Key.StartsWith("shared:", StringComparison.Ordinal)
+        ? SharedHierarchyExplanation
+        : item.IsFilterContext
         ? "Nonmatching hard-link alias context. It explains the shared charge location and contributes no extra matches, logical bytes or files to this filtered view. Mark matching files excludes this context entry."
         : !item.IsNonFileLeaf ? null : item.Kind == AnalysisKind.Link
         ? "Navigation link. Its target was not followed or measured. It contributes no file size, allocation or regular-file count to this analysis."

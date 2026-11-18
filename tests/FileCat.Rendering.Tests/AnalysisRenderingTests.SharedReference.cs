@@ -39,6 +39,8 @@ public sealed partial class AnalysisRenderingTests
             var inspect = window.GetVisualDescendants().OfType<Button>().Single(button => AutomationLabel(button) == "Inspect Shared hard-linked files");
             Click(window, inspect.Content!.ToString()!); Assert.Contains("Matching reference paths: " + files + " references", IndexedDetails(window).Text);
             Assert.Contains(bucket.ReferenceLogical.KnownBytes + " bytes (references)", IndexedDetails(window).Text);
+            Assert.Contains("the chart counts its measured amount once at their common parent", IndexedDetails(window).Text);
+            Assert.Contains("Removing one name can leave the file reachable through its other names.", IndexedDetails(window).Text);
             var chart = explorer.Chart!; var actualChildren = chart.ChildrenOf(chart.Scope);
             Assert.Equal(chart.Items[chart.Scope].Value, actualChildren.Aggregate((UInt128)0, (sum, item) => checked(sum + item.Value)));
             // A remainder carries omitted logical/count statistics. A chart with

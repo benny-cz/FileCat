@@ -676,7 +676,9 @@ public sealed partial class DiskSpaceWindow
                     ++_inspection; _focus = 0; _chartFocusKey = null; foreach (var control in _evidence) control.IsEnabled = false;
                     SetClipboardInspection(null);
                     _details.Text = title + $": {bucket.Totals.Known} known bytes; {bucket.Totals.IdentityUnverified} identity-unverified path bytes; {bucket.Objects:N0} observed objects; {bucket.ObservedAliases:N0} observed aliases; {bucket.Charges:N0} charges. This accounting bucket is not a file path. " +
-                        (bucket.Kind == AnalysisHierarchyBucketKind.SharedFiles ? "Shared charges remain at their original common ancestor. The matching paths remain available in the table." : "Directory metadata allocation is separate from file contents and file-path counts.") +
+                        (bucket.Kind == AnalysisHierarchyBucketKind.SharedFiles
+                            ? DiskSpaceViewModel.SharedHierarchyExplanation + " The matching paths remain available in the table."
+                            : "Directory metadata allocation is separate from file contents and file-path counts.") +
                         (bucket.ReferenceLogical is null ? "" : "\nMatching reference paths: " + DiskSpaceViewModel.FilePathsText(bucketItem) +
                             "\nFile size: " + DiskSpaceViewModel.LogicalText(bucketItem, true)) +
                         (bucket.Totals.Missing.Count == 0 ? "" : " Missing: " + string.Join(", ", bucket.Totals.Missing.Select(pair => pair.Key + " " + pair.Value)));
