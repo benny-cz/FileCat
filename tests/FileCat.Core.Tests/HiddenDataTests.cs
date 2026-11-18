@@ -265,11 +265,43 @@ public sealed partial class HiddenDataTests
         Assert.Equal(["carrier.bin"], set.Snapshot().Select(s => s.Item.Name));
     }
 
+    [Fact]
+    public void A_real_Darwin_compressed_file_discloses_that_the_ordinary_view_omits_backing()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Prepared Darwin compression fixture.");
+        string? path = Environment.GetEnvironmentVariable("FILECAT_MAC_COMPRESSED_XATTR_TARGET");
+        if (string.IsNullOrWhiteSpace(path)) Assert.Skip("Set FILECAT_MAC_COMPRESSED_XATTR_TARGET to an owned compressed file without ordinary attributes.");
+        const string compression = "com.apple.decmpfs", fork = "com.apple.ResourceFork";
+        const int noFollow = 1, showCompression = 0x20;
+        Assert.Equal(-1, MacAttributeLength(path, compression, 0, 0, 0, noFollow));
+        Assert.Equal(-1, MacAttributeLength(path, fork, 0, 0, 0, noFollow));
+        Assert.True(MacAttributeLength(path, compression, 0, 0, 0, noFollow | showCompression) >= 16);
+        Assert.True(MacAttributeLength(path, fork, 0, 0, 0, noFollow | showCompression) > 0);
+
+        var ct = TestContext.Current.CancellationToken;
+        var adapter = new UnixHiddenData();
+        var fallback = adapter.ReadInventory(path, new(ShowCompressionBacking: true), ct);
+        Assert.Empty(fallback.Items);
+        Assert.False(fallback.BoundToObject);
+        Assert.False(fallback.ValueBearingQueryIssued);
+        Assert.Null(fallback.ExactCount);
+        Assert.All(fallback.Categories, category => Assert.Equal(HiddenInventoryState.Partial, category.State));
+        Assert.Contains("0 ordinary attributes and 0 resource forks", fallback.Notice);
+        Assert.Contains("Compression backing: not inventoried.", fallback.Notice);
+
+        var ordinary = adapter.ReadInventory(path, new(ShowCompressionBacking: false), ct);
+        Assert.Empty(ordinary.Items);
+        Assert.Contains("Compression backing: not requested.", ordinary.Notice);
+    }
+
     private static int SetAttribute(string path, string name, byte[] value) =>
         OperatingSystem.IsMacOS() ? MacSet(path, name, value, value.Length, 0, 1) : LinuxSet(path, name, value, value.Length, 0);
 
     [LibraryImport("libc", EntryPoint = "setxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int MacSet(string path, string name, byte[] value, nint size, uint position, int options);
+
+    [LibraryImport("libc", EntryPoint = "getxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial nint MacAttributeLength(string path, string name, nint value, nint size, uint position, int options);
 
     [LibraryImport("libc", EntryPoint = "lsetxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int LinuxSet(string path, string name, byte[] value, nint size, int flags);
