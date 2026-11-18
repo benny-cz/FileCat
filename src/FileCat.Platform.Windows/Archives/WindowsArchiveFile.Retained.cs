@@ -17,7 +17,7 @@ internal sealed partial class WindowsArchiveFile
         lock (parent.Gate)
         {
             EnsureLive(); ct.ThrowIfCancellationRequested(); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
-            CheckPackingProtection(handle);
+            CheckSourceProtection(handle);
             var metadata = CaptureOuterMetadata(ct); if (metadata.LinkCount != 1) throw ArchiveWriteMessages.HardLinked(DisplayPath);
             if (expected.Version.Identity != Identity.ToString() || Length != expected.Version.Length ||
                 !RetainedObservation(expected.Version, metadata).Matches(expected)) throw ChangedRetained();
@@ -28,9 +28,10 @@ internal sealed partial class WindowsArchiveFile
     {
         lock (parent.Gate)
         {
-            EnsureLive(); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
+            EnsureLive(); CheckSourceProtection(handle); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
             var before = CaptureOuterMetadata(ct); if (before.LinkCount != 1) throw ArchiveWriteMessages.HardLinked(DisplayPath);
             var version = CaptureVersion(ct); var after = CaptureOuterMetadata(ct);
+            CheckSourceProtection(handle);
             parent.VerifyNamespace(); parent.RequireName(KnownName, Identity); if (before.Digest != after.Digest) throw ChangedRetained();
             return RetainedObservation(version, after);
         }
@@ -40,7 +41,8 @@ internal sealed partial class WindowsArchiveFile
         ArgumentNullException.ThrowIfNull(expected);
         lock (parent.Gate)
         {
-            EnsureLive(); ct.ThrowIfCancellationRequested(); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
+            EnsureLive(); ct.ThrowIfCancellationRequested(); CheckSourceProtection(handle);
+            parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
             if (writable || expected.Version.Identity != Identity.ToString() || expected.ParentIdentity != parent.Identity.ToString() ||
                 expected.LeafName != KnownName || Length != expected.Version.Length || !RetainedObservation(expected.Version, CaptureOuterMetadata(ct)).Matches(expected)) throw ChangedRetained();
             return new ArchiveRetainedReadStream(expected.Version.Length, ReadAt, () => CanRead);

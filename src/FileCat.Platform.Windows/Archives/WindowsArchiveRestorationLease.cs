@@ -36,7 +36,7 @@ internal sealed class WindowsArchiveRestorationLease : IArchiveContentRestoratio
                 target = directory.OpenSource(Path.GetFileName(Preparation.ArchivePath));
                 try
                 {
-                    target.RequireClearUpdateSource();
+                    target.BindUpdateSource();
                     Target = new(target, ((IArchiveRetainedFile)target).Observe(ct));
                     if (Target.Reviewed.Version != Content.PrivateOutput || Target.Reviewed.MetadataDigest != Content.PrivateMetadataSha256 ||
                         Target.Reviewed.Origin.Digest != Content.RequiredOriginSha256 || Target.Reviewed.Version.Sha256 == Content.Snapshot.Sha256) throw Changed();
@@ -44,7 +44,13 @@ internal sealed class WindowsArchiveRestorationLease : IArchiveContentRestoratio
                     if (row.Path != Content.SnapshotPath || row.Kind != ArchiveArtifactKind.Stage || row.Version != Content.Snapshot) throw Changed();
                     snapshot = directory.OpenRecoveryArtifactOrAbsent(Path.GetFileName(row.Path), Identity(row.Version.Identity), WindowsArchiveArtifactKind.Stage,
                         row.Version.Length) ?? throw Changed();
-                    try { snapshot.ReviewRecoveredCleanup(row, Catalog.ParentIdentity, ct); Snapshot = new(snapshot, ((IArchiveRetainedFile)snapshot).Observe(ct)); Review(ct); }
+                    try
+                    {
+                        snapshot.BindUpdateSource();
+                        snapshot.ReviewRecoveredCleanup(row, Catalog.ParentIdentity, ct);
+                        Snapshot = new(snapshot, ((IArchiveRetainedFile)snapshot).Observe(ct));
+                        Review(ct);
+                    }
                     catch { snapshot.Dispose(); throw; }
                 }
                 catch { target.Dispose(); throw; }

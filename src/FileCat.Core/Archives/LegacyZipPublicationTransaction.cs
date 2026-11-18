@@ -57,8 +57,8 @@ internal sealed class LegacyZipPublicationTransaction
     public void CaptureOpenedSource(FileStream source)
     {
         if (!updating || openedSourceDigest is not null || prepared) throw new InvalidOperationException("Invalid ZIP source capture phase.");
-        ArchiveOuterEfs.RequireClear(source.SafeFileHandle);
-        openedSourceDigest = DigestOpened(source);
+        var handle = OperatingSystem.IsWindows() ? source.SafeFileHandle : null;
+        openedSourceDigest = DigestOpened(source, checkProtection: handle is null ? null : () => ArchiveOuterEfs.RequireClear(handle));
         if (!string.Equals(Convert.ToHexString(openedSourceDigest), plan.Baseline!.Sha256Hex, StringComparison.Ordinal))
             throw new IOException("The archive changed after it was opened, so this change was not applied. Open it again and repeat the change.");
     }
@@ -87,6 +87,8 @@ internal sealed class LegacyZipPublicationTransaction
         attempted = true;
         if (updating)
         {
+            if (OperatingSystem.IsWindows())
+                ArchiveOuterEfs.RequireClear(File.GetAttributes(archive), ArchiveOuterEfs.UpdateUnavailable);
             // ReplaceFile keeps the original's security, attributes, and creation time on the rebuilt file.
             // Keep the actual original even when it was unmarked at the earlier read. Another
             // process can add a download mark without changing ZIP bytes or last-write time.
@@ -99,6 +101,7 @@ internal sealed class LegacyZipPublicationTransaction
         {
             Exception? integrityError = null;
             string? publishedIdentity = null;
+            bool encryptedBackup = false;
             try
             {
                 publishedIdentity = Fs.GetFileIdentity(archive);
@@ -114,7 +117,10 @@ internal sealed class LegacyZipPublicationTransaction
                 replacedOriginalDigest = DigestFile(backup!, checkCancellation: false);
                 replacedOriginalMark = Fs.ReadOriginMark(backup!);
                 originalMarkReadable = true;
-                if (!openedSourceDigest!.AsSpan().SequenceEqual(replacedOriginalDigest))
+                encryptedBackup = OperatingSystem.IsWindows() && File.GetAttributes(backup!).HasFlag(FileAttributes.Encrypted);
+                if (encryptedBackup)
+                    integrityError = new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.UpdateUnavailable);
+                else if (!openedSourceDigest!.AsSpan().SequenceEqual(replacedOriginalDigest))
                     integrityError = new IOException("The archive source changed during the update.");
                 else if (!string.Equals(replacedOriginalMark, mark, StringComparison.Ordinal))
                     integrityError = new IOException("The original archive's download mark changed during the update.");
@@ -151,8 +157,9 @@ internal sealed class LegacyZipPublicationTransaction
                     if (replacedOriginalDigest is null ||
                         !DigestFile(archive, checkCancellation: false).AsSpan().SequenceEqual(replacedOriginalDigest) ||
                         !originalMarkReadable ||
+                        encryptedBackup && !File.GetAttributes(archive).HasFlag(FileAttributes.Encrypted) ||
                         !string.Equals(Fs.ReadOriginMark(archive), replacedOriginalMark, StringComparison.Ordinal))
-                        throw new IOException("The archive's bytes or download mark could not be verified after restoration.");
+                        throw new IOException("The archive's bytes or protection could not be verified after restoration.");
                 }
                 catch (Exception ex) { restoreError = ex; }
                 if (restoreError is not null)
@@ -166,6 +173,9 @@ internal sealed class LegacyZipPublicationTransaction
                         new AggregateException(integrityError, restoreError));
                 }
                 published = false;
+                if (encryptedBackup)
+                    throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
+                        "The original archive became EFS-encrypted during the update. FileCat restored the encrypted original.", integrityError);
                 throw new IOException("The archive source or download mark changed; the original was restored.", integrityError);
             }
         }
@@ -186,6 +196,8 @@ internal sealed class LegacyZipPublicationTransaction
                     !originalMarkReadable ||
                     !string.Equals(Fs.ReadOriginMark(backup), replacedOriginalMark, StringComparison.Ordinal))
                     throw new IOException("The original archive backup bytes or download mark changed before cleanup.");
+                if (OperatingSystem.IsWindows())
+                    ArchiveOuterEfs.RequireClear(File.GetAttributes(backup), ArchiveOuterEfs.UpdateUnavailable);
                 // A concurrent rename can happen after that last mark read. Move the
                 // pathname to a fresh same-folder name, then verify the file actually
                 // moved before deleting it. If the move captured someone else's file,
@@ -199,6 +211,8 @@ internal sealed class LegacyZipPublicationTransaction
                 if (!DigestFile(cleanupPath, checkCancellation: false).AsSpan().SequenceEqual(replacedOriginalDigest) ||
                     !string.Equals(Fs.ReadOriginMark(cleanupPath), replacedOriginalMark, StringComparison.Ordinal))
                     throw new IOException("The original archive backup bytes or download mark changed during cleanup.");
+                if (OperatingSystem.IsWindows())
+                    ArchiveOuterEfs.RequireClear(File.GetAttributes(cleanupPath), ArchiveOuterEfs.UpdateUnavailable);
                 File.Delete(cleanupPath);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -231,16 +245,19 @@ internal sealed class LegacyZipPublicationTransaction
         return DigestOpened(stream, checkCancellation);
     }
 
-    private byte[] DigestOpened(Stream stream, bool checkCancellation = true)
+    private byte[] DigestOpened(Stream stream, bool checkCancellation = true, Action? checkProtection = null)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var buffer = new byte[BufferSize];
         try
         {
-            int read;
-            while ((read = stream.Read(buffer, 0, buffer.Length)) != 0)
+            while (true)
             {
                 if (checkCancellation) Job.Checkpoint();
+                checkProtection?.Invoke();
+                int read = stream.Read(buffer, 0, buffer.Length);
+                checkProtection?.Invoke();
+                if (read == 0) break;
                 hash.AppendData(buffer, 0, read);
             }
             return hash.GetHashAndReset();

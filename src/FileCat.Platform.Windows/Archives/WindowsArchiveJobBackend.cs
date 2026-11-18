@@ -123,7 +123,7 @@ internal static partial class WindowsArchiveJobBackend
             try
             {
                 file = directory.OpenSource(Path.GetFileName(path));
-                try { file.RequireClearUpdateSource(); }
+                try { file.BindUpdateSource(); }
                 catch { file.Dispose(); throw; }
             }
             catch { directory.Dispose(); throw; }
@@ -160,7 +160,7 @@ internal static partial class WindowsArchiveJobBackend
                     if (!directory.MayWrite(leaf))
                         throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveNotWritable);
                     original = directory.OpenSource(leaf);
-                    original.RequireClearUpdateSource();
+                    original.BindUpdateSource();
                     Original = new(original, ((IArchiveRetainedFile)original).Observe(ct));
                 }
             }
@@ -168,8 +168,15 @@ internal static partial class WindowsArchiveJobBackend
         }
         public IArchiveSelectionTree OpenInputTree(string path) => WindowsArchiveSelectionTree.Open(path);
         public ArchiveArtifactReservation Reserve(Guid nonce, ArchiveArtifactKind kind, long maximum)
-            => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum);
-        public WindowsArchiveFile Create(ArchiveArtifactReservation reservation) => directory.CreateArtifact(reservation);
+        {
+            original?.RequireClearUpdateSource();
+            return directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum);
+        }
+        public WindowsArchiveFile Create(ArchiveArtifactReservation reservation)
+        {
+            original?.RequireClearUpdateSource();
+            return directory.CreateArtifact(reservation);
+        }
         public ArchiveJobPublication Publish(JobJournal journal, ArchivePreparedContainer<WindowsArchiveFile> prepared,
             IReadOnlyDictionary<int, ArchiveRetainedBinding> inputs, CancellationToken ct)
         {

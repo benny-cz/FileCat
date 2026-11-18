@@ -64,6 +64,8 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         bool updating = plan.Baseline is not null;
         if (updating)
         {
+            if (OperatingSystem.IsWindows())
+                ArchiveOuterEfs.RequireClear(File.GetAttributes(archive), ArchiveOuterEfs.UpdateUnavailable);
             if (!plan.Baseline!.Matches(archive, Job.Checkpoint))
                 throw new IOException("The archive changed after it was opened, so this change was not applied. Open it again and repeat the change.");
             if ((File.GetAttributes(archive) & FileAttributes.ReadOnly) != 0)
@@ -82,16 +84,21 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
 
         var move = plan.MoveSources ? new ArchiveMoveSources(Job, Fs, Journal, plan, archive) : null;
         var additions = ExpandAdditions(plan, move);
+        using var sourceStream = updating ?
+            new FileStream(archive, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.SequentialScan) : null;
+        var sourceHandle = OperatingSystem.IsWindows() ? sourceStream?.SafeFileHandle : null;
+        void CheckOuterProtection()
+        {
+            if (sourceHandle is not null) ArchiveOuterEfs.RequireClear(sourceHandle);
+        }
+        CheckOuterProtection();
         var publication = new LegacyZipPublicationTransaction(Job, Fs, Journal, plan, archive, folder, move);
         string temp = publication.StagePath;
-        FileStream? sourceStream = null;
         ZipArchive? source = null;
         try
         {
-            if (updating)
+            if (sourceStream is not null)
             {
-                // Writers are excluded while the copy is made, so the members read are the members replaced.
-                sourceStream = new FileStream(archive, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.SequentialScan);
                 // The pathname can be replaced while this descriptor remains open on Unix. Retain
                 // the bytes we actually opened so the replacement backup can be checked later.
                 publication.CaptureOpenedSource(sourceStream);
@@ -138,6 +145,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             }
 
             var written = new List<(string Name, Addition? From)>();
+            CheckOuterProtection();
             using (var output = new FileStream(temp, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, BufferSize))
             {
                 using (var rebuilt = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
@@ -149,13 +157,14 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                         if (plannedNames[i] is not { } name) continue;
                         var entry = existing[i];
                         Job.SetCurrent(name);
+                        CheckOuterProtection();
                         if (replaceWith.TryGetValue(i, out var replacement))
                         {
                             if (replacement.FolderEntry) WriteFolder(rebuilt, replacement, entry.Comment);
                             else WriteFile(rebuilt, name, replacement, plan.Level, entry, move);
                         }
                         else
-                            CopyEntry(entry, rebuilt, name, plan.Level);
+                            CopyEntry(entry, rebuilt, name, plan.Level, CheckOuterProtection);
                         written.Add((name, replacement));
                         Job.ItemDone();
                     }
@@ -172,13 +181,15 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 }
                 output.Flush(flushToDisk: true);
             }
+            CheckOuterProtection();
             Verify(temp, written);
             ReviewRetainedInputs(additions);
+            CheckOuterProtection();
             publication.Prepare();
+            CheckOuterProtection();
             source?.Dispose();
             sourceStream?.Dispose();
             source = null;
-            sourceStream = null;
             ReviewRetainedInputs(additions);
             publication.Publish(() =>
             {
@@ -196,7 +207,6 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         finally
         {
             source?.Dispose();
-            sourceStream?.Dispose();
             publication.CleanupUnpublishedStage();
         }
     }
@@ -382,7 +392,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         Stamp(entry, addition.Modified, attributes, comment); addition.Move.Written = true;
     }
 
-    private void CopyEntry(ZipArchiveEntry entry, ZipArchive target, string name, CompressionLevel level)
+    private void CopyEntry(ZipArchiveEntry entry, ZipArchive target, string name, CompressionLevel level, Action checkProtection)
     {
         bool folder = name.EndsWith('/');
         var copy = target.CreateEntry(name, folder || entry.Length > 0 && entry.CompressedLength >= entry.Length ? CompressionLevel.NoCompression : level);
@@ -390,7 +400,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         if (folder) return;
         using var from = entry.Open();
         using var to = copy.Open();
-        uint crc = CopyBounded(from, to, Math.Max(0, entry.Length), Math.Max(1, entry.CompressedLength), entry.FullName);
+        uint crc = CopyBounded(from, to, Math.Max(0, entry.Length), Math.Max(1, entry.CompressedLength), entry.FullName, checkProtection);
         if (crc != entry.Crc32)
             throw new InvalidDataException($"The member \"{entry.FullName}\" is damaged (its checksum does not match), so the archive was not changed. Test the archive for details.");
     }
@@ -461,16 +471,19 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
     }
 
     /// <summary>Copies decompressed data under the extraction limits (declared size and expansion ratio are untrusted).</summary>
-    private uint CopyBounded(Stream from, Stream to, long declared, long compressed, string name)
+    private uint CopyBounded(Stream from, Stream to, long declared, long compressed, string name, Action checkProtection)
     {
         long cap = Math.Min(ZipProvider.MaxSpooledMember, declared + 1024 * 1024);
         var buffer = new byte[BufferSize];
         long total = 0;
         uint crc = 0;
-        int n;
-        while ((n = from.Read(buffer, 0, buffer.Length)) > 0)
+        while (true)
         {
             Job.Checkpoint();
+            checkProtection();
+            int n = from.Read(buffer, 0, buffer.Length);
+            checkProtection();
+            if (n == 0) break;
             total += n;
             if (total > cap) throw new InvalidDataException($"The member \"{name}\" expands beyond its declared size; the archive was not changed.");
             if (total > 64L * 1024 * 1024 && total / compressed > ZipProvider.MaxExpansionRatio)
