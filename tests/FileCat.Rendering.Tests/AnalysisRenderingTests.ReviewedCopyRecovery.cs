@@ -1,3 +1,4 @@
+using Avalonia.Headless.XUnit;
 using FileCat.App.Services;
 using FileCat.Core.Analysis;
 using FileCat.Core.Jobs;
@@ -7,7 +8,7 @@ namespace FileCat.Rendering.Tests;
 
 public sealed partial class AnalysisRenderingTests
 {
-    [Fact]
+    [AvaloniaFact]
     public async Task ReviewedCopyRecoveryReportsExactEffectsAndKeepsFiles()
     {
         OrdinaryPreparation();

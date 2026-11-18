@@ -19,6 +19,9 @@ public sealed partial class DiskSpaceWindow
         if (_closed || _choosingCurrentSource || _dialogs.IsOpen || lifetime.IsCancellationRequested) return;
         if (!CanAddSession) { ExplainSessionLimit(); return; }
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(lifetime, _indexedLifetime.Token);
+        AnalysisSessionAdmission.Slot? admission = null;
+        DiskSpaceViewModel? pendingModel = null;
+        bool preparing = false;
         _choosingCurrentSource = true;
         try
         {
@@ -33,21 +36,46 @@ public sealed partial class DiskSpaceWindow
             cancel.Token.ThrowIfCancellationRequested();
             string path = picked[0].TryGetLocalPath() ?? throw new NotSupportedException("Choose a directly accessible local file or folder.");
             ValidateCurrentSourceChoice(path);
-            if (!await ReviewCurrentSourceAsync(_dialogs, recorded.Name, path, cancel.Token)) return;
-            cancel.Token.ThrowIfCancellationRequested();
             bool network = await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(path), _ => PathUtil.IsOnNetwork(path), cancel.Token);
             if (network) throw new NotSupportedException("Choose a file or folder on a local disk.");
             cancel.Token.ThrowIfCancellationRequested();
             if (!CanAddSession) { ExplainSessionLimit(); return; }
-            var model = DiskSpaceViewModel.ForCurrentSource(services, recorded.Kind);
-            try { AddSession(model, [path]); }
-            catch { model.Dispose(); throw; }
-            await model.StartAsync([path]);
+            admission = _admissionPool.Acquire();
+            preparing = true;
+            if (_pendingIndexed++ == 0) _indexedIdle = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            status("Checking the current item for review…");
+            var model = pendingModel = DiskSpaceViewModel.ForCurrentSource(services, recorded.Kind);
+            await model.StartReviewedCurrentSourceAsync(path, async (resolved, token) =>
+            {
+                if (!await ReviewCurrentSourceAsync(_dialogs, recorded.Name, path, token, resolved)) return false;
+                token.ThrowIfCancellationRequested();
+                var slot = admission!;
+                admission = null;
+                AddReservedSession(model, [resolved], slot);
+                pendingModel = null;
+                return true;
+            }, cancel.Token);
+            if (pendingModel is not null && !_closed && !cancel.IsCancellationRequested) status(model.Status);
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested) { }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or InvalidOperationException)
         { if (!_closed && !cancel.IsCancellationRequested) status(AnalysisNames.Display(error.Message, 400)); }
-        finally { _choosingCurrentSource = false; }
+        finally
+        {
+            try
+            {
+                pendingModel?.Dispose();
+                Task close = pendingModel?.CloseCompletion ?? Task.CompletedTask;
+                if (admission is not null) await admission.CloseAfterAsync(close);
+                else await close;
+            }
+            catch (Exception error) { RecordIndexedCloseFailure(error); }
+            finally
+            {
+                _choosingCurrentSource = false;
+                if (preparing && --_pendingIndexed == 0) { _indexedIdle.TrySetResult(); if (_closed) _indexedLifetime.Dispose(); }
+            }
+        }
     }
 
     private static void ValidateCurrentSourceChoice(string path)
@@ -60,14 +88,17 @@ public sealed partial class DiskSpaceWindow
             throw new NotSupportedException("Choose a file or folder on a local drive.");
     }
 
-    internal static async Task<bool> ReviewCurrentSourceAsync(IDialogService dialogs, string recorded, string current, CancellationToken cancellation)
+    internal static async Task<bool> ReviewCurrentSourceAsync(IDialogService dialogs, string recorded, string current,
+        CancellationToken cancellation, string? resolved = null)
     {
         cancellation.ThrowIfCancellationRequested();
         var closer = new DialogCloser();
         using var close = cancellation.Register(() => Dispatcher.UIThread.Post(() => closer.Close(false)));
-        string currentDisplay = AnalysisNames.DisplayPath(current, OperatingSystem.IsWindows() ? AnalysisNameRules.Windows : AnalysisNameRules.Unix);
+        var rules = OperatingSystem.IsWindows() ? AnalysisNameRules.Windows : AnalysisNameRules.Unix;
+        string currentDisplay = AnalysisNames.DisplayPath(current, rules);
+        string resolvedDisplay = resolved is null || resolved == current ? "" : "\n\nResolved local path\n" + AnalysisNames.DisplayPath(resolved, rules);
         var review = new TextBlock { TextWrapping = TextWrapping.Wrap,
-            Text = "Recorded entry\n" + AnalysisNames.Display(recorded, 200) + "\n\nCurrent item you chose\n" + currentDisplay +
+            Text = "Recorded entry\n" + AnalysisNames.Display(recorded, 200) + "\n\nCurrent item you chose\n" + currentDisplay + resolvedDisplay +
                 "\n\nRead current metadata in a new Standard analysis. The recorded analysis stays offline. Review the new observations before using live actions." };
         var choice = await dialogs.ShowCustomAsync("Review current source", review,
             [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Analyze current selection", true)], closer: closer);
@@ -91,7 +122,9 @@ public sealed partial class DiskSpaceWindow
         {
             if (_disposed || Model.HistoryServices is not { } services) return;
             using var work = _actualWork.Enter();
-            await _window.BindCurrentSourceAsync(services, choice, Model.SetStatus, Model.HistoryLifetime);
+            _bindCurrentSource.IsEnabled = false;
+            try { await _window.BindCurrentSourceAsync(services, choice, Model.SetStatus, Model.HistoryLifetime); }
+            finally { if (!_disposed) _bindCurrentSource.IsEnabled = true; }
         }
     }
 
@@ -111,7 +144,9 @@ public sealed partial class DiskSpaceWindow
         {
             if (_disposed || _services is not { } services || IndexedRecordedChoice() is not { } choice) return;
             using var work = _actualWork.Enter();
-            await _window.BindCurrentSourceAsync(services, choice, text => _inspectorStatus.Text = text, _selectionLifetime.Token);
+            _bindIndexedSource.IsEnabled = false;
+            try { await _window.BindCurrentSourceAsync(services, choice, text => _inspectorStatus.Text = text, _selectionLifetime.Token); }
+            finally { if (!_disposed) _bindIndexedSource.IsEnabled = true; }
         }
     }
 }

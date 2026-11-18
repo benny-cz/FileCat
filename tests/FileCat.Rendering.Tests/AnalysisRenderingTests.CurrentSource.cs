@@ -20,7 +20,8 @@ public sealed partial class AnalysisRenderingTests
         using var ui = new HistoryDialogFixture(380, 430, 20);
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         string chosen = Path.Combine(Path.GetTempPath(), "current-item.bin");
-        var pending = DiskSpaceWindow.ReviewCurrentSourceAsync(ui.Dialogs, "recorded-\u202E.bin", chosen, cancel.Token);
+        string resolved = Path.Combine(Path.GetTempPath(), "bound-item.bin");
+        var pending = DiskSpaceWindow.ReviewCurrentSourceAsync(ui.Dialogs, "recorded-\u202E.bin", chosen, cancel.Token, resolved);
         await Until(() => ui.Dialogs.IsOpen);
         Frame(ui.Window);
         var keep = ui.Find("Cancel");
@@ -30,6 +31,7 @@ public sealed partial class AnalysisRenderingTests
         string text = string.Join('\n', ui.Window.GetVisualDescendants().OfType<TextBlock>().Where(label => label.IsEffectivelyVisible).Select(label => label.Text));
         Assert.Contains("recorded-\\u202E.bin", text);
         Assert.Contains(chosen, text);
+        Assert.Contains(resolved, text);
         Assert.Contains("new Standard analysis", text);
         ui.Click(approve ? "Analyze current selection" : "Cancel");
         Assert.Equal(approve, await pending);
@@ -99,6 +101,39 @@ public sealed partial class AnalysisRenderingTests
         Assert.Null(model.Tree);
         Assert.Contains("changed type", model.Status);
         Assert.Empty(Directory.GetFileSystemEntries(changed));
+    }
+
+    [AvaloniaFact]
+    public async Task CurrentSourceBindingKeepsTheReviewedTargetWhenTheChosenAliasChanges()
+    {
+        OrdinaryPreparation();
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Requires Unix symbolic-link creation.");
+        using var fixture = new PreparationFixture();
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        string original = Path.Combine(fixture.Root, "original.txt");
+        string replacement = Path.Combine(fixture.Root, "replacement.txt");
+        string link = Path.Combine(fixture.Root, "chosen.txt");
+        File.WriteAllText(original, "original");
+        File.WriteAllText(replacement, "replacement");
+        File.CreateSymbolicLink(link, original);
+        using var model = DiskSpaceViewModel.ForCurrentSource(fixture.Services, AnalysisKind.File);
+        bool reviewed = false;
+        await model.StartReviewedCurrentSourceAsync(link, (resolved, _) =>
+        {
+            Assert.Equal(Path.GetFileName(original), Path.GetFileName(resolved));
+            File.Delete(link);
+            File.CreateSymbolicLink(link, replacement);
+            reviewed = true;
+            return Task.FromResult(true);
+        }, cancel.Token);
+        Assert.True(reviewed);
+        await Until(() => model.Phase == AnalysisPhase.Finished, timeout: TimeSpan.FromSeconds(20));
+        await model.RebuildAsync(true, cancel.Token);
+        var tree = Assert.IsType<AnalysisTree>(model.Tree);
+        var recorded = Assert.Single(tree.Snapshot.Roots);
+        Assert.Equal(Path.GetFileName(original), Path.GetFileName(recorded.CanonicalLocator));
+        Assert.Equal("replacement", File.ReadAllText(link));
+        Assert.Equal("original", File.ReadAllText(original));
     }
 
     public class CurrentSourcePickerProxy : DispatchProxy

@@ -73,7 +73,11 @@ public sealed partial class DiskSpaceViewModel
     public Task StartAsync(IReadOnlyList<string> roots, ImmutableArray<AnalysisFolderExclusion> exclusions = default, bool usePanelFilter = false) =>
         StartAnalysisAsync(roots, null, exclusions, usePanelFilter);
 
-    private async Task StartAnalysisAsync(IReadOnlyList<string> roots, FastNtfsRequest? fast, ImmutableArray<AnalysisFolderExclusion> exclusions, bool usePanelFilter)
+    internal Task StartReviewedCurrentSourceAsync(string path, Func<string, CancellationToken, Task<bool>> review, CancellationToken cancellation) =>
+        StartAnalysisAsync([path], null, [], false, review, cancellation);
+
+    private async Task StartAnalysisAsync(IReadOnlyList<string> roots, FastNtfsRequest? fast, ImmutableArray<AnalysisFolderExclusion> exclusions,
+        bool usePanelFilter, Func<string, CancellationToken, Task<bool>>? reviewCurrentSource = null, CancellationToken cancellation = default)
     {
         if (_disposed || IsPreparing || Running || _services is null) return;
         if (_bindingCloseError is not null) { SetStatus("Analysis handles could not be closed. Close this analysis before starting another."); return; }
@@ -94,7 +98,8 @@ public sealed partial class DiskSpaceViewModel
             if (roots.Count != 1 || (selection = NtfsMetadataVolume.NormalizeSelection(roots[0])) is null)
             { SetStatus("Fast NTFS scan needs one whole local NTFS volume. Enter a drive root such as C:\\ or its volume GUID. Use standard analysis for files and folders."); return; }
         }
-        using var preparation = new CancellationTokenSource(); _preparationCancel = preparation;
+        using var preparation = cancellation.CanBeCanceled ? CancellationTokenSource.CreateLinkedTokenSource(cancellation) : new CancellationTokenSource();
+        _preparationCancel = preparation;
         var binding = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously); _bindingCompletion = binding;
         bool keepReview = false;
         IsPreparing = true; SetStatus("Binding the selected locations…");
@@ -153,7 +158,13 @@ public sealed partial class DiskSpaceViewModel
                     }
                     _preparedInput = roots.ToImmutableArray();
                     ResolvedTargets = string.Join(Environment.NewLine, _prepared.Select(p => AnalysisNames.Display(p.Root.CanonicalLocator)));
-                    if (_prepared.Where((p, i) => !SameLocator(p.Root.CanonicalLocator, Path.GetFullPath(roots[i]))).Any())
+                    if (reviewCurrentSource is not null)
+                    {
+                        // The review names the object we already hold. Start transfers that same binding.
+                        if (!await reviewCurrentSource(RuntimeReopenLocator(_prepared.Single()), preparation.Token))
+                        { SetStatus("Current source review canceled."); return; }
+                    }
+                    else if (_prepared.Where((p, i) => !SameLocator(p.Root.CanonicalLocator, Path.GetFullPath(roots[i]))).Any())
                     {
                         keepReview = true;
                         SetStatus("Review the resolved locations shown below, then choose Start analysis again to use those captured targets."); return;

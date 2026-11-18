@@ -67,7 +67,29 @@
   "currentSourceBinding": {
     "tests": { "run": "r1498", "windowsVm": 134, "mac": 134, "ubuntuVm": 134 },
     "desktop": { "run": "r1499", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
-    "coverage": "The user chooses a current local item, reviews a fresh Standard scan with Cancel as default and leaves the historical analysis offline. Desktop checks covered the command on a reopened inventory. Direct normal-panel reveal remains pending."
+    "coverage": "The user chooses a current local item, reviews a fresh Standard scan with Cancel as default and leaves the historical analysis offline. Desktop checks covered the command on a reopened inventory. Direct normal-panel reveal remains pending.",
+    "heldSourceReview": {
+      "mainMerge": "c49afb27",
+      "tests": {
+        "windowsVm": { "run": "r1507", "passed": 7, "skipped": 1, "total": 8 },
+        "mac": { "run": "r1514", "passed": 8, "total": 8 },
+        "ubuntuVm": { "run": "r1512", "passed": 8, "total": 8 }
+      },
+      "desktop": { "windowsVm": "r1513 passed", "mac": "r1509 passed", "ubuntuVm": "r1509 passed" },
+      "coverage": "Holds the resolved local object through the preserving review and Standard acquisition. The Unix regression changes the chosen alias while review is pending and verifies that the scan uses the confirmed target. Desktop checks verified the command, source integrity and ordinary exit.",
+      "appSha256": "39e048e6b4103386fde4d98dbbc0f9fe2913dd5e91ad48312726d24f09bb6bc9",
+      "coreSha256": "0347ebd7e6dcdfc6746beb83083cfd0daea40908622f9c0289774eacb3dfc916",
+      "integratedRendering": {
+        "run": "r1508",
+        "mac": { "passed": 962, "skipped": 6, "failed": 0, "total": 968 },
+        "ubuntuVm": { "passed": 962, "skipped": 6, "failed": 0, "total": 968 }
+      }
+    }
+  },
+  "comparisonClipboardAndCancellation": {
+    "tests": { "windowsVm": "r1503 150 passed", "mac": "r1503 149 passed and r1506 both binding checks passed", "ubuntuVm": "r1503 150 passed" },
+    "desktop": { "run": "r1504", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
+    "coverage": "Copies displayed comparison summary and side-specific recorded details. Comparison and ordinary inventory staging wait for export cancellation to end the producer before closing the staged output."
   },
   "completedBehaviors": [
     "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",

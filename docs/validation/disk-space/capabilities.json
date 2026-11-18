@@ -10,9 +10,9 @@
     "W2": "in-progress",
     "W3": "in-progress",
     "W4": "in-progress",
-    "W5": "pending",
-    "W6": "pending",
-    "W7": "pending",
+    "W5": "in-progress",
+    "W6": "in-progress",
+    "W7": "in-progress",
     "W8": "pending"
   },
   "securityGates": {
@@ -79,6 +79,35 @@
   ],
   "verbs": [
     {
+      "id": "bind-current-source",
+      "enabled": true,
+      "platform": "Windows, macOS and Linux",
+      "filesystem": "Explicit local regular file or folder accepted by Standard analysis",
+      "packageTier": "Ordinary application",
+      "method": "Held native source and separate approved Standard analysis",
+      "assurance": "ObservedMetadata",
+      "qualificationTests": [
+        "AnalysisRenderingTests.CurrentSourceBindingScansOnlyTheExplicitlyChosenItemAfterReview",
+        "AnalysisRenderingTests.CurrentSourceBindingRefusesAChangedItemType",
+        "AnalysisRenderingTests.CurrentSourceBindingKeepsTheReviewedTargetWhenTheChosenAliasChanges"
+      ],
+      "evidence": "README.md",
+      "lastQualifiedBuild": "r1507, r1509, r1512 and r1513 development",
+      "reason": "Choose a current local file or folder explicitly. Saved locations stay offline."
+    },
+    {
+      "id": "reveal-in-panel",
+      "enabled": false,
+      "lastQualifiedBuild": null,
+      "reason": "Direct panel navigation requires a qualified binding retained through the panel's directory listing."
+    },
+    {
+      "id": "working-set-or-result-set-handoff",
+      "enabled": false,
+      "lastQualifiedBuild": null,
+      "reason": "The analyzer has no qualified handoff of selected source references to the panel providers."
+    },
+    {
       "id": "preview",
       "enabled": true,
       "platform": "Windows",
@@ -139,7 +168,7 @@
       "assurance": "Privileged-derived metadata with partial alias coverage",
       "evidence": "FAST_NTFS_BROKER_QUALIFICATION.md",
       "lastQualifiedBuild": "r1448 installed development consent and cancellation",
-      "reason": "The signed installed-package gate is open. Standard analysis is available."
+      "reason": "Signed installed packages still require qualification. Standard analysis is available."
     },
     {
       "id": "archive-contents",
