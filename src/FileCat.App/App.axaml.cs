@@ -17,8 +17,8 @@ public partial class App : Application
 
     /// <summary>
     /// Set only by the never-shipped archive qualification host (tests/FileCat.ArchiveQualificationHost) through
-    /// InternalsVisibleTo: the same application with explicitly composed native archive backends, for screen-reader and
-    /// layout qualification runs (plan §16.3 step 1). Ordinary startup cannot set it and registers only qualified routes.
+    /// InternalsVisibleTo: the same application with explicitly composed native archive or storage backends for
+    /// screen-reader and layout qualification. Ordinary startup registers only qualified routes.
     /// </summary>
     internal static Func<StartupOptions, AppServices>? QualificationServices { get; set; }
 

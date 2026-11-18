@@ -270,12 +270,25 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
     [InlineData("selection")]
     public async Task Link_defaults_capture_the_target_and_selection_before_capability_preparation(string change)
     {
-        using var f = new Fixture("capability"); await f.Load(false); var task = f.Vm.ExecuteAsync(CommandIds.CreateLink);
+        using var f = new Fixture("capability");
+        // This test changes focus or the target tab. A delayed native folder notification would also
+        // refresh the source generation and exercise the separate cancellation contract.
+        f.Left.IsActiveTab = f.Right.IsActiveTab = false;
+        await f.Load(false);
+        Assert.False(f.Left.IsWatching);
+        Assert.False(f.Right.IsWatching);
+        int generation = f.Left.Listing.Generation;
+        var task = f.Vm.ExecuteAsync(CommandIds.CreateLink);
         try
         {
-            await Wait(() => f.Gate.Active == 1);
+            await Wait(() => f.Gate.Active == 1 || task.IsCompleted);
+            AssertWorkers(f.Gate, "capability");
+            Assert.False(task.IsCompleted, "The command finished before the test could change the captured selection.");
             if (change == "target") f.Right.Navigate(Location.FileSystem(f.Root)); else Assert.True(f.Left.Listing.FocusName("second.txt"));
-            f.Gate.Release.Set(); await Wait(() => f.Button("Create") is not null);
+            f.Gate.Release.Set();
+            await Wait(() => f.Button("Create") is not null || task.IsCompleted);
+            Assert.Equal(generation, f.Left.Listing.Generation);
+            Assert.False(task.IsCompleted, "The command finished without showing the captured link review.");
             string proposed = f.PathBox("Link path").Text!; Emit("captured-default", f, new { change, proposed });
             Assert.Equal(Path.Join(f.Target, "source.txt"), proposed); f.Click("Cancel"); await task;
         }

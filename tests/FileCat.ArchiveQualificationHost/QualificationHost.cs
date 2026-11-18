@@ -5,22 +5,23 @@ using FileCat.App.Services;
 namespace FileCat.ArchiveQualificationHost;
 
 /// <summary>
-/// Never shipped. Usage: FileCat.ArchiveQualificationHost --data &lt;throwaway folder&gt; --worker &lt;published FileCat executable&gt;
-/// [--ui-budget &lt;report.json&gt;] [FileCat arguments]. The interface is the application's own; only its archive backends are
-/// composed explicitly, through each platform's production worker boundary, and <c>--ui-budget</c> adds the UI-thread budget
-/// probe (<see cref="UiBudgetProbe"/>). On macOS the published application's sandbox launcher must sit beside the worker.
+/// Never shipped. Starts the real interface with the selected native candidate backends and an isolated profile.
+/// On macOS the published application's sandbox launcher must sit beside an explicitly selected archive worker.
 /// </summary>
 internal static class QualificationHost
 {
     [STAThread]
     private static int Main(string[] args)
     {
-        string? data = null, worker = null, budget = null; var rest = new List<string>();
+        string? data = null, worker = null, budget = null;
+        bool qualifyNtfsStorage = false;
+        var rest = new List<string>();
         for (int i = 0; i < args.Length; i++)
         {
             if (args[i] == "--data" && i + 1 < args.Length) data = args[++i];
             else if (args[i] == "--worker" && i + 1 < args.Length) worker = args[++i];
             else if (args[i] == "--ui-budget" && i + 1 < args.Length) budget = args[++i];
+            else if (args[i] == "--ntfs-storage-review") qualifyNtfsStorage = true;
             else rest.Add(args[i]);
         }
         if (budget is not null && !Path.IsPathFullyQualified(budget))
@@ -28,20 +29,25 @@ internal static class QualificationHost
             Console.Error.WriteLine("--ui-budget needs a full report path.");
             return 2;
         }
-        if (data is null || !Path.IsPathFullyQualified(data) || worker is null || !File.Exists(worker))
+        if (data is null || !Path.IsPathFullyQualified(data) || (worker is null ? !qualifyNtfsStorage : !File.Exists(worker)))
         {
-            Console.Error.WriteLine("Usage: FileCat.ArchiveQualificationHost --data <throwaway folder> --worker <published FileCat executable> [FileCat arguments]");
+            Console.Error.WriteLine("Usage: FileCat.ArchiveQualificationHost --data <throwaway folder> [--worker <published FileCat executable>] [--ntfs-storage-review] [--ui-budget <report.json>] [FileCat arguments]");
+            return 2;
+        }
+        if (qualifyNtfsStorage && !AppServices.CanQualifyNtfsStorage)
+        {
+            Console.Error.WriteLine("NTFS storage review qualification requires Windows 11 x64 and a standard-user session.");
             return 2;
         }
         Directory.CreateDirectory(data);
         // On Windows the worker runs in FileCat's archive AppContainer, which may read only a provisioned bundle; an
         // installer grants that once, and this test-only host does it for the published worker it is given.
-        if (OperatingSystem.IsWindows())
+        if (worker is not null && OperatingSystem.IsWindows())
             Platform.Windows.Shell.ArchiveAppContainer.ProvisionRuntimeReadAccess(Path.GetDirectoryName(worker)!, Path.GetFileName(worker));
         App.App.StartupOptions = StartupOptions.Parse([.. rest, "--data", data]);
         App.App.QualificationServices = startup => AppServices.InitializeForQualification(
             Core.State.AppPaths.Resolve(startup.Profile, dataRoot: startup.DataRoot),
-            AppServices.QualificationBackends(worker));
+            worker is null ? Core.Archives.ArchiveJobBackends.Empty : AppServices.QualificationBackends(worker), qualifyNtfsStorage);
         var builder = App.Program.BuildAvaloniaApp();
         if (budget is not null) builder = builder.AfterSetup(_ => UiBudgetProbe.Start(budget));
         return builder.StartWithClassicDesktopLifetime([.. rest]);

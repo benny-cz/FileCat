@@ -1,0 +1,18 @@
+# NTFS storage review with NVDA on Windows
+
+Windows 11 x64 build 26340 ran the FileCat desktop interface as a standard user on a local NTFS volume. The isolated qualification host composed the Windows compression and EFS candidates. The app client measured 640 × 420 DIP at 96 DPI. NVDA 2026.3.1 used a fresh configuration. The fixture used one clear regular file in a disposable profile.
+
+- **EFS review (N-UI.E).** The keyboard opened EFS protection from command search. The review opened without a chosen action. NVDA read the dialog and the unchecked pathname and all-stream decompression acknowledgments. Cancel remained visible. Accepting the pathname acknowledgment alone kept Encrypt and Queue disabled. Adding the all-stream approval enabled both. Switching to Decrypt cleared the pathname acknowledgment and replaced the compression acknowledgment with the unchecked warning about losing EFS protection. NVDA read the warning. Decrypt and Queue enabled only after the second required check. Escape returned focus and speech to the same file.
+- **Compression review (N-UI.C).** The keyboard opened NTFS compression from command search. NVDA read the dialog and action choices. Selecting Compress and Remove compression exposed the matching enabled action and the Queue and Cancel buttons at the tested size. Escape again returned focus and speech to the file.
+
+The fixture accepted the reviews up to the enabled footer, then dismissed them. It checked the file's SHA-256 and its clear compression and EFS attributes afterward. The broader native UI gate still includes high text scale, same-name captured roots, picture view, High Contrast, EFS key setup and Operations recovery.
+
+Run `tests/FileCat.NativeAcceptance/win-nvda-storage-review.ps1` with a fresh profile-local validation directory containing the built `FileCat.ArchiveQualificationHost` app and a signed portable NVDA in the same user's validation directory. The Windows VM passed twice. The final receipt is `.tmp/filecat-storage-review-nvda-r2-result.json`. The qualification host was built with SDK 10.0.101 for `net10.0` from the changes on top of `f820198a`. Tested `FileCat.dll` SHA-256 is `7E3F0EEA86113524CB4E8C97A15BA816D26C1D326DBDAAAE8288ADBD30D85192`.
+
+## EFS backup wizard cancellation
+
+The same Windows VM passed `-VerifyCanceledKeyBackup` at 640 × 420 DIP and 96 DPI. This mode requires a pre-existing default fixture certificate with its private key. NVDA announced the pending decision, and **Review decision…** opened setup with focus on **Cancel operation**. The fixture accepted setup for the existing key, verified the displayed certificate against that key, and opened the real Windows export wizard parented to FileCat.
+
+Before the fix, canceling the wizard moved focus to the Windows desktop. FileCat now invokes the modal wizard on the owner window's UI thread while the worker retains the acquired certificate. The passing run verified that Escape returned foreground focus to FileCat. NVDA read the next recovery decision, and the dialog explained that Windows canceled the backup and offered a retry. Canceling the operation then produced a terminal result of zero changed and one not processed. The selected file retained its contents and its clear compression and EFS attributes.
+
+The passing receipt is `.tmp/filecat-storage-review-keycancel-r4-result.json`. The tested `FileCat.dll` SHA-256 is `5DC34C5E32E75EA4FF3222520DE2FFC43A6E5F62F41DE732BC1E01C315AE9495`. The tested `FileCat.Platform.Windows.dll` SHA-256 is `BEE4A6541B6799A32CB63EA9E10F33143D511EB7A7AB415D26785A6C22D00D4A`. Actual export completion from the FileCat window and managed or hardware keys remain separate native checks.

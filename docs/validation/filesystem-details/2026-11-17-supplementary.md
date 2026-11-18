@@ -48,6 +48,12 @@ Source SHA-256 at the native checkpoint:
 
 Logs and transfer/build scripts are task scratch under `.tmp`; they are not product dependencies. Tests do not disable protection on the workstation. Windows Update/Defender setup was confined to the disposable guest as recorded in the foundation receipt.
 
+## Unix inventory growth, 18 November 2026
+
+When a Unix attribute-name list outgrows its native buffer, FileCat makes at most two retries. If the third fill also returns `ERANGE`, the inventory reports Partial and explains that the names kept growing. It has no complete names for that attempt and issues no attribute-length queries. The fixture injected `ERANGE` for all three fills and verified exactly three size probes and three fills.
+
+Ubuntu x64 passed 22 focused tests with two Darwin-only skips. Apple silicon passed 21 with two Linux-only skips and one opt-in compressed-file skip. Both ran the growth fixture. Ubuntu exercised bound xattr operations and special-file refusal. The Mac exercised the native resource-fork inventory. Results are `.tmp/filecat-unix-xattr-growth-90208329-ubuntu.trx` and `.tmp/filecat-unix-xattr-growth-90208329-mac.trx`. The tested `UnixHiddenData.Inventory.cs` SHA-256 is `DEF377988BA0DD7EDD4B3486BA2F0CDC6C3770D12802F0979E895581C6EB3502`.
+
 ## Remaining gates
 
 F5 remains partial: qualify broader denial/change/native-budget and action/output cases, macOS bound/compression-visible inventory, and restore independently bounded hard-link/range/FIEMAP/retrieval-pointer collectors. Metadata-only reports continue to omit those collectors before acquisition. The [optional-column checkpoint](2026-11-17-columns.md) records subsequent F6 ownership/freshness work; native search-mask validation and wider qualification remain unfinished. Do not interpret these counts as complete plan acceptance.

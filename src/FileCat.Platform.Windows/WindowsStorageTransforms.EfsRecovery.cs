@@ -7,7 +7,8 @@ namespace FileCat.Platform.Windows;
 
 internal sealed unsafe partial class WindowsStorageTransforms
 {
-    private StorageEfsRecoveryApproval? ReviewEfsRecovery(Job job, string invokerSid, StorageEfsConsent consent, CancellationToken ct)
+    private StorageEfsRecoveryApproval? ReviewEfsRecovery(Job job, string invokerSid, StorageEfsConsent consent, CancellationToken ct,
+        WindowsEfsKeys.InvokeBackupWizard? invokeWizard)
     {
         string account;
         using (StorageNativeAllowance.RequireCurrent().ClaimScratch())
@@ -48,7 +49,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 throw Refuse("efs-recovery-action", "Choose a recovery declaration or request the Windows backup wizard.");
 
             var backup = job.RunEfsRecoveryInteraction(() => new WindowsEfsKeys().BackUpAssociatedCertificate(association,
-                selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct));
+                selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct, invokeWizard));
             ct.ThrowIfCancellationRequested();
             if (backup.Completion is { } completed) return StorageEfsRecoveryApproval.RecordWindowsExport(consent, setup, completed);
             previous = backup.Problem?.Message ?? "Windows canceled the backup. You can retry or declare an existing recovery arrangement.";

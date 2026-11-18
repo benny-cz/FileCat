@@ -351,11 +351,17 @@ public sealed class AppServices : IDisposable
         : OperatingSystem.IsMacOS() ? Core.Archives.MacOS.MacArchiveJobBackend.Create(format, executable)
         : throw new PlatformNotSupportedException("No archive worker launcher exists for this platform.");
 
-    /// <summary>The qualification host's composition: explicit native backends on an isolated data root (never ordinary startup).</summary>
-    internal static AppServices InitializeForQualification(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends)
+    internal static bool CanQualifyNtfsStorage => FileCat.Platform.Windows.WindowsStorageTransforms.IsQualifiedHost && !WindowsTokenAuthority.IsHighIntegrity;
+
+    /// <summary>Creates the native qualification host with isolated state and explicitly selected backends.</summary>
+    internal static AppServices InitializeForQualification(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends, bool qualifyNtfsStorage = false)
     {
         ArgumentNullException.ThrowIfNull(paths); ArgumentNullException.ThrowIfNull(archiveBackends);
-        Current = new AppServices(paths, archiveBackends: archiveBackends);
+        if (qualifyNtfsStorage && !CanQualifyNtfsStorage)
+            throw new PlatformNotSupportedException("NTFS storage review qualification requires Windows 11 x64 and a standard-user session.");
+        var storage = qualifyNtfsStorage ? new FileCat.Platform.Windows.WindowsStorageTransforms()
+            .CreateEfsJobCandidate(static show => Avalonia.Threading.Dispatcher.UIThread.Invoke(show)) : null;
+        Current = new AppServices(paths, archiveBackends: archiveBackends, storageTransforms: storage);
         return Current;
     }
 
