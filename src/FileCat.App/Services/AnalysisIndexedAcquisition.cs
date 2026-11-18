@@ -158,14 +158,14 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
         AnalysisComponentPreset components = AnalysisComponentPreset.Standard) => Start(sources, progress, components, null);
 
     internal async Task<AnalysisSession> StartNtfsAsync(FileCat.Platform.Windows.Analysis.WindowsAnalysisBackend source, nint owner,
-        IProgress<AnalysisProgress>? progress, CancellationToken cancellation)
+        IProgress<AnalysisProgress>? progress, AnalysisComponentPreset components, CancellationToken cancellation)
     {
         if (!_indexedStorage || MemoryPreparationNotice is not null || _services.Paths.IsPortable)
             throw new NotSupportedException("Fast NTFS analysis requires installed FileCat and verified private scratch. Use standard analysis here.");
         var scan = await AnalysisIo.Run(_services.Io, ((IAnalysisBackend)source).IoDeviceKey, token =>
             source.PrepareNtfsDiscovery(_services.Paths.IsPortable, _services.Paths.ElevationExchangeDirectory, owner, token), cancellation).ConfigureAwait(false);
         cancellation.ThrowIfCancellationRequested();
-        return Start([source], progress, AnalysisComponentPreset.Standard, scan);
+        return Start([source], progress, components, scan);
     }
 
     private AnalysisSession Start(IReadOnlyList<IAnalysisBackend> sources, IProgress<AnalysisProgress>? progress,
@@ -189,7 +189,7 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
             var coordinator = new AnalysisCoordinator(_services.Io, ProfileIdentity);
             if (ntfs is not null && _rescanPredecessor is not null)
                 throw new InvalidOperationException("Fast NTFS analysis requires a new, explicitly approved session.");
-            _session = ntfs is not null ? coordinator.StartNtfs(ntfs, storage, progress) :
+            _session = ntfs is not null ? coordinator.StartNtfs(ntfs, storage, progress, components) :
                 _rescanPredecessor is { } previous ? coordinator.Rescan(previous, sources, progress, components, storage) :
                 coordinator.Start(sources, progress, components, storage);
             _rescanPredecessor = null;

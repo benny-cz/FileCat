@@ -35,7 +35,8 @@ internal readonly record struct AnalysisNtfsObservation(UInt128 ObjectId, UInt12
     }
 }
 
-internal sealed record AnalysisNtfsChildren(ImmutableArray<AnalysisNtfsObservation> Observations, ulong? NextOffset, int AmbiguousNames);
+internal sealed record AnalysisNtfsChildren(ImmutableArray<AnalysisNtfsObservation> Observations, ImmutableArray<ulong> Records,
+    ulong? NextOffset, int AmbiguousNames);
 
 /// <summary>Maps one approved NTFS volume's unordered discovery records in its already qualified private scratch workspace.</summary>
 internal sealed class AnalysisNtfsDiscovery : IAsyncDisposable
@@ -120,6 +121,9 @@ internal sealed class AnalysisNtfsDiscovery : IAsyncDisposable
     internal Task<ulong> CountAsync(CancellationToken cancellation) => _owned.RunAsync((data, _) =>
         data.State == DiscoveryState.Ready ? data.Rows!.Count : throw NotReady(), cancellation);
 
+    internal Task<AnalysisNtfsObservation> ReadObservationAsync(ulong record, CancellationToken cancellation) =>
+        _owned.RunAsync((data, token) => data.State == DiscoveryState.Ready ? Decode(data.Rows!.Read(record, token)) : throw NotReady(), cancellation);
+
     internal Task<AnalysisNtfsChildren> ReadChildrenAsync(UInt128 parentId, ulong offset, CancellationToken cancellation, int maximum = PageRecords) =>
         _owned.RunAsync((data, token) =>
         {
@@ -134,6 +138,7 @@ internal sealed class AnalysisNtfsDiscovery : IAsyncDisposable
             ulong first = range.First + offset, end = range.First + range.Count;
             ulong next = Math.Min(end, first + (uint)maximum);
             var records = ImmutableArray.CreateBuilder<AnalysisNtfsObservation>();
+            var locations = ImmutableArray.CreateBuilder<ulong>();
             int ambiguous = 0;
             byte[]? previous = offset == 0 ? null : index.Read(first - 1, token).Key;
             AnalysisSortEntry? current = first < end ? index.Read(first, token) : null;
@@ -143,10 +148,14 @@ internal sealed class AnalysisNtfsDiscovery : IAsyncDisposable
                 current = position + 1 < end ? index.Read(position + 1, token) : null;
                 if (item.Key.AsSpan().SequenceEqual(previous) ||
                     current is { } following && item.Key.AsSpan().SequenceEqual(following.Key)) ambiguous++;
-                else records.Add(Decode(data.Rows!.Read(item.Value, token)));
+                else
+                {
+                    records.Add(Decode(data.Rows!.Read(item.Value, token)));
+                    locations.Add(item.Value);
+                }
                 previous = item.Key;
             }
-            return new AnalysisNtfsChildren(records.ToImmutable(), next < end ? next - range.First : null, ambiguous);
+            return new AnalysisNtfsChildren(records.ToImmutable(), locations.ToImmutable(), next < end ? next - range.First : null, ambiguous);
         }, cancellation);
 
     private static IEnumerable<AnalysisSortInput> Keys(AnalysisScratchVectorCheckpoint rows, bool byObjectId, CancellationToken cancellation)
