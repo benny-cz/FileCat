@@ -271,6 +271,9 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
                 Reason: "This file system cannot bind replacement to the exact reviewed destination; it was kept.");
     }
 
+    protected static bool IsEfsDestination(FileSystemItemInfo existing) =>
+        OperatingSystem.IsWindows() && existing.Attributes.HasFlag(FileAttributes.Encrypted);
+
     /// <summary>
     /// How a bound replacement that published nothing is journaled: refused before any change, failed with the original
     /// back at its name, or partly applied with the original kept at a recovery name, which is never recorded as canceled
@@ -1312,6 +1315,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         PreserveOrigin(src, writeTo, target);
         if (!Fs.CopyPreservesMetadata && Options.PreserveAttributes) TrySetAttributes(writeTo, info.Attributes & ~FileAttributes.ReadOnly);
 
+        string? retainedTargetPath = null;
         if (!direct)
         {
             // Publish: replacing an existing item is journaled durably first; a new name is group-committed. A move
@@ -1344,8 +1348,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                             Issue(IssueSeverity.Warning, bound.RetainedPath,
                                 "The original destination remains at this recovery name.", StepOutcome.PartiallyApplied);
                     }
-                    else if (bound.RetainedPath is not null)
-                        Issue(IssueSeverity.Warning, bound.RetainedPath,
+                    else if ((retainedTargetPath = bound.RetainedPath) is not null)
+                        Issue(IssueSeverity.Warning, retainedTargetPath,
                             bound.Reason ?? "The replaced destination remains at this recovery name.", StepOutcome.PartiallyApplied);
                     return;
                 }
@@ -1377,7 +1381,10 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             return Result.Committed;
         }
         Job.RecordUndoRemainder(target, "This copy-then-delete move route has no recorded inverse; Undo will not remove the published copy or recreate its source.");
-        if (replace) Job.RecordUndoRemainder(target, "The overwritten destination contents were not retained.");
+        if (replace)
+            Job.RecordUndoRemainder(retainedTargetPath ?? target, retainedTargetPath is null
+                ? "The overwritten destination contents were not retained."
+                : "Undo does not restore the original destination from this recovery name.");
         if (keepSource)
         {
             Job.ItemSkipped();
@@ -1717,6 +1724,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         out QuestionReview? atQuestion, bool replaceable = true)
     {
         atQuestion = null;
+        bool efs = IsEfsDestination(existing);
+        replaceable &= !efs;
         bool typeMismatch = incoming.IsDirectory != existing.IsDirectory;
         bool same = SameItem(src, dst);
         bool newer = IsIncomingNewer(src, dst, incoming, existing);
@@ -1734,7 +1743,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
         if (same && policy is ConflictPolicy.KeepBothRenameIncoming) return DecisionAction.KeepBothRenameIncoming;
         var request = new ConflictRequest(
-            same ? "Copying an item onto itself" : typeMismatch ? "A file and a folder have the same name" : "An item with this name already exists",
+            same ? "Copying an item onto itself" : typeMismatch ? "A file and a folder have the same name" :
+                efs ? "The destination uses Windows EFS" : "An item with this name already exists",
             Path.GetFileName(dst), incoming, existing, src, dst,
             CanReplace: !typeMismatch && !same && replaceable, SameItem: same, TypeMismatch: typeMismatch, IncomingIsNewer: newer,
             SuggestedIncomingName: Path.GetFileName(UniqueSibling(dst, incoming.IsDirectory)),
@@ -2274,8 +2284,9 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
         {
             // Replace as a Move replaces (review finding C7 of f134ba37): offered only where the destination can be replaced
             // bound to its review, and only the destination the question showed.
-            bool replaceable = !existing.IsDirectory && !existing.IsLink && !info.IsDirectory && Fs.CanReplaceReviewed(dst);
-            var request = new ConflictRequest("An item with this name already exists", newName, info, existing, src, dst,
+            bool efs = IsEfsDestination(existing);
+            bool replaceable = !existing.IsDirectory && !existing.IsLink && !info.IsDirectory && !efs && Fs.CanReplaceReviewed(dst);
+            var request = new ConflictRequest(efs ? "The destination uses Windows EFS" : "An item with this name already exists", newName, info, existing, src, dst,
                 CanReplace: replaceable, false, existing.IsDirectory != info.IsDirectory, false, null, null);
             atQuestion = ReviewAtQuestion(request, dst);
             var d = Job.Ask(request);
