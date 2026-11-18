@@ -40,6 +40,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         return true;
     }
     private readonly Dictionary<PanelViewModel, PanelView> _panelViews = new();
+    private readonly List<(Button Button, Border Wrapper, string Id)> _toolbarButtons = [];
     private PanelView? _pointerFocusOwner;
     private long _pointerFocusAt;
     private PanelView? _panelSwitchFocusOwner;
@@ -118,7 +119,11 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         vm.Workspace.PropertyChanged += (_, e) =>
         {
             // Another panel, or another tab in it: the title follows (and the tab's own title as it moves on).
-            if (e.PropertyName is nameof(WorkspaceViewModel.ActivePanel) or nameof(WorkspaceViewModel.ActiveTab)) UpdateTitle();
+            if (e.PropertyName is nameof(WorkspaceViewModel.ActivePanel) or nameof(WorkspaceViewModel.ActiveTab))
+            {
+                _historyMenu?.Close();
+                UpdateTitle();
+            }
         };
         if (vm.Services.Icons.Native is { } native) native.IconsLoaded += () =>
         {
@@ -133,6 +138,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         ThemeManager.ThemeChanged += OnThemeChanged;
         Closed += (_, _) =>
         {
+            _historyMenu?.Close();
             _normalPlacementTimer.Stop();
             ThemeManager.ThemeChanged -= OnThemeChanged;
             vm.CommandAvailabilityChanged -= OnCommandAvailabilityChanged;
@@ -559,9 +565,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         {
             _toolbarRefreshPending = false;
             if (!IsVisible) return;
-            foreach (var wrapper in Toolbar.Children.OfType<Border>())
-                if (wrapper.Child is Button button && button.Tag is string id)
-                    UpdateToolbarButton(button, wrapper, id);
+            foreach (var (button, wrapper, id) in _toolbarButtons)
+                UpdateToolbarButton(button, wrapper, id);
         });
     }
 
@@ -844,7 +849,8 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             return;
         }
         // Menus own their navigation and activation keys before panel shortcuts or quick search see them.
-        if (FocusManager?.GetFocusedElement() is MenuItem) return;
+        if (_historyMenu?.IsOpen == true || FocusManager?.GetFocusedElement() is MenuItem) return;
+        if (!_dialogs.IsOpen && TryOpenHistoryFromKey(e)) return;
         if (!_dialogs.IsOpen && HandlePanelResizeKey(e)) return;
         if (KeyMapper.IsModifierKey(e.Key))
         {
@@ -1232,13 +1238,19 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     {
         var availability = _vm.GetAvailability(id);
         string title = TitleOf(id, _vm.Services.Commands.Get(id)?.Title ?? id);
+        bool history = IsHistoryCommand(id);
+        bool dropDown = button.Classes.Contains("historyDropdown");
+        if (dropDown) title += " history";
         var state = new ToolbarPresentationState(availability, title, CheckedState(id) == true);
         if (Equals(wrapper.Tag, state)) return;
         wrapper.Tag = state;
         button.IsEnabled = availability.Enabled;
         button.Classes.Set("checked", state.Checked);
         Avalonia.Automation.AutomationProperties.SetName(button, title);
-        var tip = ToolbarTip(id, availability);
+        var tip = history && availability.Enabled
+            ? dropDown ? new RichTip(title, detail: "Open the list of visits in this direction.")
+                : HistoryToolbarTip(id, title)
+            : ToolbarTip(id, availability);
         ToolTip.SetTip(button, tip);
         // A disabled child may not receive hover events. Give its enabled parent a separate visual instance.
         ToolTip.SetTip(wrapper, availability.Enabled ? null : ToolbarTip(id, availability));
@@ -1262,7 +1274,9 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     /// </summary>
     private void BuildToolbar()
     {
+        _historyMenu?.Close();
         Toolbar.Children.Clear();
+        _toolbarButtons.Clear();
         bool classic = _vm.Services.Settings.ClassicToolbar;
         ToolbarMore.IsVisible = !classic;
         ToolbarMore.ContextMenu = classic ? null : BuildToolbarMore();
@@ -1292,8 +1306,9 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 _vm.Execute(id);
             };
             var wrapper = new Border { Child = button, Background = Avalonia.Media.Brushes.Transparent };
-            Toolbar.Children.Add(wrapper);
+            _toolbarButtons.Add((button, wrapper, id));
             UpdateToolbarButton(button, wrapper, id);
+            Toolbar.Children.Add(IsHistoryCommand(id) ? BuildHistoryToolbarGroup(button, wrapper, id) : wrapper);
         }
     }
 

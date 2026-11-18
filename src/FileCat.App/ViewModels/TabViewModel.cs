@@ -19,9 +19,6 @@ namespace FileCat.App.ViewModels;
 /// </summary>
 public sealed partial class TabViewModel : ObservableObject, IDisposable
 {
-    private const int MaxHistory = 50;
-    private readonly List<Location> _back = [];
-    private readonly List<Location> _forward = [];
     private int _columnProfile;
     private long _freeBytes = -1;
     private Location? _freeBytesLocation;
@@ -77,8 +74,6 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public Location? Location => Listing.Location;
     /// <summary>Changes at navigation intent, before any provider/connection await; delayed path Paste checks it.</summary>
     internal long NavigationGeneration { get; private set; }
-    public IReadOnlyList<Location> BackHistory => _back;
-    public IReadOnlyList<Location> ForwardHistory => _forward;
 
     [ObservableProperty] private string _title = string.Empty;
     [ObservableProperty] private string _displayPath = string.Empty;
@@ -435,11 +430,15 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// Navigates this tab. A locked tab keeps its location: navigating away opens a new tab instead
     /// (Total Commander's locked tabs, plan §4.1).
     /// </summary>
-    public void Navigate(Location location, string? focusName = null, bool record = true, bool refresh = false)
+    public void Navigate(Location location, string? focusName = null, bool record = true, bool refresh = false) =>
+        Navigate(location, focusName, record, refresh, null);
+
+    private void Navigate(Location location, string? focusName, bool record, bool refresh, HistoryJump? jump)
     {
         if (_disposed) return;
         long intent = BeginNavigationIntent();
         if (!OwnsNavigation(intent)) return;
+        _loadingHistory = jump;
         // The destination's new tab must own preparation too (including its one password question).
         if (IsLocked && Location is not null && !ReturnToRoot && Services.Providers.IsRegistered(location.Scheme) &&
             !Services.Providers.For(location).IsSameLocation(location, Location))
@@ -461,7 +460,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 if (!OwnsNavigation(intent)) return;
                 var connection = new CancellationTokenSource();
                 BeginPendingNavigation(connection, $"Connecting to {Formatters.SafeName(Services.Providers.Display(location))}…");
-                _ = ConnectThenNavigateAsync(location, focusName, record, intent, connection);
+                _ = ConnectThenNavigateAsync(location, focusName, record, intent, connection, jump);
                 return;
             }
         }
@@ -490,11 +489,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 if (!OwnsNavigation(intent))
                 {
                     preparation.Cancel();
-                    _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation, refresh);
+                    _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation, refresh, jump);
                     return;
                 }
                 BeginPendingNavigation(preparation, $"Opening {Formatters.SafeName(Services.Providers.Display(location))}…");
-                _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation, refresh);
+                _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation, refresh, jump);
                 return;
             }
             preparation.Dispose();
@@ -502,12 +501,12 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             {
                 var ready = new PreparedLocation(location, reads);
                 bool retained = false;
-                try { retained = CommitNavigation(location, focusName, record, intent, ready, refresh); }
+                try { retained = NavigatePreparedLocation(location, focusName, record, intent, ready, refresh, jump); }
                 finally { if (!retained) ready.Dispose(); }
                 return;
             }
         }
-        CommitNavigation(location, focusName, record, intent, refresh: refresh);
+        NavigatePreparedLocation(location, focusName, record, intent, null, refresh, jump);
     }
 
     private sealed class NavigationReads : IDisposable
@@ -548,12 +547,20 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private long BeginNavigationIntent()
     {
         RetireMetadataAnalysis();
-        NavigationGeneration++;
+        long intent = ++NavigationGeneration;
+        Listing.CancelStagedNavigation();
+        _loadingHistory = null;
         var old = _pendingNavigation;
+        string? previousBanner = _bannerBeforePendingNavigation;
         _pendingNavigation = null;
         _bannerBeforePendingNavigation = null;
         old?.Cancel();
-        return NavigationGeneration;
+        if (OwnsNavigation(intent))
+        {
+            if (old is not null) Banner = previousBanner;
+            OnPropertyChanged(nameof(NavigationGeneration));
+        }
+        return intent;
     }
 
     private bool OwnsNavigation(long intent, CancellationTokenSource? pending = null) =>
@@ -573,6 +580,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         {
             _pendingNavigation = null;
             _bannerBeforePendingNavigation = null;
+            _loadingHistory = null;
         }
         pending.Dispose();
     }
@@ -581,30 +589,47 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public bool CancelPendingNavigation()
     {
         if (_disposed || _pendingNavigation is null) return false;
-        string? previousBanner = _bannerBeforePendingNavigation;
-        long intent = BeginNavigationIntent();
-        if (OwnsNavigation(intent)) Banner = previousBanner;
+        BeginNavigationIntent();
         return true;
     }
 
-    private bool CommitNavigation(Location location, string? focusName, bool record, long intent, PreparedLocation? prepared = null, bool refresh = false)
+    private bool NavigatePreparedLocation(Location location, string? focusName, bool record, long intent,
+        PreparedLocation? prepared, bool refresh, HistoryJump? jump)
+    {
+        if (jump is null) return CommitNavigation(location, focusName, record, intent, prepared, refresh);
+        if (!OwnsNavigation(intent) || jump.Revision != HistoryRevision) return false;
+        var pending = new CancellationTokenSource();
+        if (_pendingNavigation is null)
+            BeginPendingNavigation(pending, $"Opening {Formatters.SafeName(Services.Providers.Display(location))}…");
+        else
+            _pendingNavigation = pending; // hand off from provider preparation, keeping the original banner
+        _loadingHistory = jump;
+        _ = LoadHistoryAsync(location, jump, intent, pending, prepared);
+        return true;
+    }
+
+    private bool CommitNavigation(Location location, string? focusName, bool record, long intent,
+        PreparedLocation? prepared = null, bool refresh = false, HistoryJump? jump = null, string? fallback = null)
     {
         if (!OwnsNavigation(intent)) return false;
         if (IsLocked && Location is not null && !ReturnToRoot && !Services.Providers.For(location).IsSameLocation(location, Location))
         {
-            Panel.OpenTab(location, focusName, activate: true);
+            if (jump is null) Panel.OpenTab(location, focusName, activate: true);
             return false;
         }
-        if (record && Location is not null && Location != location)
+        bool historyChanged = jump is not null || record && Location is not null &&
+            (Location.Scheme != location.Scheme || !Services.Providers.For(location).IsSameLocation(location, Location));
+        if (jump is not null)
+            MoveHistory(jump);
+        else if (historyChanged)
         {
-            _back.Add(Location);
+            _back.Add(CaptureVisit());
             if (_back.Count > MaxHistory) _back.RemoveAt(0);
             _forward.Clear();
-            NotifyHistoryChanged();
         }
         EndQuickSearch();
         ComparisonLabel = null;
-        Banner = LocationBanner(location);
+        Banner = fallback ?? LocationBanner(location);
         FilterValidationError = null;
         // A change journal reads newest first, times mixed with folders; the tab's own order returns when it leaves.
         if (location.Scheme == Schemes.Journal && Location?.Scheme != Schemes.Journal)
@@ -618,15 +643,22 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             _sortOutsideJournal = null;
         }
         _navigatedFocus = (location, focusName);
-        if (refresh && Location == location && Listing.State != Core.Listing.ListingState.Failed) Listing.Refresh();
+        _historyDetachedTop = null;
+        if (jump is not null)
+        {
+            var visit = location == jump.Visit.Location ? jump.Visit : null;
+            Listing.LoadStagedNavigation(location, visit?.Focus, visit?.Top);
+        }
+        else if (refresh && Location == location && Listing.State != Core.Listing.ListingState.Failed) Listing.Refresh();
         else Listing.Load(location, focusName);
         var previousPreparation = _preparedLocation;
         _preparedLocation = prepared;
         previousPreparation?.Dispose();
         if (IsActiveTab) StartWatching();
-        Services.RecordFolder(location);
+        if (jump is null) Services.RecordFolder(location);
         UpdateTitle();
         AnnounceColumns();
+        if (historyChanged) NotifyHistoryChanged();
         return true;
     }
 
@@ -662,7 +694,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     /// <summary>Connects in the background (the server's key and password prompts appear meanwhile) to learn the home folder.</summary>
     private async Task PrepareThenNavigateAsync(Location requested, Task<PreparedLocation> preparing, string? focusName, bool record,
-        long intent, CancellationTokenSource pending, bool refresh)
+        long intent, CancellationTokenSource pending, bool refresh, HistoryJump? jump)
     {
         string what = Formatters.SafeName(Services.Providers.Display(requested));
         try
@@ -671,7 +703,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             bool retained = false;
             try
             {
-                if (OwnsNavigation(intent, pending)) retained = CommitNavigation(ready.Location, focusName, record, intent, ready, refresh);
+                if (OwnsNavigation(intent, pending))
+                    retained = NavigatePreparedLocation(ready.Location, focusName, record, intent, ready, refresh, jump);
             }
             finally { if (!retained) ready.Dispose(); }
         }
@@ -684,7 +717,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     }
 
     private async Task ConnectThenNavigateAsync(Location location, string? focusName, bool record,
-        long intent, CancellationTokenSource pending)
+        long intent, CancellationTokenSource pending, HistoryJump? jump)
     {
         try
         {
@@ -695,7 +728,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             if (!OwnsNavigation(intent, pending)) return;
             string resolved = Services.SftpProvider.Resolve(location);
             if (OwnsNavigation(intent, pending) && !resolved.StartsWith('~'))
-                CommitNavigation(location.WithPath(resolved), focusName, record, intent);
+                NavigatePreparedLocation(location.WithPath(resolved), focusName, record, intent, null, false, jump);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -706,53 +739,6 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 });
         }
         finally { FinishPendingNavigation(pending); }
-    }
-
-    public bool CanGoBack => _back.Count > 0;
-    public bool CanGoForward => _forward.Count > 0;
-
-    private void NotifyHistoryChanged()
-    {
-        OnPropertyChanged(nameof(CanGoBack));
-        OnPropertyChanged(nameof(CanGoForward));
-    }
-
-    public void GoBack()
-    {
-        if (_back.Count == 0 || Location is null) { CancelPendingNavigation(); return; }
-        long intent = BeginNavigationIntent();
-        if (!OwnsNavigation(intent)) return;
-        var target = _back[^1];
-        _back.RemoveAt(_back.Count - 1);
-        _forward.Add(Location);
-        NotifyHistoryChanged();
-        NavigateHistory(target, intent);
-    }
-
-    public void GoForward()
-    {
-        if (_forward.Count == 0 || Location is null) { CancelPendingNavigation(); return; }
-        long intent = BeginNavigationIntent();
-        if (!OwnsNavigation(intent)) return;
-        var target = _forward[^1];
-        _forward.RemoveAt(_forward.Count - 1);
-        _back.Add(Location);
-        NotifyHistoryChanged();
-        NavigateHistory(target, intent);
-    }
-
-    private void NavigateHistory(Location target, long intent)
-    {
-        if (!OwnsNavigation(intent)) return;
-        EndQuickSearch();
-        ComparisonLabel = null;
-        Banner = LocationBanner(target);
-        FilterValidationError = null;
-        _navigatedFocus = (target, null);
-        Listing.Load(target);
-        if (IsActiveTab) StartWatching();
-        UpdateTitle();
-        AnnounceColumns();
     }
 
     /// <summary>What a location is and how its keys differ, for places whose rules are not a folder's.</summary>
@@ -1166,7 +1152,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             ColumnProfile = ColumnProfile,
             PictureView = PictureView,
             FocusName = focus,
-            BackHistory = _back.TakeLast(10).Where(l => (l.Scheme != Schemes.ResultSet || Core.Search.ResultSetProvider.IsPersistent(l)) &&
+            BackHistory = _back.TakeLast(10).Select(visit => visit.Location).Where(l => (l.Scheme != Schemes.ResultSet || Core.Search.ResultSetProvider.IsPersistent(l)) &&
                                                          !(l.Scheme == Schemes.Recovery && FileCat.Recovery.RecoveryProvider.IsDevice(l))).ToList(),
         };
     }
@@ -1183,7 +1169,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Listing.Sort = Listing.Sort with { Field = s.SortField, Descending = s.SortDescending };
         if (!string.IsNullOrEmpty(s.Filter)) SetFilter(s.Filter);
         _back.Clear();
-        _back.AddRange(s.BackHistory);
+        _back.AddRange(s.BackHistory.TakeLast(MaxHistory).Select(location => new HistoryVisit(location, null, null)));
+        _forward.Clear();
         NotifyHistoryChanged();
     }
 
