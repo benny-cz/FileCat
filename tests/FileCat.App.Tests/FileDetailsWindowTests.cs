@@ -112,11 +112,13 @@ public sealed class FileDetailsWindowTests
         string root = Directory.CreateTempSubdirectory("filecat-link-ui-").FullName;
         string path = Path.Combine(root, "link");
         var destination = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var checkedAt = DateTimeOffset.Parse("2026-11-17T10:00:00Z");
         using var reader = new FileDetailsReader(new UnixFileRecords(), io, "details-link", path);
         var window = new ReportWindow(path, reader, openTarget: (target, _) =>
         {
             destination.SetResult(target);
-            return Task.CompletedTask;
+            return Task.FromResult(new FileDetailsTargetCheck(target, checkedAt,
+                ObservedFact<FileObjectKind>.Known(FileObjectKind.File, FactScope.Entry, "fixture")));
         });
         try
         {
@@ -142,7 +144,71 @@ public sealed class FileDetailsWindowTests
 
             open.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(Path.Combine(root, "second.txt"), await destination.Task.WaitAsync(TimeSpan.FromSeconds(6), ct));
+            await WaitForTargetActionAsync(open, ct);
+            Assert.Matches(@"Target status\s+File", window.Text);
+            Assert.Contains(checkedAt.ToString("O"), window.Text);
+            await window.RefreshDetailsForTestAsync();
+            Assert.Matches(@"Target status\s+Not checked", window.Text);
+            Assert.DoesNotContain("Target checked", window.Text);
         }
         finally { window.Close(); Directory.Delete(root, recursive: true); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(FactState.Missing)]
+    [InlineData(FactState.Denied)]
+    public async Task Target_failure_is_separate_from_the_link_and_refresh_retires_a_pending_check(FactState state)
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(), "Uses a native Unix symbolic link.");
+        using var io = new DeviceIoScheduler();
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-target-status-").FullName;
+        string path = Path.Combine(root, "link");
+        var entered = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var delayed = new TaskCompletionSource<FileDetailsTargetCheck>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var failure = new FileDetailsTargetCheck(Path.Combine(root, "target"), DateTimeOffset.UtcNow,
+            ObservedFact<FileObjectKind>.Unavailable(state, FactScope.Entry, "fixture", "fixture target unavailable"));
+        using var reader = new FileDetailsReader(new UnixFileRecords(), io, "details-link-status", path);
+        bool first = true;
+        var window = new ReportWindow(path, reader, openTarget: (_, token) =>
+        {
+            if (first) { first = false; return Task.FromResult(failure); }
+            entered.SetResult(token);
+            return delayed.Task;
+        });
+        try
+        {
+            File.CreateSymbolicLink(path, "target");
+            window.Show();
+            await window.Reading!;
+            var open = Assert.Single(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Open target location");
+            Assert.True(open.IsEffectivelyVisible);
+            Assert.Matches(@"Target status\s+Not checked", window.Text);
+            open.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForTargetActionAsync(open, ct);
+            Assert.Matches(@"Target status\s+" + state + @": fixture target unavailable", window.Text);
+            Assert.Matches(@"Stored path\s+target", window.Text);
+
+            open.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var targetToken = await entered.Task.WaitAsync(TimeSpan.FromSeconds(6), ct);
+            await window.RefreshDetailsForTestAsync();
+            Assert.True(targetToken.IsCancellationRequested);
+            delayed.SetResult(failure);
+            await WaitForTargetActionAsync(open, ct);
+            Assert.Matches(@"Target status\s+Not checked", window.Text);
+            Assert.DoesNotContain("fixture target unavailable", window.Text);
+        }
+        finally
+        {
+            delayed.TrySetCanceled();
+            window.Close();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static async Task WaitForTargetActionAsync(Button targetAction, CancellationToken ct)
+    {
+        for (int i = 0; i < 300 && !targetAction.IsEnabled; i++) await Task.Delay(20, ct);
+        Assert.True(targetAction.IsEnabled);
     }
 }

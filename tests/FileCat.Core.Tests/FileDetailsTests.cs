@@ -113,6 +113,19 @@ public sealed class FileDetailsTests
     }
 
     [Fact]
+    public void Unix_target_resolution_distinguishes_a_missing_parent_from_an_absent_final_entry()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(), "Requires Unix native pathname resolution.");
+        using var root = new TempDir();
+        var ct = TestContext.Current.CancellationToken;
+        string canonical = Assert.IsType<string>(FileSystem.UnixFiles.RealPath(root.Path));
+        Assert.Equal((Path.Combine(canonical, "missing"), false),
+            FileDetailsTargets.ResolveUnixNavigationPath(Path.Combine(root.Path, "missing"), ct));
+        Assert.Throws<DirectoryNotFoundException>(() =>
+            FileDetailsTargets.ResolveUnixNavigationPath(Path.Combine(root.Path, "missing", "child"), ct));
+    }
+
+    [Fact]
     public void Historical_ext_flags_do_not_promise_implemented_behavior()
     {
         string ext = UnixFileRecords.LsattrText(7, "ext4");

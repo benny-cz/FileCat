@@ -191,6 +191,29 @@ error "The owned details window is unavailable"''')
             speech("VoiceOver announces the resolved destination item", target_file.name)
             assert os.readlink(original) == stored_target
             assert target_file.read_text(encoding="utf-8") == "FILECAT-DATA-PAYLOAD-CANARY"
+            target_file.unlink()
+            osa(f'''tell application "System Events" to tell (first application process whose unix id is {pid})
+repeat with w in windows
+    if (name of w as text) contains "File-system details" then
+        perform action "AXRaise" of w
+        return
+    end if
+end repeat
+end tell
+error "The owned details window is unavailable"''')
+            wait(lambda: "File-system details" in osa(f'tell application "System Events" to tell (first application process whose unix id is {pid}) to get name of front window'),
+                 "the original link report to regain focus")
+            tab_to("Open target location")
+            key("key code 49")
+
+            def missing_status():
+                result = subprocess.check_output([str(observer), "find", str(pid), "Target could not be opened: Missing"],
+                                                 text=True, timeout=8)
+                return next((record for record in map(json.loads, result.splitlines()) if record.get("pid") == str(pid)), None)
+
+            evidence["steps"].append(dict(step="Accessibility exposes a missing destination after explicit activation",
+                                          status=wait(missing_status, "the missing target status")))
+            assert os.readlink(original) == stored_target
             evidence.update(passed=True, storedTarget=stored_target, destination=str(destination))
             return
         tab_to("Read full record")

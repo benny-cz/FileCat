@@ -23,6 +23,9 @@ public sealed record ObservedFact<T>(FactState State, T? Value, FactScope Scope,
 /// <summary>Detached evidence, never a lifetime pin or permission to mutate.</summary>
 public sealed record DetailsIdentity(string Device, string Object);
 
+/// <summary>An explicit destination check, recorded independently of the source link snapshot.</summary>
+public sealed record FileDetailsTargetCheck(string? ResolvedPath, DateTimeOffset CheckedAt, ObservedFact<FileObjectKind> Kind);
+
 public sealed record FileDetailsSnapshot(string Path, DateTimeOffset ObservedAt, Guid Revision)
 {
     public FileObjectKind Kind { get; init; }
@@ -49,7 +52,9 @@ public sealed record FileDetailsSnapshot(string Path, DateTimeOffset ObservedAt,
     public static ObservedFact<T> Unknown<T>(FactScope scope, string reason = "No qualified observation was requested.") =>
         ObservedFact<T>.Unavailable(FactState.NotInspected, scope, "FileCat", reason);
 
-    public InspectionReport ToReport()
+    public InspectionReport ToReport() => ToReport(null);
+
+    public InspectionReport ToReport(FileDetailsTargetCheck? targetCheck)
     {
         string kind = ReparseTag.State == FactState.Known ? ReparsePresentation.Describe(ReparseTag.Value).Label
             : ReparseTag.Source == "FileAttributeTagInfo" ? "Reparse point · type unavailable" : Kind.ToString();
@@ -61,9 +66,11 @@ public sealed record FileDetailsSnapshot(string Path, DateTimeOffset ObservedAt,
         if (Target.State == FactState.Known && Target.Value is { } target)
         {
             string calculated = FileDetailsTargets.TryResolve(this, OperatingSystem.IsWindows(), out string path, out _) ? path : "Unavailable";
-            sections.Add(new("Target", [("Stored path", target.SubstituteName), ("Print name", target.PrintName),
-                ("Relative", target.Relative ? "Yes" : "No"), ("Calculated path", calculated),
-                ("Observation", Target.Source), ("Target status", "Not checked")])
+            var fields = new List<(string, string)> { ("Stored path", target.SubstituteName), ("Print name", target.PrintName),
+                ("Relative", target.Relative ? "Yes" : "No"), ("Calculated path", targetCheck?.ResolvedPath ?? calculated),
+                ("Observation", Target.Source), ("Target status", targetCheck?.Kind.Describe() ?? "Not checked") };
+            if (targetCheck is not null) fields.Add(("Target checked", targetCheck.CheckedAt.ToString("O")));
+            sections.Add(new("Target", fields)
                 { Lines = ["The link object was inspected. Target contents were not read."] });
         }
         else if (Kind == FileObjectKind.SymbolicLink || ReparseTag.State == FactState.Known && ReparseTag.Value == ReparseLinks.MountPointTag)
@@ -97,7 +104,8 @@ public sealed record FileDetailsSnapshot(string Path, DateTimeOffset ObservedAt,
 public sealed record FileDetailsReport(FileDetailsSnapshot Summary, InspectionReport Technical, ReportContentKind ContentKind)
 {
     public const string OmissionNotice = "Not acquired: supplementary-data values and previews, raw volumes and journals, security value collectors, hard-link name inventories and extent/range collectors. These sections require separately bounded and qualified readers.";
-    public string ToText() => Summary.ToReport().ToText() + Environment.NewLine + Technical.ToText();
+    public string ToText() => ToText(null);
+    public string ToText(FileDetailsTargetCheck? targetCheck) => Summary.ToReport(targetCheck).ToText() + Environment.NewLine + Technical.ToText();
     public static FileDetailsReport Metadata(FileDetailsSnapshot summary, params InspectionSection[] sections) => new(summary,
         new InspectionReport("Full record · metadata only", sections.ToImmutableArray(), [OmissionNotice]), ReportContentKind.MetadataOnly);
 }

@@ -65,9 +65,14 @@ public static class FileDetailsTargets
         string leaf = trimmed[(separator + 1)..];
         bool directoryOperand = leaf is "." or "..";
         string directory = directoryOperand ? trimmed : separator == 0 ? "/" : trimmed[..separator];
-        string? canonical = UnixFiles.RealPath(directory);
+        string? canonical = UnixFiles.RealPath(directory, out int error);
         ct.ThrowIfCancellationRequested();
-        if (canonical is null) throw new IOException("The target folder could not be resolved.");
+        if (canonical is null) throw error switch
+        {
+            2 or 20 => new DirectoryNotFoundException("A component of the target folder does not exist or is not a directory."),
+            1 or 13 => new UnauthorizedAccessException("The target folder could not be reached with this access."),
+            _ => new IOException("The target folder could not be resolved."),
+        };
         return (directoryOperand ? canonical : Path.Join(canonical, leaf), directoryOperand || path.EndsWith('/'));
     }
 }

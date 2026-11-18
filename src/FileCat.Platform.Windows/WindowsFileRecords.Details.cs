@@ -24,7 +24,17 @@ public sealed unsafe partial class WindowsFileRecords
         string full = Path.GetFullPath(path);
         using var item = CreateFile(WindowsFileOperations.Long(full), FileReadAttributes | Synchronize, ShareAll, 0,
             OpenExisting, BackupSemantics | OpenReparsePoint, 0);
-        if (item.IsInvalid) throw new IOException("The metadata object could not be opened: " + new Win32Exception(Marshal.GetLastPInvokeError()).Message);
+        if (item.IsInvalid)
+        {
+            int error = Marshal.GetLastPInvokeError();
+            string message = "The metadata object could not be opened: " + new Win32Exception(error).Message;
+            throw error switch
+            {
+                2 or 3 or 53 or 67 => new FileNotFoundException(message, full),
+                5 or 65 => new UnauthorizedAccessException(message),
+                _ => new IOException(message),
+            };
+        }
         ct.ThrowIfCancellationRequested();
         bool Query(int infoClass, Span<byte> bytes)
         {
