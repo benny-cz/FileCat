@@ -347,7 +347,8 @@ public sealed class AppServices : IDisposable
         ArgumentNullException.ThrowIfNull(paths); ArgumentNullException.ThrowIfNull(archiveBackends);
         if (qualifyNtfsStorage && !CanQualifyNtfsStorage)
             throw new PlatformNotSupportedException("NTFS storage review qualification requires Windows 11 x64 and a standard-user session.");
-        var storage = qualifyNtfsStorage ? new FileCat.Platform.Windows.WindowsStorageTransforms().CreateEfsJobCandidate() : null;
+        var storage = qualifyNtfsStorage ? new FileCat.Platform.Windows.WindowsStorageTransforms()
+            .CreateEfsJobCandidate(static show => Avalonia.Threading.Dispatcher.UIThread.Invoke(show)) : null;
         Current = new AppServices(paths, archiveBackends: archiveBackends, storageTransforms: storage);
         return Current;
     }

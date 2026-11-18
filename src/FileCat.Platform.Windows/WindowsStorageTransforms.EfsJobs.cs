@@ -11,10 +11,12 @@ internal sealed unsafe partial class WindowsStorageTransforms
         Func<Job, string, StorageEfsConsent, CancellationToken, StorageEfsRecoveryApproval?> recoveryDecision) =>
         new EfsJobs(this, recoveryDecision ?? throw new ArgumentNullException(nameof(recoveryDecision)));
 
-    internal IStorageTransforms CreateEfsJobCandidate() => CreateEfsJobCandidate(ReviewEfsRecovery);
+    internal IStorageTransforms CreateEfsJobCandidate(WindowsEfsKeys.InvokeBackupWizard? invokeWizard = null) =>
+        new EfsJobs(this, (job, sid, consent, ct) => ReviewEfsRecovery(job, sid, consent, ct, invokeWizard), invokeWizard);
 
     private sealed class EfsJobs(WindowsStorageTransforms adapter,
-        Func<Job, string, StorageEfsConsent, CancellationToken, StorageEfsRecoveryApproval?> recoveryDecision)
+        Func<Job, string, StorageEfsConsent, CancellationToken, StorageEfsRecoveryApproval?> recoveryDecision,
+        WindowsEfsKeys.InvokeBackupWizard? invokeWizard = null)
         : IStorageTransforms, IStorageEfsJobAdapter, IStorageEfsFileBackup
     {
         public StorageProblem? Unavailable(StorageAction action)
@@ -31,7 +33,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             adapter.InspectBackupFiles(this, targets, ct);
 
         public StorageEfsFileBackupResult BackUpFileKey(StorageEfsFileBackupReview review, string certificateSha1, nint ownerWindow, CancellationToken ct) =>
-            adapter.BackUpFileKey(this, review, certificateSha1, ownerWindow, ct);
+            adapter.BackUpFileKey(this, review, certificateSha1, ownerWindow, ct, invokeWizard);
 
         public IStorageReviewLease InspectRoot(StorageTarget target, StorageAction? action, CancellationToken ct) =>
             action is StorageAction.EncryptEfs or StorageAction.DecryptEfs

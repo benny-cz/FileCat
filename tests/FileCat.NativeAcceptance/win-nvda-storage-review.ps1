@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$TestRoot,
-    [Parameter(Mandatory)][string]$NvdaPath
+    [Parameter(Mandatory)][string]$NvdaPath,
+    [switch]$VerifyCanceledKeyBackup
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,6 +23,18 @@ try {
     if (Get-Process dotnet,testhost,FileCat,FileCat.App.Tests,FileCat.*QualificationHost,FileCat.*CrashHarness,nvda -ErrorAction SilentlyContinue) {
         throw 'A test process is already using this VM.'
     }
+    if ($VerifyCanceledKeyBackup) {
+        $record.Stage = 'verify existing fixture key'
+        $currentKey = & (Join-Path $env:WINDIR 'System32\cipher.exe') /y | Out-String
+        $keyLine = [regex]::Match($currentKey, '(?im)^[ \t]*(?:[a-f0-9]{4}[ \t]*){10}\r?$')
+        if ($LASTEXITCODE -ne 0 -or !$keyLine.Success) {
+            throw 'The backup cancellation fixture needs a pre-existing default EFS certificate.'
+        }
+        $fixtureThumbprint = $keyLine.Value -replace '\s', ''
+        if (!(Get-Item -LiteralPath "Cert:\CurrentUser\My\$fixtureThumbprint").HasPrivateKey) {
+            throw 'The existing fixture certificate does not have its private key.'
+        }
+    }
     Add-Type -AssemblyName UIAutomationClient
     Add-Type -AssemblyName UIAutomationTypes
     Add-Type -AssemblyName System.Windows.Forms
@@ -33,6 +46,7 @@ public static class StorageReviewInput {
     private struct Rect { public int Left, Top, Right, Bottom; }
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr window, uint command);
     [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr window);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out Rect bounds);
     [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr window, out Rect bounds);
@@ -135,13 +149,67 @@ public static class StorageReviewInput {
             if ($item.Name) { [pscustomobject]@{Name=$item.Name; Type=$item.ControlType.ProgrammaticName; Enabled=$item.IsEnabled; Offscreen=$item.IsOffscreen} }
         })
     }
-    function Tab-To([string]$name) {
+    function Tab-To([string]$name, [string]$kind) {
         for ($i = 0; $i -lt 30; $i++) {
             $focus = $ui::FocusedElement.Current
-            if ($focus.Name -eq $name -and !$focus.IsOffscreen) { return }
+            if ($focus.Name -eq $name -and !$focus.IsOffscreen -and
+                (!$kind -or $focus.ControlType.ProgrammaticName -eq "ControlType.$kind")) { return }
             Key @(0x09)
         }
         throw "Keyboard focus did not reach $name."
+    }
+    function Review-Decision {
+        $reviewName = "Review decision$([char]0x2026)"
+        $review = Await { Find-Control $reviewName 'Button' } 'the operation decision review button'
+        Require-Front
+        $review.SetFocus()
+        Await { $ui::FocusedElement.Current.Name -eq $reviewName } 'operation decision review focus' | Out-Null
+        Key @(0x20)
+    }
+    function Verify-KeyBackupCancellation {
+        $setupName = "Set up EFS$([char]0x2026)"
+        $backupName = "Back up EFS key$([char]0x2026)"
+        $record.Stage = 'accept setup for the existing EFS key'
+        Tab-To 'Encrypt with EFS' 'Button'
+        [void](Take-Speech)
+        Key @(0x20)
+        Hear 'pending EFS decision' 'a decision is required'
+        Review-Decision
+        Await { Find-Control $setupName 'Button' } 'EFS setup decision' | Out-Null
+        Await { $ui::FocusedElement.Current.Name -eq 'Cancel operation' } 'setup default cancel focus' | Out-Null
+        Hear 'EFS setup' 'Set up EFS|Windows may create or enroll an encryption key'
+        Tab-To $setupName
+        Key @(0x20)
+        $record.Stage = 'cancel the parented Windows EFS backup wizard'
+        Review-Decision
+        $certificates = Await { Find-Control 'Reviewed EFS certificate' 'ComboBox' } 'EFS recovery certificate'
+        $options = @($certificates.FindAll($scope::Descendants, $all) | ForEach-Object { $_.Current.Name })
+        if (($options -join ' ') -notmatch [regex]::Escape($fixtureThumbprint)) {
+            throw 'The reviewed certificate does not match the pre-existing fixture key.'
+        }
+        Tab-To $backupName
+        Key @(0x20)
+        $wizard = Await {
+            $front = [StorageReviewInput]::GetForegroundWindow()
+            if ([StorageReviewInput]::GetWindow($front, 4) -eq $handle) {
+                $element = $ui::FromHandle($front)
+                if ($element.Current.ProcessId -eq $app.Id -and $element.Current.Name -eq 'Back up EFS key') { $front }
+            }
+        } 'the FileCat-owned Windows certificate export wizard'
+        $record.WizardParentMatched = $true
+        if ([StorageReviewInput]::GetForegroundWindow() -ne $wizard) { throw 'The owned backup wizard lost focus.' }
+        [StorageReviewInput]::Send(@(0x1B), $false)
+        Await { [StorageReviewInput]::GetForegroundWindow() -eq $handle } 'focus returning from the backup wizard' | Out-Null
+        $record.WizardRestoredFocus = $true
+        Review-Decision
+        Await { Find-Control 'Windows canceled the backup.*' } 'canceled backup retry text' | Out-Null
+        Hear 'EFS recovery after wizard cancellation' 'Choose EFS recovery|Windows canceled the backup'
+        Snapshot 'recovery after wizard cancellation'
+        Tab-To 'Cancel operation'
+        Key @(0x20)
+        Await { !(Find-Control 'Reviewed EFS certificate' 'ComboBox') } 'recovery dismissal' | Out-Null
+        Await { Find-Control '*0 changed*Stopped; completed changes remain.*' } 'the canceled operation result' | Out-Null
+        Snapshot 'canceled encryption result'
     }
     $fixture = Join-Path $testRoot ('session-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
     $record.Fixture = Split-Path -Leaf $fixture
@@ -162,6 +230,7 @@ public static class StorageReviewInput {
     }
     $exe = Join-Path $testRoot 'app\FileCat.ArchiveQualificationHost.exe'
     $record.FileCatDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $exe) 'FileCat.dll')).Hash
+    $record.WindowsDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $exe) 'FileCat.Platform.Windows.dll')).Hash
     $record.NvdaVersion = (Get-Item -LiteralPath $nvdaPath).VersionInfo.ProductVersion
     $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru -ArgumentList @(
         '--ntfs-storage-review', '--new-instance', '--reset-layout', '--data', "`"$state`"", '--left', "`"$left`"", '--right', "`"$right`"")
@@ -215,43 +284,48 @@ public static class StorageReviewInput {
     Key @(0x20)
     Require-Footer 'Encrypt with EFS' $true
     Snapshot 'encrypt review'
-    Tab-To 'Decrypt'
-    Key @(0x20)
-    Await { Find-Control 'Every selected item passed inspection for this action.' } 'completed decryption inspection' | Out-Null
-    [void](Require-Consent $pathConsent $false)
-    $decryptConsent = Require-Consent 'I understand the selected files will lose EFS protection*' $false
-    if (Find-Control $streamConsent 'CheckBox') { throw 'The encryption acknowledgment stayed visible for decryption.' }
-    Require-Footer 'Decrypt' $false
-    [void](Take-Speech)
-    Tab-To $decryptConsent
-    Hear 'decryption acknowledgment' 'selected files will lose EFS protection'
-    Key @(0x20)
-    [void](Require-Consent $decryptConsent $true)
-    Require-Footer 'Decrypt' $false
-    Tab-To $pathConsent
-    Key @(0x20)
-    Require-Footer 'Decrypt' $true
-    Snapshot 'decrypt review'
-    [void](Take-Speech)
-    Key @(0x1B)
-    Await { !(Find-Control '*Windows file encryption (EFS)*') } 'EFS review dismissal' | Out-Null
-    Hear 'focus after dismissal' 'alpha-review\.txt'
-    $record.Stage = 'open compression review'
-    Show-Command 'NTFS compression' 'NTFS compression*'
-    Hear 'compression review' 'NTFS compression'
-    Tab-To 'Compress'
-    Key @(0x20)
-    Await { Find-Control 'Every selected item passed inspection for this action.' } 'completed compression inspection' | Out-Null
-    Require-Footer 'Compress' $true
-    Tab-To 'Remove compression'
-    Key @(0x20)
-    Await { (Find-Control 'Remove compression' 'Button').Current.IsEnabled } 'removal footer state' | Out-Null
-    Require-Footer 'Remove compression' $true
-    Snapshot 'compression review'
-    [void](Take-Speech)
-    Key @(0x1B)
-    Await { !(Find-Control 'NTFS compression*') } 'compression review dismissal' | Out-Null
-    Hear 'focus after compression dismissal' 'alpha-review\.txt'
+    if ($VerifyCanceledKeyBackup) {
+        Verify-KeyBackupCancellation
+    }
+    else {
+        Tab-To 'Decrypt'
+        Key @(0x20)
+        Await { Find-Control 'Every selected item passed inspection for this action.' } 'completed decryption inspection' | Out-Null
+        [void](Require-Consent $pathConsent $false)
+        $decryptConsent = Require-Consent 'I understand the selected files will lose EFS protection*' $false
+        if (Find-Control $streamConsent 'CheckBox') { throw 'The encryption acknowledgment stayed visible for decryption.' }
+        Require-Footer 'Decrypt' $false
+        [void](Take-Speech)
+        Tab-To $decryptConsent
+        Hear 'decryption acknowledgment' 'selected files will lose EFS protection'
+        Key @(0x20)
+        [void](Require-Consent $decryptConsent $true)
+        Require-Footer 'Decrypt' $false
+        Tab-To $pathConsent
+        Key @(0x20)
+        Require-Footer 'Decrypt' $true
+        Snapshot 'decrypt review'
+        [void](Take-Speech)
+        Key @(0x1B)
+        Await { !(Find-Control '*Windows file encryption (EFS)*') } 'EFS review dismissal' | Out-Null
+        Hear 'focus after dismissal' 'alpha-review\.txt'
+        $record.Stage = 'open compression review'
+        Show-Command 'NTFS compression' 'NTFS compression*'
+        Hear 'compression review' 'NTFS compression'
+        Tab-To 'Compress'
+        Key @(0x20)
+        Await { Find-Control 'Every selected item passed inspection for this action.' } 'completed compression inspection' | Out-Null
+        Require-Footer 'Compress' $true
+        Tab-To 'Remove compression'
+        Key @(0x20)
+        Await { (Find-Control 'Remove compression' 'Button').Current.IsEnabled } 'removal footer state' | Out-Null
+        Require-Footer 'Remove compression' $true
+        Snapshot 'compression review'
+        [void](Take-Speech)
+        Key @(0x1B)
+        Await { !(Find-Control 'NTFS compression*') } 'compression review dismissal' | Out-Null
+        Hear 'focus after compression dismissal' 'alpha-review\.txt'
+    }
     if ((Get-FileHash -LiteralPath $file).Hash -ne $initialHash -or
         ((Get-Item -LiteralPath $file).Attributes -band ([IO.FileAttributes]::Encrypted -bor [IO.FileAttributes]::Compressed))) {
         throw 'The review changed the fixture without approval.'
