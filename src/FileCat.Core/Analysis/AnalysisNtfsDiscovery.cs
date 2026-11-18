@@ -117,18 +117,22 @@ internal sealed class AnalysisNtfsDiscovery : IAsyncDisposable
         }, cancellation).ConfigureAwait(false);
     });
 
-    internal Task<AnalysisNtfsChildren> ReadChildrenAsync(UInt128 parentId, ulong offset, CancellationToken cancellation) =>
+    internal Task<ulong> CountAsync(CancellationToken cancellation) => _owned.RunAsync((data, _) =>
+        data.State == DiscoveryState.Ready ? data.Rows!.Count : throw NotReady(), cancellation);
+
+    internal Task<AnalysisNtfsChildren> ReadChildrenAsync(UInt128 parentId, ulong offset, CancellationToken cancellation, int maximum = PageRecords) =>
         _owned.RunAsync((data, token) =>
         {
-            if (data.State != DiscoveryState.Ready) throw new InvalidOperationException("The NTFS discovery index is unavailable.");
+            if (data.State != DiscoveryState.Ready) throw NotReady();
             if (parentId == 0) throw new ArgumentOutOfRangeException(nameof(parentId));
+            if (maximum is < 1 or > PageRecords) throw new ArgumentOutOfRangeException(nameof(maximum));
             Span<byte> parentKey = stackalloc byte[IdBytes];
             BinaryPrimitives.WriteUInt128BigEndian(parentKey, parentId);
             var index = data.Children!;
             var range = index.PrefixRange(parentKey, token);
             if (offset > range.Count) throw new ArgumentOutOfRangeException(nameof(offset));
             ulong first = range.First + offset, end = range.First + range.Count;
-            ulong next = Math.Min(end, first + PageRecords);
+            ulong next = Math.Min(end, first + (uint)maximum);
             var records = ImmutableArray.CreateBuilder<AnalysisNtfsObservation>();
             int ambiguous = 0;
             byte[]? previous = offset == 0 ? null : index.Read(first - 1, token).Key;
@@ -177,6 +181,7 @@ internal sealed class AnalysisNtfsDiscovery : IAsyncDisposable
         ImmutableCollectionsMarshal.AsImmutableArray(row[HeaderBytes..]));
 
     private static InvalidDataException Invalid() => new("The NTFS discovery records were inconsistent.");
+    private static InvalidOperationException NotReady() => new("The NTFS discovery index is unavailable.");
 
     public ValueTask DisposeAsync() => _owned.DisposeAsync();
 

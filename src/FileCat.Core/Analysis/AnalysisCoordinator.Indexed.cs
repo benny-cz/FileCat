@@ -111,14 +111,15 @@ public sealed partial class AnalysisSession
         if (_storage.MemoryOnly) { await SwitchToMemoryAsync().ConfigureAwait(false); return; }
         try
         {
-            _writer = await AnalysisObservationWriter.CreateAsync(_io, _storage.Devices, _storage.CreateDirectory, _identity, _roots, _policy, _cancel.Token, _storage.CreateProfileQuota).ConfigureAwait(false);
+            _writer = await AnalysisObservationWriter.CreateAsync(_io, _storage.Devices, _storage.CreateDirectory, _identity, _roots, _policy,
+                SourceTaint, _cancel.Token, _storage.CreateProfileQuota).ConfigureAwait(false);
             if (_cancel.IsCancellationRequested) { _writer.RequestStop(); _cancel.Token.ThrowIfCancellationRequested(); }
             await PublishEnumerationAsync().ConfigureAwait(false);
             await FlushCaptureIssuesAsync().ConfigureAwait(false);
         }
         catch (Exception error) when (CanUseMemory(error)) { await SwitchToMemoryAsync().ConfigureAwait(false); }
     }
-    private bool CanUseMemory(Exception error) => _storage?.AllowMemoryFallback == true && !_cancel.IsCancellationRequested &&
+    private bool CanUseMemory(Exception error) => _ntfs is null && _storage?.AllowMemoryFallback == true && !_cancel.IsCancellationRequested &&
         _capturedPaths == 0 && !_memoryFallback && (error is IOException or UnauthorizedAccessException or NotSupportedException) &&
         _storage.Devices.Keys.All(key => _io.GetHealth(key) == DeviceHealth.Responsive) && AnalysisAdmission.Refusal() is null;
     private async Task SwitchToMemoryAsync()
@@ -135,7 +136,7 @@ public sealed partial class AnalysisSession
     }
     private Task PublishEnumerationAsync()
     {
-        if (_writer is null) return Task.CompletedTask;
+        if (_writer is null || _ntfs is not null) return Task.CompletedTask;
         AnalysisEnumerationProgress progress;
         lock (_sync) progress = new(_enumerationRequested, _enumerationCompleted, _enumerationFailed);
         return OnStorageDeviceAsync(async () => { await _writer.PublishEnumerationAsync(progress, _cancel.Token).ConfigureAwait(false); return true; });
@@ -238,7 +239,7 @@ public sealed partial class AnalysisSession
                 if (_disposed) return;
                 _indexing = true; _activeDevice = _storage!.Devices;
                 phase = _phase is AnalysisPhase.Stopped or AnalysisPhase.Failed ? _phase : AnalysisPhase.Finished;
-                coverage = _partial || phase != AnalysisPhase.Finished ? NamespaceCoverage.Partial : NamespaceCoverage.CompleteUnderPolicy;
+                coverage = _partial || phase != AnalysisPhase.Finished || _ntfs is not null ? NamespaceCoverage.Partial : NamespaceCoverage.CompleteUnderPolicy;
                 freshness = _freshness;
                 // Source acquisition is finished. Freeze its final preview before reserving the
                 // dataset revision, so UI polling cannot publish newer preview IDs during indexing.

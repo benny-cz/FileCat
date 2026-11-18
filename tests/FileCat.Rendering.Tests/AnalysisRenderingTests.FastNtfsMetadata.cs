@@ -88,12 +88,15 @@ public sealed partial class AnalysisRenderingTests
         Assert.Throws<AnalysisSourceChangedException>(() => (scope with { Serial = new string('F', 16) }).ReopenRoot(ct));
         Assert.Throws<NotSupportedException>(() => NtfsMetadataVolume.CaptureSelection(Path.Combine(root, "Windows"), ct));
         Assert.Throws<NotSupportedException>(() => NtfsMetadataVolume.CaptureSelection(@"\\?\Volume{c52f967a-01da-4e9a-b201-cffa5f25f2f9}\", ct));
+        using var heldRoot = new WindowsAnalysisBackend(root);
+        Assert.Equal(scope, heldRoot.CaptureDiscoveryVolume(ct));
+        Assert.Equal(NtfsMetadataProtocol.ParseId(scope.RootFileId), heldRoot.DiscoveryPrivateBoundaryId(heldRoot));
     }
 
     [Fact]
     public async Task FastNtfsDiscoveryIndexesRawNamesPrivatelyAndKeepsDimensionsUnmeasured()
     {
-        OrdinaryPreparation(); using var profile = new PreparationFixture();
+        OrdinaryPreparation(); using var profile = new NtfsFixture();
         var ct = TestContext.Current.CancellationToken;
         var now = DateTimeOffset.UtcNow;
         var identity = new SessionIdentity(Guid.NewGuid(), 1, 1, "ntfs-discovery-test", now, now);
@@ -104,9 +107,9 @@ public sealed partial class AnalysisRenderingTests
         string device = PathUtil.GetDeviceKey(profile.Root);
         AnalysisPrivateDirectory Private(string name) => OperatingSystem.IsWindows()
             ? new WindowsAnalysisPrivateDirectory(profile.Root, name) : new UnixAnalysisPrivateDirectory(profile.Root, name);
-        await using (var ordinary = await AnalysisObservationWriter.CreateAsync(profile.Services.Io, device, () => Private("ordinary"), identity, [root], policy, ct))
+        await using (var ordinary = await AnalysisObservationWriter.CreateAsync(profile.Io, device, () => Private("ordinary"), identity, [root], policy, ct))
             await Assert.ThrowsAsync<InvalidOperationException>(() => ordinary.CreateNtfsDiscoveryAsync(1, ct));
-        await using var writer = await AnalysisObservationWriter.CreateAsync(profile.Services.Io, device, () => Private("discovery"),
+        await using var writer = await AnalysisObservationWriter.CreateAsync(profile.Io, device, () => Private("discovery"),
             identity, [root], policy, AnalysisTaint.PrivilegedDerived, ct);
         await using (var discovery = await writer.CreateNtfsDiscoveryAsync(1, ct))
         {
@@ -162,11 +165,11 @@ public sealed partial class AnalysisRenderingTests
     [Fact]
     public async Task FastNtfsDiscoveryRejectsAmbiguousIdentitiesAndUnfinishedInputBeforePublication()
     {
-        OrdinaryPreparation(); using var profile = new PreparationFixture();
+        OrdinaryPreparation(); using var profile = new NtfsFixture();
         var ct = TestContext.Current.CancellationToken;
         var now = DateTimeOffset.UtcNow;
         var root = new RootBinding("1", "file", profile.Root, profile.Root, "root", IdentityAssurance.Verified, "volume");
-        await using var writer = await AnalysisObservationWriter.CreateAsync(profile.Services.Io, PathUtil.GetDeviceKey(profile.Root),
+        await using var writer = await AnalysisObservationWriter.CreateAsync(profile.Io, PathUtil.GetDeviceKey(profile.Root),
             () => OperatingSystem.IsWindows() ? new WindowsAnalysisPrivateDirectory(profile.Root, "refuse") : new UnixAnalysisPrivateDirectory(profile.Root, "refuse"),
             new(Guid.NewGuid(), 1, 1, "ntfs-discovery-test", now, now), [root], new(), AnalysisTaint.PrivilegedDerived, ct);
         var name = ImmutableArray.Create<byte>(65, 0);

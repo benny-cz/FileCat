@@ -55,9 +55,10 @@ public sealed partial class AnalysisSession : IDisposable
     public ulong SourceCloseFailures { get { lock (_sync) return _sourceCloseFailures; } }
     public Task Completion { get; }
     internal AnalysisSession(DeviceIoScheduler io, IAnalysisBackend[] sources, IProgress<AnalysisProgress>? progress, string profileIdentity,
-        AnalysisComponentPreset components, AnalysisStorageOptions? storage = null, SessionIdentity? nextEpoch = null)
+        AnalysisComponentPreset components, AnalysisStorageOptions? storage = null, SessionIdentity? nextEpoch = null,
+        IAnalysisNtfsScan? ntfs = null)
     {
-        _storage = storage; _io = io; _sources = sources; _progress = progress;
+        _storage = storage; _io = io; _sources = sources; _progress = progress; _ntfs = ntfs;
         AnalysisStore? created = null; bool subscribed = false;
         try
         {
@@ -100,12 +101,20 @@ public sealed partial class AnalysisSession : IDisposable
     private AnalysisSnapshot Capture()
     {
         var snapshot = _store.Snapshot(_identity with { Revision = checked(++_revision), ObservedUtc = DateTimeOffset.UtcNow }, _roots, _policy,
-            _phase, _partial || _previewLimited || _phase != AnalysisPhase.Finished ? NamespaceCoverage.Partial : NamespaceCoverage.CompleteUnderPolicy) with { Freshness = _freshness };
+            _phase, _partial || _previewLimited || _phase != AnalysisPhase.Finished || _ntfs is not null ? NamespaceCoverage.Partial : NamespaceCoverage.CompleteUnderPolicy)
+            with { Freshness = _freshness, Taint = SourceTaint };
         if (snapshot.Freshness == AnalysisFreshness.Observed && snapshot.Facts.Any(f => f.Measurement.State == MeasurementState.Changed))
             snapshot = snapshot with { Freshness = AnalysisFreshness.PossiblyStale };
         ulong requested = _previewLimited ? Math.Min(_enumerationRequested, (ulong)snapshot.Nodes.Count(n => n.Kind == AnalysisKind.Directory)) : _enumerationRequested;
         ulong completed = Math.Min(_enumerationCompleted, requested), failed = Math.Min(_enumerationFailed, requested - completed);
-        return snapshot with { CoverageDetails = AnalysisCoverage.Create(snapshot, requested, completed, failed) };
+        var coverage = AnalysisCoverage.Create(snapshot, requested, completed, failed);
+        if (_ntfs is not null)
+        {
+            ulong eligible = (ulong)snapshot.Nodes.Count(n => n.Kind == AnalysisKind.Directory && n.IncludedByPolicy && n.MetadataState == MeasurementState.Known && n.Cloud != true);
+            coverage = coverage with { Qualification = new(false, eligible, false, snapshot.Freshness != AnalysisFreshness.Observed),
+                StaleScopeNodes = coverage.StaleScopeNodes.Order().ToImmutableArray(), StaleRootIds = coverage.StaleRootIds.Order(StringComparer.Ordinal).ToImmutableArray() };
+        }
+        return snapshot with { CoverageDetails = coverage };
     }
     public AnalysisSnapshotLease AcquireSnapshot()
     {
@@ -197,17 +206,24 @@ public sealed partial class AnalysisSession : IDisposable
             {
                 _cancel.Token.ThrowIfCancellationRequested();
                 var source = _sources[i]; var root = _roots[i];
-                if (root.Disposition != AnalysisRootDisposition.Active) continue;
+                if (root.Disposition != AnalysisRootDisposition.Active)
+                {
+                    if (_ntfs is not null) FailNtfsDiscovery(MeasurementState.Unsupported);
+                    continue;
+                }
                 string device = source.IoDeviceKey;
                 lock (_sync) _activeDevice = device;
                 if (_io.GetHealth(device) == DeviceHealth.NotResponding) { Issue("device-not-responding"); continue; }
                 using var turn = await AnalysisScanDevices.AcquireAsync(device, _cancel.Token).ConfigureAwait(false);
-                await WalkAsync(source, root, device).ConfigureAwait(false);
+                if (_ntfs is { } ntfs) await WalkNtfsAsync(ntfs, root).ConfigureAwait(false);
+                else await WalkAsync(source, root, device).ConfigureAwait(false);
                 if (_store.Limited && _writer is null) break;
             }
         }
         catch (OperationCanceledException) when (_cancel.IsCancellationRequested) { }
         catch (OperationCanceledException) when (_io.IsStopped) { Stop("analysis-io-stopped"); }
+        catch (Exception ex) when (_ntfs is not null && ex is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException or TimeoutException)
+        { FailNtfsDiscovery(ex is AnalysisSourceChangedException ? MeasurementState.Changed : MeasurementState.Unsupported); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         { Issue("analysis-source-unavailable"); }
         catch (Exception)

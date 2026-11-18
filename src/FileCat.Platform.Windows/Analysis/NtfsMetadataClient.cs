@@ -27,7 +27,7 @@ internal sealed class NtfsMetadataClient : IAsyncDisposable
 
     internal NtfsMetadataVolume Volume { get; }
 
-    internal static async Task<NtfsMetadataClient> StartAsync(string selectedRoot, bool portable, string exchangeRoot,
+    internal static async Task<NtfsMetadataClient> StartAsync(NtfsMetadataVolume volume, bool portable, string exchangeRoot,
         nint owner, CancellationToken cancellation)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
@@ -39,7 +39,6 @@ internal sealed class NtfsMetadataClient : IAsyncDisposable
         requester.RequireIdentity(requesterImage, requester.Session, elevated: false);
         using var ownImage = ElevationBroker.OpenNtfsMetadataImage(requesterImage);
         using var installedHelper = ElevationBroker.OpenNtfsMetadataImage(helperImage);
-        var volume = NtfsMetadataVolume.CaptureSelection(selectedRoot, cancellation);
         var scope = new ElevatedNtfsMetadataScope(volume.GuidPath, volume.Serial, volume.RootFileId, requester.Creation, requester.Session,
             requester.LogonSid.Value, ElevationBroker.ImageId(ownImage), NtfsMetadataProtocol.Version, AnalysisLimits.Observations,
             ElevationPlanCodec.MetadataFields);

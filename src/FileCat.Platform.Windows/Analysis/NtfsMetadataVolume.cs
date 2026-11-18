@@ -81,7 +81,7 @@ internal sealed partial record NtfsMetadataVolume(string GuidPath, string Serial
             throw new IOException("The selected NTFS root could not be opened.");
         }
 
-        internal static unsafe NtfsMetadataVolume Capture(string canonical, SafeFileHandle root)
+        internal static unsafe NtfsMetadataVolume Capture(string canonical, SafeHandle root)
         {
             var path = new char[64];
             uint written = GetFinalPathNameByHandle(root, path, (uint)path.Length, 1 /* VOLUME_NAME_GUID */);
@@ -148,13 +148,13 @@ internal sealed partial record NtfsMetadataVolume(string GuidPath, string Serial
         [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
         internal static partial SafeFileHandle CreateFile(string path, uint access, uint share, nint security, uint disposition, uint flags, nint template);
         [DllImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern uint GetFinalPathNameByHandle(SafeFileHandle file, [Out] char[] path, uint size, uint flags);
+        private static extern uint GetFinalPathNameByHandle(SafeHandle file, [Out] char[] path, uint size, uint flags);
         [LibraryImport("kernel32.dll", EntryPoint = "GetVolumeInformationByHandleW", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static unsafe partial bool GetVolumeInformationByHandle(SafeFileHandle file, ushort* label, uint labelSize, uint* serial,
+        private static unsafe partial bool GetVolumeInformationByHandle(SafeHandle file, ushort* label, uint labelSize, uint* serial,
             uint* maximumComponent, uint* flags, ushort* format, uint formatSize);
         [LibraryImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static unsafe partial bool GetFileInformationByHandleEx(SafeFileHandle file, int info, byte* buffer, uint capacity);
+        private static unsafe partial bool GetFileInformationByHandleEx(SafeHandle file, int info, byte* buffer, uint capacity);
     }
 }

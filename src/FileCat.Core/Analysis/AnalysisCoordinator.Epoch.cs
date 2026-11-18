@@ -50,6 +50,7 @@ public sealed partial class AnalysisSession
         lock (_sync)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_ntfs is not null) throw new InvalidOperationException("Start a standard analysis or explicitly approve a new fast NTFS scan.");
             if (!ReferenceEquals(io, _io) || profile != _identity.HostProfile)
                 throw new InvalidOperationException("A rescan must use its original runtime scheduler and profile.");
             if (!Completion.IsCompletedSuccessfully || !_workerFinished || _sourceCloseFailures != 0 || _final is null)

@@ -155,7 +155,21 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
     // Sources are already captured/reviewed native capabilities. Ownership transfers on successful
     // Start exactly as in AnalysisCoordinator; no source or profile is reconstructed from saved data.
     internal AnalysisSession Start(IReadOnlyList<IAnalysisBackend> sources, IProgress<AnalysisProgress>? progress = null,
-        AnalysisComponentPreset components = AnalysisComponentPreset.Standard)
+        AnalysisComponentPreset components = AnalysisComponentPreset.Standard) => Start(sources, progress, components, null);
+
+    internal async Task<AnalysisSession> StartNtfsAsync(FileCat.Platform.Windows.Analysis.WindowsAnalysisBackend source, nint owner,
+        IProgress<AnalysisProgress>? progress, CancellationToken cancellation)
+    {
+        if (!_indexedStorage || MemoryPreparationNotice is not null || _services.Paths.IsPortable)
+            throw new NotSupportedException("Fast NTFS analysis requires installed FileCat and verified private scratch. Use standard analysis here.");
+        var scan = await AnalysisIo.Run(_services.Io, ((IAnalysisBackend)source).IoDeviceKey, token =>
+            source.PrepareNtfsDiscovery(_services.Paths.IsPortable, _services.Paths.ElevationExchangeDirectory, owner, token), cancellation).ConfigureAwait(false);
+        cancellation.ThrowIfCancellationRequested();
+        return Start([source], progress, AnalysisComponentPreset.Standard, scan);
+    }
+
+    private AnalysisSession Start(IReadOnlyList<IAnalysisBackend> sources, IProgress<AnalysisProgress>? progress,
+        AnalysisComponentPreset components, IAnalysisNtfsScan? ntfs)
     {
         lock (_gate)
         {
@@ -164,8 +178,7 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
             int sourceCount = sources.Count;
             if (sourceCount is < 1 or > AnalysisLimits.Roots) throw new ArgumentException("Choose between one and 32 prepared roots.", nameof(sources));
             if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
-            var locations = new string[sourceCount];
-            for (int i = 0; i < sourceCount; i++) locations[i] = RuntimeReopenLocator(sources[i]);
+            var locations = ntfs is null ? sources.Select(RuntimeReopenLocator).ToArray() : [];
             var storage = new AnalysisStorageOptions(PathUtil.GetDeviceKey(_privatePaths[1]),
                 () => Interlocked.Exchange(ref _scratch, null) ?? throw new IOException("Private scratch ownership has already transferred."),
                 [new(PathUtil.GetDeviceKey(_privatePaths[0]), () => TakeProtection(0)) { RequiresDisjointSource = _ancestorGuard[0] },
@@ -174,7 +187,10 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
             { CreateProfileQuota = _indexedStorage && MemoryPreparationNotice is null ? OpenProfileQuota : null, ProfileDeviceKey = PathUtil.GetDeviceKey(_privatePaths[0]),
                 AllowMemoryFallback = true, MemoryOnly = !_indexedStorage || MemoryPreparationNotice is not null };
             var coordinator = new AnalysisCoordinator(_services.Io, ProfileIdentity);
-            _session = _rescanPredecessor is { } previous ? coordinator.Rescan(previous, sources, progress, components, storage) :
+            if (ntfs is not null && _rescanPredecessor is not null)
+                throw new InvalidOperationException("Fast NTFS analysis requires a new, explicitly approved session.");
+            _session = ntfs is not null ? coordinator.StartNtfs(ntfs, storage, progress) :
+                _rescanPredecessor is { } previous ? coordinator.Rescan(previous, sources, progress, components, storage) :
                 coordinator.Start(sources, progress, components, storage);
             _rescanPredecessor = null;
             _runtimeLocations = locations; _runtimeComponents = components;
