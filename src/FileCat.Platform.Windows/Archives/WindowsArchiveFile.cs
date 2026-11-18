@@ -131,6 +131,15 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
 
     internal void BindEditSaveCopyArtifact() => BindClearSource(ArchiveOuterEfs.EditTemporaryOutputUnavailable);
 
+    internal IDisposable? HoldClearUpdateInput()
+    {
+        lock (parent.Gate)
+        {
+            EnsureLive();
+            return WindowsFileOperations.HoldClearEditInput(handle, ArchiveOuterEfs.UpdateUnavailable);
+        }
+    }
+
     private void BindClearSource(string refusal)
     {
         lock (parent.Gate)

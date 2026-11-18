@@ -18,6 +18,66 @@ public sealed class WindowsArchiveEfsEditTests
     private const string Contents = "Synthetic FileCat archive member";
 
     [Fact]
+    public void The_legacy_zip_stays_clear_from_the_held_baseline_through_member_extraction()
+    {
+        RequireEfs();
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-efs-edit-admit-").FullName;
+        string archive = Path.Join(root, "source.zip");
+        var files = new WindowsFileOperations();
+        var provider = new ZipProvider(Path.Join(root, "cache")) { GetSourceIdentity = files.GetFileIdentity };
+        try
+        {
+            CreateZip(archive);
+            var member = Member(provider, archive);
+            var expectedBaseline = ArchiveBaseline.Of(archive);
+            var attempts = new List<Exception?>();
+            provider.GetOpenedSourceIdentity = handle =>
+            {
+                attempts.Add(Record.Exception(() => File.Encrypt(archive)));
+                return files.GetOpenedFileIdentity(handle);
+            };
+
+            var store = new EditSessionStore(Path.Join(root, "sessions"), files, WindowsEditDirectoryLease.OpenRoot);
+            var record = store.Create(provider, member, ct);
+            Assert.NotEmpty(attempts);
+            Assert.All(attempts, AssertBlockedEncryption);
+            Assert.Equal(expectedBaseline, record.Baseline);
+            Assert.Equal(Contents, File.ReadAllText(record.WorkingPath));
+        }
+        finally { provider.Release(archive); Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void The_native_archive_review_lease_holds_the_exact_outer_file_clear_until_release()
+    {
+        RequireEfs();
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-efs-review-lease-").FullName;
+        string archive = Path.Join(root, "source.zip");
+        try
+        {
+            CreateZip(archive);
+            byte[] expected = File.ReadAllBytes(archive);
+            using (var lease = new WindowsArchiveJobBackend.ReadLease(archive, ct))
+            {
+                var receipt = lease.File.Observe(ct);
+                using var view = lease.File.OpenReadView(receipt, ct);
+                AssertBlockedEncryption(Record.Exception(() => File.Encrypt(archive)));
+                byte[] actual = new byte[expected.Length];
+                view.ReadExactly(actual);
+                Assert.Equal(expected, actual);
+            }
+
+            File.Encrypt(archive);
+            Assert.True(File.GetAttributes(archive).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(ArchiveOuterEfs.UpdateUnavailable,
+                Assert.Throws<ArchiveWriteException>(() => new WindowsArchiveJobBackend.ReadLease(archive, ct)).Message);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void Encrypting_the_outer_zip_refuses_the_legacy_edit_before_working_output()
     {
         RequireEfs();

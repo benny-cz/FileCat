@@ -2,7 +2,7 @@ using FileCat.Core.FileSystem;
 
 namespace FileCat.Core.Resources;
 
-internal enum ContentOutputKind { DiskCache, Extraction, Drag, RemoteUpload }
+internal enum ContentOutputKind { DiskCache, Extraction, Drag, RemoteUpload, EditSession }
 
 /// <summary>Admits derived output through a provider that can verify the protection of every actual input.</summary>
 internal interface IUnprotectedContentOutput

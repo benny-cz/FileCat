@@ -33,6 +33,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
     public const long MaxMemberInMemory = 32L * 1024 * 1024;
     public const long MaxExpansionRatio = 1000;
     public const long MaxSpooledMember = 8L * 1024 * 1024 * 1024;
+    internal const string NestedEditUnavailable = "Archives inside archives are read-only. Extract the inner archive with F5 to change it.";
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { "zip", "jar", "nupkg", "vsix", "whl", "xpi", "snupkg", "aar" };
     // One owner builds/publishes or retires indexes; concurrent misses must not abandon a competing build.
     private readonly object _cacheLock = new();
@@ -265,7 +266,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
     public string? WhyReadOnly(Location location)
     {
         if (location.Container is not { IsFileSystem: true } container)
-            return "Archives inside archives are read-only; extract the inner archive with F5 to change it.";
+            return NestedEditUnavailable;
         var index = _cache.Where(kv => kv.Key.StartsWith(container.Path + "|", PathUtil.SafetyComparison)).Select(kv => kv.Value).FirstOrDefault();
         if (index is null) return null;
         if (index.ReadOnly) return "The archive file is read-only; clear its read-only attribute to change it.";
@@ -392,7 +393,11 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
 
     public override IContentSource? OpenContent(ItemRef item) => OpenContent(item, retainedEdit: false);
 
-    internal IContentSource? OpenEditContent(ItemRef item) => OpenContent(item, retainedEdit: true);
+    internal IContentSource? OpenEditContent(ItemRef item, Action<Microsoft.Win32.SafeHandles.SafeFileHandle>? reviewInput = null)
+    {
+        if (item.Parent.Container is not { IsFileSystem: true }) throw new NotSupportedException(NestedEditUnavailable);
+        return OpenContent(item, retainedEdit: true, output: null, out _, reviewInput);
+    }
 
     IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind) =>
         OpenContent(item, retainedEdit: false, output: kind);
@@ -409,7 +414,8 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
     private IContentSource? OpenContent(ItemRef item, bool retainedEdit, ContentOutputKind? output = null) =>
         OpenContent(item, retainedEdit, output, out _);
 
-    private IContentSource? OpenContent(ItemRef item, bool retainedEdit, ContentOutputKind? output, out OutputEfsObservation? provenance)
+    private IContentSource? OpenContent(ItemRef item, bool retainedEdit, ContentOutputKind? output, out OutputEfsObservation? provenance,
+        Action<Microsoft.Win32.SafeHandles.SafeFileHandle>? reviewInput = null)
     {
         using var source = ZipPath(item.Parent);
         // Resolve nested paths before taking the cache lock; cross-provider spool locks stay ordered.
@@ -425,7 +431,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
             if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{full}\" is not in the archive.");
             if (tag.Encrypted) return null;
             if (tag.UnsafeReason is not null) throw new InvalidDataException("This member has an unsafe name: " + tag.UnsafeReason);
-            return index.Extract(tag, _tempDirectory, retainedEdit, output);
+            return index.Extract(tag, _tempDirectory, retainedEdit, output, reviewInput);
         }
     }
 
@@ -490,7 +496,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
         Location root;
         lock (_cacheLock)
             root = _cache.Values.Where(index => index.Revision?.Known == target.Assessment.SourceSha256 && index.ListingRoot is not null)
-                .Select(index => index.ListingRoot!).FirstOrDefault(location => location.Container?.Path is { } path &&
+                .Select(index => index.ListingRoot!).FirstOrDefault(location => location.Container is { IsFileSystem: true, Path: var path } &&
                     PathUtil.SafetyComparer.Equals(Path.GetFullPath(path), target.Path)) ?? ForFile(target.Path);
         using var source = ZipPath(root);
         var (index, lease) = HoldEditIndex(root, source);
@@ -638,7 +644,7 @@ internal sealed class ZipIndex : IDisposable
 
     private void VerifyClearEditSource()
     {
-        ArchiveOuterEfs.RequireClear(_handle, ArchiveOuterEfs.EditUnavailable);
+        RequireClearOutputSource(ContentOutputKind.EditSession);
         VerifySource();
     }
 
@@ -888,7 +894,8 @@ internal sealed class ZipIndex : IDisposable
     /// (<see cref="ProgressiveContent"/>), so the first bytes are there at once. Either way the declared size is not
     /// trusted and the member's checksum is verified (.NET does not check it).
     /// </summary>
-    public IContentSource Extract(ZipMemberTag tag, string tempDirectory, bool retainedEdit = false, ContentOutputKind? output = null)
+    public IContentSource Extract(ZipMemberTag tag, string tempDirectory, bool retainedEdit = false, ContentOutputKind? output = null,
+        Action<Microsoft.Win32.SafeHandles.SafeFileHandle>? reviewInput = null)
     {
         LastUsed = DateTime.UtcNow;
         lock (_lock)
@@ -900,6 +907,7 @@ internal sealed class ZipIndex : IDisposable
                 if (output is { } purpose) RequireClearOutputSource(purpose);
             }
             VerifyInput();
+            reviewInput?.Invoke(_handle);
             if (_closing && _leases == 0) throw new IOException("The archive was closed; open it again.");
             var entry = _entries[tag.EntryIndex];
             var limits = Limits(entry);
@@ -910,7 +918,7 @@ internal sealed class ZipIndex : IDisposable
                     tempDirectory, Returned, VerifyInput, RequireClearSpoolSource);
             }
             var memory = new MemoryStream((int)Math.Max(0, entry.Length));
-            using (var source = entry.Open()) limits.CopyAll(source, memory, default, output is null ? null : VerifyInput);
+            using (var source = entry.Open()) limits.CopyAll(source, memory, default, retainedEdit || output is not null ? VerifyInput : null);
             VerifyInput();
             // Ordinary members already have an exact-sized backing array. Keep its logical length instead of
             // copying the whole payload just before a viewer or nested reader allocates again. A malformed

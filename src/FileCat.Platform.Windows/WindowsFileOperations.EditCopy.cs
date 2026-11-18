@@ -18,7 +18,7 @@ public partial class WindowsFileOperations : IEditCopyPublisher
 
     IDisposable? IEditCopyPublisher.HoldClearEditInput(SafeFileHandle source, string refusal) => HoldClearEditInput(source, refusal);
 
-    private static WindowsFileTransaction? HoldClearEditInput(SafeFileHandle source, string refusal)
+    internal static WindowsFileTransaction? HoldClearEditInput(SafeFileHandle source, string refusal)
     {
         ArchiveOuterEfs.RequireClear(source, refusal);
         try { return WindowsFileTransaction.PinSource(source, refusal); }
