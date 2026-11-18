@@ -27,6 +27,8 @@ internal sealed class ArchiveMutationReadStream : Stream
         if (windowsHandle is not null) ArchiveOuterEfs.RequireClear(windowsHandle, refusal);
     }
 
+    internal SafeFileHandle Handle => windowsHandle ?? file.SafeFileHandle;
+
     public override bool CanRead => file.CanRead;
     public override bool CanSeek => file.CanSeek;
     public override bool CanWrite => false;

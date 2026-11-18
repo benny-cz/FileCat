@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Archives;
 
@@ -23,12 +24,14 @@ internal sealed class LegacyZipPublicationTransaction
     private readonly int step;
     private byte[]? openedSourceDigest;
     private byte[]? intendedPublishedDigest;
+    private string? createdStageIdentity;
     private string? intendedPublishedIdentity;
     private string? replacedOriginalIdentity;
     private byte[]? replacedOriginalDigest;
     private string? replacedOriginalMark;
     private bool originalMarkReadable;
     private bool published;
+    private bool stageCreated;
     private string? backup;
     private bool prepared;
     private bool attempted;
@@ -36,7 +39,6 @@ internal sealed class LegacyZipPublicationTransaction
     private string? requiredOrigin;
     private readonly ArchiveMoveSources? move;
 
-    public string StagePath => temp;
     public bool Published => published;
     internal string PreparedSha256 => Convert.ToHexString(intendedPublishedDigest ?? throw new InvalidOperationException("No prepared archive digest."));
     internal string? RequiredOrigin => requiredOrigin;
@@ -54,6 +56,48 @@ internal sealed class LegacyZipPublicationTransaction
         step = Journal.Intent("zip-update", archive, null, temp);
     }
 
+    public FileStream CreateStage()
+    {
+        var output = new FileStream(temp, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, BufferSize);
+        stageCreated = true;
+        try
+        {
+            createdStageIdentity = Fs.GetOpenedFileIdentity(output.SafeFileHandle);
+            RequireClearStage(output.SafeFileHandle);
+            return output;
+        }
+        catch { output.Dispose(); throw; }
+    }
+
+    public void RequireClearStage(SafeFileHandle stage)
+    {
+        if (updating) ArchiveOuterEfs.RequireClear(stage, ArchiveOuterEfs.UpdateStageUnavailable);
+    }
+
+    public Stream OpenStageRead()
+    {
+        if (!updating)
+            return new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.SequentialScan);
+        var read = new ArchiveMutationReadStream(temp, ArchiveOuterEfs.UpdateStageUnavailable);
+        try
+        {
+            RequireCreatedStage(Fs.GetOpenedFileIdentity(read.Handle));
+            return read;
+        }
+        catch { read.Dispose(); throw; }
+    }
+
+    private void RequireCreatedStage(string? identity)
+    {
+        if (createdStageIdentity is not null && !string.Equals(identity, createdStageIdentity, StringComparison.Ordinal))
+            throw new IOException("Another file now has the rebuilt ZIP's temporary name; the original archive was kept.");
+    }
+
+    private void RequireClearPath(string path, string refusal)
+    {
+        if (OperatingSystem.IsWindows()) ArchiveOuterEfs.RequireClear(File.GetAttributes(path), refusal);
+    }
+
     public void CaptureOpenedSource(ArchiveMutationReadStream source)
     {
         if (!updating || openedSourceDigest is not null || prepared) throw new InvalidOperationException("Invalid ZIP source capture phase.");
@@ -62,21 +106,30 @@ internal sealed class LegacyZipPublicationTransaction
             throw new IOException("The archive changed after it was opened, so this change was not applied. Open it again and repeat the change.");
     }
 
+    public void CaptureVerifiedStage(Stream stage)
+    {
+        if (updating || move is not null)
+        {
+            intendedPublishedDigest = DigestOpened(stage);
+            intendedPublishedIdentity = createdStageIdentity ?? Fs.GetFileIdentity(temp);
+        }
+    }
+
     public void Prepare()
     {
         if (prepared || updating && openedSourceDigest is null) throw new InvalidOperationException("Invalid ZIP publication preparation phase.");
         if (updating && !plan.Baseline!.MatchesForMutation(archive, Job.Checkpoint))
             throw new IOException("The archive changed while it was being rebuilt; the original was kept.");
         mark = updating ? Fs.ReadOriginMark(archive) : null;
+        if (updating)
+        {
+            RequireCreatedStage(Fs.GetFileIdentity(temp));
+            RequireClearPath(temp, ArchiveOuterEfs.UpdateStageUnavailable);
+        }
         requiredOrigin = move?.RequiredOrigin(mark) ?? mark;
         if (requiredOrigin is not null &&
             (!Fs.WriteOriginMark(temp, requiredOrigin) || !string.Equals(Fs.ReadOriginMark(temp), requiredOrigin, StringComparison.Ordinal)))
             throw new IOException("The rebuilt archive could not keep its downloaded-from-the-internet mark; the original was kept.");
-        if (updating || move is not null)
-        {
-            intendedPublishedDigest = DigestFile(temp);
-            intendedPublishedIdentity = Fs.GetFileIdentity(temp);
-        }
         prepared = true;
     }
 
@@ -87,7 +140,14 @@ internal sealed class LegacyZipPublicationTransaction
         if (updating)
         {
             if (OperatingSystem.IsWindows())
-                ArchiveOuterEfs.RequireClear(File.GetAttributes(archive), ArchiveOuterEfs.UpdateUnavailable);
+            {
+                using var current = OpenStageRead();
+                if (!DigestOpened(current).AsSpan().SequenceEqual(intendedPublishedDigest))
+                    throw new IOException("The rebuilt ZIP changed after verification; the original archive was kept.");
+            }
+            RequireCreatedStage(Fs.GetFileIdentity(temp));
+            RequireClearPath(temp, ArchiveOuterEfs.UpdateStageUnavailable);
+            RequireClearPath(archive, ArchiveOuterEfs.UpdateUnavailable);
             // ReplaceFile keeps the original's security, attributes, and creation time on the rebuilt file.
             // Keep the actual original even when it was unmarked at the earlier read. Another
             // process can add a download mark without changing ZIP bytes or last-write time.
@@ -104,16 +164,15 @@ internal sealed class LegacyZipPublicationTransaction
             try
             {
                 publishedIdentity = Fs.GetFileIdentity(archive);
-                // Unix replacement renames the verified temp inode into place. Detect a
-                // replacement even before the backup inspection begins when possible.
-                if ((OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) &&
-                    intendedPublishedIdentity is not null &&
+                // Unix rename and Windows ReplaceFile both publish the replacement's identity.
+                if (intendedPublishedIdentity is not null &&
                     !string.Equals(publishedIdentity, intendedPublishedIdentity, StringComparison.Ordinal))
-                    integrityError = new IOException("The published archive pathname changed immediately after replacement.");
+                    throw new IOException("The published archive pathname changed immediately after replacement.");
+                RequireClearPath(archive, ArchiveOuterEfs.UpdateOutputUnavailable);
                 // The backup is the pathname's actual file at replacement time. It may differ
                 // from the opened source even when a late check of path metadata passed.
                 replacedOriginalIdentity = Fs.GetFileIdentity(backup!);
-                replacedOriginalDigest = DigestFile(backup!, checkCancellation: false);
+                replacedOriginalDigest = DigestClearFile(backup!, ArchiveOuterEfs.UpdateUnavailable);
                 replacedOriginalMark = Fs.ReadOriginMark(backup!);
                 originalMarkReadable = true;
                 encryptedBackup = OperatingSystem.IsWindows() && File.GetAttributes(backup!).HasFlag(FileAttributes.Encrypted);
@@ -125,6 +184,15 @@ internal sealed class LegacyZipPublicationTransaction
                     integrityError = new IOException("The original archive's download mark changed during the update.");
                 else if (requiredOrigin is not null && !string.Equals(Fs.ReadOriginMark(archive), requiredOrigin, StringComparison.Ordinal))
                     integrityError = new IOException("The replacement archive lost its downloaded-from-the-internet mark.");
+                RequireClearPath(archive, ArchiveOuterEfs.UpdateOutputUnavailable);
+                if (OperatingSystem.IsWindows() && integrityError is null)
+                {
+                    using var current = new ArchiveMutationReadStream(archive, ArchiveOuterEfs.UpdateOutputUnavailable);
+                    if (intendedPublishedIdentity is not null && Fs.GetOpenedFileIdentity(current.Handle) != intendedPublishedIdentity)
+                        throw new IOException("The published archive pathname changed before the output was verified.");
+                    if (!DigestOpened(current, checkCancellation: false).AsSpan().SequenceEqual(intendedPublishedDigest))
+                        integrityError = new IOException("The published ZIP differs from the verified rebuild.");
+                }
             }
             catch (Exception ex) { integrityError = ex; }
             if (integrityError is not null)
@@ -132,30 +200,36 @@ internal sealed class LegacyZipPublicationTransaction
                 Exception? restoreError = null;
                 try
                 {
+                    if (integrityError is ArchiveWriteException { Message: ArchiveOuterEfs.UpdateOutputUnavailable })
+                        throw new IOException("Automatic restoration would remove a ZIP observed with EFS protection.");
                     // A different inode can carry identical ZIP bytes and a different origin
                     // mark. Never roll back over a pathname that is no longer our publication.
                     if (publishedIdentity is not null &&
                         !string.Equals(Fs.GetFileIdentity(archive), publishedIdentity, StringComparison.Ordinal))
                         throw new IOException("The published archive pathname changed before restoration.");
-                    if ((OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) &&
-                        intendedPublishedIdentity is not null &&
+                    if (intendedPublishedIdentity is not null &&
                         !string.Equals(publishedIdentity, intendedPublishedIdentity, StringComparison.Ordinal))
                         throw new IOException("The published archive pathname changed before restoration.");
+                    RequireClearPath(archive, ArchiveOuterEfs.UpdateOutputUnavailable);
                     // A newly added or changed Internet mark belongs to a concurrent change,
                     // even when bytes and inode are unchanged. If a mark disappeared, rolling
                     // back to the marked backup is still the safe result.
                     if (Fs.ReadOriginMark(archive) is { } currentMark &&
                         !string.Equals(currentMark, requiredOrigin, StringComparison.Ordinal))
                         throw new IOException("The published archive's download mark changed before restoration.");
-                    if (!DigestFile(archive, checkCancellation: false).AsSpan().SequenceEqual(intendedPublishedDigest))
+                    if (!DigestClearFile(archive, ArchiveOuterEfs.UpdateOutputUnavailable).AsSpan().SequenceEqual(intendedPublishedDigest))
                         throw new IOException("The published archive pathname changed before restoration.");
+                    RequireClearPath(archive, ArchiveOuterEfs.UpdateOutputUnavailable);
+                    if (replacedOriginalDigest is null || !originalMarkReadable)
+                        throw new IOException("The original archive backup could not be verified before restoration.");
+                    if (replacedOriginalIdentity is not null &&
+                        !string.Equals(Fs.GetFileIdentity(backup!), replacedOriginalIdentity, StringComparison.Ordinal))
+                        throw new IOException("The original archive backup pathname changed before restoration.");
                     // Restore the whole file that occupied the pathname at replacement time,
                     // including its bytes and attached metadata.
                     File.Move(backup!, archive, overwrite: true);
                     backup = null;
-                    if (replacedOriginalDigest is null ||
-                        !DigestFile(archive, checkCancellation: false).AsSpan().SequenceEqual(replacedOriginalDigest) ||
-                        !originalMarkReadable ||
+                    if (!DigestRestoredFile(archive, encryptedBackup).AsSpan().SequenceEqual(replacedOriginalDigest) ||
                         encryptedBackup && !File.GetAttributes(archive).HasFlag(FileAttributes.Encrypted) ||
                         !string.Equals(Fs.ReadOriginMark(archive), replacedOriginalMark, StringComparison.Ordinal))
                         throw new IOException("The archive's bytes or protection could not be verified after restoration.");
@@ -166,6 +240,7 @@ internal sealed class LegacyZipPublicationTransaction
                     string guidance = backup is null
                         ? "Restoration could not be verified; inspect the archive before using it."
                         : $"Restoration would overwrite changed archive bytes or could not be verified. The backup remains at {backup}; inspect both files before using them.";
+                    guidance = integrityError.Message + " " + guidance;
                     Journal.Done(step, StepOutcome.Uncertain, guidance);
                     Issue(IssueSeverity.Error, archive, guidance, StepOutcome.Uncertain, "security");
                     throw new IOException("The archive changed and restoration could not be verified.",
@@ -191,7 +266,7 @@ internal sealed class LegacyZipPublicationTransaction
                     !string.Equals(Fs.GetFileIdentity(backup), replacedOriginalIdentity, StringComparison.Ordinal))
                     throw new IOException("The original archive backup pathname changed before cleanup.");
                 if (replacedOriginalDigest is null ||
-                    !DigestFile(backup, checkCancellation: false).AsSpan().SequenceEqual(replacedOriginalDigest) ||
+                    !DigestClearFile(backup, ArchiveOuterEfs.UpdateUnavailable).AsSpan().SequenceEqual(replacedOriginalDigest) ||
                     !originalMarkReadable ||
                     !string.Equals(Fs.ReadOriginMark(backup), replacedOriginalMark, StringComparison.Ordinal))
                     throw new IOException("The original archive backup bytes or download mark changed before cleanup.");
@@ -207,7 +282,7 @@ internal sealed class LegacyZipPublicationTransaction
                 if (replacedOriginalIdentity is not null &&
                     !string.Equals(Fs.GetFileIdentity(cleanupPath), replacedOriginalIdentity, StringComparison.Ordinal))
                     throw new IOException("The original archive backup pathname changed during cleanup.");
-                if (!DigestFile(cleanupPath, checkCancellation: false).AsSpan().SequenceEqual(replacedOriginalDigest) ||
+                if (!DigestClearFile(cleanupPath, ArchiveOuterEfs.UpdateUnavailable).AsSpan().SequenceEqual(replacedOriginalDigest) ||
                     !string.Equals(Fs.ReadOriginMark(cleanupPath), replacedOriginalMark, StringComparison.Ordinal))
                     throw new IOException("The original archive backup bytes or download mark changed during cleanup.");
                 if (OperatingSystem.IsWindows())
@@ -227,21 +302,43 @@ internal sealed class LegacyZipPublicationTransaction
 
     public void CleanupUnpublishedStage()
     {
-        if (!published && File.Exists(temp))
+        if (published || !stageCreated || !File.Exists(temp)) return;
+        try
         {
-            try { File.Delete(temp); }
-            catch (IOException) { }
+            RequireCreatedStage(Fs.GetFileIdentity(temp));
+            if (updating)
+            {
+                RequireClearPath(temp, ArchiveOuterEfs.UpdateStageUnavailable);
+                if (createdStageIdentity is not null && Fs.DeleteClearOwnedFile(temp, createdStageIdentity) is { } bound)
+                {
+                    if (!bound.Deleted) throw new IOException(bound.Reason ?? "The temporary file could not be safely removed.");
+                    return;
+                }
+            }
+            File.Delete(temp);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Issue(IssueSeverity.Warning, temp, "The temporary ZIP was kept at " + temp + ": " + ex.Message, StepOutcome.Failed);
         }
     }
 
     private void Issue(IssueSeverity severity, string path, string message, StepOutcome outcome, string? cause = null) =>
         Job.AddIssue(new JobIssue(severity, path, message, outcome) { Cause = cause });
 
-    private byte[] DigestFile(string path, bool checkCancellation = true)
+    private byte[] DigestClearFile(string path, string efsRefusal)
     {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
-            64 * 1024, FileOptions.SequentialScan);
-        return DigestOpened(stream, checkCancellation);
+        using var stream = new ArchiveMutationReadStream(path, efsRefusal);
+        return DigestOpened(stream, checkCancellation: false);
+    }
+
+    private byte[] DigestRestoredFile(string path, bool encryptedBackup)
+    {
+        if (!encryptedBackup) return DigestClearFile(path, ArchiveOuterEfs.UpdateUnavailable);
+        // This known EFS object went back to its original name with its protection intact. Compare
+        // the previously captured digest in memory, without creating a clear copy.
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.SequentialScan);
+        return DigestOpened(stream, checkCancellation: false);
     }
 
     private byte[] DigestOpened(Stream stream, bool checkCancellation = true)
@@ -250,6 +347,7 @@ internal sealed class LegacyZipPublicationTransaction
         var buffer = new byte[BufferSize];
         try
         {
+            stream.Position = 0;
             while (true)
             {
                 if (checkCancellation) Job.Checkpoint();

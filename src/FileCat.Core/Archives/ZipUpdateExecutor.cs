@@ -87,7 +87,6 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         using var sourceStream = updating ? new ArchiveMutationReadStream(archive) : null;
         void CheckOuterProtection() => sourceStream?.RequireClear();
         var publication = new LegacyZipPublicationTransaction(Job, Fs, Journal, plan, archive, folder, move);
-        string temp = publication.StagePath;
         ZipArchive? source = null;
         try
         {
@@ -140,7 +139,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
 
             var written = new List<(string Name, Addition? From)>();
             CheckOuterProtection();
-            using (var output = new FileStream(temp, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, BufferSize))
+            using (var output = publication.CreateStage())
             {
                 using (var rebuilt = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
                 {
@@ -174,9 +173,10 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                     }
                 }
                 output.Flush(flushToDisk: true);
+                publication.RequireClearStage(output.SafeFileHandle);
             }
             CheckOuterProtection();
-            Verify(temp, written);
+            Verify(publication, written);
             ReviewRetainedInputs(additions);
             CheckOuterProtection();
             publication.Prepare();
@@ -490,11 +490,11 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
     }
 
     /// <summary>The rebuilt file opens, has exactly the planned members in order, and every written member reads back intact.</summary>
-    private void Verify(string temp, List<(string Name, Addition? From)> written)
+    private void Verify(LegacyZipPublicationTransaction publication, List<(string Name, Addition? From)> written)
     {
         Job.SetCurrent("Checking the rebuilt archive…");
-        using var stream = new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan);
-        using var check = new ZipArchive(stream, ZipArchiveMode.Read);
+        using var stream = publication.OpenStageRead();
+        using var check = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
         var entries = check.Entries;
         if (entries.Count != written.Count) throw new IOException("The rebuilt archive does not have the planned members; the original was kept.");
         var buffer = new byte[BufferSize];
@@ -517,6 +517,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 Convert.ToHexString(hash!.GetHashAndReset())!=captured.Reviewed.Version.Sha256))
                 throw new IOException("The rebuilt ZIP member does not match the complete retained edit.");
         }
+        publication.CaptureVerifiedStage(stream);
     }
 }
 

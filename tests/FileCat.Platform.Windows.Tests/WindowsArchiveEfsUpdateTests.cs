@@ -153,6 +153,121 @@ public sealed class WindowsArchiveEfsUpdateTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Legacy_update_refuses_changed_or_encrypted_stage_after_verification(bool encrypt)
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-legacy-stage-drift-").FullName;
+        string target = Path.Join(root, "original.zip");
+        try
+        {
+            using (var archive = ZipFile.Open(target, ZipArchiveMode.Create))
+                archive.CreateEntry("original.txt");
+            byte[] original = File.ReadAllBytes(target);
+            var plan = new ArchivePlan(target, ArchiveBaseline.Of(target), [new(ArchiveChangeKind.CreateFolderEntry, "new-folder")]);
+            var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan }, "Legacy ZIP stage drift", "", [], []);
+            var files = new ChangeStageDuringPreparation(target, encrypt);
+            using var journal = JobJournal.Create(Path.Join(root, "journals"), job);
+
+            var error = Record.Exception(() => new ZipUpdateExecutor(job, files, journal).Execute());
+            string stage = Assert.IsType<string>(files.Stage);
+            Assert.Equal(original, File.ReadAllBytes(target));
+            Assert.Empty(Directory.GetFiles(root, "*.bak"));
+            if (encrypt)
+            {
+                var refusal = Assert.IsType<ArchiveWriteException>(error);
+                Assert.Equal(ArchiveWriteReason.PublicationUnavailable, refusal.Reason);
+                Assert.Equal(ArchiveOuterEfs.UpdateStageUnavailable, refusal.Message);
+                Assert.True(File.GetAttributes(stage).HasFlag(FileAttributes.Encrypted));
+                Assert.Equal(files.StageBytes, File.ReadAllBytes(stage));
+                Assert.Contains(job.Issues, issue => issue.Path == stage && issue.Message.Contains("kept", StringComparison.Ordinal));
+                var cleanup = files.DeleteClearOwnedFile(stage, files.GetFileIdentity(stage)!);
+                Assert.False(cleanup!.Deleted);
+                Assert.True(File.Exists(stage));
+            }
+            else
+            {
+                Assert.Contains("changed after verification", Assert.IsType<IOException>(error).Message, StringComparison.Ordinal);
+                Assert.False(File.Exists(stage));
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Legacy_update_keeps_both_files_if_the_replacement_or_unverified_backup_becomes_EFS_protected(bool encryptOutput)
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-legacy-publication-efs-drift-").FullName;
+        string target = Path.Join(root, "original.zip");
+        try
+        {
+            using (var archive = ZipFile.Open(target, ZipArchiveMode.Create))
+                archive.CreateEntry("original.txt");
+            byte[] original = File.ReadAllBytes(target);
+            var plan = new ArchivePlan(target, ArchiveBaseline.Of(target), [new(ArchiveChangeKind.CreateFolderEntry, "new-folder")]);
+            var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan }, "Legacy ZIP output drift", "", [], []);
+            var files = new EncryptAfterPublication(target, encryptOutput);
+            using var journal = JobJournal.Create(Path.Join(root, "journals"), job);
+
+            Assert.Throws<IOException>(() => new ZipUpdateExecutor(job, files, journal).Execute());
+            string backup = Assert.Single(Directory.GetFiles(root, "*.bak"));
+            Assert.True(files.Encrypted);
+            Assert.Equal(original, File.ReadAllBytes(backup));
+            Assert.Equal(!encryptOutput, File.GetAttributes(backup).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(encryptOutput, File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
+            using var published = ZipFile.OpenRead(target);
+            Assert.NotNull(published.GetEntry("new-folder/"));
+            string expected = encryptOutput ? ArchiveOuterEfs.UpdateOutputUnavailable : ArchiveOuterEfs.UpdateUnavailable;
+            Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Uncertain &&
+                issue.Message.Contains(backup, StringComparison.Ordinal) && issue.Message.Contains(expected, StringComparison.Ordinal));
+            Assert.Empty(Directory.GetFiles(root, "*.tmp"));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private sealed class ChangeStageDuringPreparation(string target, bool encrypt) : WindowsFileOperations
+    {
+        public string? Stage { get; private set; }
+        public byte[]? StageBytes { get; private set; }
+
+        public override string? ReadOriginMark(string path)
+        {
+            if (Stage is null && path == target)
+            {
+                Stage = Assert.Single(Directory.GetFiles(Path.GetDirectoryName(path)!, ".filecat-zip-*.tmp"));
+                StageBytes = File.ReadAllBytes(Stage);
+                if (encrypt) File.Encrypt(Stage);
+                else
+                {
+                    StageBytes[0] ^= 1;
+                    File.WriteAllBytes(Stage, StageBytes);
+                }
+            }
+            return base.ReadOriginMark(path);
+        }
+    }
+
+    private sealed class EncryptAfterPublication(string target, bool encryptOutput) : WindowsFileOperations
+    {
+        public bool Encrypted { get; private set; }
+
+        public override string? GetFileIdentity(string path)
+        {
+            if (!Encrypted && path == target &&
+                Directory.GetFiles(Path.GetDirectoryName(path)!, ".filecat-zip-*.bak").SingleOrDefault() is { } backup)
+            {
+                File.Encrypt(encryptOutput ? path : backup);
+                Encrypted = true;
+            }
+            return base.GetFileIdentity(path);
+        }
+    }
+
     private sealed class EncryptDuringMarkRead(string target, bool encryptBackup) : WindowsFileOperations
     {
         public bool Encrypted { get; private set; }
