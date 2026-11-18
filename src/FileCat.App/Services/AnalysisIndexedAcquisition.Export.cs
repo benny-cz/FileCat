@@ -62,35 +62,7 @@ internal sealed partial class AnalysisIndexedAcquisition
             // Explicit exports do not update or claim ownership of a named profile.
             // Their native output owns its own private staging; APFS independently
             // qualifies same-volume private scratch below before accepting bytes.
-            var protectedIds = new HashSet<string>(StringComparer.Ordinal);
-            var protectedPaths = _services.Paths.WriteFolders.Select(item => item.Folder).Append(AppContext.BaseDirectory)
-                .Concat(_services.Paths.DataRoot is { } data ? new[] { data } : []).Select(Path.GetFullPath).Distinct(PathUtil.SafetyComparer).ToArray();
-            if (protectedPaths.Length > 64) throw new NotSupportedException("The application's protected output boundary exceeds its limit.");
-            foreach (string protectedPath in protectedPaths)
-            {
-                string path = protectedPath;
-                await AnalysisIo.Run(_services.Io, PathUtil.GetDeviceKey(path), token =>
-                {
-                    for (int depth = 0; depth <= AnalysisLimits.Depth; depth++)
-                    {
-                        token.ThrowIfCancellationRequested(); IAnalysisBackend? native = null;
-                        try { native = PrepareRoot(path); }
-                        catch (Exception error) when (StorageUnavailable(error)) { }
-                        if (native is not null)
-                        {
-                            try
-                            {
-                                if (native.RootEntry.Kind != AnalysisKind.Directory || native.Root.Assurance != IdentityAssurance.Verified || native.RootEntry.Identity is not { } identity)
-                                    throw new IOException("A protected FileCat artifact boundary cannot be qualified.");
-                                native.ValidateReadScope(native.RootEntry); protectedIds.Add(identity); return true;
-                            }
-                            finally { DisposePreparedOnWorker(native); }
-                        }
-                        path = Path.GetDirectoryName(path) ?? throw new IOException("A protected FileCat boundary is unavailable.");
-                    }
-                    throw new IOException("A protected FileCat boundary exceeds the ancestry limit.");
-                }, cancellation).ConfigureAwait(false);
-            }
+            var protectedIds = await _services.AnalysisProtection.CaptureDirectoryIdentitiesAsync(cancellation).ConfigureAwait(false);
             var devices = new AnalysisIoDevices(PathUtil.GetDeviceKey(folder), PathUtil.GetDeviceKey(_privatePaths[1]));
             return await export(() =>
             {

@@ -15947,5 +15947,16 @@
     "publicEntryEnabled": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "protectedExportDirectories": {
+    "status": "qualified-internal-export-boundary",
+    "packet": "source-manifest-r1388-protected-objects.json",
+    "document": "EXTERNAL_EXPORT_QUALIFICATION.md",
+    "focusedCasesPassedPerPlatform": 35,
+    "redirectedDirectoryAndDescendantRefusalQualified": true,
+    "recipeStagingQualified": false,
+    "publicEntryEnabled": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }

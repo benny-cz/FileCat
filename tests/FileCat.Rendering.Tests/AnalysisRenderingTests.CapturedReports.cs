@@ -137,6 +137,42 @@ public sealed partial class AnalysisRenderingTests
         Assert.False(File.Exists(Path.Combine(folder, name))); source.AssertPayloads();
     }
 
+    [AvaloniaFact]
+    public async Task NativeCapturedReportsProtectRedirectedFileCatDirectoriesByIdentity()
+    {
+        OrdinaryPreparation();
+        using var profile = new PreparationFixture();
+        await using var source = await NativeNamesFixture.CreateAsync(true);
+        var token = TestContext.Current.CancellationToken;
+        await using var report = await source.Lease!.CaptureReportAsync(AnalysisMetric.FileSize, AnalysisReportFormat.Csv,
+            AnalysisReportScope.EntireResult, new(""), cancellation: token);
+
+        string target = Directory.CreateDirectory(Path.Combine(source.Root, "redirected-backups")).FullName;
+        string child = Directory.CreateDirectory(Path.Combine(target, "descendant")).FullName;
+        string sibling = Directory.CreateDirectory(Path.Combine(source.Root, "ordinary-output")).FullName;
+        string retained = Path.Combine(child, "older-backup.reg");
+        byte[] original = [1, 2, 3, 4];
+        File.WriteAllBytes(retained, original);
+        string link = profile.Services.Paths.RegistryBackupDirectory;
+        if (OperatingSystem.IsWindows()) Junction.Create(link, target);
+        else Directory.CreateSymbolicLink(link, target);
+        try
+        {
+            foreach (string folder in new[] { target, child })
+            {
+                await using var prepared = await AnalysisIndexedAcquisition.PrepareExportAsync(profile.Services, token);
+                var error = await Assert.ThrowsAsync<IOException>(() => prepared.ExportReportAsync(report, folder, "blocked.csv", true, token));
+                Assert.Contains("protected FileCat", error.Message, StringComparison.Ordinal);
+                Assert.False(File.Exists(Path.Combine(folder, "blocked.csv")));
+            }
+            await using (var prepared = await AnalysisIndexedAcquisition.PrepareExportAsync(profile.Services, token))
+                Assert.True((await prepared.ExportReportAsync(report, sibling, "allowed.csv", true, token)).Bytes > 0);
+            Assert.Equal(original, File.ReadAllBytes(retained));
+            source.AssertPayloads();
+        }
+        finally { Directory.Delete(link); }
+    }
+
     [AvaloniaTheory]
     [InlineData(true, 0)] [InlineData(true, 2)] [InlineData(false, 0)] [InlineData(false, 2)]
     public async Task CapturedReportReviewDefaultsToRedactionAndKeepsUnavailableViewExplicit(bool folderView, int marks)

@@ -33,6 +33,7 @@ public sealed class AppServices : IDisposable
 
         Io = new DeviceIoScheduler();
         Io.HealthChanged += (device, health) => FileCatEventSource.Log.DeviceHealth(device, health.ToString());
+        AnalysisProtection = new(paths, Io);
         Ui = AvaloniaUiDispatcher.Instance;
         AnalysisSavedReferences = new(Ui);
         AnalysisHistory = new(this);
@@ -246,6 +247,7 @@ public sealed class AppServices : IDisposable
     internal int MetadataSnapshotMaxRows { get; set; } = 1_000_000;
     internal int MetadataSnapshotMaxCharacters { get; set; } = 16_000_000;
     public DeviceIoScheduler Io { get; }
+    internal AnalysisProtectedObjects AnalysisProtection { get; }
     public IUiDispatcher Ui { get; }
     internal AnalysisSavedReferences AnalysisSavedReferences { get; }
     internal AnalysisRollingHistoryController AnalysisHistory { get; }

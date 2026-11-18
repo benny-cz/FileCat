@@ -1,0 +1,59 @@
+{
+  "sourceBase": "e8984a1e9160d9aa2f91aaa268344af8b721da4b",
+  "sources": {
+    "src/FileCat.App/Services/AnalysisIndexedAcquisition.Export.cs": "f0713246561df07eece30d62a9231c321d46099080ba53fccce552cac3c96952",
+    "src/FileCat.App/Services/AnalysisProtectedObjects.cs": "af4cee0c2a53446e4305c3ab8e64c832265402ec5c0b665fc7eb7b3e317cc20f",
+    "src/FileCat.App/Services/AppServices.cs": "0e65d408dd0dcde9cbe241ffaf3cd4ef79c58879f11bcc102f16e4447fd6c66e",
+    "src/FileCat.Core/Analysis/AnalysisRecipes.cs": "797ee2952c577e70bbbf9548acfc488acb08ef4b80f313069a8bd94893fb405f",
+    "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.CapturedReports.cs": "2a8ca9d73fe33bf7c8b9eafb75f93d251d881c97ffdfcd6d2e083691c7b5fb06"
+  },
+  "platforms": {
+    "windows": {
+      "passed": 35,
+      "redirectedProtectedDirectoryAndDescendantRefused": true,
+      "ordinarySiblingExported": true,
+      "retainedBytesPreserved": true,
+      "postProcesses": []
+    },
+    "mac": {
+      "passed": 35,
+      "redirectedProtectedDirectoryAndDescendantRefused": true,
+      "ordinarySiblingExported": true,
+      "retainedBytesPreserved": true,
+      "postProcesses": []
+    },
+    "ubuntu": {
+      "passed": 35,
+      "redirectedProtectedDirectoryAndDescendantRefused": true,
+      "ordinarySiblingExported": true,
+      "retainedBytesPreserved": true,
+      "postProcesses": []
+    }
+  },
+  "retained": {
+    "batch-linux-r1387.sh": "08a63a45597f4986accc3d008c50e927a8daf5742c55871088ab5e6df6d5404f",
+    "batch-mac-r1387.sh": "0811164ae0c8c0102fabddc683de011a57fa73031f698fda2367eb83cceb72dc",
+    "batch-windows-r1387.ps1": "42af9ad7af0558b6d36b3a31746581d53b4873e9a7bc61009ac19595fcfbf4fd",
+    "focused-delta-linux-r1387/plan.json": "bc80b97ed568c685c5d9227a3e7f7fb65e8af57a3cf2126bd36accae39501b99",
+    "focused-delta-mac-r1387/plan.json": "5f0d5e63b7daa2cd0bded3761e971ff8ac83dd67136b5ec7aff85d29f545eb09",
+    "focused-delta-windows-r1387/plan.json": "e62e97140815fdf29221e5b3e319e94019172eebe7b5fb9a4b625bb61f600207",
+    "mac-batch-r1387-post.json": "224e20d40f0079605dafdc9d1da34646aea90ac52c8d9bf35acc7878ea2330a7",
+    "mac-batch-r1387-results.tgz": "386adc82fb8aebca9759fe65b2270d8d35965c710dde0a188545298904041a83",
+    "protected-objects-render-build-r1387.txt": "234ca1f21edfc128ca110b91b84c2f44ab8ca6874b5fedcec13392e2ad0e6533",
+    "protected-objects-source-proof-r1387.json": "cf1accd9acff402878833f6807a077cba95afdf4d278179c662af2148927619e",
+    "recipe-rendering-proof-r1387.json": "0b77cc8b383e7724dde1772cb9d3d99365362f5ad4b8718f99d3c9e4ce0c4c3c",
+    "ubuntu-batch-r1387-post.json": "eedf3ee1b9ac769f497ef82f2aaf13f9f207144d1285c013555a76b5fe935071",
+    "ubuntu-batch-r1387-results.tgz": "a0745b5fc936895bf2cc29e87cd0a8c543e7ca26ba91293ddb775d514ecf21a8",
+    "windows-batch-r1387-post.json": "7299cebb5e06c6e4e8afd51b3997f730fc42fbd76d29e3b53725756db628a227",
+    "windows-batch-r1387-results.tgz": "898c6f2cfbedce827b9d3f2c652bb7dd68450785c1b098331670c31429d741bc",
+    "windows-batch-r1387-task-outcome.json": "888a61b2e94dbc399a0d4304f6facd3b5f42f8f0af3dff70c1eb60030dbee785"
+  },
+  "archives": {
+    "exact-source-deltas-r1388-protected-objects.tgz": "6a3346fa034d1967b48ce977f3b0e4f0cce11863df73310ce7cf27d2c039373c",
+    "exact-receipts-r1388-protected-objects.tgz": "6efbd8a2c16c93156ddaf64d5cea2dba57718830c2e33d1524242c96be8c703c"
+  },
+  "publicEntryEnabled": false,
+  "recipeStagingQualified": false,
+  "fullGoalComplete": false,
+  "finalIndependentReviewPerformed": false
+}

@@ -14,6 +14,7 @@ scope.add_argument("--growth", action="store_true")
 scope.add_argument("--duplicates", action="store_true")
 scope.add_argument("--duplicate-content", action="store_true")
 scope.add_argument("--recorded-insights", action="store_true")
+scope.add_argument("--protected-objects", action="store_true")
 options = parser.parse_args()
 revision = options.revision
 methods = ["*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*"]
@@ -46,6 +47,12 @@ if options.duplicates or options.duplicate_content or options.recorded_insights:
         expected = 20
         name = f"recorded-insight-render-build-{revision}"
     log = (Path.cwd() / f".tmp/{name}.txt").read_text(encoding="utf-8-sig")
+    assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
+if options.protected_objects:
+    methods = ["*NativeCapturedReports*", "*NativeExternalExport*", "*RecordedInsight*",
+               "*NativeRecipeDialogPreviewsOnlyCapturedFilesWithContextAndLeavesSourceAndMarksAlone*"]
+    expected = 35
+    log = (Path.cwd() / f".tmp/protected-objects-render-build-{revision}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))
 root = Path.cwd()
 temp = root / ".tmp"
@@ -109,8 +116,8 @@ for platform in ("windows", "mac", "linux"):
     proof[platform] = {"archive": sha(archive), "runner": sha(runner_path), "size": archive.stat().st_size, "patch": sorted(changes)}
 (temp / f"cache-input-{revision}").mkdir()
 (temp / f"recipe-rendering-proof-{revision}.json").write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
-if options.growth or options.duplicates or options.duplicate_content or options.recorded_insights:
-    slice_name = ("growth" if options.growth else "recorded-insights" if options.recorded_insights else
+if options.growth or options.duplicates or options.duplicate_content or options.recorded_insights or options.protected_objects:
+    slice_name = ("protected-objects" if options.protected_objects else "growth" if options.growth else "recorded-insights" if options.recorded_insights else
                   "duplicate-content" if options.duplicate_content else "duplicate-estimate")
     source_changes = set(subprocess.check_output(["git", "diff", "--name-only", "HEAD", "--", "src", "tests"], text=True).splitlines())
     source_changes.update(subprocess.check_output(["git", "ls-files", "--others", "--exclude-standard", "src", "tests"], text=True).splitlines())

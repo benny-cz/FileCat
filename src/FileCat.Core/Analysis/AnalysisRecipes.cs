@@ -34,7 +34,7 @@ public sealed class AnalysisRecipes
             "Rank recorded regular files by the selected byte measure.",
             "Partial observations may change the ranking. Observed size does not establish recoverable space."),
         new(AnalysisMetadataRecipe.LargestFolders, "largest-folders", 1, "Largest folders",
-            "Rank captured folders by their known subtree totals in the selected measure.",
+            "Rank captured folders by their known subtree totals in the selected measure. This includes entries hidden by the table filter.",
             "Use the totals for each folder individually because ancestor and descendant rows overlap. Partial observations may change the ranking."),
         new(AnalysisMetadataRecipe.OldLargeFiles, "old-large-files", 1, "Old large files",
             "Match recorded file size and modification age at the observation time.",
