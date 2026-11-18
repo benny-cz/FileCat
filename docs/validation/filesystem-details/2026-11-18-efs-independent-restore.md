@@ -1,0 +1,7 @@
+# Recovering an EFS file with a restored key under a second account
+
+The Windows 11 x64 VM used two fresh standard accounts with separate loaded profiles. The owner encrypted a synthetic file with an unnamed and a named data stream, then exported its sole newly created EFS certificate and private key using Windows. The second account received access denied when reading the file's data. After Windows imported the fixture PFX into the second account's `CurrentUser\My` store, the test verified the exact certificate thumbprint, private-key presence, and access to both streams.
+
+The second account submitted decryption through the FileCat EFS review and job executor. The job completed with one observed native call and no setup or key prompt. The journal recorded the change from encrypted to clear and ended normally. The original file identity and both exact payloads were preserved. The account's different SID stayed explicit throughout the test. FileCat received only the selected file and its reviewed action. Windows handled backup creation, passwords and import through the isolated fixture controller.
+
+The xUnit case passed in 1.41 seconds with no skips. The controller removed the disposable PFX and disabled both newly created accounts. The VM and workspace `.tmp` receipts are indexed by run `c98cad54d5354b84a676bb29b9ce43aa`. This independently verifies recovery for the tested software key. The interactive wizard, managed recovery agents and hardware providers have separate qualification requirements.

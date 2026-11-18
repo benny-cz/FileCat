@@ -41,6 +41,38 @@ public sealed class WindowsArchiveEfsEditTests
         finally { provider.Release(archive); Directory.Delete(path, recursive: true); }
     }
 
+    [Fact]
+    public void A_legacy_commit_review_discloses_encryption_and_keeps_the_working_copy()
+    {
+        RequireEfs();
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-efs-commit-review-").FullName;
+        string archive = Path.Join(root, "source.zip");
+        var provider = new ZipProvider(Path.Join(root, "cache"));
+        try
+        {
+            CreateZip(archive);
+            var store = new EditSessionStore(Path.Join(root, "sessions"), new WindowsFileOperations());
+            var record = store.Create(provider, Member(provider, archive), ct);
+            File.WriteAllText(record.WorkingPath, "edited member still available");
+            byte[] original = File.ReadAllBytes(archive);
+            File.Encrypt(archive);
+            File.SetLastWriteTimeUtc(archive, new DateTime(record.Baseline.LastWriteUtcTicks, DateTimeKind.Utc));
+            Assert.True(record.Baseline.Matches(archive));
+
+            var review = store.ReviewCommit(record, ct);
+            Assert.Equal(CommitCheck.ArchiveProtectedByEfs, review.Check);
+            Assert.Null(review.Baseline);
+            Assert.Equal(ArchiveOuterEfs.UpdateUnavailable,
+                Assert.Throws<ArchiveWriteException>(() => store.CommitPlan(record, rebase: true)).Message);
+            Assert.Equal("edited member still available", File.ReadAllText(record.WorkingPath));
+            Assert.True(File.GetAttributes(archive).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(original, File.ReadAllBytes(archive));
+            Assert.Empty(Directory.EnumerateFiles(root, ".filecat-zip-*"));
+        }
+        finally { provider.Release(archive); Directory.Delete(root, recursive: true); }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

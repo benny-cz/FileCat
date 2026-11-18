@@ -837,6 +837,9 @@ public sealed partial class MainViewModel
         var review = await MutationIoAsync(session.ArchivePath, () => Services.EditSessions.ReviewCommit(session), CheckSessionAction);
         switch (review.Check)
         {
+            case CommitCheck.ArchiveProtectedByEfs:
+                Notify(ArchiveOuterEfs.UpdateUnavailable, true);
+                return;
             case CommitCheck.ArchiveMissing:
                 if (await Dialogs.ConfirmAsync("Archive not found",
                         $"{session.ArchivePath} is gone, moved, or unreadable, so the edit cannot be committed. Save your working copy somewhere else?", "Save copy…"))
