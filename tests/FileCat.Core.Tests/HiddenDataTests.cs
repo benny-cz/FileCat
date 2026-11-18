@@ -12,6 +12,33 @@ public sealed partial class HiddenDataTests
         HiddenDataDecoder.Describe(new HiddenItem(name, kind, value.Length), value).Summary;
 
     [Fact]
+    public void A_linux_attribute_report_retains_the_original_inode_after_replacement()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux(), "Requires the Linux descriptor-bound xattr adapter.");
+        using var root = new TempDir();
+        string file = root.File("value.bin");
+        const string name = "user.filecat.report";
+        if (SetAttribute(file, name, "original attribute value"u8.ToArray()) != 0)
+            Assert.Skip("This filesystem cannot create the test xattr.");
+        var adapter = new UnixHiddenData();
+        var provider = new HiddenDataProvider(adapter);
+        var ct = TestContext.Current.CancellationToken;
+        var item = new ItemRef(HiddenDataProvider.Of(file), name, EntryKind.File) { Ordinal = HiddenIdentities.Ordinal(HiddenKind.Attribute) };
+        var original = adapter.ReadInventory(file, new(), ct).Identity!.Value;
+        var report = provider.ReadValueReport(item, original, ct);
+        Assert.True(report.CanPublish);
+        Assert.Equal(original, Assert.Single(report.Origin.Contributors).Identity);
+        Assert.Contains("original attribute value", report.Text);
+
+        File.Move(file, Path.Combine(root.Path, "previous.bin"));
+        File.WriteAllText(file, "replacement main bytes");
+        Assert.Equal(0, SetAttribute(file, name, "replacement attribute"u8.ToArray()));
+        Assert.Contains("different file", Assert.Throws<IOException>(() => provider.ReadValueReport(item, original, ct)).Message);
+        Assert.Contains("original attribute value", report.Text);
+        Assert.DoesNotContain("replacement attribute", report.Text);
+    }
+
+    [Fact]
     public void Download_marks_say_where_a_file_came_from()
     {
         var motw = Encoding.UTF8.GetBytes("[ZoneTransfer]\r\nZoneId=3\r\nReferrerUrl=https://example.com/page\r\nHostUrl=https://example.com/tool.exe\r\n");

@@ -108,7 +108,7 @@ public sealed class HiddenDataUiTests
 
             // F5: copied out as a file by a job.
             tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == payload) + (tab.Listing.HasParentRow ? 1 : 0));
-            if (OperatingSystem.IsWindows())
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
             {
                 var report = await OpenSelectedValueReport(window);
                 try { Assert.Contains("hidden payload", report.Text); }

@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using FileCat.Core.FileSystem;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.HiddenData;
 
@@ -7,13 +9,14 @@ namespace FileCat.Core.HiddenData;
 /// Extended attributes on Linux (every namespace this user may read) and macOS (with the resource fork), through libc,
 /// never following a link (D-55).
 /// </summary>
-public sealed partial class UnixHiddenData : IHiddenData
+public sealed partial class UnixHiddenData : IHiddenData, IHiddenValueOutput
 {
     private const int MacNoFollow = 0x0001;
     private const string ResourceForkName = "com.apple.ResourceFork";
     private const int MaxValue = 16 << 20;
 
     public bool IsSupported => OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
+    bool IHiddenValueOutput.SupportsValueReports => OperatingSystem.IsLinux();
 
     public IReadOnlyList<HiddenItem> List(string path)
     {
@@ -44,6 +47,23 @@ public sealed partial class UnixHiddenData : IHiddenData
         return new MemoryStream(Read(path, item, MaxValue), writable: false);
     }
 
+    void IHiddenValueOutput.RequireClearSource(string path)
+    {
+        if (!OperatingSystem.IsLinux()) throw new NotSupportedException("A bound supplementary value adapter is unavailable on this system.");
+        using var file = OpenInventoryFile(path, default);
+    }
+
+    Stream IHiddenValueOutput.OpenClearValue(string path, HiddenItem item, OutputEfsObservation observation, FileIdentity? reviewed)
+    {
+        using var file = OpenActionFile(path, item);
+        if (reviewed is { } expected && UnixFiles.Stat(file)?.Identity != expected)
+            throw new IOException("The supplementary value belongs to a different file. Refresh the inventory and try again.");
+        observation.ObserveOpenedLinux(file);
+        byte[] value = ReadAttribute(file, path, item, MaxValue);
+        observation.ObserveOpenedLinux(file);
+        return new MemoryStream(value, writable: false);
+    }
+
     public void Delete(string path, HiddenItem item)
     {
         using var file = OpenActionFile(path, item);
@@ -55,7 +75,7 @@ public sealed partial class UnixHiddenData : IHiddenData
         if (LinuxFdRemove(file, current.Name) != 0) throw Error(path);
     }
 
-    private static Microsoft.Win32.SafeHandles.SafeFileHandle OpenActionFile(string path, HiddenItem item)
+    private static SafeFileHandle OpenActionFile(string path, HiddenItem item)
     {
         if (!OperatingSystem.IsLinux()) throw new NotSupportedException("A held-object attribute value/action adapter is not qualified on this platform.");
         if (item.Kind != HiddenKind.Attribute || item.Name.Length == 0 || item.Name.Contains('\0') ||
@@ -67,6 +87,11 @@ public sealed partial class UnixHiddenData : IHiddenData
     private static byte[] ReadBoundAttribute(string path, HiddenItem item, int max)
     {
         using var file = OpenActionFile(path, item);
+        return ReadAttribute(file, path, item, max);
+    }
+
+    private static byte[] ReadAttribute(SafeFileHandle file, string path, HiddenItem item, int max)
+    {
         for (int attempt = 0; attempt < 3; attempt++)
         {
             nint size = LinuxFdGet(file, item.Name, null, 0);

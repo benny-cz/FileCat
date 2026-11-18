@@ -640,7 +640,8 @@ public sealed partial class ReportWindow : Window
             else await Task.Run(async () =>
             {
                 ct.ThrowIfCancellationRequested();
-                if (OperatingSystem.IsWindows() && (!StoragePaths.IsOrdinaryLocalPath(target) || PathUtil.IsOnNetwork(target)))
+                if (!Path.IsPathFullyQualified(target) || OperatingSystem.IsWindows() && !StoragePaths.IsOrdinaryLocalPath(target) ||
+                    PathUtil.IsOnNetwork(target))
                     throw new IOException("Choose a new local file to save this report.");
                 ct.ThrowIfCancellationRequested();
                 await using var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.Asynchronous);

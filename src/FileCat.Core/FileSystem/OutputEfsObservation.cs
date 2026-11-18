@@ -26,9 +26,20 @@ internal sealed partial class OutputEfsObservation
         int state = ReadProtection(file);
         string? revision = knownRevision ?? SourceChangeToken.FromHandle(file);
         bool identified = ReadFileId(file, 18 /* FileIdInfo */, out var info, 24) && (info.Low | info.High) != 0;
+        ObserveContributor(identified ? ReadIdentity(info) : null, revision, state);
+    }
+
+    internal void ObserveOpenedLinux(SafeFileHandle file)
+    {
+        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException();
+        ObserveContributor(UnixFiles.Stat(file)?.Identity, SourceChangeToken.FromHandle(file), ClearSeen);
+    }
+
+    private void ObserveContributor(FileIdentity? identity, string? revision, int state)
+    {
         lock (_contributorLock)
         {
-            if (!identified || revision is null || !Remember(new(ReadIdentity(info), revision)))
+            if (identity is not { } known || revision is null || !Remember(new(known, revision)))
                 state |= UnknownSeen;
             Interlocked.Or(ref _seen, state);
         }

@@ -4,7 +4,7 @@
 
 **Implementation in progress, 18 November 2026.** Shared filesystem details, supplementary-data inventory, storage fields and bounded extent collectors are implemented in the scopes recorded in §10. The native Windows enumeration candidate has separate warm and cold measurements. The NTFS plan tracks independent compression and EFS release gates.
 
-The [selected-value report checkpoint](../validation/filesystem-details/2026-11-18-supplementary-value-reports.md) covers an explicit Windows F5 action for a focused ADS or EA. It captures the inventory identity and actual acquired revision, caps the value preview and protects every report output. The ordinary summary and full record retain their metadata-only behavior.
+The [selected-value report checkpoint](../validation/filesystem-details/2026-11-18-supplementary-value-reports.md) covers an explicit F5 action for a focused Windows ADS or EA or a focused Linux xattr. It captures the inventory identity and actual acquired revision, caps the value preview and protects every report output. The ordinary summary and full record retain their metadata-only behavior.
 
 The final joint planning review on **17 November 2026** audited branch `main`, HEAD `f745279c18fed923cbc98440957774976517ab7c` and the working tree. Its original scope and design findings are recorded below.
 
