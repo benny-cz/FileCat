@@ -92,4 +92,34 @@ public sealed partial class UnixFileDetailsNativeTests
         Assert.Equal(HiddenMetadataRoles.DeleteRefusal(policy), refusal.Message);
         Assert.Contains(reader.ReadInventory(path, new(), ct).Items, item => item == policy);
     }
+
+    [Fact]
+    public void Linux_FIEMAP_reports_Btrfs_reflink_sharing_and_omits_the_encoded_physical_locations()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
+            "Requires Linux x64 Btrfs.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_BTRFS_EXTENTS_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires a prepared Btrfs extent fixture.");
+
+        var reader = new UnixFileRecords();
+        var ct = TestContext.Current.CancellationToken;
+        foreach (string name in new[] { "source", "clone", "ordinary", "compressed" })
+        {
+            string path = Path.Join(root, name);
+            var summary = reader.ReadSummary(path, ct);
+            Assert.Equal("btrfs", summary.FileSystem.Value);
+            Assert.DoesNotContain("Main-stream extent records", summary.ToReport().ToText());
+            var full = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
+            Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);
+            Assert.Equal(summary.Identity.Value, full.Summary.Identity.Value);
+            var section = Assert.Single(full.Technical.Sections, s => s.Title == "Main-stream extent records");
+            Assert.Contains(("Inventory", "Complete"), section.Fields);
+            string sharing = name is "source" or "clone" ? "Shared extents reported" : "No returned record reports sharing";
+            Assert.Contains(("Extent sharing", sharing), section.Fields);
+            var rows = Assert.IsType<FileCat.Core.Inspect.InspectionTable>(section.Table).Rows;
+            Assert.NotEmpty(rows);
+            if (name == "compressed")
+                Assert.All(rows, row => Assert.Equal("Physical location unavailable", row[2]));
+        }
+    }
 }
