@@ -293,6 +293,29 @@ public sealed partial class HiddenDataTests
     }
 
     [Fact]
+    public void A_Darwin_resource_fork_without_ordinary_attributes_has_its_own_inventory_category()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires a Darwin resource fork.");
+        using var root = new TempDir();
+        string path = root.File("resource-only.bin");
+        byte[] resource = "standalone resource fork"u8.ToArray();
+        File.WriteAllBytes(Path.Join(path, "..namedfork", "rsrc"), resource);
+
+        var inventory = new UnixHiddenData().ReadInventory(path, new(ShowCompressionBacking: false), TestContext.Current.CancellationToken);
+        var fork = Assert.Single(inventory.Items);
+        Assert.Equal(HiddenKind.ResourceFork, fork.Kind);
+        Assert.Equal("com.apple.ResourceFork", fork.Name);
+        Assert.Equal(resource.Length, fork.Size);
+        Assert.Equal(HiddenMetadataRole.Unqualified, fork.Role);
+        Assert.NotNull(HiddenMetadataRoles.DeleteRefusal(fork));
+        Assert.Equal(0, Assert.Single(inventory.Categories, category => category.Kind == HiddenKind.Attribute).Count);
+        Assert.Equal(1, Assert.Single(inventory.Categories, category => category.Kind == HiddenKind.ResourceFork).Count);
+        Assert.Equal("1+", inventory.CountText);
+        Assert.False(inventory.BoundToObject);
+        Assert.False(inventory.ValueBearingQueryIssued);
+    }
+
+    [Fact]
     public void A_real_Darwin_compressed_file_discloses_that_the_ordinary_view_omits_backing()
     {
         Assert.SkipUnless(OperatingSystem.IsMacOS(), "Prepared Darwin compression fixture.");
