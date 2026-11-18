@@ -3,7 +3,7 @@
 
 Build FileCat in Release in an owned checkout below ~/FileCatValidation, then run:
 FILECAT_ORCA_ISOLATED_DISPLAY=1 dbus-run-session -- xvfb-run -a /usr/bin/python3 \
-    linux-orca-filesystem-details.py CHECKOUT REPORT.json [--link-target]
+    linux-orca-filesystem-details.py CHECKOUT REPORT.json [--link-target] [--report-size WIDTH HEIGHT]
 
 The report destination must be below ~/FileCatValidation. The runner reads Orca's actual
 speech log, sets only the owned top-level window focus, and keeps the fixture and log.
@@ -23,6 +23,7 @@ def main():
     parser.add_argument("checkout", type=Path)
     parser.add_argument("report", type=Path)
     parser.add_argument("--link-target", action="store_true")
+    parser.add_argument("--report-size", nargs=2, type=int, metavar=("WIDTH", "HEIGHT"))
     args = parser.parse_args()
     checkout = args.checkout.resolve(strict=True)
     report_path = args.report.resolve()
@@ -113,6 +114,20 @@ def main():
             raise AssertionError("The requested focus is outside the owned FileCat windows.")
         subprocess.run(["/usr/bin/xdotool", "windowfocus", "--sync", window], check=True, timeout=5)
 
+    def size_report(window):
+        if args.report_size is None:
+            return
+        width, height = map(str, args.report_size)
+        subprocess.run(["/usr/bin/xdotool", "windowsize", "--sync", window, width, height], check=True, timeout=5)
+
+        def at_size():
+            geometry = subprocess.check_output(["/usr/bin/xdotool", "getwindowgeometry", "--shell", window],
+                                               text=True, timeout=5).splitlines()
+            return f"WIDTH={width}" in geometry and f"HEIGHT={height}" in geometry
+
+        wait(at_size, "the requested report size")
+        evidence["reportSize"] = args.report_size
+
     def key(chord):
         keys = {"home": "Home", "down": "Down", "ctrl+alt+enter": "ctrl+alt+Return",
                 "tab": "Tab", "space": "space", "escape": "Escape"}
@@ -172,6 +187,7 @@ def main():
         hear("Keyboard focuses the selected file", focused.name)
         key("ctrl+alt+enter")
         details_window = wait(lambda: window_named("File-system details"), "the separate details window")
+        size_report(details_window)
         focus(details_window)
         hear("Details window opens from the keyboard", "File-system details")
         if args.link_target:
