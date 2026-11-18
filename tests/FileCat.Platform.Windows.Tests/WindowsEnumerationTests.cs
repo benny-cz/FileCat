@@ -61,15 +61,41 @@ public sealed class WindowsEnumerationTests
         if (Environment.GetEnvironmentVariable("FILECAT_ENUM_FIXTURE") is not { Length: > 0 } path)
         { Assert.Skip("Set FILECAT_ENUM_FIXTURE to a deliberately prepared scale directory; no user-tree scan."); return; }
         var location = Location.FileSystem(path);
+        if (Environment.GetEnvironmentVariable("FILECAT_ENUM_ROUTE") is { Length: > 0 } route)
+        {
+            bool native = route switch
+            {
+                "managed" => false,
+                "native" => true,
+                _ => throw new ArgumentException("FILECAT_ENUM_ROUTE must be managed or native."),
+            };
+            await Measure(0, native);
+            return;
+        }
+
         for (int run = 0; run < 5; run++)
         {
             foreach (bool useNative in run % 2 == 0 ? new[] { false, true } : new[] { true, false })
-            {
-                var sink = new CountingSink();
-                var clock = Stopwatch.StartNew();
-                await new WindowsFileSystemProvider { UseNativeEnumeration = useNative }.EnumerateAsync(location, sink, TestContext.Current.CancellationToken);
-                TestContext.Current.TestOutputHelper?.WriteLine($"run={run} native={useNative} count={sink.Count} elapsedMs={clock.Elapsed.TotalMilliseconds:F2} allocated={GC.GetTotalAllocatedBytes(false)}");
-            }
+                await Measure(run, useNative);
+        }
+
+        async Task Measure(int run, bool native)
+        {
+            using var process = Process.GetCurrentProcess();
+            int handlesBefore = process.HandleCount;
+            long workingSetBefore = process.WorkingSet64, allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
+            var sink = new CountingSink();
+            var clock = Stopwatch.StartNew();
+            await new WindowsFileSystemProvider { UseNativeEnumeration = native }.EnumerateAsync(location, sink, TestContext.Current.CancellationToken);
+            clock.Stop();
+            long allocated = GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore;
+            process.Refresh();
+            TestContext.Current.TestOutputHelper?.WriteLine(
+                $"run={run} native={native} count={sink.Count} elapsedMs={clock.Elapsed.TotalMilliseconds:F2} allocatedBytes={allocated} " +
+                $"handlesBefore={handlesBefore} handlesAfter={process.HandleCount} " +
+                $"workingSetBefore={workingSetBefore} workingSetAfter={process.WorkingSet64} peakWorkingSet={process.PeakWorkingSet64}");
+            if (int.TryParse(Environment.GetEnvironmentVariable("FILECAT_ENUM_EXPECTED_COUNT"), out int expected))
+                Assert.Equal(expected, sink.Count);
         }
     }
 
