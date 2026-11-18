@@ -4,6 +4,7 @@ using System.Text;
 using FileCat.Core.Archives;
 using FileCat.Core.Edit;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
 using FileCat.Platform.Windows.Archives;
@@ -268,6 +269,86 @@ public sealed class WindowsArchiveEfsEditTests
         Assert.True(error is IOException { HResult: efsInTransaction or sharingViolation or transactionConflict }, error?.ToString());
     }
 
+    [Fact]
+    public async Task The_legacy_commit_copy_stays_clear_during_path_based_job_reads_and_is_retired()
+    {
+        RequireEfs();
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-legacy-commit-seal-").FullName;
+        string archive = Path.Combine(root, "source.zip");
+        var provider = new ZipProvider(Path.Combine(root, "cache"));
+        try
+        {
+            CreateZip(archive);
+            var files = new WindowsFileOperations();
+            var store = new EditSessionStore(Path.Combine(root, "sessions"), files);
+            var record = store.Create(provider, Member(provider, archive), ct);
+            File.WriteAllText(record.WorkingPath, "Owned legacy edit");
+            using var copy = store.PrepareCommit(record, root, ct);
+            var reviewed = store.ReviewCommit(record, ct);
+            var plan = store.CommitPlan(record, reviewed, copy);
+            string path = Assert.Single(plan.Changes).SourcePath!;
+            Assert.Equal(copy.Path, path);
+            using (var input = new ArchiveMutationReadStream(path, ArchiveOuterEfs.EditSnapshotUnavailable))
+            using (var reader = new StreamReader(input))
+            {
+                AssertBlockedEncryption(Record.Exception(() => File.Encrypt(path)));
+                Assert.Equal("Owned legacy edit", reader.ReadToEnd());
+            }
+            provider.Release(archive);
+            var providers = new ProviderRegistry();
+            providers.Register(new LocalFileSystemProvider());
+            providers.Register(provider);
+            var jobs = new JobManager(files, providers, Path.Combine(root, "journal"));
+            var job = jobs.Submit(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan });
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(30));
+            try { while (!job.State.IsFinished()) await Task.Delay(20, timeout.Token); }
+            finally { if (!job.State.IsFinished()) job.Cancel(); }
+            Assert.True(job.State == JobState.Completed, JobIssue.Summarize(job.Issues));
+            using (var updated = ZipFile.OpenRead(archive))
+            using (var member = new StreamReader(Assert.Single(updated.Entries).Open()))
+                Assert.Equal("Owned legacy edit", member.ReadToEnd());
+            copy.Dispose();
+            Assert.False(File.Exists(path));
+            Assert.False(Directory.Exists(Path.GetDirectoryName(path)));
+            Assert.Equal("Owned legacy edit", File.ReadAllText(record.WorkingPath));
+        }
+        finally { provider.Release(archive); Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void A_legacy_commit_copy_encrypted_before_sealing_is_kept_before_queueing()
+    {
+        RequireEfs();
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-legacy-commit-before-seal-").FullName;
+        string archive = Path.Combine(root, "source.zip");
+        string scratch = Directory.CreateDirectory(Path.Combine(root, "scratch")).FullName;
+        var provider = new ZipProvider(Path.Combine(root, "cache"));
+        try
+        {
+            CreateZip(archive);
+            var store = new EditSessionStore(Path.Combine(root, "sessions"), new WindowsFileOperations());
+            var record = store.Create(provider, Member(provider, archive), ct);
+            string? encrypted = null;
+            var refusal = Assert.Throws<ArchiveWriteException>(() => store.PrepareCommit(record, scratch, ct, () =>
+            {
+                if (encrypted is not null) return;
+                string? complete = Directory.EnumerateFiles(scratch, "*", SearchOption.AllDirectories)
+                    .FirstOrDefault(path => new FileInfo(path).Length == Contents.Length);
+                if (complete is null) return;
+                if (Record.Exception(() => File.Encrypt(complete)) is null) encrypted = complete;
+            }));
+            Assert.Contains(refusal.Message, new[] { ArchiveOuterEfs.EditSnapshotUnavailable, ArchiveOuterEfs.EditTemporaryOutputUnavailable });
+            Assert.NotNull(encrypted);
+            Assert.Equal(Contents, File.ReadAllText(encrypted));
+            Assert.True(File.GetAttributes(encrypted).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(Contents, File.ReadAllText(record.WorkingPath));
+        }
+        finally { provider.Release(archive); Directory.Delete(root, recursive: true); }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -404,6 +485,12 @@ public sealed class WindowsArchiveEfsEditTests
                     Assert.Equal(scenario != "cancel", File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
                 }
                 else Assert.False(File.Exists(target));
+            }
+            if (scenario == "protected snapshot")
+            {
+                copy.Dispose();
+                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+                Assert.Equal(payload, File.ReadAllBytes(source));
             }
         }
         finally { Directory.Delete(root, recursive: true); }

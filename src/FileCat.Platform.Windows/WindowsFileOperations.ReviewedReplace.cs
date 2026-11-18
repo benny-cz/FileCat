@@ -120,14 +120,13 @@ public partial class WindowsFileOperations : ILegacyZipBackupRestorer
         if (parent is null) return new BoundDeletion(false, true, "The owned file's folder is linked or cannot be held.");
         try
         {
-            using var file = OpenOrThrow(parent.LastHandle, Path.GetFileName(full), ReadAttributes | Delete | Synchronize,
+            string leaf = Path.GetFileName(full);
+            if (requireClearEfs && WindowsFileTransaction.CanEncrypt(parent.LastHandle))
+                return DeleteClearOwnedFileInTransaction(parent.LastHandle, leaf, expectedIdentity);
+
+            using var file = OpenOrThrow(parent.LastHandle, leaf, ReadAttributes | Delete | Synchronize,
                 ShareRead, Open, NonDirectoryFile | OpenReparsePoint, "Open owned file for deletion");
-            if (IsLink(file)) return new BoundDeletion(false, true, "The owned file's name is now a link.");
-            var identity = ProtectedHexFile.Identity(file);
-            if (!string.Equals($"{identity.VolumeSerial:X16}:{identity.FileId}", expectedIdentity, StringComparison.OrdinalIgnoreCase))
-                return new BoundDeletion(false, true, "Another object now has the owned file's name.");
-            if (requireClearEfs && IsEfsProtected(file))
-                return new BoundDeletion(false, true, "The owned file became EFS-protected.");
+            if (ReviewOwnedRemoval(file, expectedIdentity, requireClearEfs) is { } refusal) return refusal;
             DeleteOpen(file);
             return new BoundDeletion(true, false);
         }
@@ -135,6 +134,31 @@ public partial class WindowsFileOperations : ILegacyZipBackupRestorer
         {
             return new BoundDeletion(false, false, "The owned file could not be deleted through its handle: " + ex.Message);
         }
+    }
+
+    private static BoundDeletion DeleteClearOwnedFileInTransaction(SafeFileHandle directory, string leaf, string identity)
+    {
+        using var anchor = OpenOrThrow(directory, leaf, ReadAttributes | Synchronize, ShareAll, Open,
+            NonDirectoryFile | OpenReparsePoint, "Review the owned file for deletion");
+        if (ReviewOwnedRemoval(anchor, identity, requireClearEfs: true) is { } refusal) return refusal;
+        using var transaction = new WindowsFileTransaction("FileCat clear owned-file removal");
+        using var file = transaction.OpenHeldChild(directory, leaf, ReadAttributes | Delete | Synchronize);
+        if (ReviewOwnedRemoval(file, identity, requireClearEfs: true) is { } changed) return changed;
+        WindowsFileTransaction.RemoveOnClose(file);
+        file.Dispose();
+        anchor.Dispose();
+        transaction.Commit("Windows could not confirm removal of the owned file.");
+        return new BoundDeletion(true, false);
+    }
+
+    private static BoundDeletion? ReviewOwnedRemoval(SafeFileHandle file, string expectedIdentity, bool requireClearEfs)
+    {
+        if (IsLink(file) || requireClearEfs && IsReparsePoint(GetBasic(file).FileAttributes))
+            return new BoundDeletion(false, true, "The owned file's name is now a reparse point.");
+        var identity = ProtectedHexFile.Identity(file);
+        if (!string.Equals($"{identity.VolumeSerial:X16}:{identity.FileId}", expectedIdentity, StringComparison.OrdinalIgnoreCase))
+            return new BoundDeletion(false, true, "Another object now has the owned file's name.");
+        return requireClearEfs && IsEfsProtected(file) ? new BoundDeletion(false, true, "The owned file became EFS-protected.") : null;
     }
 
     internal BoundDeletion? DeleteReviewedFileCore(string path, string? expectedIdentity, string expectedSha256,

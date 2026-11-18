@@ -18,12 +18,18 @@ namespace FileCat.Core.Edit;
 internal static class EditPrivateCleanup
 {
     /// <summary>Null when the file was removed or is already gone; otherwise why it was kept (with its path).</summary>
-    internal static string? DeleteOwnedFile(IFileSystemOperations files, string path, string? identity, bool inFileCatData = true)
+    internal static string? DeleteOwnedFile(IFileSystemOperations files, string path, string? identity, bool inFileCatData = true,
+        bool requireClearEfs = false)
     {
         try
         {
             if (!Present(path)) return null;
-            if (identity is not null && files.DeleteOwnedFile(path, identity) is { } bound) return bound.Deleted ? null : Kept(path, bound.Reason);
+            if (identity is not null)
+            {
+                var bound = requireClearEfs ? files.DeleteClearOwnedFile(path, identity) : files.DeleteOwnedFile(path, identity);
+                if (bound is not null) return bound.Deleted ? null : Kept(path, bound.Reason);
+            }
+            if (requireClearEfs) return Kept(path, "its clear protection state or exact identity could not be held for cleanup");
             if (OperatingSystem.IsWindows())
             {
                 if (identity is null && inFileCatData) { File.Delete(path); return null; }

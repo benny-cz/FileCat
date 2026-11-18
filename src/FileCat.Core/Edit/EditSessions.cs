@@ -171,18 +171,49 @@ public sealed class EditCommitCopy : IDisposable
         (_pin ?? throw new ObjectDisposedException(nameof(EditCommitCopy))).SafeFileHandle;
     private readonly IFileSystemOperations? _files;
     private readonly string? _identity;
-    internal EditCommitCopy(string path, string sha256, uint crc32, long length, IFileSystemOperations? files = null)
+    private readonly IDisposable? _protection;
+    internal EditCommitCopy(string path, string sha256, uint crc32, long length, IFileSystemOperations? files = null,
+        string? expectedIdentity = null, Action? sealCheckpoint = null)
     {
         Path = path; Sha256 = sha256; Crc32 = crc32; Length = length;
         var pin = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         try
         {
-            ArchiveOuterEfs.RequireClear(pin.SafeFileHandle, ArchiveOuterEfs.EditSnapshotUnavailable);
-            // Recorded while pinned: Dispose removes only this object (risk R21).
-            _files = files; _identity = files?.GetFileIdentity(path);
+            const string refusal = ArchiveOuterEfs.EditSnapshotUnavailable;
+            ArchiveOuterEfs.RequireClear(pin.SafeFileHandle, refusal);
+            _files = files;
+            // Record the actual held identity, so later cleanup cannot use another file at this path.
+            _identity = files is IEditCopyPublisher ? files.GetOpenedFileIdentity(pin.SafeFileHandle) : files?.GetFileIdentity(path);
+            if (expectedIdentity is not null && _identity != expectedIdentity)
+                throw new IOException("The temporary edit copy was replaced before its protection was held.");
+            if (sealCheckpoint is not null && files is IEditCopyPublisher native)
+            {
+                _protection = native.HoldClearEditInput(pin.SafeFileHandle, refusal);
+                if (_protection is not null) VerifySealedPayload(pin, sha256, length, sealCheckpoint);
+            }
             _pin = pin;
         }
-        catch { pin.Dispose(); throw; }
+        catch { try { _protection?.Dispose(); } finally { pin.Dispose(); } throw; }
+    }
+
+    private static void VerifySealedPayload(FileStream pin, string sha256, long length, Action check)
+    {
+        if (pin.Length != length) throw new IOException("The temporary edit copy changed before its protection was held.");
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        byte[] buffer = new byte[(int)Math.Min(1024 * 1024, length)];
+        long remaining = length;
+        while (remaining > 0)
+        {
+            check();
+            int count = pin.Read(buffer.AsSpan(0, (int)Math.Min(buffer.Length, remaining)));
+            if (count == 0) throw new IOException("The temporary edit copy ended during verification.");
+            hash.AppendData(buffer.AsSpan(0, count));
+            remaining -= count;
+        }
+        check();
+        if (pin.Length != length || Convert.ToHexString(hash.GetHashAndReset()) != sha256)
+            throw new IOException("The temporary edit copy changed before its protection was held.");
+        pin.Position = 0;
     }
     private Action? _released;
     internal EditCommitCopy(NativeEditSnapshot snapshot,uint crc32,Action? released=null)
@@ -192,11 +223,11 @@ public sealed class EditCommitCopy : IDisposable
         if(Native is { } native){try{native.Dispose();}finally{Interlocked.Exchange(ref _released,null)?.Invoke();}return;}
         var pin=Interlocked.Exchange(ref _pin,null);
         if(pin is null)return; // A previously closed copy has no authority over a later pathname replacement.
-        pin.Dispose();
+        try { _protection?.Dispose(); } finally { pin.Dispose(); }
         // This GUID folder contains only this owned snapshot; the published working copy is elsewhere. Remove the exact
         // snapshot (a replaced name is kept and logged), then the folder once empty.
         if (_files is null) { Diagnostics.AppLog.Warn("FileCat kept its edit snapshot " + Path + ": it has no file-operations owner."); return; }
-        if (EditPrivateCleanup.DeleteOwnedFile(_files, Path, _identity) is null)
+        if (EditPrivateCleanup.DeleteOwnedFile(_files, Path, _identity, requireClearEfs: _files is IEditCopyPublisher) is null)
             EditPrivateCleanup.RemoveEmptyFolder(System.IO.Path.GetDirectoryName(Path)!);
     }
 }
@@ -911,22 +942,38 @@ public sealed partial class EditSessionStore
             check?.Invoke();
             source.RequireClearWorkingFile();
         }
+        void SealCheckpoint() { ct.ThrowIfCancellationRequested(); CheckSource(); }
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
         CreatePrivateDirectory(directory);
         string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
+        bool bindOutput = fs is IEditCopyPublisher;
+        string? createdIdentity = null;
+        FileStream CreateBoundOutput(long _)
+        {
+            var output = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
+            try
+            {
+                createdIdentity = fs.GetOpenedFileIdentity(output.SafeFileHandle)
+                    ?? throw new IOException("The temporary edit copy's identity could not be recorded.");
+                return output;
+            }
+            catch { output.Dispose(); throw; }
+        }
         try
         {
             // Editors that already hold a write handle cause a conservative sharing refusal on Windows.
             // Unix sharing is advisory: length/time checks still apply; this is not a hostile-writer snapshot guarantee.
-            var copy = WriteWorkingCopy(source, path, ct, check: CheckSource);
+            var copy = WriteWorkingCopy(source, path, ct, check: CheckSource, outputFactory: bindOutput ? CreateBoundOutput : null);
             File.SetLastWriteTimeUtc(path, source.ModifiedUtc);
             if (fs.ReadOriginMark(record.WorkingPath) is { } mark) PreserveOriginMark(path, mark);
-            ct.ThrowIfCancellationRequested();
-            return new EditCommitCopy(path, copy.Sha256, copy.Crc, copy.Length, fs);
+            SealCheckpoint();
+            return new EditCommitCopy(path, copy.Sha256, copy.Crc, copy.Length, fs, createdIdentity, SealCheckpoint);
         }
         catch
         {
-            EditPrivateCleanup.DeleteOwnedFolder(fs, directory);
+            if (!bindOutput) EditPrivateCleanup.DeleteOwnedFolder(fs, directory);
+            else if (EditPrivateCleanup.DeleteOwnedFile(fs, path, createdIdentity, requireClearEfs: true) is null)
+                EditPrivateCleanup.RemoveEmptyFolder(directory);
             throw;
         }
     }
