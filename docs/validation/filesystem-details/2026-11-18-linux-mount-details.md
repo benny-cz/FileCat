@@ -1,0 +1,5 @@
+# Linux file-system type from the held item
+
+File-system details looks up the mount ID reported by `statx` on the live `O_PATH` descriptor. It checks the process mount table on procfs and requires the same mount ID and device number before it reports a volume-scoped type. A missing, oversized or inconsistent observation has an explicit unavailable state. The summary uses a bounded mount-table read and opens neither the item's payload nor a raw volume. [Linux statx](https://man7.org/linux/man-pages/man2/statx.2.html). [Linux process mount table](https://man7.org/linux/man-pages/man5/proc_pid_mountinfo.5.html).
+
+On the Ubuntu 24.04 x64 VM, the fixture put a symlink on ext4 pointing into procfs. Details for the symlink reported the host mount, while details for a file accessed through that directory alias reported `proc`. The run also exercised the existing FIFO no-payload case and the opt-in ext4 FIEMAP fixture. There were 21 passes and one Darwin-only skip. The VM receipt is `~/FileCatValidation/details-92d52654.zR6HolZy/src/tests/FileCat.Core.Tests/TestResults/linux-bound-mount-details-final.trx`.

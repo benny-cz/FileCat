@@ -1,6 +1,9 @@
 using System.Buffers.Binary;
+using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text;
 using FileCat.Core.Inspect;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Records;
 
@@ -38,7 +41,9 @@ public sealed unsafe partial class UnixFileRecords
             int status = Statx(fd, "", 0x1000 | 0x100 | 0x800, 0xFFF | 0x1000, bytes);
             ct.ThrowIfCancellationRequested();
             if (status != 0) throw Error(path);
-            var report = ParseLinuxDetails(path, new ReadOnlySpan<byte>(bytes, 256));
+            var fields = new ReadOnlySpan<byte>(bytes, 256);
+            var report = ParseLinuxDetails(path, fields);
+            report = report with { Summary = report.Summary with { FileSystem = ReadLinuxDetailsFileSystem(fields, noFollow, ct) } };
             if (report.Summary.Kind == FileObjectKind.SymbolicLink)
             {
                 byte[] buffer = new byte[16 * 1024];
@@ -57,6 +62,64 @@ public sealed unsafe partial class UnixFileRecords
             return report;
         }
         finally { Close(fd); }
+    }
+
+    private static ObservedFact<string> ReadLinuxDetailsFileSystem(ReadOnlySpan<byte> statx, int noFollow, CancellationToken ct)
+    {
+        const string source = "statx on O_PATH descriptor + /proc/self/mountinfo";
+        ObservedFact<string> Unavailable(FactState state, string reason) => ObservedFact<string>.Unavailable(state, FactScope.Volume, source, reason);
+        ulong mountId = BinaryPrimitives.ReadUInt64LittleEndian(statx[144..]);
+        if ((BinaryPrimitives.ReadUInt32LittleEndian(statx) & 0x1000) == 0 || mountId == 0)
+            return Unavailable(FactState.Unsupported, "statx did not return a mount ID.");
+        byte[] id = Encoding.ASCII.GetBytes(mountId.ToString(CultureInfo.InvariantCulture));
+        string device = string.Create(CultureInfo.InvariantCulture,
+            $"{BinaryPrimitives.ReadUInt32LittleEndian(statx[136..])}:{BinaryPrimitives.ReadUInt32LittleEndian(statx[140..])}");
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+            const string path = "/proc/self/mountinfo";
+            int fd = Open(path, 0x80000 | 0x800 | 0x100 | noFollow); // O_CLOEXEC | O_NONBLOCK | O_NOCTTY | O_NOFOLLOW
+            if (fd < 0) throw Error(path);
+            using var handle = new SafeFileHandle((nint)fd, ownsHandle: true);
+            ct.ThrowIfCancellationRequested();
+            byte* filesystem = stackalloc byte[256];
+            bool procfs = DetailsFstatfs(fd, filesystem) == 0 && *(nint*)filesystem == 0x9fa0; // PROC_SUPER_MAGIC
+            ct.ThrowIfCancellationRequested();
+            if (!procfs) return Unavailable(FactState.Unsupported, "The process mount table is unavailable on procfs.");
+            using var input = new FileStream(handle, FileAccess.Read, bufferSize: 1);
+            const int limit = 1 << 20;
+            byte[] data = new byte[64 << 10];
+            int count = 0;
+            while (count <= limit)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (count == data.Length) Array.Resize(ref data, Math.Min(data.Length * 4, limit + 1));
+                int read = input.Read(data, count, Math.Min(64 << 10, data.Length - count));
+                if (read == 0) break;
+                count += read;
+            }
+            ct.ThrowIfCancellationRequested();
+            if (count > limit) return Unavailable(FactState.Partial, "The process mount table exceeds the 1 MiB read limit.");
+            string? type = null;
+            ReadOnlySpan<byte> table = data.AsSpan(0, count);
+            foreach (var range in table.Split((byte)'\n'))
+            {
+                ct.ThrowIfCancellationRequested();
+                var row = table[range];
+                int firstSpace = row.IndexOf((byte)' ');
+                if (firstSpace < 0 || !row[..firstSpace].SequenceEqual(id)) continue;
+                string[] columns = Encoding.UTF8.GetString(row).Split(' ');
+                int separator = Array.IndexOf(columns, "-");
+                if (type is not null || separator < 6 || separator + 4 != columns.Length || columns[2] != device ||
+                    string.IsNullOrEmpty(columns[separator + 1]))
+                    return Unavailable(FactState.Changed, "The mount record did not uniquely match the held item's device.");
+                type = columns[separator + 1];
+            }
+            return type is null ? Unavailable(FactState.Partial, "The held item's mount is not visible in the process mount table.")
+                : ObservedFact<string>.Known(type, FactScope.Volume, source);
+        }
+        catch (UnauthorizedAccessException) { return Unavailable(FactState.Denied, "The process mount table is unavailable to this user."); }
+        catch (IOException) { return Unavailable(FactState.Failed, "The process mount table could not be read."); }
     }
 
     internal static FileDetailsReport ParseLinuxDetails(string path, ReadOnlySpan<byte> bytes)
