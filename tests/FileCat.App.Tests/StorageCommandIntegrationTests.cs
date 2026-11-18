@@ -232,15 +232,18 @@ public sealed class StorageCommandIntegrationTests
             File.WriteAllText(Path.Join(vm.ActiveTab!.Location!.Path, "b.txt"), "alpha");
             vm.Execute(CommandIds.FindFiles); await Until(() => FindWindow.OpenWindows.Count == 1);
             find = FindWindow.OpenWindows.Single(); find.NamesBox.Text = "*.txt";
-            find.StartSearch(RefineMode.Replace, duplicates ? DuplicateCriteria.Size : null);
-            var tab = find.ResultsTab!; string device = services.Providers.For(tab.Location!).GetDeviceKey(tab.Location!);
+            // The initial enumeration and the final publication use the same result-set queue.
+            string device = services.ResultSets.GetDeviceKey(new Location(Schemes.ResultSet, string.Empty));
             int workers = 0;
             blocked = Task.WhenAll(Enumerable.Range(0, services.Io.ThreadsPerDevice).Select(_ => services.Io.RunOwned(device, IoPriority.Interactive, token =>
             {
                 if (Interlocked.Increment(ref workers) == services.Io.ThreadsPerDevice) entered.Set();
                 if (!release.Wait(TimeSpan.FromSeconds(15))) throw new TimeoutException(); return true;
             }, TestContext.Current.CancellationToken)));
-            await Until(() => entered.IsSet && find.Session!.Finished && find.IsIdle);
+            await Until(() => entered.IsSet);
+            find.StartSearch(RefineMode.Replace, duplicates ? DuplicateCriteria.Size : null);
+            await Until(() => find.Session!.Finished && find.IsIdle &&
+                (!duplicates || services.ResultSets.Get(find.ResultsTab!.Location!)?.ShowsGroups == true));
             Assert.False(find.StorageCommandAvailability.Enabled);
             Assert.Contains("results to finish updating", find.StorageCommandAvailability.Reason);
             find.Run(CommandIds.StorageAttributes);
