@@ -201,7 +201,9 @@ public static class ApplyCommandPlanner
 internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal)
 {
     private const int OutputTail = JobCommandResult.StreamTailCharacterLimit;
-    private static readonly TimeSpan OutputCloseGrace = TimeSpan.FromMilliseconds(750);
+    // Windows redirects through synchronous pipes. Their asynchronous reads can take longer to
+    // finish on a busy thread pool, even when the direct process has already closed its writers.
+    private static readonly TimeSpan OutputCloseGrace = TimeSpan.FromMilliseconds(OperatingSystem.IsWindows() ? 3_000 : 750);
     private sealed record RunResult(int? ExitCode, string Stdout, string Stderr,
         bool StdoutTruncated, bool StderrTruncated, bool OutputIncomplete);
 
@@ -361,7 +363,7 @@ internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, Jo
         try
         {
             int read;
-            while ((read = await stream.ReadAsync(buffer.AsMemory(), ct)) > 0)
+            while ((read = await stream.ReadAsync(buffer.AsMemory(), ct).ConfigureAwait(false)) > 0)
             {
                 tail.Append(buffer.AsSpan(0, read));
             }
