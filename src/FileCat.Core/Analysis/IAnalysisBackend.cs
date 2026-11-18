@@ -23,6 +23,7 @@ public sealed record AnalysisEntry(ImmutableArray<byte> RelativeName, string Nam
     }
     // Process-owned read-scope evidence. It is deliberately absent from inventory records and never authorizes mutation.
     internal AnalysisAncestry? Ancestry { get; init; }
+    internal AnalysisExtraAllocation? ExtraAllocation { get; init; }
 
     public static AnalysisEntry Unavailable(ImmutableArray<byte> relative, ImmutableArray<byte> raw, string encoding,
         AnalysisKind kind, MeasurementState state, string code)
@@ -60,6 +61,22 @@ public interface IAnalysisBackend : IDisposable
     void ValidateReadScope(AnalysisEntry directory);
     // Invoked only on admitted I/O workers. Historical RootBinding data cannot supply this proof.
     AnalysisRootContainment ContainsRoot(IAnalysisBackend other) => AnalysisRootContainment.Unavailable;
+}
+
+internal interface IAnalysisDetailedBackend
+{
+    string ExtraAllocationBasis { get; }
+    AnalysisEntry ReadDetailedRoot(CancellationToken cancellation);
+    IEnumerable<AnalysisEntry> ReadDetailedChildren(AnalysisEntry directory, Func<AnalysisEntry, bool> mayMeasure, CancellationToken cancellation);
+}
+
+internal sealed record AnalysisExtraAllocation(string Component, string Basis, string Method, AnalysisMeasurement Measurement)
+{
+    internal StorageFact Fact(string id, string owner, DateTimeOffset observed) =>
+        new(id, owner, null, Component, Basis, Measurement, Method, observed, []);
+
+    internal bool Matches(StorageFact fact) => Component == fact.ComponentId && Basis == fact.BasisId && Method == fact.Method &&
+        Measurement == fact.Measurement && fact.Includes.IsEmpty;
 }
 
 public sealed class AnalysisSourceChangedException : IOException

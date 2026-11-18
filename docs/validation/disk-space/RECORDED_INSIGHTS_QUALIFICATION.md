@@ -21,4 +21,12 @@ The native workflow uses the same FileCat binaries. It ranks a 500-file folder w
 
 The exact source and result packet is recorded in [the r1385 manifest](source-manifest-r1385-largest-folders.json).
 
-Actual stream and fork measurements, physical input, and assistive technology remain open.
+## Detailed NTFS named-stream allocation
+
+Detailed allocation on local NTFS can record one extra-allocation total per verified file object. The analysis queries the already opened metadata handle and validates the returned default stream against primary length and allocation. It sums the reported allocation fields for complete named data stream records. The capture retains the amount, method, basis, time and state. Stream names and contents stay outside the capture. [Microsoft FileStreamInformation layout](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/f8762be6-3ab9-411e-a7d6-5cc68f70c78d)
+
+The query uses a 64 KiB native buffer and accepts at most 256 named streams. Incomplete, malformed, unsupported or changed evidence remains unavailable. Measured absence is recorded as zero. Primary logical bytes stay in File size. The On disk total charges the primary and additional allocation separately and charges hard-linked objects once. The preview ranks positive captured extra allocation by path and warns that multiple names can represent the same object.
+
+The r1394 suite exercises memory and indexed captures, multiple real NTFS named streams, a real hard-link alias, measured zero, primary-size preservation and unavailable results on macOS and Ubuntu. The r1395 native workflow shows 76 KiB of reported named allocation for an archive on Windows and the unavailable preview on Ubuntu. Named-stream bytes and primary fixture bytes are preserved. The initial Mac capture stalled waiting for the capture acknowledgement. The r1397 Mac retry uses the same FileCat build with an atomic request and acknowledgement in the harness. [Exact evidence](source-manifest-r1396-ntfs-streams.json)
+
+Resource forks, xattrs, stream-specific actions, and physical input and assistive technology qualification remain open.

@@ -58,8 +58,8 @@ public sealed class AnalysisRecipes
             "Show recorded issues for failed, unsupported, pending, or changed observations in the selected locations.",
             "Issue records can be sampled. Unknown size remains unknown, and a measurement issue alone gives no reason to remove an entry."),
         new(AnalysisMetadataRecipe.LargeExtraData, "large-extra-data", 1, "Large extra data",
-            "Review separately qualified stream or fork measurements.",
-            "Extra data may be required by the application or record its provenance.")
+            "Rank files by separately reported extra-data allocation.",
+            "Allocation can be shared. Named streams can be required by an application or record its provenance.")
     ];
 
     public AnalysisRecipeDefinition Definition { get; }

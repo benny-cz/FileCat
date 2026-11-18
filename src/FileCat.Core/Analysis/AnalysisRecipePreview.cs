@@ -44,7 +44,7 @@ internal sealed partial class AnalysisRecipePreviews
 
     internal AnalysisMetric Metric { get; }
     internal AnalysisMetadataRecipe Recipe => _definition.Recipe;
-    internal bool NeedsAllocation => Metric == AnalysisMetric.OnDisk || Recipe is AnalysisMetadataRecipe.AllocationDifference or AnalysisMetadataRecipe.ManySmallFiles ||
+    internal bool NeedsAllocation => Metric == AnalysisMetric.OnDisk || Recipe is AnalysisMetadataRecipe.AllocationDifference or AnalysisMetadataRecipe.ManySmallFiles or AnalysisMetadataRecipe.LargeExtraData ||
         (_saved is not null && (_saved.Needs & AnalysisFilterNeeds.Allocation) != 0);
     internal bool NeedsContextMarkers => _definition.Recipe is AnalysisMetadataRecipe.GeneratedBuildOutput or AnalysisMetadataRecipe.ApplicationCache;
     internal bool NeedsRelativePath => _saved is not null && (_saved.Needs & AnalysisFilterNeeds.Path) != 0;
@@ -128,9 +128,14 @@ public sealed partial class AnalysisDatasetLease
         }
         return await _owned.UseAsync(async reader =>
         {
-            if (preview.Recipe is AnalysisMetadataRecipe.UnmeasuredLocations or AnalysisMetadataRecipe.ManySmallFiles or AnalysisMetadataRecipe.LargeExtraData)
+            if (preview.Recipe is AnalysisMetadataRecipe.UnmeasuredLocations or AnalysisMetadataRecipe.ManySmallFiles)
             {
                 await ReadRecordedInsightAsync(reader, preview, cancellation).ConfigureAwait(false);
+                return preview.Finish(Descriptor.Identity, Descriptor.Coverage);
+            }
+            if (preview.Recipe == AnalysisMetadataRecipe.LargeExtraData && !AnalysisComponents.ExtraAllocationRequested(Descriptor.Policy))
+            {
+                preview.CompleteExtraData();
                 return preview.Finish(Descriptor.Identity, Descriptor.Coverage);
             }
             ulong next = 1;
@@ -152,6 +157,11 @@ public sealed partial class AnalysisDatasetLease
                         var obj = node is { MetadataState: MeasurementState.Known, IncludedByPolicy: true, Cloud: not true, ObjectId: { } id }
                             ? ReadRequiredObservedObject(reader, id, token) : null;
                         if (obj is not null) bytes += 1024L + (obj.VerifiedIdentity?.Length ?? 0) * 2L + (obj.VersionEvidence?.Length ?? 0) * 2L;
+                        if (preview.Recipe == AnalysisMetadataRecipe.LargeExtraData)
+                        {
+                            preview.AddExtraData(node, obj is null ? null : ReadRecipeComponents(reader, obj.Id, ref bytes, token));
+                            continue;
+                        }
                         AnalysisMeasurement allocation = preview.NeedsAllocation && obj is not null
                             ? ReadRecipeAllocation(reader, obj.Id, ref bytes, token, preview.Recipe == AnalysisMetadataRecipe.AllocationDifference)
                             : AnalysisMeasurement.Missing(MeasurementState.Unsupported);
@@ -186,6 +196,7 @@ public sealed partial class AnalysisDatasetLease
                     }
                 }, cancellation).ConfigureAwait(false);
             cancellation.ThrowIfCancellationRequested();
+            if (preview.Recipe == AnalysisMetadataRecipe.LargeExtraData) preview.CompleteExtraData();
             return preview.Finish(Descriptor.Identity, Descriptor.Coverage);
         }).ConfigureAwait(false);
     }

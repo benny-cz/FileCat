@@ -8,7 +8,15 @@ public sealed record AnalysisComponentFacts(string ComponentId, string BasisId,
 
 public static class AnalysisComponents
 {
-    public const string UnmeasuredExplanation = "Separate stream, fork and xattr coverage is unqualified. Reported facts may already include some components; no extra allocation is inferred.";
+    internal const string NamedStreamComponent = "named-data-streams", NamedStreamBasis = "ntfs-named-stream-allocation-v1";
+    internal const string NamedStreamMethod = "NTFS FileStreamInformation named data stream allocation";
+    public const string UnmeasuredExplanation = "Separate resource fork and xattr allocation is unavailable. Detailed NTFS scans can record named data stream allocation.";
+
+    internal static bool IsExtraAllocation(StorageFact fact) =>
+        fact.ComponentId == NamedStreamComponent && fact.BasisId == NamedStreamBasis && fact.Method == NamedStreamMethod &&
+        fact.ObjectId is not null && fact.Includes.IsEmpty;
+    internal static bool ExtraAllocationRequested(ScanPolicy policy) =>
+        policy.ComponentPreset == "detailed" && policy.BasisIds.Contains(NamedStreamBasis);
 
     public static ImmutableArray<AnalysisComponentFacts> Summarize(AnalysisSnapshot snapshot) => snapshot.Facts
         .GroupBy(f => (f.ComponentId, f.BasisId)).OrderBy(g => g.Key.ComponentId, StringComparer.Ordinal).ThenBy(g => g.Key.BasisId, StringComparer.Ordinal)
@@ -22,6 +30,7 @@ public static class AnalysisComponents
         foreach (var state in component.States)
             if (state.Key == MeasurementState.Known) known = checked(known + state.Value); else unavailable = checked(unavailable + state.Value);
         return (snapshot.Policy.ComponentPreset == "detailed" ? "Detailed allocation" : "Standard allocation") +
-            $" · recorded component facts: {known:N0} known, {unavailable:N0} unavailable. " + UnmeasuredExplanation;
+            $" · recorded component facts: {known:N0} known, {unavailable:N0} unavailable. " +
+            (snapshot.Policy.ComponentPreset == "detailed" ? UnmeasuredExplanation : "Named streams and resource forks are not separately measured.");
     }
 }

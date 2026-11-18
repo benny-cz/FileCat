@@ -14,11 +14,14 @@ internal static class AnalysisPendingPayload
     internal static long ReservedBytes => Working.ReservedBytes + Frontier.ReservedBytes + Writes.ReservedBytes;
 
     // Includes decoded display text and metadata strings, not just raw names/relative locators.
+    internal static long ExtraBytes(AnalysisEntry entry) => entry.ExtraAllocation is { } extra
+        ? 384L + (extra.Component.Length + extra.Basis.Length + extra.Method.Length) * 2L : 0;
+
     internal static long EntryBytes(AnalysisEntry entry, bool ancestry = false)
     {
         long bytes = checked(1024L + entry.RawName.Length * 4L + entry.RelativeName.Length * 2L +
             entry.Name.Length * 2L + (entry.Identity?.Length ?? 0) * 2L + entry.Version.Length * 2L +
-            entry.NameEncoding.Length * 2L + (entry.IssueCode?.Length ?? 0) * 2L);
+            entry.NameEncoding.Length * 2L + (entry.IssueCode?.Length ?? 0) * 2L + ExtraBytes(entry));
         if (!ancestry) return bytes;
         int depth = 0;
         for (var witness = entry.Ancestry; witness is not null; witness = witness.Parent)

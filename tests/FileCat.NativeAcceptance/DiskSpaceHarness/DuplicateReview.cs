@@ -9,6 +9,7 @@ namespace DiskSpaceHarness;
 internal sealed partial class HarnessApp
 {
     private object? _duplicateReviewProbe;
+    private string? _namedStreamPath, _namedStreamDigest;
 
     private void CreateDuplicateProbeFiles()
     {
@@ -20,6 +21,12 @@ internal sealed partial class HarnessApp
         if (!(OperatingSystem.IsWindows() ? HardLink(alias, source, 0) : UnixLink(source, alias) == 0))
             throw new IOException("The native duplicate-review fixture needs an actual hard link.");
         _originals.Add(alias, _originals[source]);
+        if (Program.DetailedStreamProbe && OperatingSystem.IsWindows())
+        {
+            _namedStreamPath = Path.Combine(_fixture, "Archives", "archive.zip") + ":validation:$DATA";
+            File.WriteAllBytes(_namedStreamPath, Enumerable.Repeat((byte)5, 72 * 1024 + 5).ToArray());
+            _namedStreamDigest = Hash(_namedStreamPath);
+        }
     }
 
     private async Task DuplicateReviewProbeAsync()
@@ -103,9 +110,24 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => Control<ListBox>("Captured recipe candidates") is null);
 
             await OpenInsightAsync("Large extra data");
-            await ReadyAsync(() => HasText("Extra-data size is unavailable"));
-            if (Control<ListBox>("Captured recipe candidates") is not null)
-                throw new IOException("The unavailable extra-data preview displayed a measured candidate.");
+            bool namedAllocationAvailable = Program.DetailedStreamProbe && OperatingSystem.IsWindows();
+            if (namedAllocationAvailable)
+            {
+                await ReadyAsync(() => Control<ListBox>("Captured recipe candidates")?.ItemCount == 1);
+                var extraRow = Control<ListBox>("Captured recipe candidates")!.Items[0]?.ToString() ?? "";
+                if (!extraRow.StartsWith("archive.zip\n", StringComparison.Ordinal) ||
+                    !extraRow.Contains("Reported NTFS named data stream allocation", StringComparison.Ordinal) ||
+                    Button("Add included to review basket") is not null)
+                    throw new IOException("The native extra-data preview did not separate the named allocation from the main file.");
+            }
+            else
+            {
+                await ReadyAsync(() => HasText("Extra-data size is unavailable"));
+                if (Control<ListBox>("Captured recipe candidates") is not null)
+                    throw new IOException("The unavailable extra-data preview displayed a measured candidate.");
+            }
+            if (Program.DetailedStreamProbe)
+                await RecipeFrameAsync("ntfs-stream-allocation.png", true, _indexedLifetime.Token);
             Click("Close preview");
             await ReadyAsync(() => Button("Close preview") is null && Marks(4, 4));
 
@@ -141,7 +163,7 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => Control<TextBlock>("Recorded candidate evidence")?.Text?.Contains("Archives/archive.zip", StringComparison.Ordinal) == true);
             if (Button("Close preview") is not { IsDefault: true, IsCancel: true })
                 throw new IOException("Recipe staging changed the preserving default.");
-            await RecipeFrameAsync("recipe-staging-included.png", true, _indexedLifetime.Token);
+            await RecipeFrameAsync("recipe-staging-included.png", !Program.DetailedStreamProbe, _indexedLifetime.Token);
             Click("Add included to review basket");
             await ReadyAsync(() => Button("Close preview") is null && Marks(4, 5) && HasText("Added 1 captured reference"));
             Click("Review captured basket");
@@ -151,12 +173,15 @@ internal sealed partial class HarnessApp
             Click("Remove selected from basket");
             Click("Keep files / Close review");
             await ReadyAsync(() => Control<ListBox>("Captured basket entries") is null && Marks(4, 4));
+            if (_namedStreamPath is { } streamPath && Hash(streamPath) != _namedStreamDigest)
+                throw new IOException("A named stream changed during the preview and review.");
 
             _duplicateReviewProbe = new
             {
                 finished = true, passed = true, sessions = window.SessionCount, candidateObjects = 2, knownReadBytes = 8,
                 capturedMarks = 4, additionalHardLinkNames = 1, preservingDefault, retainedHiddenMarksAndBasket = true,
-                contentAvailable, contentGroups, recordedInsightsPassed = true, largestFoldersPassed = true, recipeStagingPassed = true
+                contentAvailable, contentGroups, recordedInsightsPassed = true, largestFoldersPassed = true, recipeStagingPassed = true,
+                detailedStreamProbe = Program.DetailedStreamProbe, namedAllocationAvailable, namedStreamBytesPreserved = true
             };
         }
         catch (Exception error)

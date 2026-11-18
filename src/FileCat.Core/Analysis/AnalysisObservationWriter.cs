@@ -78,12 +78,14 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
         foreach (var item in observations)
         {
             if (item is null || item.Entry is not { } entry || entry.Name is null || entry.NameEncoding is null || entry.Version is null || item.RootId is null || item.Basis is null) throw new ArgumentException("A captured batch row is incomplete.", nameof(observations));
-            bytes = checked(bytes + 512L + entry.Name.Length * 2L + entry.RawName.Length + (entry.Identity?.Length ?? 0) * 2L + (entry.Version?.Length ?? 0) * 2L +
-                entry.NameEncoding.Length * 2L + (entry.IssueCode?.Length ?? 0) * 2L + item.RootId.Length * 2L + item.Basis.Length * 2L);
+            bytes = checked(bytes + RecordBytes(entry, item.RootId, item.Basis));
             if (bytes > AnalysisLimits.BatchBytes) throw new ArgumentException("The captured batch exceeds its byte limit. Submit a smaller batch.", nameof(observations));
         }
         return bytes;
     }
+    internal static long RecordBytes(AnalysisEntry entry, string root, string basis) =>
+        512L + entry.Name.Length * 2L + entry.RawName.Length + (entry.Identity?.Length ?? 0) * 2L + (entry.Version?.Length ?? 0) * 2L +
+        entry.NameEncoding.Length * 2L + (entry.IssueCode?.Length ?? 0) * 2L + root.Length * 2L + basis.Length * 2L + AnalysisPendingPayload.ExtraBytes(entry);
     private static ImmutableArray<AnalysisObservationItem> Detach(ImmutableArray<AnalysisObservationItem> observations)
     {
         var detached = ImmutableArray.CreateBuilder<AnalysisObservationItem>(observations.Length);

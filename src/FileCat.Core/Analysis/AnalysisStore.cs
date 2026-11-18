@@ -11,7 +11,7 @@ public sealed class AnalysisStore(bool canonicalPathIds = false, int pathLimit =
     private readonly List<AnalysisNode> _nodes = [];
     private readonly List<AnalysisObject> _objects = [];
     private readonly List<StorageFact> _facts = [];
-    private readonly List<int> _objectFactIndices = [];
+    private readonly List<(int Primary, int? Extra)> _objectFactIndices = [];
     private readonly List<AnalysisIssue> _issues = [];
     private readonly Dictionary<MeasurementState, ulong> _issueTotals = [];
     private readonly Dictionary<AnalysisBoundaryKind, ulong> _boundaryTotals = [];
@@ -45,7 +45,8 @@ public sealed class AnalysisStore(bool canonicalPathIds = false, int pathLimit =
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (_sealed) return null;
         var times = e.CaptureTimes(e.ObservedUtc ?? DateTimeOffset.UtcNow);
-        long cost = checked(2048L + e.RawName.Length * 4L + Encoding.UTF8.GetByteCount(e.Name) * 8L + (e.Identity?.Length ?? 0) * 8L);
+        long cost = checked(2048L + e.RawName.Length * 4L + Encoding.UTF8.GetByteCount(e.Name) * 8L + (e.Identity?.Length ?? 0) * 8L +
+            AnalysisPendingPayload.ExtraBytes(e));
         if (_nodes.Count >= Math.Clamp(pathLimit, 1, AnalysisLimits.Observations) || !Reserve(cost)) { Limited = true; return null; }
         ulong id = checked((ulong)_nodes.Count + 1);
         string? objectId = null;
@@ -58,25 +59,44 @@ public sealed class AnalysisStore(bool canonicalPathIds = false, int pathLimit =
                 objectId = canonicalPathIds ? AnalysisObservationCapture.Id('o', id) : (_objects.Count + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
                 _objects.Add(new(objectId, e.Identity, e.LogicalLength, e.Links, e.ModifiedUtc, e.Version.Length == 0 ? null : e.Version, e.ModifiedPrecisionTicks));
                 if (e.Identity is not null) _identities.Add(e.Identity, at);
-                _objectFactIndices.Add(_facts.Count);
+                _objectFactIndices.Add((_facts.Count, e.ExtraAllocation is null ? null : _facts.Count + 1));
                 _facts.Add(new("f" + id, objectId, null, "reported-data", basis, e.Allocation, basis,
                     e.ObservedUtc ?? DateTimeOffset.UtcNow, []));
+                if (e.ExtraAllocation is { } extra)
+                    _facts.Add(extra.Fact("e" + id, objectId, times.ObservedUtc));
             }
             else
             {
                 var original = _objects[at]; objectId = original.Id;
-                if (original.VersionEvidence != e.Version || original.LogicalLength != e.LogicalLength)
+                var indices = _objectFactIndices[at];
+                bool logicalChanged = original.VersionEvidence != e.Version || original.LogicalLength != e.LogicalLength;
+                if (logicalChanged)
                 {
                     _objects[at] = original with { LogicalLength = AnalysisMeasurement.Missing(MeasurementState.Changed) };
-                    int factAt = _objectFactIndices[at];
+                    int factAt = indices.Primary;
                     _facts[factAt] = _facts[factAt] with { Measurement = AnalysisMeasurement.Missing(MeasurementState.Changed) };
                     Issue("changed-during-observation", id, MeasurementState.Changed);
                 }
-                else if (_facts[_objectFactIndices[at]].Measurement != e.Allocation)
+                else if (_facts[indices.Primary].Measurement != e.Allocation)
                 {
-                    int factAt = _objectFactIndices[at];
+                    int factAt = indices.Primary;
                     _facts[factAt] = _facts[factAt] with { Measurement = AnalysisMeasurement.Missing(MeasurementState.Changed) };
                     Issue("allocation-changed-during-observation", id, MeasurementState.Changed);
+                }
+                if (indices.Extra is { } extraAt)
+                {
+                    var fact = _facts[extraAt];
+                    if (fact.Measurement.State != MeasurementState.Changed && (logicalChanged || e.ExtraAllocation?.Matches(fact) != true))
+                    {
+                        _facts[extraAt] = fact with { Measurement = AnalysisMeasurement.Missing(MeasurementState.Changed) };
+                        Issue("extra-data-changed-during-observation", id, MeasurementState.Changed);
+                    }
+                }
+                else if (e.ExtraAllocation is { } extra)
+                {
+                    _objectFactIndices[at] = (indices.Primary, _facts.Count);
+                    _facts.Add(extra.Fact("e" + id, objectId, times.ObservedUtc) with { Measurement = AnalysisMeasurement.Missing(MeasurementState.Changed) });
+                    Issue("extra-data-changed-during-observation", id, MeasurementState.Changed);
                 }
             }
         }

@@ -142,7 +142,9 @@ internal static class AnalysisRecipeDialog
                 (preview.Rows.IsEmpty ? "" : $" Showing {preview.Rows.Length:N0} ranked by observed small-file count."),
             AnalysisMetadataRecipe.UnmeasuredLocations => $"{preview.Candidates:N0} captured issue records in scope." +
                 (preview.Rows.IsEmpty ? "" : $" Showing {preview.Rows.Length:N0} ordered by recorded state."),
-            AnalysisMetadataRecipe.LargeExtraData => "",
+            AnalysisMetadataRecipe.LargeExtraData when preview.Rows.IsEmpty && preview.Unknown == 0 => "",
+            AnalysisMetadataRecipe.LargeExtraData => $"{preview.Candidates:N0} with reported extra allocation · {preview.Unknown:N0} unmeasured · {preview.Excluded:N0} excluded." +
+                (preview.Rows.IsEmpty ? "" : $" Showing {preview.Rows.Length:N0} ranked by reported extra allocation. Shared files can appear under more than one name."),
             _ => $"{preview.Candidates:N0} {(preview.Candidates == 1 ? "candidate" : "candidates")} · {preview.Unknown:N0} uncertain · {preview.Excluded:N0} excluded. " +
                 (preview.Rows.IsEmpty ? "No definite candidates to show." : $"Showing {preview.Rows.Length:N0} ranked by {measure}. Shared files can appear under more than one name.")
         };
@@ -285,6 +287,7 @@ internal static class AnalysisRecipeDialog
             AnalysisMetadataRecipe.UnmeasuredLocations => null,
             AnalysisMetadataRecipe.ManySmallFiles => row.RecordedBytes.Value is { } size ? "known single-link allocation " + DiskSpaceViewModel.Bytes(size) : null,
             AnalysisMetadataRecipe.AllocationDifference => "difference " + DiskSpaceViewModel.Bytes(row.RecordedBytes.Value!.Value),
+            AnalysisMetadataRecipe.LargeExtraData => "extra allocation " + DiskSpaceViewModel.Bytes(row.RecordedBytes.Value!.Value),
             AnalysisMetadataRecipe.LargestFolders when row.RecordedFilePaths is { } count => $"{count:N0} {(count == 1 ? "file path" : "file paths")}",
             _ => row.RecordedBytes.Value is { } amount ? DiskSpaceViewModel.Bytes(amount) : "Size unavailable"
         };

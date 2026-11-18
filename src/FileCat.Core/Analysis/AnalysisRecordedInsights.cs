@@ -113,16 +113,30 @@ internal sealed partial class AnalysisRecipePreviews
                     $"{_unlocatedIssues:N0} captured issue records have no verified location and are outside this list.");
     }
 
-    internal void ExplainExtraDataUnavailable() => _coverageNote =
-        "This analyzer has no qualified stream or fork measurement for this capture. Extra-data size is unavailable.";
+    private ulong _measuredExtraFiles;
+
+    internal void AddExtraData(AnalysisNode node, List<StorageFact>? facts)
+    {
+        if (!node.IncludedByPolicy || node.MetadataState == MeasurementState.Excluded || node.Cloud == true)
+        { _excluded++; return; }
+        var fact = node.MetadataState == MeasurementState.Known ? facts?.Find(AnalysisComponents.IsExtraAllocation) : null;
+        if (fact?.Measurement.Value is not { } amount)
+        { _unknown++; return; }
+        _measuredExtraFiles++;
+        if (amount != 0)
+            AddPathRow(node, fact.Measurement, new(AnalysisRecipeMatch.Candidate,
+                "Reported NTFS named data stream allocation. Primary data is separate."), true, amount);
+    }
+
+    internal void CompleteExtraData() => _coverageNote = _measuredExtraFiles == 0
+        ? "No separately qualified stream or fork allocation is recorded for these locations. Extra-data size is unavailable."
+        : $"Named stream allocation was measured for {_measuredExtraFiles:N0} captured file paths. Fork and xattr allocation remains unavailable.";
 }
 
 public sealed partial class AnalysisDatasetLease
 {
     private async Task ReadRecordedInsightAsync(AnalysisIndexedGraphReader reader, AnalysisRecipePreviews preview, CancellationToken cancel)
     {
-        if (preview.Recipe == AnalysisMetadataRecipe.LargeExtraData)
-        { preview.ExplainExtraDataUnavailable(); return; }
         if (preview.Recipe == AnalysisMetadataRecipe.UnmeasuredLocations)
         {
             ulong next = 1;

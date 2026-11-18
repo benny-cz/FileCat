@@ -149,6 +149,7 @@ internal sealed partial class HarnessApp : Application
         if (Program.BranchRefreshProbe) model.Chart = "Table";
         if (Program.GrowthRecipeProbe) { model.Chart = "Table"; model.Metric = AnalysisMetric.FileSize; }
         if (Program.DuplicateReviewProbe) { model.Chart = "Table"; model.Metric = AnalysisMetric.FileSize; }
+        if (Program.DetailedStreamProbe) model.Components = AnalysisComponentPreset.DetailedAllocation;
         _models.Add(model);
         model.Changed += () =>
         {
@@ -268,10 +269,11 @@ internal static class Program
     internal static bool SavedRecipeProbe { get; private set; }
     internal static bool GrowthRecipeProbe { get; private set; }
     internal static bool DuplicateReviewProbe { get; private set; }
+    internal static bool DetailedStreamProbe { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture" or "--indexed-deferred-probe" or "--branch-refresh-probe" or "--saved-recipe-probe" or "--growth-recipe-probe" or "--duplicate-review-probe"))) return 64;
+        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture" or "--indexed-deferred-probe" or "--branch-refresh-probe" or "--saved-recipe-probe" or "--growth-recipe-probe" or "--duplicate-review-probe" or "--detailed-stream-probe"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
         Compact = args.Contains("--compact", StringComparer.Ordinal);
         WindowsInput = args.Contains("--windows-input", StringComparer.Ordinal);
@@ -290,7 +292,8 @@ internal static class Program
         BranchRefreshProbe = args.Contains("--branch-refresh-probe", StringComparer.Ordinal);
         SavedRecipeProbe = args.Contains("--saved-recipe-probe", StringComparer.Ordinal);
         GrowthRecipeProbe = args.Contains("--growth-recipe-probe", StringComparer.Ordinal);
-        DuplicateReviewProbe = args.Contains("--duplicate-review-probe", StringComparer.Ordinal);
+        DetailedStreamProbe = args.Contains("--detailed-stream-probe", StringComparer.Ordinal);
+        DuplicateReviewProbe = args.Contains("--duplicate-review-probe", StringComparer.Ordinal) || DetailedStreamProbe;
         if (SavedRecipeProbe && !BranchRefreshProbe) return 64;
         if (DuplicateReviewProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe || GrowthRecipeProbe)) return 64;
         if (GrowthRecipeProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe)) return 64;

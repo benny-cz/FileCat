@@ -64,7 +64,8 @@ internal static class AnalysisObservationCoalescer
             IEnumerable<AnalysisSortInput> Mappings()
             {
                 byte[]? key = null; AnalysisCapturedFile? first = null; ulong lastPath = 0;
-                bool logicalChanged = false, allocationChanged = false, linksChanged = false;
+                StorageFact? extra = null;
+                bool logicalChanged = false, allocationChanged = false, linksChanged = false, extraChanged = false;
                 void Finish()
                 {
                     if (first is null) return;
@@ -73,15 +74,19 @@ internal static class AnalysisObservationCoalescer
                         LinkCount = linksChanged ? AnalysisMeasurement.Missing(MeasurementState.Changed) : first.Object.LinkCount };
                     var fact = first.Fact with {
                         Measurement = logicalChanged || allocationChanged ? AnalysisMeasurement.Missing(MeasurementState.Changed) : first.Fact.Measurement };
+                    var extraFact = extra is not null && (extraChanged || logicalChanged)
+                        ? extra with { Measurement = AnalysisMeasurement.Missing(MeasurementState.Changed) } : extra;
                     // Keep the coalesced record inert and provisional until it has been sorted by
                     // canonical path. Appending graph objects in native identity order would make
                     // later object-ID joins randomly reread authenticated blocks as well.
-                    owned.Canonical.Append(AnalysisCapturedFileCodec.Encode(first with { Object = obj, Fact = fact }), cancellation);
+                    owned.Canonical.Append(AnalysisCapturedFileCodec.Encode(first with { Object = obj, Fact = fact, Extra = extraFact }), cancellation);
                     if (logicalChanged) Issue("changed-during-observation", first.PathId, MeasurementState.Changed, cancellation);
                     else if (allocationChanged) Issue("allocation-changed-during-observation", first.PathId, MeasurementState.Changed, cancellation);
                     if (linksChanged) Issue("link-count-changed-during-observation", first.PathId, MeasurementState.Changed, cancellation);
+                    if (extraChanged) Issue("extra-data-changed-during-observation", first.PathId, MeasurementState.Changed, cancellation);
                     changed |= logicalChanged || allocationChanged || linksChanged;
-                    changed |= obj.LogicalLength.State == MeasurementState.Changed || obj.LinkCount.State == MeasurementState.Changed || fact.Measurement.State == MeasurementState.Changed;
+                    changed |= obj.LogicalLength.State == MeasurementState.Changed || obj.LinkCount.State == MeasurementState.Changed ||
+                        fact.Measurement.State == MeasurementState.Changed || extraFact?.Measurement.State == MeasurementState.Changed;
                 }
                 for (ulong row = 1; row <= owned.IdentityReader.Count; row++)
                 {
@@ -91,7 +96,8 @@ internal static class AnalysisObservationCoalescer
                     if (key is null || !key.AsSpan().SequenceEqual(identity))
                     {
                         Finish(); key = identity; first = current; lastPath = 0;
-                        logicalChanged = allocationChanged = linksChanged = false;
+                        extra = current.Extra;
+                        logicalChanged = allocationChanged = linksChanged = extraChanged = false;
                     }
                     if (current.PathId <= lastPath || first is null || current.Object.VerifiedIdentity != first.Object.VerifiedIdentity ||
                         current.Fact.BasisId != first.Fact.BasisId || current.Fact.ComponentId != first.Fact.ComponentId || current.Fact.Method != first.Fact.Method)
@@ -101,6 +107,13 @@ internal static class AnalysisObservationCoalescer
                         current.Object.ModifiedUtc != first.Object.ModifiedUtc || current.Object.ModifiedPrecisionTicks != first.Object.ModifiedPrecisionTicks;
                     allocationChanged |= current.Fact.Measurement != first.Fact.Measurement;
                     linksChanged |= current.Object.LinkCount != first.Object.LinkCount;
+                    if (current.Extra is { } observed)
+                    {
+                        extraChanged |= extra is null || observed.ComponentId != extra.ComponentId || observed.BasisId != extra.BasisId ||
+                            observed.Method != extra.Method || observed.Measurement != extra.Measurement;
+                        extra ??= observed with { ObjectId = first.Object.Id };
+                    }
+                    else extraChanged |= extra is not null;
                     byte[] path = new byte[8]; BinaryPrimitives.WriteUInt64BigEndian(path, current.PathId);
                     yield return new(new(path, first.PathId), entry.Key.Length);
                 }
@@ -144,6 +157,7 @@ internal static class AnalysisObservationCoalescer
                         previousCanonical = file.PathId; string id = AnalysisObservationCapture.Id('o', file.PathId);
                         owned.Graph.AppendObject(file.Object with { Id = id }, token);
                         owned.Graph.AppendFact(file.Fact with { Id = "f" + id, ObjectId = id }, token);
+                        if (file.Extra is { } extra) owned.Graph.AppendFact(extra with { Id = "e" + id, ObjectId = id }, token);
                         records++; bytes += entry.Key.Length;
                     }
                     return true;

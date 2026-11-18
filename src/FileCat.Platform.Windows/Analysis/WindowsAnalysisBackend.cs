@@ -7,7 +7,7 @@ using Microsoft.Win32.SafeHandles;
 namespace FileCat.Platform.Windows.Analysis;
 
 /// <summary>Read-only handle-relative traversal. Reparse entries are observations, never traversal targets.</summary>
-public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
+public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend, IAnalysisDetailedBackend
 {
     private readonly OwnedHandle _root;
     private bool _disposed;
@@ -81,7 +81,10 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         }
         catch { _root.Dispose(); throw; }
     }
-    public IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation)
+    public IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation) =>
+        ChildrenCore(directory, null, cancellation);
+
+    private IEnumerable<AnalysisEntry> ChildrenCore(AnalysisEntry directory, Func<AnalysisEntry, bool>? mayMeasure, CancellationToken cancellation)
     {
         Guard();
         using var lease = OpenDirectory(directory);
@@ -112,6 +115,8 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
                         using var child = OpenChild(lease.Handle, name, directory: false);
                         if (Volume(child.Value) != _volume) throw new AnalysisEntryUnavailableException(MeasurementState.Excluded, "source-volume-boundary");
                         result = Bind(Observe(child.Value, relative.ToImmutableArray(), raw, _namespace, _nativeTimePrecisionTicks), directory.Ancestry);
+                        if (mayMeasure is not null && result.Kind == AnalysisKind.File && mayMeasure(result))
+                            result = ReadNamedAllocation(child.Value, result, cancellation);
                     }
                     catch (AnalysisEntryUnavailableException ex)
                     {

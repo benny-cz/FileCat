@@ -14,6 +14,111 @@ public sealed partial class AnalysisRenderingTests
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task NativeDetailedExtraAllocationKeepsPrimaryAndNamedDataSeparate(bool indexed)
+    {
+        OrdinaryPreparation();
+        using var styles = new ProductStyles();
+        using var fixture = new PreparationFixture();
+        var token = TestContext.Current.CancellationToken;
+        string root = Directory.CreateDirectory(Path.Combine(fixture.Root, "extra-allocation")).FullName;
+        string high = Path.Combine(root, "large-extra.bin"), low = Path.Combine(root, "small-extra.bin");
+        string alias = Path.Combine(root, "alias-extra.bin"), empty = Path.Combine(root, "no-extra.bin");
+        byte[] primary = Enumerable.Repeat((byte)2, 24 * 1024 + 1).ToArray();
+        byte[] stream = Enumerable.Repeat((byte)3, 74 * 1024 + 5).ToArray();
+        foreach (string path in new[] { high, low, empty }) File.WriteAllBytes(path, primary);
+        if (OperatingSystem.IsWindows())
+        {
+            File.WriteAllBytes(high + ":extra:$DATA", stream);
+            File.WriteAllBytes(high + ":second:$DATA", primary);
+            File.WriteAllBytes(low + ":small:$DATA", primary);
+        }
+        CreateGroupedNativeAlias(high, alias);
+
+        var pool = new AnalysisSessionAdmission();
+        var window = new DiskSpaceWindow(null, null, pool);
+        try
+        {
+            window.Show();
+            await window.AddOwnedAcquisitionAsync(fixture.Services, async cancel =>
+            {
+                var owner = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, cancel, indexedStorage: indexed);
+                IAnalysisBackend? backend = null;
+                try
+                {
+                    backend = await AnalysisIo.Run(fixture.Services.Io, PathUtil.GetDeviceKey(root), _ => OperatingSystem.IsWindows()
+                        ? (IAnalysisBackend)new WindowsAnalysisBackend(root) : new UnixAnalysisBackend(root), cancel);
+                    var session = owner.Start([backend], components: AnalysisComponentPreset.DetailedAllocation);
+                    backend = null;
+                    await session.Completion;
+                    if (indexed)
+                    {
+                        await using var dataset = await session.AcquireDatasetAsync(cancel) ?? throw new InvalidOperationException("Expected an indexed capture.");
+                        var facts = (await dataset.ReadFactsAsync(0, cancellation: cancel)).Rows;
+                        await using var hierarchy = await dataset.BuildHierarchyAsync(AnalysisMetric.OnDisk, cancel);
+                        VerifyFacts(facts, hierarchy.Totals.Known);
+                        Assert.Equal((UInt128)primary.Length * 4, hierarchy.LogicalTotals.KnownBytes);
+                    }
+                    else
+                    {
+                        var snapshot = session.Snapshot();
+                        var allocation = AnalysisAggregate.Project(snapshot, AnalysisMetric.OnDisk, cancellation: cancel);
+                        VerifyFacts(snapshot.Facts, allocation.Totals.Known);
+                        Assert.Equal((UInt128)primary.Length * 4, AnalysisAggregate.Project(snapshot, AnalysisMetric.FileSize, cancellation: cancel).Totals.Known);
+                    }
+                    return owner;
+                }
+                catch { await owner.DisposeAsync(); throw; }
+                finally { if (backend is not null) await AnalysisIo.ReleaseAsync(fixture.Services.Io, backend); }
+            });
+            Frame(window);
+            Click(window, "Candidate recipes…");
+            await Until(() => ComparisonControl<ListBox>(window, "Locations for candidate preview") is not null);
+            ComparisonControl<ComboBox>(window, "Candidate recipe")!.SelectedItem = "Large extra data";
+            ComparisonControl<ListBox>(window, "Locations for candidate preview")!.SelectedIndex = 0;
+            Click(window, "View candidates");
+            if (OperatingSystem.IsWindows())
+            {
+                await Until(() => ComparisonControl<ListBox>(window, "Captured recipe candidates")?.ItemCount == 3, () => ComparisonText(window));
+                var list = ComparisonControl<ListBox>(window, "Captured recipe candidates")!;
+                var rows = list.Items.Cast<string>().ToArray();
+                Assert.Equal(new[] { "alias-extra.bin", "large-extra.bin" }, rows.Take(2).Select(row => row[..row.IndexOf('\n')]).Order());
+                Assert.StartsWith("small-extra.bin\n", rows[2], StringComparison.Ordinal);
+                Assert.All(rows, row => Assert.Contains("Reported NTFS named data stream allocation", row, StringComparison.Ordinal));
+                Assert.DoesNotContain(rows, row => row.Contains(":$DATA", StringComparison.Ordinal));
+                Assert.Equal(stream, File.ReadAllBytes(high + ":extra:$DATA"));
+                Assert.Equal(primary, File.ReadAllBytes(high + ":second:$DATA"));
+            }
+            else
+            {
+                await Until(() => ComparisonText(window).Contains("Extra-data size is unavailable", StringComparison.Ordinal), () => ComparisonText(window));
+                Assert.Null(ComparisonControl<ListBox>(window, "Captured recipe candidates"));
+            }
+            Assert.Equal(primary, File.ReadAllBytes(high));
+            Click(window, "Close preview");
+        }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
+        await AssertAllRuntimePlacesAvailableAsync(pool);
+
+        void VerifyFacts(IEnumerable<StorageFact> facts, UInt128 total)
+        {
+            token.ThrowIfCancellationRequested();
+            var captured = facts.ToArray();
+            var named = captured.Where(AnalysisComponents.IsExtraAllocation).OrderBy(fact => fact.Measurement.Value).ToArray();
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Equal(3, named.Length);
+                Assert.Equal(UInt128.Zero, named[0].Measurement.Value);
+                Assert.True(named[1].Measurement.Value > (UInt128)primary.Length);
+                Assert.True(named[2].Measurement.Value > (UInt128)(primary.Length + stream.Length));
+            }
+            else Assert.Empty(named);
+            Assert.Equal(captured.Aggregate(UInt128.Zero, (sum, fact) => sum + fact.Measurement.Value.GetValueOrDefault()), total);
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task NativeRecordedInsightsUseBoundedCapturedAllocationCountsAndIssues(bool indexed)
     {
         OrdinaryPreparation();

@@ -9,14 +9,16 @@ import tarfile
 root = Path.cwd()
 temp = root / ".tmp"
 binary = root / "tests/FileCat.NativeAcceptance/DiskSpaceHarness/bin/Debug/net10.0"
-staging = sys.argv[1:] == ["--recipe-staging"]
+mac_capture_retry = sys.argv[1:] == ["--ntfs-streams-mac-capture"]
+streams = sys.argv[1:] == ["--ntfs-streams"] or mac_capture_retry
+staging = sys.argv[1:] == ["--recipe-staging"] or streams
 folders = sys.argv[1:] == ["--folders"] or staging
 insights = sys.argv[1:] == ["--insights"] or folders
 assert not sys.argv[1:] or insights
 native_baseline = "r1377" if insights else "r1370"
-render_revision = "r1389" if staging else "r1382" if folders else "r1379" if insights else "r1376"
-revision = "r1390" if staging else "r1384" if folders else "r1380" if insights else "r1377"
-label = "recipe-staging" if staging else "recorded-insights" if insights else "duplicate-content"
+render_revision = "r1394" if streams else "r1389" if staging else "r1382" if folders else "r1379" if insights else "r1376"
+revision = "r1397" if mac_capture_retry else "r1395" if streams else "r1390" if staging else "r1384" if folders else "r1380" if insights else "r1377"
+label = "ntfs-streams" if streams else "recipe-staging" if staging else "recorded-insights" if insights else "duplicate-content"
 template = "r1370"
 drivers = {"DiskSpaceHarness.dll", "DiskSpaceHarness.pdb"}
 log = (temp / f"{label}-native-build-{revision}.txt").read_text(encoding="utf-8-sig")
@@ -30,7 +32,7 @@ def sha(path):
 
 prior = json.loads((temp / f"duplicate-estimate-native-proof-{template}.json").read_text())
 proof = {}
-for platform in ("windows", "mac", "linux"):
+for platform in (("mac",) if mac_capture_retry else ("windows", "mac", "linux")):
     original = temp / f"batch-{native_baseline}-{platform}"
     plan = json.loads((original / "plan.json").read_text())
     prior_path = plan["baseline"]
@@ -66,7 +68,7 @@ for platform in ("windows", "mac", "linux"):
         worker = worker.replace("'baseline': str(baseline),", "'baseline': str(baseline), 'render': str(render),")
         worker = worker.replace("and probe['retainedHiddenMarksAndBasket'] and", "and probe['retainedHiddenMarksAndBasket'] and not probe['contentAvailable'] and probe['contentGroups']==0 and")
         if insights:
-            frame = "recipe-staging-included.png" if staging else "recorded-insights-largest-folders.png" if folders else "recorded-insights-small-files.png"
+            frame = "ntfs-stream-allocation.png" if streams else "recipe-staging-included.png" if staging else "recorded-insights-largest-folders.png" if folders else "recorded-insights-small-files.png"
             worker = worker.replace("frame == 'duplicate-review-estimate.png'", f"frame == '{frame}'")
             worker = worker.replace("run.glob('duplicate-review-*.png')", "list(run.glob('duplicate-review-*.png')) + list(run.glob('recorded-insights-*.png'))")
             worker = worker.replace("probe['contentGroups']==0 and", "probe['contentGroups']==0 and probe['recordedInsightsPassed'] and")
@@ -75,6 +77,15 @@ for platform in ("windows", "mac", "linux"):
         if staging:
             worker = worker.replace("probe['largestFoldersPassed'] and", "probe['largestFoldersPassed'] and probe['recipeStagingPassed'] and")
             worker = worker.replace("list(run.glob('recorded-insights-*.png'))", "list(run.glob('recorded-insights-*.png')) + list(run.glob('recipe-staging-*.png'))")
+        if streams:
+            worker = worker.replace("'--duplicate-review-probe'", "'--detailed-stream-probe'")
+            worker = worker.replace("probe['recipeStagingPassed'] and", "probe['recipeStagingPassed'] and probe['detailedStreamProbe'] and not probe['namedAllocationAvailable'] and probe['namedStreamBytesPreserved'] and")
+            worker = worker.replace("list(run.glob('recipe-staging-*.png'))", "list(run.glob('recipe-staging-*.png')) + list(run.glob('ntfs-stream-allocation.png'))")
+        if mac_capture_retry:
+            worker = worker.replace("assert frame == 'ntfs-stream-allocation.png'", "assert frame == 'ntfs-stream-allocation.png', f'Unexpected capture request {frame!r}'")
+            worker = worker.replace("    assert len(owned) == 1", "    assert len(owned) == 1, f'Expected one visible owned window, got {len(owned)}'")
+            worker = worker.replace("    (run / 'capture.response').write_text(frame)",
+                "    response = run / 'capture.response.pending'\n    response.write_text(frame)\n    response.replace(run / 'capture.response')")
         assert "not probe['contentAvailable']" in worker and "(render if entry['render'] else baseline)" in worker
         compile(worker, "run.py", "exec")
         (stage / "run.py").write_text(worker, encoding="utf-8", newline="\n")
@@ -106,6 +117,10 @@ for platform in ("windows", "mac", "linux"):
         if staging:
             portable = portable.replace("-or!$probe.largestFoldersPassed)", "-or!$probe.largestFoldersPassed-or!$probe.recipeStagingPassed)")
             portable = portable.replace("$_.Name -like 'recorded-insights-*.png'", "$_.Name -like 'recorded-insights-*.png' -or $_.Name -like 'recipe-staging-*.png'")
+        if streams:
+            portable = portable.replace("'--duplicate-review-probe'", "'--detailed-stream-probe'")
+            portable = portable.replace("-or!$probe.recipeStagingPassed)", "-or!$probe.recipeStagingPassed-or!$probe.detailedStreamProbe-or!$probe.namedAllocationAvailable-or!$probe.namedStreamBytesPreserved)")
+            portable = portable.replace("$_.Name -like 'recipe-staging-*.png'", "$_.Name -like 'recipe-staging-*.png' -or $_.Name -eq 'ntfs-stream-allocation.png'")
         assert "$probe.contentGroups-ne1" in portable and "$parent.FullName-ne$inputRoot" in portable
     runner = temp / f"batch-{platform}-{revision}{suffix}"
     runner.write_text(portable.replace(old["bundle"], sha(archive)), encoding="utf-8", newline="\n")
@@ -118,6 +133,9 @@ native_sources = {str(harness.relative_to(root).as_posix()): sha(harness)}
 if staging:
     program = harness.with_name("Program.cs")
     native_sources[program.relative_to(root).as_posix()] = sha(program)
+if mac_capture_retry:
+    capture = harness.with_name("BranchRefresh.cs")
+    native_sources[capture.relative_to(root).as_posix()] = sha(capture)
 (temp / f"{label}-native-proof-{revision}.json").write_text(json.dumps(
     {"harnessSource": sha(harness), "sources": native_sources, "platforms": proof}, indent=2) + "\n", encoding="utf-8")
 print(json.dumps({platform: values["bytes"] for platform, values in proof.items()}))

@@ -71,7 +71,10 @@ public sealed partial class AnalysisSession : IDisposable
                 nextEpoch with { StartedUtc = firstObservation, ObservedUtc = now };
             _revision = _identity.Revision - 1;
             if (nextEpoch is not null) _phase = AnalysisPhase.Refreshing;
-            _policy = new() { BasisIds = sources.Select(s => s.Basis).Distinct().ToImmutableArray(), PackagePolicy = "contents-included",
+            var bases = sources.Select(source => source.Basis);
+            if (components == AnalysisComponentPreset.DetailedAllocation)
+                bases = bases.Concat(sources.OfType<IAnalysisDetailedBackend>().Select(source => source.ExtraAllocationBasis));
+            _policy = new() { BasisIds = bases.Distinct(StringComparer.Ordinal).ToImmutableArray(), PackagePolicy = "contents-included",
                 ComponentPreset = components == AnalysisComponentPreset.DetailedAllocation ? "detailed" : "standard", Limits = AnalysisLimits.EffectivePolicy,
                 Exclusions = storage is null ? [] : ["filecat-private-analysis-state"] };
             _io.HealthChanged += OnDeviceHealth;
@@ -307,6 +310,9 @@ public sealed partial class AnalysisSession : IDisposable
     {
         bool protectedRoot = _protectedSources.Contains(source) || IsProtected(source.RootEntry);
         var rootEntry = protectedRoot ? ExcludedPrivate(source.RootEntry) : source.RootEntry;
+        var detailed = _policy.ComponentPreset == "detailed" ? source as IAnalysisDetailedBackend : null;
+        if (!protectedRoot && detailed is not null && rootEntry.Kind == AnalysisKind.File)
+            rootEntry = await AnalysisIo.Run(_io, device, detailed.ReadDetailedRoot, _cancel.Token).ConfigureAwait(false);
         var rootId = await AppendObservationAsync(rootEntry, 0, root.Id, source.Basis).ConfigureAwait(false);
         if (!rootId.HasValue) { Issue("memory-or-observation-limit"); return; }
         if (protectedRoot) { Issue("private-analysis-state-excluded", rootId, MeasurementState.Excluded); return; }
@@ -343,7 +349,9 @@ public sealed partial class AnalysisSession : IDisposable
                 if (depth >= AnalysisLimits.Depth) { Issue("depth-limit", id); lock (_sync) _enumerationFailed++; await PublishEnumerationAsync().ConfigureAwait(false); continue; }
                 if (AnalysisPendingPayload.EntryBytes(entry, ancestry: true) > AnalysisPendingPayload.WitnessBytes)
                 { Issue("frontier-read-witness-limit", id); lock (_sync) _enumerationFailed++; await PublishEnumerationAsync().ConfigureAwait(false); continue; }
-                var enumeration = await AnalysisIo.Run(_io, device, _ => source.Children(entry, _cancel.Token).GetEnumerator(), _cancel.Token).ConfigureAwait(false);
+                var enumeration = await AnalysisIo.Run(_io, device, _ =>
+                    (detailed is null ? source.Children(entry, _cancel.Token) :
+                    detailed.ReadDetailedChildren(entry, observed => !IsProtected(observed), _cancel.Token)).GetEnumerator(), _cancel.Token).ConfigureAwait(false);
                 await using var cursorOwner = AnalysisIo.OwnCursor(_io, device, enumeration);
                 bool finished = false;
                 bool succeeded = false;

@@ -164,7 +164,9 @@ internal sealed partial class HarnessApp
         if (!compositor || !Program.ReplacementCompositorCapture) return;
         string request = Path.Combine(_run, "capture.request"), response = Path.Combine(_run, "capture.response");
         File.Delete(response);
-        await File.WriteAllTextAsync(request, frame, token);
+        string pending = request + ".pending";
+        await File.WriteAllTextAsync(pending, frame, token);
+        File.Move(pending, request);
         await ReadyAsync(() => File.Exists(response));
         if (await File.ReadAllTextAsync(response, token) != frame)
             throw new IOException("The compositor capture did not confirm the recipe preview frame.");

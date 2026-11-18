@@ -102,7 +102,8 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
             byte[] path = AnalysisIndexedPathCodec.Encode(node, root, depth, _header.Roots);
             byte[]? candidate = provisional is null ? null : AnalysisCapturedFileCodec.Encode(new(id,
                 new(provisional, entry.Identity, entry.LogicalLength, entry.Links, entry.ModifiedUtc, string.IsNullOrEmpty(entry.Version) ? null : entry.Version, entry.ModifiedPrecisionTicks),
-                new("f" + id.ToString(CultureInfo.InvariantCulture), provisional, null, "reported-data", basis, entry.Allocation, basis, observed, [])));
+                new("f" + id.ToString(CultureInfo.InvariantCulture), provisional, null, "reported-data", basis, entry.Allocation, basis, observed, []),
+                entry.ExtraAllocation?.Fact("e" + id.ToString(CultureInfo.InvariantCulture), provisional, observed)));
             byte[]? directory = directoryAllocation && entry.Kind == AnalysisKind.Directory && entry.IncludedByPolicy
                 ? AnalysisIndexedValueCodec.EncodeFact(new("d" + id.ToString(CultureInfo.InvariantCulture), null, id, "directory-self", basis, entry.Allocation, basis, observed, [])) : null;
             try
@@ -203,32 +204,43 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
     private sealed record AnalysisCaptureState(AnalysisCapturePublication Published, bool Stopped);
 }
 
-internal sealed record AnalysisCapturedFile(ulong PathId, AnalysisObject Object, StorageFact Fact);
+internal sealed record AnalysisCapturedFile(ulong PathId, AnalysisObject Object, StorageFact Fact, StorageFact? Extra = null);
 
 /// <summary>Only captured values. Backend-relative bytes and runtime source witnesses are deliberately absent.</summary>
 internal static class AnalysisCapturedFileCodec
 {
-    private const uint Format = 0x31434641;
+    private const uint Format = 0x32434641;
+    private const int HeaderBytes = 24;
     internal static byte[] Encode(AnalysisCapturedFile value)
     {
-        if (value.PathId is < 1 or > AnalysisLimits.Observations || value.Object.Id != AnalysisObservationCapture.Id('p', value.PathId) || value.Fact.ObjectId != value.Object.Id || value.Fact.DirectoryId is not null)
+        if (value.PathId is < 1 or > AnalysisLimits.Observations || value.Object.Id != AnalysisObservationCapture.Id('p', value.PathId) ||
+            !Belongs(value.Fact, value.Object.Id) || value.Extra is { } extra && (!Belongs(extra, value.Object.Id) || extra.ComponentId == value.Fact.ComponentId))
             throw AnalysisIndexedGraph.Invalid();
         byte[] obj = AnalysisIndexedValueCodec.EncodeObject(value.Object), fact = AnalysisIndexedValueCodec.EncodeFact(value.Fact);
-        byte[] bytes = new byte[checked(20 + obj.Length + fact.Length)];
+        byte[] extras = value.Extra is { } additional ? AnalysisIndexedValueCodec.EncodeFact(additional) : [];
+        byte[] bytes = new byte[checked(HeaderBytes + obj.Length + fact.Length + extras.Length)];
         if (bytes.Length > AnalysisScratchVector.MaximumRecordBytes) throw AnalysisIndexedGraph.Invalid();
         BinaryPrimitives.WriteUInt32LittleEndian(bytes, Format); BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(4), value.PathId);
         BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(12), obj.Length); BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(16), fact.Length);
-        obj.CopyTo(bytes, 20); fact.CopyTo(bytes, 20 + obj.Length); return bytes;
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(20), extras.Length);
+        obj.CopyTo(bytes, HeaderBytes); fact.CopyTo(bytes, HeaderBytes + obj.Length); extras.CopyTo(bytes, HeaderBytes + obj.Length + fact.Length);
+        return bytes;
     }
     internal static AnalysisCapturedFile Decode(ReadOnlySpan<byte> bytes)
     {
-        if (bytes.Length < 20 || bytes.Length > AnalysisScratchVector.MaximumRecordBytes || BinaryPrimitives.ReadUInt32LittleEndian(bytes) != Format) throw AnalysisIndexedGraph.Invalid();
+        if (bytes.Length < HeaderBytes || bytes.Length > AnalysisScratchVector.MaximumRecordBytes || BinaryPrimitives.ReadUInt32LittleEndian(bytes) != Format) throw AnalysisIndexedGraph.Invalid();
         ulong path = BinaryPrimitives.ReadUInt64LittleEndian(bytes[4..]); int objects = BinaryPrimitives.ReadInt32LittleEndian(bytes[12..]), facts = BinaryPrimitives.ReadInt32LittleEndian(bytes[16..]);
-        if (path is < 1 or > AnalysisLimits.Observations || objects < 1 || facts < 1 || (long)objects + facts != bytes.Length - 20) throw AnalysisIndexedGraph.Invalid();
-        var obj = AnalysisIndexedValueCodec.DecodeObject(bytes.Slice(20, objects)); var fact = AnalysisIndexedValueCodec.DecodeFact(bytes[(20 + objects)..]);
-        if (obj.Id != AnalysisObservationCapture.Id('p', path) || fact.ObjectId != obj.Id || fact.DirectoryId is not null) throw AnalysisIndexedGraph.Invalid();
-        return new(path, obj, fact);
+        int extras = BinaryPrimitives.ReadInt32LittleEndian(bytes[20..]);
+        if (path is < 1 or > AnalysisLimits.Observations || objects < 1 || facts < 1 || extras < 0 ||
+            (long)objects + facts + extras != bytes.Length - HeaderBytes) throw AnalysisIndexedGraph.Invalid();
+        var obj = AnalysisIndexedValueCodec.DecodeObject(bytes.Slice(HeaderBytes, objects));
+        var fact = AnalysisIndexedValueCodec.DecodeFact(bytes.Slice(HeaderBytes + objects, facts));
+        var extra = extras == 0 ? null : AnalysisIndexedValueCodec.DecodeFact(bytes[(HeaderBytes + objects + facts)..]);
+        if (obj.Id != AnalysisObservationCapture.Id('p', path) || !Belongs(fact, obj.Id) ||
+            extra is not null && (!Belongs(extra, obj.Id) || extra.ComponentId == fact.ComponentId)) throw AnalysisIndexedGraph.Invalid();
+        return new(path, obj, fact, extra);
     }
+    private static bool Belongs(StorageFact fact, string owner) => fact.ObjectId == owner && fact.DirectoryId is null;
     internal static byte[] IdentityKey(AnalysisCapturedFile file)
     {
         if (file.Object.VerifiedIdentity is { } identity)

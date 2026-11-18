@@ -27,9 +27,9 @@ public static class AnalysisMemoryRecipes
         using var admission = AnalysisExplorerAdmission.Acquire();
         var snapshot = retained.Snapshot;
         var preview = await Task.Run(() => prepare(snapshot), cancellation).ConfigureAwait(false);
-        if (preview.Recipe == AnalysisMetadataRecipe.LargeExtraData)
+        if (preview.Recipe == AnalysisMetadataRecipe.LargeExtraData && !AnalysisComponents.ExtraAllocationRequested(snapshot.Policy))
         {
-            preview.ExplainExtraDataUnavailable();
+            preview.CompleteExtraData();
             return preview.Finish(snapshot.Identity, snapshot.Coverage);
         }
         if (preview.Recipe == AnalysisMetadataRecipe.UnmeasuredLocations)
@@ -129,6 +129,11 @@ public static class AnalysisMemoryRecipes
             token.ThrowIfCancellationRequested();
             if (!preview.Includes(node)) continue;
             var obj = node.ObjectId is { } id ? objects.GetValueOrDefault(id) : null;
+            if (preview.Recipe == AnalysisMetadataRecipe.LargeExtraData)
+            {
+                preview.AddExtraData(node, obj is null ? null : facts.GetValueOrDefault(obj.Id));
+                continue;
+            }
             var allocation = obj is not null && facts.TryGetValue(obj.Id, out var components)
                 ? preview.Recipe == AnalysisMetadataRecipe.AllocationDifference
                     ? AnalysisRecipePreviews.PrimaryAllocation(components)?.Measurement ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported)
@@ -137,6 +142,7 @@ public static class AnalysisMemoryRecipes
             preview.Add(node, obj, allocation, ReadPath, ReadChild);
         }
         token.ThrowIfCancellationRequested();
+        if (preview.Recipe == AnalysisMetadataRecipe.LargeExtraData) preview.CompleteExtraData();
         return preview.Finish(snapshot.Identity, snapshot.Coverage);
     }
 

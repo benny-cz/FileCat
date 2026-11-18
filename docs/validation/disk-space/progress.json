@@ -15971,5 +15971,16 @@
     "publicEntryEnabled": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "ntfsNamedStreamAllocation": {
+    "status": "qualified-internal-detailed-ntfs-slice",
+    "packet": "source-manifest-r1396-ntfs-streams.json",
+    "document": "RECORDED_INSIGHTS_QUALIFICATION.md",
+    "focusedCasesPassedPerPlatform": 53,
+    "nativeWindowRevision": { "windows": "r1395", "mac": "r1397", "ubuntu": "r1395" },
+    "resourceForkMeasurementsQualified": false,
+    "publicEntryEnabled": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }
