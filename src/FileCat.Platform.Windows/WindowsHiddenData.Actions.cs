@@ -52,11 +52,12 @@ public sealed unsafe partial class WindowsHiddenData
         return Encoding.Latin1.GetBytes(name);
     }
 
-    private static byte[] ReadExactEa(string path, HiddenItem item, int max, OutputEfsObservation? observation = null)
+    private static byte[] ReadExactEa(string path, HiddenItem item, int max, OutputEfsObservation? observation = null, FileIdentity? reviewed = null)
     {
         byte[] name = EaName(item.Name);
         using var file = OpenForEas(path, FileReadEa | 0x80 | 0x100000);
         RefuseManagedObject(file);
+        RequireReviewedValue(file, reviewed);
         if (observation is not null)
         {
             observation.ObserveOpened(file);
@@ -73,7 +74,8 @@ public sealed unsafe partial class WindowsHiddenData
             fixed (byte* wanted = filter) status = NtQueryEaFile(file, out io, output, (uint)buffer.Length, 1, wanted, (uint)filter.Length, null, 1);
             if (observation is not null)
             {
-                observation.Observe(file);
+                if (reviewed is not null) observation.ObserveOpened(file);
+                else observation.Observe(file);
                 IHiddenValueOutput.RequireClear(observation);
             }
             if (status < 0) throw Error(RtlNtStatusToDosError(status), path);

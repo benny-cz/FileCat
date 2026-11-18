@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
@@ -27,10 +28,18 @@ internal sealed partial class OutputEfsObservation
         bool identified = ReadFileId(file, 18 /* FileIdInfo */, out var info, 24) && (info.Low | info.High) != 0;
         lock (_contributorLock)
         {
-            if (!identified || revision is null || !Remember(new(new(info.Volume, $"{info.High:X16}{info.Low:X16}"), revision)))
+            if (!identified || revision is null || !Remember(new(ReadIdentity(info), revision)))
                 state |= UnknownSeen;
             Interlocked.Or(ref _seen, state);
         }
+    }
+
+    private static FileIdentity ReadIdentity(NativeFileId info)
+    {
+        Span<byte> bytes = stackalloc byte[16];
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes, info.Low);
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes[8..], info.High);
+        return new(info.Volume, Convert.ToHexString(bytes));
     }
 
     private bool Remember(Contributor contribution)

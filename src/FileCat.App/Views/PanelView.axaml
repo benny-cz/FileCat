@@ -147,10 +147,16 @@
         <StackPanel Spacing="4">
           <TextBlock Classes="small" Text="{Binding ActiveTab.SupplementaryInventoryText}" TextWrapping="Wrap"
                      AutomationProperties.Name="Supplementary data inventory" />
-          <Button Content="Read extended attributes…" HorizontalAlignment="Left"
-                  IsVisible="{Binding ActiveTab.CanReadSupplementaryEas}" Click="OnReadSupplementaryEas"
-                  AutomationProperties.Name="Read extended attributes"
-                  AutomationProperties.HelpText="Windows returns extended attribute names and values together. Review before issuing that query." />
+          <WrapPanel ItemSpacing="8" LineSpacing="4">
+            <Button Content="Read extended attributes…" HorizontalAlignment="Left"
+                    IsVisible="{Binding ActiveTab.CanReadSupplementaryEas}" Click="OnReadSupplementaryEas"
+                    AutomationProperties.Name="Read extended attributes"
+                    AutomationProperties.HelpText="Windows returns extended attribute names and values together. Review before issuing that query." />
+            <Button Content="Report selected value…" HorizontalAlignment="Left"
+                    IsVisible="{Binding ActiveTab.SupportsSupplementaryReports}" IsEnabled="{Binding ActiveTab.CanReadSupplementaryReport}"
+                    Click="OnReadSupplementaryReport" AutomationProperties.Name="Report selected value"
+                    AutomationProperties.HelpText="Reads a bounded preview of the focused supplementary value from the reviewed file." />
+          </WrapPanel>
         </StackPanel>
       </Border>
 

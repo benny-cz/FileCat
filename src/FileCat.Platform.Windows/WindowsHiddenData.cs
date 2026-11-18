@@ -74,19 +74,26 @@ public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValue
         IHiddenValueOutput.RequireClear(observation);
     }
 
-    Stream IHiddenValueOutput.OpenClearValue(string path, HiddenItem item, OutputEfsObservation observation)
+    Stream IHiddenValueOutput.OpenClearValue(string path, HiddenItem item, OutputEfsObservation observation, FileIdentity? reviewed)
     {
         if (item.Kind == HiddenKind.NtfsAttribute)
-            return new MemoryStream(ReadExactEa(path, item, int.MaxValue, observation), writable: false);
+            return new MemoryStream(ReadExactEa(path, item, int.MaxValue, observation, reviewed), writable: false);
         if (item.Kind != HiddenKind.Stream) throw new NotSupportedException("This supplementary category does not belong to the Windows adapter.");
         var file = OpenExactStream(path, item, 1 /* FILE_READ_DATA */);
         try
         {
+            RequireReviewedValue(file, reviewed);
             observation.ObserveOpened(file);
             IHiddenValueOutput.RequireClear(observation);
             return new FileStream(file, FileAccess.Read, bufferSize: 1);
         }
         catch { file.Dispose(); throw; }
+    }
+
+    private static void RequireReviewedValue(SafeFileHandle file, FileIdentity? reviewed)
+    {
+        if (reviewed is { } expected && ProtectedHexFile.Identity(file) != expected)
+            throw new IOException("The supplementary value belongs to a different file. Refresh the inventory and try again.");
     }
 
     public void Delete(string path, HiddenItem item)

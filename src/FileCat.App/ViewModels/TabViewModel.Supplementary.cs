@@ -9,6 +9,10 @@ public sealed partial class TabViewModel
     public bool IsSupplementaryData => Location?.Scheme == Schemes.HiddenData;
     public bool CanReadSupplementaryEas => IsSupplementaryData && !IsLoading &&
         Listing.Provider is HiddenDataProvider { Data.SupportsEaValueQuery: true };
+    public bool SupportsSupplementaryReports => IsSupplementaryData && Listing.Provider is HiddenDataProvider { SupportsValueReports: true };
+    public bool CanReadSupplementaryReport => SupportsSupplementaryReports && !IsLoading && !Listing.IsRefreshing &&
+        Listing.SupplementaryInventory is { BoundToObject: true, Identity: not null } &&
+        Listing.TryGetFocused(out var item) && item.Kind != EntryKind.Parent && !item.Has(EntryFlags.Unavailable);
     public string SupplementaryInventoryText
     {
         get
@@ -28,6 +32,8 @@ public sealed partial class TabViewModel
     {
         OnPropertyChanged(nameof(IsSupplementaryData));
         OnPropertyChanged(nameof(CanReadSupplementaryEas));
+        OnPropertyChanged(nameof(SupportsSupplementaryReports));
+        OnPropertyChanged(nameof(CanReadSupplementaryReport));
         OnPropertyChanged(nameof(SupplementaryInventoryText));
     }
 }

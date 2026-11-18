@@ -928,6 +928,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         // The focused item is described with items marked too (the marked ones are summed on the left).
         if ((change & (ListingChange.Rows | ListingChange.Marks | ListingChange.State | ListingChange.Reset | ListingChange.Focus)) != 0) UpdateStatus();
         if ((change & (ListingChange.Rows | ListingChange.State | ListingChange.Reset)) != 0) NotifySupplementaryInventory();
+        else if (IsSupplementaryData && (change & ListingChange.Focus) != 0) OnPropertyChanged(nameof(CanReadSupplementaryReport));
     }
 
     public void UpdateTitle()
