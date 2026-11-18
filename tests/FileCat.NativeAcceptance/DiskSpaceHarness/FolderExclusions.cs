@@ -40,6 +40,9 @@ internal sealed partial class HarnessApp
             setup.Offset = new Vector(setup.Offset.X, Math.Max(0, setup.Offset.Y + limitsTop.Y + limits.Bounds.Height - setup.Viewport.Height));
             await ReadyAsync(() => limits.TranslatePoint(default, setup) is { } top && top.Y >= 0 &&
                 top.Y + limits.Bounds.Height <= setup.Viewport.Height + 1);
+            bool recordResourceSpeech = Environment.GetEnvironmentVariable("FILECAT_TEST_RESOURCE_SPEECH") == "1";
+            if (OperatingSystem.IsWindows() && (Program.ResourceKeyboardProbe || recordResourceSpeech))
+                WindowsGuestInput.ActivateFromDesktop(window.TryGetPlatformHandle()?.Handle ?? 0);
             Click("Resource limits…");
             await ReadyAsync(() => VisibleButton("Close limits") is { IsDefault: true, IsCancel: true });
             var closeLimits = VisibleButton("Close limits")!;
@@ -47,7 +50,7 @@ internal sealed partial class HarnessApp
                 closeTop.Y + closeLimits.Bounds.Height > window.ClientSize.Height)
                 throw new InvalidOperationException("The resource limits close button was clipped.");
             await RecipeFrameAsync("folder-exclusions-limits.png", true, _indexedLifetime.Token);
-            if (OperatingSystem.IsLinux() && Environment.GetEnvironmentVariable("FILECAT_TEST_RESOURCE_SPEECH") == "1")
+            if (recordResourceSpeech)
             {
                 // Keep the first dialog available while the external screen reader processes its focus event.
                 File.WriteAllText(Path.Combine(_run, "resource-speech.request"), "Close limits");
@@ -390,14 +393,23 @@ internal sealed partial class HarnessApp
         async Task CloseWithNativeKeyAsync(string key)
         {
             await ReadyAsync(() => VisibleButton("Close limits") is { } dismiss && ReferenceEquals(window.FocusManager?.GetFocusedElement(), dismiss));
+            if (OperatingSystem.IsWindows())
+            {
+                WindowsGuestInput.Key(key == "Return" ? (ushort)0x0d : (ushort)0x1b);
+                await WaitForDismissalAsync();
+                return;
+            }
             string request = Path.Combine(_run, "resource-key.request"), response = Path.Combine(_run, "resource-key.response");
             string pending = request + ".pending";
             await File.WriteAllTextAsync(pending, key, cancellation);
             File.Move(pending, request);
             await ReadyAsync(() => File.Exists(response));
             if (await File.ReadAllTextAsync(response, cancellation) != key) throw new InvalidOperationException("Unexpected native key acknowledgement.");
-            await ReadyAsync(() => VisibleButton("Close limits") is null && ReferenceEquals(window.FocusManager?.GetFocusedElement(), limits));
+            await WaitForDismissalAsync();
             File.Delete(request); File.Delete(response);
         }
+
+        Task WaitForDismissalAsync() => ReadyAsync(() =>
+            VisibleButton("Close limits") is null && ReferenceEquals(window.FocusManager?.GetFocusedElement(), limits));
     }
 }
