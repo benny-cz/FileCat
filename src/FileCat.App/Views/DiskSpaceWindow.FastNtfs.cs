@@ -46,7 +46,7 @@ public sealed partial class DiskSpaceWindow
             {
                 nint owner = _window.TryGetPlatformHandle() is { HandleDescriptor: "HWND" } handle ? handle.Handle : 0;
                 await Model.StartFastNtfsAsync(_rootEditors.Select(e => e.Text ?? "").ToArray(), owner,
-                    (scope, token) => ConfirmFastNtfsAsync(_window._dialogs, scope, token));
+                    (scope, token) => ConfirmFastNtfsAsync(_window._dialogs, scope, token), CaptureFolderExclusions());
             };
             _setup.Children.Add(_fastNtfsScan);
             _setup.Children.Add(_fastNtfsHelp);
@@ -57,9 +57,11 @@ public sealed partial class DiskSpaceWindow
         {
             if (Model.HistoryServices is null) return;
             var reason = Model.FastNtfsUnavailableReason;
+            bool scoped = _folderExclusionEditors.Values.Any(editor => editor.Paths.Text?.Any(c => c is not ('\r' or '\n')) == true);
             _fastNtfsScan.IsVisible = reason is null;
-            _fastNtfsScan.IsEnabled = reason is null && !Model.IsPreparing;
-            _fastNtfsHelp.Text = reason ?? "For one whole local NTFS volume. Authorization and a scope review are required.";
+            _fastNtfsScan.IsEnabled = reason is null && !scoped && !Model.IsPreparing;
+            _fastNtfsHelp.Text = reason ?? (scoped ? DiskSpaceViewModel.FastNtfsFolderExclusionsReason :
+                "For one whole local NTFS volume. Authorization and a scope review are required.");
         }
     }
 }

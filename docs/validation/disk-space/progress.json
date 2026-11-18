@@ -2,8 +2,30 @@
   "schemaVersion": 1,
   "status": "contracts-native-scanning-exploration-and-inventory-in-progress",
   "branch": "codex/disk-space-analysis",
-  "productCommandRegistered": false,
-  "nativeUiTested": false,
+  "productCommandRegistered": true,
+  "nativeUiTested": true,
+  "nativeUiQualificationComplete": false,
+  "folderExclusions": {
+    "status": "implemented-standard-local-scans",
+    "releaseQualified": false,
+    "tests": {
+      "windowsVm": { "run": "r1455", "passed": 99, "total": 99 },
+      "mac": { "run": "r1455", "passed": 99, "total": 99 },
+      "ubuntuVm": { "run": "r1455", "passed": 99, "total": 99 }
+    },
+    "desktop": {
+      "run": "r1456",
+      "windowsVm": "passed",
+      "mac": "passed",
+      "ubuntuVm": "passed",
+      "appSha256": "9b5494257240692f192fc546be186801be63381df43b09957bb6ce9cf4eafe2f",
+      "coreSha256": "b47e93dc7f8377322ae0fb7b57bfc246a8bdaa9439ec8e6b241550355adc5b17",
+      "harnessSha256": "37f1ec88887519b81859b9003f645db3585ce7bcbda77999b1bac7e2b6942afa",
+      "method": "Native development desktop with harness-driven controls and captures of the FileCat window visual tree. Verified compact setup, visible summary and table, source hashes, ordinary exit and empty app/test process inventories."
+    },
+    "coverage": "Exact folder paths scoped to explicit locations, with separate skipped folder counts, preserved failure and change evidence, matching in memory and indexed scans, persisted policy, full rescan and branch refresh, structural comparison and absolute-path or traversal-component refusal.",
+    "fastNtfs": "Whole-volume discovery is unavailable when folder exclusions are configured."
+  },
   "completedBehaviors": [
     "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",
     "Canonical integer-string policy golden vector, precision-aware three-valued filters, root-label disambiguation and unknown sparse/compressed/cloud states.",
@@ -11,7 +33,7 @@
     "Process and actual-worker authority checks, global native handle/store budgets, scan/device admission, time-bounded batches, nonresponse freeze, pause/resume, stop and snapshot leases.",
     "Draft modeless tabbed exploration window, one shared accounting tree, bounded nested Treemap/Sunburst, ranked table, narrow inspector sheet, independent focus/marks/basket and frozen interaction revisions.",
     "Identity-unverified allocation remains labelled throughout presentation; filtered group capture excludes hidden descendants and context folders; oversized captures fail without partial selection changes.",
-    "All runtime action/helper capabilities remain off with reasons. The product command is not registered, and existing job safeguards are unchanged.",
+    "The standard product command opens the modeless analyzer. Live actions and installed helper access require their corresponding source, operation and package admission checks.",
     "Native held-source containment normalizes duplicate/contained roots independently of selection order, records covered bindings, and excludes unverifiable overlap instead of double counting.",
     "Root/path/object observations now retain kind, raw-name rules, observed identity/times, alias references and issue references; coverage separates requested/completed/failed/unfinished enumeration and exact issue counters.",
     "Privacy joins preserve imported/privileged classification; enum/policy/raw-name/graph/alias/root-reference and supplied coverage checks reject contradictory data.",

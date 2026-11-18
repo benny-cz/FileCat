@@ -235,6 +235,7 @@ public sealed partial class DiskSpaceWindow : Window
         public bool IsComparison => Model.Comparison is not null;
         private readonly StackPanel _setup = new() { Spacing = 6, Margin = new Thickness(10) };
         private readonly ScrollViewer _setupViewport;
+        private readonly ScrollViewer _toolbarViewport;
         private readonly StackPanel _roots = new() { Spacing = 5 };
         private readonly List<TextBox> _rootEditors = [];
         private readonly List<Control> _dataControls = [];
@@ -263,6 +264,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly Button _rescan = new() { Content = "Rescan all" };
         private readonly Border _rescanHelp = new() { Focusable = true };
         private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap, FontSize = 18 };
+        private readonly TextBlock _folderBoundaryCounts = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         private readonly TextBlock _scope = new() { TextWrapping = TextWrapping.Wrap }, _coverage = new() { TextWrapping = TextWrapping.Wrap };
         private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap }, _error = new() { TextWrapping = TextWrapping.Wrap };
         private readonly TextBlock _basket = new() { TextWrapping = TextWrapping.Wrap };
@@ -305,6 +307,7 @@ public sealed partial class DiskSpaceWindow : Window
             ToolTip.SetTip(_components, new RichTip("Allocation components", detail: "Standard records reported file allocation. Detailed also records supported directory self-allocation. " + AnalysisComponents.UnmeasuredExplanation));
             _setup.Children.Add(_components);
             _setup.Children.Add(new TextBlock { Text = "Scans stay within each filesystem and record links as boundaries. Cloud files use local metadata.", TextWrapping = TextWrapping.Wrap });
+            AddFolderExclusionSetup();
             AddFastNtfsSetup();
             _setup.Children.Add(_resolved);
             _setupViewport = new ScrollViewer { Content = _setup, MaxHeight = 250, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
@@ -354,11 +357,13 @@ public sealed partial class DiskSpaceWindow : Window
             AutomationProperties.SetName(_sort, "Analysis table sort"); AutomationProperties.SetName(_sortDirection, "Analysis table sort direction");
             AutomationProperties.SetName(_breadcrumbs, "Analysis location breadcrumbs");
             ToolTip.SetTip(_sort, new RichTip("Sort observed table rows", detail: "Numeric sorting uses exact recorded integers. Missing numeric values follow known amounts in either direction. Partial amounts rank by their known subtotal. Charts keep their accounting order; focus and marks keep their observation identities."));
-            toolbar.Children.Add(nav); toolbar.Children.Add(_breadcrumbs); toolbar.Children.Add(_scope); toolbar.Children.Add(_summary); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(ordering); toolbar.Children.Add(_legend); toolbar.Children.Add(_error);
+            toolbar.Children.Add(_summary); toolbar.Children.Add(_folderBoundaryCounts); toolbar.Children.Add(nav); toolbar.Children.Add(_breadcrumbs); toolbar.Children.Add(_scope); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(ordering); toolbar.Children.Add(_legend); toolbar.Children.Add(_error);
             AddRecordedResultControls(toolbar);
             toolbar.Children.Add(_runtimeChangeHint);
-            _dataControls.AddRange([_pause, _inspect, _save, _compare, _breadcrumbs, _scope, _summary, _coverage, filters, ordering]);
-            Grid.SetRow(toolbar, 1); Children.Add(toolbar);
+            _dataControls.AddRange([_mode, _metric, _group, _color, _pause, _inspect, _save, _compare, _breadcrumbs, _scope, _summary, _coverage, filters, ordering]);
+            _toolbarViewport = new ScrollViewer { Content = toolbar, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+            AutomationProperties.SetName(_toolbarViewport, "Analysis view controls");
+            Grid.SetRow(_toolbarViewport, 1); Children.Add(_toolbarViewport);
             _chartHost.Children.Add(_treemap); _chartHost.Children.Add(_sunburst); _explorer.Children.Add(_chartHost);
             var splitter = new GridSplitter { Height = 5, ResizeDirection = GridResizeDirection.Rows, HorizontalAlignment = HorizontalAlignment.Stretch };
             Grid.SetRow(splitter, 1); _explorer.Children.Add(splitter);
@@ -435,7 +440,7 @@ public sealed partial class DiskSpaceWindow : Window
             _reviewCleanup.Margin = new Thickness(10, 0, 10, 4);
             _basketFooter.Children.Add(_reviewCleanup);
             Grid.SetRow(_basketFooter, 3); Children.Add(_basketFooter); Grid.SetRow(_status, 4); _status.Margin = new Thickness(10, 3, 10, 8); Children.Add(_status);
-            _start.Click += async (_, _) => await Model.StartAsync(_rootEditors.Select(e => e.Text ?? "").ToArray());
+            _start.Click += async (_, _) => await Model.StartAsync(_rootEditors.Select(e => e.Text ?? "").ToArray(), CaptureFolderExclusions());
             _pause.Click += (_, _) => Model.PauseOrResume(); _stop.Click += (_, _) => Model.Stop();
             _mode.SelectionChanged += (_, _) => { Model.Chart = _mode.SelectedIndex switch { 1 => "Sunburst", 2 => "Table", _ => "Treemap" }; Refresh(); };
             _color.SelectionChanged += (_, _) => { Model.ColorDimension = (AnalysisColorDimension)Math.Clamp(_color.SelectedIndex, 0, 2); Refresh(); };
@@ -482,14 +487,16 @@ public sealed partial class DiskSpaceWindow : Window
                 if (Model.Phase == AnalysisPhase.Ready && Model.Tree is null)
                 {
                     // The location form scrolls inside its star row. Its full desired height
-                    // must not push the persistent Start/metric/Open controls below the page.
+                    // must not push the persistent Start and Open controls below the page.
+                    _toolbarViewport.MaxHeight = double.PositiveInfinity;
                     double footer = Children.Where(c => c.IsVisible && c != _setupViewport).Sum(c => c.DesiredSize.Height);
                     double setupHeight = Math.Max(_viewport.Bounds.Height, footer + 80);
                     if (double.IsFinite(setupHeight) && Math.Abs(Height - setupHeight) > .5) Height = setupHeight;
                     return;
                 }
-                // Auto rows get their full wrapped height. The inner explorer always receives a finite viewport,
-                // preserving list virtualization while the page itself scrolls on short or large-text displays.
+                // Give the results space alongside the wrapped controls on short or large-text displays.
+                // A separate finite list viewport keeps row virtualization active.
+                _toolbarViewport.MaxHeight = Math.Max(96, _viewport.Bounds.Height * .43);
                 double minimum = Children.Where(c => c.IsVisible && c != _explorer).Sum(c => c.DesiredSize.Height) + (_explorer.IsVisible ? _explorer.MinHeight : 0);
                 double height = Math.Max(_viewport.Bounds.Height, minimum);
                 if (double.IsFinite(height) && Math.Abs(Height - height) > .5) Height = height;
@@ -514,9 +521,10 @@ public sealed partial class DiskSpaceWindow : Window
             var remove = ActionButton("Remove", () =>
             {
                 if (_rootEditors.Count <= 1) return;
-                _rootEditors.Remove(box); _roots.Children.Remove(row); NameRootEditors();
+                _rootEditors.Remove(box); _roots.Children.Remove(row); RemoveFolderExclusionEditor(box); NameRootEditors();
             }, "Remove this location before starting.");
             Grid.SetColumn(remove, 1); row.Children.Add(remove); _roots.Children.Add(row); _rootEditors.Add(box);
+            AddFolderExclusionEditor(box);
             NameRootEditors();
         }
         private void NameRootEditors()
@@ -524,6 +532,7 @@ public sealed partial class DiskSpaceWindow : Window
             for (int i = 0; i < _rootEditors.Count; i++)
             {
                 var editor = _rootEditors[i]; AutomationProperties.SetName(editor, "Analysis location " + (i + 1));
+                NameFolderExclusionEditor(editor, i);
                 if (editor.Parent is Grid row)
                     AutomationProperties.SetName(row.Children.OfType<Button>().Single(), "Remove analysis location " + (i + 1));
             }
@@ -613,6 +622,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _setupViewport.IsVisible = configuring; _setupViewport.MaxHeight = setupOnly ? double.PositiveInfinity : 250;
                 _setupViewport.MinHeight = setupOnly ? 80 : 0;
                 _roots.IsEnabled = !Model.IsPreparing; _start.IsEnabled = !Model.IsPreparing; _start.IsVisible = configuring;
+                _folderExclusionSetup.IsEnabled = !Model.IsPreparing;
                 RefreshFastNtfsSetup();
                 RowDefinitions[0].Height = setupOnly ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
                 RowDefinitions[2].Height = setupOnly ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
@@ -650,6 +660,10 @@ public sealed partial class DiskSpaceWindow : Window
                 RefreshBreadcrumbs();
                 _scope.IsVisible = false;
                 _summary.Text = Model.ScopeSummary;
+                int folderRules = tree is null ? 0 : AnalysisFolderExclusions.RuleCount(tree.Snapshot.Policy);
+                _folderBoundaryCounts.IsVisible = folderRules != 0;
+                if (folderRules != 0)
+                    _folderBoundaryCounts.Text = $"Folder exclusion rules: {folderRules:N0}. Folders skipped: {tree!.Snapshot.BoundaryTotals.GetValueOrDefault(AnalysisBoundaryKind.FolderExclusion):N0}.";
                 _coverage.Text = tree is null ? "Unknown, unavailable and zero remain separate." :
                     (tree.Snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Traversal complete under the captured policy" : "Traversal has gaps") +
                     (tree.Snapshot.Freshness == AnalysisFreshness.Observed ? ". Observed metadata over time." : ". The source may have changed or become unavailable.") +

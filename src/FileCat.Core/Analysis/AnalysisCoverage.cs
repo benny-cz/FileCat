@@ -31,6 +31,7 @@ public static class AnalysisCoverage
         "cloud-directory-not-enumerated" => AnalysisBoundaryKind.CloudDirectory,
         "special-entry-not-traversed" => AnalysisBoundaryKind.SpecialEntry,
         "root-overlap-unverified" => AnalysisBoundaryKind.UnverifiedRootOverlap,
+        AnalysisFolderExclusions.IssueCode => AnalysisBoundaryKind.FolderExclusion,
         _ => null
     };
     public static ImmutableDictionary<AnalysisBoundaryKind, ulong> SampledBoundaries(AnalysisSnapshot snapshot) => snapshot.Issues

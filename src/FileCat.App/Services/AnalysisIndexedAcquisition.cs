@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using FileCat.Core.Analysis;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Threading;
@@ -155,7 +156,8 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
     // Sources are already captured/reviewed native capabilities. Ownership transfers on successful
     // Start exactly as in AnalysisCoordinator; no source or profile is reconstructed from saved data.
     internal AnalysisSession Start(IReadOnlyList<IAnalysisBackend> sources, IProgress<AnalysisProgress>? progress = null,
-        AnalysisComponentPreset components = AnalysisComponentPreset.Standard) => Start(sources, progress, components, null);
+        AnalysisComponentPreset components = AnalysisComponentPreset.Standard,
+        ImmutableArray<AnalysisFolderExclusion> exclusions = default) => Start(sources, progress, components, null, exclusions);
 
     internal Task<FileCat.Platform.Windows.Analysis.WindowsAnalysisBackend.NtfsScan> PrepareNtfsAsync(string selection, nint owner,
         CancellationToken cancellation)
@@ -168,10 +170,10 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
     }
 
     internal AnalysisSession StartNtfs(FileCat.Platform.Windows.Analysis.WindowsAnalysisBackend.NtfsScan scan,
-        IProgress<AnalysisProgress>? progress, AnalysisComponentPreset components) => Start([scan.Source], progress, components, scan);
+        IProgress<AnalysisProgress>? progress, AnalysisComponentPreset components) => Start([scan.Source], progress, components, scan, default);
 
     private AnalysisSession Start(IReadOnlyList<IAnalysisBackend> sources, IProgress<AnalysisProgress>? progress,
-        AnalysisComponentPreset components, IAnalysisNtfsScan? ntfs)
+        AnalysisComponentPreset components, IAnalysisNtfsScan? ntfs, ImmutableArray<AnalysisFolderExclusion> exclusions)
     {
         lock (_gate)
         {
@@ -193,7 +195,7 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
                 throw new InvalidOperationException("Fast NTFS analysis requires a new, explicitly approved session.");
             _session = ntfs is not null ? coordinator.StartNtfs(ntfs, storage, progress, components) :
                 _rescanPredecessor is { } previous ? coordinator.Rescan(previous, sources, progress, components, storage) :
-                coordinator.Start(sources, progress, components, storage);
+                coordinator.Start(sources, progress, components, storage, exclusions);
             _rescanPredecessor = null;
             _runtimeLocations = locations; _runtimeComponents = components;
             HistoryCompletion = CompleteHistoryAsync(_session);

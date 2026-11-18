@@ -82,7 +82,7 @@ internal sealed partial class AnalysisIndexedAcquisition
 
             cancellation.ThrowIfCancellationRequested();
             lock (_gate) ObjectDisposedException.ThrowIf(_close is not null, this);
-            next.Start([branch], progress, components);
+            next.Start([branch], progress, components, session.ExclusionsForBranch(ordinal - 1, selection.Children));
             branch = null;
             return next;
         }

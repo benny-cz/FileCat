@@ -105,6 +105,7 @@ internal sealed partial class HarnessApp : Application
         if (Program.BranchRefreshProbe) _indexedProbeTask = BranchRefreshProbeAsync();
         if (Program.GrowthRecipeProbe) _indexedProbeTask = GrowthRecipeProbeAsync();
         if (Program.DuplicateReviewProbe) _indexedProbeTask = DuplicateReviewProbeAsync();
+        if (Program.FolderExclusionProbe) _indexedProbeTask = FolderExclusionProbeAsync();
     }
 
     private async Task ProfileProbeAsync()
@@ -149,6 +150,7 @@ internal sealed partial class HarnessApp : Application
         if (Program.BranchRefreshProbe) model.Chart = "Table";
         if (Program.GrowthRecipeProbe) { model.Chart = "Table"; model.Metric = AnalysisMetric.FileSize; }
         if (Program.DuplicateReviewProbe) { model.Chart = "Table"; model.Metric = AnalysisMetric.FileSize; }
+        if (Program.FolderExclusionProbe) { model.Chart = "Table"; model.Metric = AnalysisMetric.FileSize; }
         if (Program.DetailedStreamProbe) model.Components = AnalysisComponentPreset.DetailedAllocation;
         _models.Add(model);
         model.Changed += () =>
@@ -272,10 +274,13 @@ internal static class Program
     internal static bool CleanupReviewProbe { get; private set; }
     internal static bool DetailedStreamProbe { get; private set; }
     internal static bool DetailedForkProbe { get; private set; }
+    internal static bool FolderExclusionProbe { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture" or "--indexed-deferred-probe" or "--branch-refresh-probe" or "--saved-recipe-probe" or "--growth-recipe-probe" or "--duplicate-review-probe" or "--detailed-stream-probe" or "--detailed-fork-probe" or "--cleanup-review-probe"))) return 64;
+        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture" or "--indexed-deferred-probe" or "--branch-refresh-probe" or "--saved-recipe-probe" or "--growth-recipe-probe" or "--duplicate-review-probe" or "--detailed-stream-probe" or "--detailed-fork-probe" or "--cleanup-review-probe" or "--folder-exclusion-probe"))) return 64;
+        FolderExclusionProbe = args.Contains("--folder-exclusion-probe", StringComparer.Ordinal);
+        if (FolderExclusionProbe && args.Any(arg => arg is not ("--folder-exclusion-probe" or "--large-text" or "--compact"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
         Compact = args.Contains("--compact", StringComparer.Ordinal);
         WindowsInput = args.Contains("--windows-input", StringComparer.Ordinal);
@@ -309,7 +314,7 @@ internal static class Program
         if (MemoryFallbackProbe && args.Contains("--indexed-probe", StringComparer.Ordinal)) return 64;
         if (ProfileProbe && WindowsInput) return 64;
         if (IndexedProbe && (ProfileProbe || WindowsInput)) return 64;
-        if ((WindowsInput || (ProfileProbe || IndexedProbe || ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe || GrowthRecipeProbe || DuplicateReviewProbe) && OperatingSystem.IsWindows()) && !HarnessApp.WindowsInputVmAllowed()) return 77;
+        if ((WindowsInput || (ProfileProbe || IndexedProbe || ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe || GrowthRecipeProbe || DuplicateReviewProbe || FolderExclusionProbe) && OperatingSystem.IsWindows()) && !HarnessApp.WindowsInputVmAllowed()) return 77;
         if (AnalysisAdmission.Refusal() is not null) return 77;
         foreach (var process in Process.GetProcessesByName("FileCat"))
             using (process) if (process.Id != Environment.ProcessId) return 75;

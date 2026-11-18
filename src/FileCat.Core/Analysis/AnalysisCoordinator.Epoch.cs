@@ -32,7 +32,7 @@ public sealed partial class AnalysisCoordinator
         ArgumentNullException.ThrowIfNull(previous); ArgumentNullException.ThrowIfNull(sources);
         var prepared = sources.ToArray(); ValidateStart(prepared, components, storage);
         var identity = previous.ReserveNextEpoch(io, _profileIdentity, prepared);
-        try { return new(io, prepared, progress, _profileIdentity, components, storage, identity); }
+        try { return new(io, prepared, progress, _profileIdentity, components, storage, identity, exclusions: previous.FolderExclusions); }
         catch { previous.RollbackEpochReservation(); throw; }
     }
 }
@@ -44,6 +44,20 @@ public sealed partial class AnalysisSession
     private readonly ImmutableArray<RootBinding> _selectedRoots;
     private bool _epochSuccessorReserved;
     internal bool RuntimeHasSuccessor { get { lock (_sync) return _epochSuccessorReserved; } }
+
+    internal ImmutableArray<AnalysisFolderExclusion> ExclusionsForBranch(int rootIndex, IReadOnlyList<AnalysisBranchComponent> components)
+    {
+        lock (_sync)
+        {
+            var rules = _folderExclusions.PathsFor(_roots, rootIndex);
+            if (components.Count != 0)
+            {
+                string prefix = string.Join('/', components.Select(child => child.Name)) + "/";
+                rules = rules.Where(path => path.StartsWith(prefix, StringComparison.Ordinal)).Select(path => path[prefix.Length..]);
+            }
+            return rules.Distinct(StringComparer.Ordinal).Select(path => new AnalysisFolderExclusion(0, path)).ToImmutableArray();
+        }
+    }
 
     internal SessionIdentity ReserveNextEpoch(DeviceIoScheduler io, string profile, IReadOnlyList<IAnalysisBackend> sources)
     {

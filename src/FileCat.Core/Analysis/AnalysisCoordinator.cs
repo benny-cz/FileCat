@@ -23,12 +23,13 @@ public sealed partial class AnalysisCoordinator(DeviceIoScheduler io, string? pr
     private readonly string _profileIdentity = profileIdentity ?? "ephemeral:" + Guid.NewGuid().ToString("N");
     // Ownership of prepared sources transfers to the session, including blocked native requests.
     public AnalysisSession Start(IReadOnlyList<IAnalysisBackend> sources, IProgress<AnalysisProgress>? progress = null,
-        AnalysisComponentPreset components = AnalysisComponentPreset.Standard, AnalysisStorageOptions? storage = null)
+        AnalysisComponentPreset components = AnalysisComponentPreset.Standard, AnalysisStorageOptions? storage = null,
+        ImmutableArray<AnalysisFolderExclusion> exclusions = default)
     {
         RequireAdmission();
         ArgumentNullException.ThrowIfNull(sources); var prepared = sources.ToArray();
         ValidateStart(prepared, components, storage);
-        return new(io, prepared, progress, _profileIdentity, components, storage);
+        return new(io, prepared, progress, _profileIdentity, components, storage, exclusions: exclusions);
     }
 }
 
@@ -42,6 +43,8 @@ public sealed partial class AnalysisSession : IDisposable
     private readonly IAnalysisBackend[] _sources;
     private ImmutableArray<RootBinding> _roots;
     private readonly ScanPolicy _policy;
+    private readonly AnalysisFolderExclusions _folderExclusions;
+    internal ImmutableArray<AnalysisFolderExclusion> FolderExclusions { get; }
     private readonly SessionIdentity _identity;
     private readonly IProgress<AnalysisProgress>? _progress;
     private AnalysisPhase _phase = AnalysisPhase.Scanning;
@@ -59,8 +62,10 @@ public sealed partial class AnalysisSession : IDisposable
     public Task Completion { get; }
     internal AnalysisSession(DeviceIoScheduler io, IAnalysisBackend[] sources, IProgress<AnalysisProgress>? progress, string profileIdentity,
         AnalysisComponentPreset components, AnalysisStorageOptions? storage = null, SessionIdentity? nextEpoch = null,
-        IAnalysisNtfsScan? ntfs = null)
+        IAnalysisNtfsScan? ntfs = null, ImmutableArray<AnalysisFolderExclusion> exclusions = default)
     {
+        FolderExclusions = exclusions.IsDefault ? [] : exclusions;
+        _folderExclusions = new(sources, FolderExclusions);
         _storage = storage; _io = io; _sources = sources; _progress = progress; _ntfs = ntfs;
         _ntfsDiscoveryPending = ntfs is not null;
         AnalysisStore? created = null; bool subscribed = false;
@@ -81,7 +86,8 @@ public sealed partial class AnalysisSession : IDisposable
                 bases = bases.Concat(sources.OfType<IAnalysisDetailedBackend>().Select(source => source.ExtraAllocationBasis).OfType<string>());
             _policy = new() { BasisIds = bases.Distinct(StringComparer.Ordinal).ToImmutableArray(), PackagePolicy = "contents-included",
                 ComponentPreset = components == AnalysisComponentPreset.DetailedAllocation ? "detailed" : "standard", Limits = AnalysisLimits.EffectivePolicy,
-                Exclusions = storage is null ? [] : ["filecat-private-analysis-state"] };
+                Exclusions = storage is null ? _folderExclusions.PolicyRules :
+                    _folderExclusions.PolicyRules.Add("filecat-private-analysis-state") };
             _io.HealthChanged += OnDeviceHealth;
             subscribed = true;
             Completion = Task.Run(ProduceAsync);
@@ -222,7 +228,7 @@ public sealed partial class AnalysisSession : IDisposable
                 if (_io.GetHealth(device) == DeviceHealth.NotResponding) { Issue("device-not-responding"); continue; }
                 using var turn = await AnalysisScanDevices.AcquireAsync(device, _cancel.Token).ConfigureAwait(false);
                 if (_ntfs is { } ntfs) await WalkNtfsAsync(ntfs, root).ConfigureAwait(false);
-                else await WalkAsync(source, root, device).ConfigureAwait(false);
+                else await WalkAsync(source, root, device, _folderExclusions.EncodePaths(_roots, i)).ConfigureAwait(false);
                 if (_store.Limited && _writer is null) break;
             }
         }
@@ -328,7 +334,7 @@ public sealed partial class AnalysisSession : IDisposable
         }
         lock (_sync) _roots = roots.ToImmutableArray();
     }
-    private async Task WalkAsync(IAnalysisBackend source, RootBinding root, string device)
+    private async Task WalkAsync(IAnalysisBackend source, RootBinding root, string device, byte[][] exclusions)
     {
         bool protectedRoot = _protectedSources.Contains(source) || IsProtected(source.RootEntry);
         var rootEntry = protectedRoot ? ExcludedPrivate(source.RootEntry) : source.RootEntry;
@@ -397,16 +403,19 @@ public sealed partial class AnalysisSession : IDisposable
                     _cancel.Token.ThrowIfCancellationRequested();
                     finished = batch.Finished;
                     carry = batch.Carry;
-                    var storedIds = _writer is null ? default : await AppendCapturedBatchAsync(batch.Entries.Select(e => IsProtected(e) ? ExcludedPrivate(e) : e).ToArray(), id, root.Id, source.Basis).ConfigureAwait(false);
+                    for (int i = 0; i < batch.Entries.Count; i++)
+                    {
+                        var child = batch.Entries[i];
+                        if (IsProtected(child)) batch.Entries[i] = ExcludedPrivate(child);
+                        else if (exclusions.Length != 0) batch.Entries[i] = AnalysisFolderExclusions.Apply(child, exclusions);
+                    }
+                    var storedIds = _writer is null ? default : await AppendCapturedBatchAsync(batch.Entries, id, root.Id, source.Basis).ConfigureAwait(false);
                     var frontierChildren = frontier is null ? null : ImmutableArray.CreateBuilder<AnalysisFrontierChild>();
                     for (int childAt = 0; childAt < batch.Entries.Count; childAt++)
                     {
-                        var observedChild = batch.Entries[childAt];
-                        bool protectedChild = IsProtected(observedChild);
-                        var child = protectedChild ? ExcludedPrivate(observedChild) : observedChild;
+                        var child = batch.Entries[childAt];
                         ulong? childId = storedIds.IsDefault ? _store.Append(child, id, root.Id, source.Basis, _policy.ComponentPreset == "detailed") : storedIds[childAt];
                         if (childId is null) { Issue("memory-or-observation-limit", id); return; }
-                        if (protectedChild) { Issue("private-analysis-state-excluded", childId, MeasurementState.Excluded); continue; }
                         if (child.ExtraAllocation?.Measurement.State == MeasurementState.Changed)
                             Issue("extra-data-changed-during-observation", childId, MeasurementState.Changed);
                         if (child.IssueCode is { } issueCode) Issue(issueCode, childId, child.MetadataState);

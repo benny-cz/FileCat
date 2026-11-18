@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using FileCat.Core.Analysis;
 using FileCat.Core.FileSystem;
 using FileCat.Platform.Windows.Elevation;
@@ -9,6 +10,7 @@ internal sealed record FastNtfsScopeReview(string Selection, string Volume, Anal
 public sealed partial class DiskSpaceViewModel
 {
     private const string StandardOnly = "Use standard analysis here.";
+    internal const string FastNtfsFolderExclusionsReason = "Fast NTFS reads the whole volume. Use standard analysis to apply folder exclusions.";
 #if FILECAT_FAST_NTFS_QUALIFICATION
     private const bool InstalledFastNtfsQualification = true;
 #else
@@ -49,7 +51,8 @@ public sealed partial class DiskSpaceViewModel
     }
 
     internal Task StartFastNtfsAsync(IReadOnlyList<string> roots, nint owner,
-        Func<FastNtfsScopeReview, CancellationToken, Task<bool>> confirm) => StartAnalysisAsync(roots, new(owner, confirm));
+        Func<FastNtfsScopeReview, CancellationToken, Task<bool>> confirm, ImmutableArray<AnalysisFolderExclusion> exclusions = default) =>
+        StartAnalysisAsync(roots, new(owner, confirm), exclusions);
 
     private sealed record FastNtfsRequest(nint Owner, Func<FastNtfsScopeReview, CancellationToken, Task<bool>> Confirm);
 }

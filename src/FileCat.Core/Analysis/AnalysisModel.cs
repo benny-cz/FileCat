@@ -7,7 +7,7 @@ public enum MeasurementState { Known, Pending, Unsupported, Excluded, Failed, Ch
 public enum AnalysisKind { Directory, File, Link, Special, Unknown }
 public enum AnalysisMetric { FileSize, UniqueFileSize, OnDisk, Files }
 public enum AnalysisComponentPreset { Standard, DetailedAllocation }
-public enum AnalysisBoundaryKind { Mount, NavigationLink, CloudDirectory, SpecialEntry, UnverifiedRootOverlap }
+public enum AnalysisBoundaryKind { Mount, NavigationLink, CloudDirectory, SpecialEntry, UnverifiedRootOverlap, FolderExclusion }
 public enum AnalysisPhase { Ready, Scanning, Pausing, Paused, Refreshing, Finished, Stopped, Failed }
 public enum NamespaceCoverage { CompleteUnderPolicy, Partial, Unknown }
 public enum AnalysisFreshness { Observed, PossiblyStale, SourceUnavailable, IdentityMismatch }

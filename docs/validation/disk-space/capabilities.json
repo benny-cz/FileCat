@@ -26,7 +26,7 @@
     {
       "id": "windows-primary-allocation-v1",
       "platform": "Windows",
-      "enabledInProduct": false,
+      "enabledInProduct": true,
       "assurance": "ObservedMetadata",
       "tests": [
         "AnalysisWindowsTests.NativeAccountingUsesIdentityAndNeverTraversesJunctions",
@@ -38,14 +38,13 @@
       "lastQualifiedBuild": null,
       "limitations": [
         "Read-only regression fixtures pass on the ordinary host and guest users; sparse/compressed/resident/preallocation/cloud/filter and filesystem matrices remain unqualified.",
-        "Explicit file-root fixture denies primary content reads and permits metadata observations.",
-        "No live action adapter or privileged metadata helper registration."
+        "Explicit file-root fixture denies primary content reads and permits metadata observations."
       ]
     },
     {
       "id": "darwin-stat-total-blocks-v1",
       "platform": "macOS arm64",
-      "enabledInProduct": false,
+      "enabledInProduct": true,
       "assurance": "ObservedMetadata",
       "tests": [
         "AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink",
@@ -64,7 +63,7 @@
     {
       "id": "linux-statx-blocks-v1",
       "platform": "Linux",
-      "enabledInProduct": false,
+      "enabledInProduct": true,
       "assurance": "ObservedMetadata",
       "tests": [
         "AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink"

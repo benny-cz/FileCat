@@ -53,9 +53,10 @@ public sealed partial class DiskSpaceViewModel
             string.Join(", ", unavailable.Select(r => AnalysisNames.Display(r.Label, 120) + " [" + AnalysisNames.Display(r.Id, 64) + "]")) + ". Other verified locations remain available.";
     }
 
-    public Task StartAsync(IReadOnlyList<string> roots) => StartAnalysisAsync(roots, null);
+    public Task StartAsync(IReadOnlyList<string> roots, ImmutableArray<AnalysisFolderExclusion> exclusions = default) =>
+        StartAnalysisAsync(roots, null, exclusions);
 
-    private async Task StartAnalysisAsync(IReadOnlyList<string> roots, FastNtfsRequest? fast)
+    private async Task StartAnalysisAsync(IReadOnlyList<string> roots, FastNtfsRequest? fast, ImmutableArray<AnalysisFolderExclusion> exclusions)
     {
         if (_disposed || IsPreparing || Running || _services is null) return;
         if (_bindingCloseError is not null) { SetStatus("Analysis handles could not be closed. Close this analysis before starting another."); return; }
@@ -71,6 +72,7 @@ public sealed partial class DiskSpaceViewModel
         string? selection = null;
         if (fast is not null)
         {
+            if (!exclusions.IsDefaultOrEmpty) { SetStatus(FastNtfsFolderExclusionsReason); return; }
             if (FastNtfsUnavailableReason is { } unavailable) { SetStatus(unavailable); return; }
             if (roots.Count != 1 || (selection = NtfsMetadataVolume.NormalizeSelection(roots[0])) is null)
             { SetStatus("Fast NTFS scan needs one whole local NTFS volume. Enter a drive root such as C:\\ or its volume GUID. Use standard analysis for files and folders."); return; }
@@ -154,7 +156,7 @@ public sealed partial class DiskSpaceViewModel
             var runtimeRoots = ntfs is null ? _prepared.Select(RuntimeReopenLocator).ToImmutableArray() : [];
             var progress = new LatestProgress(_services.Ui, UpdateProgress);
             _fastNtfs = ntfs is not null;
-            _session = ntfs is null ? _acquisition!.Start(_prepared.ToArray(), progress, components) :
+            _session = ntfs is null ? _acquisition!.Start(_prepared.ToArray(), progress, components, exclusions) :
                 _acquisition!.StartNtfs(ntfs, progress, components);
             _runtimeRoots = runtimeRoots;
             _runtimeComponents = components;

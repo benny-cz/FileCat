@@ -625,6 +625,8 @@ public sealed partial class DiskSpaceWindow
             if (missing != 0) _summary.Text += $" · {missing:N0} missing measurements.";
             _status.Text = (explorer.Descriptor.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Complete under captured policy." : "Partial namespace observations; known results so far.") +
                 (explorer.Filter is { } filter ? $" {filter.DefinitePaths:N0} definite matches; {filter.UnknownPaths:N0} uncertain results." : "") + (explorer.Chart?.DetailLimited == true ? " Small chart items are summarized; use the table for every entry." : "");
+            int folderRules = AnalysisFolderExclusions.RuleCount(explorer.Descriptor.Policy);
+            if (folderRules != 0) _status.Text += $" Folder exclusion rules: {folderRules:N0}. Folders skipped: {explorer.Descriptor.BoundaryTotals.GetValueOrDefault(AnalysisBoundaryKind.FolderExclusion):N0}.";
             _range.Text = page.Children.Total == 0 ? "No entries" : $"Entries {page.Children.Offset + 1:N0}–{page.Children.NextOffset:N0} of {page.Children.Total:N0}";
             _range.Text += " · " + (page.Sort switch { AnalysisHierarchySort.FileSize => "File size", AnalysisHierarchySort.Files => "File paths", AnalysisHierarchySort.Name => "Name", AnalysisHierarchySort.MetadataState => "Metadata state", _ => "Active metric" }) +
                 (page.Descending ? " · Descending" : " · Ascending");
