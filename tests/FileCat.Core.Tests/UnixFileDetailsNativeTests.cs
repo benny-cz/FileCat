@@ -106,6 +106,42 @@ public sealed partial class UnixFileDetailsNativeTests
     }
 
     [Fact]
+    public void Linux_full_report_observes_casefold_on_the_held_ext4_directory()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
+            "Requires a qualified Linux x64 ext4 fixture.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EXT4_CASEFOLD_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires a disposable ext4 mount with both directory policies prepared.");
+
+        string ordinary = Path.Join(root, "ordinary"), folded = Path.Join(root, "folded");
+        const string composed = "caf\u00E9.txt", decomposed = "cafe\u0301.txt";
+        Assert.False(File.Exists(Path.Join(ordinary, "mixed.txt")));
+        Assert.False(File.Exists(Path.Join(ordinary, decomposed)));
+        Assert.True(File.Exists(Path.Join(folded, "mixed.txt")));
+        Assert.True(File.Exists(Path.Join(folded, decomposed)));
+        Assert.Contains(composed, Directory.EnumerateFiles(folded).Select(Path.GetFileName));
+
+        var reader = new UnixFileRecords();
+        var ct = TestContext.Current.CancellationToken;
+        const string title = "ext4 directory namespace";
+        foreach (var (directory, enabled) in new[] { (ordinary, false), (folded, true), (Path.Join(root, "parent-alias", "folded"), true) })
+        {
+            var summary = reader.ReadSummary(directory, ct);
+            Assert.Equal("ext4", summary.FileSystem.Value);
+            Assert.DoesNotContain(title, summary.ToReport().ToText());
+            var full = reader.ReadFull(directory, FileDetailsPolicy.MetadataOnly, ct);
+            Assert.Equal(summary.Identity.Value, full.Summary.Identity.Value);
+            var section = Assert.Single(full.Technical.Sections, entry => entry.Title == title);
+            Assert.Contains(("Scope", "Name lookup in this directory"), section.Fields);
+            Assert.Contains(("Case folding", enabled ? "Enabled" : "Disabled"), section.Fields);
+            Assert.Equal(enabled, section.Lines.Any(line => line.Contains("Unicode normalization", StringComparison.Ordinal)));
+        }
+
+        foreach (string leaf in new[] { Path.Join(folded, composed), Path.Join(root, "folded-link") })
+            Assert.DoesNotContain(reader.ReadFull(leaf, FileDetailsPolicy.MetadataOnly, ct).Technical.Sections, section => section.Title == title);
+    }
+
+    [Fact]
     public void Mac_namespace_requires_matching_volume_and_individually_valid_capabilities()
     {
         const uint device = 42;

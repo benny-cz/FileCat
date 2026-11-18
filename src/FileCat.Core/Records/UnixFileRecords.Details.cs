@@ -62,14 +62,18 @@ public sealed unsafe partial class UnixFileRecords
                     Identity: { State: FactState.Known, Value: { } identity } } summary)
             {
                 bool x64 = RuntimeInformation.ProcessArchitecture == Architecture.X64;
-                bool fscrypt = x64 && summary.FileSystem is { State: FactState.Known, Value: "ext4" };
+                bool ext4 = x64 && summary.FileSystem is { State: FactState.Known, Value: "ext4" };
                 bool btrfs = x64 && summary.FileSystem is { State: FactState.Known, Value: "btrfs" };
-                if (summary.Kind == FileObjectKind.File || fscrypt || btrfs)
+                if (summary.Kind == FileObjectKind.File || ext4 || btrfs)
                 {
                     var (file, state, reason) = OpenLinuxMetadataDescriptor(fd, identity, summary.Kind, ct);
                     using var descriptor = file;
-                    if (fscrypt)
+                    if (ext4)
+                    {
                         report = AddLinuxFscrypt(report, file is null ? FscryptUnavailable(state, reason!) : ReadLinuxFscrypt(file, ct));
+                        if (summary.Kind == FileObjectKind.Directory)
+                            report = AddExt4DirectoryNamespace(report, file, state, reason, ct);
+                    }
                     if (btrfs)
                         report = AddLinuxBtrfs(report, file, state, reason, ct);
                     if (summary.Kind == FileObjectKind.File)

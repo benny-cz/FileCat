@@ -202,7 +202,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
                 if (Statx(fd, "", 0x1000 /* AT_EMPTY_PATH */, 0x100, check) != 0 || *(ulong*)(check + 32) != inode) return null;
                 string text = "not kept by this file system";
                 int flagsValue = 0;
-                if (Ioctl(fd, 0x8008_6601 /* FS_IOC_GETFLAGS */, &flagsValue) == 0) text = LsattrText((uint)flagsValue, fileSystem);
+                if (Ioctl(fd, LinuxGetInodeFlags64, &flagsValue) == 0) text = LsattrText((uint)flagsValue, fileSystem);
                 uint generation = 0;
                 uint? gen = Ioctl(fd, 0x8008_7601 /* FS_IOC_GETVERSION */, &generation) == 0 ? generation : null;
                 byte* xattr = stackalloc byte[28];
