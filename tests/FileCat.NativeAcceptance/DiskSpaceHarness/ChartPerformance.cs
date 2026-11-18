@@ -10,16 +10,17 @@ namespace DiskSpaceHarness;
 
 internal sealed partial class HarnessApp
 {
-    private sealed record ChartFrameTiming(string Chart, int Rows, double Width, double Height, double Scale,
+    private sealed record ChartFrameTiming(string Chart, int Rows, int Folders, double Width, double Height, double Scale,
         double[] FocusFramesMilliseconds, double[] LayoutFramesMilliseconds,
         double P95FocusFrameMilliseconds, double P95LayoutFrameMilliseconds);
 
-    private async Task<ChartFrameTiming[]> MeasureChartFramesAsync(CancellationToken cancellation)
+    private async Task<ChartFrameTiming[]> MeasureChartFramesAsync(bool hierarchical, CancellationToken cancellation)
     {
-        const int rows = 700;
         const int sampleCount = 30;
-        var baseline = new ChartTimingData(rows, "initial");
-        var alternate = new ChartTimingData(rows, "refreshed");
+        int folders = hierarchical ? 8 : 0;
+        int rows = hierarchical ? folders * 512 : 700;
+        var baseline = new ChartTimingData(rows, folders, "initial");
+        var alternate = new ChartTimingData(rows, folders, "refreshed");
         var results = new List<ChartFrameTiming>();
         var window = new Window { Title = "FileCat chart performance fixture", Width = 1100, Height = 700 };
         try
@@ -40,7 +41,7 @@ internal sealed partial class HarnessApp
                 for (int sample = 0; sample < sampleCount; sample++)
                 {
                     cancellation.ThrowIfCancellationRequested();
-                    var selected = baseline.Children[sample].Key;
+                    var selected = baseline.Leaves[sample].Key;
                     long start = Stopwatch.GetTimestamp();
                     chart.SetView(baseline, AnalysisTree.RootKey, selected, []);
                     bitmap.Render(chart);
@@ -55,7 +56,7 @@ internal sealed partial class HarnessApp
                     chart.SetView(baseline, AnalysisTree.RootKey, null, []);
                     bitmap.Render(chart);
                 }
-                results.Add(new(chart.GetType().Name, rows, size.Width, size.Height, scale, focus, layout,
+                results.Add(new(chart.GetType().Name, rows, folders, size.Width, size.Height, scale, focus, layout,
                     Percentile95(focus), Percentile95(layout)));
             }
         }
@@ -67,23 +68,53 @@ internal sealed partial class HarnessApp
 
     private sealed class ChartTimingData : IAnalysisChartData
     {
-        public ChartTimingData(int rows, string prefix)
+        private const uint FileSize = 4096;
+        private readonly ImmutableDictionary<string, ImmutableArray<AnalysisTreeItem>> _children;
+
+        public ChartTimingData(int rows, int folders, string prefix)
         {
-            var children = ImmutableArray.CreateBuilder<AnalysisTreeItem>(rows);
-            for (ulong id = 1; id <= (ulong)rows; id++)
-                children.Add(new(AnalysisTree.Key(id), AnalysisTree.RootKey, $"{prefix}-{id:D4}.bin", id,
-                    AnalysisKind.File, false, true, 4096, 4096, 1, false, false, "other", [], [id]));
-            Children = children.MoveToImmutable();
-            Items = Children.ToImmutableDictionary(item => item.Key, StringComparer.Ordinal);
+            var items = ImmutableDictionary.CreateBuilder<string, AnalysisTreeItem>(StringComparer.Ordinal);
+            var children = ImmutableDictionary.CreateBuilder<string, ImmutableArray<AnalysisTreeItem>>(StringComparer.Ordinal);
+            var leaves = ImmutableArray.CreateBuilder<AnalysisTreeItem>(rows);
+            var roots = ImmutableArray.CreateBuilder<AnalysisTreeItem>(folders);
+            ulong id = (ulong)folders + 1;
+            int groups = Math.Max(folders, 1);
+            int filesPerGroup = rows / groups;
+            for (int group = 0; group < groups; group++)
+            {
+                ulong folderId = (ulong)group + 1;
+                string key = folders == 0 ? AnalysisTree.RootKey : AnalysisTree.Key(folderId);
+                var files = ImmutableArray.CreateBuilder<AnalysisTreeItem>(filesPerGroup);
+                for (int file = 0; file < filesPerGroup; file++, id++)
+                {
+                    var leaf = new AnalysisTreeItem(AnalysisTree.Key(id), key, $"{prefix}-{id:D4}.bin", id,
+                        AnalysisKind.File, false, true, FileSize, FileSize, 1, false, false, "other", [], [id]);
+                    items.Add(leaf.Key, leaf);
+                    files.Add(leaf);
+                    leaves.Add(leaf);
+                }
+                children.Add(key, files.MoveToImmutable());
+                if (folders == 0) continue;
+                UInt128 value = (UInt128)filesPerGroup * FileSize;
+                var folder = new AnalysisTreeItem(key, AnalysisTree.RootKey, $"{prefix} folder {folderId}", folderId,
+                    AnalysisKind.Directory, false, true, value, value, (ulong)filesPerGroup, false, false, "folder",
+                    [.. children[key].Select(file => file.Key)], []);
+                items.Add(key, folder);
+                roots.Add(folder);
+            }
+            if (folders > 0) children.Add(AnalysisTree.RootKey, roots.MoveToImmutable());
+            Leaves = leaves.MoveToImmutable();
+            Items = items.ToImmutable();
+            _children = children.ToImmutable();
         }
 
-        public ImmutableArray<AnalysisTreeItem> Children { get; }
+        public ImmutableArray<AnalysisTreeItem> Leaves { get; }
         public AnalysisMetric Metric => AnalysisMetric.FileSize;
         public DateTimeOffset ObservedUtc => DateTimeOffset.UnixEpoch;
         public ImmutableDictionary<string, AnalysisTreeItem> Items { get; }
-        public string ParentOf(string key) => AnalysisTree.RootKey;
+        public string ParentOf(string key) => Items.GetValueOrDefault(key)?.ParentKey ?? AnalysisTree.RootKey;
         public string NameOf(string key) => Items.GetValueOrDefault(key)?.Name ?? "Chart performance fixture";
-        public UInt128 ScopeValue(string key) => key == AnalysisTree.RootKey ? (UInt128)Children.Length * 4096 : Items[key].Value;
-        public ImmutableArray<AnalysisTreeItem> ChildrenOf(string key) => key == AnalysisTree.RootKey ? Children : [];
+        public UInt128 ScopeValue(string key) => key == AnalysisTree.RootKey ? (UInt128)Leaves.Length * FileSize : Items[key].Value;
+        public ImmutableArray<AnalysisTreeItem> ChildrenOf(string key) => _children.TryGetValue(key, out var children) ? children : [];
     }
 }
