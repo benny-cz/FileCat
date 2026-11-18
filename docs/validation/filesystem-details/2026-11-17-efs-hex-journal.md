@@ -35,6 +35,8 @@ Recovery reopens the journal and checks the identity, complete length, current E
 
 The Windows 11 x64 VM refused a journal encrypted after review and kept the target bytes and journal. Attempts to encrypt the held journal during recovery were refused. On success, FileCat removed the journal. After a simulated interruption, Windows could encrypt it again and FileCat had retained its exact bytes. The native hex suite passed 41 cases with one optional benchmark skipped. Ubuntu and macOS each passed 11 portable provenance cases with four Windows-only skips. All three detected a byte-identical replacement and a same-size content change and preserved both the target and the journal. See `.tmp/hex-recovery-held-r2.xml` and `hex-recovery-held-r2.trx` in the Unix checkouts.
 
+Recovery closes the ordinary identity witness once the transacted handle has verified the journal. The transacted handle alone owns the journal through recovery, and FileCat closes it before committing retirement. The Windows rerun passed 41 cases with one optional benchmark skipped. [Microsoft's transactional deletion contract](https://learn.microsoft.com/en-us/windows/win32/fileio/programming-considerations-for-transacted-fileio-#deleting-a-file).
+
 The editor case types an edit in a real EFS-backed `HexEditorWindow`, confirms Save in place and observes the refusal message, unsaved state, unchanged target and no `.fcj` output. It dismisses the message before closing the fixture. This is headless UI behavior with native EFS I/O, not screen-reader/theme/geometry or whole-workflow qualification. Broader unknown-metadata/concurrency/provider/output matrices remain separate.
 
 ## Retained inputs

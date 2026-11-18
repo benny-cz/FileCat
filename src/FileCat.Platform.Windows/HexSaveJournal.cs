@@ -271,7 +271,10 @@ public static class HexSaveJournal
                     NtFile.GenericRead | NtFile.Delete | NtFile.Synchronize, NtFile.ShareRead, "Hold the hex recovery journal");
                 WindowsFileTransaction.RequireOrdinaryFile(held, JournalEncrypted);
                 using var bytes = new FileStream(held, FileAccess.Read);
-                RecoverRanges(ReadCurrentJournal(record, bytes), rollback, openFile, afterDurableStep);
+                var current = ReadCurrentJournal(record, bytes);
+                // The transacted handle now owns the exact journal. Close the ordinary witness so retirement can commit.
+                journal.Dispose();
+                RecoverRanges(current, rollback, openFile, afterDurableStep);
                 RequireCurrentJournal(record, bytes);
                 WindowsFileTransaction.RemoveOnClose(held);
                 bytes.Dispose();
