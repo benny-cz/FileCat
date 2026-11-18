@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.IO.Compression;
 using Avalonia;
 using Avalonia.Controls;
@@ -8,6 +9,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
+using FileCat.App.Services;
 using FileCat.App.Views;
 using FileCat.Core.Listing;
 using FileCat.Core.Archives;
@@ -124,15 +126,24 @@ public sealed class PictureGridTests
         // Visible thumbnail requests are posted by RenderPictureGrid. Layout and dispatcher jobs alone
         // do not guarantee the headless renderer draws a frame after a mode change or resize.
         var ct = TestContext.Current.CancellationToken;
-        for (int i = 0; i < 250 && list.CachedPictureThumbnailCount == 0; i++)
+        var renderDeadline = Stopwatch.StartNew();
+        while (list.CachedPictureThumbnailCount == 0 && list.PendingPictureThumbnailCount == 0 && renderDeadline.Elapsed < TimeSpan.FromSeconds(5))
         {
             window.UpdateLayout();
             window.CaptureRenderedFrame()?.Dispose();
             Dispatcher.UIThread.RunJobs();
-            if (list.CachedPictureThumbnailCount == 0) await Task.Delay(20, ct);
+            if (list.CachedPictureThumbnailCount == 0 && list.PendingPictureThumbnailCount == 0) await Task.Delay(20, ct);
         }
+
+        // Once the renderer has requested a thumbnail, let the dispatcher publish its result while the
+        // real provider and decoder finish. Include startup and publication in the decoder's time budget.
+        var loadDeadline = Stopwatch.StartNew();
+        var loadBudget = PictureDecoder.Timeout + TimeSpan.FromSeconds(10);
+        while (list.CachedPictureThumbnailCount == 0 && list.PendingPictureThumbnailCount > 0 && loadDeadline.Elapsed < loadBudget)
+            await Task.Delay(20, ct);
         Assert.True(list.CachedPictureThumbnailCount > 0,
             $"The rendered picture grid has no thumbnails. Started: {list.PictureThumbnailLoadCount}. Pending: {list.PendingPictureThumbnailCount}.");
+        window.CaptureRenderedFrame()?.Dispose();
     }
 
     private static byte[] Bmp(byte blue)

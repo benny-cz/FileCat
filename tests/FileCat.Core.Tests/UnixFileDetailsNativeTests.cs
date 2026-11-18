@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Records;
 
 namespace FileCat.Core.Tests;
@@ -28,13 +29,173 @@ public sealed partial class UnixFileDetailsNativeTests
             var symbolic = reader.ReadSummary(link, ct);
             Assert.Equal(FileObjectKind.SymbolicLink, symbolic.Kind);
             Assert.NotEqual(regular.Identity.Value, symbolic.Identity.Value);
-            if (OperatingSystem.IsLinux()) Assert.Equal("file.txt", symbolic.Target.Value?.SubstituteName);
+            Assert.Equal(FactState.Known, symbolic.Target.State);
+            Assert.Equal(new StoredLinkTarget("file.txt", "", true), symbolic.Target.Value);
+            var target = Assert.Single(symbolic.ToReport().Sections, section => section.Title == "Target");
+            Assert.Contains(("Observation", symbolic.Target.Source), target.Fields);
+            Assert.Contains(("Stored path", "file.txt"), target.Fields);
+            Assert.Contains(("Calculated path", file), target.Fields);
+            Assert.Contains(("Target status", "Not checked"), target.Fields);
+            File.Delete(file);
+            Assert.Equal(symbolic.Target, reader.ReadSummary(link, ct).Target);
+            File.WriteAllText(file, "payload-sentinel-must-not-appear-in-report");
             var full = reader.ReadFull(file, FileDetailsPolicy.MetadataOnly, ct);
             Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);
             Assert.DoesNotContain("payload-sentinel", full.ToText());
             Assert.Contains("Not acquired:", full.ToText());
         }
         finally { Directory.Delete(root, true); }
+    }
+
+    [Theory]
+    [InlineData("../wanted.txt", FileObjectKind.File, false)]
+    [InlineData("jump/../wanted.txt", FileObjectKind.File, false)]
+    [InlineData("../wanted.txt/", FileObjectKind.File, true)]
+    [InlineData("../leaf-alias/", FileObjectKind.SymbolicLink, true)]
+    [InlineData("..", FileObjectKind.Directory, true)]
+    public void Explicit_relative_target_navigation_resolves_parent_aliases_but_preserves_the_final_object(
+        string stored, FileObjectKind expectedKind, bool requiresDirectory)
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(), "Unix native link fixture.");
+        using var root = new TempDir();
+        string real = Path.Combine(root.Path, "real"), visible = Path.Combine(root.Path, "visible");
+        string sub = Path.Combine(real, "sub"), sibling = Path.Combine(real, "sibling");
+        Directory.CreateDirectory(sub);
+        Directory.CreateDirectory(sibling);
+        Directory.CreateDirectory(visible);
+        string alias = Path.Combine(visible, "alias");
+        Directory.CreateSymbolicLink(alias, sub);
+        Directory.CreateSymbolicLink(Path.Combine(sub, "jump"), sibling);
+        Directory.CreateSymbolicLink(Path.Combine(real, "leaf-alias"), sibling);
+        File.WriteAllText(Path.Combine(real, "wanted.txt"), "correct");
+        File.WriteAllText(Path.Combine(sub, "wanted.txt"), "intermediate alias ignored");
+        File.WriteAllText(Path.Combine(visible, "wanted.txt"), "parent alias ignored");
+        File.CreateSymbolicLink(Path.Combine(sub, "link"), stored);
+
+        var ct = TestContext.Current.CancellationToken;
+        var reader = new UnixFileRecords();
+        var link = reader.ReadSummary(Path.Combine(alias, "link"), ct);
+        Assert.True(FileDetailsTargets.TryResolve(link, windows: false, out string candidate, out _));
+        Assert.Equal(Path.Combine(alias, stored), candidate);
+        var resolved = FileDetailsTargets.ResolveUnixNavigationPath(candidate, ct);
+        string canonical = Assert.IsType<string>(UnixFiles.RealPath(real));
+        string expected = expectedKind switch
+        {
+            FileObjectKind.SymbolicLink => Path.Combine(canonical, "leaf-alias"),
+            FileObjectKind.File => Path.Combine(canonical, "wanted.txt"),
+            _ => canonical,
+        };
+        Assert.Equal((expected, requiresDirectory), resolved);
+        Assert.Equal(expectedKind, reader.ReadSummary(resolved.Path, ct).Kind);
+    }
+
+    [Fact]
+    public unsafe void Linux_retains_link_metadata_with_an_unrepresentable_stored_target()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux(), "Requires a filesystem that stores non-UTF-8 symlink bytes.");
+        using var root = new TempDir();
+        string path = Path.Combine(root.Path, "link");
+        byte* invalidUtf8 = stackalloc byte[] { 0xff, 0 };
+        Assert.Equal(0, MakeSymlink(invalidUtf8, path));
+        var link = new UnixFileRecords().ReadSummary(path, TestContext.Current.CancellationToken);
+        Assert.Equal(FileObjectKind.SymbolicLink, link.Kind);
+        Assert.Equal(FactState.Known, link.Identity.State);
+        Assert.Equal(FactState.Unsupported, link.Target.State);
+        Assert.Null(link.Target.Value);
+        Assert.False(FileDetailsTargets.TryResolve(link, windows: false, out _, out _));
+    }
+
+    [Fact]
+    public void Linux_full_report_observes_casefold_on_the_held_ext4_directory()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
+            "Requires a qualified Linux x64 ext4 fixture.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EXT4_CASEFOLD_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires a disposable ext4 mount with both directory policies prepared.");
+
+        string ordinary = Path.Join(root, "ordinary"), folded = Path.Join(root, "folded");
+        const string composed = "caf\u00E9.txt", decomposed = "cafe\u0301.txt";
+        Assert.False(File.Exists(Path.Join(ordinary, "mixed.txt")));
+        Assert.False(File.Exists(Path.Join(ordinary, decomposed)));
+        Assert.True(File.Exists(Path.Join(folded, "mixed.txt")));
+        Assert.True(File.Exists(Path.Join(folded, decomposed)));
+        Assert.Contains(composed, Directory.EnumerateFiles(folded).Select(Path.GetFileName));
+
+        var reader = new UnixFileRecords();
+        var ct = TestContext.Current.CancellationToken;
+        const string title = "ext4 directory namespace";
+        foreach (var (directory, enabled) in new[] { (ordinary, false), (folded, true), (Path.Join(root, "parent-alias", "folded"), true) })
+        {
+            var summary = reader.ReadSummary(directory, ct);
+            Assert.Equal("ext4", summary.FileSystem.Value);
+            Assert.DoesNotContain(title, summary.ToReport().ToText());
+            var full = reader.ReadFull(directory, FileDetailsPolicy.MetadataOnly, ct);
+            Assert.Equal(summary.Identity.Value, full.Summary.Identity.Value);
+            var section = Assert.Single(full.Technical.Sections, entry => entry.Title == title);
+            Assert.Contains(("Scope", "Name lookup in this directory"), section.Fields);
+            Assert.Contains(("Case folding", enabled ? "Enabled" : "Disabled"), section.Fields);
+            Assert.Equal(enabled, section.Lines.Any(line => line.Contains("Unicode normalization", StringComparison.Ordinal)));
+        }
+
+        foreach (string leaf in new[] { Path.Join(folded, composed), Path.Join(root, "folded-link") })
+            Assert.DoesNotContain(reader.ReadFull(leaf, FileDetailsPolicy.MetadataOnly, ct).Technical.Sections, section => section.Title == title);
+    }
+
+    [Fact]
+    public void Mac_namespace_requires_matching_volume_and_individually_valid_capabilities()
+    {
+        const uint device = 42;
+        var fields = new byte[76];
+        BinaryPrimitives.WriteUInt32LittleEndian(fields, 76);
+        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(4), 0x80000002);
+        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(8), 0x00120000);
+        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(24), device);
+        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(28), 0x100);
+        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(44), 0x100);
+        BinaryPrimitives.WriteInt32LittleEndian(fields.AsSpan(60), 8);
+        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(64), 5);
+        "apfs\0"u8.CopyTo(fields.AsSpan(68));
+
+        var (sensitive, preserving) = UnixFileRecords.ParseMacApfsNamespace(fields, device);
+        Assert.Equal(FactState.Known, sensitive.State);
+        Assert.Equal(FactScope.Volume, sensitive.Scope);
+        Assert.True(sensitive.Value);
+        Assert.Equal(FactState.Unsupported, preserving.State);
+        Assert.Equal(FactState.Partial, UnixFileRecords.ParseMacApfsNamespace(fields, device + 1).Sensitive.State);
+        Assert.Equal(FactState.Partial, UnixFileRecords.ParseMacApfsNamespace(fields.AsSpan(0, 70), device).Sensitive.State);
+        BinaryPrimitives.WriteInt32LittleEndian(fields.AsSpan(60), int.MaxValue);
+        Assert.Equal(FactState.Partial, UnixFileRecords.ParseMacApfsNamespace(fields, device).Sensitive.State);
+    }
+
+    [Fact]
+    public void Mac_full_report_observes_APFS_case_variants_without_following_a_leaf_link()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires Darwin volume attributes.");
+        string? sensitive = Environment.GetEnvironmentVariable("FILECAT_TEST_APFS_SENSITIVE");
+        string? insensitive = Environment.GetEnvironmentVariable("FILECAT_TEST_APFS_INSENSITIVE");
+        if (string.IsNullOrEmpty(sensitive) || string.IsNullOrEmpty(insensitive))
+            Assert.Skip("Requires two disposable, prepared APFS variants.");
+
+        var ct = TestContext.Current.CancellationToken;
+        var reader = new UnixFileRecords();
+        Assert.False(File.Exists(Path.Join(sensitive, "mixed")));
+        Assert.True(File.Exists(Path.Join(insensitive, "mixed")));
+        foreach (var (path, caseSensitive) in new[]
+        {
+            (sensitive, true), (Path.Join(sensitive, "MiXeD"), true),
+            (insensitive, false), (Path.Join(insensitive, "MiXeD"), false),
+            (Path.Join(insensitive, "link-to-sensitive"), false),
+            (Path.Join(insensitive, "dir-alias", "MiXeD"), true),
+        })
+        {
+            Assert.DoesNotContain("APFS volume namespace", reader.ReadSummary(path, ct).ToReport().ToText());
+            var report = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
+            var section = Assert.Single(report.Technical.Sections, section => section.Title == "APFS volume namespace");
+            Assert.Contains(("Case sensitive", caseSensitive ? "Yes" : "No"), section.Fields);
+            Assert.Contains(("Case preserving", "Yes"), section.Fields);
+            Assert.Contains(("Unicode normalization", "Not inspected"), section.Fields);
+            Assert.Equal(ReportContentKind.MetadataOnly, report.ContentKind);
+        }
     }
 
     [Theory]
@@ -184,6 +345,9 @@ public sealed partial class UnixFileDetailsNativeTests
 
     [LibraryImport("libc", EntryPoint = "mkfifo", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int MakeFifo(string path, uint mode);
+
+    [LibraryImport("libc", EntryPoint = "symlink", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static unsafe partial int MakeSymlink(byte* stored, string path);
 
     [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int OpenPath(string path, int flags);

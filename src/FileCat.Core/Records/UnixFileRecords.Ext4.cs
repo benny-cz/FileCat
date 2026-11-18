@@ -1,11 +1,47 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
 using FileCat.Core.Inspect;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Records;
 
 public sealed unsafe partial class UnixFileRecords
 {
+    private const ulong LinuxGetInodeFlags64 = 0x8008_6601; // FS_IOC_GETFLAGS
+
+    private static FileDetailsReport AddExt4DirectoryNamespace(FileDetailsReport report, SafeFileHandle? directory,
+        FactState descriptorState, string? descriptorReason, CancellationToken ct)
+    {
+        const string source = "FS_IOC_GETFLAGS on the held ext4 directory";
+        ObservedFact<bool> CaseFoldUnavailable(FactState state, string reason) =>
+            ObservedFact<bool>.Unavailable(state, FactScope.DirectoryPolicy, source, reason);
+
+        ObservedFact<bool> caseFold;
+        if (directory is null)
+            caseFold = CaseFoldUnavailable(descriptorState, descriptorReason!);
+        else
+        {
+            uint flags = 0;
+            ct.ThrowIfCancellationRequested();
+            int error = Ioctl((int)directory.DangerousGetHandle(), LinuxGetInodeFlags64, &flags) == 0 ? 0 : Marshal.GetLastPInvokeError();
+            ct.ThrowIfCancellationRequested();
+            caseFold = error == 0
+                ? ObservedFact<bool>.Known((flags & 0x4000_0000) != 0, FactScope.DirectoryPolicy, source) // FS_CASEFOLD_FL
+                : CaseFoldUnavailable(LinuxMetadataFailure(error), $"The inode flag query returned errno {error}.");
+        }
+
+        var section = new InspectionSection("ext4 directory namespace", [
+            ("Case folding", caseFold.Describe(enabled => enabled ? "Enabled" : "Disabled")),
+            ("Scope", "Name lookup in this directory"), ("Observation", caseFold.Source)])
+        {
+            Lines = caseFold is { State: FactState.Known, Value: true }
+                ? ["Case-folded lookup compares valid encoded names using Unicode normalization. Stored spellings are preserved.",
+                    "For encrypted names, case-folded lookup can depend on key availability."]
+                : [],
+        };
+        return report with { Technical = report.Technical with { Sections = [.. report.Technical.Sections, section] } };
+    }
+
     /// <summary>What the kernel shows of an item now: statx, and for files and folders FS_IOC_GETVERSION and FS_IOC_GETFLAGS.</summary>
     internal sealed record Ext4Live(int Mode, uint Links, uint Uid, uint Gid, ulong Size, ulong Blocks, Ext4Inode.Timestamp Modified,
         Ext4Inode.Timestamp Changed, Ext4Inode.Timestamp Accessed, Ext4Inode.Timestamp? Born, uint? Generation, uint? Flags);
@@ -130,7 +166,7 @@ public sealed unsafe partial class UnixFileRecords
             return live with
             {
                 Generation = Ioctl(fd, 0x8008_7601 /* FS_IOC_GETVERSION */, &generation) == 0 ? generation : null,
-                Flags = Ioctl(fd, 0x8008_6601 /* FS_IOC_GETFLAGS */, &flags) == 0 ? flags : null,
+                Flags = Ioctl(fd, LinuxGetInodeFlags64, &flags) == 0 ? flags : null,
             };
         }
         finally { Close(fd); }

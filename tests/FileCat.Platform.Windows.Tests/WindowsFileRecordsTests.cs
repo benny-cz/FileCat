@@ -37,6 +37,24 @@ public sealed partial class WindowsFileRecordsTests
         System.Text.RegularExpressions.Regex.IsMatch(TimestampChecksText(report), BackdatedCreationPattern);
 
     [Fact]
+    public void Summary_preserves_the_native_missing_target_status()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Requires Windows native metadata.");
+        string dir = NewFolder();
+        try
+        {
+            var reader = new WindowsFileRecords();
+            var ct = TestContext.Current.CancellationToken;
+            foreach (string path in new[] { Path.Combine(dir, "missing.txt"), Path.Combine(dir, "missing-folder", "child.txt") })
+            {
+                var missing = Assert.Throws<FileNotFoundException>(() => reader.ReadSummary(path, ct));
+                Assert.Equal(path, missing.FileName);
+            }
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
     public void Live_log_gate_requires_its_own_time_change_not_other_timestamp_signs()
     {
         var unrelated = new InspectionReport("test",

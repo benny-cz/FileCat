@@ -9,6 +9,8 @@ public sealed partial class ReportWindow
 {
     private FileDetailsReader? _detailsReader;
     private FileDetailsObservation? _detailsObservation;
+    private FileDetailsTargetCheck? _targetCheck;
+    private CancellationTokenSource? _checkingTarget;
     private FileDetailsTier _detailsTier;
     private FileDetailsTier _detailsDisplayedTier;
     private readonly Button _tier = new() { Content = "Read full record" };
@@ -17,9 +19,10 @@ public sealed partial class ReportWindow
     private readonly Button _extraData = new() { Content = OperatingSystem.IsWindows() ? "Open streams and attributes" : "Open attributes" };
     private readonly Button _copyTarget = new() { Content = "Copy stored target", IsVisible = false };
     private readonly Button _navigateTarget = new() { Content = "Open target location", IsVisible = false };
-    private Func<string, CancellationToken, Task>? _openTarget;
+    private Func<string, CancellationToken, Task<FileDetailsTargetCheck>>? _openTarget;
 
-    public ReportWindow(string subject, FileDetailsReader reader, Action? openExtraData = null, Func<string, CancellationToken, Task>? openTarget = null)
+    public ReportWindow(string subject, FileDetailsReader reader, Action? openExtraData = null,
+        Func<string, CancellationToken, Task<FileDetailsTargetCheck>>? openTarget = null)
         : this("File-system details", subject, _ => throw new InvalidOperationException("Details require the owned metadata reader."))
     {
         _detailsReader = reader;
@@ -50,10 +53,12 @@ public sealed partial class ReportWindow
         _copyAll.IsEnabled = _copyVisible.IsEnabled = _copyDisplayed.IsEnabled = _save.IsEnabled = ready;
         _extraData.IsEnabled = _detailsObservation is not null;
         _copyTarget.IsVisible = _detailsObservation?.Summary.Target.State == FactState.Known;
-        bool qualified = _detailsObservation is { } observation && FileDetailsTargets.TryResolve(observation.Summary, OperatingSystem.IsWindows(), out _, out _);
+        bool network = false;
+        bool qualified = _detailsObservation is { Summary.Identity.State: FactState.Known } observation &&
+            FileDetailsTargets.TryResolve(observation.Summary, OperatingSystem.IsWindows(), out _, out network);
         _navigateTarget.IsVisible = qualified && _openTarget is not null;
-        if (qualified && FileDetailsTargets.TryResolve(_detailsObservation!.Summary, OperatingSystem.IsWindows(), out _, out bool network))
-            _navigateTarget.Content = network ? "Open target location (network)" : "Open target location";
+        _navigateTarget.IsEnabled = _checkingTarget is null;
+        _navigateTarget.Content = network ? "Open target location (network)" : "Open target location";
         _tier.Content = _detailsTier == FileDetailsTier.Full ? "Show summary"
             : _detailsObservation?.Full is not null ? "Show full record" : "Read full record";
     }
@@ -62,6 +67,7 @@ public sealed partial class ReportWindow
     {
         if (_detailsReader is null || _closing.IsCancellationRequested) return;
         _reading?.Cancel();
+        _checkingTarget?.Cancel();
         _copying?.Cancel(); _saving?.Cancel();
         _detailsReader.Cancel();
         _detailsTier = _detailsTier == FileDetailsTier.Summary ? FileDetailsTier.Full : FileDetailsTier.Summary;
@@ -79,6 +85,7 @@ public sealed partial class ReportWindow
     {
         if (_detailsReader is not { } reader || _closing.IsCancellationRequested) return;
         _reading?.Cancel();
+        _checkingTarget?.Cancel();
         _copying?.Cancel(); _saving?.Cancel();
         using var cts = _reading = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
@@ -104,6 +111,7 @@ public sealed partial class ReportWindow
                 observation = observation with { Summary = changed, Full = observation.Full is { } paired ? paired with { Summary = changed } : null };
             }
             _detailsObservation = observation;
+            _targetCheck = null;
             _detailsDisplayedTier = requested;
             _detailsNotice = null;
             PublishDetails();
@@ -132,7 +140,8 @@ public sealed partial class ReportWindow
     private void PublishDetails(bool announceStatus = true)
     {
         if (_detailsObservation is not { } observation) return;
-        string text = _detailsDisplayedTier == FileDetailsTier.Full && observation.Full is { } full ? full.ToText() : observation.Summary.ToReport().ToText();
+        string text = _detailsDisplayedTier == FileDetailsTier.Full && observation.Full is { } full
+            ? full.ToText(_targetCheck) : observation.Summary.ToReport(_targetCheck).ToText();
         if (_detailsNotice is { } notice) text = notice + " · showing observation " + observation.Summary.ObservedAt.ToString("O") + Environment.NewLine + text;
         // All native acquisition is bounded first. This also bounds newly assembled viewer text.
         const int MaxChars = 2 * 1024 * 1024 - 128;
@@ -149,9 +158,12 @@ public sealed partial class ReportWindow
         // The report itself exposes the pending read. Keep the status live event for the outcome,
         // since a fast read can otherwise lose its completion announcement behind the pending event.
         if (!announce) AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Off);
+        string? notice = _detailsNotice;
+        if (notice is null && _targetCheck is { Kind.State: not FactState.Known } target)
+            notice = "Target could not be opened: " + target.Kind.Describe();
         _status.Text = _detailsObservation is { } observation
-            ? $"{_detailsNotice}{(_detailsNotice is null ? "" : " · ")}{_detailsDisplayedTier} · observation {observation.Summary.ObservedAt.LocalDateTime:T} · F5 reads this tier again"
-            : _detailsNotice ?? "No observation";
+            ? $"{notice}{(notice is null ? "" : " · ")}{_detailsDisplayedTier} · observation {observation.Summary.ObservedAt.LocalDateTime:T} · F5 reads this tier again"
+            : notice ?? "No observation";
         if (!announce) AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
     }
 
@@ -181,27 +193,49 @@ public sealed partial class ReportWindow
 
     private async Task NavigateTargetAsync()
     {
-        if (_detailsReader is not { } reader || _detailsObservation is not { } captured || _openTarget is not { } navigate ||
+        if (_checkingTarget is not null || _closing.IsCancellationRequested || _detailsReader is not { } reader ||
+            _detailsObservation is not { Summary.Identity.State: FactState.Known } captured || _openTarget is not { } navigate ||
             !FileDetailsTargets.TryResolve(captured.Summary, OperatingSystem.IsWindows(), out string path, out _)) return;
         _reading?.Cancel();
-        _navigateTarget.IsEnabled = false;
+        using var check = _checkingTarget = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        var ct = check.Token;
+        SetDetailsActions();
         try
         {
-            var fresh = await reader.ReadAsync(FileDetailsTier.Summary, _closing.Token);
-            if (_closing.IsCancellationRequested) return;
+            var fresh = await reader.ReadAsync(FileDetailsTier.Summary, ct);
+            if (ct.IsCancellationRequested || !ReferenceEquals(_detailsObservation, captured)) return;
             if (fresh.Summary.Target != captured.Summary.Target || fresh.Summary.Identity != captured.Summary.Identity)
             {
+                _copying?.Cancel();
+                _saving?.Cancel();
                 _detailsObservation = fresh;
+                _targetCheck = null;
                 _detailsTier = _detailsDisplayedTier = FileDetailsTier.Summary;
                 _detailsNotice = "Stored target or source identity changed; review the refreshed details before navigating";
                 PublishDetails();
                 return;
             }
-            await navigate(path, _closing.Token);
+            var target = await navigate(path, ct);
+            if (ct.IsCancellationRequested || !ReferenceEquals(_detailsObservation, captured)) return;
+            _copying?.Cancel();
+            _saving?.Cancel();
+            _targetCheck = target;
+            _detailsNotice = null;
+            PublishDetails();
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
-        { if (!_closing.IsCancellationRequested) { _detailsNotice = "Target could not be opened: " + ex.Message; UpdateDetailsStatus(); } }
-        finally { if (!_closing.IsCancellationRequested) { _navigateTarget.IsEnabled = true; SetDetailsActions(); } }
+        {
+            if (!ct.IsCancellationRequested && ReferenceEquals(_detailsObservation, captured))
+            {
+                _detailsNotice = "Target could not be opened: " + ex.Message;
+                UpdateDetailsStatus();
+            }
+        }
+        finally
+        {
+            _checkingTarget = null;
+            if (!_closing.IsCancellationRequested) SetDetailsActions();
+        }
     }
 }

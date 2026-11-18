@@ -1,0 +1,7 @@
+# ext4 case folding in full file-system details
+
+The explicit full report reads `FS_CASEFOLD_FL` using `FS_IOC_GETFLAGS` on the already held ext4 directory descriptor. FileCat reports the flag as a policy for name lookup within the directory. With folding enabled, comparisons can use Unicode normalization while the filesystem preserves stored spellings. Encrypted names can require the relevant key. The summary continues to use its lightweight observation. [Linux ext4 case-insensitive lookups](https://www.kernel.org/doc/html/latest/admin-guide/ext4.html#case-insensitive-file-name-lookups). [Linux filesystem flag ABI](https://github.com/torvalds/linux/blob/master/include/uapi/linux/fs.h).
+
+On Ubuntu 24.04 x64, the fixture prepared ordinary and folded directories on the same disposable UTF-8 ext4 volume and then mounted it read-only in a private mount namespace. The lowercase and decomposed lookups succeeded only in the folded directory. Enumeration returned the original composed spelling. The FileCat report matched the two policies, including through a redirected parent. The fixture also checked that a regular file and a leaf symlink had no directory-policy section.
+
+The focused Core run passed 29 tests. Five tests required a different platform or an additional opt-in filesystem. The receipt is `~/FileCatValidation/filecat-ext4-casefold-891f04d9-r4/ext4-casefold.trx`. The mount and `lsattr` controls are in the same directory's `results.log`.

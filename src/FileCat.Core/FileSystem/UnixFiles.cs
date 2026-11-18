@@ -60,14 +60,21 @@ public static unsafe partial class UnixFiles
     }
 
     /// <summary>The full path with every link resolved (realpath), or null when it does not exist or cannot be read.</summary>
-    public static string? RealPath(string path)
+    public static string? RealPath(string path) => RealPath(path, out _);
+
+    internal static string? RealPath(string path, out int error)
     {
+        error = 0;
         if (OperatingSystem.IsWindows() || PathUtil.HasAmbiguousUnixName(path)) return null;
         // PATH_MAX is 4096 on Linux and 1024 on macOS, the terminating zero included.
         byte* buffer = stackalloc byte[4096 + 1];
         try
         {
-            if (RealPathNative(path, buffer) is null) return null;
+            if (RealPathNative(path, buffer) is null)
+            {
+                error = Marshal.GetLastPInvokeError();
+                return null;
+            }
             string? resolved = Marshal.PtrToStringUTF8((nint)buffer);
             return resolved is not null && !PathUtil.HasAmbiguousUnixName(resolved) ? resolved : null;
         }
@@ -191,7 +198,7 @@ public static unsafe partial class UnixFiles
         return best;
     }
 
-    [LibraryImport("libc", EntryPoint = "realpath", StringMarshalling = StringMarshalling.Utf8)]
+    [LibraryImport("libc", EntryPoint = "realpath", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial byte* RealPathNative(string path, byte* resolved);
 
     [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]

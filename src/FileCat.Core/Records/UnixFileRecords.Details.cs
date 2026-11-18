@@ -9,6 +9,9 @@ namespace FileCat.Core.Records;
 
 public sealed unsafe partial class UnixFileRecords
 {
+    private const int StoredLinkLimit = 16 * 1024;
+    private static readonly UTF8Encoding StoredLinkEncoding = new(false, true);
+
     public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct) => ReadDetails(path, fullReport: false, ct).Summary;
 
     public FileDetailsReport ReadFull(string path, FileDetailsPolicy policy, CancellationToken ct)
@@ -23,7 +26,7 @@ public sealed unsafe partial class UnixFileRecords
         FileSystem.PathUtil.RefuseAmbiguousUnixName(path);
         ct.ThrowIfCancellationRequested();
         string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-        return OperatingSystem.IsLinux() ? LinuxDetails(full, fullReport, ct) : MacDetails(full, ct);
+        return OperatingSystem.IsLinux() ? LinuxDetails(full, fullReport, ct) : MacDetails(full, fullReport, ct);
     }
 
     private static FileDetailsReport LinuxDetails(string path, bool fullReport, CancellationToken ct)
@@ -46,29 +49,31 @@ public sealed unsafe partial class UnixFileRecords
             report = report with { Summary = report.Summary with { FileSystem = ReadLinuxDetailsFileSystem(fd, fields, noFollow, ct) } };
             if (report.Summary.Kind == FileObjectKind.SymbolicLink)
             {
-                byte[] buffer = new byte[16 * 1024];
+                byte[] buffer = new byte[StoredLinkLimit];
                 ct.ThrowIfCancellationRequested();
                 nint count;
                 fixed (byte* data = buffer) count = ReadLinkAt(fd, "", data, (nuint)buffer.Length);
+                int error = count < 0 ? Marshal.GetLastPInvokeError() : 0;
                 ct.ThrowIfCancellationRequested();
-                var target = count > 0 && count < buffer.Length
-                    ? new System.Text.UTF8Encoding(false, true).GetString(buffer.AsSpan(0, (int)count)) : null;
-                report = report with { Summary = report.Summary with { Target = target is null
-                    ? ObservedFact<FileSystem.StoredLinkTarget>.Unavailable(FactState.Partial, FactScope.Entry, "readlinkat(O_PATH)", "Stored target unavailable or exceeds 16 KiB.")
-                    : ObservedFact<FileSystem.StoredLinkTarget>.Known(new(target, "", !target.StartsWith('/')), FactScope.Entry, "readlinkat(O_PATH)") } };
+                var target = DecodeStoredLinkTarget(buffer, count, error, "readlinkat on the held O_PATH descriptor");
+                report = report with { Summary = report.Summary with { Target = target } };
             }
             if (fullReport && report.Summary is { Kind: FileObjectKind.File or FileObjectKind.Directory,
                     Identity: { State: FactState.Known, Value: { } identity } } summary)
             {
                 bool x64 = RuntimeInformation.ProcessArchitecture == Architecture.X64;
-                bool fscrypt = x64 && summary.FileSystem is { State: FactState.Known, Value: "ext4" };
+                bool ext4 = x64 && summary.FileSystem is { State: FactState.Known, Value: "ext4" };
                 bool btrfs = x64 && summary.FileSystem is { State: FactState.Known, Value: "btrfs" };
-                if (summary.Kind == FileObjectKind.File || fscrypt || btrfs)
+                if (summary.Kind == FileObjectKind.File || ext4 || btrfs)
                 {
                     var (file, state, reason) = OpenLinuxMetadataDescriptor(fd, identity, summary.Kind, ct);
                     using var descriptor = file;
-                    if (fscrypt)
+                    if (ext4)
+                    {
                         report = AddLinuxFscrypt(report, file is null ? FscryptUnavailable(state, reason!) : ReadLinuxFscrypt(file, ct));
+                        if (summary.Kind == FileObjectKind.Directory)
+                            report = AddExt4DirectoryNamespace(report, file, state, reason, ct);
+                    }
                     if (btrfs)
                         report = AddLinuxBtrfs(report, file, state, reason, ct);
                     if (summary.Kind == FileObjectKind.File)
@@ -191,7 +196,29 @@ public sealed unsafe partial class UnixFileRecords
         0x6000 => FileObjectKind.BlockDevice, _ => FileObjectKind.Unknown,
     };
 
-    private static FileDetailsReport MacDetails(string path, CancellationToken ct)
+    private static FileDetailsReport MacDetails(string path, bool fullReport, CancellationToken ct)
+    {
+        byte[] fields = ReadMacDetailsFields(path, ct);
+        var report = ParseMacDetails(path, fields);
+        if (report.Summary.Kind == FileObjectKind.SymbolicLink)
+        {
+            var target = ReadMacStoredTarget(path, report.Summary.Identity, fields, ct);
+            report = report with { Summary = report.Summary with { Target = target } };
+        }
+        if (fullReport && report.Summary is
+            {
+                Kind: FileObjectKind.File or FileObjectKind.Directory or FileObjectKind.SymbolicLink,
+                Identity.State: FactState.Known,
+                NativeAttributes.State: FactState.Known,
+            } summary && (summary.NativeAttributes.Value & 0x40000000) == 0) // SF_DATALESS
+        {
+            uint device = BinaryPrimitives.ReadUInt32LittleEndian(fields.AsSpan(24));
+            report = AddMacApfsNamespace(report, device, ct);
+        }
+        return report;
+    }
+
+    private static byte[] ReadMacDetailsFields(string path, CancellationToken ct)
     {
         // A separate summary request: no entry count, resource fork, clone statistics, ACL or xattr values.
         const uint Common = 0x80000000 | 0x2 | 0x8 | 0x200 | 0x400 | 0x800 | 0x1000 | 0x8000 | 0x10000 | 0x20000 | 0x40000 | 0x2000000;
@@ -206,7 +233,71 @@ public sealed unsafe partial class UnixFileRecords
         fixed (byte* data = buffer) status = GetAttrList(path, list, data, (nuint)buffer.Length, 1 | 8);
         ct.ThrowIfCancellationRequested();
         if (status != 0) throw Error(path);
-        return ParseMacDetails(path, buffer);
+        return buffer;
+    }
+
+    private static ObservedFact<FileSystem.StoredLinkTarget> ReadMacStoredTarget(string path, ObservedFact<DetailsIdentity> identity,
+        ReadOnlySpan<byte> before, CancellationToken ct)
+    {
+        const string source = "Darwin readlink with before-and-after identity and timestamp samples";
+        ObservedFact<FileSystem.StoredLinkTarget> Unavailable(FactState state, string reason) =>
+            ObservedFact<FileSystem.StoredLinkTarget>.Unavailable(state, FactScope.Entry, source, reason);
+        if (identity.State != FactState.Known || !HasMacLinkTimestamps(before))
+            return Unavailable(FactState.Partial, "The first link sample lacks identity or timestamp fields.");
+
+        byte[] buffer = new byte[StoredLinkLimit];
+        ct.ThrowIfCancellationRequested();
+        nint count;
+        fixed (byte* data = buffer) count = MacReadLink(path, data, (nuint)buffer.Length);
+        int error = count < 0 ? Marshal.GetLastPInvokeError() : 0;
+        ct.ThrowIfCancellationRequested();
+        var target = DecodeStoredLinkTarget(buffer, count, error, source);
+        if (target.State != FactState.Known) return target;
+
+        try
+        {
+            byte[] after = ReadMacDetailsFields(path, ct);
+            var current = ParseMacDetails(path, after).Summary;
+            if (current.Kind is not (FileObjectKind.SymbolicLink or FileObjectKind.Unknown))
+                return Unavailable(FactState.Changed, "The entry is no longer a symbolic link.");
+            if (current.Kind == FileObjectKind.Unknown || current.Identity.State != FactState.Known || !HasMacLinkTimestamps(after))
+                return Unavailable(FactState.Partial, "The second link sample lacks type, identity or timestamp fields.");
+            if (identity.Value != current.Identity.Value || !before.Slice(32, 16).SequenceEqual(after.AsSpan(32, 16)) ||
+                !before.Slice(64, 16).SequenceEqual(after.AsSpan(64, 16)))
+                return Unavailable(FactState.Changed, "The link identity or timestamps changed during the read.");
+            return target;
+        }
+        catch (FileNotFoundException) { return Unavailable(FactState.Changed, "The link disappeared during the read."); }
+        catch (UnauthorizedAccessException) { return Unavailable(FactState.Denied, "The link could not be sampled again with this access."); }
+        catch (Exception ex) when (ex is IOException or InvalidDataException) { return Unavailable(FactState.Failed, "The second link sample failed."); }
+    }
+
+    private static bool HasMacLinkTimestamps(ReadOnlySpan<byte> fields)
+    {
+        // Creation and change times occupy bytes 32–47 and 64–79 of the packed result.
+        const uint timestamps = 0x200 | 0x800; // ATTR_CMN_CRTIME | ATTR_CMN_CHGTIME
+        return BinaryPrimitives.ReadUInt32LittleEndian(fields) >= 80 &&
+            (BinaryPrimitives.ReadUInt32LittleEndian(fields[4..]) & timestamps) == timestamps;
+    }
+
+    private static ObservedFact<FileSystem.StoredLinkTarget> DecodeStoredLinkTarget(byte[] buffer, nint count, int error, string source)
+    {
+        ObservedFact<FileSystem.StoredLinkTarget> Unavailable(FactState state, string reason) =>
+            ObservedFact<FileSystem.StoredLinkTarget>.Unavailable(state, FactScope.Entry, source, reason);
+        if (count < 0) return error switch
+        {
+            1 or 13 => Unavailable(FactState.Denied, "The stored target could not be read with this access."),
+            2 or 20 or 22 => Unavailable(FactState.Changed, "The link could no longer be read as observed."),
+            _ => Unavailable(FactState.Failed, "The stored target could not be read."),
+        };
+        if (count == 0 || count >= buffer.Length)
+            return Unavailable(FactState.Partial, "The stored target was empty or reached the 16 KiB limit.");
+        try
+        {
+            string target = StoredLinkEncoding.GetString(buffer.AsSpan(0, (int)count));
+            return ObservedFact<FileSystem.StoredLinkTarget>.Known(new(target, "", !target.StartsWith('/')), FactScope.Entry, source);
+        }
+        catch (DecoderFallbackException) { return Unavailable(FactState.Unsupported, "The stored target is not valid UTF-8."); }
     }
 
     internal static FileDetailsReport ParseMacDetails(string path, ReadOnlySpan<byte> bytes)
@@ -255,4 +346,7 @@ public sealed unsafe partial class UnixFileRecords
 
     [LibraryImport("libc", EntryPoint = "readlinkat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial nint ReadLinkAt(int fd, string path, byte* buffer, nuint size);
+
+    [LibraryImport("libc", EntryPoint = "readlink", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial nint MacReadLink(string path, byte* buffer, nuint size);
 }
