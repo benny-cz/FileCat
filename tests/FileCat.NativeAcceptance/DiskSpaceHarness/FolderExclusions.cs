@@ -21,6 +21,14 @@ internal sealed partial class HarnessApp
             if (OperatingSystem.IsWindows()) WindowsGuestInput.DesktopGuard();
             var window = _window!;
             var model = _models.Single();
+            string? packageFastNtfsReason = null;
+            if (Program.PackageTier is { } tier)
+            {
+                packageFastNtfsReason = model.FastNtfsUnavailableReason;
+                if (packageFastNtfsReason is null || !packageFastNtfsReason.Contains("Use standard analysis", StringComparison.Ordinal) ||
+                    (tier == "portable" && !packageFastNtfsReason.Contains("requires the installed Windows edition", StringComparison.Ordinal)))
+                    throw new InvalidOperationException("This package must offer Standard analysis instead of Fast NTFS.");
+            }
             Button? VisibleButton(string caption) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
                 button.IsEffectivelyVisible && button.Content as string == caption);
             void Click(string caption) => (VisibleButton(caption) ?? throw new InvalidOperationException($"Missing button {caption}."))
@@ -171,7 +179,8 @@ internal sealed partial class HarnessApp
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
                 readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
-                standardIndexChoice = true, scratchThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true };
+                standardIndexChoice = true, scratchThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true,
+                packageTier = Program.PackageTier, packageFastNtfsReason };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }

@@ -6,10 +6,12 @@ The package sources were pinned to commit 764f878d. The Mac and Ubuntu builds ra
 |---|---|---|
 | Mac | App ZIP extracted, strict ad-hoc signature verified, packaged executable returned the expected version | Passed using the verified app-bundle assemblies |
 | Ubuntu VM | Self-contained tar, extracted Debian package and AppImage each returned the expected version | Passed using the verified Debian package assemblies |
-| Windows VM | Portable executable returned the expected version from the original ZIP | Staged for retry after the first run yielded at the process guard |
+| Windows VM | Portable and framework-dependent executables returned the expected version | Both passed Standard with their package-specific Fast NTFS explanation |
 
-The native harness keeps the original archives and extracted package files available for verification. It loads a separate copy of the packaged assemblies, verifies the application hash, runs Standard in both memory and recorded-result modes, opens the capacity and resource dialogs, and checks the captured folder exclusion and save workflow. The completed Mac and Ubuntu workflows preserved their source fixtures and exited normally. The Mac also captured its own window through the native Retina compositor.
+The native harness keeps the original archives and extracted package files available for verification. It loads a separate copy of the packaged assemblies, verifies the application hash, runs Standard in both memory and recorded-result modes, opens the capacity and resource dialogs, and checks the captured folder exclusion and save workflow. The workflows on all three test machines preserved their source fixtures and exited normally. The Mac also captured its own window through the native Retina compositor.
+
+The Windows r1593 desktop harness used the installed .NET host and loaded the exact application assemblies from both ZIPs. The initial app-host harness launch stalled before publishing its startup report. VMware briefly lost contact while collecting r1593, and the completed guest archive was recovered intact. It contains successful desktop results, normal closure and empty process inventories for both package variants.
 
 The merged renderer suite completed on the Mac and Ubuntu VM with 982 passes, seven expected skips and zero failures or errors on each machine. The skips cover platform-specific and separately scheduled opt-in cases. On the Mac the first result collection encountered an unmatched shell glob. A new collection from the same finished guest run retrieved all 16 validated batch receipts. The Windows renderer suite continues from its verified batch receipts.
 
-[Build, package and receipt hashes](source-manifest-r1582-development-packages.json) identify the checked results. Full native package workflows on Windows, the signed installer and the full independent review remain open.
+[Build, package and receipt hashes](source-manifest-r1582-development-packages.json) identify the checked results. Signed installer qualification and the full independent review remain open.

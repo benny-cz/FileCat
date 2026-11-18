@@ -61,7 +61,10 @@ internal sealed partial class HarnessApp : Application
         if (Program.IndexedInventoryProbe) for (int i = 0; i < 4200; i++) Add($"Streamed/row-{i:D4}.bin", 1);
         PlatformFactory.WindowsFactory = () => new FileCat.Platform.Windows.WindowsPlatform();
         string profileRoot = Program.SharedProfile ? Path.Combine(AppContext.BaseDirectory, "native-validation-shared-profile") : Path.Combine(_run, "data");
-        _services = AppServices.CreateForPaths(AppPaths.Resolve(dataRoot: profileRoot));
+        var paths = AppPaths.Resolve(dataRoot: profileRoot);
+        if (Program.PackageTier is { } tier && paths.IsPortable != (tier == "portable"))
+            throw new InvalidOperationException("The application resolved the wrong package tier.");
+        _services = AppServices.CreateForPaths(paths);
         ThemeManager.Apply("ClassicDark");
         _window = new DiskSpaceWindow(AddLiveSession, () => _services.Keymap);
         if (Program.LargeText) _window.FontSize = 20;
@@ -278,12 +281,15 @@ internal static class Program
     internal static bool DetailedStreamProbe { get; private set; }
     internal static bool DetailedForkProbe { get; private set; }
     internal static bool FolderExclusionProbe { get; private set; }
+    internal static string? PackageTier { get; private set; }
     internal static bool ResourceKeyboardProbe { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
         if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture" or "--indexed-deferred-probe" or "--branch-refresh-probe" or "--saved-recipe-probe" or "--growth-recipe-probe" or "--duplicate-review-probe" or "--detailed-stream-probe" or "--detailed-fork-probe" or "--cleanup-review-probe" or "--folder-exclusion-probe" or "--resource-keyboard-probe"))) return 64;
         FolderExclusionProbe = args.Contains("--folder-exclusion-probe", StringComparer.Ordinal);
+        PackageTier = Environment.GetEnvironmentVariable("FILECAT_TEST_ANALYSIS_PACKAGE_TIER");
+        if (PackageTier is not null && (!FolderExclusionProbe || !OperatingSystem.IsWindows() || PackageTier is not ("portable" or "fdd"))) return 64;
         ResourceKeyboardProbe = args.Contains("--resource-keyboard-probe", StringComparer.Ordinal);
         if (ResourceKeyboardProbe && (!FolderExclusionProbe || !OperatingSystem.IsLinux())) return 64;
         if (FolderExclusionProbe && args.Any(arg => arg is not ("--folder-exclusion-probe" or "--large-text" or "--compact" or "--replacement-compositor-capture" or "--resource-keyboard-probe"))) return 64;

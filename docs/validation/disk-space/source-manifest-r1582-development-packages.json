@@ -68,7 +68,7 @@
       },
       "packageReceiptSha256": "2a226a96daec58e381db2ac7d193be9b1799f327d63449d2883b651d0618ef14",
       "packagePost": {
-        "observedUtc": "2026-11-18T18:10:11.5688880Z",
+        "observedUtc": "2026-11-18T18:10:11.568888Z",
         "filecatOrDotnet": []
       },
       "desktop": {
@@ -108,10 +108,39 @@
     },
     "windowsVm": {
       "initialReceiptSha256": "b9df1ec1b6c6f50ca31944f7ae80e6faabfea9a290d7473d5de7f8f752039e90",
-      "portableVersion": "FileCat 1.0.0-dsa1579",
-      "portableArchiveSha256": "e71cc3574db18dcd80cd18dff1e0774fefb16d4d17e6b7188c7bcaaac6ad8843",
-      "nativeDesktop": "postponed",
-      "frameworkDependent": "staged"
+      "recoveredReceiptSha256": "4baa5439ebe87d5241affc19d34d9783593349a8ce001cbe46f4e3d45e10deb5",
+      "recoveredArchiveSha256": "f345c53351dd75c2d387fe53454f101a69b20781116046c32431683394aaf14b",
+      "packages": {
+        "portable": {
+          "version": "FileCat 1.0.0-dsa1579",
+          "appSha256": "18f37b1425242811f10bdc4ba922eed7c606b2c4b5ea65519025188bf5e25163",
+          "packageSha256": "e71cc3574db18dcd80cd18dff1e0774fefb16d4d17e6b7188c7bcaaac6ad8843",
+          "native": true,
+          "loadedAppSha256": "18f37b1425242811f10bdc4ba922eed7c606b2c4b5ea65519025188bf5e25163",
+          "volumeCapacity": true,
+          "packageTier": "portable",
+          "fastNtfsReason": "Fast NTFS scan requires the installed Windows edition. Use standard analysis here.",
+          "sourceUnchanged": true,
+          "remaining": [],
+          "foreignProcesses": null,
+          "error": null
+        },
+        "fdd": {
+          "version": "FileCat 1.0.0-dsa1579",
+          "appSha256": "18f37b1425242811f10bdc4ba922eed7c606b2c4b5ea65519025188bf5e25163",
+          "packageSha256": "659e17f04f7169cfde7b143428da1a6d2087dee77833703416597983df0cce92",
+          "native": true,
+          "loadedAppSha256": "18f37b1425242811f10bdc4ba922eed7c606b2c4b5ea65519025188bf5e25163",
+          "volumeCapacity": true,
+          "packageTier": "fdd",
+          "fastNtfsReason": "The installed read-only NTFS metadata helper has not been qualified. Use standard analysis.",
+          "sourceUnchanged": true,
+          "remaining": [],
+          "foreignProcesses": null,
+          "error": null
+        }
+      },
+      "postInventory": []
     }
   }
 }
