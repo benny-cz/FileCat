@@ -90,6 +90,7 @@ public sealed partial class AnalysisIndexedSessionTests
         string expected = budgetExhausted ? "analysis-scratch-budget-reached" : "analysis-scratch-reserve-reached";
         Assert.Contains(partial.Issues, issue => issue.Code == expected);
         Assert.DoesNotContain(partial.Issues, issue => issue.Code == "analysis-source-unavailable");
+        Assert.DoesNotContain(partial.Issues, issue => issue.Code == "analysis-index-unavailable");
     }
 
     [Fact]

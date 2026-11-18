@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
 using FileCat.App.Services;
+using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Analysis;
 using FileCat.Core.FileSystem;
@@ -17,11 +18,15 @@ public sealed class AnalysisAcquisitionScaleTests
 {
     [AvaloniaFact]
     public Task NativeAcquisitionAndIndexedExploration() => AnalysisRenderingTests.RunNativeAcquisitionScaleAsync();
+
+    [AvaloniaFact]
+    public Task NativeAcquisitionAtScratchBudgetKeepsBoundedPreview() =>
+        AnalysisRenderingTests.RunNativeAcquisitionScaleAsync(expectScratchBudget: true);
 }
 
 public sealed partial class AnalysisRenderingTests
 {
-    internal static async Task RunNativeAcquisitionScaleAsync()
+    internal static async Task RunNativeAcquisitionScaleAsync(bool expectScratchBudget = false)
     {
         string? input = Environment.GetEnvironmentVariable("FILECAT_TEST_NATIVE_SCALE_COUNT");
         Assert.SkipWhen(input is null, "Opt-in native filesystem resource suite; run only on an idle test guest.");
@@ -29,10 +34,14 @@ public sealed partial class AnalysisRenderingTests
             throw new InvalidOperationException("Choose an explicit native file count from 1,000 to 10,000,000.");
         OrdinaryPreparation();
         string shape = Environment.GetEnvironmentVariable("FILECAT_TEST_NATIVE_SCALE_SHAPE") ?? "wide";
-        if (shape is not ("wide" or "deep")) throw new InvalidOperationException("Unknown native fixture shape.");
+        if (shape is not ("wide" or "deep" or "wide-linked")) throw new InvalidOperationException("Unknown native fixture shape.");
         string parent = Path.GetFullPath(Environment.GetEnvironmentVariable("FILECAT_TEST_NATIVE_SCALE_ROOT") ??
             throw new InvalidOperationException("An explicit disposable guest fixture directory is required."));
         if (!Directory.Exists(parent)) throw new DirectoryNotFoundException(parent);
+        DriveInfo? fixtureDrive = OperatingSystem.IsWindows() && shape == "wide-linked" ? new(Path.GetPathRoot(parent)!) : null;
+        long? availableBeforeFixture = fixtureDrive?.AvailableFreeSpace, availableAfterFixture = null;
+        long fixtureSpaceFloor = fixtureDrive is null ? 0 : AnalysisLimits.ScratchBytes +
+            checked((long)AnalysisPrivateInventoryStore.RequiredReserve((ulong)fixtureDrive.TotalSize));
         string root = Path.Combine(parent, "native-" + Guid.NewGuid().ToString("N"));
         string receipt = Path.Combine(parent, "receipt.json");
         if (File.Exists(receipt)) throw new IOException("A fresh scale receipt destination is required.");
@@ -67,6 +76,13 @@ public sealed partial class AnalysisRenderingTests
             if (File.Exists(cancelPath)) timeout.Cancel();
             token.ThrowIfCancellationRequested();
         }
+        int fixtureChecks = 0;
+        void CheckFixtureProgress()
+        {
+            CheckCancellation();
+            if (fixtureDrive is not null && fixtureChecks++ % 128 == 0 && fixtureDrive.AvailableFreeSpace <= fixtureSpaceFloor)
+                throw new IOException("Fixture creation would leave less than the scratch budget and free-space reserve.");
+        }
         AnalysisIndexedAcquisition? acquisition = null; AnalysisDatasetLease? lease = null;
         IAnalysisBackend? source = null; AppServices? services = null; DiskSpaceWindow? window = null;
         long firstObservationTicks = 0; int progressReports = 0; ulong sourceCloseFailures = 0, paths = 0;
@@ -75,6 +91,8 @@ public sealed partial class AnalysisRenderingTests
         {
             purpose = "Real native filesystem acquisition, retained indexed exploration and actual owner cleanup; headless UI is not physical input qualification",
             count, shape, phase, completed, cleanup, phases, paths, sourceCloseFailures, progressReports, reusedSource, retainedSource,
+            hardLinkCohortSize = shape == "wide-linked" ? AnalysisNativeScaleFixture.HardLinkCohortSize : (int?)null,
+            availableBeforeFixture, availableAfterFixture,
             firstObservationMilliseconds = firstObservationTicks == 0 ? (double?)null : TimeSpan.FromTicks(firstObservationTicks).TotalMilliseconds,
             sampledIntervalMilliseconds = 50,
             baselinePrivateBytes = baselinePrivate > 0 ? (long?)baselinePrivate : null,
@@ -92,7 +110,7 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             CheckCancellation();
-            string? reuse = AnalysisNativeScaleFixture.ReusableSource(count, shape, CheckCancellation);
+            string? reuse = AnalysisNativeScaleFixture.ReusableSource(count, shape, CheckFixtureProgress, CreateGroupedNativeAlias);
             reusedSource = reuse is not null; selected = reuse ?? selected;
             if (!reusedSource) Directory.CreateDirectory(selected);
             string bottom = selected; int directories = shape == "deep" ? 32 : 0;
@@ -103,14 +121,18 @@ public sealed partial class AnalysisRenderingTests
                 File.WriteAllBytes(anchor, [1, 2, 3, 4, 5, 6, 7]);
                 CreateGroupedNativeAlias(anchor, Path.Combine(bottom, "anchor-alias.txt"));
             }
-            ulong expectedBytes = 14;
+            ulong expectedBytes = 14, expectedUniqueBytes = 7;
             for (int at = 2; at < count; at++)
             {
-                if (at % 128 == 0) CheckCancellation();
-                token.ThrowIfCancellationRequested(); int length = at % 17;
-                if (!reusedSource) File.WriteAllBytes(Path.Combine(bottom, $"row-{at:D8}." + (at % 2 == 0 ? "bin" : "txt")), new byte[length]);
+                if (at % 128 == 0) CheckFixtureProgress();
+                token.ThrowIfCancellationRequested();
+                int owner = AnalysisNativeScaleFixture.RowOwner(at, shape);
+                int length = owner % 17;
+                if (!reusedSource) AnalysisNativeScaleFixture.WriteRow(bottom, at, owner, CreateGroupedNativeAlias);
                 expectedBytes += (ulong)length;
+                if (at == owner) expectedUniqueBytes += (ulong)length;
             }
+            availableAfterFixture = fixtureDrive?.AvailableFreeSpace;
             fixtureComplete = true;
             Mark("logical-baseline");
             var logical = await Task.Run(() => DirectorySizer.Compute(selected, null, token), token);
@@ -159,13 +181,58 @@ public sealed partial class AnalysisRenderingTests
                 issueCodes = snapshot.Issues.Select(issue => issue.Code).Distinct().Order().ToArray()
             };
             Assert.Equal(AnalysisPhase.Finished, snapshot.Phase); Assert.Equal(0UL, sourceCloseFailures);
+            if (expectScratchBudget)
+            {
+                Mark("verify-retained-preview");
+                Assert.Equal(AnalysisScratchLimit.Budget, session.ScratchLimitReached);
+                Assert.Equal(NamespaceCoverage.Partial, snapshot.Coverage);
+                Assert.Equal(4_096, snapshot.Nodes.Length);
+                Assert.NotNull(acquisitionProgress);
+                Assert.InRange(acquisitionProgress.ObservedPaths, 4_097, count + directories + 1);
+                Assert.Null(session.DatasetDescriptor);
+                Assert.Contains(snapshot.Issues, issue => issue.Code == "analysis-scratch-budget-reached");
+                Assert.DoesNotContain(snapshot.Issues, issue => issue.Code is "analysis-source-unavailable" or "analysis-index-unavailable");
+
+                var model = DiskSpaceViewModel.AdoptAcquisition(acquisition, services, view: null);
+                acquisition = null;
+                try
+                {
+                    window = new DiskSpaceWindow();
+                    window.AddSession(model);
+                    await model.RebuildAsync(true, token);
+                    window.Show();
+                    Frame(window);
+                    Assert.Contains("private scratch budget was reached", model.RuntimePreviewNotice);
+                    Assert.Contains("bounded preview remains available", model.RuntimePreviewNotice);
+                    Assert.Contains("private scratch budget was reached", model.RecordedResultUnavailableReason);
+                    Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text =>
+                        text.IsEffectivelyVisible && text.Text == model.RuntimePreviewNotice);
+                    Assert.Contains(window.GetVisualDescendants().OfType<Button>(), button =>
+                        button.IsEffectivelyVisible && button.Content is "Open recorded result" && !button.IsEnabled);
+                    Assert.NotNull(model.Tree);
+                }
+                finally
+                {
+                    window?.ForceClose();
+                    if (window is not null) await window.WaitForIndexedCloseAsync();
+                    window = null;
+                    model.Dispose();
+                    await model.CloseCompletion;
+                }
+                Assert.Equal(0, AnalysisScratchBudget.Shared.ReservedBytes);
+                Assert.Empty(Directory.GetFiles(services.Paths.AnalysisScratchDirectory));
+                Assert.Equal(new byte[] { 1, 2, 3, 4, 5, 6, 7 }, File.ReadAllBytes(anchor));
+                completed = true;
+                return;
+            }
             Assert.NotNull(session.DatasetDescriptor); paths = session.DatasetDescriptor.Paths;
             Assert.Equal((ulong)(count + directories + 1), paths); Assert.True(snapshot.Nodes.Length <= 4_096);
             lease = await session.AcquireDatasetAsync(token); Assert.NotNull(lease);
             // Closing acquisition first proves the retained dataset owns the actual native store.
             await acquisition.DisposeAsync(); acquisition = null;
             Mark("verify-captured-paths");
-            ulong offset = 0, seenFiles = 0, seenDirectories = 0, anchorId = 0; string? anchorObject = null;
+            ulong offset = 0, seenFiles = 0, seenDirectories = 0, anchorId = 0;
+            string? anchorObject = null, cohortObject = null;
             do
             {
                 var page = await lease.ReadPathsAsync(offset, maximum: 256, cancellation: token);
@@ -176,12 +243,20 @@ public sealed partial class AnalysisRenderingTests
                     if (row.Kind == AnalysisKind.File) seenFiles++; else if (row.Kind == AnalysisKind.Directory) seenDirectories++;
                     else throw new InvalidDataException("Unexpected native fixture entry kind.");
                     if (row.Name == "anchor.bin") { anchorId = row.Id; anchorObject = row.ObjectId; }
+                    if (row.Name == "row-00000002.bin") cohortObject = row.ObjectId;
                 }
                 offset = page.NextOffset;
             } while (offset < paths);
             Assert.Equal((ulong)count, seenFiles); Assert.Equal((ulong)directories + 1, seenDirectories); Assert.NotNull(anchorObject);
             var aliases = await lease.ReadAliasesAsync(anchorObject, 0, maximum: 128, cancellation: token);
             Assert.Equal(2, aliases.Rows.Length); Assert.Contains(aliases.Rows, row => row.Name == "anchor-alias.txt");
+            if (shape == "wide-linked")
+            {
+                Assert.NotNull(cohortObject);
+                var cohort = await lease.ReadAliasesAsync(cohortObject, 0, maximum: AnalysisNativeScaleFixture.HardLinkCohortSize, cancellation: token);
+                Assert.Equal(AnalysisNativeScaleFixture.HardLinkCohortSize, cohort.Rows.Length);
+                Assert.Contains(cohort.Rows, row => row.Name == "row-00000129.txt");
+            }
             Mark("hierarchy-sort-charts");
             window = new DiskSpaceWindow();
             var explorer = await window.AddIndexedSessionAsync(lease, AnalysisMetric.FileSize, cancellation: token);
@@ -207,7 +282,7 @@ public sealed partial class AnalysisRenderingTests
             Mark("extension-grouping");
             await using (var groups = await AnalysisDatasetGroupExplorer.CreateAsync(lease, AnalysisMetric.UniqueFileSize, AnalysisGroupingDimension.Extension, cancellation: token))
             {
-                Assert.Equal((UInt128)expectedBytes - 7, groups.Totals.Known); Assert.Equal((ulong)count, groups.LogicalTotals.Files);
+                Assert.Equal((UInt128)expectedUniqueBytes, groups.Totals.Known); Assert.Equal((ulong)count, groups.LogicalTotals.Files);
                 var page = await groups.ReadGroupsAsync(maximum: 128, cancellation: token); Assert.NotEmpty(page.Rows);
                 var geometry = await groups.ReadGeometryAsync(maximum: 128, cancellation: token); Assert.NotEmpty(geometry.Rows);
             }
@@ -242,10 +317,15 @@ public sealed partial class AnalysisRenderingTests
             {
                 samplingStop.Cancel(); await cancellationWatch; await sampling; physical?.Observe();
                 phases.Add(new { phase, seconds = timer.Elapsed.TotalSeconds }); phase = "closed"; Save();
+                if (completed)
+                {
+                    Assert.True(cleanup);
+                    if (baselinePrivate > 0)
+                        Assert.True(peakPrivate - baselinePrivate <= 512L * 1024 * 1024, "The sampled process-private increment exceeded 512 MiB.");
+                }
             }
         }
-        Assert.True(completed && cleanup);
-        if (baselinePrivate > 0) Assert.True(peakPrivate - baselinePrivate <= 512L * 1024 * 1024, "The sampled process-private increment exceeded 512 MiB.");
+        Assert.True(completed);
     }
 
     private sealed class InlineScaleProgress(Action<AnalysisProgress> report) : IProgress<AnalysisProgress>

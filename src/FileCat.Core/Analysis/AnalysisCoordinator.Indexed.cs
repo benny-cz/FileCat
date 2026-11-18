@@ -235,7 +235,7 @@ public sealed partial class AnalysisSession
             foreach (var source in _protected)
             { try { await AnalysisIo.ReleaseAsync(_io, source).ConfigureAwait(false); } catch { lock (_sync) _sourceCloseFailures++; } }
             _protected.Clear();
-            if (_writer is null) return;
+            if (_writer is null || ScratchLimitReached is not null) return;
             try { await FlushCaptureIssuesAsync().ConfigureAwait(false); }
             catch (OperationCanceledException) when (_cancel.IsCancellationRequested) { }
             SessionIdentity identity; AnalysisPhase phase; NamespaceCoverage coverage; AnalysisFreshness freshness;

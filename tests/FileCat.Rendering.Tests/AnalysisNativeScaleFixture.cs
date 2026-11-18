@@ -6,8 +6,9 @@ namespace FileCat.Rendering.Tests;
 internal static class AnalysisNativeScaleFixture
 {
     internal const string MarkerKind = "FileCat retained native scale fixture v1";
+    internal const int HardLinkCohortSize = 128;
 
-    internal static string? ReusableSource(int count, string shape, Action checkCancellation)
+    internal static string? ReusableSource(int count, string shape, Action checkCancellation, Action<string, string> createAlias)
     {
         string? value = Environment.GetEnvironmentVariable("FILECAT_TEST_NATIVE_SCALE_SOURCE");
         if (string.IsNullOrEmpty(value)) return null;
@@ -30,11 +31,32 @@ internal static class AnalysisNativeScaleFixture
             throw new IOException("The retained fixture does not match the requested case.");
         bool complete = !root.TryGetProperty("sourceCreationComplete", out var created) || created.GetBoolean();
         if (!complete)
-            CompleteSource(source, container.FullName, count, shape, checkCancellation);
+            CompleteSource(source, container.FullName, count, shape, checkCancellation, createAlias);
         return source;
     }
 
-    private static void CompleteSource(string source, string container, int count, string shape, Action checkCancellation)
+    internal static int RowOwner(int row, string shape) =>
+        shape == "wide-linked" ? 2 + (row - 2) / HardLinkCohortSize * HardLinkCohortSize : row;
+
+    private static string RowPath(string directory, int row) =>
+        Path.Combine(directory, $"row-{row:D8}." + (row % 2 == 0 ? "bin" : "txt"));
+
+    internal static void WriteRow(string directory, int row, int owner, Action<string, string> createAlias)
+    {
+        string path = RowPath(directory, row);
+        if (row != owner)
+        {
+            createAlias(RowPath(directory, owner), path);
+            return;
+        }
+        Span<byte> zeroes = stackalloc byte[16];
+        zeroes.Clear();
+        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        stream.Write(zeroes[..(owner % 17)]);
+    }
+
+    private static void CompleteSource(string source, string container, int count, string shape, Action checkCancellation,
+        Action<string, string> createAlias)
     {
         string bottom = source;
         if (shape == "deep")
@@ -64,8 +86,6 @@ internal static class AnalysisNativeScaleFixture
                 throw new IOException("The retained fixture progress does not match this source.");
         }
 
-        Span<byte> zeroes = stackalloc byte[16];
-        zeroes.Clear();
         while (next < count)
         {
             checkCancellation();
@@ -73,8 +93,9 @@ internal static class AnalysisNativeScaleFixture
             for (; next < end; next++)
             {
                 if ((next & 127) == 0) checkCancellation();
-                var row = new FileInfo(Path.Combine(bottom, $"row-{next:D8}." + (next % 2 == 0 ? "bin" : "txt")));
-                int expectedLength = next % 17;
+                var row = new FileInfo(RowPath(bottom, next));
+                int owner = RowOwner(next, shape);
+                int expectedLength = owner % 17;
                 if (row.Exists)
                 {
                     if ((row.Attributes & FileAttributes.ReparsePoint) != 0 || row.Length != expectedLength)
@@ -82,8 +103,7 @@ internal static class AnalysisNativeScaleFixture
                 }
                 else
                 {
-                    using var stream = new FileStream(row.FullName, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                    stream.Write(zeroes[..expectedLength]);
+                    WriteRow(bottom, next, owner, createAlias);
                 }
             }
 
