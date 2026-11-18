@@ -44,7 +44,7 @@ The Mac r1649 setup dialog exposed its title and enabled, focused Close limits b
 
 ### Process-start and chart timing
 
-Ubuntu r1658 and r1659 launched fresh FileCat processes with private profiles and used X11 input to open Tools → Disk space. Native captures show the enabled Start analysis control and the intended fixture. The disk space window mapped at 2,267 ms and 2,095 ms after launch, respectively. The operating system's filesystem cache was left in its normal state. The driver's window-close wait timed out in both runs, and it terminated only its own FileCat processes. The source fixtures stayed unchanged and both process inventories were empty. The startup samples are usable as observations. The normal-close check and Windows and Mac process-to-setup baselines remain open.
+Ubuntu r1658 and r1659 launched fresh FileCat processes with private profiles and used X11 input to open Tools → Disk space. Native captures show the enabled Start analysis control and the intended fixture. The disk space window mapped at 2,267 ms and 2,095 ms after launch, respectively. The operating system's filesystem cache was left in its normal state. The driver's window-close wait timed out in both runs, and it terminated only its own FileCat processes. The source fixtures stayed unchanged and both process inventories were empty. The startup samples are usable as observations. The Ubuntu driver still needs a normal-close check, and the Windows process-to-setup measurement remains open.
 
 The r1662 performance probe used both product charts with 700 equal-size entries in a 1,100 × 700 DIP window. Each percentile is calculated from 30 samples. Focus updates retain the layout. Data updates replace the recorded view and recompute geometry. The measurements include the control update and synchronous bitmap rendering at the measured display scale.
 
@@ -71,3 +71,5 @@ Revision r1676 used one verified compact overlay of the merged build on each Uni
 |---|---|---|
 | Mac | `beb6e935328617dce4a0fb4ee9c1c5a7bf36adb48c48708af0e66775d7091565` | `86fc5246c09fd0def773af4dbeaca319ef5587a8c5015ca4ba72e8eab143afab` |
 | Ubuntu VM | `6dfc263dcf6f2f6e464bdc4eca12deb9b92781853af453adae1e68c423b93549` | `18e9167618643eee35ffca62b43749828a6fe95f4f54dd1edb5a982b6ce3f39b` |
+
+Mac r1686 opened and closed FileCat normally in three fresh package processes. Native command search and Return opened Disk space, and the operating system exposed the enabled Start analysis button with laid-out bounds. The three process-to-setup samples were 2,448 ms, 2,038 ms and 2,055 ms. The fixture used ordinary filesystem caches and disabled automatic update checks in its private profiles to keep the startup update notice out of the measurement. All three instances closed normally and the source remained unchanged. The raw result SHA-256 is `d67e1f5c0c3c5dec7b1d70c71b0dc7bfda0a89b66af81cfc376913f9105282fd`.
