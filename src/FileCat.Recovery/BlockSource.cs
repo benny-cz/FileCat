@@ -86,7 +86,7 @@ public sealed class ImageFileSource : IBlockSource
         try
         {
             verifyOpened?.Invoke(_handle);
-            ObserveEfsProtection();
+            _outputProtection.ObserveOpened(_handle);
             long length = RandomAccess.GetLength(_handle);
             Length = length;
             if (length >= 512)

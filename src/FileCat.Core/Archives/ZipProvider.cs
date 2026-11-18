@@ -592,7 +592,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
 
 internal sealed class ZipIndex : IDisposable
 {
-    private readonly OutputEfsObservation _outputProtection = new();
+    private readonly OutputEfsObservation _outputProtection;
     private readonly object _lock = new();
     private readonly FileStream _stream;
     // Taken once while the index is built: reading a FileStream's handle flushes its read buffer, which must never happen
@@ -605,9 +605,10 @@ internal sealed class ZipIndex : IDisposable
     public sealed record Node(string Name, bool IsDirectory, long Size, long Modified, ZipMemberTag? Tag);
 
     private ZipIndex(FileStream stream, ZipArchive archive, List<ZipArchiveEntry> entries, Dictionary<string, List<Node>> children, string? warning,
-        bool readOnly, long estimatedBytes, string? openedChangeToken, bool completeListing)
+        bool readOnly, long estimatedBytes, string? openedChangeToken, bool completeListing, OutputEfsObservation protection)
     {
         CompleteListing = completeListing;
+        _outputProtection = protection;
         _stream = stream;
         _handle = stream.SafeFileHandle;
         _archive = archive;
@@ -746,8 +747,10 @@ internal sealed class ZipIndex : IDisposable
         {
             verifyOpened?.Invoke(fs.SafeFileHandle);
             string? changeToken = SourceChangeToken.FromHandle(fs.SafeFileHandle);
+            var protection = new OutputEfsObservation();
+            protection.ObserveOpened(fs.SafeFileHandle, changeToken);
             archive = new ZipArchive(fs, ZipArchiveMode.Read, leaveOpen: false, entryNameEncoding: nameEncoding);
-            var index = Build(path, fs, archive, changeToken, maxNameChars);
+            var index = Build(path, fs, archive, changeToken, maxNameChars, protection);
             index.VerifySource();
             return index;
         }
@@ -763,7 +766,7 @@ internal sealed class ZipIndex : IDisposable
         }
     }
 
-    private static ZipIndex Build(string path, FileStream fs, ZipArchive archive, string? changeToken, long maxNameChars)
+    private static ZipIndex Build(string path, FileStream fs, ZipArchive archive, string? changeToken, long maxNameChars, OutputEfsObservation protection)
     {
         const long maxDirectoryChars = 32L * 1024 * 1024;
         var entries = new List<ZipArchiveEntry>();
@@ -863,7 +866,7 @@ internal sealed class ZipIndex : IDisposable
         // Generated ancestor paths are retained as separate strings and directory nodes. A single
         // deeply nested member can own much more index memory than its one central-directory name.
         long estimate = archive.Entries.Count * 460L + nameChars * 4 + directoryChars * 2 + directoryCount * 160;
-        return new ZipIndex(fs, archive, entries, children, warning, readOnly, estimate, changeToken, complete);
+        return new ZipIndex(fs, archive, entries, children, warning, readOnly, estimate, changeToken, complete, protection);
     }
 
     /// <summary>

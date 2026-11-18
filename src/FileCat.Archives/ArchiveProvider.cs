@@ -312,7 +312,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         void VerifyOpened(string openedPath, Microsoft.Win32.SafeHandles.SafeFileHandle handle)
         {
             OpenedSourceIdentity.RequireMatch(handle, PathUtil.SafetyComparer.Equals(path, openedPath) ? sourceIdentity : GetSourceIdentity(openedPath), GetOpenedSourceIdentity);
-            spoolProtection.Observe(handle);
+            spoolProtection.ObserveOpened(handle);
         }
         FileStream? witness = null;
         ArchiveIndex? index = null;
