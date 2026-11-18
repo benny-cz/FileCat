@@ -16,7 +16,8 @@ internal static class ArchiveOuterEfs
     internal static string OutputUnavailable(ContentOutputKind method) => method switch
     {
         ContentOutputKind.Extraction => "This archive uses Windows EFS. FileCat cannot verify that this extraction will retain EFS protection.",
-        ContentOutputKind.Drag => "This archive uses Windows EFS. FileCat cannot stage its members for dragging without losing that protection.",
+        ContentOutputKind.Drag => "This archive uses Windows EFS. FileCat cannot stage its members for dragging without losing that protection. Use a reviewed extraction that preserves EFS.",
+        ContentOutputKind.RemoteUpload => "This archive uses Windows EFS. FileCat cannot upload its members without losing that protection.",
         _ => SpoolUnavailable,
     };
 

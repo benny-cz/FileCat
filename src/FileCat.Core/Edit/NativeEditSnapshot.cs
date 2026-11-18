@@ -89,19 +89,37 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
     {
         lock(gate)
         {
-            Live();if(!directory.ObserveSnapshot(file,Expected.LeafName,ct).Matches(Expected))throw Changed();return Expected;
+            Live();
+            RequireClearSnapshot();
+            var observed = directory.ObserveSnapshot(file, Expected.LeafName, ct);
+            RequireClearSnapshot();
+            if (!observed.Matches(Expected)) throw Changed();
+            return Expected;
         }
     }
     internal Stream OpenRead(ArchiveFileObservation reviewed,CancellationToken ct)
     {
         lock(gate)
         {
-            if(!Expected.Matches(reviewed))throw Changed();Review(ct);
+            if(!Expected.Matches(reviewed))throw Changed();
+            Review(ct);
             return new ArchiveRetainedReadStream(Expected.Version.Length,ReadAt,IsReadable);
             int ReadAt(long offset,Span<byte> buffer)
-            {lock(gate){Live();ct.ThrowIfCancellationRequested();return RandomAccess.Read(file.SafeFileHandle,buffer,offset);}}
+            {
+                lock(gate)
+                {
+                    Live();
+                    ct.ThrowIfCancellationRequested();
+                    RequireClearSnapshot();
+                    int read = RandomAccess.Read(file.SafeFileHandle, buffer, offset);
+                    RequireClearSnapshot();
+                    return read;
+                }
+            }
         }
     }
+    private void RequireClearSnapshot() => ArchiveOuterEfs.RequireClear(file.SafeFileHandle,
+        "The retained edit snapshot uses Windows EFS. FileCat cannot copy its bytes without losing that protection.");
     private bool IsReadable(){lock(gate)return !disposed;}
     private void Live(){if(disposed)throw Changed();}
     private static ArchiveWriteException Changed()=>new(ArchiveWriteReason.SourceChanged,"The retained edit snapshot is no longer the reviewed source.");
@@ -126,6 +144,7 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
                     RequireNames(capture,["capture.json","captured.json","files"]);
                     RequireNames(directory,[Expected.LeafName]);
                     foreach(var record in ownedRecords)record.Review(default);
+                    RequireClearSnapshot();
                     directory.DeleteSnapshot(file,Expected.LeafName,Expected,default);
                     directory.RemoveEmpty(default);
                     RequireNames(capture,["capture.json","captured.json"]);

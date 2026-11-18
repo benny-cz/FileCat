@@ -613,6 +613,17 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             return false;
         }
         var provider = providers.Get(item.Parent.Scheme);
+        var derived = OperatingSystem.IsWindows() ? provider as IUnprotectedContentOutput : null;
+        if (derived is not null)
+        {
+            try { derived.RequireClearOutputSource(item.Parent, ContentOutputKind.RemoteUpload); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+            {
+                Job.ItemFailed();
+                Issue(IssueSeverity.Error, item.Name, "Could not read the item for upload: " + ErrorText.Describe(ex), StepOutcome.Failed);
+                return false;
+            }
+        }
         if (item.IsContainer)
         {
             var location = provider.GetChildLocation(item.Parent, new EntryData(item.Name, item.Kind));
@@ -666,7 +677,11 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         }
         var incoming = new FileSystemItemInfo(item.Name, false, false, item.Size, item.Modified > 0 ? new DateTime(item.Modified, DateTimeKind.Utc) : DateTime.MinValue,
             DateTime.MinValue, FileAttributes.Normal);
-        return UploadFile(() => new ContentStream(Core.Content.ProgressiveContent.Sequential(provider.OpenContent(item)) ?? throw new IOException("This item has no content to copy.")), incoming,
+        return UploadFile(() =>
+        {
+            var opened = derived is null ? provider.OpenContent(item) : derived.OpenUnprotectedOutput(item, ContentOutputKind.RemoteUpload);
+            return new ContentStream(Core.Content.ProgressiveContent.Sequential(opened) ?? throw new IOException("This item has no content to copy."));
+        }, incoming,
             provider.GetDisplayPath(item.Parent).TrimEnd('/', '\\') + "/" + item.Name, destFolder, name, out _, out _);
     }
 
@@ -808,96 +823,100 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     incoming = refreshSource();
                     Job.AddTotals(0, Math.Max(0, incoming.Size) - Math.Max(0, previous.Size));
                 }
-                using var input = openSource();
-                attemptEfsIdentity = null;
-                var localInput = OperatingSystem.IsWindows() ? input as FileStream : null;
-                if (localInput is not null && ReadEfsProtection(localInput))
+                // Retire the source reader before server publication. A close failure still leaves only the stage.
+                using (var input = openSource())
                 {
-                    var sourceIdentity = Fs.GetOpenedFileIdentity(localInput.SafeFileHandle)
-                        ?? throw new RefusedOperationException("FileCat could not identify the EFS-protected file opened for upload.");
-                    string destinationDisplay = Sftp.GetDisplayPath(ConnectionLocation.WithPath(dst));
-                    var answer = Job.Ask(new ConfirmRequest("Upload without Windows EFS?",
-                        $"The server copy and its temporary file will lose Windows EFS protection.\n\nSource: {sourceDisplay}\nDestination: {destinationDisplay}",
-                        sourceDisplay, "efs-remote-upload", [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob])
+                    attemptEfsIdentity = null;
+                    var localInput = OperatingSystem.IsWindows() ? input as FileStream : null;
+                    if (localInput is not null && ReadEfsProtection(localInput))
                     {
-                        ProceedLabel = "Upload without EFS",
-                        OffersApplyToAll = false,
-                    });
-                    if (answer.Action == DecisionAction.Skip)
-                    {
-                        skippedEfs = true;
-                        return;
+                        var sourceIdentity = Fs.GetOpenedFileIdentity(localInput.SafeFileHandle)
+                            ?? throw new RefusedOperationException("FileCat could not identify the EFS-protected file opened for upload.");
+                        string destinationDisplay = Sftp.GetDisplayPath(ConnectionLocation.WithPath(dst));
+                        var answer = Job.Ask(new ConfirmRequest("Upload without Windows EFS?",
+                            $"The server copy and its temporary file will lose Windows EFS protection.\n\nSource: {sourceDisplay}\nDestination: {destinationDisplay}",
+                            sourceDisplay, "efs-remote-upload", [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob])
+                        {
+                            ProceedLabel = "Upload without EFS",
+                            OffersApplyToAll = false,
+                        });
+                        if (answer.Action == DecisionAction.Skip)
+                        {
+                            skippedEfs = true;
+                            return;
+                        }
+                        if (answer.Action != DecisionAction.Proceed) throw new OperationCanceledException();
+                        attemptEfsIdentity = sourceIdentity;
                     }
-                    if (answer.Action != DecisionAction.Proceed) throw new OperationCanceledException();
-                    attemptEfsIdentity = sourceIdentity;
-                }
-                void RequireApprovedProtection()
-                {
-                    if (localInput is not null && attemptEfsIdentity is null && ReadEfsProtection(localInput))
-                        throw new RefusedOperationException("The opened file became EFS-protected during the upload. FileCat did not send this read.");
-                }
-                // Where the server's copy is continued, it is opened first: a server that cannot continue (an FTP server
-                // refusing APPE, I47) makes the upload start again instead.
-                Stream? appendTo = null;
-                if (start > 0)
-                {
-                    try { appendTo = Channel.OpenWriteAt(temp!, start); }
-                    catch (NotSupportedException ex)
+                    void RequireApprovedProtection()
                     {
-                        start = 0;
-                        Issue(IssueSeverity.Info, dst, $"The upload was interrupted and went again from the start: {ex.Message}.", StepOutcome.Committed);
+                        if (localInput is not null && attemptEfsIdentity is null && ReadEfsProtection(localInput))
+                            throw new RefusedOperationException("The opened file became EFS-protected during the upload. FileCat did not send this read.");
                     }
-                }
-                if (start == 0)
-                {
-                    DiscardTemp(destFolder, temp);
-                    temp = TempName(destFolder);
-                }
-                else
-                {
-                    Issue(IssueSeverity.Info, dst, $"The upload was interrupted and continued at {start:N0} bytes, after the part already on the server was checked.", StepOutcome.Committed);
-                }
-                Job.AddBytes(start - written);
-                written = start;
-                using (appendTo)
-                {
-                    if (start > 0) input.Seek(start, SeekOrigin.Begin);
-                    // Each stretch read is counted and paced to the speed limit (from this attempt's start), and a pause or
-                    // a cancel takes effect at the next read.
-                    var pace = new TransferPace();
+                    // Where the server's copy is continued, it is opened first: a server that cannot continue (an FTP server
+                    // refusing APPE, I47) makes the upload start again instead.
+                    Stream? appendTo = null;
+                    if (start > 0)
+                    {
+                        try { appendTo = Channel.OpenWriteAt(temp!, start); }
+                        catch (NotSupportedException ex)
+                        {
+                            start = 0;
+                            Issue(IssueSeverity.Info, dst, $"The upload was interrupted and went again from the start: {ex.Message}.", StepOutcome.Committed);
+                        }
+                    }
                     if (start == 0)
                     {
-                        freshBytes = 0;
-                        freshTime = TimeSpan.Zero;
-                        freshClock.Restart();
+                        DiscardTemp(destFolder, temp);
+                        temp = TempName(destFolder);
                     }
-                    var paced = new PacedRead(input, n =>
+                    else
                     {
+                        Issue(IssueSeverity.Info, dst, $"The upload was interrupted and continued at {start:N0} bytes, after the part already on the server was checked.", StepOutcome.Committed);
+                    }
+                    Job.AddBytes(start - written);
+                    written = start;
+                    using (appendTo)
+                    {
+                        if (start > 0) input.Seek(start, SeekOrigin.Begin);
+                        // Each stretch read is counted and paced to the speed limit (from this attempt's start), and a pause or
+                        // a cancel takes effect at the next read.
+                        var pace = new TransferPace();
+                        if (start == 0)
+                        {
+                            freshBytes = 0;
+                            freshTime = TimeSpan.Zero;
+                            freshClock.Restart();
+                        }
+                        var paced = new PacedRead(input, n =>
+                        {
+                            RequireApprovedProtection();
+                            written += n;
+                            // A new upload's pace, as of its last read (not counting a question that followed a break).
+                            if (start == 0) (freshBytes, freshTime) = (written, freshClock.Elapsed);
+                            Job.AddBytes(n);
+                            Job.Throttle(written - start, pace);
+                            Job.Checkpoint();
+                        }, input is ContentStream ? null : incoming.Size - start, () =>
+                        {
+                            Job.Checkpoint();
+                            RequireApprovedProtection();
+                        });
+                        // A new copy goes with requests in flight together (I39); a continued one appends where the server's copy ends.
+                        if (start == 0) Channel.UploadNew(paced, temp!);
+                        else paced.CopyTo(appendTo!, BufferSize);
+                        paced.EnsureComplete();
                         RequireApprovedProtection();
-                        written += n;
-                        // A new upload's pace, as of its last read (not counting a question that followed a break).
-                        if (start == 0) (freshBytes, freshTime) = (written, freshClock.Elapsed);
-                        Job.AddBytes(n);
-                        Job.Throttle(written - start, pace);
-                        Job.Checkpoint();
-                    }, input is ContentStream ? null : incoming.Size - start, () =>
-                    {
-                        Job.Checkpoint();
-                        RequireApprovedProtection();
-                    });
-                    // A new copy goes with requests in flight together (I39); a continued one appends where the server's copy ends.
-                    if (start == 0) Channel.UploadNew(paced, temp!);
-                    else paced.CopyTo(appendTo!, BufferSize);
-                    paced.EnsureComplete();
-                    RequireApprovedProtection();
-                    if (input is ContentStream content)
-                    {
-                        uploadedRevision = content.Revision;
-                        partial = content.IsPartial;
-                        lost = content.MissingRanges;
-                        caveat = content.Caveat;
+                        if (input is ContentStream content)
+                        {
+                            uploadedRevision = content.Revision;
+                            partial = content.IsPartial;
+                            lost = content.MissingRanges;
+                            caveat = content.Caveat;
+                        }
                     }
                 }
+                Job.Checkpoint();
                 if (unchanged is not null && !unchanged())
                     throw new IOException("The source changed during uploading, so the copy was not published.");
                 retained?.File.Review(retained.Reviewed,Job.Token);

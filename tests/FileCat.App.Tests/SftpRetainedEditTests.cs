@@ -20,11 +20,13 @@ public sealed class SftpRetainedEditTests
     public static IEnumerable<object[]> Cases()=>new[]{"regular","empty","large","late-save","source-changed","directory-replaced",
         "disposed","wrong-source","wrong-profile","wrong-folder","wrong-name","move","multi-source","local-destination",
         "missing-digest","stale-target-metadata","stale-target-hash","concurrent-target","corrupt-source","corrupt-server",
-        "cancel","retry","fallback"}.Select(value=>new object[]{value});
+        "cancel","retry","fallback","snapshot-efs"}.Select(value=>new object[]{value});
 
     [Theory,MemberData(nameof(Cases))]
     public async Task Native_edit_uploads_verify_retained_bytes_and_the_originating_destination(string scenario)
     {
+        if (scenario == "snapshot-efs" && (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") != "1"))
+            Assert.Skip("Requires the Windows EFS qualification fixture.");
         var ct=TestContext.Current.CancellationToken;
         string parent=Path.GetFullPath(Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath());
         if(OperatingSystem.IsMacOS()&&parent.StartsWith("/var/",StringComparison.Ordinal))parent="/private"+parent;
@@ -52,7 +54,12 @@ public sealed class SftpRetainedEditTests
             string expectedHash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(target.Data));
             bool refuse=scenario is "disposed" or "wrong-source" or "wrong-profile" or "wrong-folder" or "wrong-name" or "move" or
                 "multi-source" or "local-destination" or "missing-digest" or "stale-target-metadata" or "stale-target-hash" or
-                "concurrent-target" or "corrupt-source" or "corrupt-server";
+                "concurrent-target" or "corrupt-source" or "corrupt-server" or "snapshot-efs";
+            if (scenario == "snapshot-efs" && OperatingSystem.IsWindows())
+            {
+                File.Encrypt(copy.Path);
+                Assert.True(File.GetAttributes(copy.Path).HasFlag(FileAttributes.Encrypted));
+            }
             if(scenario=="late-save")File.WriteAllText(record.WorkingPath,"later editor save stays local");
             if(scenario=="disposed")Assert.True(Record.Exception(copy.Dispose) is null or IOException);
             if(scenario is "source-changed" or "directory-replaced")
@@ -113,6 +120,11 @@ public sealed class SftpRetainedEditTests
                 if(scenario=="retry"){Assert.Equal(1,retries);Assert.Empty(server.WritesAt);}
             }
             Assert.Equal(["notes.txt"],server.Lookup("/up",false)!.Children.Keys);
+            if (scenario == "snapshot-efs")
+            {
+                Assert.Contains(active.Issues, issue => issue.Message.Contains("retained edit snapshot uses Windows EFS", StringComparison.Ordinal));
+                Assert.True(File.GetAttributes(copy.Path).HasFlag(FileAttributes.Encrypted));
+            }
             Assert.Equal(scenario=="late-save"?"later editor save stays local":System.Text.Encoding.UTF8.GetString(bytes),File.ReadAllText(record.WorkingPath));
             connections.Dispose(); // A returned lease remains connected in the reusable pool until the owner closes it.
             Assert.Equal(0,server.ActiveChannels);
