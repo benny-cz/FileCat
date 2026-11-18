@@ -34,13 +34,24 @@ internal sealed class AnalysisPanelFolderProvider : ResourceProvider
         return Task.FromResult(new PreparedLocation(location, Retain(location, out _)));
     }
 
-    public override string GetDisplayPath(Location location)
+    public override string GetDisplayPath(Location location) => Find(location)?.DisplayPath ?? "Analysis listing closed";
+
+    public override string GetDisplayName(Location location) => Find(location)?.IsResultSet == true ? "Read-only analysis results" : "Read-only analysis folder";
+
+    internal string GetBanner(Location location)
     {
-        lock (_gate)
-            return _folders.TryGetValue(location, out var folder) ? folder.Folder.DisplayPath : "Analysis folder closed";
+        if (Find(location) is not { IsResultSet: true } result)
+            return "Read-only folder metadata captured by Disk space. Reopen from the analysis to check the current contents.";
+        string import = result.Taint.HasFlag(AnalysisTaint.ImportedUnverified) ? " Imported observations are unverified." : "";
+        string sensitive = result.Taint.HasFlag(AnalysisTaint.PrivilegedDerived) ? " Contains privileged-derived metadata." : "";
+        return "Read-only results from the selected analysis observations. The recorded locations stay offline." + import + sensitive;
     }
 
-    public override string GetDisplayName(Location location) => "Read-only analysis folder";
+    private AnalysisPanelFolder? Find(Location location)
+    {
+        lock (_gate)
+            return _folders.TryGetValue(location, out var folder) ? folder.Folder : null;
+    }
     public override Location? GetParent(Location location) => null;
     public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
     public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate;

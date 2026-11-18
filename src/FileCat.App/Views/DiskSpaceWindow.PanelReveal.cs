@@ -24,14 +24,16 @@ public sealed partial class DiskSpaceWindow
         return path is null ? "Select an observed folder or a file within an observed folder." : null;
     }
 
-    private static void UpdateRevealButton(Button button, string? refusal)
+    private static void UpdateRevealButton(Button button, string? refusal) => UpdatePanelCommand(button, refusal, RevealHelp);
+
+    private static void UpdatePanelCommand(Button button, string? refusal, string enabledHelp)
     {
         button.IsEnabled = refusal is null;
-        string help = refusal ?? RevealHelp;
+        string help = refusal ?? enabledHelp;
         if (Equals(button.Tag, help)) return;
         button.Tag = help;
         AutomationProperties.SetHelpText(button, help);
-        ToolTip.SetTip(button, new RichTip("Reveal in panel", detail: help));
+        ToolTip.SetTip(button, new RichTip((string)button.Content!, detail: help));
     }
 
     private async Task RevealPathAsync(AppServices services, AnalysisIndexedAcquisition owner, SessionIdentity revision,

@@ -5,7 +5,8 @@ using FileCat.Core.Resources;
 
 namespace FileCat.App.Services;
 
-internal sealed record AnalysisPanelFolder(string DisplayPath, ImmutableArray<EntryData> Entries, string? FocusName)
+internal sealed record AnalysisPanelFolder(string DisplayPath, ImmutableArray<EntryData> Entries, string? FocusName,
+    bool IsResultSet = false, AnalysisTaint Taint = AnalysisTaint.OrdinarySensitive)
 {
     internal const int MaximumEntries = 4096;
     internal const int MaximumNameBytes = 2 * 1024 * 1024;

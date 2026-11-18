@@ -777,7 +777,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             return $"Working set: references to items in other places · F5 from another panel adds · {Key(CommandIds.RemoveFromSet, "Remove from set")} removes " +
                    $"from the set (never deletes) · {Key(CommandIds.Delete, "F8")} deletes the originals";
         if (location.Scheme == Schemes.AnalysisFolder)
-            return "Read-only folder metadata captured by Disk space. Reopen from the analysis to check the current contents.";
+            return Services.AnalysisPanelFolders.GetBanner(location);
         return null;
     }
 

@@ -25,12 +25,14 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetAutomationId(_basket, "Captured selection summary");
             AutomationProperties.SetLiveSetting(_basket, AutomationLiveSetting.Polite);
             _basketHost.Children.Add(_markMatches); _basketHost.Children.Add(_clearMemoryMarks); _basketHost.Children.Add(_reviewMarks);
+            _basketHost.Children.Add(_openPanelResults);
             _basketHost.Children.Add(_reviewDuplicates); _basketHost.Children.Add(_reviewMemoryBasket); _basketHost.Children.Add(_reviewMemoryBasketActions); _basketHost.Children.Add(_retryMarkCounts);
             ToolTip.SetTip(_markMatches, new RichTip("Capture matching files", detail: "Marks regular-file matches in the displayed scope and revision. Focus does not narrow this scope. Context folders, hidden aliases and future observations are excluded. At most 100,000 distinct paths can be marked."));
             ToolTip.SetTip(_reviewMarks, new RichTip("Review captured marks", detail: "Inspect marked entries across locations and filters. Unmarking an entry leaves the independent review basket unchanged."));
             _markMatches.Click += async (_, _) => await Model.MarkMatchingFilesAsync();
             _clearMemoryMarks.Click += (_, _) => Model.ClearMarks();
             _reviewMarks.Click += async (_, _) => await ReviewMarksAsync();
+            _openPanelResults.Click += (_, _) => _ = OpenPanelResultsAsync();
             _reviewMemoryBasket.Click += async (_, _) => await ReviewMarksAsync(basket: true);
             _reviewMemoryBasketActions.Click += (_, _) => _ = ReviewCleanupAsync(AnalysisVerb.Recycle, basket: true);
             _reviewDuplicates.Click += (_, _) => _ = ReviewDuplicatesAsync();
@@ -43,6 +45,7 @@ public sealed partial class DiskSpaceWindow
             RefreshDeferredSelection();
             UpdatePreviewButton(_previewFile, PreviewRefusal(FocusedPreviewPath, Model.BranchRuntime));
             UpdateRevealButton(_revealInPanel, PanelRevealRefusal(Model.HistoryServices, Model.BranchRuntime, FocusedRevealPath));
+            UpdateResultsButton(_openPanelResults, Model.HistoryServices, Math.Max(Model.Selection.Marks.Count, FocusedCleanupPath.HasValue ? 1 : 0));
             _reviewMarks.IsEnabled = Model.Tree is not null && Model.Selection.Marks.Count != 0 && !_reviewingMarks;
             _reviewMemoryBasket.IsEnabled = Model.Tree is not null && Model.Selection.Basket.Count != 0 && !_reviewingMarks;
             _reviewMemoryBasketActions.IsEnabled = Model.Tree is not null && Model.Selection.Basket.Count != 0;

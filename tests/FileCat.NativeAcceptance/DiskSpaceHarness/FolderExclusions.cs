@@ -171,7 +171,7 @@ internal sealed partial class HarnessApp
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
-                readOnlyPanelReveal = true, exactFilePanelFocus = true };
+                readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }
@@ -200,6 +200,19 @@ internal sealed partial class HarnessApp
             var selected = await RevealAsync(file);
             if (!selected.Listing.TryGetFocused(out var row) || row.Name != "photo.png")
                 throw new InvalidOperationException("Reveal did not focus the exact selected file in its verified folder.");
+
+            window.Activate();
+            model.Focus(file, toggleMark: true);
+            Button? ResultsButton() => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+                button.IsEffectivelyVisible && button.IsEnabled && button.Content as string == "Show selection in results");
+            await ReadyAsync(() => ResultsButton() is not null);
+            ResultsButton()!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await ReadyAsync(() => vm.ActiveTab is { Location.Scheme: Schemes.AnalysisFolder, Listing.State: ListingState.Complete } current &&
+                !ReferenceEquals(selected, current));
+            var results = vm.ActiveTab!;
+            if (results.Listing.Store.Count != 1 || !results.Listing.Store[0].Name.EndsWith("photo.png", StringComparison.Ordinal) ||
+                results.Listing.GetItemRef(0).FileSystemPath is not null)
+                throw new InvalidOperationException("The workspace results did not preserve the marked observation as read-only metadata.");
 
             async Task<TabViewModel> RevealAsync(string key)
             {

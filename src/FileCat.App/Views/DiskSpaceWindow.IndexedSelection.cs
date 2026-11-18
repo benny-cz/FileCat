@@ -52,6 +52,8 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetLiveSetting(_selectionSummary, AutomationLiveSetting.Polite);
             var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             foreach (var button in new[] { _markFocused, _markMembers, _markMatches, _clearMarks, _reviewMarked, _reviewDuplicates, _reviewCleanup, _stageBasket, _reviewBasket, _reviewBasketActions, _clearBasket, _recountMarks }) bar.Children.Add(button);
+            bar.Children.Add(_openPanelResults);
+            _openPanelResults.Click += (_, _) => _ = OpenPanelResultsAsync();
             _main.Children.Add(_selectionSummary); _main.Children.Add(bar);
             var deferred = new Button { Content = "Select all after scan completes", IsEnabled = false };
             const string deferredReason = "This is a captured inventory. Use Mark matching files in this scope, or start a new live analysis to request selection after its scan.";
@@ -121,6 +123,7 @@ public sealed partial class DiskSpaceWindow
             RefreshBranchAvailability();
             UpdatePreviewButton(_previewFile, PreviewRefusal(FocusedPreviewPath, _runtimeAcquisition));
             UpdateRevealButton(_revealInPanel, PanelRevealRefusal(_services, _runtimeAcquisition, FocusedRevealPath));
+            UpdateResultsButton(_openPanelResults, _services, Math.Max(_selection.Marks.Count, _focus == 0 ? 0 : 1));
             RefreshClipboardButton();
             _bindIndexedSource.IsVisible = IndexedRecordedChoice() is not null;
             ScheduleMarkVisibility();

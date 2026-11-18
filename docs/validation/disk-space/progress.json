@@ -108,10 +108,15 @@
       "ubuntuVm": { "passed": 965, "skipped": 6, "failed": 0, "total": 971 }
     },
     "fileFocus": {
-      "tests": { "ubuntuVm": "r1524 16/16", "windowsVm": "Postponed", "mac": "Postponed" },
-      "desktop": { "ubuntuVm": "r1525 passed", "windowsVm": "Pending", "mac": "Pending" },
+      "tests": { "ubuntuVm": "r1524 16/16", "windowsVm": "r1526 16/16", "mac": "r1524 16/16" },
+      "desktop": { "ubuntuVm": "r1525 passed", "windowsVm": "r1527 passed", "mac": "r1525 passed" },
       "coverage": "A selected live file inside a verified observed folder is matched by raw name, object identity and creation time and focused in the read-only result. Individually selected file roots require an analysis of the containing folder."
     }
+  },
+  "readOnlyResultSetHandoff": {
+    "tests": { "windowsVm": "r1530 20/20", "mac": "r1528 16 other checks and r1530 4/4 results checks", "ubuntuVm": "r1528 16 other checks and r1530 4/4 results checks" },
+    "desktop": { "run": "r1529", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
+    "coverage": "Transfers the exact captured selection, including hidden marks, to a temporary read-only results panel. Tests moved the source, retained imported and privileged-derived notices, and verified the 4,096-entry refusal."
   },
   "completedBehaviors": [
     "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",

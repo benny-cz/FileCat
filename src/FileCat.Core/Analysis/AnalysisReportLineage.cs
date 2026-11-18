@@ -3,11 +3,13 @@ namespace FileCat.Core.Analysis;
 /// <summary>Per-producer, bounded directory-prefix cache over retained captured metadata only.</summary>
 internal sealed class AnalysisReportLineage
 {
-    private readonly AnalysisDatasetDescriptor _descriptor;
+    private readonly IReadOnlyList<RootBinding> _roots;
     private readonly Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> _read;
     internal AnalysisReportLineage(AnalysisDatasetLease source) : this(source.Descriptor, source.ReadPathAsync) { }
     internal AnalysisReportLineage(AnalysisDatasetDescriptor descriptor, Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> read)
-    { _descriptor = descriptor; _read = read; }
+        : this(descriptor.Roots, read) { }
+    internal AnalysisReportLineage(IReadOnlyList<RootBinding> roots, Func<ulong, CancellationToken, Task<AnalysisPathMetadata>> read)
+    { _roots = roots; _read = read; }
     internal const long BudgetBytes = 2L * 1024 * 1024;
     internal const int MaximumEntries = 2048;
     internal const string TooLong = "[Displayed location exceeds the report bound; use the full inventory for raw names.]";
@@ -22,7 +24,7 @@ internal sealed class AnalysisReportLineage
     {
         cancellation.ThrowIfCancellationRequested();
         if (Find(path.Id, path.RootId) is { } ready) return ready.Location;
-        var root = _descriptor.Roots.Single(value => value.Id == path.RootId);
+        var root = _roots.Single(value => value.Id == path.RootId);
         var pending = new List<(ulong Id, string Name, bool Directory)>();
         var current = path; int characters = 0, depth = 0;
         string prefix; bool limited, rootPrefix;

@@ -110,14 +110,31 @@
         "AnalysisRenderingTests.NativeAnalysisPanelRevealRefusesAReplacedSelectedFile"
       ],
       "evidence": "README.md",
-      "lastQualifiedBuild": "r1519 and r1520 folders on all three. r1524 and r1525 file focus on Ubuntu with Windows and Mac results pending.",
+      "lastQualifiedBuild": "r1519 and r1520 folder workflows. r1524–r1527 file focus workflows on all three platforms.",
       "reason": "Select a verified live folder or a file in a verified recorded parent. The read-only tab is limited to 4,096 entries and 2 MiB of displayed names."
     },
     {
-      "id": "working-set-or-result-set-handoff",
+      "id": "read-only-result-set-handoff",
+      "enabled": true,
+      "platform": "Windows, macOS and Linux",
+      "filesystem": "Captured memory or indexed observations",
+      "packageTier": "Ordinary application",
+      "method": "Publish the exact captured marks or focused entry to a temporary read-only results panel",
+      "assurance": "ObservedMetadata",
+      "qualificationTests": [
+        "AnalysisRenderingTests.NativeAnalysisPanelResultsKeepExactMarksWhenTheSourceMovesAndTheFilterHidesOne",
+        "AnalysisRenderingTests.NativeAnalysisPanelResultsRefuseAnOversizedSelectionBeforeReadingEntries",
+        "AnalysisRenderingTests.NativeAnalysisPanelResultsRetainImportedAndPrivilegedProvenance"
+      ],
+      "evidence": "README.md",
+      "lastQualifiedBuild": "r1528–r1530 development",
+      "reason": "Mark or focus captured entries. Refine selections beyond 4,096 entries or 2 MiB of displayed paths."
+    },
+    {
+      "id": "working-set-handoff",
       "enabled": false,
       "lastQualifiedBuild": null,
-      "reason": "The analyzer has no qualified handoff of selected source references to the panel providers."
+      "reason": "Persistent working sets need qualified current source references. Open selected observations in read-only results."
     },
     {
       "id": "preview",
