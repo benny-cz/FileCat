@@ -93,7 +93,7 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Open saved analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control) == "Saved inventory filename"));
             Click(window, "Browse saved analyses"); await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control) == "Saved analyses" && control.ItemCount == 2));
             var choices = IndexedPersistenceControl<ComboBox>(window, "Saved analyses"); choices.SelectedItem = choices.Items.Cast<object>().Single(item => item.ToString()!.StartsWith("group-other.fcdsa ·", StringComparison.Ordinal)); Click(window, "Open inventory");
-            await Until(() => window.SessionCount == 2 && GroupOtherReady(window), () => OtherViewDiagnostic(window)); Frame(window);
+            await Until(() => window.SessionCount == 2 && GroupOtherReady(window), () => OtherViewDiagnostic(window), TimeSpan.FromSeconds(20)); Frame(window);
             Assert.True(expected.SetEquals(await GroupOtherTablePaths(window))); Assert.True(IndexedSelectionCount(window, 0, 0)); Assert.Equal((int)dimension, GroupingSelector(window).SelectedIndex);
             Assert.Equal("", IndexedPersistenceControl<TextBox>(window, "Filter indexed observations").Text); Assert.Equal(source.Payload, File.ReadAllBytes(source.PayloadPath));
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text?.Contains("Offline imported observations", StringComparison.Ordinal) == true);

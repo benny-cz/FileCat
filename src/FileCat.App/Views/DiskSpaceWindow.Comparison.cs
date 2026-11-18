@@ -83,8 +83,9 @@ public sealed partial class DiskSpaceWindow
                 ComparisonValue(AnalysisMeasurement.Known(total.Known), comparison.Metric) + " known" +
                 (total.IdentityUnverified > 0 ? " + " + total.IdentityUnverified.ToString("N0") + " identity-unverified bytes" : "") +
                 (total.Missing.Count > 0 ? " · " + total.Missing.Values.Aggregate(0ul, (a, b) => checked(a + b)).ToString("N0") + " unavailable measurements" : "");
-            heading.Children.Add(SessionText("Previous: " + Total(comparison.PreviousTotals) + "\nCurrent: " + Total(comparison.CurrentTotals) +
-                "\nObserved net change: " + ComparisonDelta(comparison.NetChange, comparison.Metric), 16));
+            string totals = "Previous: " + Total(comparison.PreviousTotals) + "\nCurrent: " + Total(comparison.CurrentTotals) +
+                "\nObserved net change: " + ComparisonDelta(comparison.NetChange, comparison.Metric);
+            heading.Children.Add(SessionText(totals, 16));
             details.Children.Add(SessionText(string.Join("\n", comparison.Compatibility.Explanations)));
             string comparisonKind = Model.ComparisonIsStructural ? "Explicit structural comparison" : comparison.Compatibility.VerifiedIdentityContext ? "Recorded comparison" : "Path-based comparison";
             if (!comparison.Compatibility.ComparableTotals) comparisonKind += " · limited";
@@ -230,6 +231,8 @@ public sealed partial class DiskSpaceWindow
             list.AddHandler(KeyDownEvent, (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; _ = InspectComparisonAsync(); } }, RoutingStrategies.Tunnel);
             var footer = _comparisonFooter = new StackPanel { Spacing = 6, Margin = new Thickness(10, 6) };
             footer.Children.Add(ActionButton("Inspect comparison entry", () => _ = InspectComparisonAsync(), "Read both path sets, measured values and compatibility evidence. Historical rows supply no current file target."));
+            footer.Children.Add(ActionButton("Copy summary", () => _ = CopyCapturedTextAsync(($"{ComparisonMetric(comparison.Metric)}\n{totals}\n{comparisonKind}", "")),
+                "Copy the displayed totals and comparison scope as text."));
             AddComparisonPersistence(footer);
             footer.Children.Add(SessionText("Offline metadata comparison. Reported allocation is not consumed or reclaimable physical space. No file contents were compared. Chart area shows the chosen side's amount; growth color describes comparison status."));
             var panel = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto") };
@@ -287,6 +290,9 @@ public sealed partial class DiskSpaceWindow
                     AutomationProperties.SetName(bases, title); body.Children.Add(bases);
                 }
             }
+            string description = string.Join('\n', body.Children.OfType<TextBlock>().Select(label => label.Text));
+            body.Children.Add(ActionButton("Copy details", () => _ = CopyCapturedTextAsync((description, "")),
+                "Copy the selected change's displayed measurements and explanation."));
             await _window._dialogs.ShowCustomAsync("Comparison entry", body, [new DialogButton("Close", false, IsDefault: true, IsCancel: true)]);
         }
 

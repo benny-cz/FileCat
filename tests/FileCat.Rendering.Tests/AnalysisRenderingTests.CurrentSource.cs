@@ -61,15 +61,19 @@ public sealed partial class AnalysisRenderingTests
         window.AddSession(model); window.Show();
         try
         {
+            bool Visible(string title) => window.GetVisualDescendants().OfType<Button>()
+                .Any(button => button.IsEffectivelyVisible && button.IsEnabled && button.Content as string == title);
             await model.RebuildAsync(true);
+            await Until(() => model.Tree is not null);
             model.Focus(folder ? "n:2" : "n:4"); Frame(window);
+            await Until(() => Visible("Bind current source…"));
             Click(window, "Bind current source…");
-            await Until(() => window.GetVisualDescendants().OfType<Button>().Any(button => button.IsEffectivelyVisible && button.Content as string == "Analyze current selection"));
+            await Until(() => Visible("Analyze current selection"));
             Click(window, "Cancel");
-            await Until(() => proxy.DisposedItems == 1);
+            await Until(() => proxy.DisposedItems == 1 && Visible("Bind current source…"));
             Assert.Equal(1, window.SessionCount);
             Click(window, "Bind current source…");
-            await Until(() => window.GetVisualDescendants().OfType<Button>().Any(button => button.IsEffectivelyVisible && button.Content as string == "Analyze current selection"));
+            await Until(() => Visible("Analyze current selection"));
             Click(window, "Analyze current selection");
             string completion = folder ? "Finished · 2 observed paths" : "Finished · 1 observed paths";
             await Until(() => window.SessionCount == 2 && proxy.DisposedItems == 2 && window.GetVisualDescendants().OfType<TextBlock>()

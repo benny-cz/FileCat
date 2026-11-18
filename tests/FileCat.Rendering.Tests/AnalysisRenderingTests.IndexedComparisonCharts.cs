@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -59,6 +60,15 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Reset comparison view"); await Until(() => apply.IsEnabled && ComparisonControl<ListBox>(window, "Captured comparison rows")!.ItemCount > 0);
             var rows = ComparisonControl<ListBox>(window, "Captured comparison rows")!; rows.SelectedIndex = 0;
             await Until(() => apply.IsEnabled && ComparisonControl<TextBox>(window, "Current comparison details")!.Text!.Contains("Recorded location:", StringComparison.Ordinal));
+            Click(window, "Copy details");
+            string? details = await ClipboardExtensions.TryGetTextAsync(window.Clipboard!);
+            Assert.Contains("Previous\n", details);
+            Assert.Contains("Current\n", details);
+            Assert.Contains("Recorded location:", details);
+            await Until(() => apply.IsEnabled);
+            Click(window, "Copy summary");
+            Assert.Contains("Observed net change:", await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
+            await Until(() => apply.IsEnabled);
             if (metric == AnalysisMetric.FileSize)
                 foreach (string theme in new[] { "Classic", "ClassicDark", "HighContrast", "Cyberpunk", "Psychedelic", "Steampunk", "DosCommander" })
                     foreach (int mode in new[] { 1, 2 })

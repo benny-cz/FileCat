@@ -81,41 +81,13 @@ public static partial class AnalysisInventoryFormat
         }
     }
 
-    private static async Task WriteSnapshotPipeAsync(AnalysisSnapshot snapshot, Guid id, IAnalysisInventoryWriteSink output,
-        DeviceIoScheduler io, AnalysisIoDevices devices, CancellationToken cancellation)
-    {
-        using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-        var pipe = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(2) { SingleReader = true, SingleWriter = true, FullMode = BoundedChannelFullMode.Wait });
-        var producer = Task.Run(() =>
+    private static Task WriteSnapshotPipeAsync(AnalysisSnapshot snapshot, Guid id, IAnalysisInventoryWriteSink output,
+        DeviceIoScheduler io, AnalysisIoDevices devices, CancellationToken cancellation) =>
+        WritePreparedPipeAsync(output, io, devices, (stream, stop) =>
         {
-            Exception? failure = null;
-            try { using var stream = new PreparedPipeStream(pipe.Writer, stop.Token); Write(stream, snapshot, id, stop.Token); }
-            catch (Exception error) { failure = error; throw; }
-            finally { pipe.Writer.TryComplete(failure); }
-        }, CancellationToken.None);
-        Exception? failed = null;
-        try
-        {
-            while (await pipe.Reader.WaitToReadAsync(stop.Token).ConfigureAwait(false))
-                while (pipe.Reader.TryRead(out var bytes))
-                    await AnalysisIo.Run(io, devices, token =>
-                    { token.ThrowIfCancellationRequested(); output.Stream.Write(bytes); output.FlushBatch(); return true; }, stop.Token).ConfigureAwait(false);
-        }
-        catch (Exception error) { failed = error; }
-        finally
-        {
-            stop.Cancel(); pipe.Writer.TryComplete();
-            // The producer may be blocked on the bounded queue. Cancellation releases it;
-            // staging cannot close until its actual producer and admitted write have ended.
-            try { await producer.ConfigureAwait(false); }
-            catch (Exception error)
-            {
-                if (failed is null) failed = error;
-                else if (error is not OperationCanceledException && !ReferenceEquals(error, failed)) failed = new AggregateException(failed, error);
-            }
-        }
-        if (failed is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failed).Throw();
-    }
+            Write(stream, snapshot, id, stop);
+            return Task.CompletedTask;
+        }, cancellation);
 
     private sealed class PreparedPipeStream(ChannelWriter<byte[]> writer, CancellationToken cancellation) : Stream
     {

@@ -5,6 +5,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -95,7 +96,7 @@ public sealed partial class DiskSpaceWindow
         private readonly Button _applyView, _resetView;
         private readonly Border _growth;
         private readonly TextBlock _summary = Text(""), _compatibility = Text(""), _status = Text(""), _range = Text("");
-        private readonly Button _previousPage, _nextPage, _inspect, _retry;
+        private readonly Button _previousPage, _nextPage, _inspect, _retry, _copyDetails;
         private readonly ListBox _rows = new() { MinHeight = 200, MaxHeight = 440, Focusable = true };
         private readonly Side _before = new(true), _after = new(false);
         private DisplayPage _page;
@@ -177,8 +178,12 @@ public sealed partial class DiskSpaceWindow
             _previousPage = Button("Previous comparison page", () => _ = PageAsync(false), "Show the preceding captured comparison rows.");
             _nextPage = Button("Next comparison page", () => _ = PageAsync(true), "Show the next captured comparison rows.");
             _inspect = Button("Inspect comparison row", () => _ = InspectAsync(), "Read both captured sides and their independently paged observed paths.");
+            var copySummary = Button("Copy summary", () => _ = CopyComparisonTextAsync($"{_summary.Text}\n{_compatibility.Text}"),
+                "Copy the displayed totals and comparison scope as text.");
+            _copyDetails = Button("Copy details", () => _ = CopyComparisonTextAsync($"Previous\n{_before.Details.Text}\n\nCurrent\n{_after.Details.Text}"),
+                "Copy the displayed details for the two recorded sides.");
             Children.Add(Text("Each row is a complete accounting entity, including all observed aliases. Unavailable differences remain unknown; row IDs break ordering ties."));
-            Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { _previousPage, _nextPage, _range, _inspect } });
+            Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { _previousPage, _nextPage, _range, _inspect, copySummary, _copyDetails } });
             Children.Add(_rows);
             foreach (var side in new[] { _before, _after })
             {
@@ -279,6 +284,7 @@ public sealed partial class DiskSpaceWindow
             foreach (var control in new Control[] { _queryText, _querySide, _cohort, _order, _case, _uncertain, _applyView, _resetView }) control.IsEnabled = usable && _result is not null;
             SetGrowthInsightAvailability(_growth, _result?.Compatibility, usable && _result is not null);
             _rows.IsEnabled = usable && _result is not null; _inspect.IsEnabled = usable && _result is not null && _rows.SelectedItem is DisplayRow;
+            _copyDetails.IsEnabled = usable && _selected is not null;
             _previousPage.IsEnabled = usable && _result is not null && _page.Page.Offset != 0;
             _nextPage.IsEnabled = usable && _result is not null && _page.Page.HasMore;
             foreach (var side in new[] { _before, _after })
@@ -317,6 +323,13 @@ public sealed partial class DiskSpaceWindow
                 }
             }
         }
+        private Task CopyComparisonTextAsync(string text) => RunAsync("Copying captured text…", async token =>
+        {
+            token.ThrowIfCancellationRequested();
+            if (_window.Clipboard is { } clipboard) await clipboard.SetTextAsync(text);
+            else _status.Text = "The clipboard is unavailable.";
+        });
+
         private Task PageAsync(bool next) => RunAsync("Reading comparison rows…", async token =>
         {
             if (_result is null || !next && _page.Page.Offset == 0 || next && !_page.Page.HasMore) return;

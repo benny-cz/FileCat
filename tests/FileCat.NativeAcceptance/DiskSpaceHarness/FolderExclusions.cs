@@ -143,11 +143,21 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => VisibleButton("Close details") is null);
             if (window.SessionCount != 4 || historical.Tree?.Snapshot.Origin == AnalysisOrigin.LiveSession)
                 throw new InvalidOperationException("The historical inspector did not preserve its offline source.");
+            var comparison = await model.CompareSavedAsync(saved.Name, _indexedLifetime.Token);
+            window.AddSession(comparison);
+            ListBox? ComparedRows() => window.GetVisualDescendants().OfType<ListBox>().SingleOrDefault(control =>
+                control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Comparison rows");
+            await ReadyAsync(() => VisibleButton("Copy summary") is { IsEnabled: true } && ComparedRows() is { ItemCount: > 0 });
+            ComparedRows()!.SelectedIndex = 0;
+            Click("Inspect comparison entry");
+            await ReadyAsync(() => VisibleButton("Copy details") is { IsEnabled: true });
+            Click("Close");
+            await ReadyAsync(() => VisibleButton("Close") is null);
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
                 sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
-                currentSourceBindingAvailable = true };
+                currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }

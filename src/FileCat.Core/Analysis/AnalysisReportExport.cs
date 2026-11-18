@@ -56,7 +56,10 @@ public static partial class AnalysisInventoryFormat
         catch (Exception error) { failed = error; }
         finally
         {
-            stop.Cancel(); pipe.Writer.TryComplete();
+            // The producer owns channel completion. Cancel its bounded write and
+            // wait for it before the caller releases the staged output.
+            try { stop.Cancel(); }
+            catch (AggregateException error) { failed = failed is null ? error : new AggregateException(failed, error); }
             try { await producer.ConfigureAwait(false); }
             catch (Exception error)
             {
