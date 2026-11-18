@@ -32,8 +32,11 @@ public sealed class WindowsEditSaveCopyStageCleanupTests
         finally { FileCat.Tests.TestCleanup.DeleteTree(root); }
     }
 
-    private sealed class PartialCopy : WindowsFileOperations
+    private sealed class PartialCopy : PortableFileOperations
     {
+        private readonly WindowsFileOperations windows = new();
+        public override string? GetFileIdentity(string path) => windows.GetFileIdentity(path);
+        public override BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity) => windows.DeleteOwnedFile(path, expectedIdentity);
         public override void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
         { File.WriteAllText(destination, "partial stage"); throw new IOException("Controlled partial copy."); }
     }

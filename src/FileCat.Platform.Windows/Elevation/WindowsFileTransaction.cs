@@ -22,11 +22,13 @@ internal sealed partial class WindowsFileTransaction : IDisposable
         throw new Win32Exception(error);
     }
 
-    internal static bool CanEncrypt(SafeFileHandle file)
+    internal static bool CanEncrypt(SafeFileHandle file) => (VolumeFlags(file) & SupportsEncryption) != 0;
+
+    internal static uint VolumeFlags(SafeFileHandle file)
     {
         if (!GetVolumeInformationByHandle(file, 0, 0, out _, out _, out uint flags, 0, 0))
             throw new Win32Exception(Marshal.GetLastPInvokeError());
-        return (flags & SupportsEncryption) != 0;
+        return flags;
     }
 
     internal static WindowsFileTransaction? PinSource(SafeFileHandle expected, string protectedMessage)
@@ -57,6 +59,21 @@ internal sealed partial class WindowsFileTransaction : IDisposable
 
     internal SafeFileHandle CreateFile(string path, uint access, uint share, string operation) =>
         Open(path, access, share, disposition: 1 /* CREATE_NEW */, operation);
+
+    internal SafeFileHandle OpenHeldChild(SafeFileHandle directory, string leaf, uint access)
+    {
+        string path = Path.Combine(HeldPath(directory), leaf);
+        var file = OpenExisting(path, access, NtFile.ShareRead, "Open the reviewed file in a transaction");
+        try
+        {
+            using var named = NtFile.OpenOrThrow(directory, leaf, NtFile.ReadAttributes | NtFile.Synchronize,
+                NtFile.ShareAll, NtFile.Open, NtFile.NonDirectoryFile | NtFile.OpenReparsePoint, "Check the file in the held directory");
+            if (ProtectedHexFile.Identity(named) != ProtectedHexFile.Identity(file))
+                throw new IOException("The transacted file is outside the held directory or its name changed.");
+            return file;
+        }
+        catch { file.Dispose(); throw; }
+    }
 
     private SafeFileHandle Open(string path, uint access, uint share, uint disposition, string operation)
     {

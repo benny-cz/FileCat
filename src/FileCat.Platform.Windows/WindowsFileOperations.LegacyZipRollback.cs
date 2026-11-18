@@ -94,37 +94,44 @@ public partial class WindowsFileOperations
             throw new IOException("A ZIP object's download mark changed before recovery or cleanup.");
     }
 
-    private static ArchiveOriginSnapshot ReadLegacyZipRollbackOrigin(SafeFileHandle file, bool encrypted)
+    private static ArchiveOriginSnapshot ReadLegacyZipRollbackOrigin(SafeFileHandle file, bool encrypted) =>
+        ReadHeldFileOrigin(file, held => CheckLegacyZipRollbackProtection(held, encrypted));
+
+    private static ArchiveOriginSnapshot ReadHeldFileOrigin(SafeFileHandle file, Action<SafeFileHandle> checkProtection)
     {
-        CheckLegacyZipRollbackProtection(file, encrypted);
+        checkProtection(file);
         const ArchiveOriginFormat format = ArchiveOriginFormat.WindowsZoneIdentifier;
         int status = TryOpen(file, ZoneStream, GenericRead | Synchronize, ShareRead | ShareDelete, Open, NonDirectoryFile, out var zone);
         using (zone)
         {
-            if (status == NameNotFound) return ArchiveOriginSnapshot.Absent(format);
-            if (status < 0) throw Error(status, "Open held ZIP download mark");
-            return ReadHeldZipOrigin(file, zone, encrypted);
+            if (status == NameNotFound)
+            {
+                checkProtection(file);
+                return ArchiveOriginSnapshot.Absent(format);
+            }
+            if (status < 0) throw Error(status, "Open held download mark");
+            return ReadHeldFileOrigin(file, zone, checkProtection);
         }
     }
 
-    private static ArchiveOriginSnapshot ReadHeldZipOrigin(SafeFileHandle file, SafeFileHandle zone, bool encrypted)
+    private static ArchiveOriginSnapshot ReadHeldFileOrigin(SafeFileHandle file, SafeFileHandle zone, Action<SafeFileHandle> checkProtection)
     {
         if (ProtectedHexFile.Identity(zone) != ProtectedHexFile.Identity(file))
-            throw new IOException("The download mark does not belong to the held ZIP.");
+            throw new IOException("The download mark does not belong to the held file.");
         long size = RandomAccess.GetLength(zone);
-        if (size < 0 || size > MaxOriginMarkBytes) throw new IOException("The ZIP download mark exceeds the inspection limit.");
+        if (size < 0 || size > MaxOriginMarkBytes) throw new IOException("The download mark exceeds the inspection limit.");
         var bytes = new byte[(int)size];
         int offset = 0;
         while (offset < bytes.Length)
         {
-            CheckLegacyZipRollbackProtection(file, encrypted);
-            CheckLegacyZipRollbackProtection(zone, encrypted);
+            checkProtection(file);
+            checkProtection(zone);
             int count = RandomAccess.Read(zone, bytes.AsSpan(offset), offset);
             if (count == 0) throw new IOException("The download mark changed during review.");
             offset += count;
         }
-        CheckLegacyZipRollbackProtection(file, encrypted);
-        CheckLegacyZipRollbackProtection(zone, encrypted);
+        checkProtection(file);
+        checkProtection(zone);
         if (RandomAccess.GetLength(zone) != size) throw new IOException("The download mark changed during review.");
         return ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier, bytes);
     }

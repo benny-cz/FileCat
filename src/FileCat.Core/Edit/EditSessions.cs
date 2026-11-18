@@ -167,6 +167,8 @@ public sealed class EditCommitCopy : IDisposable
     public string Sha256 { get; }
     public uint Crc32 { get; }
     public long Length { get; }
+    internal Microsoft.Win32.SafeHandles.SafeFileHandle HeldFile =>
+        (_pin ?? throw new ObjectDisposedException(nameof(EditCommitCopy))).SafeFileHandle;
     private readonly IFileSystemOperations? _files;
     private readonly string? _identity;
     internal EditCommitCopy(string path, string sha256, uint crc32, long length, IFileSystemOperations? files = null)
@@ -1009,6 +1011,8 @@ public sealed partial class EditSessionStore
         RefuseElevatedSession();
         check();
         if(copy.Native is not null)throw new NotSupportedException("The private edit snapshot is kept until native save-copy destination publication is qualified.");
+        if (files is IEditCopyPublisher native)
+            return native.PublishEditCopy(copy.HeldFile, copy.Sha256, copy.Length, destination, check);
         string staged = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(destination))!, ".filecat-edit-copy-" + Guid.NewGuid().ToString("N") + ".tmp");
         string? stagedIdentity = null;
         try
