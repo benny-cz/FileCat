@@ -77,6 +77,17 @@ public sealed partial class AnalysisRenderingTests
             await vm.ExecuteAsync(CommandIds.DiskSpace);
             Assert.Same(analyzer, profile.Services.DiskSpace.Window);
             Assert.Equal(new[] { other }, DiskSpaceEntryRoots(analyzer));
+            var tabs = analyzer.GetVisualDescendants().OfType<TabControl>().Single();
+            Assert.Equal(1, tabs.SelectedIndex);
+            Click(AnalyzerButton(analyzer, "Continue in FileCat"));
+            Assert.False(analyzer.IsVisible);
+            confirm = vm.ConfirmExitWithActiveWorkAsync();
+            await Until(() => dialogs.IsOpen);
+            Click(AnalyzerButton(main, "Review and save"));
+            Assert.False(await confirm.WaitAsync(TimeSpan.FromSeconds(10)));
+            Assert.True(analyzer.IsVisible);
+            Assert.Equal(0, tabs.SelectedIndex);
+            Assert.True(analyzer.HasTemporaryWork);
         }
         finally { await CloseDiskSpaceEntryAsync(profile.Services, vm, main); }
     }

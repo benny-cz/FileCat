@@ -81,6 +81,13 @@ public sealed partial class DiskSpaceWindow : Window
     internal bool CanAddSession => !_closed && _admissionPool.HasCapacity;
     internal bool HasSessions => _sessions.Count > 0;
     internal bool HasTemporaryWork => _sessions.Any(session => session.HasTemporaryWork);
+    internal void SelectTemporaryWork()
+    {
+        int current = _tabs.SelectedIndex;
+        if (current >= 0 && current < _sessions.Count && _sessions[current].HasTemporaryWork) return;
+        int first = _sessions.FindIndex(session => session.HasTemporaryWork);
+        if (first >= 0) _tabs.SelectedIndex = first;
+    }
     protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => new DescendantFocusWindowAutomationPeer(this);
     public DiskSpaceWindow(Action? newAnalysis = null, Func<Keymap>? keymap = null) : this(newAnalysis, keymap, AnalysisSessionAdmission.Shared) { }
     internal DiskSpaceWindow(Action? newAnalysis, Func<Keymap>? keymap, AnalysisSessionAdmission admissionPool)
@@ -637,6 +644,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _save.IsEnabled = Model.CanSave && !_persistenceBusy;
                 _openSaved.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
                 _importExternal.IsEnabled = Model.HistoryServices is { Io.IsStopped: false } && !_actualWork.HasUnconfirmedClose && !_persistenceBusy;
+                _exportExternal.IsVisible = _exportReport.IsVisible = !setupOnly && Model.HistoryServices is not null;
                 _exportExternal.IsEnabled = Model.CanExport && !_persistenceBusy && !_actualWork.HasUnconfirmedClose;
                 _exportReport.IsEnabled = !IsComparison && Model.CanExport && !_persistenceBusy && !_actualWork.HasUnconfirmedClose;
                 _compare.IsEnabled = Model.CanCompare && !_persistenceBusy;

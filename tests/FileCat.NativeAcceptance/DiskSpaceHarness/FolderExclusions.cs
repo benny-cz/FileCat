@@ -31,6 +31,9 @@ internal sealed partial class HarnessApp
             var position = start.TranslatePoint(default, window);
             if (position is null || position.Value.Y < 0 || position.Value.Y + start.Bounds.Height > window.ClientSize.Height + 1)
                 throw new InvalidOperationException("Start analysis was clipped after opening the exclusions editor.");
+            if (window.GetVisualDescendants().OfType<Button>().Any(button => button.IsEffectivelyVisible &&
+                button.Content as string is "Export entire inventory…" or "Export report…"))
+                throw new InvalidOperationException("The ready scanner showed result export commands.");
             RenderNativeFrame("folder-exclusions-setup.png");
             start.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
             await ReadyAsync(() => model.Tree?.Snapshot.Phase == AnalysisPhase.Finished);
@@ -49,8 +52,14 @@ internal sealed partial class HarnessApp
             if (tableTop is null || table.Bounds.Height < 30 || tableTop.Value.Y + 30 > window.ClientSize.Height)
                 throw new InvalidOperationException("The ranked table was below the compact window viewport.");
             RenderNativeFrame("folder-exclusions-result.png");
+            var newAnalysis = window.GetVisualDescendants().OfType<Button>().Single(button =>
+                button.IsEffectivelyVisible && button.Content as string == "New analysis");
+            newAnalysis.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            await ReadyAsync(() => window.SessionCount == 2 && _tabs?.SelectedIndex == 1);
+            window.SelectTemporaryWork();
+            await ReadyAsync(() => _tabs?.SelectedIndex == 0);
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
-                sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString() };
+                sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }

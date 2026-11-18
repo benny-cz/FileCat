@@ -62,7 +62,7 @@ public sealed partial class MainViewModel
                 TextWrapping = Avalonia.Media.TextWrapping.Wrap },
             [new DialogButton("Keep FileCat open", "keep", IsDefault: true, IsCancel: true),
              new DialogButton("Review and save", "review"), new DialogButton("Stop and exit", "stop", IsDanger: true)]);
-        if (answer as string == "review") Services.DiskSpace.BringForward();
+        if (answer as string == "review") Services.DiskSpace.ReviewTemporaryWork();
         return answer as string == "stop";
     }
 }

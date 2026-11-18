@@ -22,6 +22,11 @@ public sealed class DiskSpaceWindowManager(AppServices services) : IDisposable
         if (!window.IsVisible) window.Show();
         window.Activate();
     }
+    internal void ReviewTemporaryWork()
+    {
+        Window?.SelectTemporaryWork();
+        BringForward();
+    }
 
     public void Open(IReadOnlyList<string> roots)
     {

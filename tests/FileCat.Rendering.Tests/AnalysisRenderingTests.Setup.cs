@@ -30,7 +30,8 @@ public sealed partial class AnalysisRenderingTests
             Assert.True(at.Value.Y >= 0 && at.Value.Y + start.Bounds.Height <= window.ClientSize.Height + .5,
                 "Start clipped: " + at + " / " + start.Bounds + " in " + window.ClientSize);
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<ListBox>(), list => list.IsEffectivelyVisible);
-            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), b => b.IsEffectivelyVisible && b.Content as string is "Review cleanup" or "Back" or "Save…" or "Compare…");
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), b => b.IsEffectivelyVisible &&
+                b.Content as string is "Review cleanup" or "Back" or "Save…" or "Compare…" or "Export entire inventory…" or "Export report…");
             Assert.Contains(window.GetVisualDescendants().OfType<Button>(), b => b.IsEffectivelyVisible && b.Content as string == "Open saved…");
             Assert.Equal(0, bindings);
         }
