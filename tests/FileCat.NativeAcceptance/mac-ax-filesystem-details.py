@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise File-system details with native keyboard events and optional muted VoiceOver speech.
 
-Usage: mac-ax-filesystem-details.py BUNDLE.app AX_OBSERVER.swift REPORT.json [--voiceover]
+Usage: mac-ax-filesystem-details.py BUNDLE.app AX_OBSERVER.swift REPORT.json [--voiceover] [--narrow]
 """
 
 import hashlib
@@ -16,12 +16,13 @@ import time
 
 
 def main():
-    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] != "--voiceover"):
+    options = sys.argv[4:]
+    if len(sys.argv) < 4 or len(options) != len(set(options)) or set(options) - {"--voiceover", "--narrow"}:
         raise SystemExit(__doc__)
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle, source = (Path(arg).resolve(strict=True) for arg in sys.argv[1:3])
     report_path = Path(sys.argv[3]).resolve()
-    voiceover = sys.argv[4:] == ["--voiceover"]
+    voiceover, narrow = "--voiceover" in options, "--narrow" in options
     if bundle.parent != validation or bundle.suffix != ".app" or report_path.parent != validation or report_path.exists():
         raise ValueError("Use a dedicated application and a fresh result under ~/FileCatValidation.")
     app = bundle / "Contents" / "MacOS" / "FileCat"
@@ -29,8 +30,11 @@ def main():
         raise RuntimeError("Another FileCat process is already running.")
     fixture = Path(tempfile.mkdtemp(prefix="filesystem-details-ax-", dir=validation))
     root, target, state = (fixture / name for name in ("source", "target", "state"))
+    if narrow:
+        root = (root / "archived-project-material-for-the-native-file-system-details-review" /
+                "working-notes-and-background-files-for-the-reviewed-path-and-its-clipboard-report")
     for folder in (root, target, state):
-        folder.mkdir()
+        folder.mkdir(parents=True)
     original = root / "alpha-details.txt"
     original.write_text("FILECAT-DATA-PAYLOAD-CANARY", encoding="utf-8")
     (root / "beta-not-selected.txt").write_text("alternative", encoding="utf-8")
@@ -100,6 +104,24 @@ if (count of matches) is 0 then return ""
 return name of every window of (item 1 of matches)
 end tell''')
 
+    def resize_report():
+        size = osa(f'''tell application "System Events" to tell (first application process whose unix id is {pid})
+repeat with w in windows
+    if (name of w as text) contains "File-system details" then
+        set position of w to {{80, 40}}
+        set size of w to {{520, 420}}
+        set actual to size of w
+        return (item 1 of actual as text) & "|" & (item 2 of actual as text)
+    end if
+end repeat
+end tell
+error "The owned details window is unavailable"''')
+        width, height = map(int, size.split("|"))
+        if abs(width - 520) > 2 or abs(height - 420) > 2:
+            raise AssertionError(f"Mac did not set the requested narrow report size: {width}×{height}")
+        evidence["reportSizePoints"] = [width, height]
+        evidence["sourcePathLength"] = len(str(original))
+
     def tab_to(name):
         for _ in range(28):
             record = focused()
@@ -139,9 +161,12 @@ end tell''')
         key("key code 35 using {control down, shift down}")
         expect_focus("Command search by keyboard", "Search commands")
         key('keystroke "file-system details"')
+        wait(lambda: focused().get("value", "").casefold() == "file-system details", "the command search text")
         key("key code 36")
         wait(lambda: "File-system details" in window_titles(), "the selected file details window")
         speech("VoiceOver announces the details window", "File-system details")
+        if narrow:
+            resize_report()
         tab_to("Read full record")
         key("key code 49")
         speech("VoiceOver announces the full observation", "full", "observation")
