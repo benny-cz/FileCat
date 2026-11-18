@@ -310,6 +310,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                     var info = new FileInfo(change.SourcePath ?? throw new ArgumentException("A source file is required."));
                     PathUtil.RefuseAmbiguousUnixName(info.FullName);
                     if (!info.Exists) throw new FileNotFoundException("The file to add no longer exists.", info.FullName);
+                    if (OperatingSystem.IsWindows()) ArchiveOuterEfs.RequireClear(info.Attributes, ArchiveOuterEfs.PackUnavailable);
                     // A cloud placeholder (a OneDrive file) is a reparse point, but no link.
                     if (ReparseLinks.IsLink(info.FullName))
                         throw new IOException("The source is a link; links are not added to ZIP archives.");
@@ -338,6 +339,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             Job.Checkpoint();
             var (dir, prefix) = pending.Pop();
             PathUtil.RefuseAmbiguousUnixName(dir.FullName);
+            if (OperatingSystem.IsWindows() && dir.Exists) ArchiveOuterEfs.RequireClear(dir.Attributes, ArchiveOuterEfs.PackUnavailable);
             var capturedDirectory = move?.Capture(dir.FullName, directory: true);
             bool any = false;
             foreach (var entry in dir.EnumerateFileSystemInfos().OrderBy(e => e.Name, StringComparer.Ordinal))
@@ -357,8 +359,11 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 }
                 if (entry is DirectoryInfo sub) pending.Push((sub, child));
                 else if (entry is FileInfo file)
+                {
+                    if (OperatingSystem.IsWindows()) ArchiveOuterEfs.RequireClear(file.Attributes, ArchiveOuterEfs.PackUnavailable);
                     result.Add(new Addition(child, file.FullName, false, file.LastWriteTime, file.Attributes, file.Length, root.FullName,
                         move?.Capture(file.FullName, directory: false)));
+                }
             }
             if (!any || move is not null)
             {
@@ -394,6 +399,10 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
     {
         using var held = addition.Retained is null?Fs.HoldRegularFile(addition.Source!, addition.Root):null;
         if (addition.Move is not null) move!.RequireCurrent(addition.Move);
+        using var from = addition.Retained is { } retained ? retained.File.OpenReadView(retained.Reviewed, Job.Token) :
+            new FileStream(addition.Source!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, BufferSize, FileOptions.SequentialScan);
+        var rawSource = from as FileStream;
+        CheckSourceProtection();
         var entry = target.CreateEntry(name, level);
         int attributes = replaced?.ExternalAttributes ?? (int)(addition.Attributes & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive));
         if (addition.Move is { } input)
@@ -402,16 +411,17 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if (input.UnixMode is { } mode) attributes |= unchecked((int)((mode | 0x8000) << 16));
         }
         Stamp(entry, addition.Modified, attributes, replaced?.Comment);
-        using var from = addition.Retained is { } retained?retained.File.OpenReadView(retained.Reviewed,Job.Token):
-            new FileStream(addition.Source!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, BufferSize, FileOptions.SequentialScan);
         using var to = entry.Open();
         var buffer = new byte[BufferSize];
         using var hash = addition.Move is null&&addition.Retained is null ? null : IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         long length = 0;
-        int n;
-        while ((n = from.Read(buffer, 0, buffer.Length)) > 0)
+        while (true)
         {
             Job.Checkpoint();
+            CheckSourceProtection();
+            int n = from.Read(buffer, 0, buffer.Length);
+            CheckSourceProtection();
+            if (n == 0) break;
             length += n;
             if (addition.Move is not null && length > addition.Move.Info.Size) throw new IOException("The source grew while it was being moved into the archive.");
             if(addition.Retained is not null&&length>addition.Length)throw new IOException("The retained edit exceeds its reviewed size.");
@@ -429,6 +439,12 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if(length!=captured.Reviewed.Version.Length||Convert.ToHexString(hash!.GetHashAndReset())!=captured.Reviewed.Version.Sha256)
                 throw new IOException("The retained edit changed while its ZIP member was written.");
             captured.File.Review(captured.Reviewed,Job.Token);
+        }
+
+        void CheckSourceProtection()
+        {
+            if (OperatingSystem.IsWindows() && rawSource is not null)
+                ArchiveOuterEfs.RequireClear(rawSource.SafeFileHandle, ArchiveOuterEfs.PackUnavailable);
         }
     }
 

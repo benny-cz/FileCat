@@ -223,6 +223,9 @@ public interface IFileSystemOperations
     /// <summary>Mark-of-the-Web / quarantine origin data, or null.</summary>
     string? ReadOriginMark(string path);
 
+    /// <summary>Reads the download mark of a captured archive input under the platform's output admission policy.</summary>
+    string? ReadArchiveSourceOriginMark(string path, string? identity, CancellationToken ct) => ReadOriginMark(path);
+
     /// <summary>Writes origin data; returns false when the destination cannot store it (reported as a security loss).</summary>
     bool WriteOriginMark(string path, string mark);
 
@@ -744,6 +747,8 @@ public class PortableFileOperations : IFileSystemOperations
     }
 
     public virtual string? ReadOriginMark(string path) => null;
+
+    public virtual string? ReadArchiveSourceOriginMark(string path, string? identity, CancellationToken ct) => ReadOriginMark(path);
 
     public virtual bool WriteOriginMark(string path, string mark) => false;
 

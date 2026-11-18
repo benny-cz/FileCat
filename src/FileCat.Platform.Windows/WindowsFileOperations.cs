@@ -1,4 +1,6 @@
+using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
+using Microsoft.Win32.SafeHandles;
 using static FileCat.Platform.Windows.Native.NativeMethods;
 
 namespace FileCat.Platform.Windows;
@@ -144,7 +146,33 @@ public partial class WindowsFileOperations : PortableFileOperations
         return (bin, free, total);
     }
 
-    public override string? ReadOriginMark(string path)
+    public override string? ReadOriginMark(string path) => ReadOriginMark(path, verify: null, CancellationToken.None);
+
+    public override string? ReadArchiveSourceOriginMark(string path, string? identity, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var file = CreateFileForIdentity(Long(path), 0x80 /* FILE_READ_ATTRIBUTES */, 7 /* ShareAll */, 0, 3 /* OPEN_EXISTING */,
+            0x02200000 /* BACKUP_SEMANTICS | OPEN_REPARSE_POINT */, 0);
+        int error = file.IsInvalid ? System.Runtime.InteropServices.Marshal.GetLastPInvokeError() : 0;
+        ct.ThrowIfCancellationRequested();
+        if (file.IsInvalid) throw new IOException("The archive source could not be held to check its download mark.", new System.ComponentModel.Win32Exception(error));
+        var bound = ProtectedHexFile.Identity(file);
+        if (identity is not null && bound.ToString() != identity)
+            throw new IOException("The archive source changed before its download mark could be checked.");
+        ArchiveOuterEfs.RequireClear(file, ArchiveOuterEfs.PackUnavailable);
+        string? mark = ReadOriginMark(path, stream =>
+        {
+            if (ProtectedHexFile.Identity(stream) != bound)
+                throw new IOException("The download mark does not belong to the captured archive source.");
+            ArchiveOuterEfs.RequireClear(file, ArchiveOuterEfs.PackUnavailable);
+            ArchiveOuterEfs.RequireClear(stream, ArchiveOuterEfs.PackUnavailable);
+        }, ct);
+        ArchiveOuterEfs.RequireClear(file, ArchiveOuterEfs.PackUnavailable);
+        ct.ThrowIfCancellationRequested();
+        return mark;
+    }
+
+    private static string? ReadOriginMark(string path, Action<SafeFileHandle>? verify, CancellationToken ct)
     {
         FileStream stream;
         try
@@ -158,13 +186,17 @@ public partial class WindowsFileOperations : PortableFileOperations
         }
         using (stream)
         {
+            verify?.Invoke(stream.SafeFileHandle);
             if (stream.Length > MaxOriginMarkBytes)
                 throw new InvalidDataException("The file's download mark exceeds the supported 64 KiB limit.");
             var bytes = new byte[MaxOriginMarkBytes + 1];
             int read = 0;
             while (read < bytes.Length)
             {
+                ct.ThrowIfCancellationRequested();
+                verify?.Invoke(stream.SafeFileHandle);
                 int count = stream.Read(bytes, read, bytes.Length - read);
+                verify?.Invoke(stream.SafeFileHandle);
                 if (count == 0) break;
                 read += count;
             }
