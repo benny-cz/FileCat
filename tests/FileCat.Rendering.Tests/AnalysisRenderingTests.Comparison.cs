@@ -195,6 +195,12 @@ public sealed partial class AnalysisRenderingTests
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             var status = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationLabel(c) == "Comparison status");
             status.SelectedIndex = 1; Dispatcher.UIThread.RunJobs(); Assert.Equal(1, rows.ItemCount); rows.SelectedIndex = 0;
+            status.SelectedIndex = 0;
+            Click(window, "View observed growth");
+            await Until(() => rows.ItemCount == 1 && comparison.ComparisonView.Query == "change:growing AND delta>0",
+                () => ComparisonText(window), TimeSpan.FromSeconds(20));
+            Assert.Equal(AnalysisComparisonCohort.Growing, comparison.ComparisonView.Cohort);
+            rows.SelectedIndex = 0;
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Inspect comparison entry" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("No current source or content proof", StringComparison.Ordinal) == true);

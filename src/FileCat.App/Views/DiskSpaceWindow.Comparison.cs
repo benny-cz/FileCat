@@ -116,12 +116,23 @@ public sealed partial class DiskSpaceWindow
             const string queryHelp = "Use name/path/ext/type, size/allocated/delta, modified, root, state or change with AND/OR/NOT. Paths are root-relative; dates use the selected side's recorded timezone. A shared row matches when any recorded alias satisfies the complete expression; its full amount and aliases remain together. Unknown predicates appear in the uncertain cohort. Select one side when root IDs or labels differ.";
             ToolTip.SetTip(query, new RichTip("Comparison query", detail: queryHelp)); AutomationProperties.SetHelpText(query, queryHelp);
             var apply = new Button { Content = "Apply comparison query" };
-            async Task ApplyQuery()
+            var growth = CreateGrowthInsight();
+            ((Button)growth.Child!).Click += (_, _) =>
+            {
+                if (!apply.IsEnabled || !Model.ComparisonReady || !comparison.Compatibility.ComparableValues) return;
+                query.Text = GrowthRecipeQuery;
+                querySide.SelectedIndex = (int)AnalysisComparisonSide.Current;
+                _ = ApplyQuery(growthPreset: true);
+            };
+            SetGrowthInsightAvailability(growth, comparison.Compatibility, Model.ComparisonReady);
+            heading.Children.Add(growth);
+            async Task ApplyQuery(bool growthPreset = false)
             {
                 if (_disposed || !apply.IsEnabled) return;
                 using var actualWork = _actualWork.Enter();
                 _comparisonQueryCancel?.Cancel(); using var cancel = new CancellationTokenSource(); _comparisonQueryCancel = cancel;
                 int generation = ++_comparisonQueryGeneration; apply.IsEnabled = false;
+                SetGrowthInsightAvailability(growth, comparison.Compatibility, ready: false);
                 string expression = query.Text ?? ""; bool caseSensitive = sensitive.IsChecked == true; var side = (AnalysisComparisonSide)querySide.SelectedIndex;
                 queryError.Text = "Applying query to recorded observations…";
                 try
@@ -131,6 +142,11 @@ public sealed partial class DiskSpaceWindow
                     var previous = _comparisonQueryResult; _comparisonQueryResult = result;
                     Model.SetComparisonView(Model.ComparisonView with { Query = expression, CaseSensitive = caseSensitive, QuerySide = side, ShowUnknown = false });
                     unknown.IsChecked = false; unknown.IsVisible = !result.Unknown.IsEmpty;
+                    if (growthPreset)
+                    {
+                        status.SelectedIndex = (int)AnalysisComparisonCohort.Growing;
+                        sort.SelectedIndex = (int)AnalysisComparisonOrder.AbsoluteDifference;
+                    }
                     queryError.Text = query.Text == expression && (sensitive.IsChecked == true) == caseSensitive && querySide.SelectedIndex == (int)side
                         ? "Applied query: " + (string.IsNullOrWhiteSpace(expression) ? "All observations" : AnalysisNames.Display(expression, 8192))
                         : "Query controls changed during work. The previous controls were applied; choose Apply to update.";
@@ -139,7 +155,16 @@ public sealed partial class DiskSpaceWindow
                 catch (OperationCanceledException) { if (!_disposed && generation == _comparisonQueryGeneration) queryError.Text = "Query canceled. The last applied rows remain visible."; }
                 catch (Exception ex) when (ex is FormatException or OverflowException or InvalidOperationException or InvalidDataException)
                 { if (!_disposed && generation == _comparisonQueryGeneration) queryError.Text = "Filter not applied. " + AnalysisNames.Display(ex.Message, 400); }
-                finally { if (ReferenceEquals(_comparisonQueryCancel, cancel)) _comparisonQueryCancel = null; if (!_disposed) { apply.IsEnabled = true; Draft(); } }
+                finally
+                {
+                    if (ReferenceEquals(_comparisonQueryCancel, cancel)) _comparisonQueryCancel = null;
+                    if (!_disposed)
+                    {
+                        apply.IsEnabled = true;
+                        SetGrowthInsightAvailability(growth, comparison.Compatibility, Model.ComparisonReady);
+                        Draft();
+                    }
+                }
             }
             apply.Click += (_, _) => _ = ApplyQuery();
             query.KeyDown += (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; _ = ApplyQuery(); } };

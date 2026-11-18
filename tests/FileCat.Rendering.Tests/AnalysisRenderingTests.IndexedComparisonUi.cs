@@ -274,6 +274,9 @@ public sealed partial class AnalysisRenderingTests
                 await Until(() => ComparisonControl<ListBox>(window, "Captured comparison rows")?.ItemCount > 0);
                 Frame(window);
                 Assert.Contains("limited comparison", ComparisonText(window)); Assert.Contains("Observed net change: Unknown", ComparisonText(window));
+                var growth = window.GetVisualDescendants().OfType<Button>().Single(control => control.IsEffectivelyVisible && Equals(control.Content, "View observed growth"));
+                Assert.False(growth.IsEnabled);
+                Assert.Contains("compatible recorded scopes", AutomationProperties.GetHelpText(growth));
                 var metric = ComparisonControl<ComboBox>(window, "Comparison metric")!; metric.SelectedIndex = (int)AnalysisMetric.Files;
                 await Until(() => window.GetVisualDescendants().OfType<Button>().Any(control => control.IsEffectivelyVisible && Equals(control.Content, "Use limited metric")));
                 Click(window, "Keep previous metric"); await Until(() => metric.IsEnabled && metric.SelectedIndex == (int)AnalysisMetric.OnDisk);
@@ -319,5 +322,50 @@ public sealed partial class AnalysisRenderingTests
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
         Assert.Equal(source.Payload, File.ReadAllBytes(source.PayloadPath)); Assert.Empty(Directory.EnumerateFileSystemEntries(source.PrivatePath));
+    }
+
+    [AvaloniaFact]
+    public async Task NativeIndexedGrowthRecipeShowsOnlyKnownPositiveDifferencesInTheMappedScope()
+    {
+        OrdinaryPreparation();
+        using var styles = new ProductStyles();
+        using var fixture = new PreparationFixture();
+        string input = Path.Combine(fixture.Root, "growth-source");
+        Directory.CreateDirectory(input);
+        string target = Path.Combine(input, "match-target.bin");
+        string replaced = Path.Combine(input, "replaced.bin");
+        byte[] grown = [1, 2, 3, 4, 5];
+        byte[] replacement = [9, 8, 7, 6];
+        File.WriteAllBytes(target, [1, 2, 3]);
+        File.WriteAllBytes(replaced, [1]);
+        var token = TestContext.Current.CancellationToken;
+        await using var beforeOwner = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, token);
+        var before = await StartAcquiredAsync(beforeOwner, fixture, input);
+        await using var previous = await before.AcquireDatasetAsync(token) ?? throw new InvalidOperationException("The previous capture is absent.");
+        File.WriteAllBytes(target, grown);
+        File.Move(replaced, Path.Combine(fixture.Root, "retained-original.bin"));
+        File.WriteAllBytes(replaced, replacement);
+        await using var afterOwner = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, token);
+        var after = await StartAcquiredAsync(afterOwner, fixture, input);
+        await using var current = await after.AcquireDatasetAsync(token) ?? throw new InvalidOperationException("The current capture is absent.");
+        var mapping = new Dictionary<string, string> { [current.Descriptor.Roots.Single().Id] = previous.Descriptor.Roots.Single().Id };
+        var window = new DiskSpaceWindow();
+        await window.AddIndexedComparisonSessionAsync(previous, current, AnalysisMetric.FileSize, mapping, "previous.fcdsa", token);
+        window.Show();
+        Frame(window);
+        try
+        {
+            Click(window, "View observed growth");
+            var rows = ComparisonControl<ListBox>(window, "Captured comparison rows")!;
+            await Until(() => rows.IsEnabled && rows.ItemCount == 1 && ComparisonControl<TextBlock>(window, "Applied comparison view")?.Text?.Contains("change:growing AND delta>0", StringComparison.Ordinal) == true,
+                () => ComparisonText(window), TimeSpan.FromSeconds(20));
+            rows.SelectedIndex = 0;
+            await Until(() => ComparisonControl<TextBox>(window, "Current comparison details")?.Text?.Contains("match-target.bin", StringComparison.Ordinal) == true);
+            Assert.Equal(1, window.SessionCount);
+        }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
+        Assert.Equal(grown, File.ReadAllBytes(target));
+        Assert.Equal(replacement, File.ReadAllBytes(replaced));
+        Assert.Equal(new byte[] { 1 }, File.ReadAllBytes(Path.Combine(fixture.Root, "retained-original.bin")));
     }
 }

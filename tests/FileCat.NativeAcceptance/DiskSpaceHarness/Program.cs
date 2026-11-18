@@ -100,6 +100,7 @@ internal sealed partial class HarnessApp : Application
         if (Program.ReplacementUiProbe) _indexedProbeTask = ReplacementUiProbeAsync();
         if (Program.IndexedDeferredProbe) _indexedProbeTask = IndexedDeferredProbeAsync();
         if (Program.BranchRefreshProbe) _indexedProbeTask = BranchRefreshProbeAsync();
+        if (Program.GrowthRecipeProbe) _indexedProbeTask = GrowthRecipeProbeAsync();
     }
 
     private async Task ProfileProbeAsync()
@@ -139,9 +140,10 @@ internal sealed partial class HarnessApp : Application
     {
         if (_window is null || _services is null) return;
         if (!_window.CanAddSession) { _window.ExplainSessionLimit(); return; }
-        var model = new DiskSpaceViewModel(_services, indexedStorage: Program.IndexedDeferredProbe || Program.BranchRefreshProbe);
+        var model = new DiskSpaceViewModel(_services, indexedStorage: Program.IndexedDeferredProbe || Program.BranchRefreshProbe || Program.GrowthRecipeProbe);
         if (Program.IndexedDeferredProbe) { model.Query = "name:future-"; model.Chart = "Table"; }
         if (Program.BranchRefreshProbe) model.Chart = "Table";
+        if (Program.GrowthRecipeProbe) { model.Chart = "Table"; model.Metric = AnalysisMetric.FileSize; }
         _models.Add(model);
         model.Changed += () =>
         {
@@ -179,6 +181,7 @@ internal sealed partial class HarnessApp : Application
             Add("RecipeProject/obj/project.assets.json", 256);
             Add("RecipeLookalike/obj/project.assets.json", 400);
         }
+        if (Program.GrowthRecipeProbe) Add("growth-payload.log", 19);
         for (int i = 0; i < 500; i++) Add($"Small files/item-{i:D4}.txt", i % 97);
         string aliases = Path.Combine(_fixture, "Aliases"); Directory.CreateDirectory(aliases);
         string original = Path.Combine(_fixture, "large.bin"), alias = Path.Combine(aliases, "large-link.bin");
@@ -229,7 +232,8 @@ internal sealed partial class HarnessApp : Application
             indexedProbeRequested = Program.IndexedProbe, indexedProbeFinished = _indexedProbeFinished, indexedProbeError = _indexedProbeError, indexedProbe = _indexedProbe,
             indexedInventoryProbeRequested = Program.IndexedInventoryProbe, inventoryProbe = _inventoryProbe, memoryFallbackProbeRequested = Program.MemoryFallbackProbe, memoryLifecycleProbeRequested = Program.MemoryLifecycleProbe,
             memoryProbeStage = _memoryProbeStage, memoryProbeView = _memoryProbeView,
-            replacementUiProbe = _replacementUiProbe, indexedDeferredProbe = _indexedDeferredProbe, branchRefreshProbe = _branchRefreshProbe
+            replacementUiProbe = _replacementUiProbe, indexedDeferredProbe = _indexedDeferredProbe, branchRefreshProbe = _branchRefreshProbe,
+            growthRecipeProbe = _growthRecipeProbe
         };
         File.WriteAllText(Path.Combine(_run, "report.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }) + "\n");
     }
@@ -256,10 +260,11 @@ internal static class Program
     internal static bool IndexedDeferredProbe { get; private set; }
     internal static bool BranchRefreshProbe { get; private set; }
     internal static bool SavedRecipeProbe { get; private set; }
+    internal static bool GrowthRecipeProbe { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture" or "--indexed-deferred-probe" or "--branch-refresh-probe" or "--saved-recipe-probe"))) return 64;
+        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture" or "--indexed-deferred-probe" or "--branch-refresh-probe" or "--saved-recipe-probe" or "--growth-recipe-probe"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
         Compact = args.Contains("--compact", StringComparer.Ordinal);
         WindowsInput = args.Contains("--windows-input", StringComparer.Ordinal);
@@ -277,16 +282,18 @@ internal static class Program
         IndexedDeferredProbe = args.Contains("--indexed-deferred-probe", StringComparer.Ordinal);
         BranchRefreshProbe = args.Contains("--branch-refresh-probe", StringComparer.Ordinal);
         SavedRecipeProbe = args.Contains("--saved-recipe-probe", StringComparer.Ordinal);
+        GrowthRecipeProbe = args.Contains("--growth-recipe-probe", StringComparer.Ordinal);
         if (SavedRecipeProbe && !BranchRefreshProbe) return 64;
+        if (GrowthRecipeProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe)) return 64;
         if (BranchRefreshProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe || IndexedDeferredProbe)) return 64;
         if (IndexedDeferredProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe)) return 64;
         ReplacementCompositorCapture = args.Contains("--replacement-compositor-capture", StringComparer.Ordinal);
-        if (ReplacementCompositorCapture && (!(ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe) || !OperatingSystem.IsMacOS())) return 64;
+        if (ReplacementCompositorCapture && (!(ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe || GrowthRecipeProbe) || !OperatingSystem.IsMacOS())) return 64;
         if (ReplacementUiProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile)) return 64;
         if (MemoryFallbackProbe && args.Contains("--indexed-probe", StringComparer.Ordinal)) return 64;
         if (ProfileProbe && WindowsInput) return 64;
         if (IndexedProbe && (ProfileProbe || WindowsInput)) return 64;
-        if ((WindowsInput || (ProfileProbe || IndexedProbe || ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe) && OperatingSystem.IsWindows()) && !HarnessApp.WindowsInputVmAllowed()) return 77;
+        if ((WindowsInput || (ProfileProbe || IndexedProbe || ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe || GrowthRecipeProbe) && OperatingSystem.IsWindows()) && !HarnessApp.WindowsInputVmAllowed()) return 77;
         if (AnalysisAdmission.Refusal() is not null) return 77;
         foreach (var process in Process.GetProcessesByName("FileCat"))
             using (process) if (process.Id != Environment.ProcessId) return 75;

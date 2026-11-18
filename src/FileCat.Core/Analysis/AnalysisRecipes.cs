@@ -3,7 +3,7 @@ using System.Globalization;
 
 namespace FileCat.Core.Analysis;
 
-public enum AnalysisMetadataRecipe { LargestFiles, OldLargeFiles, DownloadsInstallers, GeneratedBuildOutput, ApplicationCache, CustomFilter }
+public enum AnalysisMetadataRecipe { LargestFiles, OldLargeFiles, DownloadsInstallers, GeneratedBuildOutput, ApplicationCache, CustomFilter, GrowthSinceAnalysis }
 
 public sealed record AnalysisRecipeDefinition(AnalysisMetadataRecipe Recipe, string Id, int Version, string Title,
     string Rule, string Limitations);

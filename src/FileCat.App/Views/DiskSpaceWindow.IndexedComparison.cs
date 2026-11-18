@@ -93,6 +93,7 @@ public sealed partial class DiskSpaceWindow
         private readonly CheckBox _case = new() { Content = "Case sensitive" }, _uncertain = new() { Content = "Inspect uncertain query results" };
         private readonly TextBlock _appliedDescription = Text("");
         private readonly Button _applyView, _resetView;
+        private readonly Border _growth;
         private readonly TextBlock _summary = Text(""), _compatibility = Text(""), _status = Text(""), _range = Text("");
         private readonly Button _previousPage, _nextPage, _inspect, _retry;
         private readonly ListBox _rows = new() { MinHeight = 200, MaxHeight = 440, Focusable = true };
@@ -152,6 +153,18 @@ public sealed partial class DiskSpaceWindow
                 _queryText.Text = ""; _querySide.SelectedIndex = _cohort.SelectedIndex = _order.SelectedIndex = 0; _case.IsChecked = _uncertain.IsChecked = false;
                 _ = ApplyViewAsync();
             }, "Clear the query and restore all changes in absolute-difference order.");
+            _growth = CreateGrowthInsight();
+            ((Button)_growth.Child!).Click += (_, _) =>
+            {
+                if (_disposed || _busy || _result?.Compatibility.ComparableValues != true) return;
+                _queryText.Text = GrowthRecipeQuery;
+                _querySide.SelectedIndex = (int)AnalysisComparisonSide.Current;
+                _cohort.SelectedIndex = (int)AnalysisComparisonCohort.Growing;
+                _order.SelectedIndex = (int)AnalysisComparisonOrder.AbsoluteDifference;
+                _uncertain.IsChecked = false;
+                _ = ApplyViewAsync();
+            };
+            Children.Add(_growth);
             Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { _queryText, _querySide, _cohort, _order, _case, _uncertain, _applyView, _resetView } });
             Children.Add(_appliedDescription);
             Children.Add(_summary); Children.Add(_compatibility); Children.Add(_status);
@@ -264,6 +277,7 @@ public sealed partial class DiskSpaceWindow
             bool usable = !_disposed && !_busy && !_work.HasUnconfirmedClose;
             _metric.IsEnabled = usable; _retry.IsVisible = _result is null; _retry.IsEnabled = usable;
             foreach (var control in new Control[] { _queryText, _querySide, _cohort, _order, _case, _uncertain, _applyView, _resetView }) control.IsEnabled = usable && _result is not null;
+            SetGrowthInsightAvailability(_growth, _result?.Compatibility, usable && _result is not null);
             _rows.IsEnabled = usable && _result is not null; _inspect.IsEnabled = usable && _result is not null && _rows.SelectedItem is DisplayRow;
             _previousPage.IsEnabled = usable && _result is not null && _page.Page.Offset != 0;
             _nextPage.IsEnabled = usable && _result is not null && _page.Page.HasMore;

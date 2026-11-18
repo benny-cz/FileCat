@@ -6,25 +6,34 @@ mode=parser.add_mutually_exclusive_group()
 mode.add_argument('--scope-fix',action='store_true')
 mode.add_argument('--recipe-preview',action='store_true')
 mode.add_argument('--saved-recipe',action='store_true')
+mode.add_argument('--growth-recipe',action='store_true')
 options=parser.parse_args()
 scope_fix=options.scope_fix
 saved=options.saved_recipe
 recipes=options.recipe_preview or saved
-rev='r1355'if saved else'r1351'if recipes else'r1346'if scope_fix else'r1341'
+growth=options.growth_recipe
+if growth:
+    rev,build_name,render_revision='r1359','growth-native-build-r1359.txt','r1357'
+elif saved:
+    rev,build_name,render_revision='r1355','saved-recipe-native-build-r1355.txt','r1350'
+elif recipes:
+    rev,build_name,render_revision='r1351','metadata-recipes-native-build-r1351.txt','r1350'
+elif scope_fix:
+    rev,build_name,render_revision='r1346','branch-refresh-native-final-build-r1344.txt','r1345'
+else:
+    rev,build_name,render_revision='r1341','branch-refresh-native-build-r1340.txt','r1339'
 def sha(p):
     with p.open('rb')as f:return hashlib.file_digest(f,'sha256').hexdigest()
 def fresh(p):
     assert not p.exists(),str(p)
     return p
-build_name='saved-recipe-native-build-r1355.txt'if saved else'metadata-recipes-native-build-r1351.txt'if recipes else'branch-refresh-native-final-build-r1344.txt'if scope_fix else'branch-refresh-native-build-r1340.txt'
 build=(t/build_name).read_text(encoding='utf-8-sig')
 assert all(build.count(s)==1 for s in ('Build succeeded.','    0 Warning(s)','    0 Error(s)'))
 managed=r/'tests/FileCat.NativeAcceptance/DiskSpaceHarness/bin/Debug/net10.0'
 primary=r
-render_revision='r1350'if recipes else'r1345'if scope_fix else'r1339'
 render=t/'batch-r1354-mac/render'if saved else t/f'focused-delta-mac-{render_revision}/patch'
 assert sha(managed/'FileCat.dll')==sha(render/'FileCat.dll')
-if recipes:assert sha(managed/'FileCat.Core.dll')==sha(render/'FileCat.Core.dll')
+if recipes or growth:assert sha(managed/'FileCat.Core.dll')==sha(render/'FileCat.Core.dll')
 unix=(d/'native-replacement-ui.py').read_text()
 unix=unix.replace('dsa-native-r','dsa-batch-20261107-r').replace('app.tgz','bundle.tgz')
 unix=unix.replace("['pgrep', '-f', r'^[^ ]*dotnet +.*FileCat']", "['pgrep','-x','dotnet']")
@@ -39,6 +48,13 @@ if saved:
     unix=unix.replace("assert re.fullmatch(r'replacement-(memory|indexed)-(keep|replace)-(ClassicDark|Classic|HighContrast)[.]png', frame)",
                       "assert frame == 'branch-saved-recipe.png'")
     unix=unix.replace("and probe['recipePreviewPassed']", "and probe['recipePreviewPassed'] and probe['savedRecipePassed'] and (sys.platform != 'darwin' or len(captured) == 1)")
+if growth:
+    unix=unix.replace("arguments = ['./FileCat', '--branch-refresh-probe']", "arguments = ['./FileCat', '--growth-recipe-probe']\n    if sys.platform == 'darwin':\n        arguments.append('--replacement-compositor-capture')")
+    unix=unix.replace("data.get('branchRefreshProbe')", "data.get('growthRecipeProbe')").replace("run.glob('branch-*.png')", "run.glob('growth-*.png')")
+    unix=unix.replace("assert re.fullmatch(r'replacement-(memory|indexed)-(keep|replace)-(ClassicDark|Classic|HighContrast)[.]png', frame)",
+                      "assert frame == 'growth-observed.png'")
+    unix=unix.replace("assert probe['branchRoot']=='Photos' and probe['sessions']==3 and probe['originalMarksAndBasketKept'] and probe['newFilesPreserved']",
+                      "assert probe['name']=='growth-payload.log' and probe['sessions']==4 and probe['addedBytes']==32768 and probe['sourceAndSavedInventoryPreserved'] and (sys.platform != 'darwin' or len(captured) == 1)")
 if scope_fix:
     unix=unix.replace("('DiskSpaceHarness.dll', 'DiskSpaceHarness.pdb')", "('DiskSpaceHarness.dll', 'DiskSpaceHarness.pdb', 'FileCat.dll', 'FileCat.pdb')")
 # Preserve the controller's own bounded cleanup/report collection, including failures.
@@ -53,6 +69,11 @@ if recipes:
 if saved:
     windows=windows.replace("-ArgumentList '--branch-refresh-probe'", "-ArgumentList @('--branch-refresh-probe','--saved-recipe-probe')")
     windows=windows.replace("-or!$probe.recipePreviewPassed)", "-or!$probe.recipePreviewPassed-or!$probe.savedRecipePassed)")
+if growth:
+    windows=windows.replace("'--branch-refresh-probe'", "'--growth-recipe-probe'").replace("$data.branchRefreshProbe", "$data.growthRecipeProbe")
+    windows=windows.replace("'branch-*.png'", "'growth-*.png'")
+    windows=windows.replace("if($probe.branchRoot-ne'Photos'-or$probe.sessions-ne3-or!$probe.originalMarksAndBasketKept-or!$probe.newFilesPreserved){throw 'Native branch probe evidence mismatch'}",
+                            "if($probe.name-ne'growth-payload.log'-or$probe.sessions-ne4-or$probe.addedBytes-ne32768-or!$probe.sourceAndSavedInventoryPreserved){throw 'Native growth probe evidence mismatch'}")
 proof=[]
 old_mac=None
 if scope_fix:

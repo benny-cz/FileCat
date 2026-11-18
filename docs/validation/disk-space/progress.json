@@ -15869,5 +15869,18 @@
     "publicEntryEnabled": false,
     "fullGoalComplete": false,
     "finalIndependentReviewPerformed": false
+  },
+  "observedGrowthInsight": {
+    "status": "qualified-internal-slice",
+    "packet": "source-manifest-r1365-growth.json",
+    "document": "GROWTH_INSIGHT_QUALIFICATION.md",
+    "initialFocusedCasesPassedPerPlatform": 11,
+    "correctedFixtureCasesPassedPerPlatform": 1,
+    "nativeWindowRevision": "r1364",
+    "macActualCompositorQualified": true,
+    "physicalInputQualified": false,
+    "publicEntryEnabled": false,
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }
