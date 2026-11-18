@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using FileCat.Core.Records;
 
@@ -36,6 +37,66 @@ public sealed partial class UnixFileDetailsNativeTests
         finally { Directory.Delete(root, true); }
     }
 
+    [Theory]
+    [InlineData(0, 12, FactState.Known)]
+    [InlineData(2, 24, FactState.Known)]
+    [InlineData(2, 12, FactState.Failed)]
+    [InlineData(2, 25, FactState.Failed)]
+    [InlineData(3, 24, FactState.Unsupported)]
+    public void Linux_fscrypt_policy_checks_returned_version_and_length(byte version, int length, FactState expected)
+    {
+        var reply = new byte[32];
+        BinaryPrimitives.WriteUInt64LittleEndian(reply, (ulong)length);
+        reply[8] = version;
+        reply[9] = 1;
+        reply[10] = 4;
+        reply[11] = 3;
+        var policy = UnixFileRecords.ParseLinuxFscryptPolicy(reply);
+        Assert.Equal(expected, policy.State);
+        if (expected == FactState.Known)
+            Assert.Equal(new UnixFileRecords.LinuxFscryptPolicy(version == 0 ? 1 : 2, 1, 4, 3), policy.Value);
+        else Assert.Null(policy.Value);
+    }
+
+    [Fact]
+    public void Linux_full_report_distinguishes_real_ext4_encryption_policies_without_showing_key_or_payload()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
+            "Requires a qualified Linux x64 ext4 fixture.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_FSCRYPT_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires the disposable ext4 directory with prepared v1 and v2 policies.");
+        var reader = new UnixFileRecords();
+        var ct = TestContext.Current.CancellationToken;
+        foreach (var (leaf, version, scope) in new[]
+        {
+            ("v1", "1", "Directory policy"), ("v2", "2", "Directory policy"), ("v2/covered.dat", "2", "Regular file"),
+        })
+        {
+            string path = Path.Join(root, leaf);
+            var summary = reader.ReadSummary(path, ct);
+            Assert.Equal("ext4", summary.FileSystem.Value);
+            Assert.Equal(FactState.Known, summary.FileEncryption.State);
+            Assert.True(summary.FileEncryption.Value);
+            Assert.DoesNotContain("fscrypt policy", summary.ToReport().ToText());
+            var full = reader.ReadFull(path, FileDetailsPolicy.MetadataOnly, ct);
+            Assert.Equal(summary.Identity.Value, full.Summary.Identity.Value);
+            var policy = Assert.Single(full.Technical.Sections, section => section.Title == "fscrypt policy");
+            Assert.Contains(("Status", "Policy present"), policy.Fields);
+            Assert.Contains(("Scope", scope), policy.Fields);
+            Assert.Contains(("Policy version", version), policy.Fields);
+            Assert.Contains(("Content mode", "AES-256-XTS"), policy.Fields);
+            Assert.Contains(("Filename mode", "AES-256-CTS"), policy.Fields);
+            Assert.Contains(policy.Lines, line => line.StartsWith("Key availability", StringComparison.Ordinal));
+            Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);
+            Assert.DoesNotContain("fscrypt-payload-sentinel", full.ToText());
+        }
+
+        var clear = reader.ReadFull(Path.Join(root, "plain"), FileDetailsPolicy.MetadataOnly, ct);
+        var absent = Assert.Single(clear.Technical.Sections, section => section.Title == "fscrypt policy");
+        Assert.Contains(("Status", "No policy on this object"), absent.Fields);
+        Assert.DoesNotContain(absent.Fields, field => field.Name == "Policy version");
+    }
+
     [Fact]
     public void Linux_gets_the_mount_type_of_the_held_item_through_a_parent_symlink()
     {
@@ -69,6 +130,7 @@ public sealed partial class UnixFileDetailsNativeTests
             Assert.Equal(FactState.Known, snapshot.Identity.State);
             var full = new UnixFileRecords().ReadFull(fifo, FileDetailsPolicy.MetadataOnly, TestContext.Current.CancellationToken);
             Assert.DoesNotContain(full.Technical.Sections, section => section.Title == "Main-stream extent records");
+            Assert.DoesNotContain(full.Technical.Sections, section => section.Title == "fscrypt policy");
         }
         finally { Directory.Delete(root, true); }
     }

@@ -1,0 +1,7 @@
+# EFS decryption under a second Windows account
+
+On the disposable Windows 11 x64 VM, an owner at medium integrity (RID 8192) created a plain control and an EFS-encrypted file with main and named-stream test data. A newly created standard user ran the test with its own loaded profile. The owner verified identical NTFS access rules on the two files. The standard user could read the plain control and inspect the EFS attribute. Windows denied access to the encrypted payload, and the standard user's personal store held no EFS certificate before or after the test.
+
+The standard user submitted a decryption job with the required scope and pathname acknowledgment. Windows denied the held rename/deletion guard. FileCat recorded `efs-guard-open` as a permission or policy failure and ended the job with zero changed or uncertain objects, no native decryption intent, no key prompt, and no pending review. The owner independently rechecked both exact payloads, the EFS attribute and the matching access rules after the attempt.
+
+The xUnit case passed in 1.05 seconds with no skips. Both the test account and the owner verification returned exit code zero. The controller disabled the disposable test account afterward. The XML and role logs for run `6958ee161eae4a719ca4b1760f06ec58` are in the VM fixture directory and the workspace's `.tmp` receipts. This verifies the no-key case with NTFS access granted. Windows Home, managed recovery and hardware providers remain separate qualification cases.

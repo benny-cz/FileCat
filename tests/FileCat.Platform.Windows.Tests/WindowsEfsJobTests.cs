@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
@@ -10,6 +11,49 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed class WindowsEfsJobTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public void Another_users_file_with_allowed_ntfs_access_cannot_be_decrypted_without_an_efs_key()
+    {
+        RequireEfs();
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_NO_KEY_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires the disposable two-user NTFS fixture.");
+        using var certificates = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+        certificates.Open(OpenFlags.ReadOnly);
+        AssertNoEfsCertificate();
+        string source = Path.Join(root, "other-user.bin");
+        Assert.Equal("matching plain ACL control", File.ReadAllText(Path.Join(root, "plain-control.bin")));
+        Assert.True(IsEncrypted(source));
+        Assert.Throws<UnauthorizedAccessException>(() => File.ReadAllBytes(source));
+
+        string privateRoot = Directory.CreateTempSubdirectory("filecat-efs-no-key-").FullName;
+        try
+        {
+            var manager = Manager(privateRoot, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            int keyPrompts = 0;
+            manager.DecisionRequested += pending => { keyPrompts++; pending.Resolve(new(DecisionAction.CancelJob)); };
+            var job = Run(manager, StorageAction.DecryptEfs, [ItemRef.ForFileSystemPath(source, EntryKind.File)]);
+            var result = Assert.IsType<StorageResultSnapshot>(job.StorageResult);
+            string details = string.Join(", ", result.Reasons.Select(reason => reason.Problem.Code + " " + reason.Problem.Message));
+            Assert.NotEqual(JobState.Completed, job.State);
+            Assert.Equal(0, keyPrompts);
+            Assert.Equal(0, result.Counts.Changed);
+            Assert.Equal(0, result.Counts.Uncertain);
+            Assert.False(result.ReviewPending);
+            Assert.True(result.Reasons.Any(reason => reason.Problem is { Kind: StorageReasonKind.PermissionOrPolicy, Code: "efs-guard-open" }), details);
+            Assert.Empty(Evidence(manager, job).Calls);
+            Assert.True(History(manager, job).Ended);
+            Assert.True(IsEncrypted(source));
+            Assert.Throws<UnauthorizedAccessException>(() => File.ReadAllBytes(source));
+            AssertNoEfsCertificate();
+            TestContext.Current.TestOutputHelper!.WriteLine($"{job.State}: {details}");
+        }
+        finally { Directory.Delete(privateRoot, recursive: true); }
+
+        void AssertNoEfsCertificate() => Assert.DoesNotContain(certificates.Certificates,
+            certificate => certificate.Extensions.OfType<X509EnhancedKeyUsageExtension>()
+                .Any(usage => usage.EnhancedKeyUsages.Cast<System.Security.Cryptography.Oid>().Any(oid => oid.Value == "1.3.6.1.4.1.311.10.3.4")));
+    }
 
     [Fact]
     public void Backup_review_lists_only_selected_files_and_rechecks_their_exact_identities()

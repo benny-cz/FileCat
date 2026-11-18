@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using FileCat.Core.Inspect;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Records;
 
@@ -21,15 +22,30 @@ public sealed unsafe partial class UnixFileRecords
 
     internal static ObservedFact<IReadOnlyList<LinuxMappedExtent>> ReadLinuxPinnedExtents(int pin, DetailsIdentity expected, CancellationToken ct)
     {
-        if (!IsRegularLinuxIdentity(pin, expected, ct))
-            return FiemapUnavailable(FactState.Changed, "The held regular file's identity could not be verified.");
+        var (file, state, reason) = OpenLinuxMetadataDescriptor(pin, expected, FileObjectKind.File, ct);
+        using var descriptor = file;
+        return file is null ? FiemapUnavailable(state, reason!) : ReadLinuxExtents(file, ct);
+    }
+
+    private static ObservedFact<IReadOnlyList<LinuxMappedExtent>> ReadLinuxExtents(SafeFileHandle descriptor, CancellationToken ct) =>
+        ReadFiemapPages(buffer =>
+        {
+            fixed (byte* data = buffer)
+                return Ioctl((int)descriptor.DangerousGetHandle(), 0xc020660b /* FS_IOC_FIEMAP */, data) == 0 ? 0 : Marshal.GetLastPInvokeError();
+        }, ct);
+
+    private static (SafeFileHandle? File, FactState State, string? Reason) OpenLinuxMetadataDescriptor(
+        int pin, DetailsIdentity expected, FileObjectKind kind, CancellationToken ct)
+    {
+        if (kind is not (FileObjectKind.File or FileObjectKind.Directory) || !MatchesLinuxIdentity(pin, expected, kind, ct))
+            return (null, FactState.Changed, "The held regular file or directory could not be verified.");
         ct.ThrowIfCancellationRequested();
         int proc = Open("/proc/self/fd", 0x200000 | 0x80000 /* O_PATH | O_CLOEXEC */);
         int error = proc < 0 ? Marshal.GetLastPInvokeError() : 0;
         if (proc < 0)
         {
             ct.ThrowIfCancellationRequested();
-            return FiemapUnavailable(FiemapFailure(error), $"The process descriptor directory is unavailable (errno {error}).");
+            return (null, LinuxMetadataFailure(error), $"The process descriptor directory is unavailable (errno {error}).");
         }
         try
         {
@@ -37,7 +53,7 @@ public sealed unsafe partial class UnixFileRecords
             byte* filesystem = stackalloc byte[256];
             bool procfs = DetailsFstatfs(proc, filesystem) == 0 && *(nint*)filesystem == 0x9fa0 /* PROC_SUPER_MAGIC */;
             ct.ThrowIfCancellationRequested();
-            if (!procfs) return FiemapUnavailable(FactState.Unsupported, "The process descriptor directory is unavailable on procfs.");
+            if (!procfs) return (null, FactState.Unsupported, "The process descriptor directory is unavailable on procfs.");
             // In procfs the numeric descriptor is a kernel reference to the already pinned object. Keep the pin
             // open across the reopen and never consult the original, potentially replaced pathname here.
             int file = DetailsOpenAt(proc, pin.ToString(CultureInfo.InvariantCulture), 0x80000 | 0x800 | 0x100 /* O_CLOEXEC | O_NONBLOCK | O_NOCTTY */);
@@ -45,24 +61,21 @@ public sealed unsafe partial class UnixFileRecords
             if (file < 0)
             {
                 ct.ThrowIfCancellationRequested();
-                return FiemapUnavailable(FiemapFailure(error), $"The pinned file could not be reopened for mapping (errno {error}).");
+                return (null, LinuxMetadataFailure(error), $"The pinned object could not be reopened for its metadata query (errno {error}).");
             }
+            var descriptor = new SafeFileHandle((nint)file, ownsHandle: true);
             try
             {
-                if (!IsRegularLinuxIdentity(file, expected, ct))
-                    return FiemapUnavailable(FactState.Changed, "The mapping descriptor does not identify the held regular file.");
-                return ReadFiemapPages(buffer =>
-                {
-                    fixed (byte* data = buffer)
-                        return Ioctl(file, 0xc020660b /* FS_IOC_FIEMAP */, data) == 0 ? 0 : Marshal.GetLastPInvokeError();
-                }, ct);
+                if (MatchesLinuxIdentity(file, expected, kind, ct)) return (descriptor, FactState.Known, null);
             }
-            finally { Close(file); }
+            catch { descriptor.Dispose(); throw; }
+            descriptor.Dispose();
+            return (null, FactState.Changed, "The reopened descriptor does not identify the held object.");
         }
         finally { Close(proc); }
     }
 
-    private static bool IsRegularLinuxIdentity(int fd, DetailsIdentity expected, CancellationToken ct)
+    private static bool MatchesLinuxIdentity(int fd, DetailsIdentity expected, FileObjectKind kind, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         Span<byte> bytes = stackalloc byte[256];
@@ -71,7 +84,7 @@ public sealed unsafe partial class UnixFileRecords
         fixed (byte* data = bytes) success = Statx(fd, "", 0x1000 | 0x100 | 0x800, 0x101, data) == 0;
         ct.ThrowIfCancellationRequested();
         return success && (BinaryPrimitives.ReadUInt32LittleEndian(bytes) & 0x101) == 0x101 &&
-            KindFromMode(BinaryPrimitives.ReadUInt16LittleEndian(bytes[28..])) == FileObjectKind.File && LinuxIdentity(bytes) == expected;
+            KindFromMode(BinaryPrimitives.ReadUInt16LittleEndian(bytes[28..])) == kind && LinuxIdentity(bytes) == expected;
     }
 
     internal static ObservedFact<IReadOnlyList<LinuxMappedExtent>> ReadFiemapPages(Func<byte[], int> query, CancellationToken ct)
@@ -91,7 +104,7 @@ public sealed unsafe partial class UnixFileRecords
             BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(24), FiemapRecordsPerQuery);
             int error = query(buffer);
             ct.ThrowIfCancellationRequested();
-            if (error != 0) return Result(FiemapFailure(error), $"The mapping query failed with errno {error}.");
+            if (error != 0) return Result(LinuxMetadataFailure(error), $"The mapping query failed with errno {error}.");
             uint mapped = BinaryPrimitives.ReadUInt32LittleEndian(buffer.AsSpan(20));
             if (mapped > FiemapRecordsPerQuery) return Result(FactState.Failed, "The kernel returned an invalid extent count.");
             int pageStart = extents.Count;
@@ -122,9 +135,9 @@ public sealed unsafe partial class UnixFileRecords
         return Result(FactState.Partial, $"The mapping exceeded the {FiemapQueryLimit}-query inspection limit.");
     }
 
-    private static FactState FiemapFailure(int error) => error switch
+    private static FactState LinuxMetadataFailure(int error) => error switch
     {
-        1 or 13 => FactState.Denied,
+        1 or 13 or 126 => FactState.Denied,
         25 or 38 or 95 => FactState.Unsupported,
         _ => FactState.Failed,
     };

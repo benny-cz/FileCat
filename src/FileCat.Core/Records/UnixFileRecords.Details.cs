@@ -57,8 +57,20 @@ public sealed unsafe partial class UnixFileRecords
                     ? ObservedFact<FileSystem.StoredLinkTarget>.Unavailable(FactState.Partial, FactScope.Entry, "readlinkat(O_PATH)", "Stored target unavailable or exceeds 16 KiB.")
                     : ObservedFact<FileSystem.StoredLinkTarget>.Known(new(target, "", !target.StartsWith('/')), FactScope.Entry, "readlinkat(O_PATH)") } };
             }
-            if (fullReport && report.Summary is { Kind: FileObjectKind.File, Identity: { State: FactState.Known, Value: { } identity } })
-                report = AddLinuxExtents(report, ReadLinuxPinnedExtents(fd, identity, ct));
+            if (fullReport && report.Summary is { Kind: FileObjectKind.File or FileObjectKind.Directory,
+                    Identity: { State: FactState.Known, Value: { } identity } } summary)
+            {
+                bool fscrypt = RuntimeInformation.ProcessArchitecture == Architecture.X64 && summary.FileSystem is { State: FactState.Known, Value: "ext4" };
+                if (summary.Kind == FileObjectKind.File || fscrypt)
+                {
+                    var (file, state, reason) = OpenLinuxMetadataDescriptor(fd, identity, summary.Kind, ct);
+                    using var descriptor = file;
+                    if (fscrypt)
+                        report = AddLinuxFscrypt(report, file is null ? FscryptUnavailable(state, reason!) : ReadLinuxFscrypt(file, ct));
+                    if (summary.Kind == FileObjectKind.File)
+                        report = AddLinuxExtents(report, file is null ? FiemapUnavailable(state, reason!) : ReadLinuxExtents(file, ct));
+                }
+            }
             return report;
         }
         finally { Close(fd); }
@@ -152,7 +164,7 @@ public sealed unsafe partial class UnixFileRecords
             Restrictions = ObservedFact<string>.Known($"0x{attrs & supported:X}; supported mask 0x{supported:X}", FactScope.Entry, Source),
             Notes = ["Allocation is inode-reported blocks × 512, not exclusive storage or recursive contents.",
                 $"statx field mask: 0x{mask:X}; attribute mask: 0x{supported:X}; raw attributes: 0x{attrs:X}.",
-                "Filesystem policy, fscrypt mechanism, xattrs and effective access were not queried."]
+                "Additional filesystem policies, xattrs and effective access were not queried."]
         };
         return FileDetailsReport.Metadata(snapshot, new InspectionSection("Native statx metadata", [("Returned mask", $"0x{mask:X}"), ("Attribute support mask", $"0x{supported:X}"), ("Raw attributes", $"0x{attrs:X}")]));
     }
