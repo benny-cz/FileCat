@@ -2,6 +2,7 @@ using System.Collections;
 using System.Reflection;
 using System.Text.Json;
 using FileCat.Archives;
+using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 using Microsoft.Win32.SafeHandles;
@@ -100,6 +101,15 @@ public sealed class SpoolSourceCloseFailureTests(ITestOutputHelper output)
         public IContentSource OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind)
         {
             RequireClearOutputSource(item.Parent, kind);
+            return OpenContent(item);
+        }
+
+        public IContentSource OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind, out OutputEfsObservation? provenance)
+        {
+            using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            provenance = new OutputEfsObservation();
+            provenance.ObserveOpened(handle);
+            ArchiveOuterEfs.RequireClearOutput(provenance, kind);
             return OpenContent(item);
         }
     }

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
@@ -10,7 +11,8 @@ internal sealed partial class OutputEfsObservation
 
     private const int ClearSeen = 1, EfsSeen = 2, UnknownSeen = 4;
     internal const int MaxContributors = 1024, MaxContributorBytes = 1024 * 1024;
-    private readonly record struct Contributor(FileIdentity Identity, string Revision);
+    internal readonly record struct Contributor(FileIdentity Identity, string Revision);
+    internal sealed record Receipt(State Protection, ImmutableArray<Contributor> Contributors);
     private readonly object _contributorLock = new();
     private readonly HashSet<Contributor> _contributors = [];
     private int _contributorBytes;
@@ -22,22 +24,49 @@ internal sealed partial class OutputEfsObservation
         if (!OperatingSystem.IsWindows()) return;
         int state = ReadProtection(file);
         string? revision = knownRevision ?? SourceChangeToken.FromHandle(file);
-        if (revision is null || !ReadFileId(file, 18 /* FileIdInfo */, out var info, 24) || (info.Low | info.High) == 0 ||
-            !Remember(new(info.Volume, $"{info.High:X16}{info.Low:X16}"), revision)) state |= UnknownSeen;
-        Interlocked.Or(ref _seen, state);
-    }
-
-    private bool Remember(FileIdentity identity, string revision)
-    {
-        var contribution = new Contributor(identity, revision);
+        bool identified = ReadFileId(file, 18 /* FileIdInfo */, out var info, 24) && (info.Low | info.High) != 0;
         lock (_contributorLock)
         {
-            if (_contributors.Contains(contribution)) return true;
-            long bytes = 64L + (identity.FileId.Length + (long)revision.Length) * sizeof(char);
-            if (_contributors.Count >= MaxContributors || bytes > MaxContributorBytes - _contributorBytes) return false;
-            _contributors.Add(contribution);
-            _contributorBytes += (int)bytes;
-            return true;
+            if (!identified || revision is null || !Remember(new(new(info.Volume, $"{info.High:X16}{info.Low:X16}"), revision)))
+                state |= UnknownSeen;
+            Interlocked.Or(ref _seen, state);
+        }
+    }
+
+    private bool Remember(Contributor contribution)
+    {
+        long bytes = 64L + (contribution.Identity.FileId.Length + (long)contribution.Revision.Length) * sizeof(char);
+        if (bytes > MaxContributorBytes) return false;
+        if (_contributors.Contains(contribution)) return true;
+        if (_contributors.Count >= MaxContributors || bytes > MaxContributorBytes - _contributorBytes) return false;
+        _contributors.Add(contribution);
+        _contributorBytes += (int)bytes;
+        return true;
+    }
+
+    internal void Include(Receipt receipt)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        lock (_contributorLock)
+        {
+            int state = receipt.Protection switch { State.Clear => ClearSeen, State.Encrypted => EfsSeen, _ => UnknownSeen };
+            foreach (var input in receipt.Contributors)
+            {
+                if (Remember(input)) continue;
+                state |= UnknownSeen;
+                break;
+            }
+            Interlocked.Or(ref _seen, state);
+        }
+    }
+
+    internal Receipt Freeze()
+    {
+        lock (_contributorLock)
+        {
+            var state = Status;
+            if (OperatingSystem.IsWindows() && state == State.Clear && _contributors.Count == 0) state = State.Unknown;
+            return new(state, _contributors.ToImmutableArray());
         }
     }
 

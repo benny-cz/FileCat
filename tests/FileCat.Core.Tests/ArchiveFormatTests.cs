@@ -317,6 +317,17 @@ public sealed class ArchiveFormatTests : IDisposable
             Assert.Throws<InvalidDataException>(() => archives.OpenSpool(tooDeep.Container!));
             Assert.False(Directory.Exists(Path.Combine(_dir.Path, "tmp")));
             Assert.Equal(payload, Read(registry.For(withinLimit), withinLimit, payloadName));
+            if (OperatingSystem.IsWindows())
+            {
+                var initial = new OutputEfsObservation();
+                using (var outer = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                    initial.ObserveOpened(outer);
+                using var spool = archives.OpenSpool(withinLimit.Container!);
+                var origin = Assert.IsType<OutputEfsObservation.Receipt>(spool.Origin);
+                Assert.Equal(OutputEfsObservation.State.Clear, origin.Protection);
+                Assert.Equal(ZipProvider.MaxNestingDepth, origin.Contributors.Length);
+                Assert.Contains(Assert.Single(initial.Freeze().Contributors), origin.Contributors);
+            }
         }
         finally
         {

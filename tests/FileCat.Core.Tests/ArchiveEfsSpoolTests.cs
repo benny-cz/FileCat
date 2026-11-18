@@ -32,10 +32,15 @@ public sealed class ArchiveEfsSpoolTests
         }
         Assert.Equal(OutputEfsObservation.State.Clear, protection.Status);
         ArchiveOuterEfs.RequireClearOutput(protection, ContentOutputKind.DiskCache);
-        using (var overflow = File.OpenHandle(directory.File("overflow.bin"))) protection.ObserveOpened(overflow);
-        Assert.Equal(OutputEfsObservation.State.Unknown, protection.Status);
+        var receipt = protection.Freeze();
+        Assert.Equal(OutputEfsObservation.MaxContributors, receipt.Contributors.Length);
+        var derived = new OutputEfsObservation();
+        derived.Include(receipt);
+        using (var overflow = File.OpenHandle(directory.File("overflow.bin"))) derived.ObserveOpened(overflow);
+        Assert.Equal(OutputEfsObservation.State.Unknown, derived.Status);
+        Assert.Equal(OutputEfsObservation.State.Clear, receipt.Protection);
         Assert.Equal(ArchiveOuterEfs.SpoolUnknown, Assert.Throws<ArchiveWriteException>(() =>
-            ArchiveOuterEfs.RequireClearOutput(protection, ContentOutputKind.DiskCache)).Message);
+            ArchiveOuterEfs.RequireClearOutput(derived, ContentOutputKind.DiskCache)).Message);
     }
 
     [Fact]

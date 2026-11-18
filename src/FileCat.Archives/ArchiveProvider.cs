@@ -232,7 +232,12 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
 
     IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind) => OpenContent(item, kind);
 
-    private IContentSource? OpenContent(ItemRef item, ContentOutputKind? output)
+    IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind, out OutputEfsObservation? provenance) =>
+        OpenContent(item, kind, out provenance);
+
+    private IContentSource? OpenContent(ItemRef item, ContentOutputKind? output) => OpenContent(item, output, out _);
+
+    private IContentSource? OpenContent(ItemRef item, ContentOutputKind? output, out OutputEfsObservation? provenance)
     {
         var root = item.Parent.WithPath(string.Empty);
         using var source = ArchiveFile(root);
@@ -242,6 +247,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         lock (_cacheLock)
         {
             var index = GetIndex(root, source, CancellationToken.None);
+            provenance = index.OutputProtection;
             var node = index.FindFile(item.Parent.Path, item.Name, item.Ordinal);
             if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{item.Name}\" is not in the archive.");
             if (tag.Encrypted && !index.PasswordUnlocked) return null;
@@ -437,13 +443,16 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             }
             string spoolPath = Path.Combine(_tempDirectory, $"nested-{Guid.NewGuid():N}{Path.GetExtension(name)}");
             FileStream? holder = null;
+            OutputEfsObservation? protection = null;
+            OutputEfsObservation.Receipt? origin = null;
             try
             {
                 var item = new ItemRef(folder, name, EntryKind.File);
                 var content = admittedProvider is null ? provider.OpenContent(item) :
-                    admittedProvider.OpenUnprotectedOutput(item, ContentOutputKind.DiskCache);
+                    admittedProvider.OpenUnprotectedOutput(item, ContentOutputKind.DiskCache, out protection);
                 using var source = ProgressiveContent.Sequential(content)
                     ?? throw new NotSupportedException("The inner archive is encrypted and cannot be opened here.");
+                if (admittedProvider is not null) RequireClearSpoolOrigin(protection);
                 Directory.CreateDirectory(_tempDirectory);
                 holder = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.DeleteOnClose);
                 var buffer = new byte[256 * 1024];
@@ -456,13 +465,14 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
                     holder.Write(buffer, 0, n);
                 }
                 holder.Flush();
+                if (admittedProvider is not null) origin = RequireClearSpoolOrigin(protection);
             }
             catch
             {
                 holder?.Dispose();
                 throw;
             }
-            var added = new ArchiveSpool(spoolPath, holder);
+            var added = new ArchiveSpool(spoolPath, holder, origin);
             _spools[key] = added;
             while (_spools.Count > MaxNestedSpools)
             {
@@ -477,6 +487,13 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             }
             return added.Acquire();
         }
+    }
+
+    private static OutputEfsObservation.Receipt RequireClearSpoolOrigin(OutputEfsObservation? protection)
+    {
+        var origin = protection?.Freeze() ?? throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnknown);
+        ArchiveOuterEfs.RequireClearOutput(origin.Protection, ContentOutputKind.DiskCache);
+        return origin;
     }
 
     public void Release(string archivePath)
@@ -512,6 +529,7 @@ internal sealed class ArchiveIndex : IDisposable
     private readonly IMemberReader _reader;
     private FileStream? _witness;
     private OutputEfsObservation _spoolProtection = new();
+    internal OutputEfsObservation OutputProtection => _spoolProtection;
     private string? _openedChangeToken;
     internal readonly record struct VolumeWitness(FileStream Stream, string Path, string? Token, string? Identity);
     private VolumeWitness[] _volumes = [];
@@ -625,7 +643,11 @@ internal sealed class ArchiveIndex : IDisposable
             lock (index._lock) { if (--index._leases == 0 && index._closing && index.ViewCount == 0) index.Close(); }
         }
     }
-    public void KeepSource(ArchiveSourceLease source) => _source = source.Retain();
+    public void KeepSource(ArchiveSourceLease source)
+    {
+        if (source.Origin is { } origin) _spoolProtection.Include(origin);
+        _source = source.Retain();
+    }
     private readonly long _archiveLength;
 
     public sealed record Node(string Name, bool IsDirectory, long Size, long Modified, ArchiveMemberTag? Tag);

@@ -68,6 +68,7 @@ public sealed class ImageFileSource : IBlockSource
 {
     private readonly SafeFileHandle _handle;
     private readonly OutputEfsObservation _outputProtection = new();
+    internal OutputEfsObservation OutputProtection => _outputProtection;
 
     internal string? CurrentChangeToken() => SourceChangeToken.FromHandle(_handle);
 
