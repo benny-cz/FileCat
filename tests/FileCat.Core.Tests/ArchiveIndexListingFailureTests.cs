@@ -1,6 +1,5 @@
 using System.Formats.Tar;
 using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using FileCat.Archives;
@@ -27,7 +26,7 @@ public sealed class ArchiveIndexListingFailureTests(ITestOutputHelper output)
         string root = Directory.CreateTempSubdirectory("filecat-index-listing-").FullName;
         string path = Path.Combine(root, "owned.tar");
         byte[] expected = Enumerable.Range(0, 4096).Select(n => (byte)(n * 29 + 7)).ToArray();
-        IMemberReader? inner = null; ListingReader? wrapper = null; object? index = null;
+        IMemberReader? inner = null; ListingReader? wrapper = null; ArchiveIndex? index = null;
         try
         {
             using (var file = File.Create(path))
@@ -46,25 +45,24 @@ public sealed class ArchiveIndexListingFailureTests(ITestOutputHelper output)
             using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
             Exception? first = Failure(primary, cancelled.Token), cleanup = Failure(secondary, CancellationToken.None);
             wrapper = new ListingReader(inner, first, cleanup, late);
-            Type type = typeof(ArchiveFormats).Assembly.GetType("FileCat.Archives.ArchiveIndex", throwOnError: true)!;
             Exception? error = null, closeError = null;
-            try { index = Invoke(type.GetMethod("Build", BindingFlags.Public | BindingFlags.Static)!, null, wrapper, new FileInfo(path).Length, CancellationToken.None); }
+            try { index = ArchiveIndex.Build(wrapper, new FileInfo(path).Length, CancellationToken.None); }
             catch (Exception failure) { error = failure; }
             bool shouldRetainIndex = primary == "none" || late && primary != "cancelled";
             int closesAtBuild = wrapper.CloseCalls;
             bool sourceClosedAtBuild = source.SafeFileHandle.IsClosed;
             bool originalRetained = first is null ? error is null : primary == "unexpected" && !late
                 ? error is InvalidDataException && ReferenceEquals(error.InnerException, first) : ReferenceEquals(error, first);
-            string[] warnings = index is null ? [] : ((List<string>)type.GetProperty("Warnings")!.GetValue(index)!).ToArray();
+            string[] warnings = index is null ? [] : index.Warnings.ToArray();
             byte[]? retainedBytes = null;
             if (index is not null)
             {
                 var tag = new ArchiveMemberTag("owned-member.bin", 0, 4096, -1, false, 0, null, MemberKind.File, null);
-                using var content = (IContentSource)Invoke(type.GetMethod("Extract")!, index, tag, root)!;
+                using var content = index.Extract(tag, root);
                 retainedBytes = new byte[4096]; int offset = 0;
                 while (offset < retainedBytes.Length) { int count = content.Read(offset, retainedBytes.AsSpan(offset)); if (count <= 0) break; offset += count; }
                 Assert.Equal(4096, offset);
-                try { ((IDisposable)index).Dispose(); }
+                try { index.Dispose(); }
                 catch (Exception failure) { closeError = failure; }
             }
             bool allClosed = source.SafeFileHandle.IsClosed && !source.CanRead;
@@ -102,7 +100,7 @@ public sealed class ArchiveIndexListingFailureTests(ITestOutputHelper output)
         }
         finally
         {
-            if (index is IDisposable retained) try { retained.Dispose(); } catch { }
+            if (index is not null) try { index.Dispose(); } catch { }
             if (wrapper is not null) try { wrapper.Dispose(); } catch { }
             if (inner is not null) try { inner.Dispose(); } catch { }
             Directory.Delete(root, recursive: true);
@@ -117,11 +115,6 @@ public sealed class ArchiveIndexListingFailureTests(ITestOutputHelper output)
         _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };
     private static string Hash(byte[] value) => Convert.ToHexStringLower(SHA256.HashData(value));
-    private static object? Invoke(MethodInfo method, object? target, params object?[] args)
-    {
-        try { return method.Invoke(target, args); }
-        catch (TargetInvocationException error) when (error.InnerException is not null) { ExceptionDispatchInfo.Capture(error.InnerException).Throw(); throw; }
-    }
     private static bool Exclusive(string path)
     {
         try { using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None); return true; }
