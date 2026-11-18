@@ -8,18 +8,39 @@ namespace FileCat.Platform.Windows;
 /// <summary>Bounded held-object WOF metadata. Ordinary attributes/reparse APIs may hide transparent backing.</summary>
 internal static unsafe partial class WindowsStorageBacking
 {
+    private const uint GetExternalBacking = 0x90310, GetReparsePoint = 0x900A8;
+    private const int InvalidFunction = 1, ObjectNotExternallyBacked = 342, NotAReparsePoint = 4390;
+
     internal sealed record Observation(bool? External, uint? Provider, string? Reason);
-    internal static Observation Query(SafeFileHandle file, CancellationToken ct = default)
+
+    internal static Observation Query(SafeFileHandle file, CancellationToken ct = default) => Query(file, localNtfs: false, ct);
+
+    // The caller has already bound this ordinary, no-follow object to a local NTFS volume.
+    internal static Observation QueryLocalNtfs(SafeFileHandle file, CancellationToken ct) => Query(file, localNtfs: true, ct);
+
+    private static Observation Query(SafeFileHandle file, bool localNtfs, CancellationToken ct)
     {
         byte* data = stackalloc byte[128];
-        ct.ThrowIfCancellationRequested();
-        bool success = QueryBacking(file, 0x90310 /* FSCTL_GET_EXTERNAL_BACKING, FILE_ANY_ACCESS */, null, 0, data, 128, out uint returned, 0);
-        int error = success ? 0 : Marshal.GetLastPInvokeError();
-        ct.ThrowIfCancellationRequested();
-        if (!success) return error == 342 /* ERROR_OBJECT_NOT_EXTERNALLY_BACKED */ ? new(false, null, null)
-            : new(null, null, new Win32Exception(error).Message);
+        int error = Read(file, GetExternalBacking, data, out uint returned, ct);
+        if (localNtfs && error == InvalidFunction && Read(file, GetReparsePoint, data, out _, ct) == NotAReparsePoint)
+        {
+            // Require a separate negative reparse-point result on the same handle. Check for
+            // backing again in case the volume's overlay service became available meanwhile.
+            error = Read(file, GetExternalBacking, data, out returned, ct);
+            if (error == InvalidFunction) return new(false, null, null);
+        }
+        if (error != 0) return error == ObjectNotExternallyBacked ? new(false, null, null) : new(null, null, new Win32Exception(error).Message);
         if (returned is < 8 or > 128) return new(null, null, "External-backing metadata returned an invalid length.");
         return new(true, BinaryPrimitives.ReadUInt32LittleEndian(new ReadOnlySpan<byte>(data + 4, 4)), null);
+    }
+
+    private static int Read(SafeFileHandle file, uint control, byte* data, out uint returned, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        bool success = QueryBacking(file, control, null, 0, data, 128, out returned, 0);
+        int error = success ? 0 : Marshal.GetLastPInvokeError();
+        ct.ThrowIfCancellationRequested();
+        return error;
     }
 
     [LibraryImport("kernel32.dll", EntryPoint = "DeviceIoControl", SetLastError = true)]

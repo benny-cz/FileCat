@@ -12,6 +12,76 @@ public sealed class WindowsEfsJobTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public void Efs_round_trips_on_a_prepared_64_KiB_NTFS_volume_without_compression_support()
+    {
+        RequireEfs();
+        string? canary = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_EFS_FRESH_64K_TARGET");
+        if (string.IsNullOrWhiteSpace(canary)) Assert.Skip("Set FILECAT_STORAGE_NATIVE_EFS_FRESH_64K_TARGET to a file on the newly formatted 64 KiB NTFS volume.");
+        Assert.True(File.Exists(canary));
+        string root = Directory.CreateTempSubdirectory("filecat-efs-large-cluster-").FullName;
+        string scratch = Path.Join(Path.GetDirectoryName(canary), "filecat-efs-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(scratch);
+            string target = Write(scratch, "selected.bin");
+            File.WriteAllText(target + ":fixture", "Named stream on the 64 KiB volume");
+            using (var handle = File.OpenHandle(target, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                TestContext.Current.TestOutputHelper?.WriteLine("Initial WOF observation: " + WindowsStorageBacking.Query(handle, Ct));
+            var item = ItemRef.ForFileSystemPath(target, EntryKind.File);
+            var adapter = new WindowsStorageTransforms();
+            var manager = Manager(root, adapter.CreateEfsJobCandidate((_, sid, scope, ct) =>
+            {
+                var setup = adapter.InspectEfsSetup(sid, scope, true, ct);
+                Assert.Null(setup.Problem);
+                return StorageEfsRecoveryApproval.DeclareArrangement(scope, setup,
+                    Assert.Single(setup.Association!.CurrentUserKeys).CertificateSha1, acknowledged: true);
+            }));
+
+            using (var compression = manager.PrepareStorageReview([item], StorageAction.Compress, Ct))
+                Assert.Equal("allocation-unit", Assert.Single(compression.Roots).Observation.Ineligible?.Code);
+            using (var review = manager.PrepareStorageReview([item], StorageAction.EncryptEfs, Ct))
+            {
+                var reason = Assert.Single(review.Roots).Observation.Ineligible;
+                Assert.True(reason is null, $"{reason?.Code}: {reason?.Message}");
+            }
+            var encrypted = Run(manager, StorageAction.EncryptEfs, [item]);
+            Assert.True(encrypted.State == JobState.Completed, JobIssue.Summarize(encrypted.Issues));
+            AssertCompleted(encrypted, changed: 1, already: 0);
+            Assert.True(IsEncrypted(target));
+            var decrypted = Run(manager, StorageAction.DecryptEfs, [item]);
+            Assert.True(decrypted.State == JobState.Completed, JobIssue.Summarize(decrypted.Issues));
+            AssertCompleted(decrypted, changed: 1, already: 0);
+            Assert.False(IsEncrypted(target));
+            Assert.Equal("Synthetic user content", File.ReadAllText(target));
+            Assert.Equal("Named stream on the 64 KiB volume", File.ReadAllText(target + ":fixture"));
+        }
+        finally
+        {
+            if (Directory.Exists(scratch)) Directory.Delete(scratch, recursive: true);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Efs_refuses_a_prepared_Wof_backed_file()
+    {
+        RequireEfs();
+        string? target = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_WOF_TARGET");
+        if (string.IsNullOrWhiteSpace(target)) Assert.Skip("Set FILECAT_STORAGE_NATIVE_WOF_TARGET to an owned WOF-backed file.");
+        Assert.True(File.Exists(target));
+        string root = Directory.CreateTempSubdirectory("filecat-efs-wof-").FullName;
+        try
+        {
+            using (var handle = File.OpenHandle(target, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                Assert.True(WindowsStorageBacking.Query(handle, Ct).External);
+            var manager = Manager(root, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            using var review = manager.PrepareStorageReview([ItemRef.ForFileSystemPath(target, EntryKind.File)], StorageAction.EncryptEfs, Ct);
+            Assert.Equal("external-backing", Assert.Single(review.Roots).Observation.Ineligible?.Code);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void Selected_Efs_jobs_share_one_lazy_key_choice_and_record_native_effects_on_disk()
     {
         RequireEfs();

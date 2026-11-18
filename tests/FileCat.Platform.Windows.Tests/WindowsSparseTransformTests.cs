@@ -123,6 +123,36 @@ public sealed unsafe partial class WindowsSparseTransformTests
     }
 
     [Fact]
+    public void A_fresh_local_4_KiB_NTFS_volume_supports_classic_compression()
+    {
+        RequireFixture();
+        string? canary = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_FRESH_4K_TARGET");
+        if (string.IsNullOrWhiteSpace(canary)) Assert.Skip("Set FILECAT_STORAGE_NATIVE_FRESH_4K_TARGET to a file on the newly formatted 4 KiB NTFS volume.");
+        Assert.True(File.Exists(canary));
+        string evidenceRoot = Directory.CreateTempSubdirectory("filecat-compression-fresh-volume-").FullName;
+        string scratch = Path.Join(Path.GetDirectoryName(canary), "filecat-compress-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(scratch);
+            string path = Path.Join(scratch, "selected.bin");
+            File.WriteAllText(path, new string('t', 128 * 1024));
+            using (var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                TestContext.Current.TestOutputHelper?.WriteLine("Initial WOF observation: " + WindowsStorageBacking.Query(handle, TestContext.Current.CancellationToken));
+            var jobs = CreateManager(path, evidenceRoot);
+            RunJob(jobs, path, StorageAction.Compress, changed: true);
+            Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.Compressed));
+            RunJob(jobs, path, StorageAction.RemoveCompression, changed: true);
+            Assert.False(File.GetAttributes(path).HasFlag(FileAttributes.Compressed));
+            Assert.Equal(new string('t', 128 * 1024), File.ReadAllText(path));
+        }
+        finally
+        {
+            if (Directory.Exists(scratch)) Directory.Delete(scratch, recursive: true);
+            Directory.Delete(evidenceRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Reviewed_removal_keeps_sparse_ranges_above_the_compression_enable_ceiling()
     {
         RequireFixture();
@@ -309,9 +339,9 @@ public sealed unsafe partial class WindowsSparseTransformTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    private static JobManager CreateManager(string path) =>
+    private static JobManager CreateManager(string path, string? evidenceRoot = null) =>
         new(new PortableFileOperations(), new ProviderRegistry(), Directory.CreateDirectory(
-            Path.Join(Path.GetDirectoryName(path)!, "journal")).FullName, ArchiveJobBackends.Empty,
+            Path.Join(evidenceRoot ?? Path.GetDirectoryName(path)!, "journal")).FullName, ArchiveJobBackends.Empty,
             new WindowsStorageTransforms(), WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend);
 
     private static Job Submit(JobManager jobs, string path, StorageAction action)

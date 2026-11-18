@@ -144,9 +144,10 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 foreach (var node in Owner._path.Nodes) Validate(node.Handle.File, node.Facts, ct);
                 foreach (var parent in Parents()) { parent.Check(); Validate(parent._handle.File, parent._original, ct); }
             }
-            private void Validate(SafeFileHandle handle, NodeFacts expected, CancellationToken ct)
+            private static void Validate(SafeFileHandle handle, NodeFacts expected, CancellationToken ct)
             {
-                var current = Facts(handle, Owner._path.Volume.Binding, ct);
+                string volume = expected.Identity.VolumeBinding ?? throw Changed("volume-binding", "The held ancestor has no captured volume binding.");
+                var current = Facts(handle, volume, ct);
                 if (current.Identity != expected.Identity || current.CaseFlags != expected.CaseFlags || current.DeletePending ||
                     (current.Attributes & (uint)FileAttributes.ReparsePoint) != 0 || ManagedAttributes(current.Attributes))
                     throw Changed("ancestor-changed", "A held storage ancestor changed; its remaining subtree is not processed.");
