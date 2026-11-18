@@ -190,6 +190,8 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => VisibleButton("Close") is null);
             string photo = AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "photo.png").Id);
             var warmShell = await CheckPanelRevealAsync(window, model, packageScope, photo);
+            var chartFrames = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_CHART_FRAMES") == "1"
+                ? await MeasureChartFramesAsync(_indexedLifetime.Token) : null;
             _indexedProbe = new { kind = "folder-exclusions", skipped, observed = snapshot.Nodes.Length, setupButtonVisible = true,
                 sourceCloseFailures = model.SourceCloseFailures, coverage = snapshot.Coverage.ToString(), selectedTemporaryAnalysis = true,
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
@@ -197,7 +199,7 @@ internal sealed partial class HarnessApp
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
                 readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
                 standardIndexChoice = true, scratchThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true,
-                packageTier = Program.PackageTier, packageFastNtfsReason, warmShell, firstResultMilliseconds };
+                packageTier = Program.PackageTier, packageFastNtfsReason, warmShell, firstResultMilliseconds, chartFrames };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
 
