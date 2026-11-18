@@ -718,8 +718,12 @@ public sealed record InterruptedJob(string JournalPath, string Kind, string Titl
     public string? TransferIntentProblem { get; init; }
 
     public bool IsReviewedAnalysisCopy => Kind == nameof(JobKind.ReviewedAnalysisCopy);
+    public IReadOnlyList<ReviewedAnalysisCopyReceipt> ReviewedCopyReceipts { get; init; } = [];
     public bool CanContinueTransfer => !IsStorageTransform && !IsReviewedAnalysisCopy && SourcesKnown && TransferIntent is { } intent && intent.Matches(this);
 }
+
+/// <summary>Historical evidence. A copy intent with no outcome does not establish publication.</summary>
+public sealed record ReviewedAnalysisCopyReceipt(int Step, string Source, string Destination, StepOutcome? Outcome);
 
 public sealed record FillDirectory(string Source, string Destination);
 
@@ -785,6 +789,7 @@ public static partial class JournalRecovery
             bool ended = false;
             int completed = 0;
             var open = new Dictionary<int, PendingIntent>();
+            Dictionary<int, ReviewedAnalysisCopyReceipt>? reviewedCopies = null;
             var directories = new HashSet<string>(StringComparer.Ordinal);
             var fills = new List<FillDirectory>();
             bool fillsCut = false;
@@ -799,21 +804,38 @@ public static partial class JournalRecovery
                     archiveTransactions.Read(record.Type, record.Node);
                     switch (record.Type)
                     {
-                        case "begin": begin ??= record; break;
+                        case "begin" when begin is null:
+                            begin = record;
+                            if (record.Get("kind") == nameof(JobKind.ReviewedAnalysisCopy)) reviewedCopies = [];
+                            break;
                         case "end": ended = true; break;
                         case "intent":
                             if (record.Step > 0)
-                                open[record.Step] = new PendingIntent(record.Step, record.Get("op") ?? "",
-                                    record.Get("path") ?? "", record.Get("target"), record.Get("staged")) { Via = record.Get("via") };
+                            {
+                                var intent = new PendingIntent(record.Step, record.Get("op") ?? "", record.Get("path") ?? "",
+                                    record.Get("target"), record.Get("staged")) { Via = record.Get("via") };
+                                open[record.Step] = intent;
+                                if (reviewedCopies is { Count: < ReviewedAnalysisCopyOperation.MaximumEntries } &&
+                                    intent.Operation == JobJournal.ReviewedAnalysisCopyOp && intent.Target is { Length: > 0 } target)
+                                    reviewedCopies.TryAdd(intent.Step, new(intent.Step, intent.Path, target, null));
+                            }
                             break;
                         case "replacement-recovery":
                             if (record.Step > 0 && open.TryGetValue(record.Step, out var replacing))
                                 open[record.Step] = replacing with { RecoveryPath = record.Get("path") };
                             break;
                         case "done":
-                            if (record.Step > 0 && !(open.TryGetValue(record.Step, out var operation) &&
-                                operation.Operation == JobJournal.ReviewedAnalysisCopyOp && record.Get("outcome") == nameof(StepOutcome.Uncertain)))
-                            { open.Remove(record.Step); completed++; }
+                            if (record.Step <= 0) break;
+                            if (reviewedCopies?.TryGetValue(record.Step, out var receipt) == true)
+                            {
+                                string? resultName = record.Get("outcome");
+                                if (!Enum.TryParse<StepOutcome>(resultName, out var outcome) || resultName != outcome.ToString() ||
+                                    receipt.Outcome is not null) break;
+                                reviewedCopies[record.Step] = receipt with { Outcome = outcome };
+                                if (outcome is StepOutcome.Uncertain or StepOutcome.PartiallyApplied) break;
+                            }
+                            open.Remove(record.Step);
+                            completed++;
                             break;
                         case "stagedir":
                             if (record.Get("path") is { Length: > 0 } path) directories.Add(path);
@@ -864,6 +886,7 @@ public static partial class JournalRecovery
                 TransferIntent = transferIntent,
                 TransferIntentProblem = transferIntentProblem,
                 ArchiveTransactions = archiveRecovery,
+                ReviewedCopyReceipts = reviewedCopies?.Values.OrderBy(receipt => receipt.Step).ToArray() ?? [],
             };
             if (transferIntent is not null && !transferIntent.Matches(interrupted))
                 interrupted = interrupted with { TransferIntent = null, TransferIntentProblem = "The original source or destination mapping is inconsistent. Review a new transfer to choose the scope again." };

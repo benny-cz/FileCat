@@ -67,10 +67,10 @@ if options.duplicates or options.duplicate_content or options.recorded_insights 
         expected = 54
         name = f"apfs-forks-render-build-{revision}"
     if options.cleanup_review:
-        methods.extend(("*NativeCleanupReview*", "*NativePrimaryPreview*", "*NativeReviewedCopy*", "*CleanupReviewTotalsSeparateBasisCoverageAndOverlappingComponents*",
-                        "*ReviewCancelBindingRoutesFromOverlayAndEnterOnAFileOpensDetails*",
+        methods.extend(("*NativeCleanupReview*", "*NativePrimaryPreview*", "*NativeReviewedCopy*", "*NativeReviewedMove*", "*CleanupReviewTotalsSeparateBasisCoverageAndOverlappingComponents*",
+                        "*ReviewedCopyRecoveryReportsExactEffectsAndKeepsFiles*", "*ReviewCancelBindingRoutesFromOverlayAndEnterOnAFileOpensDetails*",
                         "*ShortLargeTextPageScrollsAndTheRankedTableRemainsVirtualized*"))
-        expected = 64
+        expected = 66
         name = f"cleanup-review-render-build-{revision}"
     log = (Path.cwd() / f".tmp/{name}.txt").read_text(encoding="utf-8-sig")
     assert all(check in log for check in ("Build succeeded.", "0 Warning(s)", "0 Error(s)"))

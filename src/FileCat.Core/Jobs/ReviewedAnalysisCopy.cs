@@ -128,6 +128,12 @@ internal sealed class ReviewedAnalysisCopyExecutor(Job job, JobJournal journal, 
                 Issue(StepOutcome.Failed, IssueSeverity.Error, AnalysisNames.Display(error.Message, 320));
                 continue;
             }
+            catch
+            {
+                // Native work was called and its outcome is unknown. Retain the durable intent for inspection.
+                journal.RequireRecovery();
+                throw;
+            }
             Complete(step, StepOutcome.Committed);
             job.AddBytes(entry.Bytes);
             job.ItemDone();

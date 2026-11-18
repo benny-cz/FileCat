@@ -10,7 +10,7 @@ public sealed class AnalysisCapabilities
     {
         AnalysisVerb.Preview => "Current content preview is unavailable for this source. It requires a qualified live file binding.",
         AnalysisVerb.Copy => "Reviewed copy requires a verified source and a destination that supports publishing a new file safely.",
-        AnalysisVerb.Move => "Reviewed move requires a verified destination and a way to remove the exact source after publication is confirmed.",
+        AnalysisVerb.Move => "Reviewed move is unavailable for this source. FileCat must verify the full approved file version through removal of the source name.",
         AnalysisVerb.Replace => "Reviewed replacement requires an adapter that can verify the expected destination at commit. Keep the existing file.",
         AnalysisVerb.Recycle => "Reviewed recycling is unavailable here. This analyzer cannot verify recycling and restoration for the exact selected entry.",
         AnalysisVerb.PermanentDelete => "Reviewed permanent deletion is unavailable here. This analyzer cannot verify the exact entry and its expected version at removal.",

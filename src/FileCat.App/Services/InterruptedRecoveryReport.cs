@@ -124,7 +124,21 @@ internal static class InterruptedRecoveryReport
         Line("Destination: " + (job.Destination is null ? "not recorded" : JsonSerializer.Serialize(job.Destination)));
         Line($"Completed journal steps: {Count(job.CompletedSteps)}; open intents: {Count(job.OpenIntents.Count)}");
         if (job.IsReviewedAnalysisCopy)
+        {
             Line("Inspect the recorded destination to confirm publication. Copy approval ended with the original process. A new copy requires a fresh analysis review.");
+            foreach (var receipt in job.ReviewedCopyReceipts)
+            {
+                string outcome = receipt.Outcome switch
+                {
+                    StepOutcome.Committed => "Copy committed",
+                    StepOutcome.Skipped => "Copy skipped",
+                    StepOutcome.Failed => "Copy failed",
+                    StepOutcome.CanceledBeforeChange => "Canceled before publication",
+                    _ => "Publication unconfirmed",
+                };
+                Detail(outcome, receipt.Source, receipt.Destination);
+            }
+        }
         Line($"Recorded source roots: {Count(sources.Count)} retained in this report of " +
              (job.SourceCount >= 0 ? Count(job.SourceCount) + " declared" : "an unknown declared total") + "; " +
              (job.SourceCount == sources.Count ? "all declared roots are represented" : "additional roots may be unavailable"));
@@ -236,6 +250,7 @@ internal static class InterruptedRecoveryReport
         foreach (string path in copies.Differing) Detail("Differing copy kept; compare with its source", path);
         foreach (var intent in job.OpenIntents)
         {
+            if (job.IsReviewedAnalysisCopy && job.ReviewedCopyReceipts.Any(receipt => receipt.Step == intent.Step)) continue;
             Detail($"Open step {Count(intent.Step)} ({intent.Operation}) source", intent.Path, intent.Target);
             if (intent.Staged is { } staged) Detail("  staged path", staged);
             if (intent.Via is { } via) Detail("  temporary rename path", via);
