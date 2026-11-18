@@ -20,6 +20,7 @@ public sealed partial class DiskSpaceViewModel
     public string? HistoryNotice { get; internal set; }
     internal AppServices? HistoryServices => _services;
     internal CancellationToken HistoryLifetime => _selectionLifetime.Token;
+    internal long? ScratchReservedBytes => _session?.ScratchReservedBytes;
 
     internal static DiskSpaceViewModel ForCurrentSource(AppServices services, AnalysisKind kind) => new(services, path =>
     {

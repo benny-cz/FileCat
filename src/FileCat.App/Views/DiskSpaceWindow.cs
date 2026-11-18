@@ -245,6 +245,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly ScrollViewer _toolbarViewport;
         private readonly StackPanel _viewSummary;
         private readonly Button _copyDetails;
+        private readonly Button _resultResourceLimits;
         private readonly StackPanel _roots = new() { Spacing = 5 };
         private readonly List<TextBox> _rootEditors = [];
         private readonly List<Control> _dataControls = [];
@@ -317,7 +318,9 @@ public sealed partial class DiskSpaceWindow : Window
             _components.SelectionChanged += (_, _) => Model.Components = (AnalysisComponentPreset)Math.Clamp(_components.SelectedIndex, 0, 1);
             AutomationProperties.SetName(_components, "Allocation components");
             ToolTip.SetTip(_components, new RichTip("Allocation components", detail: "Standard records reported file allocation. Detailed also records supported directory self-allocation. " + AnalysisComponents.UnmeasuredExplanation));
-            _setup.Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _components, ResourceLimitsButton() } });
+            var scratchDirectory = Model.HistoryServices?.Paths.AnalysisScratchDirectory;
+            var setupLimits = window.ResourceLimitsButton(scratchDirectory, () => Model.ScratchReservedBytes);
+            _setup.Children.Add(new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _components, setupLimits } });
             _setup.Children.Add(new TextBlock { Text = "Scans stay within each filesystem and record links as boundaries. Cloud files use local metadata.", TextWrapping = TextWrapping.Wrap });
             AddFolderExclusionSetup();
             if (Model.OfferedPanelFilter is not null)
@@ -374,6 +377,8 @@ public sealed partial class DiskSpaceWindow : Window
             nav.Children.Add(_openComparison);
             _compare = ActionButton("Compare…", () => _ = CompareAsync(), "Compare the entire captured revision with a saved inventory. Opening and comparison remain offline.");
             nav.Children.Add(_compare);
+            _resultResourceLimits = window.ResourceLimitsButton(scratchDirectory, () => Model.ScratchReservedBytes);
+            nav.Children.Add(_resultResourceLimits);
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _query, _case } };
             filters.Children.Add(_rootFilter); filters.Children.Add(_unknown);
             filters.Children.Add(ActionButton("Clear filter", () =>
@@ -664,6 +669,7 @@ public sealed partial class DiskSpaceWindow : Window
             {
                 bool configuring = Model.Phase == AnalysisPhase.Ready, setupOnly = configuring && Model.Tree is null;
                 _setupViewport.IsVisible = configuring; _setupViewport.MaxHeight = setupOnly ? double.PositiveInfinity : 250;
+                _resultResourceLimits.IsVisible = !configuring;
                 _setupViewport.MinHeight = setupOnly ? 80 : 0;
                 _roots.IsEnabled = !Model.IsPreparing; _start.IsEnabled = !Model.IsPreparing; _start.IsVisible = configuring;
                 _folderExclusionSetup.IsEnabled = !Model.IsPreparing;

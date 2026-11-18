@@ -161,6 +161,7 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
     private readonly AnalysisGraphConsumers _consumers = new();
     private bool _disposed;
     internal AnalysisIndexedGraphHeader Header { get; private set; }
+    internal AnalysisScratchBudget ScratchReservations => _workspace.ReservationBudget;
     internal ulong Count(int table) { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); return _data.Count(table); } }
     private AnalysisIndexedGraphRevision(AnalysisIndexedGraphHeader header, AnalysisScratchCompositeRevision data, AnalysisSortedIndex[] indexes, AnalysisScratchWorkspace workspace)
     { Header = header; _data = data; _indexes = indexes; _workspace = workspace; }
@@ -258,6 +259,7 @@ internal sealed class AnalysisIndexedGraphReader : IAnalysisScratchOwned
     private sealed record CohortObject(ulong Row, AnalysisObject Object);
     private CohortObject? _cohortObject;
     internal AnalysisIndexedGraphHeader Header { get; }
+    internal AnalysisScratchBudget ScratchReservations => _workspace.ReservationBudget;
     private AnalysisIndexedGraphReader(AnalysisIndexedGraphHeader header, AnalysisGraphConsumers.Ticket consumer,
         AnalysisScratchCompositeRevision data, AnalysisSortedIndexReader[] indexes, AnalysisScratchWorkspace workspace)
     { Header = header; _consumer = consumer; _data = data; _indexes = indexes; _workspace = workspace; }

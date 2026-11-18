@@ -44,6 +44,11 @@
     "desktop": { "run": "r1479", "windowsVm": "passed", "mac": { "run": "r1488", "functional": "passed", "compositorRetinaOverlay": "passed" }, "ubuntuVm": "passed" },
     "coverage": "Readable compact headings, exclusion reasons before the location, resource limits dialog, exact captured Windows and Unix clipboard root paths."
   },
+  "scratchResourceDetails": {
+    "tests": { "windowsVm": "r1539 22/22", "mac": "r1536 22/22", "ubuntuVm": "r1536 22/22" },
+    "desktop": { "run": "r1537", "windowsVm": "passed", "mac": "passed with Retina compositor capture", "ubuntuVm": "passed" },
+    "coverage": "Resource limits shows the configured path and the captured index's current reservation at open, including derived indexes. A bounded-memory view explains that it has no index reservation. The compact desktop cases leave the source unchanged and close their owned processes."
+  },
   "packageFolderPresentation": {
     "tests": { "run": "r1482", "windowsVm": 109, "mac": 109, "ubuntuVm": 109 },
     "desktop": { "run": "r1483", "windowsVm": "passed", "mac": { "functional": "passed", "compositorRun": "r1488" }, "ubuntuVm": "passed" },
@@ -111,6 +116,11 @@
       "tests": { "ubuntuVm": "r1524 16/16", "windowsVm": "r1526 16/16", "mac": "r1524 16/16" },
       "desktop": { "ubuntuVm": "r1525 passed", "windowsVm": "r1527 passed", "mac": "r1525 passed" },
       "coverage": "A selected live file inside a verified observed folder is matched by raw name, object identity and creation time and focused in the read-only result. Individually selected file roots require an analysis of the containing folder."
+    },
+    "boundedDeviceTurns": {
+      "tests": { "run": "r1531", "windowsVm": 20, "mac": 20, "ubuntuVm": 20 },
+      "desktop": { "run": "r1532", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
+      "coverage": "A verified folder yields between bounded batches and publishes no partial workspace listing. Oversized folder refusal, exact-file focus and read-only result closure passed."
     }
   },
   "readOnlyResultSetHandoff": {

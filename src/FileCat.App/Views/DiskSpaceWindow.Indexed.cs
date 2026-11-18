@@ -258,6 +258,7 @@ public sealed partial class DiskSpaceWindow
             var navigation = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             navigation.Children.Add(ActionButton("Copy summary", () => _ = CopyCapturedTextAsync($"{_summary.Text}\n{_status.Text}"),
                 "Copy the displayed totals and coverage as text."));
+            navigation.Children.Add(window.ResourceLimitsButton(services?.Paths.AnalysisScratchDirectory, () => _source.ScratchReservedBytes));
             AddIndexedPersistenceControls(navigation);
             AddRuntimeRescanControls(navigation);
             AddRecipeControls(navigation);

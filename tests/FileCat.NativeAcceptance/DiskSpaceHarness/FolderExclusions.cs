@@ -171,7 +171,7 @@ internal sealed partial class HarnessApp
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
-                readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true };
+                readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }
@@ -252,10 +252,34 @@ internal sealed partial class HarnessApp
             if (session.Snapshot().Phase != AnalysisPhase.Finished || session.SourceCloseFailures != 0)
                 throw new IOException("The native clipboard fixture did not finish its indexed scan.");
             await using var lease = await session.AcquireDatasetAsync(cancellation) ?? throw new IOException("Missing indexed clipboard fixture.");
-            var explorer = await window.AddIndexedSessionAsync(lease, AnalysisMetric.Files, cancellation: cancellation);
+            var explorer = await window.AddIndexedSessionAsync(lease, AnalysisMetric.Files, cancellation: cancellation, services: services);
             ListBox? IndexedList() => window.GetVisualDescendants().OfType<ListBox>().SingleOrDefault(control =>
                 control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Indexed analysis entries");
-            await ReadyAsync(() => IndexedList() is { ItemCount: 1 });
+            Button? VisibleButton(string label) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+                button.IsEffectivelyVisible && button.Content as string == label);
+            await ReadyAsync(() => IndexedList() is { ItemCount: 1 } && VisibleButton("Resource limits…") is { IsEnabled: true });
+            var limits = VisibleButton("Resource limits…")!;
+            limits.BringIntoView();
+            await ReadyAsync(() => limits.TranslatePoint(default, window) is { } top && top.Y >= 0 &&
+                top.Y + limits.Bounds.Height <= window.ClientSize.Height + 1);
+            long reserved = lease.ScratchReservedBytes;
+            if (reserved <= 0) throw new InvalidOperationException("The native recorded index held no scratch reservation.");
+            limits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await ReadyAsync(() => VisibleButton("Close limits") is { IsDefault: true, IsCancel: true });
+            var rows = window.GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible).ToArray();
+            var rules = OperatingSystem.IsWindows() ? AnalysisNameRules.Windows : AnalysisNameRules.Unix;
+            var reservation = rows.SingleOrDefault(text => text.Text == $"{DiskSpaceViewModel.Bytes((UInt128)reserved)} for this index and its derived data.");
+            if (!rows.Any(text => text.Text == AnalysisNames.DisplayPath(services.Paths.AnalysisScratchDirectory, rules)) || reservation is null)
+                throw new InvalidOperationException("The limits overlay did not show the recorded index's scratch location and actual reservation.");
+            if (VisibleButton("Close limits") is not { } closeLimits || closeLimits.TranslatePoint(default, window) is not { } closeTop ||
+                closeTop.Y < 0 || closeTop.Y + closeLimits.Bounds.Height > window.ClientSize.Height)
+                throw new InvalidOperationException("The recorded resource limits close button was clipped.");
+            if (reservation.TranslatePoint(default, window) is not { } reservationTop || reservationTop.Y < 0 ||
+                reservationTop.Y + reservation.Bounds.Height >= closeTop.Y)
+                throw new InvalidOperationException("The scratch reservation is below the limits viewport.");
+            await RecipeFrameAsync("folder-exclusions-scratch.png", true, cancellation);
+            closeLimits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await ReadyAsync(() => VisibleButton("Close limits") is null);
             var list = IndexedList()!;
             var root = list.Items.OfType<AnalysisHierarchyRow>().Single();
             list.SelectedItem = root;

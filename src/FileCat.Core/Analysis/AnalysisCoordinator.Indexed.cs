@@ -44,6 +44,8 @@ public sealed partial class AnalysisSession
     public Task DatasetCloseCompletion { get { lock (_sync) return _datasetClose; } }
     public AnalysisDatasetDescriptor? DatasetDescriptor { get { lock (_sync) return _dataset?.Descriptor; } }
     public bool UsesMemoryFallback { get { lock (_sync) return _memoryFallback; } }
+    /// <summary>Current scratch reservations, or null while the session has no private index.</summary>
+    public long? ScratchReservedBytes { get { lock (_sync) return _writer?.ScratchReservations.ReservedBytes ?? _dataset?.ScratchReservedBytes; } }
     public Task<AnalysisDatasetLease?> AcquireDatasetAsync(CancellationToken cancellation = default)
     {
         lock (_sync)

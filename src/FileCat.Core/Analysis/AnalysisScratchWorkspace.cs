@@ -23,6 +23,7 @@ internal sealed class AnalysisScratchWorkspace : IAnalysisScratchOwned
         catch { retained?.Dispose(); throw; }
     }
     internal long ReservedBytes => _budget.ReservedBytes;
+    internal AnalysisScratchBudget ReservationBudget => _budget;
     private AnalysisScratchWorkspace(AnalysisSharedPrivateDirectory directory, AnalysisScratchBudget budget)
     { _directory = directory; _budget = budget; }
     internal AnalysisScratchWorkspace Borrow()

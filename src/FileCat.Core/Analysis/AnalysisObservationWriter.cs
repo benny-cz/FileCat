@@ -15,8 +15,12 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
     private readonly DeviceIoScheduler _io; private readonly AnalysisIoDevices _device;
     private readonly AnalysisTaint _taint;
     private AnalysisObservationCapture? _stopTarget;
+    internal AnalysisScratchBudget ScratchReservations { get; }
     private AnalysisObservationWriter(Owner owner, DeviceIoScheduler io, AnalysisIoDevices device, AnalysisTaint taint)
-    { _io = io; _device = device; _taint = taint; _owned = new(owner, io, device); _stopTarget = owner.Capture; }
+    {
+        _io = io; _device = device; _taint = taint; _owned = new(owner, io, device); _stopTarget = owner.Capture;
+        ScratchReservations = owner.Workspace.ReservationBudget;
+    }
     public void RequestStop() => Volatile.Read(ref _stopTarget)?.RequestStop();
     internal void RequestStop(string? issueCode) => Volatile.Read(ref _stopTarget)?.RequestStop(issueCode);
     internal Task PublishEnumerationAsync(AnalysisEnumerationProgress progress, CancellationToken cancellation) =>

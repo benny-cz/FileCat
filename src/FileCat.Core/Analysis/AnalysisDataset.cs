@@ -36,7 +36,9 @@ public sealed class AnalysisDataset : IAsyncDisposable
 {
     private readonly AnalysisOwnedDatasetIo<AnalysisIndexedGraphRevision> _owned;
     private readonly DeviceIoScheduler _io; private readonly AnalysisIoDevices _device;
+    private readonly AnalysisScratchBudget _scratchReservations;
     public AnalysisDatasetDescriptor Descriptor { get; }
+    internal long ScratchReservedBytes => _scratchReservations.ReservedBytes;
     internal AnalysisDataset(AnalysisIndexedGraphRevision revision, DeviceIoScheduler io, AnalysisIoDevices device)
     {
         ArgumentNullException.ThrowIfNull(revision); ArgumentNullException.ThrowIfNull(io);
@@ -45,7 +47,7 @@ public sealed class AnalysisDataset : IAsyncDisposable
         Descriptor = new(h.Identity, h.Roots, h.Policy, h.Phase, h.Coverage, h.Freshness, h.Origin, h.Taint, h.Persistence,
             revision.Count(AnalysisIndexedGraph.Paths), revision.Count(AnalysisIndexedGraph.Objects), revision.Count(AnalysisIndexedGraph.Facts), revision.Count(AnalysisIndexedGraph.Issues), h.IssueTotals, h.BoundaryTotals,
             h.CoverageDetails ?? throw new InvalidDataException("Indexed coverage was not validated."));
-        _owned = new(revision, io, device);
+        _owned = new(revision, io, device); _scratchReservations = revision.ScratchReservations;
     }
     public Task<AnalysisDatasetLease> AcquireAsync(CancellationToken cancellation = default) =>
         _owned.RunAsync((revision, _) => new AnalysisDatasetLease(revision.Acquire(), Descriptor, _io, _device), cancellation);
@@ -57,9 +59,15 @@ public sealed partial class AnalysisDatasetLease : IAsyncDisposable
 {
     private readonly AnalysisOwnedDatasetIo<AnalysisIndexedGraphReader> _owned;
     private readonly DeviceIoScheduler _io; private readonly AnalysisIoDevices _device;
+    private readonly AnalysisScratchBudget _scratchReservations;
     public AnalysisDatasetDescriptor Descriptor { get; }
+    /// <summary>Current scratch reservations shared by this captured dataset and its derived indexes.</summary>
+    public long ScratchReservedBytes => _scratchReservations.ReservedBytes;
     internal AnalysisDatasetLease(AnalysisIndexedGraphReader reader, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, AnalysisIoDevices device)
-    { Descriptor = descriptor; _io = io; _device = device; _owned = new(reader, io, device); }
+    {
+        Descriptor = descriptor; _io = io; _device = device; _owned = new(reader, io, device);
+        _scratchReservations = reader.ScratchReservations;
+    }
     public Task<AnalysisDatasetLease> RetainAsync(CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, _) => new AnalysisDatasetLease(reader.Retain(), Descriptor, _io, _device), cancellation);
     public Task<AnalysisDatasetPage<AnalysisPathMetadata>> ReadPathsAsync(ulong offset, int maximum = 256, CancellationToken cancellation = default) =>
