@@ -151,7 +151,7 @@ internal static partial class Program
         int Declined(string nonce)
         {
             Report(exchange, new ElevationResult { Nonce = nonce, Refused = ElevationMessages.Declined });
-            return 1;
+            return ElevationBroker.ConsentDeclinedExitCode;
         }
 
         bool MetadataConsentIsCurrent()

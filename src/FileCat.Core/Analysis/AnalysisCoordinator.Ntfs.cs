@@ -1,6 +1,6 @@
 namespace FileCat.Core.Analysis;
 
-internal enum AnalysisNtfsOutcome { Finished, Partial, Canceled }
+internal enum AnalysisNtfsOutcome { Finished, Partial, Canceled, AuthorizationDeclined }
 
 internal sealed record AnalysisNtfsControl(Func<bool> PauseRequested, Action<bool> ReportPaused, Action<uint> ReportProgress);
 
@@ -40,6 +40,7 @@ public sealed partial class AnalysisSession
 {
     private readonly IAnalysisNtfsScan? _ntfs;
     private bool _ntfsDiscoveryPending, _ntfsControlReady;
+    private bool _ntfsAuthorizationDeclined;
     private uint? _ntfsDiscoveryRecords;
     internal bool CanPause { get { lock (_sync) return !_ntfsDiscoveryPending || _ntfsControlReady; } }
     private AnalysisTaint SourceTaint => _ntfs is null ? AnalysisTaint.OrdinarySensitive : AnalysisPrivacy.Join(AnalysisTaint.PrivilegedDerived);
@@ -106,6 +107,7 @@ public sealed partial class AnalysisSession
         await using var catalog = await OnStorageDeviceAsync(() => _writer!.CreateNtfsDiscoveryAsync(scan.RootId, token)).ConfigureAwait(false);
         AnalysisNtfsOutcome capture;
         var control = new AnalysisNtfsControl(NtfsPauseRequested, ReportNtfsPaused, ReportNtfsDiscovery);
+        Report();
         try { capture = await OnStorageDeviceAsync(() => scan.CaptureAsync(catalog, control, token)).ConfigureAwait(false); }
         finally
         {
@@ -116,8 +118,12 @@ public sealed partial class AnalysisSession
                 if (_resume is null && _phase is AnalysisPhase.Pausing or AnalysisPhase.Paused) _phase = AnalysisPhase.Scanning;
             }
         }
+        if (capture is AnalysisNtfsOutcome.Canceled or AnalysisNtfsOutcome.AuthorizationDeclined)
+        {
+            Stop(issue: null, ntfsAuthorizationDeclined: capture == AnalysisNtfsOutcome.AuthorizationDeclined);
+            return;
+        }
         Report();
-        if (capture == AnalysisNtfsOutcome.Canceled) { Stop(); return; }
         if (capture == AnalysisNtfsOutcome.Partial) Issue("ntfs-discovery-record-limit", rootPath, MeasurementState.Unsupported, root.Id);
         Issue("ntfs-discovery-alias-coverage-incomplete", rootPath, MeasurementState.Unsupported, root.Id);
         await FlushCaptureIssuesAsync().ConfigureAwait(false);

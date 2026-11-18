@@ -103,7 +103,9 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         string brief = FastNtfsInUse ? progress.Phase switch
         {
             AnalysisPhase.Failed => "Fast NTFS scan could not finish. Standard analysis is available in a new tab.",
+            AnalysisPhase.Stopped when progress.NtfsAuthorizationDeclined => "Fast NTFS authorization was declined. Use standard analysis or request fresh approval in a new tab.",
             AnalysisPhase.Stopped => "Fast NTFS scan stopped. Standard analysis is available in a new tab.",
+            AnalysisPhase.Scanning when progress.WaitingForNtfsAuthorization => "Waiting for Fast NTFS authorization. You can stop the scan.",
             AnalysisPhase.Pausing when progress.NtfsDiscoveryRecords is not null => "Waiting for the Fast NTFS helper to confirm it has paused.",
             AnalysisPhase.Paused when progress.NtfsDiscoveryRecords is { } count => $"Fast NTFS helper paused · {count:N0} discovery records.",
             _ when progress.NtfsDiscoveryRecords is { } records => $"Reading approved NTFS metadata · {records:N0} discovery records.",

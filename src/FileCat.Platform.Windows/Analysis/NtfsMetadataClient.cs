@@ -27,7 +27,8 @@ internal sealed class NtfsMetadataClient : IAsyncDisposable
 
     internal NtfsMetadataVolume Volume { get; }
 
-    internal static async Task<NtfsMetadataClient> StartAsync(NtfsMetadataVolume volume, bool portable, string exchangeRoot,
+    /// <summary>Returns null when Windows or the installed broker declines authorization before a metadata connection.</summary>
+    internal static async Task<NtfsMetadataClient?> StartAsync(NtfsMetadataVolume volume, bool portable, string exchangeRoot,
         nint owner, CancellationToken cancellation)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
@@ -63,12 +64,19 @@ internal sealed class NtfsMetadataClient : IAsyncDisposable
                 throw new IOException("The helper could not confirm the approved NTFS volume.");
             return new(volume, helper, exchange, channel, peer);
         }
-        catch
+        catch (Exception error)
         {
+            // Only the held Windows launch handle can report the broker's consent exit status. Observe it
+            // before requesting cleanup, which could itself make a waiting broker exit with the same code.
+            bool declined = channel is null && !cancellation.IsCancellationRequested &&
+                (helper is null && error is OperationCanceledException ||
+                 error is IOException && helper is not null && helper.WaitForExit(0) &&
+                 helper.ExitCode == ElevationBroker.ConsentDeclinedExitCode);
             channel?.Dispose();
             peer?.Dispose();
             if (helper is not null) await StopAsync(helper, exchange).ConfigureAwait(false);
             else exchange.Dispose();
+            if (declined) return null;
             throw;
         }
     }

@@ -14,6 +14,8 @@ public sealed record AnalysisProgress(int ObservedPaths, ulong Issues, AnalysisP
     public bool DatasetReady { get; init; }
     public bool MemoryFallback { get; init; }
     internal uint? NtfsDiscoveryRecords { get; init; }
+    internal bool WaitingForNtfsAuthorization { get; init; }
+    internal bool NtfsAuthorizationDeclined { get; init; }
 }
 
 public sealed partial class AnalysisCoordinator(DeviceIoScheduler io, string? profileIdentity = null)
@@ -175,11 +177,12 @@ public sealed partial class AnalysisSession : IDisposable
     }
     public void Stop()
         => Stop(null);
-    private void Stop(string? issue)
+    private void Stop(string? issue, bool ntfsAuthorizationDeclined = false)
     {
         lock (_sync)
         {
             if (_disposed || _workerFinished || _phase == AnalysisPhase.Stopped) return;
+            _ntfsAuthorizationDeclined = ntfsAuthorizationDeclined;
             if (issue is not null) { _store.Issue(issue); _freshness = AnalysisFreshness.SourceUnavailable; }
             _writer?.RequestStop(issue); if (_indexing) _finalizeCancel.Cancel();
             _cancel.Cancel(); _store.Seal(); _partial = true; _phase = AnalysisPhase.Stopped; _final = Capture();
@@ -485,7 +488,9 @@ public sealed partial class AnalysisSession : IDisposable
         AnalysisProgress p;
         lock (_sync) { if (_disposed) return; p = new(_storage is null || _memoryFallback ? _store.Count : _capturedPaths, _store.IssueCount, _phase) { SourceCloseFailures = _sourceCloseFailures,
             PreviewPaths = _store.Count, PreviewLimited = _previewLimited, DatasetReady = _dataset is not null, MemoryFallback = _memoryFallback,
-            SessionId = _identity.SessionId, Epoch = _identity.Epoch, NtfsDiscoveryRecords = _ntfsDiscoveryPending ? _ntfsDiscoveryRecords : null }; }
+            SessionId = _identity.SessionId, Epoch = _identity.Epoch, NtfsDiscoveryRecords = _ntfsDiscoveryPending ? _ntfsDiscoveryRecords : null,
+            WaitingForNtfsAuthorization = _ntfsDiscoveryPending && _ntfsDiscoveryRecords is null,
+            NtfsAuthorizationDeclined = _ntfsAuthorizationDeclined }; }
         // Observers do not own traversal or handle lifetimes. A released/broken UI subscription cannot
         // skip independent closes, strand a scan reservation or turn valid observations into a producer failure.
         try { _progress?.Report(p); } catch (Exception) { }

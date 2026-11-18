@@ -11,7 +11,7 @@ public sealed partial class WindowsAnalysisBackend
     internal static NtfsScan PrepareNtfsDiscovery(string selection, bool portable, string exchangeRoot, nint owner, CancellationToken cancellation)
     {
         if (owner == 0) throw new NotSupportedException("Fast NTFS scan needs a Windows window to own the authorization prompt.");
-        if (ElevationBroker.Locate(portable, out var reason) is null)
+        if (ElevationBroker.LocateNtfsMetadata(portable, out var reason) is null)
             throw new NotSupportedException(reason ?? "The installed read-only NTFS helper is unavailable.");
         var volume = NtfsMetadataVolume.CaptureSelection(selection, cancellation);
         var source = new WindowsAnalysisBackend(selection, null, null, null, volume);
@@ -180,17 +180,14 @@ public sealed partial class WindowsAnalysisBackend
 
         public async Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, AnalysisNtfsControl control, CancellationToken cancellation)
         {
-            try
+            await using var client = await NtfsMetadataClient.StartAsync(volume, portable, exchange, owner, cancellation).ConfigureAwait(false);
+            if (client is null) return AnalysisNtfsOutcome.AuthorizationDeclined;
+            return await client.CaptureAsync(discovery, control, cancellation).ConfigureAwait(false) switch
             {
-                await using var client = await NtfsMetadataClient.StartAsync(volume, portable, exchange, owner, cancellation).ConfigureAwait(false);
-                return await client.CaptureAsync(discovery, control, cancellation).ConfigureAwait(false) switch
-                {
-                    NtfsMetadataCompletion.Finished => AnalysisNtfsOutcome.Finished,
-                    NtfsMetadataCompletion.Partial => AnalysisNtfsOutcome.Partial,
-                    _ => AnalysisNtfsOutcome.Canceled
-                };
-            }
-            catch (OperationCanceledException) when (!cancellation.IsCancellationRequested) { return AnalysisNtfsOutcome.Canceled; }
+                NtfsMetadataCompletion.Finished => AnalysisNtfsOutcome.Finished,
+                NtfsMetadataCompletion.Partial => AnalysisNtfsOutcome.Partial,
+                _ => AnalysisNtfsOutcome.Canceled
+            };
         }
     }
 }

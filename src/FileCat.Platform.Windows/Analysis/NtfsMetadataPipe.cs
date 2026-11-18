@@ -67,29 +67,34 @@ internal static partial class NtfsMetadataPipe
         string pipe = @"\??\pipe\" + LocalName(nonce)[PipePrefix.Length..];
         using var wait = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         using var timer = StartConnectionWatchdog(wait);
-        while (true)
+        try
         {
-            wait.Token.ThrowIfCancellationRequested();
-            helper.VerifyAlive();
-            int status = OpenClient(pipe, out var handle);
-            if (!handle.IsInvalid)
+            while (true)
             {
-                try
+                wait.Token.ThrowIfCancellationRequested();
+                helper.VerifyAlive();
+                int status = OpenClient(pipe, out var handle);
+                if (!handle.IsInvalid)
                 {
-                    wait.Token.ThrowIfCancellationRequested();
-                    if (GrantedAccess(handle) != ClientRights)
-                        throw new IOException("The local metadata pipe did not grant precisely the requested client rights.");
-                    VerifyPeer(handle, helper, serverEnd: false);
-                    var stream = new NamedPipeClientStream(PipeDirection.InOut, isAsync: true, isConnected: true, handle);
-                    return new NtfsMetadataChannel(stream, nonce, helper: false);
+                    try
+                    {
+                        wait.Token.ThrowIfCancellationRequested();
+                        if (GrantedAccess(handle) != ClientRights)
+                            throw new IOException("The local metadata pipe did not grant precisely the requested client rights.");
+                        VerifyPeer(handle, helper, serverEnd: false);
+                        var stream = new NamedPipeClientStream(PipeDirection.InOut, isAsync: true, isConnected: true, handle);
+                        return new NtfsMetadataChannel(stream, nonce, helper: false);
+                    }
+                    catch { handle.Dispose(); throw; }
                 }
-                catch { handle.Dispose(); throw; }
+                int error = (int)RtlNtStatusToDosError(status);
+                handle.Dispose();
+                if (error is not (2 or 231)) throw new IOException("The local NTFS metadata pipe could not be opened.", new Win32Exception(error));
+                await Task.Delay(50, wait.Token).ConfigureAwait(false);
             }
-            int error = (int)RtlNtStatusToDosError(status);
-            handle.Dispose();
-            if (error is not (2 or 231)) throw new IOException("The local NTFS metadata pipe could not be opened.", new Win32Exception(error));
-            await Task.Delay(50, wait.Token).ConfigureAwait(false);
         }
+        catch (OperationCanceledException error) when (!cancellation.IsCancellationRequested && wait.IsCancellationRequested)
+        { throw new TimeoutException("The Fast NTFS helper did not connect before its deadline.", error); }
     }
 
     internal static unsafe uint GrantedAccess(SafeHandle handle)

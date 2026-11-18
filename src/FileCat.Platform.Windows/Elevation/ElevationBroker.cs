@@ -17,6 +17,7 @@ public static partial class ElevationBroker
 {
     public const string ExecutableName = "FileCat.PrivilegedHost.exe";
     public const string RequesterExecutableName = "FileCat.exe";
+    internal const int ConsentDeclinedExitCode = 1;
     private const string NonceKey = @"SOFTWARE\FileCat\PrivilegedHost\UsedPlans";
 
     /// <summary>The installed broker, or null and why administrator retry is unavailable here.</summary>

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Collections.Concurrent;
 using System.Buffers.Binary;
 using FileCat.Core.Analysis;
 using FileCat.Core.FileSystem;
@@ -162,6 +163,45 @@ public sealed partial class AnalysisRenderingTests
     private static AnalysisPrivateDirectory OpenNtfsFixtureDirectory(NtfsFixture profile) => OperatingSystem.IsWindows()
         ? new WindowsAnalysisPrivateDirectory(profile.Root, "ntfs-projection") : new UnixAnalysisPrivateDirectory(profile.Root, "ntfs-projection");
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task FastNtfsDiscoveryDistinguishesDeclinedAuthorizationFromConnectionFailure(bool declined)
+    {
+        OrdinaryPreparation(); using var profile = new NtfsFixture();
+        var token = TestContext.Current.CancellationToken;
+        string device = PathUtil.GetDeviceKey(profile.Root);
+        var progress = new NtfsProgressLog();
+        var root = new NtfsProjectionRoot(profile.Root, "held-volume");
+        var scan = new NtfsProjectionScan(root, beforeApproval: declined ? AnalysisNtfsOutcome.AuthorizationDeclined : null,
+            broker: (_, _) => declined ? Task.CompletedTask : Task.FromException(new TimeoutException("Owned connection deadline.")));
+        var storage = new AnalysisStorageOptions(device, () => OpenNtfsFixtureDirectory(profile),
+            [new(device, () => new NtfsProjectionRoot(profile.Root, "held-private"))]);
+        using var session = new AnalysisCoordinator(profile.Io).StartNtfs(scan, storage, progress);
+        try
+        {
+            await session.Completion.WaitAsync(TimeSpan.FromSeconds(15), token);
+            var expected = declined ? AnalysisPhase.Stopped : AnalysisPhase.Failed;
+            Assert.Equal(expected, session.Snapshot().Phase);
+            Assert.Single(session.Snapshot().Nodes);
+            Assert.Empty(scan.LookupIds);
+            Assert.Contains(progress.Values, report => report.WaitingForNtfsAuthorization);
+            Assert.All(progress.Values, report => Assert.Null(report.NtfsDiscoveryRecords));
+            var terminal = Assert.IsType<AnalysisProgress>(progress.Values.LastOrDefault());
+            Assert.Equal(expected, terminal.Phase);
+            Assert.Equal(declined, terminal.NtfsAuthorizationDeclined);
+            Assert.False(terminal.WaitingForNtfsAuthorization);
+            Assert.Equal(1, root.Disposals);
+        }
+        finally { session.Dispose(); await session.DatasetCloseCompletion; }
+    }
+
+    private sealed class NtfsProgressLog : IProgress<AnalysisProgress>
+    {
+        internal ConcurrentQueue<AnalysisProgress> Values { get; } = new();
+        public void Report(AnalysisProgress value) => Values.Enqueue(value);
+    }
+
     [Fact]
     public async Task FastNtfsDiscoverySessionPublishesPausedOnlyAfterBrokerAcknowledgment()
     {
@@ -235,7 +275,7 @@ public sealed partial class AnalysisRenderingTests
     }
 
     private sealed class NtfsProjectionScan(NtfsProjectionRoot root, bool unverifiedBoundary = false, bool supplement = false,
-        Func<AnalysisNtfsControl, CancellationToken, Task>? broker = null) : IAnalysisNtfsScan
+        Func<AnalysisNtfsControl, CancellationToken, Task>? broker = null, AnalysisNtfsOutcome? beforeApproval = null) : IAnalysisNtfsScan
     {
         public IAnalysisBackend Source => root;
         public UInt128 RootId => 1;
@@ -264,8 +304,10 @@ public sealed partial class AnalysisRenderingTests
         public async Task<AnalysisNtfsOutcome> CaptureAsync(AnalysisNtfsDiscovery discovery, AnalysisNtfsControl control, CancellationToken cancellation)
         {
             Captures++;
-            control.ReportPaused(false);
+            if (beforeApproval is null && broker is not null && !cancellation.IsCancellationRequested)
+                control.ReportPaused(false);
             if (broker is not null) await broker(control, cancellation);
+            if (beforeApproval is { } outcome) return outcome;
             ImmutableArray<AnalysisNtfsObservation> rows = [Row(4, 2, "file"), Row(5, 3, "private-child"), Row(6, 7, "target"),
                 Row(7, 1, "link", FileAttributes.Directory | FileAttributes.ReparsePoint), Row(3, 1, "private-name", FileAttributes.Directory),
                 Row(2, 1, "folder", FileAttributes.Directory), Row(8, 1, "dup"), Row(9, 1, "dup"), Row(10, 99, "orphan")];
