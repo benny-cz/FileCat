@@ -1,0 +1,7 @@
+# EFS protection for recovered disk-image content
+
+Recovery now records EFS protection through the actual open image handle when it opens and scans the image. The scan retains this observation while its bytes are in use. Before an output reader is issued and around each read, including reads from cached or resident content, Recovery checks the same image handle. EFS or unknown protection prevents an unprotected copy, drag stage or nested disk cache. Preview retains its existing read-only path. Direct device recovery retains its separate native admission, and NTFS recovery continues to list encrypted on-image records without providing their contents.
+
+On Windows 11 x64, FileCat previewed the expected deleted file from an EFS-encrypted FAT16 image stored on NTFS. The actual recovery job, drag stage and nested cache each refused to write it. The destination remained empty and the image remained encrypted. A clear copy of the same image supported recovery, drag and the cache admission reader, with byte equality. The expanded archive and Recovery run passed 237 cases with five fixture skips. Its result is in `.tmp/filecat-efs-recovery-rerun-tests.xml`.
+
+Ubuntu and macOS each passed 139 cases with 12 fixture skips. The clear image used the ordinary recovery and drag routes on both. These results cover the tested disk-image routes of E-OUT10, E-OUT12 and E-OUT13. Broader native architectures and protection changes occurring entirely between observations remain outside this evidence.

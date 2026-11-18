@@ -1,4 +1,3 @@
-using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 
@@ -419,8 +418,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         try
         {
             // Read once from start to end: a large archive member is then decompressed straight into the copy.
-            var opened = OperatingSystem.IsWindows() && provider is IUnprotectedArchiveOutput archive
-                ? archive.OpenUnprotectedOutput(item, ArchiveOutputKind.Extraction)
+            var opened = OperatingSystem.IsWindows() && provider is IUnprotectedContentOutput derived
+                ? derived.OpenUnprotectedOutput(item, ContentOutputKind.Extraction)
                 : provider.OpenContent(item);
             content = Content.ProgressiveContent.Sequential(opened);
         }

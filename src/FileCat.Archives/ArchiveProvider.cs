@@ -32,7 +32,7 @@ public sealed record ArchiveMemberTag(string FullName, int Index, long Size, lon
 /// not opened; archives inside archives (of any supported format, ZIP included) open read-only from a private spool.
 /// Mark-of-the-Web propagates on extraction from the outermost marked file.
 /// </summary>
-public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider, IUnprotectedArchiveOutput
+public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider, IUnprotectedContentOutput
 {
     public const int MaxEntries = 1_000_000;
     public const long MaxMemberInMemory = 32L * 1024 * 1024;
@@ -230,9 +230,9 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
 
     public override IContentSource? OpenContent(ItemRef item) => OpenContent(item, output: null);
 
-    IContentSource? IUnprotectedArchiveOutput.OpenUnprotectedOutput(ItemRef item, ArchiveOutputKind kind) => OpenContent(item, kind);
+    IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind) => OpenContent(item, kind);
 
-    private IContentSource? OpenContent(ItemRef item, ArchiveOutputKind? output)
+    private IContentSource? OpenContent(ItemRef item, ContentOutputKind? output)
     {
         var root = item.Parent.WithPath(string.Empty);
         using var source = ArchiveFile(root, 0);
@@ -261,7 +261,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         }
     }
 
-    void IUnprotectedArchiveOutput.RequireClearOutputSource(Location location, ArchiveOutputKind kind)
+    void IUnprotectedContentOutput.RequireClearOutputSource(Location location, ContentOutputKind kind)
     {
         var root = location.WithPath(string.Empty);
         using var source = ArchiveFile(root, 0);
@@ -308,7 +308,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         string displayName = Path.GetFileName(DisplayArchive(root));
         var kind = root.Session is { Length: > 0 } forced && Enum.TryParse<ArchiveKind>(forced, out var k2) ? k2
             : ArchiveFormats.ByName(displayName) ?? throw new InvalidDataException("This file is not in an archive format FileCat reads.");
-        var spoolProtection = new ArchiveSpoolProtection();
+        var spoolProtection = new OutputEfsObservation();
         void VerifyOpened(string openedPath, Microsoft.Win32.SafeHandles.SafeFileHandle handle)
         {
             OpenedSourceIdentity.RequireMatch(handle, PathUtil.SafetyComparer.Equals(path, openedPath) ? sourceIdentity : GetSourceIdentity(openedPath), GetOpenedSourceIdentity);
@@ -420,7 +420,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         string name = member.Path[(slash + 1)..];
         var provider = _providers.For(member);
         var admittedProvider = OperatingSystem.IsWindows()
-            ? provider as IUnprotectedArchiveOutput ?? throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnknown)
+            ? provider as IUnprotectedContentOutput ?? throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.SpoolUnknown)
             : null;
         string outer = OutermostFile(member);
         var outerInfo = new FileInfo(outer);
@@ -431,7 +431,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         {
             if (_spools.TryGetValue(key, out var existing))
             {
-                admittedProvider?.RequireClearOutputSource(folder, ArchiveOutputKind.DiskCache);
+                admittedProvider?.RequireClearOutputSource(folder, ContentOutputKind.DiskCache);
                 existing.Used = DateTime.UtcNow;
                 return existing.Acquire();
             }
@@ -441,7 +441,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             {
                 var item = new ItemRef(folder, name, EntryKind.File);
                 var content = admittedProvider is null ? provider.OpenContent(item) :
-                    admittedProvider.OpenUnprotectedOutput(item, ArchiveOutputKind.DiskCache);
+                    admittedProvider.OpenUnprotectedOutput(item, ContentOutputKind.DiskCache);
                 using var source = ProgressiveContent.Sequential(content)
                     ?? throw new NotSupportedException("The inner archive is encrypted and cannot be opened here.");
                 Directory.CreateDirectory(_tempDirectory);
@@ -511,7 +511,7 @@ internal sealed class ArchiveIndex : IDisposable
     private readonly object _lock = new();
     private readonly IMemberReader _reader;
     private FileStream? _witness;
-    private ArchiveSpoolProtection _spoolProtection = new();
+    private OutputEfsObservation _spoolProtection = new();
     private string? _openedChangeToken;
     internal readonly record struct VolumeWitness(FileStream Stream, string Path, string? Token, string? Identity);
     private VolumeWitness[] _volumes = [];
@@ -530,16 +530,16 @@ internal sealed class ArchiveIndex : IDisposable
         _openedChangeToken = changeToken;
         _stableListing = stableListing;
     }
-    internal void KeepSpoolProtection(ArchiveSpoolProtection protection) => _spoolProtection = protection;
+    internal void KeepSpoolProtection(OutputEfsObservation protection) => _spoolProtection = protection;
 
-    private void RequireClearSpoolSource() => RequireClearOutputSource(ArchiveOutputKind.DiskCache);
+    private void RequireClearSpoolSource() => RequireClearOutputSource(ContentOutputKind.DiskCache);
 
-    internal void RequireClearOutputSource(ArchiveOutputKind kind)
+    internal void RequireClearOutputSource(ContentOutputKind kind)
     {
         if (!OperatingSystem.IsWindows()) return;
         if (_witnessHandle is { } witness) _spoolProtection.Observe(witness);
         foreach (var volume in _volumes) _spoolProtection.Observe(volume.Stream.SafeFileHandle);
-        _spoolProtection.RequireClear(kind);
+        ArchiveOuterEfs.RequireClearOutput(_spoolProtection, kind);
     }
     private Microsoft.Win32.SafeHandles.SafeFileHandle? _witnessHandle;
     // Whether the source had a change token when its catalog was started (not only when it was finished).
@@ -820,7 +820,7 @@ internal sealed class ArchiveIndex : IDisposable
     /// privately spooled); larger ones are decompressed as they are read (<see cref="ProgressiveContent"/>), so the first
     /// bytes are there at once. Sizes are never trusted.
     /// </summary>
-    public IContentSource Extract(ArchiveMemberTag tag, string tempDirectory, ArchiveOutputKind? output = null)
+    public IContentSource Extract(ArchiveMemberTag tag, string tempDirectory, ContentOutputKind? output = null)
     {
         LastUsed = DateTime.UtcNow;
         lock (_lock)

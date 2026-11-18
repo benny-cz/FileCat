@@ -67,8 +67,15 @@ public static class BlockSourceExtensions
 public sealed class ImageFileSource : IBlockSource
 {
     private readonly SafeFileHandle _handle;
+    private readonly OutputEfsObservation _outputProtection = new();
 
     internal string? CurrentChangeToken() => SourceChangeToken.FromHandle(_handle);
+
+    internal OutputEfsObservation.State ObserveEfsProtection()
+    {
+        _outputProtection.Observe(_handle);
+        return _outputProtection.Status;
+    }
 
     public ImageFileSource(string path) : this(path, null) { }
 
@@ -79,6 +86,7 @@ public sealed class ImageFileSource : IBlockSource
         try
         {
             verifyOpened?.Invoke(_handle);
+            ObserveEfsProtection();
             long length = RandomAccess.GetLength(_handle);
             Length = length;
             if (length >= 512)

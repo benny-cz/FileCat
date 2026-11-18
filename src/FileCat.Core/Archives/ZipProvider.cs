@@ -27,7 +27,7 @@ public sealed record ZipDirectoryRevision(string? ArchiveRevision, string? Archi
 /// extracted; archives inside archives open read-only from a private spool. Mark-of-the-Web propagates through
 /// <see cref="StreamTransferExecutor"/> from the outermost marked file.
 /// </summary>
-public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprotectedArchiveOutput
+public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprotectedContentOutput
 {
     public const int MaxEntries = 1_000_000;
     public const long MaxMemberInMemory = 32L * 1024 * 1024;
@@ -385,16 +385,16 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
 
     internal IContentSource? OpenEditContent(ItemRef item) => OpenContent(item, retainedEdit: true);
 
-    IContentSource? IUnprotectedArchiveOutput.OpenUnprotectedOutput(ItemRef item, ArchiveOutputKind kind) =>
+    IContentSource? IUnprotectedContentOutput.OpenUnprotectedOutput(ItemRef item, ContentOutputKind kind) =>
         OpenContent(item, retainedEdit: false, output: kind);
 
-    void IUnprotectedArchiveOutput.RequireClearOutputSource(Location location, ArchiveOutputKind kind)
+    void IUnprotectedContentOutput.RequireClearOutputSource(Location location, ContentOutputKind kind)
     {
         using var source = ZipPath(location);
         lock (_cacheLock) GetIndex(location, source).RequireClearOutputSource(kind);
     }
 
-    private IContentSource? OpenContent(ItemRef item, bool retainedEdit, ArchiveOutputKind? output = null)
+    private IContentSource? OpenContent(ItemRef item, bool retainedEdit, ContentOutputKind? output = null)
     {
         using var source = ZipPath(item.Parent);
         // Resolve nested paths before taking the cache lock; cross-provider spool locks stay ordered.
@@ -589,7 +589,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector, IUnprote
 
 internal sealed class ZipIndex : IDisposable
 {
-    private readonly ArchiveSpoolProtection _outputProtection = new();
+    private readonly OutputEfsObservation _outputProtection = new();
     private readonly object _lock = new();
     private readonly FileStream _stream;
     // Taken once while the index is built: reading a FileStream's handle flushes its read buffer, which must never happen
@@ -624,12 +624,12 @@ internal sealed class ZipIndex : IDisposable
         VerifySource();
     }
 
-    internal void RequireClearSpoolSource() => RequireClearOutputSource(ArchiveOutputKind.DiskCache);
+    internal void RequireClearSpoolSource() => RequireClearOutputSource(ContentOutputKind.DiskCache);
 
-    internal void RequireClearOutputSource(ArchiveOutputKind kind)
+    internal void RequireClearOutputSource(ContentOutputKind kind)
     {
         _outputProtection.Observe(_handle);
-        _outputProtection.RequireClear(kind);
+        ArchiveOuterEfs.RequireClearOutput(_outputProtection, kind);
     }
 
     /// <summary>
@@ -868,7 +868,7 @@ internal sealed class ZipIndex : IDisposable
     /// (<see cref="ProgressiveContent"/>), so the first bytes are there at once. Either way the declared size is not
     /// trusted and the member's checksum is verified (.NET does not check it).
     /// </summary>
-    public IContentSource Extract(ZipMemberTag tag, string tempDirectory, bool retainedEdit = false, ArchiveOutputKind? output = null)
+    public IContentSource Extract(ZipMemberTag tag, string tempDirectory, bool retainedEdit = false, ContentOutputKind? output = null)
     {
         LastUsed = DateTime.UtcNow;
         lock (_lock)

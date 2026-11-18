@@ -157,7 +157,7 @@ public sealed class ArchiveEfsSpoolTests
 
             var staged = DragStaging.Stage([item], providers, files, drag, ct);
             Assert.Null(staged.Paths);
-            Assert.Contains(ArchiveOuterEfs.OutputUnavailable(ArchiveOutputKind.Drag), staged.Refusal);
+            Assert.Contains(ArchiveOuterEfs.OutputUnavailable(ContentOutputKind.Drag), staged.Refusal);
             if (Directory.Exists(drag)) Assert.Empty(Directory.EnumerateFiles(drag, "*", SearchOption.AllDirectories));
 
             var manager = new JobManager(files, providers, Path.Join(directory.Path, "journal"));
@@ -171,7 +171,7 @@ public sealed class ArchiveEfsSpoolTests
             });
             try { await retired.Task.WaitAsync(TimeSpan.FromSeconds(20), ct); }
             finally { if (!job.State.IsFinished()) job.Cancel(); }
-            Assert.Contains(job.Issues, issue => issue.Message.Contains(ArchiveOuterEfs.OutputUnavailable(ArchiveOutputKind.Extraction), StringComparison.Ordinal));
+            Assert.Contains(job.Issues, issue => issue.Message.Contains(ArchiveOuterEfs.OutputUnavailable(ContentOutputKind.Extraction), StringComparison.Ordinal));
             Assert.Empty(Directory.EnumerateFileSystemEntries(destination));
             Assert.False(Directory.Exists(cache));
             Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));

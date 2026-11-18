@@ -1,10 +1,12 @@
 using Microsoft.Win32.SafeHandles;
 
-namespace FileCat.Core.Archives;
+namespace FileCat.Core.FileSystem;
 
 /// <summary>Remembers protection observed on the actual inputs, including streams a reader opened and then closed.</summary>
-internal sealed class ArchiveSpoolProtection
+internal sealed class OutputEfsObservation
 {
+    internal enum State { Clear, Encrypted, Unknown }
+
     private const int ClearSeen = 1, EfsSeen = 2, UnknownSeen = 4;
     private int _seen;
 
@@ -23,13 +25,14 @@ internal sealed class ArchiveSpoolProtection
         Interlocked.Or(ref _seen, state);
     }
 
-    internal void RequireClear(ArchiveOutputKind method)
+    internal State Status
     {
-        if (!OperatingSystem.IsWindows()) return;
-        int state = Volatile.Read(ref _seen);
-        if ((state & EfsSeen) != 0)
-            throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.OutputUnavailable(method));
-        if (state != ClearSeen)
-            throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveOuterEfs.OutputUnknown(method));
+        get
+        {
+            if (!OperatingSystem.IsWindows()) return State.Clear;
+            int state = Volatile.Read(ref _seen);
+            if ((state & EfsSeen) != 0) return State.Encrypted;
+            return state == ClearSeen ? State.Clear : State.Unknown;
+        }
     }
 }
