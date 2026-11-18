@@ -47,6 +47,7 @@
   "scratchResourceDetails": {
     "tests": { "windowsVm": "r1539 22/22", "mac": "r1536 22/22", "ubuntuVm": "r1536 22/22" },
     "desktop": { "run": "r1537", "windowsVm": "passed", "mac": "passed with Retina compositor capture", "ubuntuVm": "passed" },
+    "themeDesktop": { "run": "r1547", "themes": 8, "windowsVmScale": 1, "macCompositorScale": 2, "ubuntuVmScale": 1, "fontSizeDip": 20, "widthDip": 380, "heightDip": 430 },
     "coverage": "Resource limits shows the configured path and the captured index's current reservation at open, including derived indexes. A bounded-memory view explains that it has no index reservation. The compact desktop cases leave the source unchanged and close their owned processes."
   },
   "standardIndexChoice": {

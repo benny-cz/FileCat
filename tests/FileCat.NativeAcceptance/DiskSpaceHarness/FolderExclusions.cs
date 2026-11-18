@@ -130,7 +130,7 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => window.SessionCount == 2 && _tabs?.SelectedIndex == 1);
             window.SelectTemporaryWork();
             await ReadyAsync(() => _tabs?.SelectedIndex == 0);
-            await CheckIndexedCopyPathAsync(window);
+            var scratchThemes = await CheckIndexedCopyPathAsync(window);
             var saved = await model.SaveNewAsync("native-current-source.fcdsa", _indexedLifetime.Token);
             var historical = await model.OpenSavedAsync(saved.Name, _indexedLifetime.Token);
             historical.Chart = "Table";
@@ -169,7 +169,8 @@ internal sealed partial class HarnessApp
                 panelFilterViewApplied = true, exclusionReasonVisible = true, resourceLimitsReachable = true,
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
-                readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true, standardIndexChoice = true };
+                readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
+                standardIndexChoice = true, scratchThemes };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }
@@ -235,7 +236,9 @@ internal sealed partial class HarnessApp
         }
     }
 
-    private async Task CheckIndexedCopyPathAsync(DiskSpaceWindow window)
+    private sealed record ScratchThemeFrame(string Theme, string ResolvedTheme, string Frame, double Width, double Height, double Scale, double FontSize);
+
+    private async Task<IReadOnlyList<ScratchThemeFrame>> CheckIndexedCopyPathAsync(DiskSpaceWindow window)
     {
         var services = _services!;
         var cancellation = _indexedLifetime.Token;
@@ -281,6 +284,28 @@ internal sealed partial class HarnessApp
             reservationTop.Y + reservation.Bounds.Height >= closeTop.Y)
             throw new InvalidOperationException("The scratch reservation is below the limits viewport.");
         await RecipeFrameAsync("folder-exclusions-scratch.png", true, cancellation);
+        var themes = new List<ScratchThemeFrame>();
+        string previousTheme = ThemeManager.RequestedName;
+        try
+        {
+            foreach (string theme in ThemeManager.Names)
+            {
+                ThemeManager.Apply(theme);
+                await Task.Delay(100, cancellation);
+                window.UpdateLayout();
+                if (VisibleButton("Close limits") is not { IsDefault: true, IsCancel: true } close ||
+                    close.TranslatePoint(default, window) is not { } closePoint || closePoint.X < 0 || closePoint.Y < 0 ||
+                    closePoint.X + close.Bounds.Width > window.ClientSize.Width + 1 || closePoint.Y + close.Bounds.Height > window.ClientSize.Height + 1 ||
+                    reservation.TranslatePoint(default, window) is not { } amount || amount.Y + reservation.Bounds.Height >= closePoint.Y)
+                    throw new InvalidOperationException($"The scratch details and preserving footer were clipped in {theme}.");
+                if (!ReferenceEquals(window.FocusManager?.GetFocusedElement(), close))
+                    throw new InvalidOperationException($"The resource dialog lost the focused Close control in {theme}.");
+                string frame = $"folder-exclusions-scratch-theme-{themes.Count:D2}.png";
+                await RecipeFrameAsync(frame, true, cancellation);
+                themes.Add(new(theme, ThemeManager.Current.Name, frame, window.ClientSize.Width, window.ClientSize.Height, window.RenderScaling, window.FontSize));
+            }
+        }
+        finally { ThemeManager.Apply(previousTheme); }
         closeLimits.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await ReadyAsync(() => VisibleButton("Close limits") is null);
         var list = IndexedList()!;
@@ -304,5 +329,6 @@ internal sealed partial class HarnessApp
             viewport.Offset = new Vector(viewport.Offset.X, Math.Max(0, viewport.Offset.Y + move));
             return false;
         });
+        return themes;
     }
 }
