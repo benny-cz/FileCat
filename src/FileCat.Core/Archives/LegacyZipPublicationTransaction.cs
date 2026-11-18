@@ -319,7 +319,7 @@ internal sealed class LegacyZipPublicationTransaction
 
         recoveryRequired = true;
         Journal.RequireRecovery();
-        Issue(IssueSeverity.Warning, backup, $"The rebuilt ZIP was published. Review the retained original backup at {backup}. {reason}",
+        Issue(IssueSeverity.Warning, backup, $"The rebuilt ZIP was published. FileCat could not confirm cleanup of the original backup. Review {backup}. {reason}",
             StepOutcome.Committed, "security");
     }
 

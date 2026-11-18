@@ -4,6 +4,7 @@ using FileCat.Core.Archives;
 using FileCat.Core.Jobs;
 using FileCat.Core.State;
 using FileCat.Platform.Windows.Archives;
+using FileCat.Platform.Windows.Elevation;
 
 namespace FileCat.Platform.Windows.Tests;
 
@@ -429,6 +430,8 @@ public sealed class WindowsArchiveEfsUpdateTests
     [InlineData("encrypted backup")]
     [InlineData("new stream")]
     [InlineData("new mark")]
+    [InlineData("existing mark writer")]
+    [InlineData("existing attribute writer")]
     [InlineData("substituted backup")]
     [InlineData("substituted publication")]
     public void Legacy_cleanup_removes_only_the_reviewed_backup_and_records_retained_evidence(string change)
@@ -442,6 +445,7 @@ public sealed class WindowsArchiveEfsUpdateTests
         const string mark = "[ZoneTransfer]\r\nZoneId=3\r\n";
         const string lateMark = "[ZoneTransfer]\r\nZoneId=4\r\n";
         const string lateStream = "new named-stream data";
+        IDisposable? metadataWriter = null;
         try
         {
             using (var zip = ZipFile.Open(target, ZipArchiveMode.Create)) zip.CreateEntry("original.txt");
@@ -456,6 +460,14 @@ public sealed class WindowsArchiveEfsUpdateTests
                         using (var writer = new StreamWriter(stream)) writer.Write(lateStream);
                         break;
                     case "new mark": Assert.True(fs.WriteOriginMark(backup, lateMark)); break;
+                    case "existing mark writer":
+                        metadataWriter = new FileStream(backup + ":Zone.Identifier", FileMode.Open, FileAccess.Write,
+                            FileShare.ReadWrite | FileShare.Delete);
+                        break;
+                    case "existing attribute writer":
+                        metadataWriter = NtFile.OpenOrThrow(null, @"\??\" + backup, NtFile.ReadAttributes | NtFile.Synchronize | 0x10 /* FILE_WRITE_EA */,
+                            NtFile.ShareAll, NtFile.Open, NtFile.NonDirectoryFile | NtFile.OpenReparsePoint, "Open owned ZIP for extended-attribute writes");
+                        break;
                     case "substituted backup":
                     case "substituted publication":
                         string path = change == "substituted backup" ? backup : published;
@@ -474,6 +486,7 @@ public sealed class WindowsArchiveEfsUpdateTests
             using (var journal = JobJournal.Create(journals, job))
             {
                 new ZipUpdateExecutor(job, files, journal).Execute();
+                metadataWriter?.Dispose();
                 Assert.Equal(kept, journal.NeedsRecovery);
                 if (!kept) journal.Finish(JobState.Completed, "Published owned ZIP and removed reviewed backup.");
             }
@@ -502,6 +515,67 @@ public sealed class WindowsArchiveEfsUpdateTests
             Assert.Equal(target, pending.Path);
             Assert.Equal(retained, pending.RecoveryPath);
             Assert.Empty(JournalRecovery.FindStagedLeftovers(interrupted));
+        }
+        finally { metadataWriter?.Dispose(); Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Zip_cleanup_holds_both_files_against_protection_changes_through_the_commit_boundary(bool rollback)
+    {
+        RequireEfs();
+        string root = Directory.CreateTempSubdirectory("filecat-zip-cleanup-commit-").FullName;
+        string archive = Path.Join(root, "published.zip"), backup = Path.Join(root, "retained.bak");
+        const string mark = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        try
+        {
+            var fs = new WindowsFileOperations();
+            var published = WriteReviewedZip(archive, "published fixture");
+            var original = WriteReviewedZip(backup, "backup fixture");
+            bool reachedCommit = false;
+
+            string? reason = WindowsFileOperations.CleanupLegacyZipBackupCore(archive, backup, published, original, () =>
+            {
+                reachedCommit = true;
+                foreach (string path in new[] { archive, backup })
+                {
+                    var encryption = Record.Exception(() => File.Encrypt(path));
+                    Assert.True(encryption is IOException or UnauthorizedAccessException, encryption?.Message);
+                    var streamCreation = Record.Exception(() =>
+                    {
+                        using var stream = new FileStream(path + ":arrived", FileMode.CreateNew, FileAccess.Write,
+                            FileShare.ReadWrite | FileShare.Delete);
+                        stream.WriteByte(1);
+                    });
+                    Assert.True(streamCreation is IOException or UnauthorizedAccessException, streamCreation?.Message);
+                }
+                if (rollback) throw new IOException("Owned fixture stopped before commit.");
+            });
+
+            Assert.True(reachedCommit, reason);
+            Assert.Equal(rollback, reason is not null);
+            Assert.Equal(rollback, File.Exists(backup));
+            Assert.Equal("published fixture", File.ReadAllText(archive));
+            Assert.Equal(mark, fs.ReadOriginMark(archive));
+            Assert.False(File.GetAttributes(archive).HasFlag(FileAttributes.Encrypted));
+            Assert.ThrowsAny<IOException>(() => File.ReadAllBytes(archive + ":arrived"));
+            if (rollback)
+            {
+                Assert.Equal("backup fixture", File.ReadAllText(backup));
+                Assert.Equal(mark, fs.ReadOriginMark(backup));
+                Assert.False(File.GetAttributes(backup).HasFlag(FileAttributes.Encrypted));
+                Assert.ThrowsAny<IOException>(() => File.ReadAllBytes(backup + ":arrived"));
+            }
+
+            LegacyZipRollbackFile WriteReviewedZip(string path, string content)
+            {
+                File.WriteAllText(path, content);
+                Assert.True(fs.WriteOriginMark(path, mark));
+                byte[] bytes = File.ReadAllBytes(path);
+                string id = Assert.IsType<string>(fs.GetFileIdentity(path));
+                return new(new(id, bytes.Length, Convert.ToHexString(SHA256.HashData(bytes))), mark, Encrypted: false);
+            }
         }
         finally { Directory.Delete(root, recursive: true); }
     }
