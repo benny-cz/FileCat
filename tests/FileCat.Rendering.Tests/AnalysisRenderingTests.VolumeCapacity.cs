@@ -141,6 +141,58 @@ public sealed partial class AnalysisRenderingTests
         }
     }
 
+    [AvaloniaFact]
+    public async Task NativeSharedApfsCapacityKeepsVolumeSamplesSeparate()
+    {
+        string? first = Environment.GetEnvironmentVariable("FILECAT_TEST_NATIVE_APFS_FIRST_VOLUME");
+        string? second = Environment.GetEnvironmentVariable("FILECAT_TEST_NATIVE_APFS_SECOND_VOLUME");
+        Assert.SkipWhen(!OperatingSystem.IsMacOS() || string.IsNullOrEmpty(first) || string.IsNullOrEmpty(second),
+            "Requires two separately mounted native APFS test volumes in one owned container.");
+        OrdinaryPreparation();
+        using var styles = new ProductStyles();
+        using var fixture = new PreparationFixture();
+        using var model = new DiskSpaceViewModel(fixture.Services);
+        string[] roots = [Path.GetFullPath(first!), Path.GetFullPath(second!)];
+        string[] anchors = roots.Select(root => Path.Combine(root, "filecat-apfs-capacity-fixture.txt")).ToArray();
+        Assert.All(anchors, anchor => Assert.Equal("FileCat APFS capacity fixture", File.ReadAllText(anchor)));
+        var window = new DiskSpaceWindow(null, null, new AnalysisSessionAdmission());
+        window.AddSession(model, roots);
+        window.Show();
+        try
+        {
+            await model.StartAsync(roots);
+            if (model.ResolvedTargets is not null && model.Phase == AnalysisPhase.Ready) await model.StartAsync(roots);
+            await Until(() => model.Tree?.Snapshot.Phase == AnalysisPhase.Finished, () => model.Status, TimeSpan.FromSeconds(25));
+            var samples = model.VolumeCapacities.Values.ToArray();
+            Assert.Equal(2, samples.Length);
+            Assert.NotEqual(samples[0].VolumeIdentity, samples[1].VolumeIdentity);
+            Assert.All(samples, sample =>
+            {
+                Assert.True(sample.WholeVolumeVerified);
+                Assert.True(sample.MayShareCapacity);
+            });
+            Assert.Contains(model.Tree!.Snapshot.Nodes, node => node.Name == "filecat-apfs-capacity-clone.txt");
+            Frame(window);
+            var ribbon = window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible &&
+                AutomationProperties.GetAutomationId(button) == "AnalysisVolumeCapacity");
+            Assert.Equal("Volume capacity for 2 locations", AutomationProperties.GetName(ribbon));
+            Click(ribbon);
+            Frame(window);
+            var text = window.GetVisualDescendants().OfType<TextBlock>().Where(block => block.IsEffectivelyVisible).Select(block => block.Text).ToArray();
+            Assert.All(samples, sample => Assert.Single(text, line => line?.Contains("Volume ID " + sample.VolumeIdentity, StringComparison.Ordinal) == true));
+            Assert.Equal(2, text.Count(line => line?.Contains("may share capacity with other volumes", StringComparison.Ordinal) == true));
+            Assert.DoesNotContain(text, line => line?.Contains("Difference from reported used space", StringComparison.Ordinal) == true);
+            Click(window, "Close capacity");
+            Assert.All(anchors, anchor => Assert.Equal("FileCat APFS capacity fixture", File.ReadAllText(anchor)));
+        }
+        finally
+        {
+            window.ForceClose();
+            await window.WaitForIndexedCloseAsync();
+            await model.CloseCompletion;
+        }
+    }
+
     [Theory]
     [InlineData(90, 10, "+")]
     [InlineData(10, 90, "−")]
