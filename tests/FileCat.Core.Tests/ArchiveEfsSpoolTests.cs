@@ -34,10 +34,12 @@ public sealed class ArchiveEfsSpoolTests
         ArchiveOuterEfs.RequireClearOutput(protection, ContentOutputKind.DiskCache);
         var receipt = protection.Freeze();
         Assert.Equal(OutputEfsObservation.MaxContributors, receipt.Contributors.Length);
+        Assert.False(receipt.HasUnknownInput);
         var derived = new OutputEfsObservation();
         derived.Include(receipt);
         using (var overflow = File.OpenHandle(directory.File("overflow.bin"))) derived.ObserveOpened(overflow);
         Assert.Equal(OutputEfsObservation.State.Unknown, derived.Status);
+        Assert.True(derived.Freeze().HasUnknownInput);
         Assert.Equal(OutputEfsObservation.State.Clear, receipt.Protection);
         Assert.Equal(ArchiveOuterEfs.SpoolUnknown, Assert.Throws<ArchiveWriteException>(() =>
             ArchiveOuterEfs.RequireClearOutput(derived, ContentOutputKind.DiskCache)).Message);
@@ -54,6 +56,31 @@ public sealed class ArchiveEfsSpoolTests
         Assert.Equal(OutputEfsObservation.State.Unknown, protection.Status);
         protection.ObserveOpened(handle);
         Assert.Equal(OutputEfsObservation.State.Unknown, protection.Status);
+    }
+
+    [Fact]
+    public void An_encrypted_observation_preserves_unknown_input_across_a_retained_receipt()
+    {
+        if (!IsEfsFixture) Assert.Skip(FixtureRequirement);
+        using var directory = new TempDir();
+        string path = directory.File("protected.bin");
+        File.Encrypt(path);
+        var observation = new OutputEfsObservation();
+        using (var handle = File.OpenHandle(path))
+        {
+            observation.ObserveOpened(handle, new string('A', OutputEfsObservation.MaxContributorBytes / sizeof(char)));
+            observation.ObserveOpened(handle);
+        }
+        var receipt = observation.Freeze();
+        Assert.Equal(OutputEfsObservation.State.Encrypted, receipt.Protection);
+        Assert.Single(receipt.Contributors);
+        Assert.True(receipt.HasUnknownInput);
+        var derived = new OutputEfsObservation();
+        derived.Include(receipt);
+        var retained = derived.Freeze();
+        Assert.Equal(receipt.Contributors.ToArray(), retained.Contributors.ToArray());
+        Assert.Equal(OutputEfsObservation.State.Encrypted, retained.Protection);
+        Assert.True(retained.HasUnknownInput);
     }
 
     [Fact]
