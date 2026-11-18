@@ -246,6 +246,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly StackPanel _viewSummary;
         private readonly Button _copyDetails;
         private readonly Button _resultResourceLimits;
+        private readonly Button _volumeCapacityRibbon;
         private readonly StackPanel _roots = new() { Spacing = 5 };
         private readonly List<TextBox> _rootEditors = [];
         private readonly List<Control> _dataControls = [];
@@ -398,7 +399,10 @@ public sealed partial class DiskSpaceWindow : Window
             AutomationProperties.SetName(_sort, "Analysis table sort"); AutomationProperties.SetName(_sortDirection, "Analysis table sort direction");
             AutomationProperties.SetName(_breadcrumbs, "Analysis location breadcrumbs");
             ToolTip.SetTip(_sort, new RichTip("Sort observed table rows", detail: "Numeric sorting uses exact recorded integers. Missing numeric values follow known amounts in either direction. Partial amounts rank by their known subtotal. Charts keep their accounting order; focus and marks keep their observation identities."));
-            toolbar.Children.Add(nav); toolbar.Children.Add(_breadcrumbs); toolbar.Children.Add(_scope); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(ordering); toolbar.Children.Add(_legend); toolbar.Children.Add(_error);
+            _volumeCapacityRibbon = window.VolumeCapacityRibbon(() => Model.VolumeCapacities, () => Model.Tree?.Snapshot.Roots ?? [], FullVolumeAllocation);
+            toolbar.Children.Add(nav); toolbar.Children.Add(_breadcrumbs); toolbar.Children.Add(_scope); toolbar.Children.Add(_coverage);
+            toolbar.Children.Add(_volumeCapacityRibbon);
+            toolbar.Children.Add(filters); toolbar.Children.Add(ordering); toolbar.Children.Add(_legend); toolbar.Children.Add(_error);
             AddRecordedResultControls(toolbar);
             toolbar.Children.Add(_runtimeChangeHint);
             _dataControls.AddRange([_mode, _metric, _group, _color, _pause, _inspect, _save, _compare, _breadcrumbs, _scope, _summary, _coverage, filters, ordering]);
@@ -678,6 +682,7 @@ public sealed partial class DiskSpaceWindow : Window
             try
             {
                 bool configuring = Model.Phase == AnalysisPhase.Ready, setupOnly = configuring && Model.Tree is null;
+                RefreshVolumeCapacityRibbon(_volumeCapacityRibbon, Model.Tree is null ? ImmutableDictionary<string, AnalysisVolumeCapacity>.Empty : Model.VolumeCapacities);
                 _setupViewport.IsVisible = configuring; _setupViewport.MaxHeight = setupOnly ? double.PositiveInfinity : 250;
                 _resultResourceLimits.IsVisible = !configuring;
                 _setupViewport.MinHeight = setupOnly ? 80 : 0;

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using FileCat.App.Services;
 using FileCat.Core.Analysis;
 
@@ -57,6 +58,7 @@ public sealed partial class DiskSpaceViewModel
         private readonly AnalysisSnapshotLease? _capturedOwner;
         private readonly string? _notice;
         private readonly AnalysisPhase _phase;
+        private readonly ImmutableDictionary<string, AnalysisVolumeCapacity> _capacities;
         private bool _settled;
         internal AnalysisIndexedAcquisition Acquisition { get; }
 
@@ -64,10 +66,12 @@ public sealed partial class DiskSpaceViewModel
         {
             _model = model; Acquisition = model._acquisition!; _session = model._session!;
             _observation = model._observation; _capturedOwner = model._capturedOwner; _notice = model._capturedPreviewNotice; _phase = model.Phase;
+            _capacities = model._capturedVolumeCapacities;
             model._projectionCancel?.Cancel(); ++model._generation;
             model._pending?.Lease?.Dispose(); model._pending?.Order.Dispose(); model._pending = null;
             ObjectDisposedException.ThrowIf(model._disposed, model);
             model._capturedOwner = preview; model._observation = preview.Snapshot;
+            model._capturedVolumeCapacities = _session.VolumeCapacities;
             model._acquisition = null; model._session = null; model.Dirty = false;
             model.Phase = preview.Snapshot.Phase is AnalysisPhase.Scanning or AnalysisPhase.Refreshing or AnalysisPhase.Paused or AnalysisPhase.Pausing or AnalysisPhase.Ready
                 ? AnalysisPhase.Stopped : preview.Snapshot.Phase;
@@ -83,6 +87,7 @@ public sealed partial class DiskSpaceViewModel
             _model._capturedOwner?.Dispose(); _model._capturedOwner = _capturedOwner; _model._observation = _observation;
             _model._acquisition = Acquisition; _model._session = _session; _model.Phase = _phase;
             _model._capturedPreviewNotice = _notice;
+            _model._capturedVolumeCapacities = _capacities;
             return true;
         }
     }

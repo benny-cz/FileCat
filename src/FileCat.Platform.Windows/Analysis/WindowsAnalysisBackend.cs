@@ -7,7 +7,7 @@ using Microsoft.Win32.SafeHandles;
 namespace FileCat.Platform.Windows.Analysis;
 
 /// <summary>Read-only handle-relative traversal. Reparse entries are observations, never traversal targets.</summary>
-public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend, IAnalysisDetailedBackend
+public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend, IAnalysisDetailedBackend, IAnalysisVolumeBackend
 {
     private readonly OwnedHandle _root;
     private bool _disposed;

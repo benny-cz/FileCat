@@ -228,7 +228,12 @@ public sealed partial class AnalysisSession : IDisposable
                 if (_io.GetHealth(device) == DeviceHealth.NotResponding) { Issue("device-not-responding"); continue; }
                 using var turn = await AnalysisScanDevices.AcquireAsync(device, _cancel.Token).ConfigureAwait(false);
                 if (_ntfs is { } ntfs) await WalkNtfsAsync(ntfs, root).ConfigureAwait(false);
-                else await WalkAsync(source, root, device, i).ConfigureAwait(false);
+                else
+                {
+                    if (source is IAnalysisVolumeBackend capacity && !_protectedSources.Contains(source))
+                        await CaptureVolumeCapacityAsync(capacity, root.Id, device).ConfigureAwait(false);
+                    await WalkAsync(source, root, device, i).ConfigureAwait(false);
+                }
                 if (_store.Limited && _writer is null) break;
             }
         }
@@ -344,6 +349,9 @@ public sealed partial class AnalysisSession : IDisposable
             rootEntry = await AnalysisIo.Run(_io, device, detailed.ReadDetailedRoot, _cancel.Token).ConfigureAwait(false);
         var rootId = await AppendObservationAsync(rootEntry, 0, root.Id, source.Basis).ConfigureAwait(false);
         if (!rootId.HasValue) { Issue("memory-or-observation-limit"); return; }
+        // Publish the first observation before a child enumeration can block. The setup-time
+        // preview may already have consumed the initial dirty notification with an empty store.
+        if (rootId.Value == 1) Report();
         if (protectedRoot) { Issue("private-analysis-state-excluded", rootId, MeasurementState.Excluded); return; }
         if (rootEntry.ExtraAllocation?.Measurement.State == MeasurementState.Changed)
             Issue("extra-data-changed-during-observation", rootId, MeasurementState.Changed);

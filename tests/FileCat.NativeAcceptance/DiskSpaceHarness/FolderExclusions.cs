@@ -79,6 +79,7 @@ internal sealed partial class HarnessApp
                 throw new InvalidDataException("The native scan did not preserve the requested exclusion and sibling evidence.");
             if (model.Tree.Projection.Totals.Known != 60 || model.Tree.Projection.Totals.MatchingPaths != 1)
                 throw new InvalidDataException("The native view did not apply only the requested panel filename mask.");
+            await CheckNativeVolumeCapacityAsync(window, model, "folder-exclusions-capacity.png");
             await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
                 text.Text?.Contains("Folder exclusion rules: 1. Folders skipped: 1.", StringComparison.Ordinal) == true));
             var panelStatus = window.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "Panel filter active");
@@ -170,7 +171,7 @@ internal sealed partial class HarnessApp
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
                 readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
-                standardIndexChoice = true, scratchThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe };
+                standardIndexChoice = true, scratchThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
         }
@@ -238,6 +239,33 @@ internal sealed partial class HarnessApp
 
     private sealed record ScratchThemeFrame(string Theme, string ResolvedTheme, string Frame, double Width, double Height, double Scale, double FontSize);
 
+    private async Task CheckNativeVolumeCapacityAsync(DiskSpaceWindow window, DiskSpaceViewModel model, string frame)
+    {
+        var sample = model.VolumeCapacities.Values.Single();
+        if (sample.WholeVolumeVerified || sample.TotalBytes == 0 || sample.AvailableBytes > sample.FreeBytes || sample.FreeBytes > sample.TotalBytes)
+            throw new InvalidDataException("The test folder did not expose coherent volume capacity.");
+        Button? Ribbon() => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+            button.IsEffectivelyVisible && AutomationProperties.GetAutomationId(button) == "AnalysisVolumeCapacity");
+        Button? CloseCapacity() => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
+            button.IsEffectivelyVisible && button.Content as string == "Close capacity");
+        await ReadyAsync(() => Ribbon() is { IsEnabled: true });
+        var ribbon = Ribbon()!;
+        ribbon.BringIntoView();
+        ribbon.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => CloseCapacity() is { IsDefault: true, IsCancel: true });
+        var text = window.GetVisualDescendants().OfType<TextBlock>().Where(block => block.IsEffectivelyVisible).Select(block => block.Text);
+        if (!text.Any(value => value?.Contains("Reported free " + DiskSpaceViewModel.Bytes(sample.FreeBytes), StringComparison.Ordinal) == true &&
+                value.Contains("Volume ID " + sample.VolumeIdentity, StringComparison.Ordinal) && value.Contains("scanned scope", StringComparison.Ordinal)) ||
+            text.Any(value => value?.Contains("Difference from reported used space", StringComparison.Ordinal) == true))
+            throw new InvalidDataException("The volume display changed the held sample or offered a whole-volume difference for a folder.");
+        var close = CloseCapacity()!;
+        if (close.TranslatePoint(default, window) is not { } top || top.Y < 0 || top.Y + close.Bounds.Height > window.ClientSize.Height)
+            throw new InvalidOperationException("The compact capacity dialog clipped its close control.");
+        await RecipeFrameAsync(frame, true, _indexedLifetime.Token);
+        close.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => CloseCapacity() is null);
+    }
+
     private async Task<IReadOnlyList<ScratchThemeFrame>> CheckIndexedCopyPathAsync(DiskSpaceWindow window)
     {
         var services = _services!;
@@ -258,12 +286,18 @@ internal sealed partial class HarnessApp
             top.Y + option.Bounds.Height <= window.ClientSize.Height);
         option.IsChecked = true;
         VisibleButton("Start analysis")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        await ReadyAsync(() => model.CanOpenRecordedResult && VisibleButton("Open recorded result") is { IsEnabled: true });
+        try { await ReadyAsync(() => model.CanOpenRecordedResult && VisibleButton("Open recorded result") is { IsEnabled: true }); }
+        catch (TimeoutException error)
+        {
+            throw new InvalidOperationException($"Standard recorded result did not become ready. Phase: {model.Phase}. Indexed preview: {model.IsIndexedRuntimePreview}. " +
+                $"Reported state: {model.Status} {model.AcquisitionNotice} Open refusal: {model.RecordedResultUnavailableReason}", error);
+        }
         if (model.Phase != AnalysisPhase.Finished || model.SourceCloseFailures != 0)
             throw new IOException("The native standard indexed scan did not finish.");
         await using var lease = await model.AcquireRecordedDatasetAsync(cancellation);
         VisibleButton("Open recorded result")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await ReadyAsync(() => IndexedList() is { ItemCount: 1 } && VisibleButton("Resource limits…") is { IsEnabled: true });
+        await CheckNativeVolumeCapacityAsync(window, model, "folder-exclusions-indexed-capacity.png");
         var limits = VisibleButton("Resource limits…")!;
         limits.BringIntoView();
         await ReadyAsync(() => limits.TranslatePoint(default, window) is { } top && top.Y >= 0 &&

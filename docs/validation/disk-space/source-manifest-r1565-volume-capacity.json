@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "scope": "Held Standard scan capacity, signed difference and first observation publication.",
+  "baselineCommit": "d432a93756b887bd7339fb72b35671c7d69ef2a9",
+  "sources": {
+    "src/FileCat.App/ViewModels/DiskSpaceViewModel.Acquisition.cs": "de9fb9ece949381c9243b6a9389b42faac35cee342b4475e9c3c02e5e57a0a84",
+    "src/FileCat.App/ViewModels/DiskSpaceViewModel.RecordedResult.cs": "8f0c74276f61afe0bb33c04126534abd690fee8aef7a68b6f9ad9597981d7006",
+    "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs": "6f3f9a21416f14eb88f41d0d3d74a2db6062f93d4e43fe4e4750a26287faf9dd",
+    "src/FileCat.App/Views/DiskSpaceWindow.IndexedRescan.cs": "d48c5e4680f78c5d064e2cc18d9337d8d5cf9c2b2a000ff579cf1056b9196337",
+    "src/FileCat.App/Views/DiskSpaceWindow.cs": "5574ecb9ab337b56d6f6033132e6799aea06a284ce449d38e37c031fe2758e1f",
+    "src/FileCat.Core/Analysis/AnalysisCoordinator.cs": "8b8abcbafb3865230c000d555b743eaacc9b851d5b865ab1a5540d4ab2cf1346",
+    "src/FileCat.Core/Analysis/IAnalysisBackend.cs": "7a558a20494aa8a64f92a78702519b1143e5378c6527afd4ad835bfe55d055a1",
+    "src/FileCat.Core/Analysis/UnixAnalysisBackend.cs": "3f371ccfd740917ae812ef9eac7dea7908f8d4d647acd4369b9d965c38271ac8",
+    "src/FileCat.Core/FileSystem/FileSystemCapacity.Held.cs": "e1348fefdc82a247f3961f6a3e0793d53a6a2bb2bdb239f02bb3b706fcb20f55",
+    "src/FileCat.Platform.Windows/Analysis/WindowsAnalysisBackend.cs": "e73e2a254e9b42fb54c37806e5c245ed71c695a08e3fd612ca7069894b7c5eb7",
+    "src/FileCat.Platform.Windows/WindowsStorageTransforms.Inspection.cs": "daea156c9d1fdfd04d9e877b0c79b1be11d8490b9fb7cdb283097d8947a4382b",
+    "tests/FileCat.NativeAcceptance/DiskSpaceHarness/FolderExclusions.cs": "9712b168911b267221be3d97825a1ee1bedc2f9e0bbc83a312f472cbe8526001",
+    "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ProgressivePreview.cs": "d719183724cb1b69a241e57bbad857fc36992b09c0dcf2cbfa4ce0547451c956",
+    "src/FileCat.App/Views/DiskSpaceWindow.VolumeCapacity.cs": "f487bd698229299846fff202c8263fe6ee4dba3c07d805199fbd29ec4bf01001",
+    "src/FileCat.Core/Analysis/AnalysisVolumeCapacity.cs": "bb71ff268cffca2c5a228dbc8533e85819ae8681b182d2858f1efbfc45b2d932",
+    "src/FileCat.Platform.Windows/Analysis/WindowsAnalysisBackend.VolumeCapacity.cs": "7fefcfb8d6ef1b374521e262542259c8457e7654b45fb015d5a80dfc4b7c2130",
+    "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.VolumeCapacity.cs": "20db1c1dc6da4a5391b408ec6b7c9ea49a77df5ee300d92f0a30089d5b671df5"
+  },
+  "ubuntuHarnessDiagnosticSourceSha256": "44e4c1d336b38936ad32d05810e2a581f4ae820183a6bbbbc302bb4c0b838d92",
+  "platforms": {
+    "windowsVm": {
+      "focused": {
+        "run": "windows-batch-r1565",
+        "counts": {
+          "total": 31,
+          "passed": 30,
+          "failed": 0,
+          "skipped": 1,
+          "errors": 0
+        },
+        "receiptSha256": "5b7c3c48be2527024c018798dbff6687a8b0cb78f0a3161386e70804214471dd",
+        "cacheProofSha256": "349594d6158c7f89bdfccdc09645a74d900bf1eeefcc77335fc47dec6c3f1f27",
+        "postInventoryUtc": "2026-11-18T17:19:08.2783685Z",
+        "postInventory": []
+      },
+      "compactNative": {
+        "run": "native-exclusions-windows-r1566",
+        "receiptSha256": "e876d28b8a84695d42133dee7c0192d793c8e797b68f670c43f901027f6a1e9d",
+        "appSha256": "4abc5bb80e0c85684962b75ce9d7a776a110976360fa68cb1122f60b02a81724",
+        "harnessSha256": "820894f76ace26945535819cb116a845a900fa4e0dfcad43335a97bcc37695df",
+        "compactIndexedFrameSha256": "a46d8a50e32b2c48e4413915c967d8236cd07d819212f0d063c453a6d233f0a1",
+        "sourceUnchanged": true,
+        "remainingOwnedProcesses": [],
+        "capture": "native window visual tree"
+      },
+      "wholeVolume": {
+        "run": "windows-batch-r1567",
+        "counts": {
+          "total": 1,
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "receiptSha256": "972062a223a19399142de51f58fe8c3090c21e8f8672939af56ced15cb592fef",
+        "cacheProofSha256": "7007aa44a11d0889c304e2d03c6bc8cdc5ac8b09cd339637a8a862a80c008f67",
+        "postInventoryUtc": "2026-11-18T17:22:17.0046707Z",
+        "postInventory": [],
+        "filesystem": "NTFS",
+        "fixtureDetached": true
+      }
+    },
+    "mac": {
+      "focused": {
+        "run": "mac-batch-r1565",
+        "counts": {
+          "total": 31,
+          "passed": 31,
+          "failed": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "receiptSha256": "b69745d0a10f71383a7d87f7d0806df7d84fe30e3d96e77d3604d10200c0d80d",
+        "cacheProofSha256": "f47a64155e8d42cad4bb0b3d48be43961d7d12851c1f78a2fe8937acda566065",
+        "postInventoryUtc": "2026-11-18T17:17:44.0399970Z",
+        "postInventory": []
+      },
+      "compactNative": {
+        "run": "native-exclusions-mac-r1566",
+        "receiptSha256": "f704899eb0465d0bfd946c831491e63601f253253a156da6ba1ea1e57921a184",
+        "appSha256": "4abc5bb80e0c85684962b75ce9d7a776a110976360fa68cb1122f60b02a81724",
+        "harnessSha256": "820894f76ace26945535819cb116a845a900fa4e0dfcad43335a97bcc37695df",
+        "compactIndexedFrameSha256": "6d1c82e24f2e585a0f7fc5a924ccda98ff1fbe815d4391acf2e3870446ddaa81",
+        "sourceUnchanged": true,
+        "remainingOwnedProcesses": [],
+        "capture": "native compositor"
+      },
+      "wholeVolume": {
+        "run": "mac-batch-r1568",
+        "counts": {
+          "total": 1,
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "receiptSha256": "ce3b1590032648a0a73111030ce06c426e893c0174df2fd44b7a99d64f138a78",
+        "cacheProofSha256": "68d5ab33ef80e08359fb364e2924e2b7ff3133c7558d2f26c76896c1a9383c7f",
+        "postInventoryUtc": "2026-11-18T17:18:44.8215987Z",
+        "postInventory": [],
+        "filesystem": "HFS+",
+        "fixtureDetached": true
+      }
+    },
+    "ubuntuVm": {
+      "focused": {
+        "run": "ubuntu-batch-r1565",
+        "counts": {
+          "total": 31,
+          "passed": 31,
+          "failed": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "receiptSha256": "61d30166ec867bccac5af6915917094e92d812e144317e00013e9db3bb65a140",
+        "cacheProofSha256": "83c22309af0adb2343b7c2d0336db6ebd679f021a48cf0787f572a2c59cae489",
+        "postInventoryUtc": "2026-11-18T17:17:51.2753255Z",
+        "postInventory": []
+      },
+      "compactNative": {
+        "run": "native-exclusions-linux-r1569",
+        "receiptSha256": "e07f33029b8a34a9aff11d652c9d37c8f68283e382b5d90ec4da45bb265bd3f0",
+        "appSha256": "4abc5bb80e0c85684962b75ce9d7a776a110976360fa68cb1122f60b02a81724",
+        "harnessSha256": "94bafd8af5f6ad199af12eef1ade77df5930a78477a159825521fc592dff041f",
+        "compactIndexedFrameSha256": "0e4ccdbc8fb88a3c869b76f1386dd4fe1d9d06bc4247a2ff80c8231adeb27bde",
+        "sourceUnchanged": true,
+        "remainingOwnedProcesses": [],
+        "capture": "native window visual tree"
+      },
+      "wholeVolume": {
+        "run": "ubuntu-batch-r1568",
+        "counts": {
+          "total": 1,
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "errors": 0
+        },
+        "receiptSha256": "0c0db2c45addf4bff7412af9ff79cff133d9b1d0650a2040f19c118d9b73f21c",
+        "cacheProofSha256": "69e858fb80dbbb941c4800a5fab23f9627d20199e9dc79a6a365f0dedaeed0c2",
+        "postInventoryUtc": "2026-11-18T17:21:05.4237930Z",
+        "postInventory": [],
+        "filesystem": "ext4",
+        "fixtureDetached": true
+      }
+    }
+  },
+  "previousWindowsEmptyPreviewFailureSha256": "a7dc1ca82a92c578347f1507ac47eb7a6e891607cfd9a96125c62fad77e96090",
+  "previousUbuntuNativeTimeoutSha256": "9b0588c17ed4b95e026297b20b66b4e469addb6170ccec162fcd65c70d716208",
+  "sourceNote": "Two source files had a trailing blank line removed after the focused run. Listed source hashes describe the tested build inputs.",
+  "releaseQualified": false
+}

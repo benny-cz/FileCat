@@ -45,6 +45,7 @@ public sealed partial class DiskSpaceWindow
         internal void RefreshRuntimeRescanControls()
         {
             if (_disposed) return;
+            RefreshVolumeCapacityRibbon(_volumeCapacityRibbon, CurrentCapacity);
             RefreshBranchAvailability();
             string? refusal = _runtimeAcquisition is null ? "These captured observations have no runtime source context. Choose New analysis to scan locations." :
                 _runtimeRescanIssued ? "This epoch has started a successor. Rescan from its tab, or choose New analysis if it could not be opened." :

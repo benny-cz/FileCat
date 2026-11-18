@@ -202,6 +202,7 @@ public sealed partial class DiskSpaceWindow
         private readonly TreemapControl _treemap = new() { Height = 300 };
         private readonly SunburstControl _sunburst = new() { Height = 300, IsVisible = false };
         private readonly Button _previous, _next, _parent, _back, _forward;
+        private readonly Button _volumeCapacityRibbon;
         private readonly Button[] _evidence = new Button[6];
         private readonly List<(ulong Parent, ulong Offset, int Skipped)> _past = [], _future = [];
         private readonly List<ulong> _pageOffsets = [];
@@ -259,6 +260,7 @@ public sealed partial class DiskSpaceWindow
             navigation.Children.Add(ActionButton("Copy summary", () => _ = CopyCapturedTextAsync($"{_summary.Text}\n{_status.Text}"),
                 "Copy the displayed totals and coverage as text."));
             navigation.Children.Add(window.ResourceLimitsButton(services?.Paths.AnalysisScratchDirectory, () => _source.ScratchReservedBytes));
+            _volumeCapacityRibbon = window.VolumeCapacityRibbon(() => CurrentCapacity, () => _source.Descriptor.Roots, FullVolumeAllocation);
             AddIndexedPersistenceControls(navigation);
             AddRuntimeRescanControls(navigation);
             AddRecipeControls(navigation);
@@ -274,6 +276,7 @@ public sealed partial class DiskSpaceWindow
             var provenanceLabel = new TextBlock { Text = provenance, TextWrapping = TextWrapping.Wrap };
             AutomationProperties.SetName(provenanceLabel, "Analysis provenance: " + provenance);
             Children.Add(provenanceLabel); Children.Add(toolbar); Children.Add(filters); Children.Add(_summary); Children.Add(_status); Children.Add(navigation); Children.Add(_legend);
+            Children.Add(_volumeCapacityRibbon);
             Children.Add(_historyNotice);
             AddRuntimeChangeHint();
             Children.Add(new ScrollViewer { Content = _breadcrumbs, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto });

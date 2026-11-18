@@ -22,6 +22,8 @@ public sealed partial class DiskSpaceViewModel
     internal CancellationToken HistoryLifetime => _selectionLifetime.Token;
     internal long? ScratchReservedBytes => _session?.ScratchReservedBytes;
     internal bool CanChooseStandardIndex => _services is not null && !_indexedStorage;
+    private ImmutableDictionary<string, AnalysisVolumeCapacity> _capturedVolumeCapacities = ImmutableDictionary<string, AnalysisVolumeCapacity>.Empty;
+    internal ImmutableDictionary<string, AnalysisVolumeCapacity> VolumeCapacities => _session?.VolumeCapacities ?? _capturedVolumeCapacities;
 
     internal static DiskSpaceViewModel ForCurrentSource(AppServices services, AnalysisKind kind) => new(services, path =>
     {

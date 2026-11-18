@@ -6,7 +6,7 @@ using FileCat.Core.FileSystem;
 namespace FileCat.Core.Analysis;
 
 /// <summary>Descriptor-relative metadata only. Linux resolves every queued entry beneath the held root with openat2.</summary>
-public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnalysisDetailedBackend
+public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnalysisDetailedBackend, IAnalysisVolumeBackend
 {
     private readonly int _root;
     private readonly bool _mac = OperatingSystem.IsMacOS();
@@ -19,6 +19,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
     private readonly ulong _device, _mount;
     private readonly bool _identitySupported;
     private readonly bool _apfs;
+    private readonly bool _wholeVolume;
     private readonly ulong _modifiedPrecisionTicks = 1;
     private readonly Dictionary<int, AnalysisNativeHandle> _handleLeases = [];
     private readonly Guid _bindingId = Guid.NewGuid();
@@ -52,16 +53,21 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
             _device = facts.Device; _mount = facts.Mount;
             if (_mac)
             {
-                string type = MacFileSystem(_root).Type;
+                var filesystem = MacFileSystem(_root, readMountRoot: true);
+                string type = filesystem.Type;
                 _apfs = type == "apfs";
                 _identitySupported = type is "apfs" or "hfs";
+                _wholeVolume = facts.Kind == AnalysisKind.Directory && canonical == filesystem.MountRoot;
                 _modifiedPrecisionTicks = type == "hfs" ? (ulong)TimeSpan.TicksPerSecond : 1;
             }
             else
             {
                 byte* fs = stackalloc byte[512]; new Span<byte>(fs, 512).Clear();
                 // Other filesystems, including btrfs subvolumes and mounted shares, need a separate identity contract.
-                _identitySupported = FstatFs(_root, fs) == 0 && *(ulong*)fs is 0xEF53 or 0x58465342 or 0x01021994;
+                ulong type = FstatFs(_root, fs) == 0 ? *(ulong*)fs : 0;
+                _identitySupported = type is 0xEF53 or 0x58465342 or 0x01021994;
+                // The ext family reserves inode 2 for its root. A bound subtree does not have that inode.
+                _wholeVolume = type == 0xEF53 && facts.Kind == AnalysisKind.Directory && facts.Inode == 2;
             }
             Root = new("1", "file", selectedRoot, canonical, $"{_device:X}:{facts.Inode:X}:{_mount:X}", _identitySupported ? IdentityAssurance.Verified : IdentityAssurance.Unknown,
                 Path.GetFileName(canonical.TrimEnd('/')) is { Length: > 0 } n ? n : canonical)
@@ -345,7 +351,17 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
         _ when error == (_mac ? 62 : 40) || error == (_mac ? 70 : 116) => new(MeasurementState.Changed, "entry-changed-before-observation"),
         _ => new(MeasurementState.Failed, "entry-metadata-unavailable")
     };
-    private static (ulong Id, string Type) MacFileSystem(int fd)
+    AnalysisVolumeCapacity? IAnalysisVolumeBackend.ReadVolumeCapacity(CancellationToken cancellation)
+    {
+        Guard(); cancellation.ThrowIfCancellationRequested();
+        if (!_identitySupported || RootEntry.Cloud == true) return null;
+        var space = FileSystemCapacity.QueryHeldUnixVolume(_root, mayShareCapacity: _apfs);
+        cancellation.ThrowIfCancellationRequested();
+        return space is { } known ? new($"{(_mac ? "darwin" : "linux")}:{_device:X}:{_mount:X}", DateTimeOffset.UtcNow,
+            known.Total, known.Used, known.Free, known.Available, _wholeVolume, known.MayShareCapacity) : null;
+    }
+
+    private static (ulong Id, string Type, string? MountRoot) MacFileSystem(int fd, bool readMountRoot = false)
     {
         // Darwin statfs64: fsid at 48, filesystem name at 72; 2168 bytes including bounded mount-name fields.
         byte* fs = stackalloc byte[4096]; new Span<byte>(fs, 4096).Clear();
@@ -354,7 +370,14 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend, IAnal
         var type = new ReadOnlySpan<byte>(fs + 72, 16);
         int end = type.IndexOf((byte)0);
         if (end <= 0) throw new IOException("Filesystem type is unavailable.");
-        return (*(ulong*)(fs + 48), Encoding.ASCII.GetString(type[..end]));
+        string? mountRoot = null;
+        if (readMountRoot)
+        {
+            var mount = new ReadOnlySpan<byte>(fs + 88, 1024);
+            int mountEnd = mount.IndexOf((byte)0);
+            if (mountEnd > 0) mountRoot = Encoding.UTF8.GetString(mount[..mountEnd]);
+        }
+        return (*(ulong*)(fs + 48), Encoding.ASCII.GetString(type[..end]), mountRoot);
     }
     internal static byte[] ReadName(nint record, bool mac)
     {

@@ -118,6 +118,14 @@ internal sealed unsafe partial class WindowsStorageTransforms
 
     internal static string ActualVolumeBinding(SafeFileHandle file, bool rootOnly, CancellationToken ct)
     {
+        var binding = ActualVolumeBinding(file, ct);
+        if (rootOnly && !binding.WholeVolume)
+            throw Refuse("volume-binding", "The drive is an alias or its actual volume-root binding is unknown; select its ordinary volume path.");
+        return binding.Identity;
+    }
+
+    internal static (string Identity, bool WholeVolume) ActualVolumeBinding(SafeHandle file, CancellationToken ct)
+    {
         Span<char> buffer = stackalloc char[256];
         for (int attempt = 0; ; attempt++)
         {
@@ -131,10 +139,10 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 buffer = new char[chars + 1]; continue;
             }
             var name = buffer[..(int)chars];
-            if (name.Length < 49 || rootOnly && name.Length != 49 || !name.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase) || name[48] != '\\' ||
+            if (name.Length < 49 || !name.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase) || name[48] != '\\' ||
                 !Guid.TryParse(name.Slice(10, 38), out var guid))
             throw Refuse("volume-binding", "The drive is an alias or its actual volume-root binding is unknown; select its ordinary volume path.");
-            return guid.ToString("D");
+            return (guid.ToString("D"), name.Length == 49);
         }
     }
 
@@ -165,6 +173,6 @@ internal sealed unsafe partial class WindowsStorageTransforms
     [LibraryImport("kernel32.dll", EntryPoint = "GetVolumeInformationByHandleW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetVolume(SafeFileHandle file, char* label, uint labelChars, out uint serial, out uint maxComponent, out uint flags, char* fs, uint fsChars);
     [LibraryImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", SetLastError = true)]
-    private static partial uint FinalPath(SafeFileHandle file, char* text, uint chars, uint flags);
+    private static partial uint FinalPath(SafeHandle file, char* text, uint chars, uint flags);
     [LibraryImport("ntdll.dll")] private static partial int NtQueryVolumeInformationFile(SafeFileHandle file, IoStatus* io, void* output, uint length, int infoClass);
 }

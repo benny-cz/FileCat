@@ -63,6 +63,11 @@ public interface IAnalysisBackend : IDisposable
     AnalysisRootContainment ContainsRoot(IAnalysisBackend other) => AnalysisRootContainment.Unavailable;
 }
 
+internal interface IAnalysisVolumeBackend
+{
+    AnalysisVolumeCapacity? ReadVolumeCapacity(CancellationToken cancellation);
+}
+
 internal interface IAnalysisDetailedBackend
 {
     string? ExtraAllocationBasis { get; }

@@ -26,15 +26,31 @@ public sealed partial class AnalysisRenderingTests
         OrdinaryPreparation(); using var styles = new ProductStyles(); using var fixture = new PreparationFixture();
         string input = Path.Combine(fixture.Root, "input"); Directory.CreateDirectory(input); File.WriteAllText(Path.Combine(input, "keep.bin"), "keep");
         using var gate = new ManualResetEventSlim(); var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        void BeforeChildren(AnalysisEntry _, CancellationToken token) { entered.TrySetResult(); gate.Wait(TimeSpan.FromSeconds(6)); }
+        using var beforeFirstObservation = new ManualResetEventSlim();
+        var deviceEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task? delayedDevice = null;
+        void BeforeChildren(AnalysisEntry _, CancellationToken token) { entered.TrySetResult(); gate.Wait(TimeSpan.FromSeconds(20), token); }
         IAnalysisBackend Prepare(string path) => OperatingSystem.IsWindows()
             ? new WindowsAnalysisBackend(path, null, BeforeChildren, null) : new UnixAnalysisBackend(path, null, BeforeChildren, null);
         using var model = new DiskSpaceViewModel(fixture.Services, Prepare, indexedStorage: true);
         var pool = new AnalysisSessionAdmission(); var window = new DiskSpaceWindow(null, null, pool); int handles = AnalysisNativeHandles.Count;
+        model.Changed += () =>
+        {
+            if (model.Phase != AnalysisPhase.Scanning || delayedDevice is not null) return;
+            delayedDevice = AnalysisIo.Run(fixture.Services.Io, PathUtil.GetDeviceKey(input), _ =>
+            {
+                deviceEntered.TrySetResult(); beforeFirstObservation.Wait(TimeSpan.FromSeconds(20)); return true;
+            }, CancellationToken.None);
+        };
         try
         {
             window.AddSession(model); window.Show(); var clock = Stopwatch.StartNew(); await model.StartAsync([input]);
-            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)); await Until(() => model.Tree?.Snapshot.Nodes.Length > 0);
+            await deviceEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await model.RebuildAsync(true);
+            await Until(() => model.Tree is { Snapshot.Nodes.Length: 0 } && !model.Dirty);
+            beforeFirstObservation.Set();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await Until(() => model.Tree?.Snapshot.Nodes.Length > 0, () => model.Status, TimeSpan.FromSeconds(10));
             Assert.True(model.Running); Assert.False(model.CanOpenRecordedResult); Assert.True(model.CanRequestDeferredSelection);
             Assert.Contains("bounded", model.RuntimePreviewNotice); Assert.DoesNotContain("stops with partial", model.AcquisitionNotice ?? "", StringComparison.Ordinal);
             TestContext.Current.TestOutputHelper?.WriteLine("First visible bounded preview: " + clock.ElapsedMilliseconds + " ms; producer still blocked.");
@@ -51,7 +67,12 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Rescan all"); await Until(() => window.SessionCount == 3, () => ComparisonText(window), TimeSpan.FromSeconds(30));
             Assert.Equal(old.Snapshot.Identity, retained.Snapshot.Identity); Assert.Equal("keep", File.ReadAllText(Path.Combine(input, "keep.bin")));
         }
-        finally { gate.Set(); window.ForceClose(); await window.WaitForIndexedCloseAsync(); model.Dispose(); await model.CloseCompletion; }
+        finally
+        {
+            beforeFirstObservation.Set(); gate.Set();
+            if (delayedDevice is not null) await delayedDevice;
+            window.ForceClose(); await window.WaitForIndexedCloseAsync(); model.Dispose(); await model.CloseCompletion;
+        }
         await AssertAllRuntimePlacesAvailableAsync(pool); Assert.Equal(handles, AnalysisNativeHandles.Count);
     }
 
