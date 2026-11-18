@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "764f878d0a653ee4cd5e6b34ef0b3297c06c96c5",
+  "sourceArchiveSha256": "e12de46a3935559934ffd166ddd2b26dce2e7e41fb2b2baf1622b38c83370085",
+  "releaseQualified": false,
+  "packageBuilds": {
+    "mac": {
+      "archives": {
+        "app": {
+          "version": "FileCat 1.0.0-dsa1582",
+          "sha256": "2d5e54596f202cf3776f7139e56c675f8446158e99eba73ef3d6e89146858e3b"
+        }
+      },
+      "packageReceiptSha256": "00e9cd8ca9996616ab2175326bc46e9c1c251974a4b7e7ec271606a120603e81",
+      "packagePost": {
+        "observedUtc": "2026-11-18T18:07:03.7802549Z",
+        "filecatOrDotnet": []
+      },
+      "desktop": {
+        "receiptSha256": "b95ceb9cc28343f16decc2d2269c3987e59b04676ce4503a4eefc6f53bf15141",
+        "tier": "app",
+        "appSha256": "7c93765cbdfc9fd0dab7b03663ed84597a03dcd72be3e4e4c23ecf5ab0d8b201",
+        "sourceUnchanged": true,
+        "remaining": []
+      },
+      "renderer": {
+        "counts": {
+          "total": 989,
+          "passed": 982,
+          "failed": 0,
+          "skipped": 7,
+          "errors": 0
+        },
+        "shardSha256": {
+          "preflight-shard-01.xml": "cda378b79ed1da02bac9743b5a35a8436bb5692b56ee40b2d147b9bed4dae633",
+          "preflight-shard-02.xml": "a9f5fa47063ef24d5ab9b4348b0655403e6f87eccf7e1c4e3261d67e960c1bf4",
+          "preflight-shard-03.xml": "24c46bc7398e5d3780f1177d6a8cfcb3bf0916dd38bc8298888f7343e127c325",
+          "preflight-shard-04.xml": "0107aae1a9e038a2860d798fdce293a425b00b9e16e90af0e67d1dc9cc6f2036",
+          "preflight-shard-05.xml": "ae0cbab4e15488186a586836c1b566ae135f9b53925f267e88a73b7457c77c79",
+          "preflight-shard-06.xml": "b743fa7780c11cedf585e974507c3ce952085b47c3b2a510bffbce548c95f7ce",
+          "preflight-shard-07.xml": "c209e6542be21ee797a2106b77703181769c6a63e382dd8deeadc7802ed1682d",
+          "preflight-shard-08.xml": "540ef4cfb400d8c759ba8356d9647cdb494d6ca92bec573ead8182c03cbdb50e",
+          "preflight-shard-09.xml": "5e6775fb8c25b47ed2dc030b8b3f8f71a12153e795ad38b1405ab11bdcdd4983",
+          "preflight-shard-10.xml": "631ca296d009fe7559ec725221984492f92349074d601f5381d37a99656f62c8",
+          "preflight-shard-11.xml": "87a38238aed75c36c92514818ad11881dee67b58de2d44f65bfda0ac77f2642e",
+          "preflight-shard-12.xml": "b7795143e146bdb52005910db6086cbd238abe16ee24d50003e362da41e64b2f",
+          "preflight-shard-13.xml": "14a862a89f9d40a7710197bcdecc12c5f2410b8dde5da9662ca0b099d1a0c273",
+          "preflight-shard-14.xml": "37e1244fc2577d014c6105415058caece78de71b949abc0e97795fc9ed0e7d67",
+          "preflight-shard-15.xml": "f795ed6d1079fc0fe44dd77878be2bbddf498b2550bd3bcf83f58f86b0f313cd",
+          "preflight-shard-16.xml": "7ba5da73d91978b9560c09d17e9959391deffb0757ab1bf765f853f370d813b6"
+        }
+      }
+    },
+    "ubuntuVm": {
+      "archives": {
+        "linux-tar": {
+          "version": "FileCat 1.0.0-dsa1582",
+          "sha256": "8688c49f97ca85559f2a009682e596034c796431d697489197621151fd4f332a"
+        },
+        "debian": {
+          "version": "FileCat 1.0.0-dsa1582",
+          "sha256": "578a9a40b9abd670c53732f4afe0989fdb8b36a6eb8e13204f2c5929a1ae8062"
+        },
+        "appimage": {
+          "version": "FileCat 1.0.0-dsa1582",
+          "sha256": "7b4cacd4fad043593e4cfa44059e4a1a975c4baef290772c6c314238488c211c"
+        }
+      },
+      "packageReceiptSha256": "2a226a96daec58e381db2ac7d193be9b1799f327d63449d2883b651d0618ef14",
+      "packagePost": {
+        "observedUtc": "2026-11-18T18:10:11.5688880Z",
+        "filecatOrDotnet": []
+      },
+      "desktop": {
+        "receiptSha256": "2e4c06a83d912a497c62c70b86c824a1b6486fce65a4693e062084f72bceafa2",
+        "tier": "debian",
+        "appSha256": "1da25a76c8f9b83a2b9cd67ba24934981b0ca83c203a73481d4c6bcd7aafac19",
+        "sourceUnchanged": true,
+        "remaining": []
+      },
+      "renderer": {
+        "counts": {
+          "total": 989,
+          "passed": 982,
+          "failed": 0,
+          "skipped": 7,
+          "errors": 0
+        },
+        "shardSha256": {
+          "preflight-shard-01.xml": "1fa9f5bf293bc587c59739ef334d8f74e8d463327a91331c2f10857a93dc19b4",
+          "preflight-shard-02.xml": "9e641c5f218e0ca7b073979d443ba7baa650e6a127d89d317a978f5d8fceb5b7",
+          "preflight-shard-03.xml": "a9ca90cfa750460e85810be3c699ad84a9e3be2073903213a8779a202525d703",
+          "preflight-shard-04.xml": "0196d189dfd3916f3cee3d43669c4f4f62e1f35681384684e18be055e4f3230a",
+          "preflight-shard-05.xml": "ac9bbe131296ddc380e1e580bd923a55666c906e7807e31090e8f090e3467d13",
+          "preflight-shard-06.xml": "b66552b5d255f204f191567257f8dbb5bc98532c34d48119779906942f5de436",
+          "preflight-shard-07.xml": "78709d6a4581e03c3fdca96fecb826a28e9bb0e9722a07c82e207d1117046ace",
+          "preflight-shard-08.xml": "c72837d068fe8dfce10e8d2da8802d151d0d08da5623a42b874a11ca29400bdc",
+          "preflight-shard-09.xml": "b41a9ae527fba75618072dd7855d47848c56511bfea65bbbb3e5a411aa267f32",
+          "preflight-shard-10.xml": "33be6452e49e53cefbe9542e09045cec527272500af6a540b8a99a639911471a",
+          "preflight-shard-11.xml": "33fbea477fcf52558ed7aa4fff1378fc0ae6cb14cb5512fbd88babe7201e934b",
+          "preflight-shard-12.xml": "c30ac31fef816d29923eca32b7ec5ebca15bc7e6c9c85691addd7d115924d31f",
+          "preflight-shard-13.xml": "c23b09925b581f41c624259d9537b65298b504b24fe1db3b256d10c973cf7a32",
+          "preflight-shard-14.xml": "6a9c3334943dbecff662b555dba627d61a99d669fa0ab1c0851c98dc1569ea85",
+          "preflight-shard-15.xml": "e858b7075a224ca2d99853c1efb3d2ea714515f343aef1ca23be47bb0f43f7d8",
+          "preflight-shard-16.xml": "aee59ae7ed0e0fa685e64105fbd42034dcafcf8d3de9ed9ce6fc87c803e0ce41"
+        }
+      }
+    },
+    "windowsVm": {
+      "initialReceiptSha256": "b9df1ec1b6c6f50ca31944f7ae80e6faabfea9a290d7473d5de7f8f752039e90",
+      "portableVersion": "FileCat 1.0.0-dsa1579",
+      "portableArchiveSha256": "e71cc3574db18dcd80cd18dff1e0774fefb16d4d17e6b7188c7bcaaac6ad8843",
+      "nativeDesktop": "postponed",
+      "frameworkDependent": "staged"
+    }
+  }
+}
