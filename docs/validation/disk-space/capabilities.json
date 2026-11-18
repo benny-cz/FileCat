@@ -3,6 +3,7 @@
   "branch": "codex/disk-space-analysis",
   "baseline": "4282929753f062f5bb2cc130e8316b133e5c8e03",
   "releaseQualified": false,
+  "availabilityScope": "Development application and tested native adapters. A conditional verb also requires live source and operation admission. Release package qualification is tracked separately.",
   "packets": {
     "W0": "in-progress",
     "W1": "in-progress",
@@ -79,48 +80,87 @@
   "verbs": [
     {
       "id": "preview",
-      "enabled": false,
-      "reason": "No qualified explicit live-source read binding."
+      "enabled": true,
+      "platform": "Windows",
+      "filesystem": "Local NTFS",
+      "packageTier": "Ordinary application with a finished live acquisition",
+      "method": "Held primary file read, first 16 KiB",
+      "assurance": "Revalidated live object and recorded version",
+      "qualificationTests": ["AnalysisRenderingTests.NativePrimaryPreviewUsesBoundBytesAndRefusesChangedContent"],
+      "lastQualifiedBuild": "r1462 development",
+      "reason": "Preview requires a finished live local NTFS analysis. Historical or imported paths require an explicit current-source binding."
     },
     {
       "id": "copy",
-      "enabled": false,
-      "reason": "No qualified reviewed source/destination binding."
+      "enabled": true,
+      "platform": "Windows",
+      "filesystem": "Local NTFS source with a qualified local destination",
+      "packageTier": "Ordinary application with a finished live acquisition",
+      "method": "Held source and streams, reviewed create-new output and guarded publication",
+      "assurance": "ReviewedObject",
+      "qualificationTests": [
+        "AnalysisRenderingTests.NativeReviewedCopyQueuesOnlyApprovedEntriesAndKeepsLateCollisions",
+        "AnalysisRenderingTests.NativeReviewedCopyPreservesStreamsAndKeepsExistingFiles"
+      ],
+      "lastQualifiedBuild": "r1462 development",
+      "reason": "Reviewed copy requires a verified source and a destination that supports publishing a new file safely."
     },
     {
       "id": "replace",
       "enabled": false,
-      "reason": "No qualified bound target replacement."
+      "lastQualifiedBuild": null,
+      "reason": "Reviewed replacement of a source file requires a qualified expected-destination binding. Private inventory replacement has its own guarded store capability."
     },
     {
       "id": "move",
       "enabled": false,
-      "reason": "No qualified exact-entry source removal."
+      "lastQualifiedBuild": null,
+      "evidence": "REVIEWED_FILE_ACTIONS_QUALIFICATION.md",
+      "reason": "Reviewed move requires proof of the full approved file version through removal of the source name."
     },
     {
       "id": "recycle",
       "enabled": false,
+      "lastQualifiedBuild": null,
       "reason": "Reviewed recycling is unavailable here; exact-entry and outcome proof are unqualified."
     },
     {
       "id": "permanent-delete",
       "enabled": false,
+      "lastQualifiedBuild": null,
       "reason": "No qualified exact-entry mutation adapter."
     },
     {
       "id": "fast-ntfs",
       "enabled": false,
-      "reason": "The installed closed metadata helper and transport are unqualified."
+      "platform": "Windows",
+      "filesystem": "One whole local NTFS volume",
+      "packageTier": "Opt-in installed development candidate",
+      "assurance": "Privileged-derived metadata with partial alias coverage",
+      "evidence": "FAST_NTFS_BROKER_QUALIFICATION.md",
+      "lastQualifiedBuild": "r1448 installed development consent and cancellation",
+      "reason": "The signed installed-package gate is open. Standard analysis is available."
     },
     {
       "id": "archive-contents",
       "enabled": false,
+      "lastQualifiedBuild": null,
       "reason": "Producer-side resource isolation is unqualified."
     },
     {
       "id": "stable-hash",
-      "enabled": false,
-      "reason": "No qualified coherent content reader."
+      "enabled": true,
+      "platform": "Windows",
+      "filesystem": "Local NTFS",
+      "packageTier": "Ordinary application with a finished live acquisition",
+      "method": "Explicit duplicate review with a held primary-data reader",
+      "assurance": "StableContentProof for a successful bound read",
+      "qualificationTests": [
+        "AnalysisRenderingTests.NativeDuplicateReadConsentChecksBoundScopeAndLeavesSelectionsIntact",
+        "AnalysisRenderingTests.NativeDuplicateReadConsentRejectsCapturedDataWithoutItsRuntimeOwner"
+      ],
+      "lastQualifiedBuild": "r1462 development",
+      "reason": "Stable content evidence requires explicit review and a qualified ordinary live file binding."
     }
   ],
   "operationFeasibility": {
@@ -128,6 +168,6 @@
     "status": "tested-candidates-have-insufficient-proof",
     "evidence": "operation-feasibility-r36.json",
     "platformWideUnsupportedQualified": false,
-    "capabilitiesEnabled": false
+    "destructiveCapabilitiesEnabled": false
   }
 }

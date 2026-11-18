@@ -24,6 +24,38 @@ public sealed partial class AnalysisRenderingTests
         Assert.Same(changed, AnalysisFolderExclusions.Apply(changed, [path]));
     }
 
+    [AvaloniaFact]
+    public async Task FolderExclusionsMatchLiteralNativeFolderNames()
+    {
+        OrdinaryPreparation();
+        using var fixture = new PreparationFixture();
+        string input = Directory.CreateDirectory(Path.Combine(fixture.Root, "input")).FullName;
+        const string rawName = "trailing. ";
+        string exact = Path.Combine(input, rawName);
+        if (OperatingSystem.IsWindows()) exact = "\\\\?\\" + exact;
+        Directory.CreateDirectory(exact);
+        string hidden = Path.Combine(exact, "hidden.txt");
+        using var model = new DiskSpaceViewModel(fixture.Services) { Metric = AnalysisMetric.FileSize };
+        try
+        {
+            File.WriteAllText(hidden, "unobserved");
+            File.WriteAllText(Path.Combine(input, "visible.txt"), "observed");
+            await model.StartAsync([input], [new(0, rawName)]);
+            await Until(() => model.Phase == AnalysisPhase.Finished, timeout: TimeSpan.FromSeconds(25));
+            await model.RebuildAsync(true, TestContext.Current.CancellationToken);
+            var snapshot = model.Tree!.Snapshot;
+            Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, snapshot.Coverage);
+            Assert.Contains(snapshot.Nodes, node => node.Name == rawName && !node.IncludedByPolicy);
+            Assert.DoesNotContain(snapshot.Nodes, node => node.Name == "hidden.txt");
+            Assert.Equal((UInt128)8, model.Tree.Projection.Totals.Known);
+        }
+        finally
+        {
+            model.Dispose(); await model.CloseCompletion;
+            File.Delete(hidden); Directory.Delete(exact);
+        }
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]

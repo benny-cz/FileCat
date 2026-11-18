@@ -228,7 +228,7 @@ public sealed partial class AnalysisSession : IDisposable
                 if (_io.GetHealth(device) == DeviceHealth.NotResponding) { Issue("device-not-responding"); continue; }
                 using var turn = await AnalysisScanDevices.AcquireAsync(device, _cancel.Token).ConfigureAwait(false);
                 if (_ntfs is { } ntfs) await WalkNtfsAsync(ntfs, root).ConfigureAwait(false);
-                else await WalkAsync(source, root, device, _folderExclusions.EncodePaths(_roots, i)).ConfigureAwait(false);
+                else await WalkAsync(source, root, device, i).ConfigureAwait(false);
                 if (_store.Limited && _writer is null) break;
             }
         }
@@ -334,7 +334,7 @@ public sealed partial class AnalysisSession : IDisposable
         }
         lock (_sync) _roots = roots.ToImmutableArray();
     }
-    private async Task WalkAsync(IAnalysisBackend source, RootBinding root, string device, byte[][] exclusions)
+    private async Task WalkAsync(IAnalysisBackend source, RootBinding root, string device, int rootIndex)
     {
         bool protectedRoot = _protectedSources.Contains(source) || IsProtected(source.RootEntry);
         var rootEntry = protectedRoot ? ExcludedPrivate(source.RootEntry) : source.RootEntry;
@@ -351,6 +351,7 @@ public sealed partial class AnalysisSession : IDisposable
         if (!source.RootEntry.IncludedByPolicy || source.RootEntry.MetadataState != MeasurementState.Known)
         { Issue(source.RootEntry.IssueCode ?? "root-enumeration-unavailable", rootId, source.RootEntry.MetadataState); return; }
         if (source.RootEntry.Cloud == true) { Issue("cloud-directory-not-enumerated", rootId, MeasurementState.Excluded); return; }
+        var exclusions = _folderExclusions.EncodePaths(_roots, rootIndex);
         var pending = new Stack<(AnalysisEntry Entry, ulong Id, int Depth, IDisposable? Payload)>();
         AnalysisSourceFrontier? frontier = null;
         var clock = System.Diagnostics.Stopwatch.StartNew();

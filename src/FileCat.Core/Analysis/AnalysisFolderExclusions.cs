@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text;
 using System.Text.Json;
 
 namespace FileCat.Core.Analysis;
@@ -30,8 +31,10 @@ internal sealed class AnalysisFolderExclusions
             bool windows = root.NameRules == AnalysisNameRules.Windows;
             if (root.Scheme != "file" || source.RootEntry.Kind != AnalysisKind.Directory || root.NameRules == AnalysisNameRules.Provider)
                 throw new ArgumentException("Folder exclusions require a local folder or drive location.");
+            // Rules match observed bytes. They never become Win32 path arguments for an open or operation.
             if (rule.RelativePath is not { Length: > 0 and <= PathCharacters } path ||
-                path.Split('/').Any(name => !AnalysisNames.IsOrdinaryChild(name, windows) || name.Any(char.IsControl)))
+                path.Split('/').Any(name => !AnalysisNames.IsObservedChild(name, windows, windows ? name.Length * 2 : Encoding.UTF8.GetByteCount(name)) ||
+                    name.Any(char.IsControl)))
                 throw new ArgumentException("Enter an exact folder path relative to its location, such as Projects/Cache. Use / between folders.");
             try { _ = AnalysisRawNames.Encode("utf8", path); }
             catch (InvalidDataException error) { throw new ArgumentException("The folder exclusion needs lossless name text.", error); }
@@ -45,7 +48,7 @@ internal sealed class AnalysisFolderExclusions
             }
             // These are data-only literal rules, keyed by the captured locator instead of its session ordinal.
             var encoded = RulePrefix + JsonSerializer.Serialize(new[] { root.Scheme, root.CanonicalLocator, path });
-            if (System.Text.Encoding.UTF8.GetByteCount(encoded) > AnalysisLimits.QueryBytes)
+            if (Encoding.UTF8.GetByteCount(encoded) > AnalysisLimits.QueryBytes)
                 throw new ArgumentException("The folder exclusion and its location are too long to record.");
             policy.Add(encoded);
         }
@@ -63,9 +66,13 @@ internal sealed class AnalysisFolderExclusions
             else if (roots[rule.RootIndex] is { Disposition: AnalysisRootDisposition.Covered, CoveredRelativePath: { } prefix } covered &&
                 covered.CoveredByRootId == active.Id)
             {
-                if (prefix.Length == 0 && covered.ObservedObjectIdentity != active.ObservedObjectIdentity)
-                    throw new InvalidOperationException("The exclusion could not be placed under its covering root.");
-                yield return prefix.Length == 0 ? rule.RelativePath : prefix + "/" + rule.RelativePath;
+                if (active.ObservedObjectIdentity is not null && covered.ObservedObjectIdentity == active.ObservedObjectIdentity)
+                    yield return rule.RelativePath;
+                else
+                {
+                    if (prefix.Length == 0) throw new InvalidOperationException("The exclusion could not be placed under its covering root.");
+                    yield return prefix + "/" + rule.RelativePath;
+                }
             }
         }
     }

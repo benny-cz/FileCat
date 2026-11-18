@@ -5,6 +5,14 @@
   "productCommandRegistered": true,
   "nativeUiTested": true,
   "nativeUiQualificationComplete": false,
+  "integratedRendering": {
+    "commit": "5c60f7eaa4119dc7c377e9c930b7ef404199b6ff",
+    "run": "r1466",
+    "windowsVm": { "passed": 947, "skipped": 5, "failed": 0, "total": 952 },
+    "mac": { "passed": 946, "skipped": 6, "failed": 0, "total": 952 },
+    "ubuntuVm": { "passed": 946, "skipped": 6, "failed": 0, "total": 952 },
+    "limits": "The full renderer assembly includes platform-specific and opt-in resource cases. Native desktop and release qualification have their own evidence."
+  },
   "folderExclusions": {
     "status": "implemented-standard-local-scans",
     "releaseQualified": false,
@@ -25,6 +33,11 @@
     },
     "coverage": "Exact folder paths scoped to explicit locations, with separate skipped folder counts, preserved failure and change evidence, matching in memory and indexed scans, persisted policy, full rescan and branch refresh, structural comparison and absolute-path or traversal-component refusal.",
     "fastNtfs": "Whole-volume discovery is unavailable when folder exclusions are configured."
+  },
+  "literalExclusionNames": {
+    "tests": { "run": "r1468", "windowsVm": 103, "mac": 103, "ubuntuVm": 103 },
+    "desktop": { "run": "r1469", "windowsVm": "passed", "mac": "passed", "ubuntuVm": "passed" },
+    "coverage": "Exact native names with a trailing dot and space. Filtered view, captured folder rule, temporary-tab review and owned native exit passed on all three development desktops."
   },
   "completedBehaviors": [
     "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",
