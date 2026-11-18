@@ -212,13 +212,12 @@ public sealed unsafe partial class UnixFileRecords
                 NativeAttributes.State: FactState.Known,
             } summary && (summary.NativeAttributes.Value & 0x40000000) == 0) // SF_DATALESS
         {
-            uint device = BinaryPrimitives.ReadUInt32LittleEndian(fields.AsSpan(24));
-            report = AddMacApfsNamespace(report, device, ct);
+            report = AddMacApfsDetails(report, fields, ct);
         }
         return report;
     }
 
-    private static byte[] ReadMacDetailsFields(string path, CancellationToken ct)
+    private static byte[] ReadMacDetailsFields(string path, CancellationToken ct, bool apfsSharing = false)
     {
         // A separate summary request: no entry count, resource fork, clone statistics, ACL or xattr values.
         const uint Common = 0x80000000 | 0x2 | 0x8 | 0x200 | 0x400 | 0x800 | 0x1000 | 0x8000 | 0x10000 | 0x20000 | 0x40000 | 0x2000000;
@@ -227,10 +226,12 @@ public sealed unsafe partial class UnixFileRecords
         *(ushort*)list = 5;
         *(uint*)(list + 4) = Common;
         *(uint*)(list + 16) = 7; // link count, total size and allocation (all forks); returned mask determines validity
+        if (apfsSharing) *(uint*)(list + 20) = 0x308; // ATTR_CMNEXT_PRIVATESIZE | ATTR_CMNEXT_CLONEID | ATTR_CMNEXT_EXT_FLAGS
         byte[] buffer = new byte[256];
         ct.ThrowIfCancellationRequested();
         int status;
-        fixed (byte* data = buffer) status = GetAttrList(path, list, data, (nuint)buffer.Length, 1 | 8);
+        ulong options = 1 | 8 | (apfsSharing ? 0x20UL /* FSOPT_ATTR_CMN_EXTENDED */ : 0);
+        fixed (byte* data = buffer) status = GetAttrList(path, list, data, (nuint)buffer.Length, options);
         ct.ThrowIfCancellationRequested();
         if (status != 0) throw Error(path);
         return buffer;
@@ -242,7 +243,7 @@ public sealed unsafe partial class UnixFileRecords
         const string source = "Darwin readlink with before-and-after identity and timestamp samples";
         ObservedFact<FileSystem.StoredLinkTarget> Unavailable(FactState state, string reason) =>
             ObservedFact<FileSystem.StoredLinkTarget>.Unavailable(state, FactScope.Entry, source, reason);
-        if (identity.State != FactState.Known || !HasMacLinkTimestamps(before))
+        if (identity.State != FactState.Known || !HasMacIdentityTimestamps(before))
             return Unavailable(FactState.Partial, "The first link sample lacks identity or timestamp fields.");
 
         byte[] buffer = new byte[StoredLinkLimit];
@@ -260,7 +261,7 @@ public sealed unsafe partial class UnixFileRecords
             var current = ParseMacDetails(path, after).Summary;
             if (current.Kind is not (FileObjectKind.SymbolicLink or FileObjectKind.Unknown))
                 return Unavailable(FactState.Changed, "The entry is no longer a symbolic link.");
-            if (current.Kind == FileObjectKind.Unknown || current.Identity.State != FactState.Known || !HasMacLinkTimestamps(after))
+            if (current.Kind == FileObjectKind.Unknown || current.Identity.State != FactState.Known || !HasMacIdentityTimestamps(after))
                 return Unavailable(FactState.Partial, "The second link sample lacks type, identity or timestamp fields.");
             if (identity.Value != current.Identity.Value || !before.Slice(32, 16).SequenceEqual(after.AsSpan(32, 16)) ||
                 !before.Slice(64, 16).SequenceEqual(after.AsSpan(64, 16)))
@@ -272,7 +273,7 @@ public sealed unsafe partial class UnixFileRecords
         catch (Exception ex) when (ex is IOException or InvalidDataException) { return Unavailable(FactState.Failed, "The second link sample failed."); }
     }
 
-    private static bool HasMacLinkTimestamps(ReadOnlySpan<byte> fields)
+    private static bool HasMacIdentityTimestamps(ReadOnlySpan<byte> fields)
     {
         // Creation and change times occupy bytes 32–47 and 64–79 of the packed result.
         const uint timestamps = 0x200 | 0x800; // ATTR_CMN_CRTIME | ATTR_CMN_CHGTIME
@@ -339,7 +340,7 @@ public sealed unsafe partial class UnixFileRecords
             CompressionLabel = "Compressed representation flag",
             Restrictions = Field(common, 0x40000, bytes.Length >= 112, ChflagsText(flags), FactScope.Entry),
             Notes = ["Compression is a recorded BSD representation flag; FileVault and volume protection were not queried.",
-                "This minimal request excludes directory entry count, fork values and APFS sharing statistics."]
+                "The summary request excludes directory entry count, fork values and APFS sharing statistics."]
         };
         return FileDetailsReport.Metadata(snapshot, new InspectionSection("Native getattrlist metadata", [("Returned common mask", $"0x{common:X}"), ("Returned file mask", $"0x{files:X}"), ("Packed length", length.ToString())]));
     }
