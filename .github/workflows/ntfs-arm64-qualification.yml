@@ -110,11 +110,28 @@ jobs:
           }
 
           $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_OUTPUTS = '1'
+          $env:FILECAT_TEST_STORAGE_UI = '1'
+          $env:FILECAT_ENUM_NATIVE_LINKS = '1'
+          $detailsFilter = @(
+            'Summary_and_metadata_full_inspect_one_object_without_legacy_payload_sections'
+            'Summary_preserves_the_native_missing_target_status'
+            'Full_NTFS_report_reads_actual_names_and_observed_volume_relative_paths'
+            'Full_record_maps_a_native_NTFS_file_and_leaves_summary_and_directories_without_the_section'
+            'Native_listing_preserves_names_attributes_batches_and_metadata_without_child_opens'
+            'Native_listing_matches_long_paths_and_distinguishes_junction_and_symlink_tags'
+            'An_empty_directory_has_no_entries_and_a_missing_directory_fails_before_publication'
+            'Protected_values_are_viewable_and_refused_by_derived_output'
+            'Opened_stream_output_refuses_a_later_efs_change_before_reading_more_bytes'
+            'Reviewed_supplementary_actions_refuse_a_replacement_file'
+            'Bounded_inventory_and_actions_keep_ADS_EA_categories_folder_streams_and_required_roles'
+          ) | ForEach-Object { "FullyQualifiedName~$_" }
           $outputSuites = @(
             @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-hex-output.trx'; Count = '14';
                Filter = 'FullyQualifiedName~HexEfsJournalTests|FullyQualifiedName~HexPatchProvenanceTests' },
             @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-copy-output.trx'; Count = '7';
                Filter = 'FullyQualifiedName~Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs|FullyQualifiedName~Copy_then_delete_keeps_the_efs_source|FullyQualifiedName~WindowsEfsReplacementTests' },
+            @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-file-details.trx'; Count = '16';
+               Filter = $detailsFilter -join '|' },
             @{ Project = 'tests/FileCat.Core.Tests'; Log = 'native-efs-archive-output.trx'; Count = '10';
                Filter = 'FullyQualifiedName~ArchiveEfsSpoolTests' }
           )
@@ -136,5 +153,6 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-hex-output.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-copy-output.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-file-details.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-archive-output.trx
           if-no-files-found: error

@@ -22,11 +22,13 @@ public sealed unsafe partial class WindowsFileSystemProvider
         if (cursor.IsInvalid && error is 50 or 87)
         {
             cursor.Dispose();
+            ct.ThrowIfCancellationRequested();
             cursor = FindFirst(pattern, 1, &data, 0, 0, 0);
             error = cursor.IsInvalid ? Marshal.GetLastPInvokeError() : 0;
         }
         using (cursor)
         {
+            ct.ThrowIfCancellationRequested();
             if (cursor.IsInvalid)
             {
                 if (error is 50 or 87 or 120) return base.EnumerateAsync(location, sink, ct); // no publication yet
@@ -60,7 +62,9 @@ public sealed unsafe partial class WindowsFileSystemProvider
                 ct.ThrowIfCancellationRequested();
                 if (FindNext(cursor, &data)) continue;
                 error = Marshal.GetLastPInvokeError();
+                ct.ThrowIfCancellationRequested();
                 if (count > 0) sink.AddBatch(batch.AsSpan(0, count));
+                ct.ThrowIfCancellationRequested();
                 if (error != 18 /* NO_MORE_FILES */) throw EnumerationError(location.Path, error);
                 return Task.CompletedTask;
             }

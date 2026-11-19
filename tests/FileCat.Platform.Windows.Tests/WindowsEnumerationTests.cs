@@ -7,7 +7,7 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed class WindowsEnumerationTests
 {
-    private sealed class Sink : IEnumerationSink
+    private sealed class Sink(Action<int>? batchPublished = null) : IEnumerationSink
     {
         public readonly Dictionary<string, EntryData> Entries = new(StringComparer.Ordinal);
         public int LargestBatch;
@@ -15,6 +15,7 @@ public sealed class WindowsEnumerationTests
         {
             LargestBatch = Math.Max(LargestBatch, entries.Length);
             foreach (var entry in entries) Assert.True(Entries.TryAdd(entry.Name, entry));
+            batchPublished?.Invoke(entries.Length);
         }
         public void ReportIssue(string message) => Assert.Fail(message);
     }
@@ -33,7 +34,8 @@ public sealed class WindowsEnumerationTests
             var managed = new Sink(); var native = new Sink();
             var location = Location.FileSystem(root);
             await new LocalFileSystemProvider().EnumerateAsync(location, managed, TestContext.Current.CancellationToken);
-            await new WindowsFileSystemProvider { UseNativeEnumeration = true }.EnumerateAsync(location, native, TestContext.Current.CancellationToken);
+            var provider = new WindowsFileSystemProvider { UseNativeEnumeration = true };
+            await provider.EnumerateAsync(location, native, TestContext.Current.CancellationToken);
             Assert.Equal(managed.Entries.Keys.Order(StringComparer.Ordinal), native.Entries.Keys.Order(StringComparer.Ordinal));
             Assert.Equal(512, native.LargestBatch);
             foreach (var (name, entry) in managed.Entries)
@@ -46,10 +48,20 @@ public sealed class WindowsEnumerationTests
                 Assert.Equal(entry.Modified, got.Modified);
                 Assert.Equal(entry.Created, got.Created);
             }
-            Assert.Equal(56, Unsafe.SizeOf<EntryData>()); // qualified x64 managed layout; spill remains 48 bytes
+            Assert.Equal(56, Unsafe.SizeOf<EntryData>()); // 64-bit managed layout; spill remains 48 bytes
             using var cancel = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
             cancel.Cancel();
-            await Assert.ThrowsAsync<OperationCanceledException>(() => new WindowsFileSystemProvider { UseNativeEnumeration = true }.EnumerateAsync(location, new Sink(), cancel.Token));
+            await Assert.ThrowsAsync<OperationCanceledException>(() => provider.EnumerateAsync(location, new Sink(), cancel.Token));
+
+            using var midstream = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            var prefix = new Sink(_ => midstream.Cancel());
+            await Assert.ThrowsAsync<OperationCanceledException>(() => provider.EnumerateAsync(location, prefix, midstream.Token));
+            Assert.Equal(512, prefix.Entries.Count);
+
+            using var terminal = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            var allEntries = new Sink(length => { if (length < 512) terminal.Cancel(); });
+            await Assert.ThrowsAsync<OperationCanceledException>(() => provider.EnumerateAsync(location, allEntries, terminal.Token));
+            Assert.Equal(native.Entries.Count, allEntries.Entries.Count);
         }
         finally { Directory.Delete(root, true); }
     }

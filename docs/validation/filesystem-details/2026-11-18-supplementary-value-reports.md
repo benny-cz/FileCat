@@ -8,6 +8,8 @@ The Windows 11 x64 VM passed 14 focused native tests and 15 focused Avalonia tes
 
 The application tests also exercised encrypted and unknown report receipts, cancellation after opening a picker and before writing, and refusal to replace a genuine EFS destination. The existing file retained its bytes and encryption. A subsequent new-file save and clipboard copy contained the new report revision. See `.tmp/filecat-supplementary-value-reports-native-tests.xml` and `.tmp/filecat-supplementary-value-reports-app-tests.xml`. This is selected-value evidence for E-OUT15 and F5. Broader native destinations, actual interruption after a write has begun, and independently bound adapters on other platforms remain separate qualification work.
 
+In the [16-case native x64 follow-up](2026-11-18-windows-enumeration-scale.md#cancellation-at-a-published-batch), an ADS and an EA each produced a bound report on the clear file. After encryption, the same reviewed identity refused both report acquisition and streamed extraction, and the ordinary viewer still read the exact value. A separate fixture changed EFS protection after the first streamed read and verified refusal before another byte was returned.
+
 ## Linux selected xattr
 
 The same focused-row action is available for Linux xattrs. FileCat opens the inode through the existing checked procfs descriptor route, compares it with the inventory identity and samples the opened inode revision around `fgetxattr`. A report retains one identity and revision and includes up to 4,096 bytes of value preview. File output uses a new local path.

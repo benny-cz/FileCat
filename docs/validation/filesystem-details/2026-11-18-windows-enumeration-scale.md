@@ -21,3 +21,9 @@ The VM restarted before each of six runs, with distinct Windows boot timestamps 
 | 1,000,000 | 6,840.56, 4,138.22, 3,541.71 | 3,819.15, 3,550.48, 3,531.48 | 4,138.22 ms | 3,550.48 ms |
 
 All passes matched their expected counts. Process handle counts were unchanged from before to after each test, at 256 for 10,000 entries and 257 for one million. At one million the largest process peak working set was 84,000,768 bytes for managed and 83,738,624 bytes for native. Managed and native allocated 56,032,912 and 56,033,280 bytes per pass respectively. Raw results are in `.tmp/filecat-enum-cold-{1,2,3}-{managed,native}.log`. The broader equivalence matrix remains open and the native provider flag remains gated.
+
+## Cancellation at a published batch
+
+The Windows 11 x64 VM at medium integrity on 4 KiB NTFS compared 1,302 entries against managed enumeration. Cancellation from the first native batch stopped at 512 unique entries. Cancellation from the last partial batch stopped completion with the expected cancellation status, including when all entries had already reached the sink. The previous implementation returned success for that last case. The same native run passed the long Unicode path and junction/symlink tag fixture, plus empty and missing directory coverage.
+
+All 16 selected listing, metadata and supplementary-value cases passed without skips. The test bundle SHA-256 was `F3D1E340D069EE16C93A8A31FE0306FBCE4E4C4FB4E1BCD3ACF3D3D92E5E5FBB`. The control and passing XML are `native-details-013c81c9-control.xml` and `native-details-013c81c9-final.xml` under `.tmp/filecat-arm64-efs-copy-3adf9280-r1/`.

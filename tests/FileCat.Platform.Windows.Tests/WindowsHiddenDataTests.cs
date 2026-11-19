@@ -23,8 +23,7 @@ public sealed partial class WindowsHiddenDataTests
     [InlineData(HiddenKind.NtfsAttribute)]
     public void Protected_values_are_viewable_and_refused_by_derived_output(HiddenKind kind)
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Requires a disposable Windows VM with EFS enabled.");
+        WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
         string dir = NewFolder();
         try
         {
@@ -34,9 +33,15 @@ public sealed partial class WindowsHiddenDataTests
             File.WriteAllText(file, "main data");
             File.WriteAllBytes(file + ":" + name, expected);
             WriteEa(file, name, expected);
-            var provider = new HiddenDataProvider(new WindowsHiddenData());
+            var native = new WindowsHiddenData();
+            var provider = new HiddenDataProvider(native);
             var request = new ItemRef(HiddenDataProvider.Of(file), name, EntryKind.File) { Ordinal = HiddenIdentities.Ordinal(kind) };
             var output = (IUnprotectedContentOutput)provider;
+            var ct = TestContext.Current.CancellationToken;
+            var identity = native.ReadInventory(file, new(IncludeEaValues: kind == HiddenKind.NtfsAttribute), ct).Identity!.Value;
+            var clearReport = provider.ReadValueReport(request, identity, ct);
+            Assert.True(clearReport.CanPublish);
+            Assert.Contains("owned supplementary value", clearReport.Text);
             using (var clear = output.OpenUnprotectedOutput(request, ContentOutputKind.Extraction, out var origin)!)
             {
                 byte[] bytes = new byte[expected.Length];
@@ -50,6 +55,8 @@ public sealed partial class WindowsHiddenDataTests
             File.Encrypt(file);
             var refusal = Assert.Throws<NotSupportedException>(() => output.OpenUnprotectedOutput(request, ContentOutputKind.Extraction));
             Assert.Contains("Windows EFS", refusal.Message);
+            var reportRefusal = Assert.Throws<NotSupportedException>(() => provider.ReadValueReport(request, identity, ct));
+            Assert.Contains("Windows EFS", reportRefusal.Message);
             using var view = provider.OpenContent(request)!;
             byte[] viewed = new byte[expected.Length];
             Assert.Equal(viewed.Length, view.Read(0, viewed));
@@ -62,8 +69,7 @@ public sealed partial class WindowsHiddenDataTests
     [Fact]
     public void Opened_stream_output_refuses_a_later_efs_change_before_reading_more_bytes()
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Requires a disposable Windows VM with EFS enabled.");
+        WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
         string dir = NewFolder();
         try
         {
