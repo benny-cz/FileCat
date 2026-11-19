@@ -1,0 +1,5 @@
+# NTFS directory case sensitivity in full details
+
+The metadata-only full report asks `FileCaseSensitiveInfo` on the held directory after qualifying its actual local NTFS volume. It reports the directory flag and its scope. Failed queries retain their own status. The summary omits this query, and regular files, junctions and other reparse objects omit the section. The existing operational name comparer keeps its fallback. [Windows per-directory case sensitivity](https://learn.microsoft.com/en-us/windows/wsl/case-sensitivity)
+
+The Windows 11 x64 VM ran the fixture as a standard user. `fsutil` confirmed the flag clear on one directory and set on the other. A lowercase lookup of `MiXeD.txt` succeeded under the ordinary directory and failed under the case-sensitive directory. The full report showed Clear and Set on the matching held objects. It omitted the section for the junction and its target file. One native test passed with no skips. The retained result is `.tmp/filecat-ntfs-namespace-a2c9045a-r2.xml`.

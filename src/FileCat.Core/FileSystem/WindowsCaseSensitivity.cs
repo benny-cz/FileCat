@@ -17,9 +17,17 @@ public static partial class WindowsCaseSensitivity
     {
         if (!OperatingSystem.IsWindows()) return StringComparer.Ordinal;
         using var handle = CreateFile(folder, 0, FileShare.ReadWrite | FileShare.Delete, 0, OpenExisting, BackupSemantics, 0);
-        if (handle.IsInvalid || !GetFileInformationByHandleEx(handle, FileCaseSensitiveInfo, out uint flags, sizeof(uint)))
+        if (handle.IsInvalid || ReadDirectoryFlag(handle, out bool caseSensitive) != 0)
             return StringComparer.Ordinal;
-        return (flags & CaseSensitiveDirectory) != 0 ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+        return caseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+    }
+
+    internal static int ReadDirectoryFlag(SafeFileHandle handle, out bool caseSensitive)
+    {
+        bool success = GetFileInformationByHandleEx(handle, FileCaseSensitiveInfo, out uint flags, sizeof(uint));
+        int error = success ? 0 : Marshal.GetLastPInvokeError();
+        caseSensitive = success && (flags & CaseSensitiveDirectory) != 0;
+        return !success && error == 0 ? 31 /* ERROR_GEN_FAILURE */ : error;
     }
 
     [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]

@@ -58,7 +58,9 @@ Ubuntu x64 passed 22 focused tests with two Darwin-only skips. Apple silicon pas
 
 Supplementary deletion captures the listed file identity before confirmation. The Linux adapter verifies it on the descriptor used to remove the attribute. The Windows paths verify it on the held file before resolving the exact ADS or EA for deletion. Removing the extra inventory lookup also avoids reopening the pathname between current category resolution and mutation.
 
-Ubuntu x64 exercised a real xattr on a replacement inode with the same name. The existing confirmation failed even after the tab had refreshed to the new inode, and both files kept their attributes. A newly reviewed removal succeeded in the Core fixture. The regular app confirmation still removed the selected attribute and refreshed the parent column after returning. The focused batch had 64 Core and 11 App tests pass, with three platform-specific skips. Results are `core.trx` and `app.trx` under `~/filecat-supplementary-delete-8eeeca7e-r3`. The Windows tests built successfully. Native ADS and EA replacement cases remain pending.
+Ubuntu x64 exercised a real xattr on a replacement inode with the same name. The existing confirmation failed even after the tab had refreshed to the new inode, and both files kept their attributes. A newly reviewed removal succeeded in the Core fixture. The regular app confirmation still removed the selected attribute and refreshed the parent column after returning. The focused batch had 64 Core and 11 App tests pass, with three platform-specific skips. Results are `core.trx` and `app.trx` under `~/filecat-supplementary-delete-8eeeca7e-r3`.
+
+Windows 11 x64 passed 12 native supplementary tests. Both replacement fixtures put an ADS and an EA of the same name on both files. The old identity refused deletion and a fresh identity permitted deleting just the selected category. The other category, the main bytes and both values on the original file were preserved. The suite also exercised native EFS-derived output refusal. See `.tmp/filecat-supplementary-delete-windows-r3.xml`.
 
 ## Linux inventory without opening the data fork
 

@@ -35,4 +35,8 @@ Remaining: standalone Find affected-refresh/native qualification, the wider nati
 
 ## Origin cleanup after a stopped EFS job
 
-The portable App fixture constructed an EFS decryption job with one complete root, one uncertain incomplete root and a Stop result. With the original navigation and mark revision still current after a refresh, cleanup removed only the completed mark. It preserved both marks after later mark edits or navigation away and back. A closed origin retired without applying cleanup. Apple silicon passed all 43 focused integration and Operations tests. The receipt is `~/FileCatValidation/filecat-efs-origin-f23cefdd-r1/storage-history.trx`. The actual Windows EFS command and affected-location refresh have a separate native fixture.
+The portable App fixture constructed an EFS decryption job with one complete root, one uncertain incomplete root and a Stop result. With the original navigation and mark revision still current after a refresh, cleanup removed only the completed mark. It preserved both marks after later mark edits or navigation away and back. A closed origin retired without applying cleanup. Apple silicon passed all 43 focused integration and Operations tests. The receipt is `~/FileCatValidation/filecat-efs-origin-f23cefdd-r1/storage-history.trx`.
+
+## Native EFS decryption and origin refresh
+
+Windows 11 x64 ran the actual NTFS Compress and Decrypt EFS commands from the captured main-panel selection. Each action passed the refresh, mark-edit and away-and-back navigation cases. The affected listing refreshed, payload bytes were preserved, and only an unchanged origin allowed completion cleanup. The same native batch passed the encryption/decryption consent round trip and the selected EFS backup command entry. See all eight `StorageCommandNativeTests` in `.tmp/filecat-metadata-report-output-8eeeca7e-r6.xml`.

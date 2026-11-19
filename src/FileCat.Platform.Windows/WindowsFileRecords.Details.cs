@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Inspect;
 using FileCat.Core.Records;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
 
@@ -121,12 +122,13 @@ public sealed unsafe partial class WindowsFileRecords
         if (reparse) fields.Add(("Reparse tag", hasTag ? RecordText.ReparseTag(reparseTag) : "Unavailable"));
         ct.ThrowIfCancellationRequested();
         var metadata = new InspectionSection("Native metadata", fields.ToArray());
-        if (!fullReport || !hasBasic || !hasStandard || folder || reparse || format != "NTFS" ||
+        if (!fullReport || !hasBasic || !hasStandard || reparse || format != "NTFS" ||
             (attributes & (0x1000u | 0x580000u)) != 0 || !StoragePaths.IsOrdinaryLocalPath(full) || !WindowsFileOperations.IsReplaceVolume(full))
             return FileDetailsReport.Metadata(snapshot, metadata);
         // A fixed drive letter can reach another provider through a parent. Qualify the volume of the held object.
         try { _ = WindowsStorageTransforms.ActualVolumeBinding(item, rootOnly: false, ct); }
         catch (StorageInspectionException) { return FileDetailsReport.Metadata(snapshot, metadata); }
+        if (folder) return FileDetailsReport.Metadata(snapshot, metadata, DirectoryNamespaceSection(item, ct));
 
         var sections = new List<InspectionSection> { metadata, RetrievalSection(item, ct) };
         var warnings = new List<string> { "Not acquired: supplementary-data values and previews, raw volumes and journals, and security value collectors." };
@@ -135,5 +137,25 @@ public sealed unsafe partial class WindowsFileRecords
         else warnings.Add("Allocated byte ranges are available for qualified sparse or compressed files.");
         if (snapshot.LinkCount.Value > 1) sections.Add(HardLinkSection(item, ct));
         return new(snapshot, new("Full record · metadata only", sections.ToArray(), warnings.ToArray()), ReportContentKind.MetadataOnly);
+    }
+
+    private static InspectionSection DirectoryNamespaceSection(SafeFileHandle directory, CancellationToken ct)
+    {
+        const string source = "FileCaseSensitiveInfo on the held NTFS directory";
+        ct.ThrowIfCancellationRequested();
+        int error = WindowsCaseSensitivity.ReadDirectoryFlag(directory, out bool caseSensitive);
+        ct.ThrowIfCancellationRequested();
+        var state = error switch
+        {
+            0 => FactState.Known,
+            1 or 50 or 87 => FactState.Unsupported,
+            5 => FactState.Denied,
+            _ => FactState.Failed,
+        };
+        var flag = state == FactState.Known
+            ? ObservedFact<bool>.Known(caseSensitive, FactScope.DirectoryPolicy, source)
+            : ObservedFact<bool>.Unavailable(state, FactScope.DirectoryPolicy, source, new Win32Exception(error).Message);
+        return new("NTFS directory namespace", [("Case-sensitive directory flag", flag.Describe(enabled => enabled ? "Set" : "Clear")),
+            ("Scope", "Name lookup in this directory"), ("Observation", flag.Source)]);
     }
 }
