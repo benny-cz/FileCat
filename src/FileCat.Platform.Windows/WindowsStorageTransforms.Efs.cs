@@ -203,30 +203,41 @@ internal sealed unsafe partial class WindowsStorageTransforms
         }
         public StorageObservation PrepareMutation(StorageAction action, CancellationToken ct)
         {
-            RequireAction(action); _prepared = null; PreparedStreams = [];
-            var before = Observe(ct);
+            RequireAction(action); _prepared = null;
+            var before = InspectMutationPrerequisites(ct);
             if (before.Ineligible is null && action == StorageAction.EncryptEfs && NeedsChange(before.Efs, action) &&
                 _recovery is null && _resolveRecovery is { } resolve)
             {
                 _recovery = resolve(ct);
-                before = Observe(ct);
+                before = InspectMutationPrerequisites(ct);
             }
-            if (before.Ineligible is null && NeedsChange(before.Efs, action))
-            {
-                RequireRecoveryKey(action, ct);
-                if (!_guards) { EnsureGuards(ct); before = Observe(ct); }
-                PreparedStreams = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, ct, includeSparseLayouts: true);
-                RequireNativeStatus(before, ct);
-                before = Observe(ct);
-            }
+            if (before.Ineligible is null && NeedsChange(before.Efs, action)) RequireRecoveryKey(action, ct);
             _preparedNeeded = before.Ineligible is null && NeedsChange(before.Efs, action);
             _prepared = before; return before;
+        }
+
+        private StorageObservation InspectMutationPrerequisites(CancellationToken ct)
+        {
+            PreparedStreams = [];
+            var before = Observe(ct);
+            if (before.Ineligible is not null || !NeedsChange(before.Efs, _consent.Action)) return before;
+            if (!_guards)
+            {
+                EnsureGuards(ct);
+                before = Observe(ct);
+                if (before.Ineligible is not null || !NeedsChange(before.Efs, _consent.Action)) return before;
+            }
+
+            RequireNativeStatus(before, ct);
+            PreparedStreams = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, ct, includeSparseLayouts: true);
+            return Observe(ct);
         }
         public StorageMutationResult ApplyAdmitted(StorageAction action)
         {
             RequireAction(action);
             var before = _prepared ?? throw new InvalidOperationException("Prepare the same EFS object before durable intent and atomic call admission.");
             _prepared = null; bool attempted = false;
+            StorageObservation? observedAfter = null;
             StorageEfsResultKeys? observedKeys = null;
             try
             {
@@ -249,7 +260,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 // Supported pathname API: the acknowledged in-place reparse race remains possible after this check.
                 attempted = true;
                 var call = _invoke(_apiPath, action);
-                var after = Observe(CancellationToken.None);
+                var after = observedAfter = Observe(CancellationToken.None);
                 if (after.Ineligible is not null || after.Efs is not (StorageObservationState.Enabled or StorageObservationState.Disabled))
                     return Result(after, StorageEffect.Uncertain, after.Ineligible ?? Problem(StorageReasonKind.Unknown, "efs-postcondition-unknown", "The held EFS effect could not be established."));
                 if (_recovery is { } recovery && after.Efs == StorageObservationState.Enabled)
@@ -280,10 +291,10 @@ internal sealed unsafe partial class WindowsStorageTransforms
             {
                 if (!attempted && error is StorageInspectionException inspection)
                     return new(before, null, StorageEffect.NotProcessed, inspection.Problem);
-                return new(before, null, attempted ? StorageEffect.Uncertain : StorageEffect.NotProcessed,
+                return new(before, observedAfter, attempted ? StorageEffect.Uncertain : StorageEffect.NotProcessed,
                     Problem(StorageReasonKind.Unknown, attempted ? "efs-postcondition-unreadable" : "efs-precall-failed",
-                        attempted ? "An EFS call may have changed an item; the held object or captured spelling could not be verified: " + error.Message
-                            : "No EFS call was attempted: " + error.Message)) { NativeCallAttempted = attempted };
+                        attempted ? "The complete postcondition of the EFS call could not be verified: " + error.Message
+                            : "No EFS call was attempted: " + error.Message)) { NativeCallAttempted = attempted, EfsKeys = observedKeys };
             }
             StorageMutationResult Result(StorageObservation after, StorageEffect effect, StorageProblem? issue) =>
                 new(before, after, effect, issue) { NativeCallAttempted = true, EfsKeys = observedKeys };

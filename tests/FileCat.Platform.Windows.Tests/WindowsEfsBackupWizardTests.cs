@@ -17,7 +17,9 @@ public sealed partial class WindowsEfsBackupWizardTests
     [InlineData(true)]
     public async Task Parented_private_key_backup_distinguishes_cancellation_from_completed_export(bool complete)
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_BACKUP_WIZARD") == "1",
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipUnless(WindowsStorageTransforms.SupportsHost(qualifyNativeArm64) &&
+            Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_BACKUP_WIZARD") == "1",
             "Requires an interactive disposable Windows VM with an exportable EFS key.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity);
         var ct = TestContext.Current.CancellationToken;
@@ -34,7 +36,8 @@ public sealed partial class WindowsEfsBackupWizardTests
                     using var identity = WindowsIdentity.GetCurrent();
                     var consent = StorageEfsConsent.Capture(Guid.NewGuid(), StorageAction.EncryptEfs, StorageScope.SelectedItems,
                         [new StorageObjectIdentity(1, new string('A', 32)) { VolumeBinding = "11111111-1111-1111-1111-111111111111" }], new(true, true));
-                    var setup = new WindowsStorageTransforms().InspectEfsSetup(identity.User!.Value, consent, true, ct);
+                    var setup = new WindowsStorageTransforms(efsSetupBaseDirectory: () => root, qualifyNativeArm64: qualifyNativeArm64)
+                        .InspectEfsSetup(identity.User!.Value, consent, true, ct);
                     Assert.Null(setup.Problem);
                     Assert.NotNull(setup.Association);
                     string hash = Assert.Single(setup.Association.CurrentUserKeys).CertificateSha1;
@@ -43,7 +46,7 @@ public sealed partial class WindowsEfsBackupWizardTests
                     try
                     {
                         ShowWindow(owner, 5);
-                        var keys = new WindowsEfsKeys();
+                        var keys = new WindowsEfsKeys(qualifyNativeArm64);
                         Assert.Equal("efs-backup-choice", keys.BackUpAssociatedCertificate(setup.Association, hash, owner, false, ct).Problem?.Code);
                         Assert.Equal("efs-backup-owner", keys.BackUpAssociatedCertificate(setup.Association, hash, 0, true, ct).Problem?.Code);
                         var controller = Task.Run(() => WindowsEfsBackupWizardDriver.Drive(owner, complete, backupPath, FixturePassword), ct);

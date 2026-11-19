@@ -1,13 +1,16 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
+using Microsoft.Win32.SafeHandles;
+using FindData = FileCat.Platform.Windows.WindowsFileSystemProvider.FindData;
 
 namespace FileCat.Platform.Windows.Tests;
 
 public sealed class WindowsEnumerationTests
 {
-    private sealed class Sink : IEnumerationSink
+    private sealed class Sink(Action<int>? batchPublished = null) : IEnumerationSink
     {
         public readonly Dictionary<string, EntryData> Entries = new(StringComparer.Ordinal);
         public int LargestBatch;
@@ -15,6 +18,7 @@ public sealed class WindowsEnumerationTests
         {
             LargestBatch = Math.Max(LargestBatch, entries.Length);
             foreach (var entry in entries) Assert.True(Entries.TryAdd(entry.Name, entry));
+            batchPublished?.Invoke(entries.Length);
         }
         public void ReportIssue(string message) => Assert.Fail(message);
     }
@@ -33,7 +37,8 @@ public sealed class WindowsEnumerationTests
             var managed = new Sink(); var native = new Sink();
             var location = Location.FileSystem(root);
             await new LocalFileSystemProvider().EnumerateAsync(location, managed, TestContext.Current.CancellationToken);
-            await new WindowsFileSystemProvider { UseNativeEnumeration = true }.EnumerateAsync(location, native, TestContext.Current.CancellationToken);
+            var provider = new WindowsFileSystemProvider { UseNativeEnumeration = true };
+            await provider.EnumerateAsync(location, native, TestContext.Current.CancellationToken);
             Assert.Equal(managed.Entries.Keys.Order(StringComparer.Ordinal), native.Entries.Keys.Order(StringComparer.Ordinal));
             Assert.Equal(512, native.LargestBatch);
             foreach (var (name, entry) in managed.Entries)
@@ -46,10 +51,20 @@ public sealed class WindowsEnumerationTests
                 Assert.Equal(entry.Modified, got.Modified);
                 Assert.Equal(entry.Created, got.Created);
             }
-            Assert.Equal(56, Unsafe.SizeOf<EntryData>()); // qualified x64 managed layout; spill remains 48 bytes
+            Assert.Equal(56, Unsafe.SizeOf<EntryData>()); // 64-bit managed layout; spill remains 48 bytes
             using var cancel = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
             cancel.Cancel();
-            await Assert.ThrowsAsync<OperationCanceledException>(() => new WindowsFileSystemProvider { UseNativeEnumeration = true }.EnumerateAsync(location, new Sink(), cancel.Token));
+            await Assert.ThrowsAsync<OperationCanceledException>(() => provider.EnumerateAsync(location, new Sink(), cancel.Token));
+
+            using var midstream = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            var prefix = new Sink(_ => midstream.Cancel());
+            await Assert.ThrowsAsync<OperationCanceledException>(() => provider.EnumerateAsync(location, prefix, midstream.Token));
+            Assert.Equal(512, prefix.Entries.Count);
+
+            using var terminal = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            var allEntries = new Sink(length => { if (length < 512) terminal.Cancel(); });
+            await Assert.ThrowsAsync<OperationCanceledException>(() => provider.EnumerateAsync(location, allEntries, terminal.Token));
+            Assert.Equal(native.Entries.Count, allEntries.Entries.Count);
         }
         finally { Directory.Delete(root, true); }
     }
@@ -121,6 +136,127 @@ public sealed class WindowsEnumerationTests
             Assert.Empty(entries.Entries);
         }
         finally { Directory.Delete(root); }
+    }
+
+    [Theory]
+    [InlineData(50, 50)]
+    [InlineData(87, 87)]
+    [InlineData(87, 120)]
+    [InlineData(120, 0)]
+    public async Task An_unsupported_open_uses_managed_listing_before_any_publication(int firstError, int retryError)
+    {
+        string root = Directory.CreateTempSubdirectory("fc-enum-fallback-").FullName;
+        try
+        {
+            File.WriteAllBytes(Path.Join(root, "managed.txt"), [1, 2, 3]);
+            var api = new ScriptedFindApi(retryError == 0 ? [firstError] : [firstError, retryError]);
+            var sink = new Sink(_ => Assert.All(api.Cursors, cursor => Assert.True(cursor.IsInvalid)));
+
+            await new WindowsFileSystemProvider().EnumerateWithFindApi(
+                Location.FileSystem(root), sink, TestContext.Current.CancellationToken, api);
+
+            var item = Assert.Single(sink.Entries).Value;
+            Assert.Equal("managed.txt", item.Name);
+            Assert.Equal(3, item.Size);
+            Assert.Equal(0u, item.NativeReparseTag);
+            Assert.Equal(retryError == 0 ? new[] { true } : [true, false], api.LargeFetchCalls);
+            Assert.All(api.Cursors, cursor => Assert.True(cursor.IsClosed));
+            Assert.Equal(0, api.AdvanceCalls);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public async Task A_successful_open_without_large_fetch_keeps_native_tags()
+    {
+        var api = new ScriptedFindApi([87, 0], entries: 1);
+        var sink = new Sink();
+        await new WindowsFileSystemProvider().EnumerateWithFindApi(
+            Location.FileSystem(Path.GetTempPath()), sink, TestContext.Current.CancellationToken, api);
+
+        Assert.Equal(new[] { true, false }, api.LargeFetchCalls);
+        Assert.Equal(0xA000000Cu, Assert.Single(sink.Entries).Value.NativeReparseTag);
+        Assert.True(api.Cursors[0].IsClosed);
+        Assert.True(api.Cursors[1].Released);
+    }
+
+    [Theory]
+    [InlineData(50)]
+    [InlineData(87)]
+    [InlineData(120)]
+    public async Task A_find_next_failure_publishes_the_native_prefix_and_never_restarts(int error)
+    {
+        string root = Directory.CreateTempSubdirectory("fc-enum-partial-").FullName;
+        try
+        {
+            File.WriteAllBytes(Path.Join(root, "managed-only.txt"), [1]);
+            var api = new ScriptedFindApi([0], entries: 515, terminalError: error);
+            var batches = new List<int>();
+            var sink = new Sink(batches.Add);
+
+            var failure = await Assert.ThrowsAsync<IOException>(() => new WindowsFileSystemProvider().EnumerateWithFindApi(
+                Location.FileSystem(root), sink, TestContext.Current.CancellationToken, api));
+
+            Assert.Equal(error, failure.HResult);
+            Assert.Equal(new[] { 512, 3 }, batches);
+            Assert.Equal(Enumerable.Range(0, 515).Select(i => $"native-{i}"), sink.Entries.Keys);
+            Assert.True(Assert.Single(api.LargeFetchCalls));
+            Assert.True(Assert.Single(api.Cursors).Released);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private sealed unsafe class ScriptedFindApi(int[] openErrors, int entries = 0, int terminalError = 18)
+        : WindowsFileSystemProvider.IFindApi
+    {
+        public List<bool> LargeFetchCalls { get; } = [];
+        public List<ScriptedCursor> Cursors { get; } = [];
+        public int AdvanceCalls { get; private set; }
+
+        public SafeHandle Open(string pattern, bool largeFetch, FindData* data, out int error)
+        {
+            error = openErrors[LargeFetchCalls.Count];
+            LargeFetchCalls.Add(largeFetch);
+            var cursor = new ScriptedCursor(error == 0);
+            Cursors.Add(cursor);
+            if (!cursor.IsInvalid) WriteEntry(data, 0);
+            return cursor;
+        }
+
+        public bool Advance(SafeHandle cursor, FindData* data, out int error)
+        {
+            Assert.Same(Cursors[^1], cursor);
+            if (++AdvanceCalls == entries)
+            {
+                error = terminalError;
+                return false;
+            }
+
+            WriteEntry(data, AdvanceCalls);
+            error = 0;
+            return true;
+        }
+
+        private static void WriteEntry(FindData* data, int index)
+        {
+            *data = default;
+            data->Attributes = (uint)FileAttributes.ReparsePoint;
+            data->ReparseTag = 0xA000000C;
+            $"native-{index}".AsSpan().CopyTo(new Span<char>(data->Name, 260));
+        }
+    }
+
+    private sealed class ScriptedCursor : SafeHandleZeroOrMinusOneIsInvalid
+    {
+        public bool Released { get; private set; }
+
+        public ScriptedCursor(bool valid) : base(true) => SetHandle(valid ? 1 : -1);
+
+        protected override bool ReleaseHandle()
+        {
+            Released = true;
+            return true;
+        }
     }
 
     [Fact]

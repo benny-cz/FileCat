@@ -255,6 +255,8 @@ public sealed class ResultSetProvider(ProviderRegistry providers, IFileSystemOpe
                 Flags = info is null && item.FileSystemPath is not null ? EntryFlags.Unavailable : info is null ? item.Flags : LocalFileSystemProvider.MapFlags(info.Attributes),
             };
             if (info is not null && info.IsDirectory) e.Size = -1;
+            if (info is not null)
+                e.NativeReparseTag = item.RetainReparseTag(info.IsDirectory ? EntryKind.Directory : EntryKind.File, e.Attributes, e.Size, e.Modified);
             batch.Add(e);
             if (batch.Count == 256)
             {

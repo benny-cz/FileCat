@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using FileCat.Core.Archives;
@@ -16,7 +17,8 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void Another_users_file_with_allowed_ntfs_access_cannot_be_decrypted_without_an_efs_key()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_NO_KEY_ROOT");
         if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires the disposable two-user NTFS fixture.");
         using var certificates = new X509Store(StoreName.My, StoreLocation.CurrentUser);
@@ -30,7 +32,7 @@ public sealed partial class WindowsEfsJobTests
         string privateRoot = Directory.CreateTempSubdirectory("filecat-efs-no-key-").FullName;
         try
         {
-            var manager = Manager(privateRoot, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            var manager = Manager(privateRoot, new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64).CreateEfsJobCandidate(), qualifyNativeArm64);
             int keyPrompts = 0;
             manager.DecisionRequested += pending => { keyPrompts++; pending.Resolve(new(DecisionAction.CancelJob)); };
             var job = Run(manager, StorageAction.DecryptEfs, [ItemRef.ForFileSystemPath(source, EntryKind.File)]);
@@ -59,7 +61,8 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void A_restored_fixture_key_can_decrypt_the_same_file_under_an_independent_windows_account()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_RESTORED_KEY_ROOT");
         if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires the isolated backup and restore fixture.");
         using var identity = WindowsIdentity.GetCurrent();
@@ -80,7 +83,7 @@ public sealed partial class WindowsEfsJobTests
         string privateRoot = Directory.CreateTempSubdirectory("filecat-efs-recovered-key-").FullName;
         try
         {
-            var manager = Manager(privateRoot, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            var manager = Manager(privateRoot, new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64).CreateEfsJobCandidate(), qualifyNativeArm64);
             int keyPrompts = 0;
             manager.DecisionRequested += pending => { keyPrompts++; pending.Resolve(new(DecisionAction.CancelJob)); };
             var job = Run(manager, StorageAction.DecryptEfs, [ItemRef.ForFileSystemPath(source, EntryKind.File)]);
@@ -104,7 +107,8 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void Backup_review_lists_only_selected_files_and_rechecks_their_exact_identities()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         string root = Directory.CreateTempSubdirectory("filecat-efs-selected-backup-").FullName;
         try
         {
@@ -113,7 +117,7 @@ public sealed partial class WindowsEfsJobTests
             string unselected = Write(folder, "unselected.bin");
             File.Encrypt(first); File.Encrypt(second); File.Encrypt(unselected);
             ItemRef Select(string path) => ItemRef.ForFileSystemPath(path, EntryKind.File);
-            var manager = Manager(root, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            var manager = Manager(root, new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64).CreateEfsJobCandidate(), qualifyNativeArm64);
             StorageEfsFileBackupReview reviewed;
             string hash;
             using (StorageReviewResources.EnterNative(Ct))
@@ -165,7 +169,8 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void Files_encrypted_with_distinct_real_Efs_keys_keep_independent_backup_choices()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_BACKUP_MULTIPLE_KEYS") == "1" &&
             Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_ROTATE_KEY") == "1",
             "Requires a disposable account that allows changing its default EFS certificate.");
@@ -174,7 +179,7 @@ public sealed partial class WindowsEfsJobTests
         {
             string first = Write(root, "before-rotation.bin"), second = Write(root, "after-rotation.bin");
             File.Encrypt(first);
-            var manager = Manager(root, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            var manager = Manager(root, new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64).CreateEfsJobCandidate(), qualifyNativeArm64);
             var items = new[] { ItemRef.ForFileSystemPath(first, EntryKind.File), ItemRef.ForFileSystemPath(second, EntryKind.File) };
             string originalKey;
             using (StorageReviewResources.EnterNative(Ct))
@@ -437,17 +442,69 @@ public sealed partial class WindowsEfsJobTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Ineligible_items_do_not_request_recovery_or_record_a_native_intent(bool blockedByPolicy)
+    {
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
+        string root = Directory.CreateTempSubdirectory("filecat-efs-lazy-blocked-").FullName;
+        try
+        {
+            string folder = Directory.CreateDirectory(Path.Join(root, "input")).FullName;
+            string path = Write(folder, "selected.bin");
+            string reason;
+            if (blockedByPolicy)
+            {
+                Assert.True(DisableDirectoryEncryption(folder, true), $"EncryptionDisable failed: {Marshal.GetLastPInvokeError()}.");
+                Assert.True(ReadNativeEncryptionStatus(path, out uint status), $"FileEncryptionStatusW failed: {Marshal.GetLastPInvokeError()}.");
+                Assert.NotEqual(0u, status);
+                reason = "efs-status-" + status;
+            }
+            else
+            {
+                for (int index = 0; index < 1024; index++) File.WriteAllBytes(path + ":extra" + index, []);
+                reason = "stream-inventory-limit";
+            }
+
+            int recoveryRequests = 0;
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64);
+            var manager = Manager(root, adapter.CreateEfsJobCandidate((_, _, _, _) => { recoveryRequests++; return null; }), qualifyNativeArm64);
+            var job = Run(manager, StorageAction.EncryptEfs, [ItemRef.ForFileSystemPath(path, EntryKind.File)]);
+            Assert.Equal(0, recoveryRequests);
+            var result = Assert.IsType<StorageResultSnapshot>(job.StorageResult);
+            Assert.Equal(0, result.Counts.Changed);
+            Assert.Equal(0, result.Counts.Uncertain);
+            Assert.Contains(result.Reasons, item => item.Problem.Code == reason);
+            Assert.Empty(Evidence(manager, job).Calls);
+            Assert.True(History(manager, job).Ended);
+            Assert.False(IsEncrypted(path));
+            Assert.Equal("Synthetic user content", File.ReadAllText(path));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [DllImport("advapi32.dll", EntryPoint = "EncryptionDisable", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DisableDirectoryEncryption(string directory, [MarshalAs(UnmanagedType.Bool)] bool disable);
+
+    [DllImport("advapi32.dll", EntryPoint = "FileEncryptionStatusW", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ReadNativeEncryptionStatus(string path, out uint status);
+
     [Fact]
     public void An_unexpected_real_key_stops_the_selected_job_and_retains_the_exact_call()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_ROTATE_KEY") == "1",
             "Use only a disposable account whose current EFS key may change.");
         string root = Directory.CreateTempSubdirectory("filecat-efs-job-rotated-").FullName;
         try
         {
             string first = Write(root, "first.txt"), second = Write(root, "second.txt");
-            var adapter = new WindowsStorageTransforms();
+            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => root, qualifyNativeArm64: qualifyNativeArm64);
             var manager = Manager(root, adapter.CreateEfsJobCandidate((job, sid, scope, token) =>
             {
                 if (RequestTestSetup(job, first).Action != DecisionAction.Proceed) return null;
@@ -457,7 +514,7 @@ public sealed partial class WindowsEfsJobTests
                 var approval = StorageEfsRecoveryApproval.DeclareArrangement(scope, setup, hash, acknowledged: true);
                 WindowsEfsSetupTests.RotateDisposableDefaultKey();
                 return approval;
-            }));
+            }), qualifyNativeArm64);
             bool prompted = false;
             manager.DecisionRequested += pending =>
             {
@@ -482,14 +539,76 @@ public sealed partial class WindowsEfsJobTests
     }
 
     [Fact]
+    public void Unreadable_sparse_stream_after_encryption_retains_observed_key_and_stops_the_job()
+    {
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
+        string root = Directory.CreateTempSubdirectory("filecat-efs-job-late-inventory-").FullName;
+        Microsoft.Win32.SafeHandles.SafeFileHandle? competingWrite = null;
+        try
+        {
+            string first = Write(root, "first.txt"), second = Write(root, "second.txt");
+            string sparseStream = first + ":sparse";
+            WindowsSparseTransformTests.WriteStream(sparseStream, sparse: true, holes: true, allHole: false, seed: 21);
+            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => root, qualifyNativeArm64: qualifyNativeArm64);
+            int calls = 0;
+            var manager = Manager(root, adapter.CreateEfsJobCandidate((_, sid, scope, token) =>
+            {
+                var setup = adapter.InspectEfsSetup(sid, scope, true, token);
+                Assert.Null(setup.Problem);
+                return StorageEfsRecoveryApproval.DeclareArrangement(scope, setup,
+                    Assert.Single(setup.Association!.CurrentUserKeys).CertificateSha1, acknowledged: true);
+            }, (action, succeeded) =>
+            {
+                Assert.Equal(StorageAction.EncryptEfs, action);
+                Assert.True(succeeded);
+                competingWrite = File.OpenHandle(sparseStream, FileMode.Open, FileAccess.Write, FileShare.Write);
+                calls++;
+            }), qualifyNativeArm64);
+
+            var job = Run(manager, StorageAction.EncryptEfs,
+                [ItemRef.ForFileSystemPath(first, EntryKind.File), ItemRef.ForFileSystemPath(second, EntryKind.File)]);
+            Assert.Equal(1, calls);
+            Assert.Equal(JobState.Failed, job.State);
+            var result = Assert.IsType<StorageResultSnapshot>(job.StorageResult);
+            Assert.Equal(1, result.Counts.Uncertain);
+            Assert.True(result.ReviewPending);
+            Assert.False(result.PersistenceFault);
+            Assert.True(IsEncrypted(first));
+            Assert.False(IsEncrypted(second));
+            Assert.Equal("Synthetic user content", File.ReadAllText(first));
+
+            var call = Assert.Single(Evidence(manager, job).Calls);
+            var recorded = Assert.IsType<StorageMutationResult>(call.Result);
+            Assert.Equal(first, call.Path);
+            Assert.True(recorded.NativeCallAttempted);
+            Assert.Equal(StorageEffect.Uncertain, recorded.Effect);
+            Assert.Equal("efs-postcondition-unreadable", recorded.Problem?.Code);
+            Assert.Contains("The named sparse stream's allocation could not be inspected", recorded.Problem!.Message);
+            Assert.Equal(call.Identity, recorded.After?.Identity);
+            Assert.Equal(StorageObservationState.Enabled, recorded.After?.Efs);
+            var reviewed = Assert.IsType<StorageEfsReviewedKey>(call.EfsReviewedKey);
+            Assert.True(Assert.IsType<StorageEfsResultKeys>(recorded.EfsKeys).Matches(reviewed));
+            Assert.True(History(manager, job).EffectUncertain);
+        }
+        finally
+        {
+            competingWrite?.Dispose();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Default_recovery_workflow_requires_setup_and_an_explicit_recovery_choice_after_backup_failure()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         string root = Directory.CreateTempSubdirectory("filecat-efs-job-recovery-workflow-").FullName;
         try
         {
             string path = Write(root, "clear.txt");
-            var manager = Manager(root, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => root, qualifyNativeArm64: qualifyNativeArm64);
+            var manager = Manager(root, adapter.CreateEfsJobCandidate(), qualifyNativeArm64);
             var requests = new List<DecisionRequest>();
             bool allWaitingAndClear = true;
             manager.DecisionRequested += pending =>

@@ -79,7 +79,7 @@ public sealed class ReparsePresentationTests
     }
 
     [Fact]
-    public void Tag_survives_spill_mapped_scan_and_update_without_using_provider_payload()
+    public void Tag_survives_spill_mapped_scan_update_and_view_without_using_provider_payload()
     {
         string scratch = Path.Combine(Path.GetTempPath(), "filecat-tags-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(scratch);
@@ -95,10 +95,21 @@ public sealed class ReparsePresentationTests
             var row = store[300]; row.NativeReparseTag = ReparseLinks.SymbolicLinkTag;
             store.Update(300, row);
             Assert.Equal(ReparseLinks.SymbolicLinkTag, store[300].NativeReparseTag);
+            var hidden = store[301]; hidden.Flags |= EntryFlags.Hidden;
+            store.Update(301, hidden);
             using var scan = new EntryStore.Scan(store, store.Count);
             Assert.Equal(ReparseLinks.SymbolicLinkTag, scan.Materialize(300).NativeReparseTag);
             Assert.Equal(EntryFlags.Link, scan.Materialize(300).Flags);
             Assert.Null(scan.Materialize(300).Tag);
+
+            var ct = TestContext.Current.CancellationToken;
+            using var order = ExternalViewBuilder.Sort(store, store.Count, new(Descending: true), null, scratch, ct);
+            using var view = ExternalViewBuilder.BuildView(store, store.Count, order, null, showHidden: false, scratch, ct);
+            Assert.Equal(Enumerable.Range(0, 512).Reverse().Where(index => index != 301), view.Enumerate());
+            Assert.Equal(-1, view.GetVisibleIndex(301));
+            var visible = scan.Materialize(view.GetStoreIndex(view.GetVisibleIndex(300)));
+            Assert.Equal("item300", visible.Name);
+            Assert.Equal(ReparseLinks.SymbolicLinkTag, visible.NativeReparseTag);
         }
         finally { Directory.Delete(scratch, true); }
     }

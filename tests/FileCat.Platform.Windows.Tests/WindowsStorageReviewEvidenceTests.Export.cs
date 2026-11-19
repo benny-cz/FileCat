@@ -10,20 +10,21 @@ public sealed partial class WindowsStorageReviewEvidenceTests
     [InlineData(true)]
     public void Bound_export_publishes_exact_bytes_for_live_prefix_and_inactive_raw_review(bool inactive)
     {
-        RequireNormalWindows(); string root = Directory.CreateTempSubdirectory("filecat-export-").FullName;
+        var (createFile, backend) = QualifyNativeEvidence();
+        string root = Directory.CreateTempSubdirectory("filecat-export-").FullName;
         try
         {
-            string source = Directory.CreateDirectory(Path.Join(root, "private")).FullName, leaf = CreateJournal(source);
+            string source = Directory.CreateDirectory(Path.Join(root, "private")).FullName, leaf = CreateJournal(source, createFile: createFile);
             string target = Path.Join(Directory.CreateDirectory(Path.Join(root, "out")).FullName, "evidence.fcj");
             StorageReviewedJournal reviewed;
-            using (var owner = WindowsStorageReviewEvidence.Open(source, leaf, Stop)) reviewed = JournalRecovery.ReadStorageReview(owner, Stop);
+            using (var owner = backend.OpenJournal(source, leaf, Stop)) reviewed = JournalRecovery.ReadStorageReview(owner, Stop);
             StorageExportResult result;
             if (inactive)
             {
-                using var owner = WindowsStorageReviewEvidence.Open(source, leaf, Stop);
+                using var owner = backend.OpenJournal(source, leaf, Stop);
                 result = JournalRecovery.ExportStorageReview(owner, reviewed, target, Stop);
             }
-            else result = JournalRecovery.ExportStorageCalls(Path.Join(source, leaf), reviewed.History.Prefix, target, WindowsStorageReviewEvidence.Backend, Stop);
+            else result = JournalRecovery.ExportStorageCalls(Path.Join(source, leaf), reviewed.History.Prefix, target, backend, Stop);
             Assert.Equal(target, result.Destination); Assert.Equal(File.ReadAllBytes(Path.Join(source, leaf)), File.ReadAllBytes(target));
             Assert.Empty(Directory.EnumerateFiles(Path.GetDirectoryName(target)!, ".filecat-storage-export-*.tmp"));
         }

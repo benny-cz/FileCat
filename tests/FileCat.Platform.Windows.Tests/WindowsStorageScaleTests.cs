@@ -5,6 +5,7 @@ using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 
 namespace FileCat.Platform.Windows.Tests;
 
@@ -14,8 +15,10 @@ public sealed class WindowsStorageScaleTests
     [Fact]
     public void Ten_thousand_NTFS_files_keep_durable_progress_and_allow_live_review_while_paused()
     {
-        Assert.SkipUnless(WindowsStorageReviewEvidence.IsSupportedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_SCALE") == "1",
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipUnless(WindowsStorageTransforms.SupportsHost(qualifyNativeArm64) && Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_SCALE") == "1",
             "Requires the disposable normal-user Windows NTFS storage scale fixture.");
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
         string? worker = Environment.GetEnvironmentVariable("FILECAT_STORAGE_CLOUD_WORKER_EXECUTABLE");
         Assert.SkipUnless(Path.IsPathFullyQualified(worker ?? "") && File.Exists(worker), "Requires the built Windows FileCat cloud query worker.");
         using var cloud = WindowsStorageCloudQuery.UseWorker(worker!, Environment.GetEnvironmentVariable("FILECAT_STORAGE_CLOUD_WORKER_ASSEMBLY"));
@@ -25,7 +28,9 @@ public sealed class WindowsStorageScaleTests
         const int count = 10_000;
         var finished = new ConcurrentDictionary<Guid, byte>();
         var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), Path.Join(root, "journal"), ArchiveJobBackends.Empty,
-            new WindowsStorageTransforms(), WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend) { MaxConcurrent = 2 };
+            new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64),
+            qualifyNativeArm64 ? WindowsStorageReviewEvidence.CreateArm64QualificationJournal : WindowsStorageReviewEvidence.CreateJournal,
+            qualifyNativeArm64 ? WindowsStorageReviewEvidence.Arm64QualificationBackend : WindowsStorageReviewEvidence.Backend) { MaxConcurrent = 2 };
         manager.JobFinished += job => finished.TryAdd(job.Id, 0);
         using var process = Process.GetCurrentProcess();
         try

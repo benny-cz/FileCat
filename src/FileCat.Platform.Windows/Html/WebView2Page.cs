@@ -25,6 +25,8 @@ public sealed class WebView2Page : IDisposable
     private bool _focusPending;
     private bool _nativeHasFocus;
     private long _navigationGeneration;
+    private int _ownRequestsStarted, _canceledNavigations;
+    private CoreWebView2ProcessFailedKind? _lastProcessFailure;
 
     /// <summary>The installed WebView2 runtime's version, or null when there is none (the view is then unavailable).</summary>
     public static string? RuntimeVersion
@@ -76,6 +78,10 @@ public sealed class WebView2Page : IDisposable
     public int BlockedCount { get; private set; }
 
     public string? Title => _controller?.CoreWebView2.DocumentTitle;
+
+    internal string LoadDiagnostics => $"Environment created: {_environment is not null}. Controller created: {_controller is not null}. " +
+        $"Accepted navigations: {_navigationGeneration}. Canceled navigations: {_canceledNavigations}. " +
+        $"Page requests started: {_ownRequestsStarted}. Browser process failure: {_lastProcessFailure?.ToString() ?? "none"}.";
 
     private async Task StartAsync()
     {
@@ -138,11 +144,16 @@ public sealed class WebView2Page : IDisposable
             };
             core.PermissionRequested += (_, e) => e.State = CoreWebView2PermissionState.Deny;
             core.DocumentTitleChanged += (_, _) => TitleChanged?.Invoke(core.DocumentTitle);
+            core.ProcessFailed += (_, e) => _lastProcessFailure = e.ProcessFailedKind;
             core.NavigationCompleted += (_, e) =>
             {
                 // A refused or host-handled link reports OperationCanceled after the original page has loaded.
                 // Treating that cancellation as a page-load failure makes the viewer leave Page mode permanently.
-                if (!e.IsSuccess && e.WebErrorStatus == CoreWebView2WebErrorStatus.OperationCanceled) return;
+                if (!e.IsSuccess && e.WebErrorStatus == CoreWebView2WebErrorStatus.OperationCanceled)
+                {
+                    _canceledNavigations++;
+                    return;
+                }
                 Loaded?.Invoke(e.IsSuccess, e.IsSuccess ? null : e.WebErrorStatus.ToString());
             };
             _controller.AcceleratorKeyPressed += OnAcceleratorKey;
@@ -324,6 +335,7 @@ public sealed class WebView2Page : IDisposable
             return;
         }
         var deferral = e.GetDeferral();
+        _ownRequestsStarted++;
         try
         {
             string path = new Uri(uri).AbsolutePath;

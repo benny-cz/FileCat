@@ -54,3 +54,108 @@ The reader now scans for record endings within each read buffer and parses the f
 | Pruning and successful admission retry | 16.43 s | 12.14 s |
 
 The updated Windows evidence selection passed 19 tests with one FAT/exFAT fixture skip. Five EFS job tests passed, with eight prepared-fixture skips. Both Windows selections ran on .NET 10.0.15 from base `3aab13f2` plus the reader and fixture changes. The updated test bundle SHA-256 is `3115BE1346DBF496C154D1D83B79364DA974306EE0BA2FEE6D1A075938820A02`. Ubuntu passed 103 portable history, framing, retention and EFS evidence tests. Build-host receipts are `.tmp/filecat-occupied-evidence-3aab13f2-r1.xml`, `.tmp/filecat-occupied-evidence-3aab13f2-r2.xml`, `.tmp/filecat-occupied-evidence-3aab13f2-r2-efs.xml` and `.tmp/filecat-occupied-evidence-3aab13f2-r2-portable.trx`.
+
+## Native Windows Operations under load
+
+On Windows 11 x64 build 26340, the [native Operations driver](../../../tests/FileCat.NativeAcceptance/win-ax-ntfs-storage-scale.ps1) used Windows UI Automation in an isolated service-session desktop at medium integrity (RID 8192) with compatibility rendering. The fixture used 10,000 ordinary 8,192-byte files on fixed 4 KiB NTFS. It opened the real compression review from the File menu, confirmed recursive scope, and paused the running job at 763 checked items. Operations displayed discovery counts without percentages or transfer speed history. A Create Folder request on the other panel showed the exclusive-storage wait reason and had no output while compression was paused.
+
+The driver opened the real operation report, read call pages beginning at calls 1 and 65, and matched the durable SHA-256 shown on both pages. The processed count stayed unchanged while the job was paused. Resume finished the storage job with 10,001 changes, including the directory, and the unrelated queued folder was then created. All 10,000 files carried the compressed attribute. The first and last file hashes matched the fixture bytes.
+
+| Measurement | Result |
+| --- | ---: |
+| Fixture creation | 12.16 s |
+| Compression through completion, including automation and pause | 263.38 s |
+| Observed paused interval | 100.03 s |
+| UI Automation Pause to available Resume | 2.28 s |
+| Open recorded calls to first available page | 2.62 s |
+| Navigate to next available page | 2.52 s |
+| Durable storage journal | 13,219,660 bytes |
+| Main process handles, sampled initial to peak | 1,788 to 6,990 |
+| Main process working set, sampled initial to peak | 383,696,896 to 591,126,528 bytes |
+
+The dispatcher probe recorded four delays above 50 ms during the observed work intervals, with a maximum of 114.8 ms. The worst delay in the entire run was 1,858.9 ms and fell outside those intervals. The samples include the cost of UI Automation. Attribution of the additional process handles and measurement on the signed-in desktop remain open.
+
+The initial attempt refused a shared-writable journal directory. A private disposable profile resolved that fixture issue. It also reproduced the shell taskbar API returning `E_NOTIMPL` in the isolated session. The updated app treated this optional API as unavailable and the completed run produced no crash log. The Windows component SHA-256 was `54E7A82C7FADA85BD0497808EC0C87987251D5A0A7D3356E923883ECF2C55571`. The fixtures and dispatcher receipts are `operations-scale.json` and `r2-operations-dispatcher.json` under `.tmp/filecat-storage-ui-scale-cdd562ad-r1/`.
+
+### Idle handles by rendering configuration
+
+A follow-up launched the same app twice at medium integrity using fresh profiles, a one-file folder and the same isolated Windows session. Neither launch ran a storage job or loaded a UI Automation client. Four Windows Process Snapshotting samples per launch tracked the total and the reported kernel object types between about 7 and 22 seconds after start. [Windows Process Snapshotting](https://learn.microsoft.com/en-us/windows/win32/api/processsnapshot/ns-processsnapshot-pss_handle_entry)
+
+| Rendering configuration | Total process handles | Event handles | File handles |
+| --- | ---: | ---: | ---: |
+| Default FileCat configuration | 708–790 | 180–191 | 100–102 |
+| `FILECAT_RENDERING=compat` | 2,534–5,895 | 1,928–5,358 | 100–102 |
+
+The compatibility run had thousands of event handles at idle. A separate UI Automation comparison also showed increases during its idle intervals, including 3,499 to 8,195 before enumeration and 5,897 to 10,092 after client collection. These controls establish that the observed handle growth can occur without storage jobs or UI Automation enumeration. The [full x64 workload with default rendering](#native-x64-operations-with-default-rendering) used the same isolated session. The idle receipts are `idle-handle-types.json` and `uia-handle-comparison.json` in `.tmp/filecat-storage-ui-scale-cdd562ad-r1/`.
+
+### ARM64 storage jobs under load
+
+The isolated GitHub Windows 11 Enterprise build 26200 runner executed the same 10,000-file benchmark under native ARM64 at medium integrity on fixed 4 KiB NTFS. The exact TRX contains one executed, passing test for commit `6a56cfd40dd9fb0bd93f4ced4f7f43f33c254c3c`. It used the framework-dependent `win-arm64` FileCat app as the Cloud Files worker, with executable SHA-256 `2F425D4012EC58C5979B85D0566E4E35481275663813DB7C0DC4CD7F051CD5AA`. The test assembly SHA-256 was `57E2BAC99FFF117CCB6F433A5B4DECD574CFEB381731F9FE6D58B881A153AAC1`. [Native ARM64 run and receipts](https://github.com/benny-cz/FileCat/actions/runs/44500467560)
+
+| Measurement | Result |
+| --- | ---: |
+| Fixture creation | 3.55 s |
+| Compression including pause and live review | 196.81 s |
+| Live history and call page read at 101 items | 31.0 ms |
+| First journal length | 13,350,510 bytes |
+| Fresh pass over the completed prefix with one new file | 34.67 s |
+| Fresh-pass journal length | 5,491 bytes |
+| Process handles, sampled initial to peak | 290 to 380 |
+| Working set, sampled initial to peak | 55,009,280 to 80,232,448 bytes |
+
+The unrelated Create Directory job stayed queued while storage work was paused and completed after Resume. The first pass recorded 10,001 changes including the directory, and one flushed intent at which Pause won admission before a native call. Both boundary files preserved their bytes. The fresh pass found 10,001 already-satisfied objects and compressed the new file with one recorded call. This receipt covers the engine, scheduler and report reads.
+
+### Native ARM64 Operations window under load
+
+A separate Windows 11 ARM64 run used the real Operations window on the hosted desktop (session 2, medium integrity, Windows build 26200, fixed 4 KiB NTFS) with FileCat's default rendering. The driver used the same 10,000 ordinary 8,192-byte file workload and native UI Automation actions as on x64. It paused at 181 checked items. The unrelated folder job remained queued with the exclusive-storage wait reason. The first and second report pages started at calls 1 and 65 and showed the same captured digest. An independent SHA-256 scan matched this digest at byte 238,156, line 363 of the retained journal. [ARM64 Operations run and artifacts](https://github.com/benny-cz/FileCat/actions/runs/44504721371)
+
+| Measurement | Result |
+| --- | ---: |
+| Fixture creation | 7.63 s |
+| Compression through completion including automation and pause | 272.15 s |
+| Observed paused interval | 10.52 s |
+| Pause to available Resume | 138 ms |
+| Open recorded calls to first available page | 307 ms |
+| Request next page to available results | 218 ms |
+| Final durable journal | 13,189,656 bytes |
+| Main process handles, sampled initial to peak | 877 to 1,073 |
+| Main process working set, sampled initial to peak | 268,222,464 to 318,722,048 bytes |
+
+Resume finished with 10,001 changes, including the selected directory. The queued folder was created afterward. All 10,000 files were compressed, and the sampled boundary contents matched the seed. The dispatcher logged four delays over 50 ms during the measured job, with a maximum of 118.8 ms. Its overall maximum of 1,852.2 ms occurred during app startup. The source commit was `5acb88db4035fb560c49bc97f53eb35e694749de`. The ARM64 qualification executable SHA-256 was `0A93C75FA695743B3A0AC1638D92521564F43D41AE687030FFBCF8C4273606CE` and the FileCat assembly SHA-256 was `357B746FC874803EDC340453792DF86A9CBD96E342D89C6B6697BBA251048D95`.
+
+### Native x64 Operations with default rendering
+
+The Windows 11 x64 VM reran the same 10,000-file workload with default rendering on 19 November 2026. The app hashes, build 26340, isolated service session, medium integrity and 4 KiB NTFS matched the earlier compatibility run. It paused at 727 checked items, with the unrelated Create Folder job queued. Both live call pages displayed the same digest, which an independent scan matched at byte 958,237, line 1,455 of the final journal.
+
+| Measurement | Result |
+| --- | ---: |
+| Fixture creation | 10.87 s |
+| Compression through completion including automation and pause | 288.99 s |
+| Observed paused interval | 102.65 s |
+| Pause to available Resume | 2.38 s |
+| Open recorded calls to first available page | 2.80 s |
+| Request next page to available results | 2.50 s |
+| Final durable journal | 13,219,660 bytes |
+| Main process handles, sampled initial to peak | 841 to 851 |
+| Main process working set, sampled initial to peak | 232,947,712 to 262,410,240 bytes |
+
+The job reported 10,001 changes, the queued folder was created after Resume, and every file carried the compressed attribute. Boundary hashes matched the original bytes. Three dispatcher delays exceeded 50 ms during the measured job, with a maximum of 93.8 ms. The overall maximum during startup was 1,578.2 ms. The blocked-flush counterpart `Published_prefix_is_exact_and_can_be_read_while_later_intent_flush_is_blocked` also passed in the retained Ubuntu portable receipt. The new VM receipts are `default-operations-scale.json`, `default-operations-dispatcher.json` and `default-operations-storage.fcj` in `.tmp/filecat-storage-ui-scale-cdd562ad-r1/`.
+
+### Native ARM64 journal quota, review and export
+
+Windows 11 Enterprise ARM64 build 26200 ran six medium-integrity cases on fixed 4 KiB NTFS. The fixture bound every paged history entry to its native identity, read the durable prefix while the writer's later flush was blocked, and exported byte-for-byte through both the live-prefix and inactive-journal paths. The initial run reached the near-full export and refused it at the repeated architecture guard. The rerun passed all six cases after the export retained its opening backend's ARM64 qualification. [Passing run and `native-storage-evidence-limits.trx`](https://github.com/benny-cz/FileCat/actions/runs/44515650631)
+
+| Measurement | Result |
+| --- | ---: |
+| Pending review reservations | 128 journals, 268,435,456 bytes reserved |
+| First page, then full pending-reservation census | 161.8 ms, 767.6 ms |
+| Refusal at reservation limit | 1,520.8 ms |
+| Exact review and call page at reservation limit | 6.5 ms |
+| Near-limit history | 255,946,304 bytes of journals, 8,388,608 bytes reserved |
+| Near-limit header read | 2,120 bytes in 8.5 ms |
+| Near-limit census | 3,669.4 ms and 854,692,240 cumulative managed bytes allocated |
+| Refusal at occupied limit | 10,830.1 ms |
+| Exact review and tail, then digest-matched export | 1,684.9 ms, 1,223.0 ms |
+| Acknowledgment, then pruning and successful admission | 2,803.0 ms, 17,253.7 ms |
+
+The occupied fixture kept the other three journals and pruned only the acknowledged one. Its final charge was 198,269,500 bytes. The platform test assembly SHA-256 was `21C3ABF378E8B48C611B6D539E9B3A03011E0DB815100C67EF1780958DEDA475` at commit `e0274701743e850f1c0c53db88aeea22e498584e`.

@@ -48,7 +48,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             if (decision.Action != DecisionAction.BackUpEfsKey)
                 throw Refuse("efs-recovery-action", "Choose a recovery declaration or request the Windows backup wizard.");
 
-            var backup = job.RunEfsRecoveryInteraction(() => new WindowsEfsKeys().BackUpAssociatedCertificate(association,
+            var backup = job.RunEfsRecoveryInteraction(() => _efsKeys.BackUpAssociatedCertificate(association,
                 selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct, invokeWizard));
             ct.ThrowIfCancellationRequested();
             if (backup.Completion is { } completed) return StorageEfsRecoveryApproval.RecordWindowsExport(consent, setup, completed);

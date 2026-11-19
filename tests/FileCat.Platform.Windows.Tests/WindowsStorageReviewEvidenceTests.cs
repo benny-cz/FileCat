@@ -16,7 +16,7 @@ public sealed partial class WindowsStorageReviewEvidenceTests
     [Fact]
     public void Private_history_stays_readable_when_pending_reviews_fill_the_process_allowance()
     {
-        RequireNormalWindows();
+        var (createFile, backend) = QualifyNativeEvidence();
         Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_SCALE") == "1",
             "Requires the disposable normal-user Windows NTFS storage scale fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-evidence-quota-").FullName;
@@ -26,11 +26,10 @@ public sealed partial class WindowsStorageReviewEvidenceTests
             int count = checked((int)(StorageJournalPolicy.ProcessBytes / StorageJournalPolicy.ReviewWriteBytes));
             long journalBytes = 0;
             for (int i = 0; i < count; i++)
-                journalBytes += new FileInfo(Path.Join(root, CreateJournal(root))).Length;
+                journalBytes += new FileInfo(Path.Join(root, CreateJournal(root, createFile: createFile))).Length;
 
-            var backend = WindowsStorageReviewEvidence.Backend;
             var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), root, ArchiveJobBackends.Empty,
-                new NoStorageTransforms(), WindowsStorageReviewEvidence.CreateJournal, backend);
+                new NoStorageTransforms(), createFile, backend);
             var timer = Stopwatch.StartNew();
             var page = manager.ReadStorageHistoryPage(ct: Stop);
             double pageMs = timer.Elapsed.TotalMilliseconds;
@@ -74,12 +73,12 @@ public sealed partial class WindowsStorageReviewEvidenceTests
     [Fact]
     public void Held_history_cursor_streams_multiple_batches_and_binds_every_entry_to_native_identity()
     {
-        RequireNormalWindows(); string root = Directory.CreateTempSubdirectory("filecat-evidence-cursor-").FullName;
+        var (createFile, backend) = QualifyNativeEvidence();
+        string root = Directory.CreateTempSubdirectory("filecat-evidence-cursor-").FullName;
         try
         {
-            string journal = CreateJournal(root);
+            string journal = CreateJournal(root, createFile: createFile);
             for (int i = 0; i < 600; i++) File.WriteAllText(Path.Join(root, $"unrelated-{i:D4}-" + new string('x', 110)), "metadata only");
-            var backend = WindowsStorageReviewEvidence.Backend;
             using (var cursor = backend.OpenCursor(root, false, Stop))
             {
                 var names = new HashSet<string>(StringComparer.Ordinal); int batches = 0;
@@ -147,22 +146,31 @@ public sealed partial class WindowsStorageReviewEvidenceTests
     }
 
     private static CancellationToken Stop => TestContext.Current.CancellationToken;
-    private static string CreateJournal(string root, DateTime? createdUtc = null)
+    private static string CreateJournal(string root, DateTime? createdUtc = null,
+        Func<string, string, CancellationToken, StorageJournalFile>? createFile = null)
     {
         var observation = new StorageObservation(StorageObservationState.Disabled, StorageObservationState.Disabled, new(1, "historical-object"), false, null);
         DateTime created = createdUtc ?? DateTime.UtcNow;
         Guid job = Guid.NewGuid(); string leaf = StorageJournalPolicy.FileName(created, job);
         using var native = StorageReviewResources.EnterNative(Stop);
-        using var file = WindowsStorageReviewEvidence.CreateJournal(root, leaf, Stop);
+        using var file = (createFile ?? WindowsStorageReviewEvidence.CreateJournal)(root, leaf, Stop);
         var header = new StorageJournalHeader(job, created, StorageAction.Compress, StorageScope.SelectedItems, Guid.NewGuid(),
             [new(0, 0, @"C:\source\file", observation)]);
         using var writer = new StorageTransformJournalWriter(file.Stream, () => file.Stream.Flush(true), header);
         writer.FlushIntent(0, @"C:\source\file", observation);
         return leaf;
     }
-    private static void RequireNormalWindows()
+    private static (Func<string, string, CancellationToken, StorageJournalFile> Create, StorageEvidenceBackend Backend) QualifyNativeEvidence()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS evidence fixture.");
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireNormalWindows(qualifyNativeArm64);
+        return qualifyNativeArm64
+            ? (WindowsStorageReviewEvidence.CreateArm64QualificationJournal, WindowsStorageReviewEvidence.Arm64QualificationBackend)
+            : (WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend);
+    }
+    private static void RequireNormalWindows(bool qualifyNativeArm64 = false)
+    {
+        Assert.SkipUnless(WindowsStorageTransforms.SupportsHost(qualifyNativeArm64), "Requires a qualified Windows 11 client NTFS evidence fixture.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity, "This persistence fixture must run in the normal user process.");
     }
 
@@ -291,7 +299,8 @@ public sealed partial class WindowsStorageReviewEvidenceTests
     [Fact]
     public void Live_private_writer_keeps_its_prior_durable_prefix_readable_during_a_blocked_later_flush()
     {
-        RequireNormalWindows(); string root = Directory.CreateTempSubdirectory("filecat-evidence-live-").FullName;
+        var (createFile, backend) = QualifyNativeEvidence();
+        string root = Directory.CreateTempSubdirectory("filecat-evidence-live-").FullName;
         using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
         Guid job = Guid.NewGuid(); string leaf = StorageJournalPolicy.FileName(DateTime.UnixEpoch, job);
         StorageJournalPrefix? prefix = null; Exception? failure = null;
@@ -300,7 +309,7 @@ public sealed partial class WindowsStorageReviewEvidenceTests
             try
             {
                 using var native = StorageReviewResources.EnterNative(Stop);
-                using var file = WindowsStorageReviewEvidence.CreateJournal(root, leaf, Stop); int flushes = 0;
+                using var file = createFile(root, leaf, Stop); int flushes = 0;
                 var before = new StorageObservation(StorageObservationState.Disabled, StorageObservationState.Disabled, new(9, "pending-live"), false, null);
                 using var writer = new StorageTransformJournalWriter(file.Stream, () =>
                 {
@@ -317,17 +326,17 @@ public sealed partial class WindowsStorageReviewEvidenceTests
             worker.Start(); Assert.True(entered.Wait(TimeSpan.FromSeconds(10), Stop)); Assert.Null(failure); Assert.NotNull(prefix);
             var prior = JournalRecovery.ReadStorageHistory(Path.Join(root, leaf), prefix, Stop);
             Assert.Equal(prefix, prior.Prefix); Assert.False(prior.Damaged); Assert.Null(prior.LastCall);
-            var bound = JournalRecovery.ReadStorageHistory(Path.Join(root, leaf), prefix, WindowsStorageReviewEvidence.Backend, Stop);
+            var bound = JournalRecovery.ReadStorageHistory(Path.Join(root, leaf), prefix, backend, Stop);
             Assert.Equal(prefix, bound.Prefix); Assert.False(bound.Damaged); Assert.Null(bound.LastCall);
             var calls = JournalRecovery.ReadStorageCalls(Path.Join(root, leaf), Assert.IsType<StorageJournalPrefix>(prefix), 0,
-                WindowsStorageReviewEvidence.Backend, Stop);
+                backend, Stop);
             Assert.Empty(calls.Calls); Assert.False(calls.More); Assert.Equal(prefix, calls.Prefix);
             using var exported = new MemoryStream();
-            JournalRecovery.CopyStorageCalls(Path.Join(root, leaf), prefix!, () => exported, WindowsStorageReviewEvidence.Backend, Stop);
+            JournalRecovery.CopyStorageCalls(Path.Join(root, leaf), prefix!, () => exported, backend, Stop);
             byte[] copied = exported.ToArray();
             Assert.Equal(prefix!.ByteLength, copied.LongLength);
             Assert.Equal(prefix.Sha256, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(copied)));
-            var account = StorageEvidenceAccounting.Census(root, null, Stop, WindowsStorageReviewEvidence.Backend);
+            var account = StorageEvidenceAccounting.Census(root, null, Stop, backend);
             Assert.True(account.Complete, account.Problem); Assert.Equal(1, account.PendingHistories);
         }
         finally

@@ -13,8 +13,9 @@ internal static class QualificationHost
     [STAThread]
     private static int Main(string[] args)
     {
+        if (App.Program.TryRunStorageCloudQueryWorker(args) is { } workerExit) return workerExit;
         string? data = null, worker = null, budget = null;
-        bool qualifyNtfsStorage = false;
+        bool qualifyNtfsStorage = false, nativeArm64Storage = false;
         var rest = new List<string>();
         for (int i = 0; i < args.Length; i++)
         {
@@ -22,6 +23,7 @@ internal static class QualificationHost
             else if (args[i] == "--worker" && i + 1 < args.Length) worker = args[++i];
             else if (args[i] == "--ui-budget" && i + 1 < args.Length) budget = args[++i];
             else if (args[i] == "--ntfs-storage-review") qualifyNtfsStorage = true;
+            else if (args[i] == "--ntfs-storage-arm64-review") qualifyNtfsStorage = nativeArm64Storage = true;
             else rest.Add(args[i]);
         }
         if (budget is not null && !Path.IsPathFullyQualified(budget))
@@ -31,12 +33,12 @@ internal static class QualificationHost
         }
         if (data is null || !Path.IsPathFullyQualified(data) || (worker is null ? !qualifyNtfsStorage : !File.Exists(worker)))
         {
-            Console.Error.WriteLine("Usage: FileCat.ArchiveQualificationHost --data <throwaway folder> [--worker <published FileCat executable>] [--ntfs-storage-review] [--ui-budget <report.json>] [FileCat arguments]");
+            Console.Error.WriteLine("Usage: FileCat.ArchiveQualificationHost --data <throwaway folder> [--worker <published FileCat executable>] [--ntfs-storage-review | --ntfs-storage-arm64-review] [--ui-budget <report.json>] [FileCat arguments]");
             return 2;
         }
-        if (qualifyNtfsStorage && !AppServices.CanQualifyNtfsStorage)
+        if (qualifyNtfsStorage && !AppServices.CanQualifyNtfsStorage(nativeArm64Storage))
         {
-            Console.Error.WriteLine("NTFS storage review qualification requires Windows 11 x64 and a standard-user session.");
+            Console.Error.WriteLine("NTFS storage review qualification requires a non-elevated Windows 11 process on the selected native architecture.");
             return 2;
         }
         Directory.CreateDirectory(data);
@@ -47,7 +49,8 @@ internal static class QualificationHost
         App.App.StartupOptions = StartupOptions.Parse([.. rest, "--data", data]);
         App.App.QualificationServices = startup => AppServices.InitializeForQualification(
             Core.State.AppPaths.Resolve(startup.Profile, dataRoot: startup.DataRoot),
-            worker is null ? Core.Archives.ArchiveJobBackends.Empty : AppServices.QualificationBackends(worker), qualifyNtfsStorage);
+            worker is null ? Core.Archives.ArchiveJobBackends.Empty : AppServices.QualificationBackends(worker), qualifyNtfsStorage, nativeArm64Storage);
+        using var storageCloudQuery = qualifyNtfsStorage ? App.Program.StartStorageCloudQuery(typeof(QualificationHost)) : null;
         var builder = App.Program.BuildAvaloniaApp();
         if (budget is not null) builder = builder.AfterSetup(_ => UiBudgetProbe.Start(budget));
         return builder.StartWithClassicDesktopLifetime([.. rest]);

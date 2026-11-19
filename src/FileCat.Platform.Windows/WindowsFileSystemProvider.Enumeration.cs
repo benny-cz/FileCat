@@ -11,22 +11,25 @@ public sealed unsafe partial class WindowsFileSystemProvider
     // Activation is qualified by the native equivalence/performance fixture, independently of details UI.
     internal bool UseNativeEnumeration { get; init; }
 
-    public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
+    public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct) =>
+        UseNativeEnumeration ? EnumerateWithFindApi(location, sink, ct, new Win32FindApi()) : base.EnumerateAsync(location, sink, ct);
+
+    internal Task EnumerateWithFindApi<TFindApi>(Location location, IEnumerationSink sink, CancellationToken ct, TFindApi api)
+        where TFindApi : IFindApi
     {
-        if (!UseNativeEnumeration) return base.EnumerateAsync(location, sink, ct);
         ct.ThrowIfCancellationRequested();
         string pattern = WindowsFileOperations.Long(Path.Join(location.Path, "*"));
         var data = new FindData();
-        var cursor = FindFirst(pattern, 1 /* Basic */, &data, 0, 0, 2 /* LARGE_FETCH */);
-        int error = cursor.IsInvalid ? Marshal.GetLastPInvokeError() : 0;
+        var cursor = api.Open(pattern, largeFetch: true, &data, out int error);
         if (cursor.IsInvalid && error is 50 or 87)
         {
             cursor.Dispose();
-            cursor = FindFirst(pattern, 1, &data, 0, 0, 0);
-            error = cursor.IsInvalid ? Marshal.GetLastPInvokeError() : 0;
+            ct.ThrowIfCancellationRequested();
+            cursor = api.Open(pattern, largeFetch: false, &data, out error);
         }
         using (cursor)
         {
+            ct.ThrowIfCancellationRequested();
             if (cursor.IsInvalid)
             {
                 if (error is 50 or 87 or 120) return base.EnumerateAsync(location, sink, ct); // no publication yet
@@ -58,9 +61,10 @@ public sealed unsafe partial class WindowsFileSystemProvider
                     if (count == batch.Length) { sink.AddBatch(batch); count = 0; }
                 }
                 ct.ThrowIfCancellationRequested();
-                if (FindNext(cursor, &data)) continue;
-                error = Marshal.GetLastPInvokeError();
+                if (api.Advance(cursor, &data, out error)) continue;
+                ct.ThrowIfCancellationRequested();
                 if (count > 0) sink.AddBatch(batch.AsSpan(0, count));
+                ct.ThrowIfCancellationRequested();
                 if (error != 18 /* NO_MORE_FILES */) throw EnumerationError(location.Path, error);
                 return Task.CompletedTask;
             }
@@ -83,12 +87,35 @@ public sealed unsafe partial class WindowsFileSystemProvider
     };
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct FindData
+    internal struct FindData
     {
         public uint Attributes, CreatedLow, CreatedHigh, AccessedLow, AccessedHigh, ModifiedLow, ModifiedHigh;
         public uint SizeHigh, SizeLow, ReparseTag, Reserved;
         public fixed char Name[260];
         public fixed char Alternate[14];
+    }
+
+    internal interface IFindApi
+    {
+        SafeHandle Open(string pattern, bool largeFetch, FindData* data, out int error);
+        bool Advance(SafeHandle cursor, FindData* data, out int error);
+    }
+
+    private readonly struct Win32FindApi : IFindApi
+    {
+        public SafeHandle Open(string pattern, bool largeFetch, FindData* data, out int error)
+        {
+            var cursor = FindFirst(pattern, 1 /* Basic */, data, 0, 0, largeFetch ? 2u /* LARGE_FETCH */ : 0);
+            error = cursor.IsInvalid ? Marshal.GetLastPInvokeError() : 0;
+            return cursor;
+        }
+
+        public bool Advance(SafeHandle cursor, FindData* data, out int error)
+        {
+            bool advanced = FindNext(cursor, data);
+            error = advanced ? 0 : Marshal.GetLastPInvokeError();
+            return advanced;
+        }
     }
 
     private sealed class FindCursor : SafeHandleZeroOrMinusOneIsInvalid
@@ -101,7 +128,7 @@ public sealed unsafe partial class WindowsFileSystemProvider
     private static partial FindCursor FindFirst(string pattern, int info, FindData* data, int search, nint filter, uint flags);
     [LibraryImport("kernel32.dll", EntryPoint = "FindNextFileW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool FindNext(FindCursor cursor, FindData* data);
+    private static partial bool FindNext(SafeHandle cursor, FindData* data);
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool FindClose(nint cursor);

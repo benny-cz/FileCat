@@ -27,6 +27,7 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
     private const uint ReadControl = 0x20000, NoRecall = 0x400000;
     private readonly string _path, _owner, _binding;
     private readonly ulong _serial;
+    private readonly bool _qualifyNativeArm64;
     private readonly StorageEvidenceEnvelope _envelope;
     private readonly NativeHandle? _journal;
     private readonly FileStream? _stream;
@@ -40,16 +41,17 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
     }
     internal override Stream Journal => _stream ?? throw new IOException("This namespace owner does not own an inactive journal.");
     internal override StorageEvidenceExport CreateExport(string destination, CancellationToken ct)
-    { Check(); return CreateBoundExport(_envelope, DirectoryIdentity, _owner, destination, ct); }
+    { Check(); return CreateBoundExport(_envelope, DirectoryIdentity, _owner, destination, ct, _qualifyNativeArm64); }
     internal override bool IsOwned => NamespaceOwned && !_deleted && _journal is not null && !_journal.Handle.IsClosed;
     private bool NamespaceOwned => !_disposed;
     internal int MaximumHandles => _envelope.MaximumHandles;
 
     private WindowsStorageReviewEvidence(string path, string leaf, string owner, string binding, ulong serial,
-        string directoryIdentity, NativeHandle? journal, StorageEvidenceEnvelope envelope)
+        string directoryIdentity, NativeHandle? journal, StorageEvidenceEnvelope envelope, bool qualifyNativeArm64)
     {
         _path = path; JournalLeaf = leaf; _owner = owner; _binding = binding; _serial = serial;
         DirectoryIdentity = directoryIdentity; _journal = journal; _envelope = envelope;
+        _qualifyNativeArm64 = qualifyNativeArm64;
         _stream = journal is null ? null : new FileStream(journal.Handle, FileAccess.Read);
     }
 
@@ -64,7 +66,7 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
             RequireNamespace(root.Handle, owner, ct);
             string binding = WindowsStorageTransforms.ActualVolumeBinding(root.Handle, false, ct);
             var id = ProtectedHexFile.Identity(root.Handle);
-            return new Retained(new(full, string.Empty, owner, binding, id.VolumeSerial, binding + ":" + id, null, envelope));
+            return new Retained(new(full, string.Empty, owner, binding, id.VolumeSerial, binding + ":" + id, null, envelope, qualifyNativeArm64));
         }
         catch { envelope.Dispose(); throw; }
     }
@@ -84,7 +86,7 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
             var rootId = ProtectedHexFile.Identity(root.Handle);
             string rootIdentity = binding + ":" + rootId;
             journal = OpenFile(root.Handle, leaf, create: false, owner, binding, envelope.Claim, exclusive: true, ct);
-            var result = new WindowsStorageReviewEvidence(full, leaf, owner, binding, rootId.VolumeSerial, rootIdentity, journal, envelope);
+            var result = new WindowsStorageReviewEvidence(full, leaf, owner, binding, rootId.VolumeSerial, rootIdentity, journal, envelope, qualifyNativeArm64);
             journal = null; return result;
         }
         catch { journal?.Dispose(); envelope.Dispose(); throw; }
@@ -360,7 +362,7 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
         if (!StoragePaths.IsOrdinaryLocalPath(full)) throw new IOException("Storage evidence needs an ordinary local directory path.");
         return full;
     }
-    private static string OrdinaryOwner(Func<IDisposable> claim, bool qualifyNativeArm64 = false)
+    private static string OrdinaryOwner(Func<IDisposable> claim, bool qualifyNativeArm64)
     {
         using var charge = claim();
         if (!WindowsStorageTransforms.SupportsHost(qualifyNativeArm64) || WindowsTokenAuthority.IsHighIntegrity)

@@ -193,8 +193,17 @@ public sealed class EfsRemoteUploadTests
         }
     }
 
-    private static void RequireEfsFixture() => Assert.SkipUnless(OperatingSystem.IsWindows() && !WindowsTokenAuthority.IsHighIntegrity &&
-        Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1", "Requires the disposable normal-user Windows NTFS fixture.");
+    private static void RequireEfsFixture()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows() && !WindowsTokenAuthority.IsHighIntegrity &&
+            Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1", "Requires the disposable normal-user Windows NTFS fixture.");
+        if (Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE") == "Arm64")
+        {
+            Assert.True(WindowsStorageTransforms.IsNativeArm64QualificationHost);
+            string root = Path.TrimEndingDirectorySeparator(Path.GetTempPath());
+            Assert.Equal(Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ABI_ROOT"), root, ignoreCase: true);
+        }
+    }
 
     private static string ReviewedStage(ConfirmRequest review, string label)
     {

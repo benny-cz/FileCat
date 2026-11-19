@@ -607,12 +607,7 @@ public sealed class WindowsArchiveEfsEditTests
         finally { Directory.Delete(output, recursive: true); Directory.Delete(root, recursive: true); }
     }
 
-    private static void RequireEfs()
-    {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Requires a disposable normal-user Windows VM with EFS enabled.");
-        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
-    }
+    private static void RequireEfs() => WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
 
     private static void CreateZip(string archive)
     {

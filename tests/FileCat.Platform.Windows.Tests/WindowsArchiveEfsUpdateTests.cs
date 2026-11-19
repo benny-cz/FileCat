@@ -1041,10 +1041,5 @@ public sealed partial class WindowsArchiveEfsUpdateTests
             "Requires a local NTFS test directory.");
     }
 
-    private static void RequireEfs()
-    {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Requires a disposable normal-user Windows VM with EFS enabled.");
-        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
-    }
+    private static void RequireEfs() => WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
 }

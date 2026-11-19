@@ -22,7 +22,8 @@ public sealed unsafe partial class WindowsEfsKeyTests
     }
     private static void NativeFixture()
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+        Assert.SkipUnless(WindowsStorageTransforms.SupportsHost(WindowsStorageAbiTests.QualifyNativeArm64Jobs) &&
+            Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
             "Explicit EFS key qualification in the disposable Windows VM only; creates and deletes only uniquely named fixture keys/certificates.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity);
     }
@@ -57,6 +58,46 @@ public sealed unsafe partial class WindowsEfsKeyTests
         TestContext.Current.TestOutputHelper?.WriteLine($"EFS_KEY_PROOF provider={result.Provider} state={result.State} nonExportableFixture=True");
         // Repeat against the original context: the service neither consumes it nor creates a cached comparison bypass.
         Assert.Equal(StorageEfsKeyState.MatchedAvailable, WindowsEfsKeys.ProbeHeldCertificate(fixture.Certificate.Handle, Sid, fixture.Certificate.Thumbprint, Ct).State);
+    }
+
+    [Fact]
+    public void A_platform_Tpm_key_is_compared_from_a_fresh_certificate_context_without_export()
+    {
+        NativeFixture();
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_TPM") == "1",
+            "Requires a disposable local Windows fixture with a ready TPM.");
+        string name = "FileCat.EfsKeyQualification.Tpm." + Guid.NewGuid().ToString("N");
+        var provider = CngProvider.MicrosoftPlatformCryptoProvider;
+        using var key = CngKey.Create(CngAlgorithm.Rsa, name, new CngKeyCreationParameters
+        {
+            Provider = provider,
+            KeyUsage = CngKeyUsages.Signing | CngKeyUsages.Decryption,
+        });
+        try
+        {
+            Assert.Equal(provider, key.Provider);
+            Assert.Equal(CngExportPolicies.None, key.ExportPolicy);
+            using var rsa = new RSACng(key);
+            using var certificate = CreateCertificate(name, rsa);
+            using var publicOnly = X509CertificateLoader.LoadCertificate(certificate.RawData);
+            CopyProvider(certificate.Handle, publicOnly.Handle);
+
+            using var native = StorageReviewResources.EnterNative(Ct);
+            using var sourceCharge = StorageNativeAllowance.RequireCurrent().ClaimScratch();
+            using var copiedCharge = StorageNativeAllowance.RequireCurrent().ClaimScratch();
+            var result = WindowsEfsKeys.ProbeHeldCertificate(publicOnly.Handle, Sid, certificate.Thumbprint, Ct);
+            Assert.Equal(StorageEfsKeyState.MatchedAvailable, result.State);
+            Assert.Equal(StorageEfsKeyProvider.Cng, result.Provider);
+            Assert.True(result.CertificatePresent);
+            Assert.True(result.ProviderAssociationPresent);
+            Assert.Null(result.NativeError);
+            TestContext.Current.TestOutputHelper?.WriteLine($"EFS_TPM_KEY provider={key.Provider} state={result.State} exportPolicy={key.ExportPolicy}");
+        }
+        finally
+        {
+            Assert.Equal(name, key.KeyName);
+            key.Delete();
+        }
     }
 
     [Theory]
@@ -150,7 +191,7 @@ public sealed unsafe partial class WindowsEfsKeyTests
         try
         {
             using var native = StorageReviewResources.EnterNative(Ct);
-            var service = new WindowsEfsKeys();
+            var service = new WindowsEfsKeys(WindowsStorageAbiTests.QualifyNativeArm64Jobs);
             Assert.Equal(StorageEfsKeyState.MatchedAvailable, service.ProbeAssociatedCertificate(Sid, fixture.Certificate.Thumbprint, Ct).State);
             var missing = service.ProbeAssociatedCertificate(Sid, absent.Certificate.Thumbprint, Ct);
             Assert.Equal(StorageEfsKeyState.Unavailable, missing.State); Assert.False(missing.CertificatePresent);
@@ -164,6 +205,13 @@ public sealed unsafe partial class WindowsEfsKeyTests
         byte[] bytes = new byte[length];
         fixed (byte* buffer = bytes)
         { Assert.True(GetProperty(source, 2, buffer, ref length)); Assert.True(SetProperty(destination, 2, 0, buffer)); }
+    }
+
+    private static X509Certificate2 CreateCertificate(string name, RSA rsa)
+    {
+        var request = new CertificateRequest("CN=" + name, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection { new("1.3.6.1.4.1.311.10.3.4") }, false));
+        return request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(1));
     }
     private sealed class KeyFixture : IDisposable
     {
@@ -189,9 +237,7 @@ public sealed unsafe partial class WindowsEfsKeyTests
                     Flags = CspProviderFlags.NoPrompt | CspProviderFlags.UseNonExportableKey });
                 Assert.False(capi.CspKeyContainerInfo.Exportable); rsa = capi;
             }
-            var request = new CertificateRequest("CN=" + name, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection { new("1.3.6.1.4.1.311.10.3.4") }, false));
-            return new(name, rsa, key, request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(1)));
+            return new(name, rsa, key, CreateCertificate(name, rsa));
         }
         public void Dispose()
         {

@@ -56,3 +56,18 @@ SHA-256:
 Ignored Windows artifacts: `.tmp/filecat-efs-key-proof-final-tests.xml`, `.tmp/filecat-efs-key-proof-final-results.log` and `.tmp/filecat-efs-key-proof-final*.ps1`. The log ends `Native exit: 0` / `FILECAT_EFS_KEY_PROOF_FINISHED`. Portable XML remains `/tmp/filecat-efs-key-metadata-tests.xml` on each supplied Unix machine. The earlier smaller run is retained separately as `.tmp/filecat-efs-key-proof-results.log` and its initial native package.
 
 Remaining E-KEY work includes the verified private zero-byte setup workspace and actual associations, explicit lazy setup/recovery UI and identity-bound recovery choices, parented export and truthful completion outcomes, parented provider/hardware interaction, post-encryption actual-key association checks and unexpected-key stop behavior, lifetime/resource/UI qualification and full EFS integration. Output and sparse gates remain separate. This candidate is not composed into an enabled product encryption workflow.
+
+## Native ARM64 software-key and wizard checks
+
+On 19 November 2026, the Windows 11 Enterprise ARM64 runner (build 26200, medium integrity, 4 KiB NTFS) ran commit `f8d6b00001e35d4891667f1c8d7b3c6c43f7b145`. The platform test assembly SHA-256 was `F7690ED1F8370B5DF5D43BAB273DDF34A27E6E151ADADF789B2F3F17E0F64AC1`. The qualification backend used its native ARM64 key service for both selected-file backup and recovery before encryption. The fixture setup directories belonged to the invoking user. [Run and exact TRX receipts](https://github.com/benny-cz/FileCat/actions/runs/44503478505)
+
+- `native-efs-keys.trx` recorded 11 executed and passed cases. Fresh CAPI and CNG comparisons matched both non-exportable fixture keys and rejected certificate A with a cached key B even when the cached Windows call reported success. The suites also verified exact store lookup, refusal of unqualified provider metadata, selected-file backup scope and the requirement for an explicit recovery choice after a failed backup request.
+- `native-efs-wizard.trx` recorded two executed and passed cases. Cancellation returned `ERROR_CANCELLED` (1223) and left no PFX. Completion exported a PFX whose reopened certificate matched the setup association and had a private key. The test verified that recovery evidence bound the exact setup identity and certificate hash.
+
+The wizard receipt uses a disposable software key and a native owner window. Hardware and managed recovery, independent-account restore, and the full FileCat owner-window interaction on ARM64 have separate gates.
+
+## Native x64 virtual TPM provider comparison
+
+The Windows 11 x64 build 26340 VMware guest had a ready virtual TPM. A native test at medium integrity generated a uniquely named non-exportable RSA key with **Microsoft Platform Crypto Provider**. It made a short-lived EFS-purpose certificate, copied only the provider association to a newly decoded public certificate and examined it through FileCat's fresh silent comparison. The result was `MatchedAvailable`, with `Cng` ownership and an observed export policy of `None`. The fixture deleted its named key. It used no certificate-store insertion or default-key change. The `native-tpm.xml` receipt records one pass with zero skips in `.tmp/arm64-ops-f8d6b000-r1/`. The test bundle SHA-256 is `94103614E7D0D0A7FEDFDB1042734C1660AC80E672AFF5B38138725CAC1987A3`. [Microsoft Platform Crypto Provider](https://learn.microsoft.com/en-us/windows/win32/seccertenroll/cng-key-storage-providers)
+
+This receipt qualifies the tested silent comparison with a virtual TPM. Interactive provider prompts and recovery with a TPM-backed EFS file still need their own evidence.

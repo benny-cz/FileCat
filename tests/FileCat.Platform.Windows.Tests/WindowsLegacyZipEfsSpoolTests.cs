@@ -97,6 +97,5 @@ public sealed class WindowsLegacyZipEfsSpoolTests
         }
     }
 
-    private static void RequireEfs() => Assert.SkipUnless(WindowsStorageReviewEvidence.IsSupportedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-        "Requires a disposable normal-user Windows VM with EFS enabled.");
+    private static void RequireEfs() => WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
 }

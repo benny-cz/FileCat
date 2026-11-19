@@ -1,3 +1,4 @@
+using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 using FileCat.Core.Search;
 
@@ -71,5 +72,44 @@ public sealed class NativeSearchPredicateTests
         Assert.True(SearchSession.TryValidate(directoryOnly, out _));
         var scoped = new ResultSet("directory", "directory", "test"); new SearchSession(directoryOnly, scoped).Run(TestContext.Current.CancellationToken);
         Assert.Equal(archived, Assert.Single(scoped.Snapshot()).Item); Assert.True(scoped.IsComplete);
+    }
+
+    [Fact]
+    public void Refinement_keeps_a_captured_reparse_hint_until_the_entry_changes()
+    {
+        using var directory = new TempDir();
+        string target = directory.File("target.txt", "target");
+        string path = Path.Join(directory.Path, "link.txt");
+        try { File.CreateSymbolicLink(path, target); }
+        catch (Exception ex) when (OperatingSystem.IsWindows() && ex is (IOException or UnauthorizedAccessException))
+        { Assert.Skip("The Windows test token cannot create a symbolic link."); }
+
+        var info = new FileInfo(path);
+        Assert.True(info.Attributes.HasFlag(FileAttributes.ReparsePoint));
+        var captured = new ItemRef(Location.FileSystem(directory.Path), info.Name, EntryKind.File, info.Length, info.LastWriteTimeUtc.Ticks)
+        {
+            NativeAttributes = (uint)info.Attributes,
+            NativeReparseTag = ReparseLinks.SymbolicLinkTag,
+        };
+        var query = new SearchQuery { Roots = [], WithinResults = [(captured, "original folder")] };
+
+        var first = Refine();
+        Assert.Equal("original folder", first.Relative);
+        Assert.Equal(captured, first.Item);
+        Assert.Equal(ReparseLinks.SymbolicLinkTag, first.Item.NativeReparseTag);
+
+        File.Delete(path);
+        File.WriteAllBytes(path, new byte[checked((int)captured.Size)]);
+        File.SetLastWriteTimeUtc(path, new DateTime(captured.Modified, DateTimeKind.Utc));
+        Assert.Equal(0u, Refine().Item.NativeReparseTag);
+        Assert.Equal("target", File.ReadAllText(target));
+
+        (ItemRef Item, string Relative) Refine()
+        {
+            var results = new ResultSet("refined", "Refined", "test");
+            new SearchSession(query, results).Run(TestContext.Current.CancellationToken);
+            Assert.True(results.IsComplete);
+            return Assert.Single(results.Snapshot());
+        }
     }
 }
