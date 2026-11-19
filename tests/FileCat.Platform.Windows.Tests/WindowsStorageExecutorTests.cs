@@ -45,6 +45,80 @@ public sealed class WindowsStorageExecutorTests
     }
     private static bool Compressed(string path) => (File.GetAttributes(path) & FileAttributes.Compressed) != 0;
 
+    [Theory]
+    [InlineData(StorageAction.Compress, StorageObservationState.Enabled, 0, StorageEffect.Changed, null)]
+    [InlineData(StorageAction.Compress, StorageObservationState.Disabled, 0, StorageEffect.Failed, "compression-postcondition")]
+    [InlineData(StorageAction.RemoveCompression, StorageObservationState.Enabled, 0, StorageEffect.Failed, "compression-postcondition")]
+    [InlineData(StorageAction.RemoveCompression, StorageObservationState.Disabled, 5, StorageEffect.Changed, "native-5")]
+    [InlineData(StorageAction.RemoveCompression, StorageObservationState.Enabled, 112, StorageEffect.Failed, "compression-disk-full")]
+    [InlineData(StorageAction.Compress, StorageObservationState.Unknown, 0, StorageEffect.Uncertain, "postcondition-unknown")]
+    public void Compression_outcomes_follow_the_held_postcondition(StorageAction action, StorageObservationState observed,
+        int nativeError, StorageEffect effect, string? reason)
+    {
+        var before = new StorageObservation(action == StorageAction.Compress ? StorageObservationState.Disabled : StorageObservationState.Enabled,
+            StorageObservationState.Disabled, new(1, "held fixture"), false, null);
+        var after = before with { Compression = observed };
+        ushort? format = observed switch
+        {
+            StorageObservationState.Enabled => WindowsCompression.Lznt1,
+            StorageObservationState.Disabled => WindowsCompression.None,
+            _ => null,
+        };
+        var call = new WindowsCompression.CallResult(nativeError == 0, nativeError, new(format, 0));
+        var outcome = WindowsStorageTransforms.ClassifyCompressionOutcome(action, before, after, call);
+        Assert.True(outcome.NativeCallAttempted);
+        Assert.Same(before, outcome.Before);
+        Assert.Same(after, outcome.After);
+        Assert.Equal(effect, outcome.Effect);
+        Assert.Equal(reason, outcome.Problem?.Code);
+    }
+
+    [Fact]
+    public void Removing_compression_from_an_efs_file_keeps_its_protection_without_a_native_call()
+    {
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireNormal(qualifyNativeArm64);
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires an explicitly prepared disposable EFS fixture.");
+        string root = Directory.CreateTempSubdirectory("filecat-storage-efs-noop-").FullName;
+        string file = Path.Join(root, "protected.bin");
+        string stream = file + ":fixture";
+        const string payload = "protected main data";
+        const string namedPayload = "protected named data";
+        try
+        {
+            File.WriteAllText(file, payload);
+            File.WriteAllText(stream, namedPayload);
+            File.Encrypt(file);
+            var fs = new WindowsFileOperations();
+            string identity = Assert.IsType<string>(fs.GetFileIdentity(file));
+            var manager = Manager(root, qualifyNativeArm64: qualifyNativeArm64);
+            var target = ItemRef.ForFileSystemPath(file, EntryKind.File);
+            using (var refused = manager.PrepareStorageReview([target], StorageAction.Compress, Stop))
+            {
+                Assert.Equal("efs-conflict", Assert.Single(refused.Roots).Observation.Ineligible?.Code);
+                Assert.Throws<InvalidOperationException>(() => refused.Approve(StorageAction.Compress, StorageScope.SelectedItems));
+            }
+            Assert.Empty(manager.Jobs);
+
+            var job = RunAction(manager, StorageAction.RemoveCompression, StorageScope.SelectedItems, target);
+            Assert.Equal(JobState.Completed, job.State);
+            var result = Assert.IsType<StorageResultSnapshot>(job.StorageResult);
+            Assert.Equal(new StorageOutcomeCounts(AlreadySatisfied: 1), result.Counts);
+            string journal = StorageJournalPolicy.FileName(job.CreatedUtc, job.Id);
+            var history = manager.ReadStorageReview(journal, Stop);
+            Assert.True(history.Current.History.Ended);
+            Assert.False(history.ReviewPending);
+            Assert.Empty(manager.ReadStorageCalls(journal, Assert.IsType<StorageJournalPrefix>(result.DurablePrefix), ct: Stop).Calls);
+            Assert.True(File.GetAttributes(file).HasFlag(FileAttributes.Encrypted));
+            Assert.False(Compressed(file));
+            Assert.Equal(identity, fs.GetFileIdentity(file));
+            Assert.Equal(payload, File.ReadAllText(file));
+            Assert.Equal(namedPayload, File.ReadAllText(stream));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Fact]
     public void Detaching_the_owned_volume_after_intent_does_not_mutate_or_replay_the_prepared_call() =>
         DetachOwnedVolume(afterSet: false);
