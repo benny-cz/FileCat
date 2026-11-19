@@ -87,3 +87,11 @@ The FileCat CNG comparison requires explicit approval and a visible FileCat owne
 `parented-cng-r2.trx` is in `.tmp/filecat-parented-cng-3c74139d-r2/`. The Windows platform assembly SHA-256 was `B7B5458E40BC34056D5A09311A6F0820757DC36F4B28B8EC8E0F2B46F6706EE5`. The test assembly SHA-256 was `41AFC3E288F96AB947FC98EBB1745F852775D40C0876DA1108D4E53093F20DC5`.
 
 The native Windows ARM64 run at `cbc2d8bb` passed both parented software cases at medium integrity, including both mismatched-key controls. It also passed all 11 key and recovery cases and both export wizard cases. The artifact contains `native-efs-parented-provider.trx`, `native-efs-keys.trx` and `native-efs-wizard.trx`. [Native ARM64 results](https://github.com/benny-cz/FileCat/actions/runs/44524980334)
+
+### Strong key protection and the desktop requirement
+
+On Windows 11 x64 build 26340 at medium integrity, the Microsoft Software Key Storage Provider and Microsoft Platform Crypto Provider each created an unprotected disposable RSA key. The probe reopened both keys silently, exported their public keys and signed a synthetic digest. Both providers accepted the ordinary and forced-high strong-key UI policies. Silent finalization of each of those four protected keys returned `NTE_SILENT_CONTEXT` (`0x80090022`). [Windows key UI policy](https://learn.microsoft.com/en-us/windows/win32/api/ncrypt/ns-ncrypt-ncrypt_ui_policy) [Windows key finalization](https://learn.microsoft.com/en-us/windows/win32/api/ncrypt/nf-ncrypt-ncryptfinalizekey)
+
+A separate attempt set a visible, owned window on a protected software-key fixture in Session 0 and called interactive finalization. The call was still active after the observation window, with no verified prompt or completion. The test stopped its own process. A complete provider enumeration later verified that all seven named fixtures were absent. The raw receipts are in `.tmp/filecat-protected-provider-9c1ac645-r1/`.
+
+A live fixture needs an isolated interactive Windows desktop. This result covers key creation. Provider credentials during acquisition or private-key use, and recovery of an actual TPM-backed EFS file, still require separate qualification.
