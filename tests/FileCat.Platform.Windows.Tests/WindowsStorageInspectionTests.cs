@@ -111,6 +111,7 @@ public sealed partial class WindowsStorageInspectionTests
     [InlineData("FILECAT_STORAGE_NATIVE_EXFAT_TARGET", "filesystem", true)]
     [InlineData("FILECAT_STORAGE_NATIVE_REFS_TARGET", "filesystem", true)]
     [InlineData("FILECAT_STORAGE_NATIVE_MAPPED_TARGET", "remote-volume", true)]
+    [InlineData("FILECAT_STORAGE_NATIVE_REMOVABLE_TARGET", "removable-media-unqualified", true)]
     public void Prepared_volumes_have_specific_inspection_refusals(string variable, string reason, bool rejectsBinding)
     {
         bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;

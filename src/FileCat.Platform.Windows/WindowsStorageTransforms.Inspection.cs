@@ -102,9 +102,11 @@ internal sealed unsafe partial class WindowsStorageTransforms
 
     private static VolumeFacts Volume(SafeFileHandle file, CancellationToken ct)
     {
+        const uint removableMedia = 0x1, remoteDevice = 0x10;
         Span<byte> device = stackalloc byte[8], size = stackalloc byte[24];
         QueryVolume(file, 4 /* FileFsDeviceInformation */, device, ct);
-        if ((BinaryPrimitives.ReadUInt32LittleEndian(device[4..]) & 0x10) != 0)
+        uint characteristics = BinaryPrimitives.ReadUInt32LittleEndian(device[4..]);
+        if ((characteristics & remoteDevice) != 0)
             throw Refuse("remote-volume", "FileCat changes compression only on local drives; this drive is remote.");
         QueryVolume(file, 3 /* FileFsSizeInformation */, size, ct);
         ulong unit = (ulong)BinaryPrimitives.ReadUInt32LittleEndian(size[16..]) * BinaryPrimitives.ReadUInt32LittleEndian(size[20..]);
@@ -113,6 +115,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
         if (!GetVolume(file, null, 0, out _, out _, out uint flags, fs, 64)) throw NativeFailure(Marshal.GetLastPInvokeError(), "Read the actual storage volume");
         ct.ThrowIfCancellationRequested();
         if (!new string(fs).Equals("NTFS", StringComparison.OrdinalIgnoreCase)) throw Refuse("filesystem", "This change requires a local NTFS volume.");
+        if ((characteristics & removableMedia) != 0)
+            throw Refuse("removable-media-unqualified", "Storage changes are unavailable on this removable NTFS media.");
         return new(ActualVolumeBinding(file, rootOnly: true, ct), flags, unit);
     }
 

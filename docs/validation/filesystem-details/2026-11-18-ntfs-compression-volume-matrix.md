@@ -39,3 +39,9 @@ The [completed `main` CI run](https://github.com/benny-cz/FileCat/actions/runs/4
 The native ARM64 runner at `84e342f2` created two owned NTFS VHDX files. The controller verified one writable volume with 65,536-byte allocation units and one read-only volume with 4,096-byte units. At medium integrity, FileCat refused both Compress and Remove compression with `allocation-unit` on the first volume and `read-only-volume` on the second. The fixture file hashes matched before and after review. The controller detached and removed both images.
 
 Both selected cases passed. Four other filesystem or network fixtures were absent from this run. The SHA-256 of `native-storage-volume-admission.trx` is `58EAD32A4ACDD78944A7049CD087DFBF6D59E4D29F45F21A9E349953CB4D86B5`. The SHA-256 of `volume-admission.json` is `D0C010195F0DC8BF6D1DC2871802F57A89E85EB146161EA6DCFA883E525B1304`. [Native ARM64 volume qualification](https://github.com/benny-cz/FileCat/actions/runs/44611963742)
+
+### NTFS removable-media admission
+
+The held-volume query already reads `FileFsDeviceInformation`. The candidate now refuses storage changes with `removable-media-unqualified` when Windows reports the removable-media characteristic on NTFS. A physical fixture can exercise that refusal through `FILECAT_STORAGE_NATIVE_REMOVABLE_TARGET`. Physical removal and the behavior of hot-pluggable devices remain separate qualification cases. [Windows device characteristics](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/616b66d5-b335-4e1c-8f87-b4a55e8d3e4a)
+
+The Windows x64 VM passed all six fixed-volume controls, including ordinary inspection, size-boundary refusal, selected EFS jobs, and original-object binding. The SHA-256 of `native-removable-boundary-fixed-controls.trx` is `CCB2F6E6DC4F8B447BF996A4D9A3A335A2DAC63092554794CC5CF850CB23ED3E`.

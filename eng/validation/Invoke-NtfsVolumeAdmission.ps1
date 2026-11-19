@@ -49,7 +49,7 @@ function Get-OwnedVolume([string]$Image, [string]$PartitionId, [string]$Label, [
 }
 
 try {
-    foreach ($name in '64K','READONLY','FAT','EXFAT','REFS','MAPPED') {
+    foreach ($name in '64K','READONLY','FAT','EXFAT','REFS','MAPPED','REMOVABLE') {
         $variable = "FILECAT_STORAGE_NATIVE_${name}_TARGET"
         $savedEnvironment[$variable] = [Environment]::GetEnvironmentVariable($variable)
         [Environment]::SetEnvironmentVariable($variable, $null)
