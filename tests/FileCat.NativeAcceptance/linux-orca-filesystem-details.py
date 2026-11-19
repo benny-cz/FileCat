@@ -3,7 +3,7 @@
 
 Build FileCat in Release in an owned checkout below ~/FileCatValidation, then run:
 FILECAT_ORCA_ISOLATED_DISPLAY=1 dbus-run-session -- xvfb-run -a /usr/bin/python3 \
-    linux-orca-filesystem-details.py CHECKOUT REPORT.json [--link-target] [--report-size WIDTH HEIGHT]
+    linux-orca-filesystem-details.py CHECKOUT REPORT.json [--link-target] [--report-size WIDTH HEIGHT] [--properties]
 
 The report destination must be below ~/FileCatValidation. The runner reads Orca's actual
 speech log, sets only the owned top-level window focus, and keeps the fixture and log.
@@ -24,6 +24,7 @@ def main():
     parser.add_argument("report", type=Path)
     parser.add_argument("--link-target", action="store_true")
     parser.add_argument("--report-size", nargs=2, type=int, metavar=("WIDTH", "HEIGHT"))
+    parser.add_argument("--properties", action="store_true")
     args = parser.parse_args()
     checkout = args.checkout.resolve(strict=True)
     report_path = args.report.resolve()
@@ -68,6 +69,7 @@ def main():
     expected_digest = sha256(observed_file)
     speech = helpers["SpeechLog"](fixture / "orca-debug.log")
     evidence = dict(passed=False, appDllSha256=sha256(app.with_name("FileCat.dll")), fixture=str(fixture),
+                    propertiesShortcut=args.properties,
                     speechLog=str(speech.path), input="XTEST on dedicated Xvfb display", steps=[])
     dispatcher = orca = application = None
     speech_runtime = tempfile.TemporaryDirectory(prefix="filecat-details-speech-", dir="/tmp")
@@ -129,7 +131,7 @@ def main():
         evidence["reportSize"] = args.report_size
 
     def key(chord):
-        keys = {"home": "Home", "down": "Down", "ctrl+alt+enter": "ctrl+alt+Return",
+        keys = {"home": "Home", "down": "Down", "ctrl+alt+enter": "ctrl+alt+Return", "alt+enter": "alt+Return",
                 "tab": "Tab", "space": "space", "escape": "Escape"}
         current = subprocess.run(["/usr/bin/xdotool", "getwindowfocus"], check=True, capture_output=True, text=True, timeout=5)
         if current.stdout.strip() not in windows():
@@ -185,7 +187,7 @@ def main():
         key("home")
         key("down")
         hear("Keyboard focuses the selected file", focused.name)
-        key("ctrl+alt+enter")
+        key("alt+enter" if args.properties else "ctrl+alt+enter")
         details_window = wait(lambda: window_named("File-system details"), "the separate details window")
         size_report(details_window)
         focus(details_window)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise File-system details with native keyboard events and optional muted VoiceOver speech.
 
-Usage: mac-ax-filesystem-details.py BUNDLE.app AX_OBSERVER.swift REPORT.json [--voiceover] [--narrow] [--link-target]
+Usage: mac-ax-filesystem-details.py BUNDLE.app AX_OBSERVER.swift REPORT.json [--voiceover] [--narrow] [--link-target] [--properties]
 """
 
 import hashlib
@@ -17,13 +17,14 @@ import time
 
 def main():
     options = sys.argv[4:]
-    if len(sys.argv) < 4 or len(options) != len(set(options)) or set(options) - {"--voiceover", "--narrow", "--link-target"}:
+    if len(sys.argv) < 4 or len(options) != len(set(options)) or set(options) - {"--voiceover", "--narrow", "--link-target", "--properties"}:
         raise SystemExit(__doc__)
     validation = (Path.home() / "FileCatValidation").resolve(strict=True)
     bundle, source = (Path(arg).resolve(strict=True) for arg in sys.argv[1:3])
     report_path = Path(sys.argv[3]).resolve()
     voiceover, narrow = "--voiceover" in options, "--narrow" in options
     link_target = "--link-target" in options
+    properties = "--properties" in options
     if bundle.parent != validation or bundle.suffix != ".app" or report_path.parent != validation or report_path.exists():
         raise ValueError("Use a dedicated application and a fresh result under ~/FileCatValidation.")
     app = bundle / "Contents" / "MacOS" / "FileCat"
@@ -56,7 +57,7 @@ def main():
     subprocess.run(["/usr/bin/xattr", "-w", "org.filecat.details", "FILECAT-XATTR-PAYLOAD-CANARY", str(target_file)], check=True)
     observer = fixture / "ax-observer"
     subprocess.run(["/usr/bin/swiftc", "-framework", "ApplicationServices", str(source), "-o", str(observer)], check=True, timeout=120)
-    evidence = dict(passed=False, platform="macOS accessibility bridge", voiceOver=voiceover, fixture=str(fixture),
+    evidence = dict(passed=False, platform="macOS accessibility bridge", voiceOver=voiceover, propertiesShortcut=properties, fixture=str(fixture),
                     appDllSha256=hashlib.sha256(app.with_name("FileCat.dll").read_bytes()).hexdigest(), steps=[])
     pid = None
     expected_command = f"{app} --new-instance --data {state}"
@@ -173,11 +174,14 @@ error "The owned details window is unavailable"''')
         key("key code 125")
         expect_focus("Selected file by keyboard", original.name)
         speech("VoiceOver speaks the selected file", original.name)
-        key("key code 35 using {control down, shift down}")
-        expect_focus("Command search by keyboard", "Search commands")
-        key('keystroke "file-system details"')
-        wait(lambda: focused().get("value", "").casefold() == "file-system details", "the command search text")
-        key("key code 36")
+        if properties:
+            key("key code 36 using {option down}")
+        else:
+            key("key code 35 using {control down, shift down}")
+            expect_focus("Command search by keyboard", "Search commands")
+            key('keystroke "file-system details"')
+            wait(lambda: focused().get("value", "").casefold() == "file-system details", "the command search text")
+            key("key code 36")
         wait(lambda: "File-system details" in window_titles(), "the selected file details window")
         speech("VoiceOver announces the details window", "File-system details")
         if narrow:
