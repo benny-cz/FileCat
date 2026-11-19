@@ -55,6 +55,7 @@ public sealed unsafe partial class WindowsEfsKeyTests
         var result = WindowsEfsKeys.ProbeHeldCertificate(fixture.Certificate.Handle, Sid, fixture.Certificate.Thumbprint, Ct);
         Assert.Equal(StorageEfsKeyState.MatchedAvailable, result.State); Assert.True(result.CertificatePresent); Assert.True(result.ProviderAssociationPresent);
         Assert.Equal(cng ? StorageEfsKeyProvider.Cng : StorageEfsKeyProvider.Capi, result.Provider); Assert.Null(result.Problem); Assert.Null(result.NativeError);
+        Assert.Equal(cng ? "efs-key-nonexportable" : null, result.BackupProblem?.Code);
         TestContext.Current.TestOutputHelper?.WriteLine($"EFS_KEY_PROOF provider={result.Provider} state={result.State} nonExportableFixture=True");
         // Repeat against the original context: the service neither consumes it nor creates a cached comparison bypass.
         Assert.Equal(StorageEfsKeyState.MatchedAvailable, WindowsEfsKeys.ProbeHeldCertificate(fixture.Certificate.Handle, Sid, fixture.Certificate.Thumbprint, Ct).State);
@@ -91,6 +92,7 @@ public sealed unsafe partial class WindowsEfsKeyTests
             Assert.True(result.CertificatePresent);
             Assert.True(result.ProviderAssociationPresent);
             Assert.Null(result.NativeError);
+            Assert.Equal("efs-key-nonexportable", result.BackupProblem?.Code);
             TestContext.Current.TestOutputHelper?.WriteLine($"EFS_TPM_KEY provider={key.Provider} state={result.State} exportPolicy={key.ExportPolicy}");
         }
         finally
@@ -221,14 +223,15 @@ public sealed unsafe partial class WindowsEfsKeyTests
         private readonly CngKey? _key;
         internal X509Certificate2 Certificate { get; }
         private KeyFixture(string name, RSA rsa, CngKey? key, X509Certificate2 certificate) { _name = name; _rsa = rsa; _key = key; Certificate = certificate; }
-        internal static KeyFixture Create(bool cng)
+        internal static KeyFixture Create(bool cng, bool exportable = false)
         {
             string name = Prefix + Guid.NewGuid().ToString("N"); CngKey? key = null;
             RSA rsa;
             if (cng)
             {
                 key = CngKey.Create(CngAlgorithm.Rsa, name, new CngKeyCreationParameters { Provider = CngProvider.MicrosoftSoftwareKeyStorageProvider,
-                    KeyUsage = CngKeyUsages.AllUsages, ExportPolicy = CngExportPolicies.None });
+                    KeyUsage = CngKeyUsages.AllUsages, ExportPolicy = exportable
+                        ? CngExportPolicies.AllowExport | CngExportPolicies.AllowPlaintextExport : CngExportPolicies.None });
                 rsa = new RSACng(key);
             }
             else

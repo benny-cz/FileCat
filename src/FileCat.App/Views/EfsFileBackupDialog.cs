@@ -53,13 +53,13 @@ internal static class EfsFileBackupDialog
                 : result?.WindowsReportedExport == true
                     ? $"Windows reported private-key export completed. {result.CoveredItems.Length} of the {review.Items.Length} selected items still matched this key when checked."
                     : result?.Canceled == true ? "Windows canceled this key export."
-                    : result?.Problem?.Message ?? (selected.RequiresProviderAccess && hasOwner
+                    : result?.Problem?.Message ?? selected.BackupProblem?.Message ?? (selected.RequiresProviderAccess && hasOwner
                         ? "Windows may ask for credentials to access this key before opening the backup wizard."
                         : selected.Problem?.Message ?? "Windows will ask where to save the backup and how to protect it.");
             if (result is { WindowsReportedExport: true, Problem: not null }) status.Text += " " + result.Problem.Message;
             // The wizard closes before the review is reopened. Keep its outcome with the first
             // focused control even when Windows misses the initial live-region announcement.
-            AutomationProperties.SetHelpText(choose, result is null ? string.Empty : status.Text);
+            AutomationProperties.SetHelpText(choose, result is null && selected?.BackupProblem is null ? string.Empty : status.Text);
             files.Text = string.Join("\n\n", review.Items.Select((item, index) =>
             {
                 string state = item.Problem?.Message ?? (selected is null

@@ -9,6 +9,7 @@ public sealed record StorageEfsKeyEvidence(string InvokerSid, string Certificate
     int? NativeError, StorageProblem? Problem)
 {
     public string? Subject { get; init; }
+    public StorageProblem? BackupProblem { get; init; }
 }
 
 /// <summary>E-only scheduled key check. The certificate hash must come from a reviewed actual file association.</summary>

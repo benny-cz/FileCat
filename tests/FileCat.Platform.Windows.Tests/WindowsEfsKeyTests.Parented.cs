@@ -109,6 +109,7 @@ public sealed unsafe partial class WindowsEfsKeyTests
     {
         RequireParentedFixture();
         using var fixture = KeyFixture.Create(cng: true);
+        using var exportable = KeyFixture.Create(cng: true, exportable: true);
         using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
         store.Open(OpenFlags.ReadWrite | OpenFlags.OpenExistingOnly);
         string sid = Sid;
@@ -139,6 +140,7 @@ public sealed unsafe partial class WindowsEfsKeyTests
             store.Add(fixture.Certificate);
             try
             {
+                store.Add(exportable.Certificate);
                 int comparisons = 0;
                 var compared = service.AccessReviewedCngKey(association, hash, owner, true, Ct, callback =>
                 {
@@ -150,12 +152,30 @@ public sealed unsafe partial class WindowsEfsKeyTests
                 Assert.Equal(StorageEfsKeyProvider.Cng, compared.Provider);
                 Assert.Equal(sid, compared.InvokerSid);
                 Assert.Equal(hash, compared.CertificateSha1);
+                Assert.Equal("efs-key-nonexportable", compared.BackupProblem?.Code);
+
+                var refused = service.BackUpAssociatedCertificate(association, hash, owner, true, Ct,
+                    invokeWizard: _ => throw new InvalidOperationException("A non-exportable key reached the wizard."),
+                    invokeProviderOwner: callback =>
+                    {
+                        comparisons++;
+                        callback();
+                    });
+                Assert.Equal(2, comparisons);
+                Assert.Null(refused.Completion);
+                Assert.Equal("efs-key-nonexportable", refused.Problem?.Code);
 
                 Func<WindowsEfsKeys.BackupResult>? deferredWizard = null;
-                var backup = service.BackUpAssociatedCertificate(association, hash, owner, true, Ct,
+                string exportableHash = exportable.Certificate.Thumbprint;
+                var exportableAssociation = association with
+                {
+                    Users = [new(sid, exportableHash, null)],
+                    CurrentUserKeys = [pending with { CertificateSha1 = exportableHash }],
+                };
+                var backup = service.BackUpAssociatedCertificate(exportableAssociation, exportableHash, owner, true, Ct,
                     invokeWizard: show =>
                     {
-                        Assert.Equal(2, comparisons);
+                        Assert.Equal(3, comparisons);
                         deferredWizard = show;
                         return new(WindowsEfsKeys.BackupState.Canceled, null, null);
                     },
@@ -169,7 +189,11 @@ public sealed unsafe partial class WindowsEfsKeyTests
                 Assert.NotNull(deferredWizard);
                 Assert.Equal("efs-backup-owner", deferredWizard().Problem?.Code);
             }
-            finally { store.Remove(fixture.Certificate); }
+            finally
+            {
+                store.Remove(exportable.Certificate);
+                store.Remove(fixture.Certificate);
+            }
         }
         finally { Assert.True(DestroyProviderOwner(owner)); }
 

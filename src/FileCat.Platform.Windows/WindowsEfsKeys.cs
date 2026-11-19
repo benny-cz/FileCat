@@ -28,7 +28,7 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
         InspectAssociatedCertificate(invokerSid, certificateSha1, ct, useMatchedCertificate: null);
 
     private StorageEfsKeyEvidence InspectAssociatedCertificate(string invokerSid, string certificateSha1, CancellationToken ct,
-        Action<nint>? useMatchedCertificate, CngInteraction? interaction = null, CapiInteraction? capi = null)
+        Action<nint, StorageProblem?>? useMatchedCertificate, CngInteraction? interaction = null, CapiInteraction? capi = null)
     {
         ValidateRequest(invokerSid, certificateSha1);
         ct.ThrowIfCancellationRequested();
@@ -61,12 +61,11 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
     }
 
     /// <summary>Borrow an API-owned certificate context and its caller's scratch charge. Used by native qualification.</summary>
-    internal static StorageEfsKeyEvidence ProbeHeldCertificate(nint certificate, string invokerSid, string certificateSha1, CancellationToken ct,
-        Action<nint>? useMatchedCertificate = null) =>
-        ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct, useMatchedCertificate, interaction: null);
+    internal static StorageEfsKeyEvidence ProbeHeldCertificate(nint certificate, string invokerSid, string certificateSha1, CancellationToken ct) =>
+        ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct, useMatchedCertificate: null, interaction: null);
 
     private static StorageEfsKeyEvidence ProbeHeldCertificate(nint certificate, string invokerSid, string certificateSha1, CancellationToken ct,
-        Action<nint>? useMatchedCertificate, CngInteraction? interaction, CapiInteraction? capi = null)
+        Action<nint, StorageProblem?>? useMatchedCertificate, CngInteraction? interaction, CapiInteraction? capi = null)
     {
         ValidateRequest(invokerSid, certificateSha1); RequireInvoker(invokerSid, ct);
         var allowance = StorageNativeAllowance.RequireCurrent();
@@ -121,7 +120,7 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
             {
                 using var ownerTokenCharge = allowance.ClaimScratch();
                 var compared = CompareParentedCngKey(fresh, invokerSid, certificateSha1, interaction, ct);
-                if (compared.State == StorageEfsKeyState.MatchedAvailable) useMatchedCertificate?.Invoke(fresh);
+                if (compared.State == StorageEfsKeyState.MatchedAvailable) useMatchedCertificate?.Invoke(fresh, compared.BackupProblem);
                 return compared;
             }
             bool acquired = Acquire(fresh, AcquireFlags, 0, out nint key, out uint keySpec, out bool callerFree);
@@ -135,9 +134,10 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
                 if (!callerFree || key == 0 || keySpec is not (1 or 2 or uint.MaxValue) || (keySpec == uint.MaxValue) != (binding.Type == 0))
                     return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.Unknown, provider, null,
                         "efs-key-comparison-unestablished", "A fresh owned certificate-to-key comparison was not established; a cached or ambiguous result cannot authorize encryption.");
-                useMatchedCertificate?.Invoke(fresh);
+                var backupProblem = provider == StorageEfsKeyProvider.Cng ? ReadCngBackupProblem(key, ct) : null;
+                useMatchedCertificate?.Invoke(fresh, backupProblem);
                 return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.MatchedAvailable, provider, null, null, null)
-                    with { Subject = CertificateSubject(fresh) };
+                    with { Subject = CertificateSubject(fresh), BackupProblem = backupProblem };
             }
             finally
             {

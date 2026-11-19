@@ -41,7 +41,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 (key.State == StorageEfsKeyState.MatchedAvailable ||
                  (invokeProviderOwner is not null && WindowsEfsKeys.CanRequestKeyAccess(key))))
                 .Select(key => new StorageEfsRecoveryKeyOption(key.CertificateSha1, key.Subject,
-                    RequiresProviderAccess: key.State == StorageEfsKeyState.InteractionRequired)).ToImmutableArray();
+                    RequiresProviderAccess: key.State == StorageEfsKeyState.InteractionRequired, BackupProblem: key.BackupProblem)).ToImmutableArray();
             if (keys.IsEmpty) throw Refuse("efs-setup-key-unavailable", "The actual setup key could not be matched to an accessible private key for this account.");
             var decision = job.Ask(new StorageEfsRecoveryDecision(account, invokerSid, keys, previous, setup.CleanupProblem,
                 setup.RetainedSetupPath, selectedCertificate));
@@ -77,6 +77,11 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 return StorageEfsRecoveryApproval.DeclareArrangement(consent, setup, selected.CertificateSha1, acknowledged: true);
             if (decision.Action != DecisionAction.BackUpEfsKey)
                 throw Refuse("efs-recovery-action", "Choose a recovery declaration or request the Windows backup wizard.");
+            if (option.BackupProblem is { } blocked)
+            {
+                previous = blocked.Message;
+                continue;
+            }
 
             var backup = job.RunEfsRecoveryInteraction(() => _efsKeys.BackUpAssociatedCertificate(association,
                 selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct, invokeWizard,

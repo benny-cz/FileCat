@@ -3,7 +3,8 @@ using FileCat.Core.FileSystem;
 
 namespace FileCat.Core.Jobs;
 
-internal sealed record StorageEfsRecoveryKeyOption(string CertificateSha1, string? Subject, bool RequiresProviderAccess = false);
+internal sealed record StorageEfsRecoveryKeyOption(string CertificateSha1, string? Subject, bool RequiresProviderAccess = false,
+    StorageProblem? BackupProblem = null);
 
 internal sealed record StorageEfsRecoverySelection(string CertificateSha1, nint OwnerWindow);
 

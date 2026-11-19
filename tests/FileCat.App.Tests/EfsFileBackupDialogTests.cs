@@ -41,15 +41,18 @@ public sealed class EfsFileBackupDialogTests
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         string first = new('A', 40), second = new('B', 40), unavailable = new('C', 40), pending = new('D', 40);
+        string nonexportable = new('E', 40);
+        var backupProblem = new StorageProblem(StorageReasonKind.PermissionOrPolicy, "efs-key-nonexportable", "This key is non-exportable.", true);
         const string parent = @"C:\fixtures";
         var identities = new[] { new StorageObjectIdentity(1, "one"), new StorageObjectIdentity(1, "two") };
         StorageTarget Target(string name) => new(new(Location.FileSystem(parent), name, EntryKind.File), parent + "\\" + name);
         var review = new StorageEfsFileBackupReview(null!, "S-1-5-21-1-2-3-1000",
-            [new(Target("one.bin"), identities[0], [first], null), new(Target("two.bin"), identities[1], [second, unavailable, pending], null)],
+            [new(Target("one.bin"), identities[0], [first], null), new(Target("two.bin"), identities[1], [second, unavailable, pending, nonexportable], null)],
             [new(first, "First", StorageEfsKeyState.MatchedAvailable, null), new(second, "Second", StorageEfsKeyState.MatchedAvailable, null),
              new(unavailable, "Unavailable", StorageEfsKeyState.InteractionRequired,
                  new(StorageReasonKind.PermissionOrPolicy, "needs-interaction", "This key requires provider interaction.", true)),
-             new(pending, "CNG key", StorageEfsKeyState.InteractionRequired, null, RequiresProviderAccess: true)]);
+             new(pending, "CNG key", StorageEfsKeyState.InteractionRequired, null, RequiresProviderAccess: true),
+             new(nonexportable, "Non-exportable key", StorageEfsKeyState.MatchedAvailable, null, BackupProblem: backupProblem)]);
         var outcomes = new Dictionary<string, StorageEfsFileBackupResult> { [first] = new(true, false, [0], null) };
         var shown = EfsFileBackupDialog.ChooseKeyAsync(vm.Dialogs, review, [false, true], outcomes, first, hasOwner);
         try
@@ -79,6 +82,10 @@ public sealed class EfsFileBackupDialogTests
             Assert.Equal(hasOwner, backup.IsEnabled);
             Assert.Equal("Access and back up selected key…", backup.Content);
             if (hasOwner) Assert.Contains("Windows may ask for credentials", status.Text);
+            picker.SelectedIndex = 4;
+            Assert.False(backup.IsEnabled);
+            Assert.Equal(backupProblem.Message, status.Text);
+            Assert.Equal(status.Text, AutomationProperties.GetHelpText(picker));
             picker.SelectedIndex = 1;
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(hasOwner, backup.IsEnabled);

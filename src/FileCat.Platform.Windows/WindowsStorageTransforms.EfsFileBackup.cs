@@ -27,15 +27,14 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 foreach (var key in association.CurrentUserKeys)
                 {
                     var observed = new StorageEfsFileBackupKey(key.CertificateSha1, key.Subject, key.State, key.Problem,
-                        RequiresProviderAccess: canInvokeProviderOwner && WindowsEfsKeys.CanRequestKeyAccess(key));
+                        RequiresProviderAccess: canInvokeProviderOwner && WindowsEfsKeys.CanRequestKeyAccess(key), BackupProblem: key.BackupProblem);
                     if (!keys.TryGetValue(key.CertificateSha1, out var option))
                     {
                         if (keys.Count == SelectedBackupKeyLimit)
                             throw Refuse("efs-backup-key-limit", "The selection has more than 256 EFS certificates for this account. Review fewer files at a time.");
                         keys.Add(key.CertificateSha1, observed);
                     }
-                    else if (option.CanBackUp && observed.State != StorageEfsKeyState.MatchedAvailable &&
-                        (!option.RequiresProviderAccess || !observed.CanBackUp))
+                    else if (option.CanBackUp && (!observed.CanBackUp || observed.RequiresProviderAccess && !option.RequiresProviderAccess))
                     {
                         // A later observation cannot make an earlier unavailable key eligible or remove required interaction.
                         keys[key.CertificateSha1] = observed with { Subject = observed.Subject ?? option.Subject };

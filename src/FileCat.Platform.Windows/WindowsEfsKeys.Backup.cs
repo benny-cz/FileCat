@@ -49,8 +49,13 @@ internal sealed unsafe partial class WindowsEfsKeys
                 key.CertificateSha1 == certificateSha1 && NeedsParentedCngAccess(key))
             ? new CngInteraction(ownerWindow, invokeProviderOwner) : null;
         BackupResult? result = null;
-        var evidence = InspectAssociatedCertificate(association.InvokerSid, certificateSha1, ct, fresh =>
+        var evidence = InspectAssociatedCertificate(association.InvokerSid, certificateSha1, ct, (fresh, backupProblem) =>
         {
+            if (backupProblem is not null)
+            {
+                result = new(BackupState.Unavailable, null, backupProblem);
+                return;
+            }
             // Keep the certificate alive on the worker until the synchronous, owner-thread modal call returns.
             using var ownerTokenCharge = StorageNativeAllowance.RequireCurrent().ClaimScratch();
             var lifetime = new object();

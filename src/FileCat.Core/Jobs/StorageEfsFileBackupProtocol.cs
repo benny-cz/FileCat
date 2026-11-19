@@ -13,10 +13,10 @@ internal sealed record StorageEfsFileBackupItem(StorageTarget Target, StorageObj
     ImmutableArray<string> Certificates, StorageProblem? Problem);
 
 internal sealed record StorageEfsFileBackupKey(string CertificateSha1, string? Subject, StorageEfsKeyState State,
-    StorageProblem? Problem, bool RequiresProviderAccess = false)
+    StorageProblem? Problem, bool RequiresProviderAccess = false, StorageProblem? BackupProblem = null)
 {
-    internal bool CanBackUp => State == StorageEfsKeyState.MatchedAvailable ||
-        (State == StorageEfsKeyState.InteractionRequired && RequiresProviderAccess);
+    internal bool CanBackUp => BackupProblem is null && (State == StorageEfsKeyState.MatchedAvailable ||
+        (State == StorageEfsKeyState.InteractionRequired && RequiresProviderAccess));
 }
 
 internal sealed record StorageEfsFileBackupReview(IStorageEfsFileBackup Adapter, string InvokerSid,

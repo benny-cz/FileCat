@@ -71,13 +71,13 @@ internal sealed unsafe partial class WindowsEfsKeys
         if (!ExternalCapiOwner(owner, parent))
             return new(StorageEfsKeyState.Unknown, 0, null, 0);
         NativeBackup? backup = null;
-        var evidence = InspectAssociatedCertificate(sid, hash, ct, export ? certificate => backup = ExportPrivateKey(certificate, owner) : null,
+        var evidence = InspectAssociatedCertificate(sid, hash, ct, export ? (certificate, _) => backup = ExportPrivateKey(certificate, owner) : null,
             capi: new(owner, parent));
         return new(evidence.State, evidence.NativeError ?? 0, backup?.State, backup?.Error ?? 0);
     }
 
     private static StorageEfsKeyEvidence CompareIsolatedCapiKey(nint fresh, string sid, string hash,
-        CapiInteraction window, uint expectedKeySpec, Action<nint>? useMatchedCertificate, CancellationToken ct)
+        CapiInteraction window, uint expectedKeySpec, Action<nint, StorageProblem?>? useMatchedCertificate, CancellationToken ct)
     {
         if (!ExternalCapiOwner(window.Owner, window.Parent))
             return Unknown("efs-key-owner", "The live FileCat window could not be verified.");
@@ -101,7 +101,7 @@ internal sealed unsafe partial class WindowsEfsKeys
                 result = Unknown("efs-key-comparison-unestablished", "A fresh owned CryptoAPI key comparison could not be established.");
             else
             {
-                useMatchedCertificate?.Invoke(fresh);
+                useMatchedCertificate?.Invoke(fresh, null);
                 result = Evidence(sid, hash, true, true, StorageEfsKeyState.MatchedAvailable, StorageEfsKeyProvider.Capi, null, null, null);
             }
         }

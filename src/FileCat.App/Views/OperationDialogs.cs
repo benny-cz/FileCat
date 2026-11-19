@@ -471,23 +471,27 @@ public static class OperationDialogs
             (uint)candidates.SelectedIndex < (uint)request.Keys.Length ? request.Keys[candidates.SelectedIndex] : null;
         bool CanAccess() => owner != 0 && Selected() is { RequiresProviderAccess: true };
         bool CanDeclare() => Selected() is { RequiresProviderAccess: false };
-        bool CanBackUp() => owner != 0 && CanDeclare();
+        bool CanBackUp() => owner != 0 && Selected() is { RequiresProviderAccess: false, BackupProblem: null };
 
         var buttons = new List<DialogButton>();
         var access = new DialogButtonPresentation(new("Access EFS key…"));
         var backup = new DialogButtonPresentation(new("Back up EFS key…"));
         var declare = new DialogButtonPresentation(new("Use existing recovery"));
-        if (request.Keys.Any(key => key.RequiresProviderAccess))
+        bool offersAccess = request.Keys.Any(key => key.RequiresProviderAccess);
+        if (offersAccess || request.Keys.Any(key => key.BackupProblem is not null))
         {
             var accessHint = Text("");
+            AutomationProperties.SetAutomationId(accessHint, "EFS recovery key availability");
             AutomationProperties.SetLiveSetting(accessHint, AutomationLiveSetting.Polite);
             void UpdateAccessHint()
             {
-                accessHint.Text = Selected() is { RequiresProviderAccess: true }
+                var selected = Selected();
+                accessHint.Text = selected is { RequiresProviderAccess: true }
                     ? owner != 0 ? "Windows may ask for credentials to access this key. Verify access before choosing how to recover it."
                         : "Open this review from a visible FileCat window to request access to this key."
-                    : "";
+                    : selected?.BackupProblem?.Message ?? "";
                 accessHint.IsVisible = accessHint.Text.Length != 0;
+                AutomationProperties.SetHelpText(candidates, accessHint.Text);
                 access.Update(access.Snapshot);
                 backup.Update(backup.Snapshot);
                 declare.Update(declare.Snapshot);
@@ -495,7 +499,7 @@ public static class OperationDialogs
             candidates.SelectionChanged += (_, _) => UpdateAccessHint();
             UpdateAccessHint();
             body.Children.Insert(2, accessHint);
-            if (owner != 0) buttons.Add(new("Access EFS key…", DecisionAction.AccessEfsKey)
+            if (owner != 0 && offersAccess) buttons.Add(new("Access EFS key…", DecisionAction.AccessEfsKey)
                 { IsAvailable = CanAccess, Validate = CanAccess, Presentation = access });
         }
         if (owner != 0) buttons.Add(new("Back up EFS key…", DecisionAction.BackUpEfsKey)
