@@ -125,6 +125,7 @@ jobs:
             'Selected_Efs_jobs_share_one_lazy_key_choice_and_record_native_effects_on_disk'
             'Recursive_Efs_uses_held_ancestry_for_overlaps_and_starts_setup_below_an_encrypted_root'
             'Canceling_lazy_recovery_stops_before_any_native_intent'
+            'Ineligible_items_do_not_request_recovery_or_record_a_native_intent'
             'Unreadable_sparse_stream_after_encryption_retains_observed_key_and_stops_the_job'
             'Unqualified_hosts_refuse_storage_before_opening_any_path_and_do_not_offer_private_history'
           ) | ForEach-Object { "FullyQualifiedName~$_" }
@@ -134,8 +135,8 @@ jobs:
           $results = 'tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx'
           [xml]$receipt = Get-Content -LiteralPath $results -Raw
           $counters = $receipt.TestRun.ResultSummary.Counters
-          if ($counters.total -ne '10' -or $counters.executed -ne '10' -or $counters.passed -ne '10') {
-            throw 'All ten native fixture cases must execute and pass.'
+          if ($counters.total -ne '12' -or $counters.executed -ne '12' -or $counters.passed -ne '12') {
+            throw 'All twelve native fixture cases must execute and pass.'
           }
 
           $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_OUTPUTS = '1'

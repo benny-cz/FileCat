@@ -203,24 +203,34 @@ internal sealed unsafe partial class WindowsStorageTransforms
         }
         public StorageObservation PrepareMutation(StorageAction action, CancellationToken ct)
         {
-            RequireAction(action); _prepared = null; PreparedStreams = [];
-            var before = Observe(ct);
+            RequireAction(action); _prepared = null;
+            var before = InspectMutationPrerequisites(ct);
             if (before.Ineligible is null && action == StorageAction.EncryptEfs && NeedsChange(before.Efs, action) &&
                 _recovery is null && _resolveRecovery is { } resolve)
             {
                 _recovery = resolve(ct);
-                before = Observe(ct);
+                before = InspectMutationPrerequisites(ct);
             }
-            if (before.Ineligible is null && NeedsChange(before.Efs, action))
-            {
-                RequireRecoveryKey(action, ct);
-                if (!_guards) { EnsureGuards(ct); before = Observe(ct); }
-                PreparedStreams = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, ct, includeSparseLayouts: true);
-                RequireNativeStatus(before, ct);
-                before = Observe(ct);
-            }
+            if (before.Ineligible is null && NeedsChange(before.Efs, action)) RequireRecoveryKey(action, ct);
             _preparedNeeded = before.Ineligible is null && NeedsChange(before.Efs, action);
             _prepared = before; return before;
+        }
+
+        private StorageObservation InspectMutationPrerequisites(CancellationToken ct)
+        {
+            PreparedStreams = [];
+            var before = Observe(ct);
+            if (before.Ineligible is not null || !NeedsChange(before.Efs, _consent.Action)) return before;
+            if (!_guards)
+            {
+                EnsureGuards(ct);
+                before = Observe(ct);
+                if (before.Ineligible is not null || !NeedsChange(before.Efs, _consent.Action)) return before;
+            }
+
+            RequireNativeStatus(before, ct);
+            PreparedStreams = WindowsEfsStreams.Read(_path.Leaf.File, Identity, before.IsDirectory, ct, includeSparseLayouts: true);
+            return Observe(ct);
         }
         public StorageMutationResult ApplyAdmitted(StorageAction action)
         {

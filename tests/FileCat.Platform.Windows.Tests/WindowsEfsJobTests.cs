@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using FileCat.Core.Archives;
@@ -439,6 +440,57 @@ public sealed partial class WindowsEfsJobTests
         }
         finally { Directory.Delete(root, recursive: true); }
     }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Ineligible_items_do_not_request_recovery_or_record_a_native_intent(bool blockedByPolicy)
+    {
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
+        string root = Directory.CreateTempSubdirectory("filecat-efs-lazy-blocked-").FullName;
+        try
+        {
+            string folder = Directory.CreateDirectory(Path.Join(root, "input")).FullName;
+            string path = Write(folder, "selected.bin");
+            string reason;
+            if (blockedByPolicy)
+            {
+                Assert.True(DisableDirectoryEncryption(folder, true), $"EncryptionDisable failed: {Marshal.GetLastPInvokeError()}.");
+                Assert.True(ReadNativeEncryptionStatus(path, out uint status), $"FileEncryptionStatusW failed: {Marshal.GetLastPInvokeError()}.");
+                Assert.NotEqual(0u, status);
+                reason = "efs-status-" + status;
+            }
+            else
+            {
+                for (int index = 0; index < 1024; index++) File.WriteAllBytes(path + ":extra" + index, []);
+                reason = "stream-inventory-limit";
+            }
+
+            int recoveryRequests = 0;
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64);
+            var manager = Manager(root, adapter.CreateEfsJobCandidate((_, _, _, _) => { recoveryRequests++; return null; }), qualifyNativeArm64);
+            var job = Run(manager, StorageAction.EncryptEfs, [ItemRef.ForFileSystemPath(path, EntryKind.File)]);
+            Assert.Equal(0, recoveryRequests);
+            var result = Assert.IsType<StorageResultSnapshot>(job.StorageResult);
+            Assert.Equal(0, result.Counts.Changed);
+            Assert.Equal(0, result.Counts.Uncertain);
+            Assert.Contains(result.Reasons, item => item.Problem.Code == reason);
+            Assert.Empty(Evidence(manager, job).Calls);
+            Assert.True(History(manager, job).Ended);
+            Assert.False(IsEncrypted(path));
+            Assert.Equal("Synthetic user content", File.ReadAllText(path));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [DllImport("advapi32.dll", EntryPoint = "EncryptionDisable", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DisableDirectoryEncryption(string directory, [MarshalAs(UnmanagedType.Bool)] bool disable);
+
+    [DllImport("advapi32.dll", EntryPoint = "FileEncryptionStatusW", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ReadNativeEncryptionStatus(string path, out uint status);
 
     [Fact]
     public void An_unexpected_real_key_stops_the_selected_job_and_retains_the_exact_call()
