@@ -81,8 +81,8 @@ public sealed partial class AnalysisRenderingTests
         OrdinaryPreparation();
         using var styles = new ProductStyles();
         using var profile = new PreparationFixture();
-        string input = Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            "FileCatValidation", "recipe-staging-" + Guid.NewGuid().ToString("N"))).FullName;
+        string input = Directory.CreateDirectory(Path.Combine(NativeValidationFixtureRoot(),
+            "recipe-staging-" + Guid.NewGuid().ToString("N"))).FullName;
         string protectedFolder = Directory.CreateDirectory(Path.Combine(input, "backup-target")).FullName;
         string retained = Path.Combine(protectedFolder, "retained.zip");
         string keep = Path.Combine(input, "selected.zip");

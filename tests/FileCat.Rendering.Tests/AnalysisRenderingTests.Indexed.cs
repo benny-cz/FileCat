@@ -185,6 +185,16 @@ public sealed partial class AnalysisRenderingTests
         return null;
     }
 
+    private static string NativeValidationFixtureRoot()
+    {
+        string? selected = Environment.GetEnvironmentVariable("FILECAT_TEST_ANALYSIS_FIXTURE_ROOT");
+        if (string.IsNullOrEmpty(selected))
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "FileCatValidation");
+        if (!Path.IsPathFullyQualified(selected) || !Directory.Exists(selected))
+            throw new InvalidOperationException("The selected analysis fixture root must be an existing absolute directory.");
+        return selected;
+    }
+
     private static void Click(Window window, string label) => (FindAnalysisButton(window, label) ?? throw new InvalidOperationException($"Missing button {label}."))
         .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
@@ -233,7 +243,7 @@ public sealed partial class AnalysisRenderingTests
     private sealed class IndexedFixture : IAsyncDisposable
     {
         private readonly DeviceIoScheduler _io = new();
-        private readonly string _parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "FileCatValidation");
+        private readonly string _parent = NativeValidationFixtureRoot();
         internal string Root { get; }
         internal string PrivatePath => Path.Combine(Root, "private");
         internal string PayloadPath => Path.Combine(Root, "source", "folder", "match-target.bin");

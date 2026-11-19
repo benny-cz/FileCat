@@ -16,7 +16,7 @@ public sealed partial class AnalysisRenderingTests
     {
         internal sealed record FileRecord(byte[] Name, byte[] Payload, bool Alias = false);
         private readonly DeviceIoScheduler _io = new();
-        private readonly string _parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "FileCatValidation");
+        private readonly string _parent = NativeValidationFixtureRoot();
         internal string Root { get; }
         internal string SourcePath => Path.Combine(Root, "source");
         internal string PrivatePath => Path.Combine(Root, "private");

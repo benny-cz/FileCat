@@ -177,7 +177,7 @@ public sealed partial class AnalysisRenderingTests
                 var row = Assert.Single(list.Items.OfType<AnalysisDatasetGroupRow>()); Assert.Equal(group.Totals.Known, row.Assigned.Known);
                 list.SelectedItem = row;
                 string value = row.Assigned.Known.ToString(System.Globalization.CultureInfo.InvariantCulture) + (metric == AnalysisMetric.Files ? "" : " bytes");
-                await Until(() => IndexedDetails(window).Text?.Contains("Active metric: " + value + " · File size: 3 bytes", StringComparison.Ordinal) == true);
+                await Until(() => IndexedDetails(window).Text?.Contains($": {value}\nFile size: 3 bytes", StringComparison.Ordinal) == true);
                 Click(window, "Parent"); await Until(() => GroupReady(window) && list.Items.OfType<AnalysisDatasetGroup>().Any()); Frame(window);
             }
             Assert.Equal(fixture.Payload, File.ReadAllBytes(fixture.PayloadPath));

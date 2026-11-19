@@ -24,7 +24,7 @@ public sealed partial class AnalysisRenderingTests
     public async Task AbruptOwnedInventoryDeathPreservesNamedBytesAndAllowsFreshExplicitRecovery(string boundary, bool restore)
     {
         OrdinaryPreparation(); var cancellation = TestContext.Current.CancellationToken;
-        string parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "FileCatValidation", "inventory-death-" + Guid.NewGuid().ToString("N"));
+        string parent = Path.Combine(NativeValidationFixtureRoot(), "inventory-death-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(parent); string root = Path.Combine(parent, "scratch");
         var start = new ProcessStartInfo("dotnet") { UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "FileCat.CoreCrashHarness.dll"));
