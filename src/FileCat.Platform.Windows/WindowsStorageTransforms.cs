@@ -19,10 +19,13 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
     private static partial bool IsOS(uint feature);
     private readonly Func<string> _windowsDirectory;
     private readonly Func<string> _efsSetupBaseDirectory;
-    internal WindowsStorageTransforms(Func<string>? windowsDirectory = null, Func<string>? efsSetupBaseDirectory = null)
+    private readonly Action<bool>? _compressionSetReturnedForQualification;
+    internal WindowsStorageTransforms(Func<string>? windowsDirectory = null, Func<string>? efsSetupBaseDirectory = null,
+        Action<bool>? compressionSetReturnedForQualification = null)
     {
         _windowsDirectory = windowsDirectory ?? (() => Environment.GetFolderPath(Environment.SpecialFolder.Windows));
         _efsSetupBaseDirectory = efsSetupBaseDirectory ?? (() => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        _compressionSetReturnedForQualification = compressionSetReturnedForQualification;
     }
 
     public StorageProblem? Unavailable(StorageAction action)

@@ -42,10 +42,18 @@ public sealed class WindowsStorageExecutorTests
     private static bool Compressed(string path) => (File.GetAttributes(path) & FileAttributes.Compressed) != 0;
 
     [Fact]
-    public void Detaching_the_owned_volume_after_intent_does_not_mutate_or_replay_the_prepared_call()
+    public void Detaching_the_owned_volume_after_intent_does_not_mutate_or_replay_the_prepared_call() =>
+        DetachOwnedVolume(afterSet: false);
+
+    [Fact]
+    public void Detaching_after_native_compression_returns_retains_uncertainty_without_replay() =>
+        DetachOwnedVolume(afterSet: true);
+
+    private static void DetachOwnedVolume(bool afterSet)
     {
         RequireNormal();
-        string? control = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_DEVICE_LOSS_CONTROL");
+        string? control = Environment.GetEnvironmentVariable(afterSet
+            ? "FILECAT_STORAGE_NATIVE_DEVICE_LOSS_AFTER_SET_CONTROL" : "FILECAT_STORAGE_NATIVE_DEVICE_LOSS_CONTROL");
         if (string.IsNullOrWhiteSpace(control)) Assert.Skip("Requires the isolated virtual disk device-loss fixture.");
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(Stop);
         stop.CancelAfter(TimeSpan.FromSeconds(90));
@@ -59,44 +67,77 @@ public sealed class WindowsStorageExecutorTests
         byte[] before = SHA256.HashData(File.ReadAllBytes(target));
         Assert.False(Compressed(target));
         var source = ItemRef.ForFileSystemPath(target, EntryKind.File);
-        var adapter = new DetachBeforeMutation(() =>
+        var setReturns = new List<bool>();
+        IStorageTransforms adapter = afterSet ? new WindowsStorageTransforms(compressionSetReturnedForQualification: succeeded =>
         {
-            File.WriteAllText(Path.Join(control, "prepared"), "");
-            WaitForFixture("detached");
-        });
+            setReturns.Add(succeeded);
+            Detach();
+        }) : new DetachBeforeMutation(Detach);
         string evidence = Directory.CreateTempSubdirectory("filecat-storage-detach-").FullName;
         try
         {
             var manager = Manager(evidence, adapter);
+            var published = new List<InterruptedJob>();
+            manager.StorageReviewRequired += published.Add;
             var interrupted = Run(manager, StorageScope.SelectedItems, source);
             var result = Assert.IsType<StorageResultSnapshot>(interrupted.StorageResult);
             Assert.True(result.DurablePrefix is not null, JobIssue.Summarize(interrupted.Issues));
             Assert.Equal(JobState.Failed, interrupted.State);
-            Assert.Equal(new StorageOutcomeCounts(NotProcessed: 1), result.Counts);
+            Assert.Equal(afterSet ? new StorageOutcomeCounts(Uncertain: 1) : new StorageOutcomeCounts(NotProcessed: 1), result.Counts);
             Assert.Equal(StorageCompleteness.Incomplete, Assert.Single(result.Roots).Completeness);
-            Assert.False(result.ReviewPending);
+            Assert.Equal(afterSet, result.ReviewPending);
             string name = StorageJournalPolicy.FileName(interrupted.CreatedUtc, interrupted.Id);
             var call = Assert.Single(manager.ReadStorageCalls(name, result.DurablePrefix!, ct: stop.Token).Calls);
-            Assert.Equal(StorageCallDisposition.NotAttempted, call.Disposition);
-            Assert.Equal("precall-observation-failed", call.Result?.Problem?.Code);
-            Assert.False(call.Result!.NativeCallAttempted);
-            Assert.True(manager.ReadStorageReview(name, stop.Token).Current.History.Ended);
+            Assert.Equal(afterSet ? StorageCallDisposition.Observed : StorageCallDisposition.NotAttempted, call.Disposition);
+            Assert.Equal(afterSet ? "postcondition-unreadable" : "precall-observation-failed", call.Result?.Problem?.Code);
+            Assert.Equal(afterSet, call.Result!.NativeCallAttempted);
+            Assert.Null(call.Result.After);
+            var reviewed = manager.ReadStorageReview(name, stop.Token);
+            Assert.Equal(!afterSet, reviewed.Current.History.Ended);
+            Assert.Equal(afterSet, reviewed.Current.History.EffectUncertain);
+            Assert.Equal(afterSet, reviewed.ReviewPending);
+            if (afterSet)
+            {
+                Assert.True(Assert.Single(setReturns), "The native compression SET must succeed before detachment.");
+                Assert.Equal(name, Assert.Single(published).StorageJournalLeaf);
+            }
+            else Assert.Empty(published);
             File.Copy(Path.Join(evidence, "journals", name), Path.Join(control, "interrupted.journal"));
             File.WriteAllText(Path.Join(control, "retired"), "");
             WaitForFixture("reattached");
 
             Assert.Equal(identity, fs.GetFileIdentity(target));
             Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(target)));
-            Assert.False(Compressed(target));
-            var retry = Run(Manager(evidence), StorageScope.SelectedItems, source);
+            Assert.Equal(afterSet, Compressed(target));
+            var reopened = Manager(evidence);
+            if (afterSet)
+            {
+                var candidate = reopened.StorageHistoryCandidate(name);
+                Assert.True(reopened.IsInterrupted(candidate, stop.Token));
+                var retained = reopened.ReadStorageReview(name, stop.Token);
+                Assert.Equal(reviewed.Current.Evidence, retained.Current.Evidence);
+                var acknowledged = reopened.AcknowledgeStorageReview(retained.Current, "Reviewed the device-loss operation.",
+                    StorageReviewChoice.AcknowledgeReviewedHistory, stop.Token);
+                Assert.False(reopened.IsInterrupted(candidate, stop.Token));
+                Assert.True(acknowledged.Current.History.EffectUncertain);
+                Assert.True(Compressed(target));
+                Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(target)));
+            }
+            var retry = RunAction(reopened, afterSet ? StorageAction.RemoveCompression : StorageAction.Compress, StorageScope.SelectedItems, source);
             Assert.Equal(JobState.Completed, retry.State);
             Assert.Equal(1, retry.StorageResult!.Counts.Changed);
-            Assert.True(Compressed(target));
+            Assert.Equal(!afterSet, Compressed(target));
             Assert.Equal(identity, fs.GetFileIdentity(target));
             Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(target)));
             File.Copy(Path.Join(evidence, "journals", StorageJournalPolicy.FileName(retry.CreatedUtc, retry.Id)), Path.Join(control, "fresh-retry.journal"));
         }
         finally { Directory.Delete(evidence, recursive: true); }
+
+        void Detach()
+        {
+            File.WriteAllText(Path.Join(control, "prepared"), "");
+            WaitForFixture("detached");
+        }
 
         void WaitForFixture(string marker)
         {
