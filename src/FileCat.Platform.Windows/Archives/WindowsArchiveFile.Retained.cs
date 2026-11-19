@@ -62,8 +62,11 @@ internal sealed partial class WindowsArchiveFile
         DateTimeOffset? modified = null;
         try { modified = new DateTimeOffset(DateTime.FromFileTimeUtc(metadata.LastWriteTime), TimeSpan.Zero); }
         catch (ArgumentOutOfRangeException) { }
-        return new(version, parent.Identity.ToString(), KnownName, metadata.Digest, metadata.Origin, modified,
-            0x1a4); // The portable new-file default is 0644; native read-only state remains in the review digest.
+        // The portable new-file default is 0644. Native read-only state remains in the review digest.
+        return new(version, parent.Identity.ToString(), KnownName, metadata.Digest, metadata.Origin, modified, 0x1a4)
+        {
+            HasSparseMainStream = (metadata.Attributes & (uint)FileAttributes.SparseFile) != 0,
+        };
     }
     string IArchiveRetainedArtifact.ReviewCreation(ArchiveArtifactReservation reservation, CancellationToken ct)
     {

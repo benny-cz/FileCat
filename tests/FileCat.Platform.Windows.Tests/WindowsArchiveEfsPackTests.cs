@@ -1,14 +1,16 @@
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using FileCat.Core.Archives;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
 using FileCat.Platform.Windows.Archives;
+using FileCat.Platform.Windows.Shell;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows.Tests;
 
-public sealed class WindowsArchiveEfsPackTests
+public sealed partial class WindowsArchiveEfsPackTests
 {
     [Theory]
     [InlineData("file", true)]
@@ -17,6 +19,8 @@ public sealed class WindowsArchiveEfsPackTests
     [InlineData("file", false)]
     [InlineData("nested file", false)]
     [InlineData("folder default", false)]
+    [InlineData("sparse file", true)]
+    [InlineData("sparse file", false)]
     public void Pack_refuses_EFS_before_loading_an_input_or_creating_a_stage(string selection, bool native)
     {
         RequireFixture();
@@ -26,9 +30,12 @@ public sealed class WindowsArchiveEfsPackTests
             string folder = Directory.CreateDirectory(Path.Join(root, "selected")).FullName;
             string source = Path.Join(folder, "protected.txt"), target = Path.Join(root, "output.zip");
             File.WriteAllText(source, "original protected content");
+            if (selection == "sparse file") MakeSparse(source);
             string encrypted = selection == "folder default" ? folder : source;
             File.Encrypt(encrypted);
-            bool direct = selection == "file";
+            if (selection == "sparse file") Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.SparseFile));
+            byte[] expected = File.ReadAllBytes(source);
+            bool direct = selection is "file" or "sparse file";
             var plan = new ArchivePlan(target, null,
                 [new(direct ? ArchiveChangeKind.AddFile : ArchiveChangeKind.AddFolder, "selected", direct ? source : folder)],
                 Profile: native ? new ArchiveWriteProfile(ArchiveWriteFormat.Zip) : null);
@@ -48,10 +55,86 @@ public sealed class WindowsArchiveEfsPackTests
             Assert.Equal(ArchiveOuterEfs.PackUnavailable, problem.Message);
             Assert.Empty(Directory.EnumerateFiles(root));
             Assert.True(File.GetAttributes(encrypted).HasFlag(FileAttributes.Encrypted));
-            Assert.Equal("original protected content", File.ReadAllText(source));
+            Assert.Equal(expected, File.ReadAllBytes(source));
+            Assert.DoesNotContain(job.Issues, issue => issue.Outcome == StepOutcome.Committed);
         }
         finally { Directory.Delete(root, recursive: true); }
     }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void Sparse_input_packing_preserves_logical_bytes_and_discloses_extraction_space(bool native, bool move)
+    {
+        RequireFixture();
+        string? assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS");
+        if (native) Assert.SkipUnless(!string.IsNullOrWhiteSpace(assets), "Requires the prepared native archive application worker.");
+        string root = Directory.CreateTempSubdirectory("filecat-sparse-pack-").FullName;
+        try
+        {
+            string source = Path.Join(root, "input.bin"), ordinary = Path.Join(root, "ordinary.bin"), target = Path.Join(root, "output.zip");
+            File.WriteAllBytes(source, [1, 2, 3, 4]);
+            MakeSparse(source);
+            byte[] expected = File.ReadAllBytes(source);
+            byte[] ordinaryBytes = [5, 6, 7, 8];
+            File.WriteAllBytes(ordinary, ordinaryBytes);
+            var plan = new ArchivePlan(target, null,
+                [new(ArchiveChangeKind.AddFile, "input.bin", source), new(ArchiveChangeKind.AddFile, "ordinary.bin", ordinary)],
+                Profile: native ? new ArchiveWriteProfile(ArchiveWriteFormat.Zip) : null) { MoveSources = move };
+            var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan,
+                Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File), ItemRef.ForFileSystemPath(ordinary, EntryKind.File)] },
+                "Sparse packing fixture", "", [], []);
+            using var journal = JobJournal.Create(Path.Join(root, "journals"), job);
+            var files = new WindowsFileOperations();
+            if (native)
+            {
+                ArchiveAppContainer.ProvisionRuntimeReadAccess(assets!);
+                var backend = WindowsArchiveJobBackend.Create(ArchiveWriteFormat.Zip, Path.Join(assets!, "FileCat.exe"));
+                backend.Execute(new(job, plan, null, files, journal));
+            }
+            else new ZipUpdateExecutor(job, files, journal).Execute();
+
+            var notice = Assert.Single(job.Issues, issue => issue.Message.Contains("Extracting them may use more disk space", StringComparison.Ordinal));
+            Assert.Equal(StepOutcome.Committed, notice.Outcome);
+            Assert.Equal(target, notice.TargetPath);
+            Assert.Equal(!move, File.Exists(source));
+            Assert.Equal(!move, File.Exists(ordinary));
+            if (!move) Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.SparseFile));
+            using var zip = ZipFile.OpenRead(target);
+            Assert.Equal(2, zip.Entries.Count);
+            Check("input.bin", expected);
+            Check("ordinary.bin", ordinaryBytes);
+
+            void Check(string member, byte[] bytes)
+            {
+                var entry = zip.GetEntry(member)!;
+                Assert.Equal(bytes.LongLength, entry.Length);
+                using var input = entry.Open();
+                using var decoded = new MemoryStream();
+                input.CopyTo(decoded);
+                Assert.Equal(bytes, decoded.ToArray());
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private static void MakeSparse(string path)
+    {
+        using var file = File.OpenHandle(path, access: FileAccess.ReadWrite);
+        Assert.True(SetSparse(file, 0x000900c4 /* FSCTL_SET_SPARSE */, 0, 0, 0, 0, out _, 0));
+        RandomAccess.SetLength(file, 4 * 1024 * 1024);
+        RandomAccess.Write(file, [0x6d], 2 * 1024 * 1024);
+        var layout = WindowsStorageTransforms.ReadSparseLayout(file, TestContext.Current.CancellationToken);
+        Assert.NotNull(layout);
+        Assert.True(layout.Ranges.Sum(range => range.Length) < layout.Length / 2);
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "DeviceIoControl", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetSparse(SafeFileHandle file, uint operation, nint input, uint inputBytes,
+        nint output, uint outputBytes, out uint written, nint overlapped);
 
     [Theory]
     [InlineData(false)]
