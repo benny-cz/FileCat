@@ -1,6 +1,6 @@
 # Independent final review
 
-The independent technical review started after the r1778 regression passed on Windows, macOS and Ubuntu on source `c4a4a928`. All findings recorded below have passing retests on the applicable platforms. Participant responses are still required for the comprehension gate. [Merged regression results](NATIVE_PACKAGES_QUALIFICATION.md) · [Comprehension study](UX_COMPREHENSION_STUDY.md).
+The independent technical review started after the r1778 regression passed on Windows, macOS and Ubuntu on source `c4a4a928`. All findings recorded below have passing retests on the applicable platforms. On 2026-11-19 the project owner approved closing the implementation goal with the participant study pending. [Merged regression results](NATIVE_PACKAGES_QUALIFICATION.md) · [Comprehension study](UX_COMPREHENSION_STUDY.md).
 
 Start a separate review pass from the final requirements, current code, native behavior and attack surfaces. Do not assume an implementation decision or an earlier passing test establishes correctness. Record reproducible findings with severity, trigger, expected behavior, actual behavior and the affected build/source hash. Fix each finding and repeat the relevant tests; perform another review pass if the fix changes the reviewed behavior.
 
@@ -10,7 +10,7 @@ Start a separate review pass from the final requirements, current code, native b
 - Security: ordinary authority admission, data-only imports and taint/provenance, parser/graph/numeric/resource bounds, raw locators, no-follow containment, private ACL/mode and publication, exact-entry binding at commit, protected objects, immutable review and job submission, helper boundary/protocol/install trust, content/recipe isolation and actual diagnostics leakage.
 - Regression and evidence: existing panel commands and job safeguards, package variants, all required negative controls, final capability registration versus checked-in evidence, and any limitation/unavailable behavior backed by the plan's required feasibility evidence.
 
-Completion requires no unresolved review findings, no unperformed mandatory qualification, and a final report that distinguishes verified behavior from practical limits. Never claim that testing proves the absence of every possible bug.
+The implementation closeout covers the technical review, passing retests and documented unavailable behavior. Participant comprehension is still unverified. The final report records the tested behavior and its practical limits.
 
 ## Findings and retests
 

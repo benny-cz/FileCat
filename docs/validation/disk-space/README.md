@@ -1,6 +1,6 @@
 # Disk space implementation checkpoint
 
-The standard analyzer opens from Tools → Disk space…, command search, and the folder and drive context menus. Live file operations require their corresponding source and operation admission checks. The indexed runtime, installed Fast NTFS, and whole-tool qualification remain in progress.
+The standard analyzer opens from Tools → Disk space…, command search, and the folder and drive context menus. Live file operations require their corresponding source and operation admission checks. The independent technical review and its Windows, macOS and Ubuntu retests are complete. The participant study remains pending by project-owner decision. Default builds keep Fast NTFS unavailable until a trusted release installer is qualified. [Final review](FINAL_REVIEW_CHECKLIST.md) · [Comprehension study](UX_COMPREHENSION_STUDY.md).
 
 The development packages passed Standard desktop workflows on the Windows VM, Mac and Ubuntu VM. Actual Windows NVDA and Ubuntu Orca announced the Resource limits close button. Native Return and Escape restored focus on both systems. The Mac accessibility API exposed the title, reservation amount and focused button. See the [package and accessibility results](NATIVE_PACKAGES_QUALIFICATION.md).
 

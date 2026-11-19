@@ -1,6 +1,6 @@
 # Disk space comprehension study
 
-Participant responses are pending. The native capture verifies that the interface presents the necessary evidence. The study assesses whether readers understand it.
+The participant study is pending. On 2026-11-19 the project owner deferred it because two participants were unavailable and approved closing the implementation goal with the study still open. The native captures show what FileCat presents. Participant responses are needed to assess what readers understand.
 
 Show readers the five FileCat screens without the criteria below. Ask them to explain each answer in their own words and identify the label or value they relied on. Record each response under an anonymous participant identifier. Keep any missed or ambiguous answers with the screenshot build and theme so the revised wording can be tested again.
 
