@@ -8,7 +8,7 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        if (args is [WindowsStorageCloudQuery.WorkerArgument]) return WindowsStorageCloudQuery.RunWorker();
+        if (TryRunStorageCloudQueryWorker(args) is { } workerExit) return workerExit;
         if (args.Length > 0 && Services.ArchiveWorker.IsArgument(args[0])) return Services.ArchiveWorker.Run(args);
         if (args.Length > 0 && Services.ArchiveWorker.IsLinuxArgument(args[0])) return Services.ArchiveWorker.RunLinux(args);
         if (args.Length > 0 && Services.ArchiveWorker.IsMacArgument(args[0])) return Services.ArchiveWorker.RunMac(args);
@@ -31,7 +31,7 @@ internal static class Program
             return 0;
         }
         var options = StartupOptions.Parse(args);
-        using var storageCloudQuery = OperatingSystem.IsWindows() ? StartStorageCloudQuery() : null;
+        using var storageCloudQuery = OperatingSystem.IsWindows() ? StartStorageCloudQuery(typeof(Program)) : null;
         bool menuTrace = Environment.GetEnvironmentVariable("FILECAT_MENU_TRACE") == "1" && options.DataRoot is not null;
         if (menuTrace)
         {
@@ -58,11 +58,14 @@ internal static class Program
         }
     }
 
-    private static IDisposable StartStorageCloudQuery()
+    internal static int? TryRunStorageCloudQueryWorker(string[] args) =>
+        args is [WindowsStorageCloudQuery.WorkerArgument] ? WindowsStorageCloudQuery.RunWorker() : null;
+
+    internal static IDisposable StartStorageCloudQuery(Type entryPoint)
     {
-        string executable = Environment.ProcessPath ?? Path.Join(AppContext.BaseDirectory, "FileCat.exe");
+        string executable = Environment.ProcessPath ?? Path.Join(AppContext.BaseDirectory, entryPoint.Assembly.GetName().Name + ".exe");
         string? managedEntry = Path.GetFileName(executable).Equals("dotnet.exe", StringComparison.OrdinalIgnoreCase)
-            ? typeof(Program).Assembly.Location : null;
+            ? entryPoint.Assembly.Location : null;
         return WindowsStorageCloudQuery.UseWorker(executable, managedEntry);
     }
 

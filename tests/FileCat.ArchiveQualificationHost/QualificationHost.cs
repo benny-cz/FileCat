@@ -13,6 +13,7 @@ internal static class QualificationHost
     [STAThread]
     private static int Main(string[] args)
     {
+        if (App.Program.TryRunStorageCloudQueryWorker(args) is { } workerExit) return workerExit;
         string? data = null, worker = null, budget = null;
         bool qualifyNtfsStorage = false;
         var rest = new List<string>();
@@ -48,6 +49,7 @@ internal static class QualificationHost
         App.App.QualificationServices = startup => AppServices.InitializeForQualification(
             Core.State.AppPaths.Resolve(startup.Profile, dataRoot: startup.DataRoot),
             worker is null ? Core.Archives.ArchiveJobBackends.Empty : AppServices.QualificationBackends(worker), qualifyNtfsStorage);
+        using var storageCloudQuery = qualifyNtfsStorage ? App.Program.StartStorageCloudQuery(typeof(QualificationHost)) : null;
         var builder = App.Program.BuildAvaloniaApp();
         if (budget is not null) builder = builder.AfterSetup(_ => UiBudgetProbe.Start(budget));
         return builder.StartWithClassicDesktopLifetime([.. rest]);
