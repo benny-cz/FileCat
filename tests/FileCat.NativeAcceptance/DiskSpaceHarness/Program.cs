@@ -88,6 +88,7 @@ internal sealed partial class HarnessApp : Application
         {
             _deadline.Stop();
             _indexedLifetime.Cancel();
+            WriteReport("closing-analysis");
             try
             {
                 await _window.WaitForIndexedCloseAsync();
@@ -95,7 +96,8 @@ internal sealed partial class HarnessApp : Application
                 if (_indexedAcquisition is { } indexed) await indexed.DisposeAsync();
             }
             catch (Exception error) { _indexedProbeError ??= error.GetType().Name + ": " + error.Message; }
-            var unchanged = _originals.All(p => File.Exists(p.Key) && Hash(p.Key) == p.Value);
+            WriteReport("verifying-source");
+            var unchanged = await Task.Run(() => _originals.All(p => File.Exists(p.Key) && Hash(p.Key) == p.Value));
             WriteReport("closed", unchanged);
             try { _services.Dispose(); }
             finally { _indexedLifetime.Dispose(); desktop.Shutdown(); }

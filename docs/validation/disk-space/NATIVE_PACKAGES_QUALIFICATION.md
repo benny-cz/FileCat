@@ -108,3 +108,14 @@ The post-merge r1748 batch used source `4b685da4` and application SHA-256 `3e63b
 |---|---|---|---|
 | Mac | `022f785eb2370a6377a81e181ce0a9fa0cab9494a4dfb8166005e35ab9818fbf` | `3546ad584bfe7e4051046c130801c13bbe09ec1ae7bd4829805078a3c5d05cbc` | `96533cfff47c0b71e3c56b1fcf730edab1a9e94b5f8211c77026d6bd3b65ce56` |
 | Ubuntu VM | `dbf09fad6c2b6142371def3f19a0f135f7098b9e5d82696c31b4f8248e8907f0` | `a8fa2f8d0855cc4d2577997ae3daa0d79b1a853c13cddde98b99484172018b4e` | `7d8a5bf1bd3ae77e17a40cb0e6d84a3948e0d21a440f3b5a3a0a35db3102fb5b` |
+
+Windows r1746 measured 808.05 ms from Start analysis to the first laid-out result. At 1× display scale, setup maximized from 380 × 430 DIP to 1,004 × 519 DIP and returned to 380 × 430 DIP. The setup action fit throughout. The complete folder workflow exercised the eight themes, left its fixture intact and exited normally. The folder receipt SHA-256 is `aa6b086f157a45edaf7df8047a8e15a51fef01bd2a2022e4cfcf8b155dd0c258`.
+
+| Windows chart workload | Focus p95 | Revised-layout p95 |
+|---|---:|---:|
+| Treemap, 700 entries | 5.02 ms | 5.92 ms |
+| Sunburst, 700 entries | 1.23 ms | 1.87 ms |
+| Treemap, 4,096 entries | 24.07 ms | 27.04 ms |
+| Sunburst, 4,096 entries | 1.60 ms | 3.00 ms |
+
+The same Windows batch sent native input to 21 Pause, 20 Resume and one Stop actions during a 200,000-file indexed scan. Key-event-to-layout p95 was 51.15 ms for Pause and 34.03 ms for Resume. Stop reached the laid-out status in 43.66 ms. The driver collected the completed timing series and Stopped frame, then exceeded its 65-second wait for exit and terminated its owned process. A focused follow-up records shutdown and source-verification phases. The feedback receipt SHA-256 is `e6c2f56dbbd946f3e280a6b3ff96cf2f907d2c97d81d81f980ab8465c54928cf`.
