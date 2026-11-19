@@ -60,6 +60,10 @@ $cases = @(
         Test = 'Detaching_the_owned_volume_after_intent_does_not_mutate_or_replay_the_prepared_call' }
     @{ Phase = 'after-set'; Variable = 'FILECAT_STORAGE_NATIVE_DEVICE_LOSS_AFTER_SET_CONTROL'
         Test = 'Detaching_after_native_compression_returns_retains_uncertainty_without_replay' }
+    @{ Phase = 'after-encrypt'; Variable = 'FILECAT_TEST_EFS_ENCRYPT_DEVICE_LOSS_CONTROL'; Efs = $true
+        Test = 'Detaching_after_native_Efs_encryption_retains_the_reviewed_key_and_uncertain_effect' }
+    @{ Phase = 'after-decrypt'; Variable = 'FILECAT_TEST_EFS_DECRYPT_DEVICE_LOSS_CONTROL'; Efs = $true
+        Test = 'Detaching_after_native_Efs_decryption_retains_an_uncertain_effect_without_key_evidence' }
 )
 foreach ($case in $cases) {
     $caseRoot = Join-Path $root $case.Phase
@@ -113,8 +117,12 @@ foreach ($case in $cases) {
             Set-Partition -InputObject $partitions[0] -NewDriveLetter $letter
         }
         $remounted = Get-FixtureVolume $partitions[0] $letter
-        if ($remounted.UniqueId -ne $volume.UniqueId -or (Get-FileHash -LiteralPath $target).Hash -ne $hash) {
-            throw 'Remount must expose the same volume and canary bytes.'
+        if ($remounted.UniqueId -ne $volume.UniqueId -or !(Test-Path -LiteralPath $target -PathType Leaf)) {
+            throw 'Remount must expose the same volume and canary.'
+        }
+        # The medium-integrity EFS case verifies both data streams using the actual fixture key after remount.
+        if (!$case.Efs -and (Get-FileHash -LiteralPath $target).Hash -ne $hash) {
+            throw 'The compression canary bytes changed during the remount.'
         }
         Ensure-FixtureCloudFilter $remounted
         New-Item -ItemType File -Path (Join-Path $caseRoot 'reattached') | Out-Null

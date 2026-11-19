@@ -17,7 +17,8 @@ public sealed partial class WindowsEfsJobTests
 
     private static void DetachAfterEfsCall(StorageAction action, string environmentVariable)
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         string? control = Environment.GetEnvironmentVariable(environmentVariable);
         if (string.IsNullOrWhiteSpace(control)) Assert.Skip("Requires the isolated NTFS virtual disk device-loss fixture.");
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(Ct);
@@ -40,7 +41,7 @@ public sealed partial class WindowsEfsJobTests
         byte[] streamBytes = File.ReadAllBytes(stream);
         var source = ItemRef.ForFileSystemPath(target, EntryKind.File);
 
-        var adapter = new WindowsStorageTransforms();
+        var adapter = new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64);
         int approvals = 0;
         var attempts = new List<(StorageAction Action, bool Succeeded)>();
         var candidate = adapter.CreateEfsJobCandidate(ApproveRecovery, (returnedAction, succeeded) =>
@@ -52,7 +53,7 @@ public sealed partial class WindowsEfsJobTests
         string evidence = Directory.CreateTempSubdirectory("filecat-efs-detach-").FullName;
         try
         {
-            var manager = Manager(evidence, candidate);
+            var manager = Manager(evidence, candidate, qualifyNativeArm64);
             var pending = new List<InterruptedJob>();
             manager.StorageReviewRequired += pending.Add;
             var interrupted = Run(manager, action, [source]);
@@ -87,7 +88,7 @@ public sealed partial class WindowsEfsJobTests
 
             VerifyCanary(encrypt);
             int laterCalls = 0;
-            var reopened = Manager(evidence, adapter.CreateEfsJobCandidate(ApproveRecovery, (_, _) => laterCalls++));
+            var reopened = Manager(evidence, adapter.CreateEfsJobCandidate(ApproveRecovery, (_, _) => laterCalls++), qualifyNativeArm64);
             var historyCandidate = reopened.StorageHistoryCandidate(name);
             Assert.True(reopened.IsInterrupted(historyCandidate, stop.Token));
             var reopenedReview = reopened.ReadStorageReview(name, stop.Token);

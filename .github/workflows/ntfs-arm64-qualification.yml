@@ -40,7 +40,7 @@ on:
         type: boolean
         default: false
       device_loss:
-        description: Qualify NTFS compression before and after native SET when an owned VHDX detaches
+        description: Qualify NTFS compression and EFS when an owned VHDX detaches
         type: boolean
         default: false
       scale:
@@ -338,12 +338,13 @@ jobs:
           $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
           $root = Join-Path $env:RUNNER_TEMP ('filecat-native-storage-volumes-' + [guid]::NewGuid().ToString('N'))
           ./eng/validation/Invoke-NtfsVolumeAdmission.ps1 -ScratchRoot $root
-      - name: Qualify compression across owned VHDX detachment
+      - name: Qualify compression and EFS across owned VHDX detachment
         if: inputs.device_loss
         shell: pwsh
         run: |
           $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
           $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+          $env:FILECAT_TEST_EFS = '1'
           $root = Join-Path $env:RUNNER_TEMP ('filecat-native-storage-device-loss-' + [guid]::NewGuid().ToString('N'))
           ./eng/validation/Invoke-NtfsDeviceLoss.ps1 -ScratchRoot $root
       - name: Exercise native ARM64 administrator copy with EFS
