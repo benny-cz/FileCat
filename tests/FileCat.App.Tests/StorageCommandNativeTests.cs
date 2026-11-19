@@ -130,15 +130,21 @@ public sealed class StorageCommandNativeTests
     }
 
     [AvaloniaTheory]
-    [InlineData("refresh")]
-    [InlineData("marks")]
-    [InlineData("navigation")]
-    public async Task Real_compression_command_keeps_its_review_and_guards_completion_marks(string change)
+    [InlineData(StorageAction.Compress, "refresh")]
+    [InlineData(StorageAction.Compress, "marks")]
+    [InlineData(StorageAction.Compress, "navigation")]
+    [InlineData(StorageAction.DecryptEfs, "refresh")]
+    [InlineData(StorageAction.DecryptEfs, "marks")]
+    [InlineData(StorageAction.DecryptEfs, "navigation")]
+    public async Task Real_storage_command_keeps_its_review_and_guards_completion_marks(StorageAction action, string change)
     {
-        Assert.SkipWhen(Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_UI") != "1" || !WindowsStorageReviewEvidence.IsSupportedHost,
+        bool efs = action == StorageAction.DecryptEfs;
+        Assert.SkipWhen(efs ? Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_UI") != "1" || !WindowsStorageTransforms.IsQualifiedHost :
+            Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_UI") != "1" || !WindowsStorageReviewEvidence.IsSupportedHost,
             "Explicit disposable Windows 11 x64 client, medium integrity, NTFS command qualification.");
+        var platform = new WindowsStorageTransforms();
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420,
-            storageTransforms: new WindowsStorageTransforms());
+            storageTransforms: efs ? platform.CreateEfsJobCandidate() : platform);
         try
         {
             var tab = vm.ActiveTab!; var listing = tab.Listing;
@@ -146,12 +152,24 @@ public sealed class StorageCommandNativeTests
             var original = tab.Location!;
             string a = Path.Join(original.Path, "a.txt"), b = Path.Join(original.Path, "b.txt");
             File.WriteAllText(a, new string('A', 8192)); File.WriteAllText(b, new string('B', 8192));
+            if (efs) { File.Encrypt(a); File.Encrypt(b); }
             tab.Refresh(); await Until(() => listing.State == ListingState.Complete && !listing.IsRefreshing);
             listing.MarkNames(["a.txt", "b.txt"], true); long marks = listing.MarkRevision;
-            vm.Execute(CommandIds.StorageAttributes);
-            await Until(() => window.GetVisualDescendants().OfType<RadioButton>().Any(button => AutomationProperties.GetName(button) == "Compress"));
-            window.GetVisualDescendants().OfType<RadioButton>().Single(button => AutomationProperties.GetName(button) == "Compress").IsChecked = true;
-            Button Primary() => window.GetVisualDescendants().OfType<Button>().Single(button => button is not RadioButton && button.Content as string == "Compress");
+            string label = efs ? "Decrypt" : "Compress";
+            vm.Execute(efs ? CommandIds.EfsProtection : CommandIds.StorageAttributes);
+            IEnumerable<RadioButton> Actions() => window.GetVisualDescendants().OfType<RadioButton>()
+                .Where(button => AutomationProperties.GetName(button) == label);
+            await Until(() => Actions().Any());
+            Assert.Single(Actions()).IsChecked = true;
+            Button Primary() => window.GetVisualDescendants().OfType<Button>()
+                .Single(button => button is not RadioButton && button.Content as string == label);
+            if (efs)
+            {
+                CheckBox Consent(string prefix) => window.GetVisualDescendants().OfType<CheckBox>().Single(control => control.IsVisible &&
+                    AutomationProperties.GetName(control)?.StartsWith(prefix, StringComparison.Ordinal) == true);
+                Consent("I accept this concurrent link-change limitation").IsChecked = true;
+                Consent("I understand the selected files will lose EFS protection").IsChecked = true;
+            }
             await Until(() => Primary().IsEnabled);
             if (change == "refresh")
             {
@@ -170,16 +188,19 @@ public sealed class StorageCommandNativeTests
                 listing.MarkNames(["a.txt"], true);
             }
             Assert.True(vm.Dialogs.IsOpen); Assert.True(Primary().IsEnabled);
+            int reviewedGeneration = listing.Generation;
             Primary().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Until(() => services.Jobs.Jobs.Count == 1 && services.Jobs.Jobs[0].State.IsFinished() &&
                 vm.CurrentNotification?.Message.Contains("changed", StringComparison.OrdinalIgnoreCase) == true);
             var job = Assert.Single(services.Jobs.Jobs);
             Assert.Equal(JobState.Completed, job.State);
             Assert.Equal(2, job.StorageResult!.Counts.Changed);
+            Assert.Equal(action, job.Request.StorageTransform!.Action);
             Assert.Equal(StorageScope.SelectedItems, job.Request.StorageTransform!.Scope);
-            Assert.True((File.GetAttributes(a) & FileAttributes.Compressed) != 0);
-            Assert.True((File.GetAttributes(b) & FileAttributes.Compressed) != 0);
-            await Until(() => !listing.IsRefreshing && listing.State == ListingState.Complete);
+            var attribute = efs ? FileAttributes.Encrypted : FileAttributes.Compressed;
+            Assert.Equal(!efs, File.GetAttributes(a).HasFlag(attribute));
+            Assert.Equal(!efs, File.GetAttributes(b).HasFlag(attribute));
+            await Until(() => listing.Generation != reviewedGeneration && !listing.IsRefreshing && listing.State == ListingState.Complete);
             Assert.Equal(change == "refresh" ? 0 : change == "marks" ? 2 : 1, listing.MarkedCount);
         }
         finally { ((OverlayDialogService)vm.Dialogs).CancelAll(); AccessibilityTests.Close(services, window, root); }

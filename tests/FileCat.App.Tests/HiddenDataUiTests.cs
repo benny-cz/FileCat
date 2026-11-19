@@ -152,6 +152,55 @@ public sealed class HiddenDataUiTests
     }
 
     [AvaloniaFact]
+    public async Task Delete_confirmation_keeps_the_file_identity_from_before_a_refresh()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows() || OperatingSystem.IsLinux(), "Requires a bound supplementary-data adapter.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string file = Path.Combine(root, "files", "reviewed.bin");
+            string previous = Path.Combine(root, "files", "previous.bin");
+            string name = OperatingSystem.IsWindows() ? "payload" : "user.filecat.payload";
+            IHiddenData adapter = OperatingSystem.IsWindows() ? new FileCat.Platform.Windows.WindowsHiddenData() : new UnixHiddenData();
+            if (OperatingSystem.IsWindows()) services.Providers.Register(new HiddenDataProvider(adapter));
+            WriteFixture("original");
+
+            var tab = vm.ActiveTab!;
+            tab.Navigate(HiddenDataProvider.Of(file));
+            await Until(HasPayload, "the original supplementary item is listed");
+            var original = tab.Listing.SupplementaryInventory!.Identity;
+            Assert.NotNull(original);
+            tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == name) + (tab.Listing.HasParentRow ? 1 : 0));
+            window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
+            await Until(() => ((OverlayDialogService)vm.Dialogs).IsOpen, "the delete confirmation is open");
+
+            File.Move(file, previous);
+            WriteFixture("replacement");
+            tab.Refresh();
+            await Until(() => HasPayload() && tab.Listing.SupplementaryInventory!.Identity != original,
+                "the inventory refreshed to the replacement file while confirmation was open");
+            await Click(window, "Delete");
+            await Until(() => vm.Notification?.Contains("different file", StringComparison.Ordinal) == true,
+                "the stale delete was refused");
+
+            var item = new HiddenItem(name, OperatingSystem.IsWindows() ? HiddenKind.Stream : HiddenKind.Attribute, -1);
+            Assert.Equal("original", Encoding.UTF8.GetString(adapter.Read(previous, item, 32)));
+            Assert.Equal("replacement", Encoding.UTF8.GetString(adapter.Read(file, item, 32)));
+
+            bool HasPayload() => tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing &&
+                Rows(tab).Any(e => e.Name == name);
+
+            void WriteFixture(string value)
+            {
+                File.WriteAllText(file, value + " main bytes");
+                if (OperatingSystem.IsWindows()) File.WriteAllText(file + ":" + name, value);
+                else Assert.Equal(0, SetAttribute(file, name, Encoding.UTF8.GetBytes(value)));
+            }
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Copying_a_protected_stream_refuses_before_creating_any_output()
     {
         Assert.SkipUnless(FileCat.Platform.Windows.WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",

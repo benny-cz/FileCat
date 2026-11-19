@@ -624,7 +624,8 @@ public sealed partial class ReportWindow : Window
         string capturedText = _text;
         var capturedReader = _reader;
         var supplementary = _supplementaryReport;
-        string? startedNewFile = null;
+        bool details = _detailsReader is not null;
+        string? startedOutput = null;
         try
         {
             string stem = Path.GetFileName(_subject.TrimEnd('\\', '/'));
@@ -636,31 +637,36 @@ public sealed partial class ReportWindow : Window
                 FileTypeChoices = [new FilePickerFileType("Text") { Patterns = ["*.txt"] }],
             });
             if (ct.IsCancellationRequested || !ReferenceEquals(_reader, capturedReader) || picked?.TryGetLocalPath() is not { } target) return;
-            if (supplementary is null) await File.WriteAllTextAsync(target, capturedText, new UTF8Encoding(true), ct);
+            if (details && OperatingSystem.IsWindows())
+                await Task.Run(() => FileCat.Platform.Windows.WindowsMetadataReportOutput.Save(target, capturedText, () => startedOutput = target, ct), ct);
+            else if (!details && supplementary is null)
+                await File.WriteAllTextAsync(target, capturedText, new UTF8Encoding(true), ct);
             else await Task.Run(async () =>
             {
                 ct.ThrowIfCancellationRequested();
-                if (!Path.IsPathFullyQualified(target) || OperatingSystem.IsWindows() && !StoragePaths.IsOrdinaryLocalPath(target) ||
-                    PathUtil.IsOnNetwork(target))
+                if (supplementary is not null && (!Path.IsPathFullyQualified(target) ||
+                    OperatingSystem.IsWindows() && !StoragePaths.IsOrdinaryLocalPath(target) || PathUtil.IsOnNetwork(target)))
                     throw new IOException("Choose a new local file to save this report.");
                 ct.ThrowIfCancellationRequested();
-                await using var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.Asynchronous);
-                startedNewFile = target;
-                await output.WriteAsync(new UTF8Encoding(true).GetPreamble(), ct);
-                await output.WriteAsync(Encoding.UTF8.GetBytes(supplementary.Text), ct);
+                await using var output = new FileStream(target, supplementary is null ? FileMode.Create : FileMode.CreateNew,
+                    FileAccess.Write, FileShare.None, 1, FileOptions.Asynchronous);
+                startedOutput = target;
+                await output.WriteAsync(Encoding.UTF8.GetPreamble(), ct);
+                await output.WriteAsync(Encoding.UTF8.GetBytes(supplementary?.Text ?? capturedText), ct);
                 await output.FlushAsync(ct);
             }, ct);
             if (!ct.IsCancellationRequested) _status.Text = $"Saved as {target}.";
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            if (startedNewFile is not null && !_closing.IsCancellationRequested)
-                _status.Text = $"Save canceled after creating {startedNewFile}. The file may be incomplete.";
+            if (startedOutput is not null && !_closing.IsCancellationRequested)
+                _status.Text = $"Save canceled after opening {startedOutput} for writing. The file may be incomplete.";
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
-            _status.Text = startedNewFile is null ? $"It could not be saved: {ex.Message}"
-                : $"The new report at {startedNewFile} may be incomplete. {ex.Message}";
+            if (!_closing.IsCancellationRequested)
+                _status.Text = startedOutput is null ? $"It could not be saved: {ex.Message}"
+                    : $"The report at {startedOutput} may be incomplete. {ex.Message}";
         }
         finally { if (ReferenceEquals(_saving, cts)) _saving = null; }
     }

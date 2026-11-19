@@ -43,6 +43,7 @@ public sealed partial class UnixFileDetailsNativeTests
                 Assert.Equal(summary.Identity.Value, full.Summary.Identity.Value);
                 var section = Assert.Single(full.Technical.Sections, s => s.Title == "APFS file sharing");
                 Assert.Contains(("Sharing", expected), section.Fields);
+                Assert.Contains(("Sparse representation flag", "Clear"), section.Fields);
                 Assert.Contains(("Private bytes reported", RecordText.Bytes(privateSize)), section.Fields);
                 return Assert.Single(section.Fields, field => field.Name == "Clone ID").Value;
             }
@@ -52,6 +53,20 @@ public sealed partial class UnixFileDetailsNativeTests
             Assert.Equal(cloneId, Check(clone, "All blocks reported shared", 0));
             Assert.NotEqual(cloneId, Check(ordinary, "No sharing flag reported", bytes.Length));
             Check(changed, "May share blocks", rewrite);
+
+            string sparse = Path.Combine(root, "sparse");
+            const long sparseOffset = 64L << 20;
+            using (var stream = new FileStream(sparse, FileMode.CreateNew, FileAccess.Write))
+            {
+                stream.WriteByte(1);
+                stream.Position = sparseOffset;
+                stream.WriteByte(2);
+                stream.Flush(flushToDisk: true);
+            }
+            var sparseReport = reader.ReadFull(sparse, FileDetailsPolicy.MetadataOnly, ct);
+            var sparseSection = Assert.Single(sparseReport.Technical.Sections, s => s.Title == "APFS file sharing");
+            Assert.Contains(("Sparse representation flag", "Set"), sparseSection.Fields);
+            Assert.Equal(sparseOffset + 1, new FileInfo(sparse).Length);
             string link = Path.Combine(root, "link");
             File.CreateSymbolicLink(link, "source");
             foreach (string path in new[] { root, link })

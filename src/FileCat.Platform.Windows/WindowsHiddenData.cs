@@ -12,7 +12,7 @@ namespace FileCat.Platform.Windows;
 /// with NtQueryEaFile, which also returns those only the kernel may write ($KERNEL.*, kept by Smart App Control and
 /// AppLocker) and WSL's ($LXUID, $LXGID, $LXMOD, LXATTRB).
 /// </summary>
-public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValueOutput
+public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValueOutput, IHiddenValueDeletion
 {
     private const uint FileReadEa = 0x0008, FileWriteEa = 0x0010;
     private const uint ShareAll = 0x7, OpenExisting = 3, BackupSemantics = 0x02000000, OpenReparsePoint = 0x00200000;
@@ -97,11 +97,18 @@ public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValue
             throw new IOException("The supplementary value belongs to a different file. Refresh the inventory and try again.");
     }
 
-    public void Delete(string path, HiddenItem item)
+    public void Delete(string path, HiddenItem item) => DeleteCore(path, item, null, default);
+
+    void IHiddenValueDeletion.DeleteReviewedValue(string path, HiddenItem item, FileIdentity reviewed, CancellationToken ct) =>
+        DeleteCore(path, item, reviewed, ct);
+
+    private static void DeleteCore(string path, HiddenItem item, FileIdentity? reviewed, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         if (item.Kind == HiddenKind.Stream)
         {
-            using var stream = OpenExactStream(path, item, 0x10000 /* DELETE */, deleting: true);
+            using var stream = OpenExactStream(path, item, 0x10000 /* DELETE */, deleting: true, reviewed: reviewed, ct: ct);
+            ct.ThrowIfCancellationRequested();
             byte disposition = 1;
             if (!SetInventoryInfo(stream, 4 /* FileDispositionInfo */, &disposition, 1)) throw Error(Marshal.GetLastPInvokeError(), path);
             return;
@@ -109,8 +116,10 @@ public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValue
         if (item.Kind != HiddenKind.NtfsAttribute) throw new NotSupportedException("This supplementary category does not belong to the Windows adapter.");
         // An EA written with no value is removed; the kernel's own ($KERNEL.*) refuse.
         using var handle = OpenForEas(path, FileReadEa | FileWriteEa | 0x80 | 0x100000);
+        ct.ThrowIfCancellationRequested();
         RefuseManagedObject(handle);
-        var inventory = ReadEaInventory(handle, default);
+        RequireReviewedValue(handle, reviewed);
+        var inventory = ReadEaInventory(handle, ct);
         if (inventory.State != HiddenInventoryState.Complete) throw new IOException("The EA category could not be completely resolved; refresh required.");
         var current = inventory.Items.SingleOrDefault(i => i.Name == item.Name) ?? throw new FileNotFoundException("The exact EA is missing; refresh required.");
         if (HiddenMetadataRoles.DeleteRefusal(current) is { } refusal) throw new NotSupportedException(refusal);
@@ -120,6 +129,7 @@ public sealed unsafe partial class WindowsHiddenData : IHiddenData, IHiddenValue
         name.CopyTo(buffer, 8);
         fixed (byte* start = buffer)
         {
+            ct.ThrowIfCancellationRequested();
             int status = NtSetEaFile(handle, out _, start, (uint)buffer.Length);
             if (status < 0) throw Error(RtlNtStatusToDosError(status), path);
         }

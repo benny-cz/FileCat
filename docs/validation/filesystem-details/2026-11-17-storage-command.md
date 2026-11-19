@@ -32,3 +32,11 @@ The subsequent [complete-refusal checkpoint](2026-11-17-storage-refused-selectio
 The [prefix-export](2026-11-17-storage-prefix-export.md) and [bound-export](2026-11-17-storage-bound-export.md) checkpoints subsequently add inactive call pages and live evidence export/publication.
 
 Remaining: standalone Find affected-refresh/native qualification, the wider native/provider/device/performance/crash/retention/UI matrix, remaining filesystem collectors and full EFS identity/key/output/consent implementation. The user explicitly requires EFS; these compression passes do not waive it or enable the product before its applicable release gates pass. The unrelated full hosted CI run `44106344168` has an Ubuntu picture-worker stderr memory-budget failure; focused passes here do not claim full CI is green.
+
+## Origin cleanup after a stopped EFS job
+
+The portable App fixture constructed an EFS decryption job with one complete root, one uncertain incomplete root and a Stop result. With the original navigation and mark revision still current after a refresh, cleanup removed only the completed mark. It preserved both marks after later mark edits or navigation away and back. A closed origin retired without applying cleanup. Apple silicon passed all 43 focused integration and Operations tests. The receipt is `~/FileCatValidation/filecat-efs-origin-f23cefdd-r1/storage-history.trx`.
+
+## Native EFS decryption and origin refresh
+
+Windows 11 x64 ran the actual NTFS Compress and Decrypt EFS commands from the captured main-panel selection. Each action passed the refresh, mark-edit and away-and-back navigation cases. The affected listing refreshed, payload bytes were preserved, and only an unchanged origin allowed completion cleanup. The same native batch passed the encryption/decryption consent round trip and the selected EFS backup command entry. See all eight `StorageCommandNativeTests` in `.tmp/filecat-metadata-report-output-8eeeca7e-r6.xml`.

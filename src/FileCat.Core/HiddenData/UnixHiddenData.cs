@@ -9,7 +9,7 @@ namespace FileCat.Core.HiddenData;
 /// Extended attributes on Linux (every namespace this user may read) and macOS (with the resource fork), through libc,
 /// never following a link (D-55).
 /// </summary>
-public sealed partial class UnixHiddenData : IHiddenData, IHiddenValueOutput
+public sealed partial class UnixHiddenData : IHiddenData, IHiddenValueOutput, IHiddenValueDeletion
 {
     private const int MacNoFollow = 0x0001;
     private const string ResourceForkName = "com.apple.ResourceFork";
@@ -64,24 +64,32 @@ public sealed partial class UnixHiddenData : IHiddenData, IHiddenValueOutput
         return new MemoryStream(value, writable: false);
     }
 
-    public void Delete(string path, HiddenItem item)
+    public void Delete(string path, HiddenItem item) => DeleteCore(path, item, null, default);
+
+    void IHiddenValueDeletion.DeleteReviewedValue(string path, HiddenItem item, FileIdentity reviewed, CancellationToken ct) =>
+        DeleteCore(path, item, reviewed, ct);
+
+    private static void DeleteCore(string path, HiddenItem item, FileIdentity? reviewed, CancellationToken ct)
     {
-        using var file = OpenActionFile(path, item);
-        var inventory = CollectInventory(path, (buffer, size) => LinuxFdList(file, buffer, size), name => LinuxFdGet(file, name, null, 0), default);
+        using var file = OpenActionFile(path, item, ct);
+        if (reviewed is { } expected && UnixFiles.Stat(file)?.Identity != expected)
+            throw new IOException("The supplementary value belongs to a different file. Refresh the inventory and try again.");
+        var inventory = CollectInventory(path, (buffer, size) => LinuxFdList(file, buffer, size), name => LinuxFdGet(file, name, null, 0), ct);
         if (inventory.State != HiddenInventoryState.Complete) throw new IOException("The attribute category could not be completely resolved; refresh required.");
         var current = inventory.Items.SingleOrDefault(i => i.Kind == item.Kind && i.Name == item.Name)
             ?? throw new FileNotFoundException("The exact attribute is missing; refresh required.");
         if (HiddenMetadataRoles.DeleteRefusal(current) is { } reason) throw new NotSupportedException(reason);
+        ct.ThrowIfCancellationRequested();
         if (LinuxFdRemove(file, current.Name) != 0) throw Error(path);
     }
 
-    private static SafeFileHandle OpenActionFile(string path, HiddenItem item)
+    private static SafeFileHandle OpenActionFile(string path, HiddenItem item, CancellationToken ct = default)
     {
         if (!OperatingSystem.IsLinux()) throw new NotSupportedException("A held-object attribute value/action adapter is not qualified on this platform.");
         if (item.Kind != HiddenKind.Attribute || item.Name.Length == 0 || item.Name.Contains('\0') ||
             !new UTF8Encoding(false, true).GetString(new UTF8Encoding(false, true).GetBytes(item.Name)).Equals(item.Name, StringComparison.Ordinal))
             throw new NotSupportedException("The attribute category or native name is invalid; refresh required.");
-        return OpenInventoryFile(path, default);
+        return OpenInventoryFile(path, ct);
     }
 
     private static byte[] ReadBoundAttribute(string path, HiddenItem item, int max)

@@ -88,7 +88,7 @@ public sealed partial class WindowsHiddenDataTests
     [Theory]
     [InlineData(HiddenKind.Stream)]
     [InlineData(HiddenKind.NtfsAttribute)]
-    public void A_value_report_retains_the_selected_identity_and_refuses_a_replacement(HiddenKind kind)
+    public void Reviewed_supplementary_actions_refuse_a_replacement_file(HiddenKind kind)
     {
         Assert.SkipUnless(OperatingSystem.IsWindows(), "Requires Windows supplementary data.");
         string dir = NewFolder();
@@ -114,16 +114,24 @@ public sealed partial class WindowsHiddenDataTests
             Assert.Contains("different file", refusal.Message);
             Assert.True(report.CanPublish);
             Assert.Contains("original value", report.Text);
-            var replacement = native.ReadInventory(file, new(IncludeEaValues: kind == HiddenKind.NtfsAttribute), ct).Identity!.Value;
+            Assert.Contains("different file", Assert.Throws<IOException>(() => provider.DeleteReviewedValue(request, original, ct)).Message);
+            var replacement = native.ReadInventory(file, new(IncludeEaValues: true), ct).Identity!.Value;
             var fresh = provider.ReadValueReport(request, replacement, ct);
             Assert.Contains("another value", fresh.Text);
             Assert.NotEqual(report.Revision, fresh.Revision);
 
+            provider.DeleteReviewedValue(request, replacement, ct);
+            var remaining = Assert.Single(native.ReadInventory(file, new(IncludeEaValues: true), ct).Items, item => item.Name == name);
+            Assert.NotEqual(kind, remaining.Kind);
+            Assert.Equal("another value", Encoding.UTF8.GetString(native.Read(file, remaining, 64)));
+            Assert.Equal(2, native.ReadInventory(previous, new(IncludeEaValues: true), ct).Items.Count(item => item.Name == name));
+            Assert.Equal("main contents", File.ReadAllText(file));
+
             void Seed(string value)
             {
                 File.WriteAllText(file, "main contents");
-                if (kind == HiddenKind.Stream) File.WriteAllText(file + ":" + name, value);
-                else WriteEa(file, name, Encoding.UTF8.GetBytes(value));
+                File.WriteAllText(file + ":" + name, value);
+                WriteEa(file, name, Encoding.UTF8.GetBytes(value));
             }
         }
         finally { Directory.Delete(dir, recursive: true); }

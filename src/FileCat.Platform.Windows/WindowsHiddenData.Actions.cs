@@ -22,17 +22,21 @@ public sealed unsafe partial class WindowsHiddenData
             : "External-backing state is unavailable; the supplementary action is not qualified. " + backing.Reason);
     }
 
-    private static SafeFileHandle OpenExactStream(string path, HiddenItem requested, uint access, bool deleting = false)
+    private static SafeFileHandle OpenExactStream(string path, HiddenItem requested, uint access, bool deleting = false,
+        FileIdentity? reviewed = null, CancellationToken ct = default)
     {
         if (requested.Name.Length == 0 || requested.Name.Length > 32760 || requested.Name.IndexOfAny(['\0', ':', '/', '\\']) >= 0)
             throw new ArgumentException("Invalid native stream name.", nameof(requested));
         using var root = OpenForEas(path, 0x80 | 0x100000);
+        ct.ThrowIfCancellationRequested();
         RefuseManagedObject(root);
-        var inventory = ReadStreamInventory(root, default);
+        RequireReviewedValue(root, reviewed);
+        var inventory = ReadStreamInventory(root, ct);
         if (inventory.State != HiddenInventoryState.Complete) throw new IOException("The stream category could not be completely resolved; refresh required.");
         var current = inventory.Items.SingleOrDefault(i => i.Name == requested.Name) ?? throw new FileNotFoundException("The exact stream is missing; refresh required.");
         if (deleting && HiddenMetadataRoles.DeleteRefusal(current) is { } reason) throw new NotSupportedException(reason);
         // Relative ADS acquisition uses the held file object, not a second traversal of its mutable pathname.
+        ct.ThrowIfCancellationRequested();
         int status = NtFile.TryOpen(root, ":" + current.Name + ":$DATA", access | NtFile.ReadAttributes | NtFile.Synchronize,
             NtFile.ShareAll, NtFile.Open, NtFile.OpenReparsePoint, out var opened, caseSensitive: true);
         if (status < 0) { opened.Dispose(); throw NtFile.Error(status, "Open the held object's exact stream"); }

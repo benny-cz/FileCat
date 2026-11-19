@@ -184,6 +184,14 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
         return new(item.Name, kind, item.Size);
     }
 
+    internal void DeleteReviewedValue(ItemRef item, FileIdentity reviewed, CancellationToken ct)
+    {
+        if (hidden is not IHiddenValueDeletion deletion)
+            throw new NotSupportedException("A bound supplementary-data delete is unavailable on this system.");
+        ct.ThrowIfCancellationRequested();
+        deletion.DeleteReviewedValue(FileOf(item.Parent), RequestedValue(item), reviewed, ct);
+    }
+
     /// <summary>The exact category and native name, resolved under the current file authority.</summary>
     public HiddenItem? Find(string file, ItemRef reference, CancellationToken ct = default)
     {
@@ -194,6 +202,11 @@ public sealed class HiddenDataProvider(IHiddenData hidden) : ResourceProvider, I
         if (category?.State != HiddenInventoryState.Complete) throw new IOException("The requested category could not be completely resolved; refresh required. " + category?.Reason);
         return inventory.Items.SingleOrDefault(i => i.Kind == kind && string.Equals(i.Name, reference.Name, StringComparison.Ordinal));
     }
+}
+
+internal interface IHiddenValueDeletion
+{
+    void DeleteReviewedValue(string path, HiddenItem item, FileIdentity reviewed, CancellationToken ct);
 }
 
 internal interface IHiddenValueOutput

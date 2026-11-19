@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Inspect;
 using Microsoft.Win32.SafeHandles;
 
@@ -26,7 +27,8 @@ public sealed unsafe partial class UnixFileRecords
         FileSystem.PathUtil.RefuseAmbiguousUnixName(path);
         ct.ThrowIfCancellationRequested();
         string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-        return OperatingSystem.IsLinux() ? LinuxDetails(full, fullReport, ct) : MacDetails(full, fullReport, ct);
+        return OperatingSystem.IsLinux() ? LinuxDetails(full, fullReport, ct)
+            : MacDetailsWithoutMaterialization(full, ct, () => MacDetails(full, fullReport, ct));
     }
 
     private static FileDetailsReport LinuxDetails(string path, bool fullReport, CancellationToken ct)
@@ -46,7 +48,8 @@ public sealed unsafe partial class UnixFileRecords
             if (status != 0) throw Error(path);
             var fields = new ReadOnlySpan<byte>(bytes, 256);
             var report = ParseLinuxDetails(path, fields);
-            report = report with { Summary = report.Summary with { FileSystem = ReadLinuxDetailsFileSystem(fd, fields, noFollow, ct) } };
+            var fileSystem = ReadLinuxDetailsFileSystem(fd, fields, noFollow, fullReport, ct, out var zfsMount);
+            report = report with { Summary = report.Summary with { FileSystem = fileSystem } };
             if (report.Summary.Kind == FileObjectKind.SymbolicLink)
             {
                 byte[] buffer = new byte[StoredLinkLimit];
@@ -64,6 +67,8 @@ public sealed unsafe partial class UnixFileRecords
                 bool x64 = RuntimeInformation.ProcessArchitecture == Architecture.X64;
                 bool ext4 = x64 && summary.FileSystem is { State: FactState.Known, Value: "ext4" };
                 bool btrfs = x64 && summary.FileSystem is { State: FactState.Known, Value: "btrfs" };
+                if (x64 && zfsMount is not null)
+                    report = AddLinuxZfsDataset(report, fd, zfsMount, ct);
                 if (summary.Kind == FileObjectKind.File || ext4 || btrfs)
                 {
                     var (file, state, reason) = OpenLinuxMetadataDescriptor(fd, identity, summary.Kind, ct);
@@ -85,8 +90,10 @@ public sealed unsafe partial class UnixFileRecords
         finally { Close(fd); }
     }
 
-    private static ObservedFact<string> ReadLinuxDetailsFileSystem(int held, ReadOnlySpan<byte> statx, int noFollow, CancellationToken ct)
+    private static ObservedFact<string> ReadLinuxDetailsFileSystem(int held, ReadOnlySpan<byte> statx, int noFollow, bool fullReport,
+        CancellationToken ct, out LinuxZfsMount? zfsMount)
     {
+        zfsMount = null;
         const string source = "statx on O_PATH descriptor + /proc/self/mountinfo";
         ObservedFact<string> Unavailable(FactState state, string reason) => ObservedFact<string>.Unavailable(state, FactScope.Volume, source, reason);
         ulong mountId = BinaryPrimitives.ReadUInt64LittleEndian(statx[144..]);
@@ -122,6 +129,7 @@ public sealed unsafe partial class UnixFileRecords
             ct.ThrowIfCancellationRequested();
             if (count > limit) return Unavailable(FactState.Partial, "The process mount table exceeds the 1 MiB read limit.");
             string? type = null;
+            LinuxZfsMount? matchedZfsMount = null;
             bool btrfsSubvolume = false;
             ReadOnlySpan<byte> table = data.AsSpan(0, count);
             foreach (var range in table.Split((byte)'\n'))
@@ -136,6 +144,7 @@ public sealed unsafe partial class UnixFileRecords
                     string.IsNullOrEmpty(columns[separator + 1]))
                     return Unavailable(FactState.Changed, "The mount record did not uniquely match the held item's device.");
                 type = columns[separator + 1];
+                if (fullReport && type == "zfs") matchedZfsMount = ParseLinuxZfsMount(columns[separator + 2], columns[separator + 3]);
                 if (columns[2] == device) continue;
                 // Btrfs can report an anonymous device number for a subvolume within the same mount ID.
                 // Independently verify the filesystem on the held object before qualifying that case.
@@ -143,6 +152,7 @@ public sealed unsafe partial class UnixFileRecords
                     return Unavailable(FactState.Changed, "The mount record did not match the held item's device.");
                 btrfsSubvolume = true;
             }
+            zfsMount = matchedZfsMount;
             return type is null ? Unavailable(FactState.Partial, "The held item's mount is not visible in the process mount table.")
                 : ObservedFact<string>.Known(type, FactScope.Volume, btrfsSubvolume ? source + " + fstatfs on the held subvolume" : source);
         }
@@ -200,6 +210,12 @@ public sealed unsafe partial class UnixFileRecords
     {
         byte[] fields = ReadMacDetailsFields(path, ct);
         var report = ParseMacDetails(path, fields);
+        if (report.Summary.NativeAttributes is { State: FactState.Known } attributes &&
+            (attributes.Value & MacMaterializationPolicy.DatalessFlag) != 0)
+            return report with { Summary = report.Summary with
+            {
+                Notes = report.Summary.Notes.Add("This dataless item shows cached metadata. Downloads were disabled for this inspection."),
+            } };
         if (report.Summary.Kind == FileObjectKind.SymbolicLink)
         {
             var target = ReadMacStoredTarget(path, report.Summary.Identity, fields, ct);
@@ -210,7 +226,7 @@ public sealed unsafe partial class UnixFileRecords
                 Kind: FileObjectKind.File or FileObjectKind.Directory or FileObjectKind.SymbolicLink,
                 Identity.State: FactState.Known,
                 NativeAttributes.State: FactState.Known,
-            } summary && (summary.NativeAttributes.Value & 0x40000000) == 0) // SF_DATALESS
+            })
         {
             report = AddMacApfsDetails(report, fields, ct);
         }
@@ -339,7 +355,7 @@ public sealed unsafe partial class UnixFileRecords
             Compression = Field(common, 0x40000, bytes.Length >= 112, (flags & 0x20) != 0, FactScope.Entry),
             CompressionLabel = "Compressed representation flag",
             Restrictions = Field(common, 0x40000, bytes.Length >= 112, ChflagsText(flags), FactScope.Entry),
-            Notes = ["Compression is a recorded BSD representation flag; FileVault and volume protection were not queried.",
+            Notes = ["Compression is a recorded BSD representation flag. This summary does not query volume protection.",
                 "The summary request excludes directory entry count, fork values and APFS sharing statistics."]
         };
         return FileDetailsReport.Metadata(snapshot, new InspectionSection("Native getattrlist metadata", [("Returned common mask", $"0x{common:X}"), ("Returned file mask", $"0x{files:X}"), ("Packed length", length.ToString())]));

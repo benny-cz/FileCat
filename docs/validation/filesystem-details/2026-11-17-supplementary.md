@@ -54,6 +54,22 @@ When a Unix attribute-name list outgrows its native buffer, FileCat makes at mos
 
 Ubuntu x64 passed 22 focused tests with two Darwin-only skips. Apple silicon passed 21 with two Linux-only skips and one opt-in compressed-file skip. Both ran the growth fixture. Ubuntu exercised bound xattr operations and special-file refusal. The Mac exercised the native resource-fork inventory. Results are `.tmp/filecat-unix-xattr-growth-90208329-ubuntu.trx` and `.tmp/filecat-unix-xattr-growth-90208329-mac.trx`. The tested `UnixHiddenData.Inventory.cs` SHA-256 is `DEF377988BA0DD7EDD4B3486BA2F0CDC6C3770D12802F0979E895581C6EB3502`.
 
+## Delete confirmation retains the inventory identity
+
+Supplementary deletion captures the listed file identity before confirmation. The Linux adapter verifies it on the descriptor used to remove the attribute. The Windows paths verify it on the held file before resolving the exact ADS or EA for deletion. Removing the extra inventory lookup also avoids reopening the pathname between current category resolution and mutation.
+
+Ubuntu x64 exercised a real xattr on a replacement inode with the same name. The existing confirmation failed even after the tab had refreshed to the new inode, and both files kept their attributes. A newly reviewed removal succeeded in the Core fixture. The regular app confirmation still removed the selected attribute and refreshed the parent column after returning. The focused batch had 64 Core and 11 App tests pass, with three platform-specific skips. Results are `core.trx` and `app.trx` under `~/filecat-supplementary-delete-8eeeca7e-r3`.
+
+Windows 11 x64 passed 12 native supplementary tests. Both replacement fixtures put an ADS and an EA of the same name on both files. The old identity refused deletion and a fresh identity permitted deleting just the selected category. The other category, the main bytes and both values on the original file were preserved. The suite also exercised native EFS-derived output refusal. See `.tmp/filecat-supplementary-delete-windows-r3.xml`.
+
+## Linux inventory without opening the data fork
+
+On Linux x64 kernels with the xattrat syscalls, FileCat inventories names and lengths through the numeric entry for its live `O_PATH` pin. The lookup is relative to an open, verified procfs descriptor directory. `listxattrat` requests names and `getxattrat` uses a zero-length request. On Ubuntu kernel `7.0.0-43-generic`, `AT_EMPTY_PATH` on the `O_PATH` pin returned `EBADF`. The relative procfs route listed names even on a file whose mode denied a data open. The denied length stayed unknown and the inventory was partial. [Linux xattr syscall implementation](https://github.com/torvalds/linux/blob/master/fs/xattr.c) · [Linux x64 syscall table](https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl)
+
+A separate syscall capability check distinguishes kernel `ENOSYS` from a failed item lookup. Older kernels and other process architectures retain the descriptor-based inventory. That path, explicit value actions, and the bounded FIEMAP collector share the procfs directory check. The legacy descriptor remains subject to data-open permissions. [Linux procfs descriptor semantics](https://man7.org/linux/man-pages/man5/proc_pid_fd.5.html)
+
+The Ubuntu x64 suite passed 57 modern-route Core tests, including the existing ext4 and XFS extent checks. A filter confined to a separate test process simulated kernel `ENOSYS`. Its 20 passing tests exercised the legacy fallback and the unchanged permission refusal on a mode-zero file. A second simulation returned `ENOSYS` only for the actual item lookup and verified that FileCat surfaced the error without reopening. Nine App tests also passed. There were 13 platform or opt-in skips across these runs. The results are `modern.trx`, `legacy.trx`, `refused.trx`, and `app.trx` in `~/FileCatValidation/filecat-linux-inventory-28dcc768-r2`.
+
 ## Remaining gates
 
 F5 remains partial: qualify broader denial/change/native-budget and action/output cases, macOS bound/compression-visible inventory, and restore independently bounded hard-link/range/FIEMAP/retrieval-pointer collectors. Metadata-only reports continue to omit those collectors before acquisition. The [optional-column checkpoint](2026-11-17-columns.md) records subsequent F6 ownership/freshness work; native search-mask validation and wider qualification remain unfinished. Do not interpret these counts as complete plan acceptance.

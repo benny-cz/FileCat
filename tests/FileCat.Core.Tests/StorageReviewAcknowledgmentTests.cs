@@ -76,9 +76,48 @@ public sealed class StorageReviewAcknowledgmentTests
         var status = Acknowledge(evidence);
         Assert.False(status.ReviewPending); Assert.True(status.Current.History.EffectUncertain); Assert.True(status.Current.History.ReviewPending);
         Assert.NotNull(status.Acknowledgment); Assert.Equal(status.Current.Evidence, status.Acknowledgment.Reviewed.Evidence);
+        Assert.DoesNotContain("journalSchema", Encoding.UTF8.GetString(evidence.Files[status.Acknowledgment.ReportLeaf].Bytes.ToArray()));
         Assert.Equal(2, evidence.Files.Count); Assert.Equal(1, evidence.MaximumOpenArtifacts);
         Assert.False(JournalRecovery.ReadStorageReviewStatus(evidence, Stop).ReviewPending);
         Assert.All(evidence.Events.Where(e => e.StartsWith("publish", StringComparison.Ordinal)), e => Assert.Contains("owned", e));
+    }
+
+    [Fact]
+    public void Acknowledged_encryption_preserves_version_three_consent_and_key_after_journal_removal()
+    {
+        const string selectedPath = @"C:\source\file";
+        const string sid = "S-1-5-21-1-2-3-1000";
+        string thumbprint = new('A', 40);
+        var identity = new StorageObjectIdentity(8, new string('B', 32)) { VolumeBinding = "11111111-1111-1111-1111-111111111111" };
+        var before = new StorageObservation(StorageObservationState.Disabled, StorageObservationState.Disabled, identity, false, null);
+        var header = new StorageJournalHeader(Guid.NewGuid(), DateTime.UnixEpoch, StorageAction.EncryptEfs,
+            StorageScope.SelectedItems, Guid.NewGuid(), [new(0, 0, selectedPath, before)]) { RequiresEfsRecoveryEvidence = true };
+        var consent = StorageEfsConsent.Capture(header.ReviewRevision, header.Action, header.Scope, [identity], new(true, true));
+        header = header with { EfsConsent = consent };
+        var setup = new StorageEfsAssociationSnapshot(identity with { ObjectId = new string('C', 32) }, sid, [new(sid, thumbprint, null)],
+            [new(sid, thumbprint, true, true, StorageEfsKeyState.MatchedAvailable, StorageEfsKeyProvider.Capi, DateTime.UnixEpoch, null, null)]);
+        var approval = StorageEfsRecoveryApproval.DeclareArrangement(consent, new(setup, true, false, null, null, null, null),
+            thumbprint, acknowledged: true);
+        using var data = new MemoryStream();
+        using (var writer = new StorageTransformJournalWriter(data, () => { }, header))
+            writer.FlushIntent(0, selectedPath, before, approval);
+
+        using var evidence = new MemoryEvidence(data.ToArray(), StorageJournalPolicy.FileName(header.CreatedUtc, header.JobId));
+        var acknowledged = Acknowledge(evidence);
+        Assert.False(acknowledged.ReviewPending);
+        Assert.Equal(StorageJournalPolicy.EfsRecoveryVersion, acknowledged.Acknowledgment!.Reviewed.JournalSchema);
+        Assert.True(JournalRecovery.PruneStorageJournal(evidence, acknowledged.Current, Stop));
+        using var retained = new Retained(evidence);
+        string leaf = acknowledged.Acknowledgment.FileName;
+        var blob = evidence.Files[leaf];
+        var saved = JournalRecovery.ReadRetainedStorageReview(retained, new(leaf, blob.Identity, blob.Bytes.Length), Stop);
+        Assert.NotNull(saved);
+        Assert.False(saved.JournalPresent);
+        var history = saved.Report.Reviewed.History;
+        Assert.Equal(StorageJournalPolicy.EfsRecoveryVersion, history.JournalSchema);
+        Assert.Equal(consent.ConsentId, history.EfsConsent?.ConsentId);
+        Assert.Equal(approval.Evidence, history.LastCall?.EfsReviewedKey);
+        Assert.True(history.EffectUncertain);
     }
 
     [Fact]

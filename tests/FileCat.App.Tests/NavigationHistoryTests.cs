@@ -163,7 +163,9 @@ public sealed class NavigationHistoryTests
             KeyPress(window, Key.Down, PhysicalKey.ArrowDown);
             KeyPress(window, Key.Enter, PhysicalKey.Enter);
             await At(tab, d);
-            Assert.False(Button(window, CommandIds.Forward, "historyDropdown").IsEnabled);
+            Assert.False(tab.CanGoForward);
+            // Navigation commits before the coalesced toolbar refresh is dispatched.
+            await Until(() => !Button(window, CommandIds.Forward, "historyDropdown").IsEnabled);
         }
         finally { AccessibilityTests.Close(services, window, root); }
     }

@@ -19,7 +19,7 @@ public sealed unsafe partial class UnixFileRecords
         if (ReadMacVolumeFields(path, MacVolumeType, buffer, ct) != 0 || !MatchesMacApfsVolume(buffer, device, capabilities: false))
             return report;
 
-        var (sensitive, preserving) = ReadMacVolumeFields(path, MacVolumeType | MacVolumeCapabilities, buffer, ct) switch
+        var (sensitive, preserving, volumeVerified) = ReadMacVolumeFields(path, MacVolumeType | MacVolumeCapabilities, buffer, ct) switch
         {
             0 => ParseMacApfsNamespace(buffer, device),
             1 or 13 => MacNamespaceUnavailable(FactState.Denied, "The volume capabilities could not be read with this access."),
@@ -27,10 +27,13 @@ public sealed unsafe partial class UnixFileRecords
             22 or 45 => MacNamespaceUnavailable(FactState.Unsupported, "The volume did not support the capability query."),
             _ => MacNamespaceUnavailable(FactState.Failed, "The volume capability query failed."),
         };
+        const string apfsNormalization = "Canonically equivalent names match and the stored spelling is preserved (documented APFS behavior).";
+        string normalization = volumeVerified && OperatingSystem.IsMacOSVersionAtLeast(10, 13) ? apfsNormalization : "Not inspected";
         var section = new InspectionSection("APFS volume namespace", [
             ("Case sensitive", sensitive.Describe(YesNo)), ("Case preserving", preserving.Describe(YesNo)),
-            ("Unicode normalization", "Not inspected"), ("Observation", MacNamespaceSource)]);
+            ("Unicode normalization", normalization), ("Observation", MacNamespaceSource)]);
         report = report with { Technical = report.Technical with { Sections = [.. report.Technical.Sections, section] } };
+        report = AddMacApfsProtection(report, device, ct);
         return report.Summary.Kind == FileObjectKind.File ? AddMacApfsSharing(report, initial, ct) : report;
 
         static string YesNo(bool value) => value ? "Yes" : "No";
@@ -52,7 +55,8 @@ public sealed unsafe partial class UnixFileRecords
         return error;
     }
 
-    internal static (ObservedFact<bool> Sensitive, ObservedFact<bool> Preserving) ParseMacApfsNamespace(ReadOnlySpan<byte> fields, uint device)
+    internal static (ObservedFact<bool> Sensitive, ObservedFact<bool> Preserving, bool VolumeVerified) ParseMacApfsNamespace(
+        ReadOnlySpan<byte> fields, uint device)
     {
         if (!MatchesMacApfsVolume(fields, device, capabilities: true))
             return MacNamespaceUnavailable(FactState.Partial, "The second response did not establish APFS capabilities for the observed device.");
@@ -62,7 +66,7 @@ public sealed unsafe partial class UnixFileRecords
         ObservedFact<bool> Flag(uint bit) => (valid & bit) != 0
             ? ObservedFact<bool>.Known((flags & bit) != 0, FactScope.Volume, MacNamespaceSource)
             : ObservedFact<bool>.Unavailable(FactState.Unsupported, FactScope.Volume, MacNamespaceSource, "The capability bit is not valid on this volume.");
-        return (Flag(0x100), Flag(0x200)); // VOL_CAP_FMT_CASE_SENSITIVE | VOL_CAP_FMT_CASE_PRESERVING
+        return (Flag(0x100), Flag(0x200), true); // VOL_CAP_FMT_CASE_SENSITIVE | VOL_CAP_FMT_CASE_PRESERVING
     }
 
     private static bool MatchesMacApfsVolume(ReadOnlySpan<byte> fields, uint device, bool capabilities)
@@ -84,9 +88,9 @@ public sealed unsafe partial class UnixFileRecords
             fields.Slice(reference + offset, 5).SequenceEqual("apfs\0"u8);
     }
 
-    private static (ObservedFact<bool>, ObservedFact<bool>) MacNamespaceUnavailable(FactState state, string reason)
+    private static (ObservedFact<bool>, ObservedFact<bool>, bool) MacNamespaceUnavailable(FactState state, string reason)
     {
         var fact = ObservedFact<bool>.Unavailable(state, FactScope.Volume, MacNamespaceSource, reason);
-        return (fact, fact);
+        return (fact, fact, false);
     }
 }

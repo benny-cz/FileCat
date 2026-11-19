@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using FileCat.Core.FileSystem;
 using FileCat.Core.State;
 
 namespace FileCat.Core.Jobs;
@@ -289,6 +290,8 @@ public static partial class JournalRecovery
     private static bool ValidStorageReport(StorageRetainedReviewReport report, Guid association, Guid nonce) =>
         report is not null && report.Version == StorageReviewNames.Version && report.ReportId == nonce && report.Reviewed is not null &&
         report.Reviewed.AssociationId == association && report.Reviewed.History is not null && report.Reviewed.History.Prefix is not null &&
+        (report.Reviewed.History.JournalSchema is null || report.Reviewed.History is
+            { JournalSchema: StorageJournalPolicy.EfsRecoveryVersion, Action: StorageAction.EncryptEfs }) &&
         !report.Reviewed.History.Roots.IsDefault &&
         (report.Reviewed.History.Result is null || !report.Reviewed.History.Result.Roots.IsDefault && !report.Reviewed.History.Result.Reasons.IsDefault) &&
         ValidStorageVersion(report.Reviewed.Evidence) && report.Reviewed.Evidence.ByteLength >= report.Reviewed.History.Prefix.ByteLength &&

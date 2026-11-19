@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Inspect;
 using Microsoft.Win32.SafeHandles;
 
@@ -39,40 +40,21 @@ public sealed unsafe partial class UnixFileRecords
     {
         if (kind is not (FileObjectKind.File or FileObjectKind.Directory) || !MatchesLinuxIdentity(pin, expected, kind, ct))
             return (null, FactState.Changed, "The held regular file or directory could not be verified.");
-        ct.ThrowIfCancellationRequested();
-        int proc = Open("/proc/self/fd", 0x200000 | 0x80000 /* O_PATH | O_CLOEXEC */);
-        int error = proc < 0 ? Marshal.GetLastPInvokeError() : 0;
-        if (proc < 0)
-        {
-            ct.ThrowIfCancellationRequested();
-            return (null, LinuxMetadataFailure(error), $"The process descriptor directory is unavailable (errno {error}).");
-        }
+        var (proc, procError) = LinuxPinnedDescriptors.OpenDirectory(ct);
+        using var directory = proc;
+        if (directory is null)
+            return (null, LinuxMetadataFailure(procError), $"The process descriptor directory is unavailable on procfs (errno {procError}).");
+        var (descriptor, error) = LinuxPinnedDescriptors.ReopenReadOnly(directory, pin.ToString(CultureInfo.InvariantCulture), ct);
+        if (descriptor is null)
+            return (null, LinuxMetadataFailure(error), $"The pinned object could not be reopened for its metadata query (errno {error}).");
         try
         {
-            ct.ThrowIfCancellationRequested();
-            byte* filesystem = stackalloc byte[256];
-            bool procfs = DetailsFstatfs(proc, filesystem) == 0 && *(nint*)filesystem == 0x9fa0 /* PROC_SUPER_MAGIC */;
-            ct.ThrowIfCancellationRequested();
-            if (!procfs) return (null, FactState.Unsupported, "The process descriptor directory is unavailable on procfs.");
-            // In procfs the numeric descriptor is a kernel reference to the already pinned object. Keep the pin
-            // open across the reopen and never consult the original, potentially replaced pathname here.
-            int file = DetailsOpenAt(proc, pin.ToString(CultureInfo.InvariantCulture), 0x80000 | 0x800 | 0x100 /* O_CLOEXEC | O_NONBLOCK | O_NOCTTY */);
-            error = file < 0 ? Marshal.GetLastPInvokeError() : 0;
-            if (file < 0)
-            {
-                ct.ThrowIfCancellationRequested();
-                return (null, LinuxMetadataFailure(error), $"The pinned object could not be reopened for its metadata query (errno {error}).");
-            }
-            var descriptor = new SafeFileHandle((nint)file, ownsHandle: true);
-            try
-            {
-                if (MatchesLinuxIdentity(file, expected, kind, ct)) return (descriptor, FactState.Known, null);
-            }
-            catch { descriptor.Dispose(); throw; }
-            descriptor.Dispose();
-            return (null, FactState.Changed, "The reopened descriptor does not identify the held object.");
+            if (MatchesLinuxIdentity(descriptor.DangerousGetHandle().ToInt32(), expected, kind, ct))
+                return (descriptor, FactState.Known, null);
         }
-        finally { Close(proc); }
+        catch { descriptor.Dispose(); throw; }
+        descriptor.Dispose();
+        return (null, FactState.Changed, "The reopened descriptor does not identify the held object.");
     }
 
     private static bool MatchesLinuxIdentity(int fd, DetailsIdentity expected, FileObjectKind kind, CancellationToken ct)
@@ -168,9 +150,6 @@ public sealed unsafe partial class UnixFileRecords
                 Warnings = ["Not acquired: supplementary-data values and previews, raw volumes and journals, security value collectors and hard-link names."] },
         };
     }
-
-    [LibraryImport("libc", EntryPoint = "openat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
-    private static partial int DetailsOpenAt(int directory, string path, int flags);
 
     [LibraryImport("libc", EntryPoint = "fstatfs", SetLastError = true)]
     private static partial int DetailsFstatfs(int fd, byte* buffer);
