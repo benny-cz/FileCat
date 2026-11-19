@@ -11,6 +11,10 @@ on:
         description: Qualify EFS first use, independent restore, and default-key changes under fresh local accounts
         type: boolean
         default: false
+      managed_recovery:
+        description: Qualify EFS with a fixture recovery policy and an independent recovery agent
+        type: boolean
+        default: false
       archives:
         description: Qualify EFS protections for archive packing, editing and publication
         type: boolean
@@ -501,6 +505,15 @@ jobs:
           $tests = (Resolve-Path 'tests/FileCat.Platform.Windows.Tests/bin/Release/net10.0').Path
           & $desktopPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./eng/validation/Test-NativeEfsRecovery.ps1 -Root $root -TestBin $tests -DotNet (Get-Command dotnet).Source
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify EFS recovery under a fixture policy
+        if: inputs.managed_recovery
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP ('filecat-efs-recovery-' + [guid]::NewGuid().ToString('N'))
+          $desktopPowerShell = Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
+          $tests = (Resolve-Path 'tests/FileCat.Platform.Windows.Tests/bin/Release/net10.0').Path
+          & $desktopPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./eng/validation/Test-NativeEfsRecovery.ps1 -Root $root -TestBin $tests -DotNet (Get-Command dotnet).Source -Managed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Exercise the ARM64 Operations window under native load
         if: inputs.operations
         shell: pwsh
@@ -539,6 +552,7 @@ jobs:
             ${{ runner.temp }}/filecat-efs-recovery-*/data/restored-key.xml
             ${{ runner.temp }}/filecat-efs-recovery-*/data/multiple-keys.xml
             ${{ runner.temp }}/filecat-efs-recovery-*/data/key-change-*.xml
+            ${{ runner.temp }}/filecat-efs-recovery-*/data/managed-*.xml
             ${{ runner.temp }}/filecat-native-storage-operations/*.json
             ${{ runner.temp }}/filecat-native-storage-operations/operations-stage.txt
             ${{ runner.temp }}/filecat-native-storage-operations/fixture/data/local/journal/job-storage-*.fcj

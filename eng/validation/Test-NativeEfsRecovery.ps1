@@ -2,8 +2,9 @@ param(
     [Parameter(Mandatory)][string]$Root,
     [Parameter(Mandatory)][string]$DotNet,
     [string]$TestBin,
-    [ValidateSet('Controller','Owner','Recipient','KeyChanges')][string]$Role = 'Controller',
-    [string]$AccountSid
+    [ValidateSet('Controller','Owner','Recipient','KeyChanges','ManagedOwner','ManagedRecipient')][string]$Role = 'Controller',
+    [string]$AccountSid,
+    [switch]$Managed
 )
 
 $ErrorActionPreference = 'Stop'
@@ -16,6 +17,8 @@ $data = Join-Path $Root 'data'
 $testDll = Join-Path $Root 'bin\FileCat.Platform.Windows.Tests.dll'
 $source = Join-Path $data 'recovery-source.bin'
 $pfx = Join-Path $data 'test-key.pfx'
+$managedPfx = Join-Path $data 'managed-agent.pfx'
+$managedThumbprint = Join-Path $data 'managed-agent.txt'
 
 function Invoke-Case([string]$Method, [string]$Receipt) {
     $xmlPath = Join-Path $data $Receipt
@@ -33,6 +36,31 @@ function Get-EfsCertificate {
     Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.EnhancedKeyUsageList.ObjectId -contains '1.3.6.1.4.1.311.10.3.4' }
 }
 
+# MS-GPEF sections 2.2.1.2.1 and 2.2.1.2.2 define the one-agent policy value.
+function New-EfsPolicyBlob($Certificate, $Sid) {
+    $der = $Certificate.RawData
+    $principal = [byte[]]::new($Sid.BinaryLength)
+    $Sid.GetBinaryForm($principal, 0)
+    $entryLength = 32 + $principal.Length + $der.Length
+    $bytes = [IO.MemoryStream]::new()
+    $writer = [IO.BinaryWriter]::new($bytes)
+    try {
+        $writer.Write([byte[]]@(1,0,1,0))
+        $writer.Write([uint32]1)
+        $writer.Write([uint32]$entryLength)
+        $writer.Write([uint32]($entryLength - 4))
+        $writer.Write([uint32]28)
+        $writer.Write([uint32]2)
+        $writer.Write([uint32]$der.Length)
+        $writer.Write([uint32](28 + $principal.Length))
+        $writer.Write([uint64]0)
+        $writer.Write($principal)
+        $writer.Write($der)
+        $bytes.ToArray()
+    }
+    finally { $writer.Dispose(); $bytes.Dispose() }
+}
+
 if ($Role -ne 'Controller') {
     $user = $identity.Name.Split('\')[-1]
     $principal = [Security.Principal.WindowsPrincipal]::new($identity)
@@ -43,6 +71,35 @@ if ($Role -ne 'Controller') {
     $env:FILECAT_TEST_EFS = '1'
     $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
     $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+    if ($Role -in 'ManagedOwner','ManagedRecipient') {
+        $env:FILECAT_TEST_EFS_MANAGED_RECOVERY_ROOT = $data
+        $agentHash = (Get-Content -LiteralPath $managedThumbprint).Trim()
+        $managedSource = Join-Path $data 'managed-source.bin'
+        if ($Role -eq 'ManagedOwner') {
+            Invoke-Case 'Managed_recovery_fixture_encrypts_with_a_reviewed_user_key' 'managed-owner.xml'
+            $information = & (Join-Path $env:WINDIR 'System32\cipher.exe') /c $managedSource | Out-String
+            if ($LASTEXITCODE) { throw 'Windows could not inspect the managed recovery canary.' }
+            $fingerprints = [regex]::Matches($information, '(?im)\b(?:[a-f0-9]{4}[ \t]+){9}[a-f0-9]{4}\b') |
+                ForEach-Object { $_.Value -replace '\s', '' }
+            if ($agentHash -notin $fingerprints) { throw 'Windows did not attach the provisioned recovery agent to the canary.' }
+        } else {
+            if (@(Get-EfsCertificate).Count -ne 0) { throw 'The agent account must start without an ordinary EFS key.' }
+            $plain = Join-Path $data 'managed-plain-control.bin'
+            if ([IO.File]::ReadAllText($plain) -ne 'FileCat managed EFS recovery canary') { throw 'The matching ACL control could not be read.' }
+            $denied = $false
+            try { [void][IO.File]::ReadAllBytes($managedSource) }
+            catch {
+                if ($_.Exception.GetBaseException() -is [UnauthorizedAccessException]) { $denied = $true }
+                else { throw }
+            }
+            if (!$denied) { throw 'The agent account read the protected input before importing its unique recovery key.' }
+            $password = ConvertTo-SecureString ((Split-Path -Leaf $Root) + 'Managed#2a') -AsPlainText -Force
+            $imported = Import-PfxCertificate -FilePath $managedPfx -Password $password -CertStoreLocation Cert:\CurrentUser\My
+            if ($imported.Thumbprint -cne $agentHash -or !$imported.HasPrivateKey) { throw 'The managed recovery key did not match the policy.' }
+            Invoke-Case 'Managed_recovery_agent_decrypts_the_original_under_an_independent_account' 'managed-agent.xml'
+        }
+        exit 0
+    }
     if ($Role -eq 'KeyChanges') {
         $keys = @(Get-EfsCertificate)
         if ($keys.Count -ne 1 -or $keys[0].Thumbprint -cne (Get-Content -LiteralPath (Join-Path $data 'thumbprint.txt')).Trim()) {
@@ -101,6 +158,10 @@ if ($drive.DriveType -ne 'Fixed' -or $drive.DriveFormat -ne 'NTFS') { throw 'The
 $users = @()
 $credentials = @()
 $ownsRoot = $false
+$agent = $null
+$policyBlob = $null
+$agentStoreAdded = $false
+$efsPolicy = 'HKLM:\Software\Policies\Microsoft\SystemCertificates\EFS'
 try {
     foreach ($prefix in 'fcEfsSrc_', 'fcEfsRec_') {
         $name = $prefix + [guid]::NewGuid().ToString('N').Substring(0,8)
@@ -125,12 +186,42 @@ try {
     $security.SetSecurityDescriptorSddlForm($controlAcl + "(A;OICI;0x1301bf;;;${owner})(A;OICI;0x1301bf;;;${recipient})", $sections)
     $dataInfo.SetAccessControl($security)
 
+    if ($Managed) {
+        if ((Get-ItemProperty -LiteralPath $efsPolicy -Name EfsBlob -ErrorAction SilentlyContinue) -or
+            (Get-ChildItem -LiteralPath "$efsPolicy\Certificates" -ErrorAction SilentlyContinue)) {
+            throw 'Managed recovery requires a fresh runner with no existing EFS recovery policy.'
+        }
+        $publicCertificate = Join-Path $Root 'managed-agent.cer'
+        $agent = New-SelfSignedCertificate -Type Custom -Subject "CN=FileCat managed recovery $($users[1].Name)" `
+            -CertStoreLocation Cert:\CurrentUser\My -Provider 'Microsoft Enhanced RSA and AES Cryptographic Provider' `
+            -KeyAlgorithm RSA -KeyLength 2048 -KeySpec KeyExchange -KeyExportPolicy Exportable -KeyUsage KeyEncipherment,DataEncipherment `
+            -TextExtension '2.5.29.37={text}1.3.6.1.4.1.311.10.3.4.1' -NotAfter (Get-Date).AddDays(2)
+        $password = ConvertTo-SecureString ((Split-Path -Leaf $Root) + 'Managed#2a') -AsPlainText -Force
+        Export-Certificate -Cert $agent -FilePath $publicCertificate | Out-Null
+        Export-PfxCertificate -Cert $agent -FilePath $managedPfx -Password $password -ChainOption EndEntityCertOnly | Out-Null
+        $agent.Thumbprint | Set-Content -LiteralPath $managedThumbprint -Encoding Ascii
+        & certutil.exe -grouppolicy -addstore EFS $publicCertificate | Out-Null
+        if ($LASTEXITCODE) { throw 'Windows could not install the fixture public recovery certificate.' }
+        $agentStoreAdded = $true
+        $policyBlob = [byte[]](New-EfsPolicyBlob $agent $users[1].SID)
+        if (!(Test-Path -LiteralPath $efsPolicy)) { New-Item -Path $efsPolicy | Out-Null }
+        New-ItemProperty -LiteralPath $efsPolicy -Name EfsBlob -PropertyType Binary -Value $policyBlob | Out-Null
+        $service = Get-Service EFS
+        if ($service.Status -ne 'Running') { Start-Service -InputObject $service }
+        elseif ($service.CanStop) { Restart-Service -InputObject $service }
+        else {
+            & gpupdate.exe /target:computer /force /wait:30 | Out-Null
+            if ($LASTEXITCODE) { throw 'Windows could not refresh the fixture recovery policy.' }
+        }
+    }
+
     $action = Join-Path $Root 'fixture.ps1'
     Copy-Item -LiteralPath $PSCommandPath -Destination $action
     Copy-Item -LiteralPath $TestBin -Destination (Join-Path $Root 'bin') -Recurse
     $powershell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    foreach ($childRole in 'Owner','Recipient','KeyChanges') {
-        $accountIndex = if ($childRole -eq 'Recipient') { 1 } else { 0 }
+    $roles = if ($Managed) { 'ManagedOwner','ManagedRecipient' } else { 'Owner','Recipient','KeyChanges' }
+    foreach ($childRole in $roles) {
+        $accountIndex = if ($childRole -in 'Recipient','ManagedRecipient') { 1 } else { 0 }
         $params = @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',"`"$action`"",'-Root',"`"$Root`"",
             '-DotNet',"`"$DotNet`"",'-Role',$childRole,'-AccountSid',$users[$accountIndex].SID.Value)
         $output = Join-Path $Root "$childRole.out.log"
@@ -139,9 +230,19 @@ try {
             -WorkingDirectory $Root -RedirectStandardOutput $output -RedirectStandardError $errors -PassThru -Wait
         if ($child.ExitCode -ne 0) { Get-Content -LiteralPath $errors; throw "$childRole fixture exited with code $($child.ExitCode)." }
     }
-    'Passed first use, independent key restore, selection with distinct keys, and default-key change checks.'
+    if ($Managed) { 'Passed encryption under a recovery policy and decryption with the independent recovery agent.' }
+    else { 'Passed first use, independent key restore, selection with distinct keys, and default-key change checks.' }
 }
 finally {
+    if ($policyBlob) {
+        $current = (Get-ItemProperty -LiteralPath $efsPolicy -Name EfsBlob -ErrorAction SilentlyContinue).EfsBlob
+        if ($current -and [Convert]::ToBase64String($current) -ceq [Convert]::ToBase64String($policyBlob)) {
+            Remove-ItemProperty -LiteralPath $efsPolicy -Name EfsBlob -ErrorAction Continue
+        }
+    }
+    if ($agentStoreAdded) { & certutil.exe -grouppolicy -delstore EFS $agent.Thumbprint | Out-Null }
+    if ($agent) { Remove-Item -LiteralPath "Cert:\CurrentUser\My\$($agent.Thumbprint)" -DeleteKey -ErrorAction Continue }
     foreach ($account in $users) { Remove-LocalUser -InputObject $account -ErrorAction Continue }
     if ($ownsRoot -and (Test-Path -LiteralPath $pfx -PathType Leaf)) { Remove-Item -LiteralPath $pfx }
+    if ($ownsRoot -and (Test-Path -LiteralPath $managedPfx -PathType Leaf)) { Remove-Item -LiteralPath $managedPfx }
 }
