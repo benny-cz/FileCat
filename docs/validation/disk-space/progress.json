@@ -13124,7 +13124,7 @@
     }
   },
   "nextWork": [
-    "The implementation goal closes with the participant study deferred by the project owner. The study still needs responses to the r1795 handout. Default Fast NTFS follows the unavailable path while trusted release-installer qualification is pending. The following entries record earlier checkpoints.",
+    "The implementation goal closes with the independent participant study deferred by the project owner. The owner reviewed all five r1795 screens. Independent responses remain pending. Default Fast NTFS follows the unavailable path while trusted release-installer qualification is pending. The following entries record earlier checkpoints.",
     "Main40480c8e integration, internal progressive indexed previews, transactional recorded-result ownership handoff, scope preservation and dynamic live-region naming now have r1298 all-three scoped qualification. Indexed deferred selection and review now have r1328 evidence on all three platforms. Continue branch refresh/watchers, global resources and the remaining W0-W8 gates. Public entry remains off.",
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Progressive indexed startup and explicit recorded-result handoff now pass r1298; finish deferred indexed selection/review and the qualified public entry/lifecycle without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu normal native resize at480/1100 now passes (r978); maximize/restore and display changes remain unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
@@ -13150,9 +13150,10 @@
     "nativeDesktop": { "windowsVm": "r1793", "mac": "r1795", "ubuntuVm": "r1794 isolated X11" },
     "focusedRetest": { "run": "r1792", "passedPerPlatform": 3, "failedPerPlatform": 0 },
     "alternateScratchVolume": { "ubuntuVm": "r1796 ext4", "sourcePreserved": true, "detached": true },
-    "participantStudy": "pending-responses",
+    "participantStudy": "pending-independent-responses",
     "participantStudyDeferredByProjectOwnerOn": "2026-11-19",
     "participantStudyRequiredForGoalCompletion": false,
+    "projectOwnerWalkthrough": { "captureRun": "r1795", "screensReviewed": 5, "notes": "UX_COMPREHENSION_STUDY.md" },
     "scope": [
       "UX",
       "UI",
