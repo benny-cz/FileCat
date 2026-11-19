@@ -16,13 +16,14 @@ internal static partial class WindowsEfsCapiWorker
     internal const string Argument = "--efs-capi-key-access";
     private const string PipePrefix = "FileCat.EfsCapi.";
     private const int HashLength = 40, SidLimit = byte.MaxValue, HashOffset = sizeof(long) + 1 + SidLimit;
+    private const int ExportOffset = HashOffset + HashLength, ReplyLength = 4 * sizeof(int);
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(8);
 
-    internal readonly record struct Result(StorageEfsKeyState State, int NativeError);
+    internal readonly record struct Result(StorageEfsKeyState State, int NativeError, WindowsEfsKeys.BackupState? Backup, int BackupError);
     private static string Executable => Path.Join(AppContext.BaseDirectory, "FileCat.ShellHost.exe");
     internal static bool Available => File.Exists(Executable);
 
-    internal static Result? Compare(string sid, string hash, nint owner, CancellationToken ct)
+    internal static Result? Request(string sid, string hash, nint owner, bool export, CancellationToken ct)
     {
         using var pipeSlot = StorageNativeAllowance.RequireCurrent().ClaimScratch();
         using var processSlot = StorageNativeAllowance.RequireCurrent().ClaimScratch();
@@ -47,18 +48,26 @@ internal static partial class WindowsEfsCapiWorker
             pipe.WaitForConnectionAsync(ct).WaitAsync(ConnectTimeout, ct).GetAwaiter().GetResult();
             if (!GetNamedPipeClientProcessId(pipe.SafePipeHandle, out uint peer) || peer != (uint)worker.Id || worker.HasExited)
                 return null;
-            Span<byte> request = stackalloc byte[HashOffset + HashLength];
+            Span<byte> request = stackalloc byte[ExportOffset + 1];
             request.Clear();
             BinaryPrimitives.WriteInt64LittleEndian(request, owner.ToInt64());
             request[sizeof(long)] = checked((byte)Encoding.ASCII.GetBytes(sid.AsSpan(), request[(sizeof(long) + 1)..HashOffset]));
-            Encoding.ASCII.GetBytes(hash.AsSpan(), request[HashOffset..]);
+            Encoding.ASCII.GetBytes(hash.AsSpan(), request[HashOffset..ExportOffset]);
+            request[ExportOffset] = export ? (byte)1 : (byte)0;
             ct.ThrowIfCancellationRequested();
             pipe.Write(request);
-            byte[] reply = new byte[2 * sizeof(int)];
-            pipe.ReadExactlyAsync(reply, ct).AsTask().GetAwaiter().GetResult();
+            byte[] reply = new byte[ReplyLength];
+            // An admitted export can create a PFX even if the job is stopped. Retain ownership until Windows reports the result.
+            var wait = export ? CancellationToken.None : ct;
+            pipe.ReadExactlyAsync(reply, wait).AsTask().GetAwaiter().GetResult();
             if (!worker.WaitForExit((int)ConnectTimeout.TotalMilliseconds) || worker.ExitCode != 0) return null;
-            ct.ThrowIfCancellationRequested();
-            return new((StorageEfsKeyState)BinaryPrimitives.ReadInt32LittleEndian(reply), BinaryPrimitives.ReadInt32LittleEndian(reply.AsSpan(sizeof(int))));
+            wait.ThrowIfCancellationRequested();
+            var state = (StorageEfsKeyState)BinaryPrimitives.ReadInt32LittleEndian(reply);
+            int error = BinaryPrimitives.ReadInt32LittleEndian(reply.AsSpan(sizeof(int)));
+            int backup = BinaryPrimitives.ReadInt32LittleEndian(reply.AsSpan(2 * sizeof(int)));
+            int backupError = BinaryPrimitives.ReadInt32LittleEndian(reply.AsSpan(3 * sizeof(int)));
+            if (!Enum.IsDefined(state) || (backup != -1 && (!export || !Enum.IsDefined((WindowsEfsKeys.BackupState)backup)))) return null;
+            return new(state, error, backup == -1 ? null : (WindowsEfsKeys.BackupState)backup, backupError);
         }
         catch (Exception error) when (error is IOException or TimeoutException or Win32Exception or InvalidOperationException or UnauthorizedAccessException)
         { return null; }
@@ -98,19 +107,22 @@ internal static partial class WindowsEfsCapiWorker
                 return 2;
             parent.Exited += static (_, _) => Environment.Exit(2);
             parent.EnableRaisingEvents = true;
-            Span<byte> request = stackalloc byte[HashOffset + HashLength];
+            Span<byte> request = stackalloc byte[ExportOffset + 1];
             pipe.ReadExactly(request);
             int sidLength = request[sizeof(long)];
-            if (sidLength == 0) return 2;
+            if (sidLength == 0 || request[ExportOffset] > 1) return 2;
             string sid = Encoding.ASCII.GetString(request.Slice(sizeof(long) + 1, sidLength));
-            string hash = Encoding.ASCII.GetString(request[HashOffset..]);
+            string hash = Encoding.ASCII.GetString(request[HashOffset..ExportOffset]);
             var owner = (nint)BinaryPrimitives.ReadInt64LittleEndian(request);
             using var native = StorageReviewResources.EnterNative(CancellationToken.None);
-            var evidence = new WindowsEfsKeys(qualifyNativeArm64: true).InspectCapiInWorker(sid, hash, owner, parentId, CancellationToken.None);
+            var result = new WindowsEfsKeys(qualifyNativeArm64: true)
+                .InspectCapiInWorker(sid, hash, owner, parentId, export: request[ExportOffset] == 1, CancellationToken.None);
             if (parent.HasExited) return 2;
-            Span<byte> reply = stackalloc byte[2 * sizeof(int)];
-            BinaryPrimitives.WriteInt32LittleEndian(reply, (int)evidence.State);
-            BinaryPrimitives.WriteInt32LittleEndian(reply[sizeof(int)..], evidence.NativeError ?? 0);
+            Span<byte> reply = stackalloc byte[ReplyLength];
+            BinaryPrimitives.WriteInt32LittleEndian(reply, (int)result.State);
+            BinaryPrimitives.WriteInt32LittleEndian(reply[sizeof(int)..], result.NativeError);
+            BinaryPrimitives.WriteInt32LittleEndian(reply[(2 * sizeof(int))..], (int?)result.Backup ?? -1);
+            BinaryPrimitives.WriteInt32LittleEndian(reply[(3 * sizeof(int))..], result.BackupError);
             pipe.Write(reply);
             return 0;
         }

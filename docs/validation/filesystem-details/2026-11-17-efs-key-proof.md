@@ -104,4 +104,6 @@ Windows 11 x64 build 26340 executed 21 focused cases at medium integrity with ze
 
 The platform assembly SHA-256 was `B76023363463815691E2E430A26A5CD592E13420CECFBE3FC843D1E1876E8530`. The test assembly SHA-256 was `B5118C95F82A908FF9F5AD064E323E3DCF1F9DDD206065F6D5EA8BC3B2A82D01`. The ShellHost assembly SHA-256 was `00D996AB2972078F3ABAC5F00EB889A74365C907B100309FB53E080137160CDA`.
 
-Live CryptoAPI credential prompts and private-key export through an interactive CryptoAPI provider still need qualification. The hosted ARM64 key workflow includes the isolated comparison.
+At `ea0ff113`, the native ARM64 workflow executed and passed all four parented key cases, including the isolated CryptoAPI comparison, all 11 key and recovery checks and four wizard cases. The artifact contains `native-efs-parented-provider.trx`, `native-efs-keys.trx` and `native-efs-wizard.trx`. [Native Windows ARM64 receipts](https://github.com/benny-cz/FileCat/actions/runs/44539956379)
+
+The same one-request process supports [exports of the freshly compared CryptoAPI key](2026-11-18-efs-selected-file-backup.md#isolated-cryptoapi-export). Live credential prompts still need an isolated interactive desktop and a provider that requires credentials.

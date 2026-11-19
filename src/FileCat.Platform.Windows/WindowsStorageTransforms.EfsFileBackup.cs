@@ -27,7 +27,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 foreach (var key in association.CurrentUserKeys)
                 {
                     var observed = new StorageEfsFileBackupKey(key.CertificateSha1, key.Subject, key.State, key.Problem,
-                        RequiresProviderAccess: canInvokeProviderOwner && WindowsEfsKeys.NeedsParentedCngAccess(key));
+                        RequiresProviderAccess: canInvokeProviderOwner && WindowsEfsKeys.CanRequestKeyAccess(key));
                     if (!keys.TryGetValue(key.CertificateSha1, out var option))
                     {
                         if (keys.Count == SelectedBackupKeyLimit)
@@ -73,7 +73,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
 
         var backup = _efsKeys.BackUpAssociatedCertificate(reviewed, certificateSha1, ownerWindow, explicitlyRequested: true, ct,
             invokeWizard, allowProviderAccess ? invokeProviderOwner : null);
-        if (backup.Completion is null) return new(false, backup.State == WindowsEfsKeys.BackupState.Canceled, [], backup.Problem);
+        if (backup.Completion is null) return new(backup.State == WindowsEfsKeys.BackupState.WindowsReportedComplete,
+            backup.State == WindowsEfsKeys.BackupState.Canceled, [], backup.Problem);
 
         var covered = ImmutableArray.CreateBuilder<int>();
         try
@@ -99,7 +100,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         if (item.Identity is not { } identity || !item.Certificates.Contains(hash, StringComparer.Ordinal)) return null;
         var (association, _) = ReadBackupAssociation(item.Target, sid, identity, ct);
         return association?.CurrentUserKeys.Any(key => key.InvokerSid == sid && key.CertificateSha1 == hash &&
-            (key.State == StorageEfsKeyState.MatchedAvailable || (allowProviderAccess && WindowsEfsKeys.NeedsParentedCngAccess(key)))) == true
+            (key.State == StorageEfsKeyState.MatchedAvailable || (allowProviderAccess && WindowsEfsKeys.CanRequestKeyAccess(key)))) == true
             ? association : null;
     }
 

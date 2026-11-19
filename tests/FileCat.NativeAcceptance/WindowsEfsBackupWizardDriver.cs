@@ -15,10 +15,23 @@ namespace FileCat.NativeAcceptance
 
         public static void Drive(IntPtr owner, bool complete, string path, string password)
         {
+            DriveOwned(owner, complete, path, password, string.Empty);
+        }
+
+        public static void DriveIsolated(IntPtr owner, bool complete, string path, string password, string workerExecutable)
+        {
+            DriveOwned(owner, complete, path, password, workerExecutable);
+        }
+
+        private static void DriveOwned(IntPtr owner, bool complete, string path, string password, string workerExecutable)
+        {
             uint process;
             if (GetWindowThreadProcessId(owner, out process) == 0)
                 throw new InvalidOperationException("The qualification window has closed.");
-            var wizard = WaitFor(() => OwnedWindow(owner, process, "Back up EFS key"), "parented export wizard");
+            uint ownerProcess = process;
+            var wizard = WaitFor(() => OwnedWindow(owner, ownerProcess, "Back up EFS key", workerExecutable), "parented export wizard");
+            if (GetWindowThreadProcessId(wizard, out process) == 0)
+                throw new InvalidOperationException("The qualification wizard has closed.");
             try
             {
                 if (!complete)
@@ -70,19 +83,36 @@ namespace FileCat.NativeAcceptance
                 throw new InvalidOperationException("The owned wizard rejected the input text.");
         }
 
-        private static IntPtr OwnedWindow(IntPtr owner, uint process, string title)
+        private static IntPtr OwnedWindow(IntPtr owner, uint process, string title, string workerExecutable = "")
         {
             IntPtr result = IntPtr.Zero;
             EnumWindows((window, _) =>
             {
                 uint actualProcess;
                 if (GetWindow(window, 4) != owner || GetWindowThreadProcessId(window, out actualProcess) == 0 ||
-                    actualProcess != process || !IsWindowVisible(window) || title.Length != 0 && WindowText(window) != title)
+                    !IsWindowVisible(window) || title.Length != 0 && WindowText(window) != title)
+                    return true;
+                if (workerExecutable.Length == 0 ? actualProcess != process : actualProcess == process || !RunningExecutable(actualProcess, workerExecutable))
                     return true;
                 result = window;
                 return false;
             }, IntPtr.Zero);
             return result;
+        }
+
+        private static bool RunningExecutable(uint process, string executable)
+        {
+            try
+            {
+                using (var child = Process.GetProcessById(checked((int)process)))
+                {
+                    var module = child.MainModule;
+                    return module != null && string.Equals(module.FileName, executable, StringComparison.OrdinalIgnoreCase);
+                }
+            }
+            catch (ArgumentException) { return false; }
+            catch (InvalidOperationException) { return false; }
+            catch (System.ComponentModel.Win32Exception) { return false; }
         }
 
         private static IntPtr Control(IntPtr window, int id, string text = "", bool enabled = false)

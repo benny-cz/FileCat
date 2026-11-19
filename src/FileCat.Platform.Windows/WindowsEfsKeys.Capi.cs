@@ -8,7 +8,7 @@ internal sealed unsafe partial class WindowsEfsKeys
     private const uint ParentedCapiFlags = 0x4 | 0x8 | 0x80; // COMPARE, NO_HEALING, WINDOW_HANDLE
     private sealed record CapiInteraction(nint Owner, int Parent);
 
-    internal static bool CanRequestSetupKeyAccess(StorageEfsKeyEvidence key) =>
+    internal static bool CanRequestKeyAccess(StorageEfsKeyEvidence key) =>
         NeedsParentedCngAccess(key) || (NeedsParentedCapiAccess(key) && WindowsEfsCapiWorker.Available);
 
     private static bool NeedsParentedCapiAccess(StorageEfsKeyEvidence key) =>
@@ -33,7 +33,7 @@ internal sealed unsafe partial class WindowsEfsKeys
             return Unknown("efs-key-review", "Choose a CryptoAPI key that requires access in the current EFS review.");
 
         RequireInvoker(sid, ct);
-        var result = WindowsEfsCapiWorker.Compare(sid, certificateSha1, ownerWindow, ct);
+        var result = WindowsEfsCapiWorker.Request(sid, certificateSha1, ownerWindow, export: false, ct);
         RequireInvoker(sid, ct);
         if (OwnedWindowThread(ownerWindow) == 0)
             return Unknown("efs-key-owner", "The reviewed FileCat window closed before key access was confirmed.");
@@ -49,16 +49,35 @@ internal sealed unsafe partial class WindowsEfsKeys
             Evidence(sid, certificateSha1, null, null, StorageEfsKeyState.Unknown, StorageEfsKeyProvider.Capi, null, code, message);
     }
 
-    internal StorageEfsKeyEvidence InspectCapiInWorker(string sid, string hash, nint owner, int parent, CancellationToken ct)
+    private BackupResult BackUpCapiKey(StorageEfsAssociationSnapshot association, string hash, nint owner, CancellationToken ct)
+    {
+        string sid = association.InvokerSid;
+        RequireInvoker(sid, ct);
+        var result = WindowsEfsCapiWorker.Request(sid, hash, owner, export: true, ct);
+        RequireInvoker(sid, CancellationToken.None);
+        if (result is { Backup: BackupState.WindowsReportedComplete } completed &&
+            (completed.State != StorageEfsKeyState.MatchedAvailable || OwnedWindowThread(owner) == 0))
+            return new(BackupState.WindowsReportedComplete, null, new(StorageReasonKind.Unknown, "efs-backup-worker-unconfirmed",
+                "Windows reported that the export completed. Key access could not be confirmed for this review.", true));
+        if (result is { Backup: { } backup } reported)
+            return BackupOutcome(association, hash, new(backup, reported.BackupError));
+        if (result is { State: StorageEfsKeyState.Unavailable, NativeError: BadPublicKey })
+            return Refused("efs-key-mismatch", "The private key does not match the exact file-associated certificate.", BadPublicKey);
+        return Refused("efs-backup-worker", "The isolated CryptoAPI worker could not verify the reviewed key and complete the backup.", result?.NativeError);
+    }
+
+    internal WindowsEfsCapiWorker.Result InspectCapiInWorker(string sid, string hash, nint owner, int parent, bool export, CancellationToken ct)
     {
         if (!ExternalCapiOwner(owner, parent))
-            return Evidence(sid, hash, null, null, StorageEfsKeyState.Unknown, StorageEfsKeyProvider.Capi, null,
-                "efs-key-owner", "The live FileCat window could not be verified.");
-        return InspectAssociatedCertificate(sid, hash, ct, useMatchedCertificate: null, capi: new(owner, parent));
+            return new(StorageEfsKeyState.Unknown, 0, null, 0);
+        NativeBackup? backup = null;
+        var evidence = InspectAssociatedCertificate(sid, hash, ct, export ? certificate => backup = ExportPrivateKey(certificate, owner) : null,
+            capi: new(owner, parent));
+        return new(evidence.State, evidence.NativeError ?? 0, backup?.State, backup?.Error ?? 0);
     }
 
     private static StorageEfsKeyEvidence CompareIsolatedCapiKey(nint fresh, string sid, string hash,
-        CapiInteraction window, uint expectedKeySpec, CancellationToken ct)
+        CapiInteraction window, uint expectedKeySpec, Action<nint>? useMatchedCertificate, CancellationToken ct)
     {
         if (!ExternalCapiOwner(window.Owner, window.Parent))
             return Unknown("efs-key-owner", "The live FileCat window could not be verified.");
@@ -67,11 +86,24 @@ internal sealed unsafe partial class WindowsEfsKeys
         nint parent = window.Owner, key = 0;
         uint keySpec = 0;
         bool callerFree = false, acquired = false, reset, released;
-        int error = 0;
+        StorageEfsKeyEvidence result;
         try
         {
             acquired = Acquire(fresh, ParentedCapiFlags, (nint)(&parent), out key, out keySpec, out callerFree);
-            if (!acquired) error = Marshal.GetLastPInvokeError();
+            int error = acquired ? 0 : Marshal.GetLastPInvokeError();
+            RequireInvoker(sid, ct);
+            if (!ExternalCapiOwner(window.Owner, window.Parent))
+                result = Unknown("efs-key-owner", "The live FileCat window changed during key access.");
+            else if (!acquired)
+                result = Error(sid, hash, true, true, error, "efs-private-key", "Windows could not acquire and compare this private key.",
+                    StorageEfsKeyProvider.Capi);
+            else if (!callerFree || key == 0 || keySpec != expectedKeySpec)
+                result = Unknown("efs-key-comparison-unestablished", "A fresh owned CryptoAPI key comparison could not be established.");
+            else
+            {
+                useMatchedCertificate?.Invoke(fresh);
+                result = Evidence(sid, hash, true, true, StorageEfsKeyState.MatchedAvailable, StorageEfsKeyProvider.Capi, null, null, null);
+            }
         }
         finally
         {
@@ -85,12 +117,7 @@ internal sealed unsafe partial class WindowsEfsKeys
             return Unknown("efs-key-window-cleanup", "Windows did not confirm cleanup of the CryptoAPI key or its parent window.");
         if (!ExternalCapiOwner(window.Owner, window.Parent))
             return Unknown("efs-key-owner", "The live FileCat window changed during key access.");
-        if (!acquired)
-            return Error(sid, hash, true, true, error, "efs-private-key", "Windows could not acquire and compare this private key.",
-                StorageEfsKeyProvider.Capi);
-        if (!callerFree || key == 0 || keySpec != expectedKeySpec)
-            return Unknown("efs-key-comparison-unestablished", "A fresh owned CryptoAPI key comparison could not be established.");
-        return Evidence(sid, hash, true, true, StorageEfsKeyState.MatchedAvailable, StorageEfsKeyProvider.Capi, null, null, null);
+        return result;
 
         StorageEfsKeyEvidence Unknown(string code, string message) =>
             Evidence(sid, hash, true, true, StorageEfsKeyState.Unknown, StorageEfsKeyProvider.Capi, null, code, message);

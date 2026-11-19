@@ -8,6 +8,7 @@ internal sealed unsafe partial class WindowsEfsKeys
 {
     internal enum BackupState { WindowsReportedComplete, Canceled, Unavailable }
     internal sealed record BackupResult(BackupState State, int? NativeError, StorageProblem? Problem, StorageEfsBackupCompletion? Completion = null);
+    private readonly record struct NativeBackup(BackupState State, int Error);
     internal delegate BackupResult InvokeBackupWizard(Func<BackupResult> show);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -36,6 +37,12 @@ internal sealed unsafe partial class WindowsEfsKeys
             return Refused("efs-backup-association", "The selected certificate is outside the invoking user's observed EFS associations.");
         if (OwnedWindowThread(ownerWindow) == 0)
             return Refused("efs-backup-owner", "Open the EFS backup wizard from a visible FileCat window.");
+
+        if (invokeProviderOwner is not null && WindowsEfsCapiWorker.Available && !association.CurrentUserKeys.IsDefaultOrEmpty &&
+            association.CurrentUserKeys.Any(key => key.InvokerSid == association.InvokerSid && key.CertificateSha1 == certificateSha1 &&
+                key is { Provider: StorageEfsKeyProvider.Capi, CertificatePresent: true, ProviderAssociationPresent: true,
+                    State: StorageEfsKeyState.InteractionRequired or StorageEfsKeyState.MatchedAvailable }))
+            return BackUpCapiKey(association, certificateSha1, ownerWindow, ct);
 
         var interaction = invokeProviderOwner is not null && !association.CurrentUserKeys.IsDefaultOrEmpty &&
             association.CurrentUserKeys.Any(key => key.InvokerSid == association.InvokerSid &&
@@ -74,19 +81,30 @@ internal sealed unsafe partial class WindowsEfsKeys
                     return Refused("efs-backup-owner", "Open the EFS backup wizard from a live FileCat window on its UI thread.");
                 CheckInvoker(association.InvokerSid, ct);
 
-                var export = new ExportInfo { Size = (uint)sizeof(ExportInfo), SubjectChoice = 1 /* CERT_CONTEXT */, Certificate = fresh };
-                // Windows collects the destination and password. The private key is mandatory and cannot be deleted.
-                const uint exportPrivateKey = 0x0100, noDeletePrivateKey = 0x0200;
-                bool complete = CryptUIWizExport(exportPrivateKey | noDeletePrivateKey, ownerWindow, "Back up EFS key", &export, 0);
-                int error = complete ? 0 : Marshal.GetLastPInvokeError();
-                return complete ? new(BackupState.WindowsReportedComplete, null, null, new(association.Identity, association.InvokerSid, certificateSha1))
-                    : error == 1223 /* ERROR_CANCELLED */
-                    ? new(BackupState.Canceled, error, null)
-                    : Refused("efs-backup-wizard", "Windows did not report completion of the EFS private-key export.", error);
+                return BackupOutcome(association, certificateSha1, ExportPrivateKey(fresh, ownerWindow));
             }
         }, interaction);
         return result ?? new(BackupState.Unavailable, evidence.NativeError, evidence.Problem);
     }
+
+    private static NativeBackup ExportPrivateKey(nint certificate, nint owner)
+    {
+        var export = new ExportInfo { Size = (uint)sizeof(ExportInfo), SubjectChoice = 1 /* CERT_CONTEXT */, Certificate = certificate };
+        // Windows collects the destination and password. The private key is mandatory and cannot be deleted.
+        const uint exportPrivateKey = 0x0100, noDeletePrivateKey = 0x0200;
+        if (CryptUIWizExport(exportPrivateKey | noDeletePrivateKey, owner, "Back up EFS key", &export, 0))
+            return new(BackupState.WindowsReportedComplete, 0);
+        int error = Marshal.GetLastPInvokeError();
+        return new(error == 1223 /* ERROR_CANCELLED */ ? BackupState.Canceled : BackupState.Unavailable, error);
+    }
+
+    private static BackupResult BackupOutcome(StorageEfsAssociationSnapshot association, string hash, NativeBackup backup) =>
+        backup.State switch
+        {
+            BackupState.WindowsReportedComplete => new(backup.State, null, null, new(association.Identity, association.InvokerSid, hash)),
+            BackupState.Canceled => new(backup.State, backup.Error, null),
+            _ => Refused("efs-backup-wizard", "Windows did not report completion of the EFS private-key export.", backup.Error),
+        };
 
     private static uint OwnedWindowThread(nint window)
     {

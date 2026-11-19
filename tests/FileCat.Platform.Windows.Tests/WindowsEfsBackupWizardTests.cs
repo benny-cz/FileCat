@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using FileCat.Core.FileSystem;
@@ -161,6 +163,125 @@ public sealed partial class WindowsEfsBackupWizardTests
         }
         finally { Directory.Delete(root, recursive: true); }
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Isolated_CryptoAPI_wizard_cancels_or_exports_the_compared_private_key(bool complete)
+    {
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipUnless(WindowsStorageTransforms.SupportsHost(qualifyNativeArm64) &&
+            Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_BACKUP_WIZARD") == "1",
+            "Requires the disposable Windows native export fixture.");
+        string host = Path.Join(AppContext.BaseDirectory, "FileCat.ShellHost.exe");
+        Assert.True(File.Exists(host));
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-capi-export-").FullName;
+        string path = Path.Join(root, "synthetic.pfx"), name = "FileCat.EfsIsolatedExport." + Guid.NewGuid().ToString("N");
+        using var key = new RSACryptoServiceProvider(2048, new CspParameters(24)
+        {
+            KeyContainerName = name, KeyNumber = (int)KeyNumber.Exchange, Flags = CspProviderFlags.NoPrompt,
+        });
+        Assert.Equal(name, key.CspKeyContainerInfo.KeyContainerName);
+        key.PersistKeyInCsp = false;
+        Assert.True(key.CspKeyContainerInfo.Exportable);
+        var request = new CertificateRequest("CN=" + name, key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
+            new OidCollection { new("1.3.6.1.5.5.7.3.2") }, true)); // Keep the temporary certificate out of EFS default selection.
+        using var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
+        using var identity = WindowsIdentity.GetCurrent();
+        string sid = identity.User!.Value, hash = certificate.Thumbprint;
+        var association = new StorageEfsAssociationSnapshot(new(1, "00000000000000000000000000000001"), sid,
+            [new(sid, hash, null)], [new(sid, hash, true, true, StorageEfsKeyState.InteractionRequired,
+                StorageEfsKeyProvider.Capi, DateTime.UtcNow, null, null)]);
+        using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+        store.Open(OpenFlags.ReadWrite | OpenFlags.OpenExistingOnly);
+        store.Add(certificate);
+        var finished = new TaskCompletionSource<WindowsEfsKeys.BackupResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            var ui = new Thread(() =>
+            {
+                nint owner = 0;
+                try
+                {
+                    owner = CreateWindow(0, "STATIC", "FileCat isolated export owner", 0x00CF0000, 80, 80, 480, 360, 0, 0, 0, 0);
+                    Assert.NotEqual(0, owner);
+                    ShowWindow(owner, 5);
+                    var export = Task.Run(() =>
+                    {
+                        using var native = StorageReviewResources.EnterNative(ct);
+                        var driver = Task.Run(() => WindowsEfsBackupWizardDriver.DriveIsolated(owner, complete, path, FixturePassword, host), ct);
+                        var result = new WindowsEfsKeys(qualifyNativeArm64).BackUpAssociatedCertificate(association, hash, owner, true, ct,
+                            invokeProviderOwner: _ => throw new InvalidOperationException("CryptoAPI must use its separate worker."));
+                        driver.GetAwaiter().GetResult();
+                        return result;
+                    }, ct);
+                    var elapsed = Stopwatch.StartNew();
+                    while (!export.IsCompleted)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        if (elapsed.Elapsed > TimeSpan.FromSeconds(30)) throw new TimeoutException("The isolated export did not retire.");
+                        while (PeekMessage(out var message, 0, 0, 0, 1))
+                        {
+                            TranslateMessage(ref message);
+                            DispatchMessage(ref message);
+                        }
+                        Thread.Sleep(10);
+                    }
+                    finished.TrySetResult(export.GetAwaiter().GetResult());
+                }
+                catch (Exception error) { finished.TrySetException(error); }
+                finally { if (owner != 0) DestroyWindow(owner); }
+            }) { IsBackground = true };
+            ui.SetApartmentState(ApartmentState.STA);
+            ui.Start();
+            var result = await finished.Task.WaitAsync(TimeSpan.FromSeconds(35), ct);
+            Assert.Null(result.Problem);
+            if (complete)
+            {
+                Assert.Equal(WindowsEfsKeys.BackupState.WindowsReportedComplete, result.State);
+                Assert.Equal(association.Identity, result.Completion?.ObservedIdentity);
+                Assert.Equal(hash, result.Completion?.CertificateSha1);
+                using var restored = X509CertificateLoader.LoadPkcs12FromFile(path, FixturePassword, X509KeyStorageFlags.EphemeralKeySet);
+                Assert.Equal(hash, restored.Thumbprint);
+                Assert.True(restored.HasPrivateKey);
+            }
+            else
+            {
+                Assert.Equal(WindowsEfsKeys.BackupState.Canceled, result.State);
+                Assert.Equal(1223, result.NativeError);
+                Assert.Null(result.Completion);
+                Assert.False(File.Exists(path));
+            }
+        }
+        finally
+        {
+            store.Remove(certificate);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowMessage
+    {
+        public nint Window;
+        public uint Message;
+        public nint WParam, LParam;
+        public uint Time;
+        public int X, Y;
+        public uint Private;
+    }
+
+    [DllImport("user32.dll", EntryPoint = "PeekMessageW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PeekMessage(out WindowMessage message, nint window, uint min, uint max, uint flags);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool TranslateMessage(ref WindowMessage message);
+    [DllImport("user32.dll", EntryPoint = "DispatchMessageW")]
+    private static extern nint DispatchMessage(ref WindowMessage message);
 
     [DllImport("user32.dll", EntryPoint = "CreateWindowExW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern nint CreateWindow(uint exStyle, string className, string caption, uint style, int x, int y, int width, int height,

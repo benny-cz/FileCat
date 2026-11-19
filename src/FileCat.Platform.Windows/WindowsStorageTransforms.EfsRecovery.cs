@@ -31,6 +31,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         var association = setup.Association ?? throw Refuse("efs-setup-association", "Windows did not establish the actual setup key association.");
         string? previous = null;
         string? selectedCertificate = null;
+        var accessedCapiKeys = new HashSet<string>(StringComparer.Ordinal);
         while (true)
         {
             ct.ThrowIfCancellationRequested();
@@ -38,7 +39,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 key.CertificatePresent == true && key.ProviderAssociationPresent == true &&
                 association.Users.Any(user => user.Sid == invokerSid && user.CertificateSha1 == key.CertificateSha1) &&
                 (key.State == StorageEfsKeyState.MatchedAvailable ||
-                 (invokeProviderOwner is not null && WindowsEfsKeys.CanRequestSetupKeyAccess(key))))
+                 (invokeProviderOwner is not null && WindowsEfsKeys.CanRequestKeyAccess(key))))
                 .Select(key => new StorageEfsRecoveryKeyOption(key.CertificateSha1, key.Subject,
                     RequiresProviderAccess: key.State == StorageEfsKeyState.InteractionRequired)).ToImmutableArray();
             if (keys.IsEmpty) throw Refuse("efs-setup-key-unavailable", "The actual setup key could not be matched to an accessible private key for this account.");
@@ -66,6 +67,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
                     association = association with { CurrentUserKeys = association.CurrentUserKeys.Select(key =>
                         key.InvokerSid == invokerSid && key.CertificateSha1 == selectedCertificate ? compared : key).ToImmutableArray() };
                     setup = setup with { Association = association };
+                    if (provider == StorageEfsKeyProvider.Capi) accessedCapiKeys.Add(compared.CertificateSha1);
                     previous = null;
                 }
                 else previous = compared.Problem?.Message ?? "Windows could not verify access to this EFS key.";
@@ -77,7 +79,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 throw Refuse("efs-recovery-action", "Choose a recovery declaration or request the Windows backup wizard.");
 
             var backup = job.RunEfsRecoveryInteraction(() => _efsKeys.BackUpAssociatedCertificate(association,
-                selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct, invokeWizard));
+                selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct, invokeWizard,
+                accessedCapiKeys.Contains(selected.CertificateSha1) ? invokeProviderOwner : null));
             ct.ThrowIfCancellationRequested();
             if (backup.Completion is { } completed) return StorageEfsRecoveryApproval.RecordWindowsExport(consent, setup, completed);
             previous = backup.Problem?.Message ?? "Windows canceled the backup. You can retry or declare an existing recovery arrangement.";

@@ -116,7 +116,7 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
             }
             using var keyCharge = allowance.ClaimScratch();
             ct.ThrowIfCancellationRequested();
-            if (capi is not null) return CompareIsolatedCapiKey(fresh, invokerSid, certificateSha1, capi, binding.KeySpec, ct);
+            if (capi is not null) return CompareIsolatedCapiKey(fresh, invokerSid, certificateSha1, capi, binding.KeySpec, useMatchedCertificate, ct);
             if (interaction is not null)
             {
                 using var ownerTokenCharge = allowance.ClaimScratch();

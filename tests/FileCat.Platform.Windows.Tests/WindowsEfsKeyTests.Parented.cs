@@ -69,8 +69,8 @@ public sealed unsafe partial class WindowsEfsKeyTests
         string sid = Sid, hash = first.Certificate.Thumbprint;
         var pending = new StorageEfsKeyEvidence(sid, hash, true, true, StorageEfsKeyState.InteractionRequired,
             StorageEfsKeyProvider.Capi, DateTime.UtcNow, null, null);
-        Assert.True(WindowsEfsKeys.CanRequestSetupKeyAccess(pending));
-        Assert.False(WindowsEfsKeys.CanRequestSetupKeyAccess(pending with { ProviderAssociationPresent = null }));
+        Assert.True(WindowsEfsKeys.CanRequestKeyAccess(pending));
+        Assert.False(WindowsEfsKeys.CanRequestKeyAccess(pending with { ProviderAssociationPresent = null }));
         var association = new StorageEfsAssociationSnapshot(new(1, "00000000000000000000000000000001"), sid,
             [new(sid, hash, null)], [pending]);
         var service = new WindowsEfsKeys(WindowsStorageAbiTests.QualifyNativeArm64Jobs);
