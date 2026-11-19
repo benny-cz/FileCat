@@ -536,8 +536,15 @@ internal sealed partial class HarnessApp
         if (model.Phase != AnalysisPhase.Finished || model.SourceCloseFailures != 0)
             throw new IOException("The native standard indexed scan did not finish.");
         await using var lease = await model.AcquireRecordedDatasetAsync(cancellation);
-        VisibleButton("Open recorded result")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        await ReadyAsync(() => IndexedList() is { ItemCount: 1 });
+        var open = VisibleButton("Open recorded result")!;
+        await RevealLayoutControlAsync(window, open, "Open recorded result");
+        open.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        try { await ReadyAsync(() => IndexedList() is { ItemCount: 1 }); }
+        catch (TimeoutException error)
+        {
+            throw new InvalidOperationException($"The recorded tab did not publish. Tabs: {window.SessionCount}. " +
+                $"Ready to open: {model.CanOpenRecordedResult}. Status: {model.Status}", error);
+        }
         await CheckResultControlsAsync(window, "private index of captured metadata");
         await CheckNativeVolumeCapacityAsync(window, model, "folder-exclusions-indexed-capacity.png");
         var limits = VisibleButton("Resource limits…")!;
