@@ -10,9 +10,10 @@ public sealed unsafe partial class UnixFileRecords
     private const uint MacVolumeCapabilities = 0x00020000; // ATTR_VOL_CAPABILITIES
     private const string MacNamespaceSource = "Darwin volume capabilities on the observed device";
 
-    private static FileDetailsReport AddMacApfsNamespace(FileDetailsReport report, uint device, CancellationToken ct)
+    private static FileDetailsReport AddMacApfsDetails(FileDetailsReport report, ReadOnlySpan<byte> initial, CancellationToken ct)
     {
         string path = report.Summary.Path;
+        uint device = BinaryPrimitives.ReadUInt32LittleEndian(initial[24..]);
         Span<byte> buffer = stackalloc byte[256];
         // Check the mount's type through the fast statfs attributes before requesting capabilities.
         if (ReadMacVolumeFields(path, MacVolumeType, buffer, ct) != 0 || !MatchesMacApfsVolume(buffer, device, capabilities: false))
@@ -29,7 +30,8 @@ public sealed unsafe partial class UnixFileRecords
         var section = new InspectionSection("APFS volume namespace", [
             ("Case sensitive", sensitive.Describe(YesNo)), ("Case preserving", preserving.Describe(YesNo)),
             ("Unicode normalization", "Not inspected"), ("Observation", MacNamespaceSource)]);
-        return report with { Technical = report.Technical with { Sections = [.. report.Technical.Sections, section] } };
+        report = report with { Technical = report.Technical with { Sections = [.. report.Technical.Sections, section] } };
+        return report.Summary.Kind == FileObjectKind.File ? AddMacApfsSharing(report, initial, ct) : report;
 
         static string YesNo(bool value) => value ? "Yes" : "No";
     }

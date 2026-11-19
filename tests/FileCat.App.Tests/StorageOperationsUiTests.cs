@@ -18,19 +18,28 @@ namespace FileCat.App.Tests;
 public sealed class StorageOperationsUiTests
 {
     private static readonly StorageObjectIdentity Identity = new(42, "retained-object") { VolumeBinding = "verified-volume" };
-    private static Job MakeJob()
+    private static readonly StorageObjectIdentity EfsIdentity = new(42, "0123456789ABCDEF0123456789ABCDEF")
+    { VolumeBinding = "01234567-89ab-cdef-0123-456789abcdef" };
+
+    private static Job MakeJob(StorageAction action = StorageAction.Compress)
     {
-        var observation = new StorageObservation(StorageObservationState.Disabled, StorageObservationState.Disabled, Identity, false, null);
+        bool efs = action is StorageAction.EncryptEfs or StorageAction.DecryptEfs;
+        var identity = efs ? EfsIdentity : Identity;
+        var observation = new StorageObservation(StorageObservationState.Disabled,
+            action == StorageAction.DecryptEfs ? StorageObservationState.Enabled : StorageObservationState.Disabled, identity, false, null);
+        var revision = Guid.NewGuid();
+        const StorageScope scope = StorageScope.ExistingDescendants;
+        var consent = efs ? StorageEfsConsent.Capture(revision, action, scope, [identity], new(true, action == StorageAction.EncryptEfs)) : null;
         return new(new JobRequest
         {
             Kind = JobKind.StorageTransform,
             Sources = [new ItemRef(Location.FileSystem(@"C:\captured"), "line\n\"name.txt", EntryKind.File)],
-            StorageTransform = new(StorageAction.Compress, StorageScope.ExistingDescendants, Guid.NewGuid()) { Roots = [new(0, 0, observation)] },
-        }, "Compress captured files", "fixture", [], []);
+            StorageTransform = new(action, scope, revision) { Roots = [new(0, 0, observation)], EfsConsent = consent },
+        }, StorageOperationText.Action(action) + " captured files", "fixture", [], []);
     }
     private static StorageResultSnapshot Result(Job job, StorageOutcomeCounts? counts = null) =>
         new(job.Request.StorageTransform!.Action, job.Request.StorageTransform.Scope, job.Request.StorageTransform.ReviewRevision, counts ?? new(AlreadySatisfied: 3))
-        { Roots = [new(0, Identity, StorageCompleteness.Complete, false)], Discovery = StorageCompleteness.Complete };
+        { Roots = [new(0, job.Request.StorageTransform.Roots[0].Observation.Identity, StorageCompleteness.Complete, false)], Discovery = StorageCompleteness.Complete };
 
     [Theory]
     [InlineData(JobState.Queued)]
@@ -71,11 +80,14 @@ public sealed class StorageOperationsUiTests
         Assert.Contains("2 changed", row.DetailText); Assert.Contains("1 failed", row.DetailText);
     }
 
-    [AvaloniaFact]
-    public void Typed_outcomes_replace_no_issues_and_startup_merge_preserves_selected_pending_history()
+    [AvaloniaTheory]
+    [InlineData(StorageAction.Compress, "Compress")]
+    [InlineData(StorageAction.EncryptEfs, "Encrypt with EFS")]
+    [InlineData(StorageAction.DecryptEfs, "Decrypt EFS")]
+    public void Typed_outcomes_and_startup_merge_preserve_the_selected_pending_history(StorageAction action, string title)
     {
         var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), Path.GetTempPath());
-        var center = new OperationCenterViewModel(manager); var job = MakeJob();
+        var center = new OperationCenterViewModel(manager); var job = MakeJob(action);
         job.SetStorageResult(Result(job) with { ReviewPending = true, Discovery = StorageCompleteness.Incomplete }); job.SetState(JobState.Failed);
         var row = new JobViewModel(job); row.Refresh(); center.Jobs.Add(row); center.Selected = row; center.Refresh(job);
         Assert.DoesNotContain("No issues reported", center.IssueSummary); Assert.Contains("Result not confirmed", center.IssueSummary);
@@ -85,6 +97,7 @@ public sealed class StorageOperationsUiTests
         Assert.Equal(2, center.Interrupted.Count); Assert.Same(selected, center.SelectedInterrupted);
         Assert.True(row.CanReviewStorage); Assert.False(selected.CanCleanup); Assert.False(selected.CanMarkReviewed);
         Assert.False(selected.CanRunAgain); Assert.False(selected.CanReviewNewTransfer); Assert.Contains("Review storage changes", selected.ReportButtonText);
+        Assert.StartsWith(title, selected.Title);
         Assert.DoesNotContain("interrupted", selected.Title, StringComparison.OrdinalIgnoreCase);
         center.RemoveFinished(); Assert.Equal(2, center.Interrupted.Count); Dispatcher.UIThread.RunJobs();
     }
@@ -122,24 +135,37 @@ public sealed class StorageOperationsUiTests
         Assert.Throws<InvalidOperationException>(() => RecoveryReviewStore.Save("unopened", record));
     }
 
-    private static StorageReviewStatus HistoryStatus()
+    private static StorageReviewStatus HistoryStatus(StorageAction action = StorageAction.Compress)
     {
-        var job = MakeJob(); var before = job.Request.StorageTransform!.Roots[0].Observation;
+        var job = MakeJob(action); var request = job.Request.StorageTransform!;
+        var before = request.Roots[0].Observation;
+        var desired = action == StorageAction.DecryptEfs ? StorageObservationState.Disabled : StorageObservationState.Enabled;
         var history = new StorageHistorySnapshot(new(job.Id, 7, 1024, "digest"),
-            [new(0, 0, "C:\\captured\\line\n\"name.txt", before)], StorageAction.Compress, StorageScope.ExistingDescendants,
-            job.Request.StorageTransform.ReviewRevision, true, true, false, false, false,
+            [new(0, 0, "C:\\captured\\line\n\"name.txt", before)], action, request.Scope,
+            request.ReviewRevision, true, true, false, false, false,
             Result(job, new(Changed: 2, NotProcessed: 1)) with { ReviewPending = true, Discovery = StorageCompleteness.UnknownRemainder },
-            new(1, 0, "C:\\captured\\pending.txt", Identity, before, StorageObservationState.Enabled, null, null, null));
+            new(1, 0, "C:\\captured\\pending.txt", before.Identity, before, desired, null, null, null)) { EfsConsent = request.EfsConsent };
         return new(new(job.Id, "private-directory", "job-storage-history.fcj", new("exact-evidence-id", 1024, "digest"), history), null, true, []);
     }
 
-    [Fact]
-    public void History_summary_preserves_unresolved_call_identity_all_roots_and_lower_bounds_without_crash_claims()
+    [Theory]
+    [InlineData(StorageAction.Compress, "Compress", null)]
+    [InlineData(StorageAction.EncryptEfs, "Encrypt with EFS", "Removal of compression from all main/named streams")]
+    [InlineData(StorageAction.DecryptEfs, "Decrypt EFS", "All-stream decompression consent: not applicable to EFS decryption")]
+    public void History_summary_preserves_action_consent_and_unresolved_call_evidence(StorageAction action, string label, string? consentText)
     {
-        var status = HistoryStatus(); string report = StorageHistoryReport.Format(status);
+        var status = HistoryStatus(action); string report = StorageHistoryReport.Format(status);
         Assert.Contains("Result not confirmed", report); Assert.Contains("durable lower bound", report);
+        Assert.Contains("Requested action: " + label, report);
+        if (consentText is not null)
+        {
+            Assert.Contains(status.Current.History.EfsConsent!.ConsentId.ToString("D"), report);
+            Assert.Contains(consentText, report);
+        }
+        else Assert.DoesNotContain("Recorded EFS scope consent", report);
         Assert.Contains(JsonSerializer.Serialize(status.Current.History.Roots[0].Path), report);
-        Assert.Contains("retained-object", report); Assert.Contains("pending.txt", report); Assert.Contains("no matching durable result", report);
+        Assert.Contains(status.Current.History.Roots[0].Observation.Identity.ObjectId, report);
+        Assert.Contains("pending.txt", report); Assert.Contains("no matching durable result", report);
         Assert.Contains("Save call details", report); Assert.DoesNotContain("crash", report, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Detailed call records may later be removed", report); Assert.Contains("Examples", report);
         var missing = status with { Current = status.Current with { History = status.Current.History with { Roots = [], Result = null, LastCall = null, Damaged = true } } };
@@ -189,10 +215,13 @@ public sealed class StorageOperationsUiTests
         center.LoadInterrupted([]); Assert.Contains(selected, center.Interrupted); Assert.Equal(64, center.StorageDescriptorCount);
     }
 
-    [AvaloniaFact]
-    public async Task Narrow_snapshot_window_requires_displayed_evidence_before_actions_and_keeps_actions_reachable()
+    [AvaloniaTheory]
+    [InlineData(StorageAction.Compress)]
+    [InlineData(StorageAction.EncryptEfs)]
+    [InlineData(StorageAction.DecryptEfs)]
+    public async Task Narrow_snapshot_window_requires_displayed_evidence_before_actions_and_keeps_actions_reachable(StorageAction action)
     {
-        string text = StorageHistoryReport.Format(HistoryStatus()); int saved = 0, acknowledged = 0, calls = 0;
+        string text = StorageHistoryReport.Format(HistoryStatus(action)); int saved = 0, acknowledged = 0, calls = 0;
         var ready = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         var window = new ReportWindow("Storage history snapshot", "Storage changes", _ => ready.Task) { Width = 640, Height = 420 };
         window.ConfigureStorageReview(text, () => { saved++; return Task.CompletedTask; }, () => { acknowledged++; return Task.CompletedTask; });
