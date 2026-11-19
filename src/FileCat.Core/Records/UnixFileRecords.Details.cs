@@ -75,7 +75,7 @@ public sealed unsafe partial class UnixFileRecords
                     using var descriptor = file;
                     if (ext4)
                     {
-                        report = AddLinuxFscrypt(report, file is null ? FscryptUnavailable(state, reason!) : ReadLinuxFscrypt(file, ct));
+                        report = AddLinuxFscrypt(report, file, state, reason, ct);
                         if (summary.Kind == FileObjectKind.Directory)
                             report = AddExt4DirectoryNamespace(report, file, state, reason, ct);
                     }

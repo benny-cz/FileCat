@@ -245,6 +245,23 @@ public sealed partial class UnixFileDetailsNativeTests
         else Assert.Null(policy.Value);
     }
 
+    [Theory]
+    [InlineData(128, 1, FactState.Known)]
+    [InlineData(128, 2, FactState.Known)]
+    [InlineData(128, 3, FactState.Known)]
+    [InlineData(128, 0, FactState.Unsupported)]
+    [InlineData(128, 4, FactState.Unsupported)]
+    [InlineData(127, 2, FactState.Failed)]
+    public void Linux_fscrypt_key_status_requires_a_complete_recognized_reply(int length, int status, FactState expected)
+    {
+        var reply = new byte[length];
+        BinaryPrimitives.WriteInt32LittleEndian(reply.AsSpan(64), status);
+        var observed = UnixFileRecords.ParseLinuxFscryptKeyStatus(reply);
+        Assert.Equal(expected, observed.State);
+        Assert.Equal(FactScope.Volume, observed.Scope);
+        if (expected == FactState.Known) Assert.Equal((UnixFileRecords.LinuxFscryptKeyStatus)status, observed.Value);
+    }
+
     [Fact]
     public void Linux_full_report_distinguishes_real_ext4_encryption_policies_without_showing_key_or_payload()
     {
@@ -273,7 +290,8 @@ public sealed partial class UnixFileDetailsNativeTests
             Assert.Contains(("Policy version", version), policy.Fields);
             Assert.Contains(("Content mode", "AES-256-XTS"), policy.Fields);
             Assert.Contains(("Filename mode", "AES-256-CTS"), policy.Fields);
-            Assert.Contains(policy.Lines, line => line.StartsWith("Key availability", StringComparison.Ordinal));
+            Assert.Contains(("Filesystem keyring", version == "2" ? "Policy key present"
+                : "Not inspected for version 1 policies, which can use process keyrings"), policy.Fields);
             Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);
             Assert.DoesNotContain("fscrypt-payload-sentinel", full.ToText());
         }
@@ -282,6 +300,28 @@ public sealed partial class UnixFileDetailsNativeTests
         var absent = Assert.Single(clear.Technical.Sections, section => section.Title == "fscrypt policy");
         Assert.Contains(("Status", "No policy on this object"), absent.Fields);
         Assert.DoesNotContain(absent.Fields, field => field.Name == "Policy version");
+        Assert.DoesNotContain(absent.Fields, field => field.Name == "Filesystem keyring");
+    }
+
+    [Fact]
+    public void Linux_full_report_distinguishes_absent_and_partially_removed_ext4_policy_keys()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
+            "Requires a qualified Linux x64 ext4 fixture.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_FSCRYPT_KEY_STATES");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires disposable ext4 directories with absent and incompletely removed keys.");
+        var reader = new UnixFileRecords();
+        var ct = TestContext.Current.CancellationToken;
+        foreach (var (leaf, status) in new[] { ("absent", "Policy key absent"), ("removing", "Policy key removal incomplete") })
+        {
+            var full = reader.ReadFull(Path.Join(root, leaf), FileDetailsPolicy.MetadataOnly, ct);
+            Assert.True(full.Summary.FileEncryption.Value);
+            Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);
+            var policy = Assert.Single(full.Technical.Sections, section => section.Title == "fscrypt policy");
+            Assert.Contains(("Policy version", "2"), policy.Fields);
+            Assert.Contains(("Filesystem keyring", status), policy.Fields);
+            Assert.Contains(("Key status source", "FS_IOC_GET_ENCRYPTION_KEY_STATUS on the same ext4 descriptor"), policy.Fields);
+        }
     }
 
     [Fact]
