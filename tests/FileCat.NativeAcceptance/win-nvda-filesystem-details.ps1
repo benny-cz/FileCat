@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory)][string]$NvdaPath,
     [Parameter(Mandatory)][string]$ReportPath,
     [switch]$NarrowHighContrast,
-    [switch]$PictureView
+    [switch]$PictureView,
+    [switch]$VerifyNativeProperties
 )
 
 $ErrorActionPreference = 'Stop'
@@ -139,6 +140,7 @@ $result = [ordered]@{
     NvdaVersion = (Get-Item -LiteralPath $nvdaPath).VersionInfo.ProductVersion
     NarrowHighContrast = [bool]$NarrowHighContrast
     PictureView = [bool]$PictureView
+    VerifyNativeProperties = [bool]$VerifyNativeProperties
     Fixture = Split-Path $fixture -Leaf; Steps = @(); Error = $null
 }
 try {
@@ -230,6 +232,34 @@ try {
     Await { !(OwnedDetails) } 'the details window to close' | Out-Null
     $returnedSpeech = if ($PictureView) { 'pictures grid.*alpha-details\.txt' } else { 'alpha-details\.txt' }
     Hear 'focus returning to the same file' $returnedSpeech
+    if ($VerifyNativeProperties) {
+        $result.Stage = 'native Windows Properties'
+        $propertyTitles = @(
+            [IO.Path]::GetFileNameWithoutExtension($file) + ' Properties'
+            [IO.Path]::GetFileName($file) + ' Properties'
+        )
+        $findProperties = {
+            $ui::RootElement.FindAll($scope::Children, $all) | Where-Object {
+                $_.Current.Name -in $propertyTitles -and $_.Current.ClassName -eq '#32770'
+            } | Select-Object -First 1
+        }
+        if (& $findProperties) { throw 'The fixture Properties window was already open.' }
+        Await {
+            [DetailsNativeInput]::GetForegroundWindow() -eq [IntPtr]$main.Current.NativeWindowHandle
+        } 'the focused FileCat window' | Out-Null
+        [void](Take-Speech)
+        Send-Key $main @(0x12, 0x0D)
+        $properties = Await { & $findProperties } 'the native Properties dialog for the same file'
+        Hear 'native Properties for the same file' 'alpha-details(?:\.txt)? Properties'
+        if (OwnedDetails) { throw 'Alt+Enter also opened File-system details.' }
+        $propertyHandle = [IntPtr]$properties.Current.NativeWindowHandle
+        if ([DetailsNativeInput]::GetForegroundWindow() -ne $propertyHandle) {
+            throw 'The native Properties dialog does not own the foreground keyboard input.'
+        }
+        $result.NativeProperties = @{ Title = $properties.Current.Name; ClassName = $properties.Current.ClassName }
+        [DetailsNativeInput]::Send(@(0x1B), $false)
+        Await { !(& $findProperties) } 'the native Properties dialog to close' | Out-Null
+    }
     if ((Get-FileHash -LiteralPath $file).Hash -ne $beforeHash -or
         (Get-Content -LiteralPath $file -Stream 'filecat-test' -Raw) -ne $alternate) { throw 'A fixture changed during inspection.' }
     $result.Passed = $true
