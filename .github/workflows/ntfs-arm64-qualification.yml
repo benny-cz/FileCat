@@ -39,6 +39,10 @@ on:
         description: Qualify compression refusals on prepared 64 KiB and read-only NTFS volumes
         type: boolean
         default: false
+      device_loss:
+        description: Qualify NTFS compression before and after native SET when an owned VHDX detaches
+        type: boolean
+        default: false
       scale:
         description: Run the 10,000-file native storage benchmark
         type: boolean
@@ -334,6 +338,14 @@ jobs:
           $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
           $root = Join-Path $env:RUNNER_TEMP ('filecat-native-storage-volumes-' + [guid]::NewGuid().ToString('N'))
           ./eng/validation/Invoke-NtfsVolumeAdmission.ps1 -ScratchRoot $root
+      - name: Qualify compression across owned VHDX detachment
+        if: inputs.device_loss
+        shell: pwsh
+        run: |
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+          $root = Join-Path $env:RUNNER_TEMP ('filecat-native-storage-device-loss-' + [guid]::NewGuid().ToString('N'))
+          ./eng/validation/Invoke-NtfsDeviceLoss.ps1 -ScratchRoot $root
       - name: Exercise native ARM64 administrator copy with EFS
         if: inputs.broker
         shell: pwsh
@@ -538,6 +550,9 @@ jobs:
             ${{ runner.temp }}/filecat-native-listing-smb-*/native-listing-smb.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-volume-admission.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-device-loss-*.trx
+            ${{ runner.temp }}/filecat-native-storage-device-loss-*/*/device-loss.json
+            ${{ runner.temp }}/filecat-native-storage-device-loss-*/*/*.log
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-hex-output.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-copy-output.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-broker-*.trx

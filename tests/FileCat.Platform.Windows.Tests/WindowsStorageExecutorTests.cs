@@ -55,7 +55,8 @@ public sealed class WindowsStorageExecutorTests
 
     private static void DetachOwnedVolume(bool afterSet)
     {
-        RequireNormal();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireNormal(qualifyNativeArm64);
         string? control = Environment.GetEnvironmentVariable(afterSet
             ? "FILECAT_STORAGE_NATIVE_DEVICE_LOSS_AFTER_SET_CONTROL" : "FILECAT_STORAGE_NATIVE_DEVICE_LOSS_CONTROL");
         if (string.IsNullOrWhiteSpace(control)) Assert.Skip("Requires the isolated virtual disk device-loss fixture.");
@@ -72,15 +73,17 @@ public sealed class WindowsStorageExecutorTests
         Assert.False(Compressed(target));
         var source = ItemRef.ForFileSystemPath(target, EntryKind.File);
         var setReturns = new List<bool>();
-        IStorageTransforms adapter = afterSet ? new WindowsStorageTransforms(compressionSetReturnedForQualification: succeeded =>
+        var native = new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64,
+            compressionSetReturnedForQualification: afterSet ? succeeded =>
         {
             setReturns.Add(succeeded);
             Detach();
-        }) : new DetachBeforeMutation(Detach);
+        } : null);
+        IStorageTransforms adapter = afterSet ? native : new DetachBeforeMutation(native, Detach);
         string evidence = Directory.CreateTempSubdirectory("filecat-storage-detach-").FullName;
         try
         {
-            var manager = Manager(evidence, adapter);
+            var manager = Manager(evidence, adapter, qualifyNativeArm64);
             var published = new List<InterruptedJob>();
             manager.StorageReviewRequired += published.Add;
             var interrupted = Run(manager, StorageScope.SelectedItems, source);
@@ -113,7 +116,7 @@ public sealed class WindowsStorageExecutorTests
             Assert.Equal(identity, fs.GetFileIdentity(target));
             Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(target)));
             Assert.Equal(afterSet, Compressed(target));
-            var reopened = Manager(evidence);
+            var reopened = Manager(evidence, qualifyNativeArm64: qualifyNativeArm64);
             if (afterSet)
             {
                 var candidate = reopened.StorageHistoryCandidate(name);
@@ -155,14 +158,13 @@ public sealed class WindowsStorageExecutorTests
         }
     }
 
-    private sealed class DetachBeforeMutation(Action waitForDeviceLoss) : IStorageTransforms
+    private sealed class DetachBeforeMutation(WindowsStorageTransforms native, Action waitForDeviceLoss) : IStorageTransforms
     {
-        private readonly WindowsStorageTransforms _native = new();
-        public StorageProblem? Unavailable(StorageAction action) => _native.Unavailable(action);
+        public StorageProblem? Unavailable(StorageAction action) => native.Unavailable(action);
         public IStorageReviewLease InspectRoot(StorageTarget target, StorageAction? action, CancellationToken ct) =>
-            _native.InspectRoot(target, action, ct);
+            native.InspectRoot(target, action, ct);
         public IStorageTraversal OpenReviewedRoot(IStorageReviewLease root, StorageAction action, CancellationToken ct) =>
-            new Traversal(_native.OpenReviewedRoot(root, action, ct), waitForDeviceLoss);
+            new Traversal(native.OpenReviewedRoot(root, action, ct), waitForDeviceLoss);
 
         private sealed class Traversal(IStorageTraversal native, Action waitForDeviceLoss) : IStorageTraversal
         {
