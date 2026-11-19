@@ -25,7 +25,7 @@ public sealed partial class UnixFileRecords
         catch (FileNotFoundException) { section = Unavailable(FactState.Changed, "The file disappeared during observation."); }
         catch (UnauthorizedAccessException) { section = Unavailable(FactState.Denied, "The sharing fields could not be read with this access."); }
         catch (IOException ex) when (ex.HResult == MacMaterializationPolicy.Required)
-        { section = Unavailable(FactState.NotInspected, MacMaterializationRequired); }
+        { section = Unavailable(FactState.NotInspected, MacMaterializationPolicy.RequiredReason); }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         { section = Unavailable(FactState.Failed, "Darwin did not return a usable sharing observation."); }
         return report with { Technical = report.Technical with { Sections = [.. report.Technical.Sections, section] } };

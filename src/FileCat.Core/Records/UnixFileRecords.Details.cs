@@ -233,6 +233,18 @@ public sealed unsafe partial class UnixFileRecords
         return report;
     }
 
+    internal static FileDetailsReport MacDetailsWithoutMaterialization(string path, CancellationToken ct, Func<FileDetailsReport> read) =>
+        MacMaterializationPolicy.Run(ct, read, (failure, reason) => FileDetailsReport.Metadata(new(path, DateTimeOffset.UtcNow, Guid.NewGuid())
+        {
+            Identity = ObservedFact<DetailsIdentity>.Unavailable(failure switch
+            {
+                MacMaterializationPolicy.Failure.WouldMaterialize => FactState.NotInspected,
+                MacMaterializationPolicy.Failure.RestoreFailed => FactState.Failed,
+                _ => FactState.Unsupported,
+            }, FactScope.Entry, "macOS metadata with materialization disabled", reason),
+            Notes = [reason],
+        }));
+
     private static byte[] ReadMacDetailsFields(string path, CancellationToken ct, bool apfsSharing = false)
     {
         // A separate summary request: no entry count, resource fork, clone statistics, ACL or xattr values.

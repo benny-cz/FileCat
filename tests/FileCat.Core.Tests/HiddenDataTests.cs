@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using FileCat.Core.FileSystem;
 using FileCat.Core.HiddenData;
 using FileCat.Core.Resources;
 
@@ -360,7 +361,9 @@ public sealed partial class HiddenDataTests
         byte[] resource = "standalone resource fork"u8.ToArray();
         File.WriteAllBytes(Path.Join(path, "..namedfork", "rsrc"), resource);
 
+        int previousPolicy = MacMaterializationPolicy.Get();
         var inventory = new UnixHiddenData().ReadInventory(path, new(ShowCompressionBacking: false), TestContext.Current.CancellationToken);
+        Assert.Equal(previousPolicy, MacMaterializationPolicy.Get());
         var fork = Assert.Single(inventory.Items);
         Assert.Equal(HiddenKind.ResourceFork, fork.Kind);
         Assert.Equal("com.apple.ResourceFork", fork.Name);

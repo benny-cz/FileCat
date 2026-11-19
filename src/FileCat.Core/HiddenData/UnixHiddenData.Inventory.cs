@@ -24,7 +24,8 @@ public sealed partial class UnixHiddenData
         PathUtil.RefuseAmbiguousUnixName(path);
         ct.ThrowIfCancellationRequested();
         if (!IsSupported) return HiddenInventory.Unavailable(path, HiddenInventoryState.Unsupported, "Extended attributes are unsupported on this platform.");
-        if (OperatingSystem.IsMacOS()) return MacInventory(path, request, ct);
+        if (OperatingSystem.IsMacOS()) return MacMaterializationPolicy.Run(ct, () => MacInventory(path, request, ct),
+            (failure, reason) => MacInventoryUnavailable(path, failure, reason));
         using var pin = PinInventoryFile(path, ct, out var stat);
         using var directory = OpenInventoryDescriptorDirectory(path, ct);
         var (result, source) = CollectLinuxInventory(path, pin, directory, stat, ct);
@@ -180,7 +181,7 @@ public sealed partial class UnixHiddenData
         // XATTR_SHOWCOMPRESSION is reserved for a qualified bound adapter. A path-only result must not imply that
         // this ordinary view inventoried storage backing, even when the caller requested the deeper API view.
         int options = MacNoFollow;
-        var result = CollectInventory(path, (buffer, size) => MacList(path, buffer, size, options), name => MacGet(path, name, null, 0, 0, options), ct);
+        var result = CollectInventory(path, (buffer, size) => MacList(path, buffer, size, options), SizeWithoutMaterialization, ct);
         int attributes = result.Items.Count(item => item.Kind == HiddenKind.Attribute);
         int forks = result.Items.Length - attributes;
         var categories = ImmutableArray.CreateBuilder<HiddenCategoryInventory>();
@@ -194,6 +195,28 @@ public sealed partial class UnixHiddenData
             Notice = $"Observed {attributes} ordinary attributes and {forks} resource forks. {backing} " +
                 "No values read. Value, export and delete actions require a qualified bound adapter.",
         };
+
+        nint SizeWithoutMaterialization(string name)
+        {
+            nint size = MacGet(path, name, null, 0, 0, options);
+            if (size < 0 && Marshal.GetLastPInvokeError() == MacMaterializationPolicy.Required)
+                throw InventoryError(path, MacMaterializationPolicy.Required);
+            return size;
+        }
+    }
+
+    private static HiddenInventory MacInventoryUnavailable(string path, MacMaterializationPolicy.Failure failure, string reason)
+    {
+        var state = failure switch
+        {
+            MacMaterializationPolicy.Failure.WouldMaterialize => HiddenInventoryState.NotInspected,
+            MacMaterializationPolicy.Failure.RestoreFailed => HiddenInventoryState.Failed,
+            _ => HiddenInventoryState.Unsupported,
+        };
+        return new(path, DateTimeOffset.UtcNow, [],
+            [new(HiddenKind.Attribute, state, 0, "Darwin ordinary no-follow path view", reason),
+             new(HiddenKind.ResourceFork, state, 0, "Darwin ordinary no-follow path view", reason)],
+            "macOS metadata with materialization disabled") { Notice = reason };
     }
 
     private static Exception InventoryError(string path, int error) => error is 1 or 13 ? new UnauthorizedAccessException($"{path}: {Marshal.GetPInvokeErrorMessage(error)}")
