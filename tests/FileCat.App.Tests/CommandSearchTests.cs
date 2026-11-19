@@ -40,6 +40,9 @@ public sealed class CommandSearchTests
     [InlineData("compres", CommandIds.StorageAttributes)] // the newly available title outranks Pack's keyword
     [InlineData("NTFS", CommandIds.StorageAttributes)]
     [InlineData("uncompress", CommandIds.StorageAttributes)]
+    [InlineData("disk usage", CommandIds.DiskSpace)]
+    [InlineData("disk space", CommandIds.DiskSpace)]
+    [InlineData("analyze disk space", CommandIds.DiskSpace)]
     [InlineData("settings", CommandIds.Settings)]
     [InlineData("preferences", CommandIds.Settings)]
     [InlineData("files find", CommandIds.FindFiles)] // words in any order; the closer title wins
@@ -178,6 +181,23 @@ public sealed class CommandSearchTests
         {
             AccessibilityTests.Close(services, window, root);
         }
+    }
+
+    [AvaloniaFact]
+    public void Disk_usage_uses_the_same_visible_command_in_Tools_and_search()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var tools = window.MainMenu.Items.OfType<MenuItem>().Single(menu => Equals(menu.Header, "_Tools"));
+            var item = tools.Items.OfType<MenuItem>().Single(command => Equals(command.Tag, CommandIds.DiskSpace));
+            var match = CommandSearch.Rank("disk usage", vm.CommandSearchEntries(), []).First();
+            Assert.Equal(CommandIds.DiskSpace, match.Id);
+            Assert.Equal("Tools", match.MenuPath);
+            Assert.Equal("Disk usage…", match.Title);
+            Assert.Equal(match.Title, item.Header);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
     }
 
     [AvaloniaFact]

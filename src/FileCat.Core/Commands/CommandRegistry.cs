@@ -478,7 +478,7 @@ public sealed class CommandRegistry
         Add(CommandIds.HexRecovery, "Recover interrupted hex save…", F, null, CommandContext.Global);
         Add(CommandIds.CompareDirectories, "Compare directories…", C, "Compare", CommandContext.Panel, "Ctrl+F10");
         Add(CommandIds.CompareFiles, "Compare files…", C, null, CommandContext.Panel, "Ctrl+I");
-        Add(CommandIds.DiskSpace, "Disk space…", C);
+        Add(CommandIds.DiskSpace, "Disk usage…", C);
         Add(CommandIds.FindDeleted, "Recover deleted files…", C);
         Add(CommandIds.ChangeJournal, "Change journal of this drive", C);
         Add(CommandIds.OpenAdministratorWindow, "Open FileCat as administrator…", C);
@@ -593,7 +593,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.ChangeShortcut, "Choose a command, then assign or reset its keyboard shortcut.");
         K(CommandIds.ChangeJournal, "USN", "UsnJrnl", "$J", "journal", "recent changes", "what changed", "forensics", "timeline");
         K(CommandIds.OpenAdministratorWindow, "admin", "elevate", "UAC", "permissions", "run as");
-        K(CommandIds.DiskSpace, "disk space", "storage", "largest files", "folder usage", "disk map");
+        K(CommandIds.DiskSpace, "disk space", "analyze disk space", "storage usage", "largest files", "folder usage", "disk map");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");
         K(CommandIds.FindFiles, "search", "locate", "look for", "grep", "find in files");
         K(CommandIds.Settings, "options", "preferences", "configuration", "configure", "setup", "columns", "owner");

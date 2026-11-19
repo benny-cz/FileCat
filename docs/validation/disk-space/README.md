@@ -1,6 +1,6 @@
 # Disk space implementation checkpoint
 
-The standard analyzer opens from Tools → Disk space…, command search, and the folder and drive context menus. Live file operations require their corresponding source and operation admission checks. The independent technical review and its Windows, macOS and Ubuntu retests are complete. The participant study remains pending by project-owner decision. Default builds keep Fast NTFS unavailable until a trusted release installer is qualified. [Final review](FINAL_REVIEW_CHECKLIST.md) · [Comprehension study](UX_COMPREHENSION_STUDY.md).
+The standard analyzer opens from Tools → Disk usage…, command search, and the folder and drive context menus. Live file operations require their corresponding source and operation admission checks. The independent technical review and its Windows, macOS and Ubuntu retests are complete. The participant study remains pending by project-owner decision. Default builds keep Fast NTFS unavailable until a trusted release installer is qualified. [Final review](FINAL_REVIEW_CHECKLIST.md) · [Comprehension study](UX_COMPREHENSION_STUDY.md).
 
 The follow-up plan covers results layout, measurement labels, capacity context, and cleanup review clarity. [UX and UI improvement plan](../../design/FILECAT_DISK_SPACE_UX_IMPROVEMENT_PLAN.md).
 
