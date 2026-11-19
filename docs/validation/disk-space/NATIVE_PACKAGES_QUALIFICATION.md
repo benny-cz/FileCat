@@ -119,3 +119,21 @@ Windows r1746 measured 808.05 ms from Start analysis to the first laid-out resul
 | Sunburst, 4,096 entries | 1.60 ms | 3.00 ms |
 
 The same Windows batch sent native input to 21 Pause, 20 Resume and one Stop actions during a 200,000-file indexed scan. Key-event-to-layout p95 was 51.15 ms for Pause and 34.03 ms for Resume. Stop reached the laid-out status in 43.66 ms. The driver collected the completed timing series and Stopped frame, then exceeded its 65-second wait for exit and terminated its owned process. A focused follow-up records shutdown and source-verification phases. The feedback receipt SHA-256 is `e6c2f56dbbd946f3e280a6b3ff96cf2f907d2c97d81d81f980ab8465c54928cf`.
+
+Windows r1777 reused the verified r1746 application and recorded three fresh processes and profiles under the ordinary console account. Native UI Automation waited for the visible fixture row, opened Tools and reached the enabled Start analysis control after 10.34, 7.68 and 7.88 seconds. Each process exited normally and preserved the source. The filesystem cache retained its normal state. The cold receipt SHA-256 is `410c739435d01258070c7b10ad6de20c96473ed86f4682350baf368da3bd676b`.
+
+The same r1777 batch repeated the native 200,000-file scan and collected all 42 key events. Pause p95 was 55.84 ms, Resume p95 was 60.40 ms, and Stop reached the laid-out status in 39.18 ms. These are key-event-to-layout times. The probe closed normally, verified its fixture bytes, and left an empty process inventory. The feedback receipt SHA-256 is `233be28a3172b3ed896f5d5f610b66bb2bb5912375c59b03eb56d4b7d8cbc62f`.
+
+## Development regression after merging main e3b813d7
+
+The r1778 batch used source `c4a4a928` and application SHA-256 `58f366c348d89e8ca6e6ca20a1c648e5a6e165663a6a55da4d3ac4e04a1e20a4`. It extended the navigation selection to include supplementary data and report UI. The Mac also exercised its native APFS clone-sharing fixture. All suites below had zero failures and errors. Differences between passed and discovered totals are platform-specific or opt-in cases. Both post-run process inventories were empty.
+
+| Platform | Core passed/discovered | Navigation and reports passed/discovered | Renderer passed/discovered |
+|---|---:|---:|---:|
+| Mac | 2,089 / 2,106 | 22 / 26 | 983 / 993 |
+| Ubuntu VM | 2,090 / 2,106 | 23 / 26 | 983 / 993 |
+
+| Platform | Core XML SHA-256 | Navigation and reports XML SHA-256 | Renderer XML SHA-256 |
+|---|---|---|---|
+| Mac | `3377760f7858f50539f6cb05d21b043a504a32fe1fb7dd3f2cbcc3c79b267326` | `629ce41a1a925662a66ccc935798eaed319e0c34a94be384027dbb5e6e01c6c3` | `f527ec20741b886351be36bd0f677fc2feb3bc143391a4309af0c51df95780cc` |
+| Ubuntu VM | `948f147b13752f5675198de01068b834c4ea32ca236d437eb191543a224698d1` | `67eae1df288d04c70e12bf03bb07c0fc3c3ab92fee63c67bca89bdba0a4f393a` | `2bedf6c6bb095a91f185a86e3f058f7d7ef0d729c428af41559e66b77e1917f7` |
