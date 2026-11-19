@@ -25,8 +25,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
         public StorageProblem? Unavailable(StorageAction action)
         {
             if (!StorageJournalPolicy.IsEfs(action)) return adapter.Unavailable(action);
-            return IsQualifiedHost && EfsEdition.Value ? null : Problem(StorageReasonKind.WindowsLimitation, "efs-build",
-                "This EFS candidate requires Windows 11 x64 Pro, Enterprise or Education.");
+            return SupportsHost(adapter._qualifyNativeArm64) && EfsEdition.Value ? null : Problem(StorageReasonKind.WindowsLimitation, "efs-build",
+                "This EFS candidate requires a qualified Windows 11 Pro, Enterprise or Education host.");
         }
 
         public StorageProblem? ScopeUnavailable(StorageScope scope) => Enum.IsDefined(scope) ? null
@@ -52,7 +52,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             bool efs = action is StorageAction.EncryptEfs or StorageAction.DecryptEfs;
             if (!efs && pin.InvokerSid is null) return adapter.InspectPinnedRoot(root, action, ct);
             if (!efs || pin.InvokerSid is null) throw Refuse("efs-review-action", "Open a new review to switch between EFS and compression.");
-            RequireEfsHost(action!.Value);
+            adapter.RequireEfsHost(action!.Value);
             StorageReviewResources.RequireRootInspection(pin.Target);
             if (EfsInvoker() != pin.InvokerSid) throw Changed("efs-invoker", "The invoking EFS user changed; create a new review.");
             using var path = Walk(pin.Target.Path, reviewLeaf: false, ct);

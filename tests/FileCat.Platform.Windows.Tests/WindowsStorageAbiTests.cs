@@ -8,6 +8,10 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed class WindowsStorageAbiTests
 {
+    internal static bool QualifyNativeArm64Jobs => WindowsStorageTransforms.IsNativeArm64QualificationHost &&
+        Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS") == "1" &&
+        Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE") == "Arm64";
+
     [Fact]
     public void Ntfs_compression_changes_held_streams_and_preserves_their_bytes()
     {

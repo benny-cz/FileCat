@@ -10,7 +10,7 @@ namespace FileCat.Platform.Windows;
 internal static unsafe partial class WindowsEfsAssociations
 {
     internal static StorageEfsAssociationSnapshot Read(string apiPath, StorageObjectIdentity identity, string invokerSid,
-        Action<CancellationToken> validate, CancellationToken ct)
+        WindowsEfsKeys keys, Action<CancellationToken> validate, CancellationToken ct)
     {
         validate(ct); ct.ThrowIfCancellationRequested();
         ImmutableArray<StorageEfsCertificateAssociation> associations;
@@ -33,16 +33,15 @@ internal static unsafe partial class WindowsEfsAssociations
             }
             finally { if (users != 0) FreeUsers(users); }
         }
-        var keys = ImmutableArray.CreateBuilder<StorageEfsKeyEvidence>(); var checkedHashes = new HashSet<string>(StringComparer.Ordinal);
-        var service = new WindowsEfsKeys();
+        var evidence = ImmutableArray.CreateBuilder<StorageEfsKeyEvidence>(); var checkedHashes = new HashSet<string>(StringComparer.Ordinal);
         foreach (var association in associations)
         {
             ct.ThrowIfCancellationRequested(); validate(ct);
             if (association.Sid == invokerSid && checkedHashes.Add(association.CertificateSha1))
-                keys.Add(service.ProbeAssociatedCertificate(invokerSid, association.CertificateSha1, ct));
+                evidence.Add(keys.ProbeAssociatedCertificate(invokerSid, association.CertificateSha1, ct));
         }
         validate(ct); ct.ThrowIfCancellationRequested();
-        return new(identity, invokerSid, associations, keys.ToImmutable());
+        return new(identity, invokerSid, associations, evidence.ToImmutable());
     }
     private static StorageInspectionException Failure(string code, string message) => new(new(StorageReasonKind.Unknown, code, message, true));
     [LibraryImport("advapi32.dll", EntryPoint = "QueryUsersOnEncryptedFile", StringMarshalling = StringMarshalling.Utf16)] private static partial uint QueryUsers(string file, out nint users);

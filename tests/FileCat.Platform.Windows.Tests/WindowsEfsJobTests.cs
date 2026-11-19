@@ -271,7 +271,8 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void Selected_Efs_jobs_share_one_lazy_key_choice_and_record_native_effects_on_disk()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         string root = Directory.CreateTempSubdirectory("filecat-efs-job-").FullName;
         try
         {
@@ -283,7 +284,7 @@ public sealed partial class WindowsEfsJobTests
             File.WriteAllText(clear + ":fixture", "Named stream data");
             var items = new[] { ItemRef.ForFileSystemPath(already, EntryKind.File), ItemRef.ForFileSystemPath(clear, EntryKind.File),
                 ItemRef.ForFileSystemPath(selectedFolder, EntryKind.Directory) };
-            var adapter = new WindowsStorageTransforms();
+            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => root, qualifyNativeArm64: qualifyNativeArm64);
             int choices = 0;
             var manager = Manager(root, adapter.CreateEfsJobCandidate((_, sid, scope, token) =>
             {
@@ -292,7 +293,7 @@ public sealed partial class WindowsEfsJobTests
                 Assert.Null(setup.Problem);
                 string hash = Assert.Single(setup.Association!.CurrentUserKeys).CertificateSha1;
                 return StorageEfsRecoveryApproval.DeclareArrangement(scope, setup, hash, acknowledged: true);
-            }));
+            }), qualifyNativeArm64);
 
             using (var review = manager.PrepareStorageReview(items, StorageAction.EncryptEfs, Ct))
             {
@@ -341,7 +342,8 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void Recursive_Efs_uses_held_ancestry_for_overlaps_and_starts_setup_below_an_encrypted_root()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         string root = Directory.CreateTempSubdirectory("filecat-efs-recursive-").FullName;
         string? readOnly = null;
         try
@@ -357,7 +359,7 @@ public sealed partial class WindowsEfsJobTests
             Directory.CreateSymbolicLink(Path.Join(parent, "redirect"), outside);
             var targets = new[] { ItemRef.ForFileSystemPath(child, EntryKind.File), ItemRef.ForFileSystemPath(parent, EntryKind.Directory),
                 ItemRef.ForFileSystemPath(nested, EntryKind.Directory) };
-            var adapter = new WindowsStorageTransforms();
+            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => root, qualifyNativeArm64: qualifyNativeArm64);
             int choices = 0;
             var manager = Manager(root, adapter.CreateEfsJobCandidate((_, sid, scope, token) =>
             {
@@ -366,7 +368,7 @@ public sealed partial class WindowsEfsJobTests
                 Assert.Null(setup.Problem);
                 return StorageEfsRecoveryApproval.DeclareArrangement(scope, setup,
                     Assert.Single(setup.Association!.CurrentUserKeys).CertificateSha1, acknowledged: true);
-            }));
+            }), qualifyNativeArm64);
             AssertCompleted(Run(manager, StorageAction.EncryptEfs, [targets[1]]), changed: 1, already: 0);
             Assert.True(IsEncrypted(parent));
             Assert.False(IsEncrypted(nested) || IsEncrypted(child));
@@ -403,18 +405,20 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void Canceling_lazy_recovery_stops_before_any_native_intent()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         string root = Directory.CreateTempSubdirectory("filecat-efs-job-cancel-").FullName;
         try
         {
             string first = Write(root, "first.txt"), second = Write(root, "second.txt");
             int choices = 0;
-            var manager = Manager(root, new WindowsStorageTransforms().CreateEfsJobCandidate((job, _, _, _) =>
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64);
+            var manager = Manager(root, adapter.CreateEfsJobCandidate((job, _, _, _) =>
             {
                 choices++;
                 _ = RequestTestSetup(job, first);
                 return null;
-            }));
+            }), qualifyNativeArm64);
             JobState? whileWaiting = null;
             manager.DecisionRequested += pending =>
             {
@@ -526,16 +530,17 @@ public sealed partial class WindowsEfsJobTests
         "Use the disposable VM account's EFS setup fixture.", first, "efs-test-setup", [DecisionAction.Proceed, DecisionAction.CancelJob])
     { InitialAction = DecisionAction.CancelJob, OffersApplyToAll = false });
 
-    private static void RequireEfs()
+    private static void RequireEfs(bool qualifyNativeArm64 = false)
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+        Assert.SkipUnless(WindowsStorageTransforms.SupportsHost(qualifyNativeArm64) && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
             "Requires a disposable normal-user Windows VM with EFS enabled.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity);
     }
 
-    private static JobManager Manager(string path, IStorageTransforms adapter) => new(new PortableFileOperations(), new ProviderRegistry(),
+    private static JobManager Manager(string path, IStorageTransforms adapter, bool qualifyNativeArm64 = false) => new(new PortableFileOperations(), new ProviderRegistry(),
         Directory.CreateDirectory(Path.Join(path, "journal")).FullName, ArchiveJobBackends.Empty, adapter,
-        WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend);
+        qualifyNativeArm64 ? WindowsStorageReviewEvidence.CreateArm64QualificationJournal : WindowsStorageReviewEvidence.CreateJournal,
+        qualifyNativeArm64 ? WindowsStorageReviewEvidence.Arm64QualificationBackend : WindowsStorageReviewEvidence.Backend);
 
     private static string Write(string root, string name)
     {

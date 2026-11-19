@@ -17,14 +17,16 @@ public sealed class WindowsStorageJobEvidenceCollection;
 public sealed class WindowsStorageExecutorTests
 {
     private static CancellationToken Stop => TestContext.Current.CancellationToken;
-    private static void RequireNormal()
+    private static void RequireNormal(bool qualifyNativeArm64 = false)
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(qualifyNativeArm64), "Requires an admitted Windows 11 NTFS qualification host.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity, "Storage jobs must run in the normal user process.");
     }
-    private static JobManager Manager(string root, IStorageTransforms? transforms = null) => new(new PortableFileOperations(), new ProviderRegistry(),
-        Directory.CreateDirectory(Path.Join(root, "journals")).FullName, ArchiveJobBackends.Empty, transforms ?? new WindowsStorageTransforms(),
-        WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend);
+    private static JobManager Manager(string root, IStorageTransforms? transforms = null, bool qualifyNativeArm64 = false) =>
+        new(new PortableFileOperations(), new ProviderRegistry(), Directory.CreateDirectory(Path.Join(root, "journals")).FullName,
+            ArchiveJobBackends.Empty, transforms ?? new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64),
+            qualifyNativeArm64 ? WindowsStorageReviewEvidence.CreateArm64QualificationJournal : WindowsStorageReviewEvidence.CreateJournal,
+            qualifyNativeArm64 ? WindowsStorageReviewEvidence.Arm64QualificationBackend : WindowsStorageReviewEvidence.Backend);
     private static Job Run(JobManager manager, StorageScope scope, params ItemRef[] sources) => RunAction(manager, StorageAction.Compress, scope, sources);
     private static Job RunAction(JobManager manager, StorageAction action, StorageScope scope, params ItemRef[] sources)
     {
@@ -278,7 +280,9 @@ public sealed class WindowsStorageExecutorTests
     [Fact]
     public void Recursive_job_covers_reverse_order_overlaps_hidden_files_and_named_streams_without_double_counts()
     {
-        RequireNormal(); string temp = Directory.CreateTempSubdirectory("filecat-storage-job-tree-").FullName;
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireNormal(qualifyNativeArm64);
+        string temp = Directory.CreateTempSubdirectory("filecat-storage-job-tree-").FullName;
         try
         {
             string folder = Directory.CreateDirectory(Path.Join(temp, "folder")).FullName;
@@ -286,7 +290,7 @@ public sealed class WindowsStorageExecutorTests
             string file = Path.Join(nested, "file"), hidden = Path.Join(folder, "hidden");
             File.WriteAllText(file, "main bytes remain available"); File.WriteAllText(file + ":sentinel:$DATA", "named-stream bytes remain available");
             File.WriteAllText(hidden, "hidden bytes remain available"); File.SetAttributes(hidden, FileAttributes.Hidden);
-            var manager = Manager(temp);
+            var manager = Manager(temp, qualifyNativeArm64: qualifyNativeArm64);
             Assert.Equal(JobState.Completed, Run(manager, StorageScope.SelectedItems, ItemRef.ForFileSystemPath(folder, EntryKind.Directory)).State);
             var job = Run(manager, StorageScope.ExistingDescendants, ItemRef.ForFileSystemPath(file, EntryKind.File),
                 ItemRef.ForFileSystemPath(folder, EntryKind.Directory), ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
@@ -311,7 +315,9 @@ public sealed class WindowsStorageExecutorTests
     [Fact]
     public void Readonly_file_and_reparse_subtree_are_skipped_while_independent_siblings_are_changed()
     {
-        RequireNormal(); string temp = Directory.CreateTempSubdirectory("filecat-storage-job-exclusions-").FullName;
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireNormal(qualifyNativeArm64);
+        string temp = Directory.CreateTempSubdirectory("filecat-storage-job-exclusions-").FullName;
         string? readonlyFile = null, link = null;
         try
         {
@@ -321,7 +327,8 @@ public sealed class WindowsStorageExecutorTests
             File.WriteAllText(sentinel, "outside scope"); File.WriteAllText(allowed, "allowed bytes");
             readonlyFile = Path.Join(folder, "readonly"); File.WriteAllText(readonlyFile, "readonly bytes"); File.SetAttributes(readonlyFile, FileAttributes.ReadOnly);
             link = Path.Join(folder, "redirect"); Directory.CreateSymbolicLink(link, outside);
-            var job = Run(Manager(temp), StorageScope.ExistingDescendants, ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
+            var job = Run(Manager(temp, qualifyNativeArm64: qualifyNativeArm64), StorageScope.ExistingDescendants,
+                ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
             Assert.Equal(JobState.CompletedWithIssues, job.State); Assert.Equal(2, job.StorageResult!.Counts.Changed); Assert.Equal(2, job.StorageResult.Counts.Skipped);
             Assert.Equal(StorageCompleteness.UnknownRemainder, job.StorageResult.Discovery);
             Assert.True(Compressed(allowed)); Assert.False(Compressed(readonlyFile)); Assert.False(Compressed(sentinel));
@@ -338,7 +345,9 @@ public sealed class WindowsStorageExecutorTests
     [Fact]
     public void Native_access_denial_preserves_independent_siblings()
     {
-        RequireNormal(); string temp = Directory.CreateTempSubdirectory("filecat-storage-job-denial-").FullName;
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireNormal(qualifyNativeArm64);
+        string temp = Directory.CreateTempSubdirectory("filecat-storage-job-denial-").FullName;
         string? denied = null; FileSecurity? original = null;
         try
         {
@@ -351,7 +360,8 @@ public sealed class WindowsStorageExecutorTests
             security.AddAccessRule(new FileSystemAccessRule(identity.User!, FileSystemRights.FullControl, AccessControlType.Deny));
             info.SetAccessControl(security);
             Assert.Throws<UnauthorizedAccessException>(() => { using var refused = File.OpenRead(denied); });
-            var job = Run(Manager(temp), StorageScope.ExistingDescendants, ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
+            var job = Run(Manager(temp, qualifyNativeArm64: qualifyNativeArm64), StorageScope.ExistingDescendants,
+                ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
             Assert.Equal(JobState.CompletedWithIssues, job.State); Assert.Equal(2, job.StorageResult!.Counts.Changed); Assert.Equal(1, job.StorageResult.Counts.Failed);
             Assert.True(Compressed(allowed));
             Restore(info, original); original = null;

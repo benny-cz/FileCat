@@ -8,7 +8,7 @@ using FileCat.Core.State;
 namespace FileCat.Platform.Windows;
 
 /// <summary>Silent EFS key comparison candidate. No enrollment, setup file, export, default change or key caching.</summary>
-internal sealed unsafe partial class WindowsEfsKeys : IStorageEfsKeys
+internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = false) : IStorageEfsKeys
 {
     internal const int CertificateBytes = 64 * 1024, ProviderBytes = 64 * 1024, ProviderCharacters = 2048;
     private const uint AcquireFlags = 0x4 | 0x8 | 0x40 | 0x10000; // COMPARE, NO_HEALING, SILENT, ALLOW_NCRYPT
@@ -32,8 +32,8 @@ internal sealed unsafe partial class WindowsEfsKeys : IStorageEfsKeys
     {
         ValidateRequest(invokerSid, certificateSha1);
         ct.ThrowIfCancellationRequested();
-        if (!WindowsStorageTransforms.IsQualifiedHost) return Evidence(invokerSid, certificateSha1, null, null, StorageEfsKeyState.Unsupported,
-            StorageEfsKeyProvider.Unknown, null, "efs-key-host", "This key comparison candidate requires its qualified Windows 11 x64 host.");
+        if (!WindowsStorageTransforms.SupportsHost(qualifyNativeArm64)) return Evidence(invokerSid, certificateSha1, null, null, StorageEfsKeyState.Unsupported,
+            StorageEfsKeyProvider.Unknown, null, "efs-key-host", "This key comparison candidate requires its qualified Windows 11 host.");
         RequireInvoker(invokerSid, ct);
         var allowance = StorageNativeAllowance.RequireCurrent();
         using var storeCharge = allowance.ClaimScratch();

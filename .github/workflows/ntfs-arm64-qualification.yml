@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   native-storage-abi:
-    name: Native compression and EFS details
+    name: Native compression, EFS and durable jobs
     runs-on: windows-11-arm
     timeout-minutes: 25
     steps:
@@ -25,13 +25,23 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet build tests/FileCat.Platform.Windows.Tests -c Release --no-restore
           exit $LASTEXITCODE
-      - name: Exercise the native ABI at medium integrity
+      - name: Exercise native storage at medium integrity
         shell: pwsh
         run: |
           $evidence = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-evidence'
           New-Item -ItemType Directory -Path $evidence | Out-Null
           $fixture = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-fixture'
           New-Item -ItemType Directory -Path $fixture | Out-Null
+          $owner = [Security.Principal.WindowsIdentity]::GetCurrent().User
+          $system = [Security.Principal.SecurityIdentifier]::new('S-1-5-18')
+          $access = [Security.AccessControl.DirectorySecurity]::new()
+          $access.SetOwner($owner)
+          $access.SetAccessRuleProtection($true, $false)
+          foreach ($principal in $owner, $system) {
+            $access.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
+              $principal, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow'))
+          }
+          Set-Acl -LiteralPath $fixture -AclObject $access
           $volume = Get-Volume -DriveLetter ([IO.Path]::GetPathRoot($fixture)[0])
           $os = Get-CimInstance Win32_OperatingSystem
           if ($volume.FileSystem -ne 'NTFS' -or $volume.AllocationUnitSize -ne 4096 -or $os.ProductType -ne 1) {
@@ -49,13 +59,28 @@ jobs:
           # The second fixture can enroll a software EFS key in this disposable runner's profile.
           $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ROOT = $fixture
           $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
-          ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName native-storage-abi.trx -Filter 'FullyQualifiedName~WindowsStorageAbiTests'
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
+          $env:FILECAT_TEST_EFS = '1'
+          $env:TMP = $fixture
+          $env:TEMP = $fixture
+          $filter = @(
+            'WindowsStorageAbiTests'
+            'Recursive_job_covers_reverse_order_overlaps_hidden_files_and_named_streams_without_double_counts'
+            'Readonly_file_and_reparse_subtree_are_skipped_while_independent_siblings_are_changed'
+            'Native_access_denial_preserves_independent_siblings'
+            'Selected_Efs_jobs_share_one_lazy_key_choice_and_record_native_effects_on_disk'
+            'Recursive_Efs_uses_held_ancestry_for_overlaps_and_starts_setup_below_an_encrypted_root'
+            'Canceling_lazy_recovery_stops_before_any_native_intent'
+            'Unqualified_hosts_refuse_storage_before_opening_any_path_and_do_not_offer_private_history'
+          ) | ForEach-Object { "FullyQualifiedName~$_" }
+          $filter = $filter -join '|'
+          ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName native-storage-abi.trx -Filter $filter
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $results = 'tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx'
           [xml]$receipt = Get-Content -LiteralPath $results -Raw
           $counters = $receipt.TestRun.ResultSummary.Counters
-          if ($counters.total -ne '2' -or $counters.executed -ne '2' -or $counters.passed -ne '2') {
-            throw 'Both native fixture cases must execute and pass.'
+          if ($counters.total -ne '9' -or $counters.executed -ne '9' -or $counters.passed -ne '9') {
+            throw 'All nine native fixture cases must execute and pass.'
           }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
