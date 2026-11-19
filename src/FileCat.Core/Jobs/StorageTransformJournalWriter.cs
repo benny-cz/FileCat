@@ -167,13 +167,14 @@ internal sealed class StorageTransformJournalWriter : IDisposable
         result[8] = (byte)' '; json.CopyTo(result, 9); result[^1] = (byte)'\n';
         return result;
     }
-    internal static JsonDocument Decode(ReadOnlySpan<byte> line)
+    internal static JsonDocument Decode(ReadOnlyMemory<byte> record)
     {
+        ReadOnlySpan<byte> line = record.Span;
         if (line.Length is < 12 or > StorageJournalPolicy.RecordBytes || line[^1] != '\n' || line[8] != ' ' ||
             !uint.TryParse(System.Text.Encoding.ASCII.GetString(line[..8]), System.Globalization.NumberStyles.HexNumber,
                 System.Globalization.CultureInfo.InvariantCulture, out uint checksum) || Crc32.HashToUInt32(line[9..^1]) != checksum)
             throw new InvalidDataException("The storage record is torn, oversized or has an invalid checksum.");
-        return JsonDocument.Parse(line[9..^1].ToArray(), new JsonDocumentOptions { MaxDepth = 32 });
+        return JsonDocument.Parse(record[9..^1], new JsonDocumentOptions { MaxDepth = 32 });
     }
     public void Dispose()
     {

@@ -196,7 +196,7 @@ public sealed class StorageHistoryDiscovery : IDisposable
                 }
                 if (!damaged)
                 {
-                    using var document = StorageTransformJournalWriter.Decode(record.GetBuffer().AsSpan(0, (int)record.Length));
+                    using var document = StorageTransformJournalWriter.Decode(record.GetBuffer().AsMemory(0, (int)record.Length));
                     var collector = new StorageTransformJournalCollector(); collector.Read(document.RootElement);
                     header = collector.Header; damaged = collector.Damaged || header is null ||
                         !StorageJournalPolicy.TryJobId(name, out var named) || header.JobId != named;
