@@ -140,3 +140,22 @@ The Windows 11 x64 VM reran the same 10,000-file workload with default rendering
 | Main process working set, sampled initial to peak | 232,947,712 to 262,410,240 bytes |
 
 The job reported 10,001 changes, the queued folder was created after Resume, and every file carried the compressed attribute. Boundary hashes matched the original bytes. Three dispatcher delays exceeded 50 ms during the measured job, with a maximum of 93.8 ms. The overall maximum during startup was 1,578.2 ms. The blocked-flush counterpart `Published_prefix_is_exact_and_can_be_read_while_later_intent_flush_is_blocked` also passed in the retained Ubuntu portable receipt. The new VM receipts are `default-operations-scale.json`, `default-operations-dispatcher.json` and `default-operations-storage.fcj` in `.tmp/filecat-storage-ui-scale-cdd562ad-r1/`.
+
+### Native ARM64 journal quota, review and export
+
+Windows 11 Enterprise ARM64 build 26200 ran six medium-integrity cases on fixed 4 KiB NTFS. The fixture bound every paged history entry to its native identity, read the durable prefix while the writer's later flush was blocked, and exported byte-for-byte through both the live-prefix and inactive-journal paths. The initial run reached the near-full export and refused it at the repeated architecture guard. The rerun passed all six cases after the export retained its opening backend's ARM64 qualification. [Passing run and `native-storage-evidence-limits.trx`](https://github.com/benny-cz/FileCat/actions/runs/44515650631)
+
+| Measurement | Result |
+| --- | ---: |
+| Pending review reservations | 128 journals, 268,435,456 bytes reserved |
+| First page, then full pending-reservation census | 161.8 ms, 767.6 ms |
+| Refusal at reservation limit | 1,520.8 ms |
+| Exact review and call page at reservation limit | 6.5 ms |
+| Near-limit history | 255,946,304 bytes of journals, 8,388,608 bytes reserved |
+| Near-limit header read | 2,120 bytes in 8.5 ms |
+| Near-limit census | 3,669.4 ms and 854,692,240 cumulative managed bytes allocated |
+| Refusal at occupied limit | 10,830.1 ms |
+| Exact review and tail, then digest-matched export | 1,684.9 ms, 1,223.0 ms |
+| Acknowledgment, then pruning and successful admission | 2,803.0 ms, 17,253.7 ms |
+
+The occupied fixture kept the other three journals and pruned only the acknowledged one. Its final charge was 198,269,500 bytes. The platform test assembly SHA-256 was `21C3ABF378E8B48C611B6D539E9B3A03011E0DB815100C67EF1780958DEDA475` at commit `e0274701743e850f1c0c53db88aeea22e498584e`.
