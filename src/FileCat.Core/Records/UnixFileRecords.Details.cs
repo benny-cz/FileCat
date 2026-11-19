@@ -228,7 +228,7 @@ public sealed unsafe partial class UnixFileRecords
                 NativeAttributes.State: FactState.Known,
             })
         {
-            report = AddMacApfsDetails(report, fields, ct);
+            report = AddMacVolumeDetails(report, fields, ct);
         }
         return report;
     }

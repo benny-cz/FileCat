@@ -141,32 +141,37 @@ public sealed partial class UnixFileDetailsNativeTests
             Assert.DoesNotContain(reader.ReadFull(leaf, FileDetailsPolicy.MetadataOnly, ct).Technical.Sections, section => section.Title == title);
     }
 
-    [Fact]
-    public void Mac_namespace_requires_matching_volume_and_individually_valid_capabilities()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Mac_namespace_requires_matching_volume_and_individually_valid_capabilities(bool apfs)
     {
         const uint device = 42;
         var fields = new byte[76];
         BinaryPrimitives.WriteUInt32LittleEndian(fields, 76);
         BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(4), 0x80000002);
-        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(8), 0x00120000);
+        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(8), apfs ? 0x00120000u : 0x00320000u);
         BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(24), device);
         BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(28), 0x100);
         BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(44), 0x100);
-        BinaryPrimitives.WriteInt32LittleEndian(fields.AsSpan(60), 8);
-        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(64), 5);
-        "apfs\0"u8.CopyTo(fields.AsSpan(68));
+        int offset = apfs ? 8 : 12;
+        var type = apfs ? "apfs\0"u8 : "hfs\0"u8;
+        BinaryPrimitives.WriteInt32LittleEndian(fields.AsSpan(60), offset);
+        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(64), (uint)type.Length);
+        type.CopyTo(fields.AsSpan(60 + offset));
 
-        var (sensitive, preserving, volumeVerified) = UnixFileRecords.ParseMacApfsNamespace(fields, device);
+        var (sensitive, preserving, volumeVerified) = UnixFileRecords.ParseMacVolumeNamespace(fields, device, apfs);
         Assert.True(volumeVerified);
         Assert.Equal(FactState.Known, sensitive.State);
         Assert.Equal(FactScope.Volume, sensitive.Scope);
         Assert.True(sensitive.Value);
         Assert.Equal(FactState.Unsupported, preserving.State);
-        Assert.Equal(FactState.Partial, UnixFileRecords.ParseMacApfsNamespace(fields, device + 1).Sensitive.State);
-        Assert.False(UnixFileRecords.ParseMacApfsNamespace(fields, device + 1).VolumeVerified);
-        Assert.False(UnixFileRecords.ParseMacApfsNamespace(fields.AsSpan(0, 70), device).VolumeVerified);
+        Assert.Equal(FactState.Partial, UnixFileRecords.ParseMacVolumeNamespace(fields, device + 1, apfs).Sensitive.State);
+        Assert.False(UnixFileRecords.ParseMacVolumeNamespace(fields, device + 1, apfs).VolumeVerified);
+        Assert.False(UnixFileRecords.ParseMacVolumeNamespace(fields, device, !apfs).VolumeVerified);
+        Assert.False(UnixFileRecords.ParseMacVolumeNamespace(fields.AsSpan(0, 70), device, apfs).VolumeVerified);
         BinaryPrimitives.WriteInt32LittleEndian(fields.AsSpan(60), int.MaxValue);
-        Assert.False(UnixFileRecords.ParseMacApfsNamespace(fields, device).VolumeVerified);
+        Assert.False(UnixFileRecords.ParseMacVolumeNamespace(fields, device, apfs).VolumeVerified);
     }
 
     [Fact]
