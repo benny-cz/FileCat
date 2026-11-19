@@ -310,7 +310,7 @@ internal sealed class LegacyZipPublicationTransaction : IDisposable
             recoveryRequired = true;
             Journal.RequireRecovery();
             Issue(IssueSeverity.Warning, archive,
-                $"The ZIP update was published. Review the snapshot at {backup} and the rebuilt ZIP at {temp}. {reason}", StepOutcome.Committed, "security");
+                $"The ZIP update was published. {reason} Inspect the ZIP recovery paths at {backup} and {temp}.", StepOutcome.Committed, "security");
         }
         else Journal.Done(step, StepOutcome.Committed);
         onCommitted();

@@ -41,6 +41,9 @@ public partial class WindowsFileOperations : ILegacyZipInPlacePublisher
         {
             if (!SupportsLocalNtfsTransactions(WindowsArchiveNative.Volume(directory, requirePrivateNtfs: false))) return null;
             string archiveName = Path.GetFileName(archive), stageName = Path.GetFileName(stage);
+            if (WindowsArchiveNative.Regular(originalPin, original.Version.Length, artifact: false, mayRename: true) > 1)
+                return PublishLegacyZipLinkReplacement(directory, archiveName, stageName, Path.GetFileName(backup),
+                    original, originalPin, rebuilt, stagePin, checkpoint, beforeCommit);
             using var transaction = new WindowsFileTransaction("FileCat legacy ZIP publication");
             var published = new LegacyZipRollbackFile(new(original.Version.Identity, rebuilt.Version.Length, rebuilt.Version.Sha256),
                 rebuilt.Origin, Encrypted: false);
@@ -54,8 +57,7 @@ public partial class WindowsFileOperations : ILegacyZipInPlacePublisher
                 if (ProtectedHexFile.Identity(target) != ProtectedHexFile.Identity(originalPin) ||
                     ProtectedHexFile.Identity(input) != ProtectedHexFile.Identity(stagePin))
                     throw new IOException("The archive or rebuilt ZIP no longer identifies the reviewed file.");
-                // An in-place publication would also change every other hard link. Keep those updates on the
-                // namespace-replacement route until that route has its own qualified publication protocol.
+                // Recheck under the transaction. In-place publication must never change an additional link.
                 if (WindowsArchiveNative.Regular(target, original.Version.Length, artifact: false, mayRename: true) != 1)
                     return null;
                 var originalOrigin = VerifyTransactedPublicationInput(target, transaction, original, checkpoint);

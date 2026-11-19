@@ -202,6 +202,19 @@ internal static unsafe partial class WindowsArchiveNative
             io.Information == sizeof(uint) && size == 0;
     }
 
+    internal static bool HasNoDistinctShortName(SafeFileHandle handle, string leaf)
+    {
+        const int ObjectNameNotFound = unchecked((int)0xc0000034);
+        byte* bytes = stackalloc byte[32];
+        IoStatus io = default;
+        int status = NtQueryInformationFile(handle, &io, bytes, 32, 21 /* FileAlternateNameInformation */);
+        if (status == ObjectNameNotFound) return true;
+        if (status != 0 || io.Information is < 4 or > 32) return false;
+        uint length = *(uint*)bytes;
+        return length == 0 || (length & 1) == 0 && length <= io.Information - 4 &&
+            new ReadOnlySpan<char>((char*)(bytes + 4), (int)length / 2).SequenceEqual(leaf);
+    }
+
     internal static void DeleteExact(SafeFileHandle handle)
     {
         uint flags = 1 | 2; // DELETE | POSIX_SEMANTICS. Never ignore read-only, reopen a path, or use a fallback.

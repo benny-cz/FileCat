@@ -35,7 +35,14 @@ public sealed partial class WindowsArchiveEfsUpdateTests
             var originalMark = File.ReadAllBytes(target + ":Zone.Identifier");
             var original = File.ReadAllBytes(target);
             var creation = File.GetCreationTimeUtc(target);
-            if (hardLinked) Assert.True(CreateHardLink(alias, target, 0));
+            byte[]? originalEas = null;
+            if (hardLinked)
+            {
+                WriteZipTestEa(target);
+                originalEas = ReadZipTestEas(target);
+                Assert.NotEmpty(originalEas);
+                Assert.True(CreateHardLink(alias, target, 0));
+            }
             var files = new WindowsFileOperations();
             string id = Assert.IsType<string>(files.GetFileIdentity(target));
             var plan = new ArchivePlan(target, ArchiveBaseline.Of(target), [new(ArchiveChangeKind.CreateFolderEntry, "new-folder")]);
@@ -54,6 +61,14 @@ public sealed partial class WindowsArchiveEfsUpdateTests
                 Assert.Equal(id, files.GetFileIdentity(alias));
                 Assert.Equal(original, File.ReadAllBytes(alias));
                 Assert.Equal(originalMark, File.ReadAllBytes(alias + ":Zone.Identifier"));
+                Assert.Equal(originalMark, File.ReadAllBytes(target + ":Zone.Identifier"));
+                Assert.Equal(creation, File.GetCreationTimeUtc(target));
+                Assert.Equal("other stream", File.ReadAllText(target + ":filecat-fixture"));
+                Assert.Equal(originalEas, ReadZipTestEas(target));
+                Assert.Equal(originalEas, ReadZipTestEas(alias));
+                string backup = Assert.Single(Directory.GetFiles(root, "*.bak"));
+                Assert.Equal(id, files.GetFileIdentity(backup));
+                Assert.True(journal.NeedsRecovery);
                 return;
             }
             Assert.Equal(id, files.GetFileIdentity(target));
@@ -77,6 +92,25 @@ public sealed partial class WindowsArchiveEfsUpdateTests
     [LibraryImport("kernel32.dll", EntryPoint = "CreateHardLinkW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CreateHardLink(string name, string original, nint security);
+
+    private static void WriteZipTestEa(string path)
+    {
+        ReadOnlySpan<byte> name = "owned.test"u8;
+        // A single FILE_FULL_EA_INFORMATION entry with one value byte.
+        byte[] packet = new byte[(10 + name.Length + 3) & ~3];
+        packet[5] = (byte)name.Length;
+        packet[6] = 1;
+        name.CopyTo(packet.AsSpan(8));
+        packet[9 + name.Length] = 123;
+        using var file = File.OpenHandle(path, access: FileAccess.ReadWrite);
+        WindowsHiddenData.WriteArchiveCopyEas(file, packet);
+    }
+
+    private static byte[] ReadZipTestEas(string path)
+    {
+        using var file = File.OpenHandle(path);
+        return Assert.IsType<byte[]>(WindowsHiddenData.ReadArchiveCopyEas(file));
+    }
 
     private static void RequireZipPublicationVolume(string path, FileAttributes storage = FileAttributes.Normal)
     {
@@ -118,14 +152,17 @@ public sealed partial class WindowsArchiveEfsUpdateTests
         File.Replace(stage, target, backup, ignoreMetadataErrors: true);
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Legacy_zip_publication_is_private_until_commit_and_retains_the_snapshot_on_cancellation(bool cancel)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void Legacy_zip_publication_is_private_until_commit_and_retains_the_snapshot_on_cancellation(bool cancel, bool hardLinked)
     {
         RequireLocalNtfs();
         string root = Directory.CreateTempSubdirectory("filecat-zip-publication-commit-").FullName;
         string target = Path.Join(root, "original.zip"), stage = Path.Join(root, "stage.tmp");
         string backup = Path.Join(root, "snapshot.bak"), alias = Path.Join(root, "alias.zip");
+        string existingAlias = Path.Join(root, "existing-alias.zip");
         const string mark = "[ZoneTransfer]\r\nZoneId=3\r\n";
         try
         {
@@ -134,6 +171,7 @@ public sealed partial class WindowsArchiveEfsUpdateTests
             var original = WriteReviewedZip(target, "original.txt", null);
             RequireZipPublicationVolume(target);
             var rebuilt = WriteReviewedZip(stage, "replacement.txt", mark);
+            if (hardLinked) Assert.True(CreateHardLink(existingAlias, target, 0));
             var oldBytes = File.ReadAllBytes(target);
             var newBytes = File.ReadAllBytes(stage);
             using var originalPin = Pin(target);
@@ -146,7 +184,12 @@ public sealed partial class WindowsArchiveEfsUpdateTests
                     reachedCommit = true;
                     RequirePrivateUntilCommit(() => Assert.Equal(oldBytes, File.ReadAllBytes(target)));
                     RequirePrivateUntilCommit(() => Assert.Null(files.ReadOriginMark(target)));
-                    Assert.Equal(oldBytes, File.ReadAllBytes(backup));
+                    if (hardLinked)
+                    {
+                        Assert.False(File.Exists(backup));
+                        RequirePrivateUntilCommit(() => Assert.Equal(oldBytes, File.ReadAllBytes(existingAlias)));
+                    }
+                    else Assert.Equal(oldBytes, File.ReadAllBytes(backup));
                     Assert.False(CreateHardLink(alias, target, 0));
                     if (cancel) throw new OperationCanceledException("Owned fixture stopped before publication.");
                 });
@@ -154,11 +197,17 @@ public sealed partial class WindowsArchiveEfsUpdateTests
             Assert.NotNull(result);
             Assert.True(reachedCommit, result.Failure?.ToString());
             Assert.True(result.Published == !cancel, result.Failure?.ToString());
-            Assert.Equal(original.Version.Identity, files.GetFileIdentity(target));
+            Assert.Equal(hardLinked && !cancel ? rebuilt.Version.Identity : original.Version.Identity, files.GetFileIdentity(target));
             Assert.Equal(cancel ? oldBytes : newBytes, File.ReadAllBytes(target));
             Assert.Equal(cancel ? null : mark, files.ReadOriginMark(target));
-            Assert.Equal(cancel, File.Exists(backup));
+            Assert.Equal(hardLinked ? !cancel : cancel, File.Exists(backup));
             Assert.Equal(cancel, File.Exists(stage));
+            if (hardLinked)
+            {
+                Assert.Equal(original.Version.Identity, files.GetFileIdentity(existingAlias));
+                Assert.Equal(oldBytes, File.ReadAllBytes(existingAlias));
+                if (!cancel) Assert.Equal(original.Version.Identity, files.GetFileIdentity(backup));
+            }
             if (cancel)
             {
                 Assert.True(result.Failure is OperationCanceledException, result.Failure?.ToString());
@@ -167,7 +216,8 @@ public sealed partial class WindowsArchiveEfsUpdateTests
             else
             {
                 Assert.Null(result.Failure);
-                Assert.Null(result.ReviewReason);
+                if (hardLinked) Assert.NotNull(result.ReviewReason);
+                else Assert.Null(result.ReviewReason);
             }
 
             LegacyZipRollbackFile WriteReviewedZip(string path, string member, string? origin)

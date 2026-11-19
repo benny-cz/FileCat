@@ -47,7 +47,7 @@ public sealed unsafe partial class WindowsHiddenData
 
     internal sealed record InventoryPart(ImmutableArray<HiddenItem> Items, HiddenInventoryState State, string? Problem = null, bool Acquired = false);
 
-    private static InventoryPart ReadStreamInventory(SafeFileHandle file, CancellationToken ct)
+    internal static InventoryPart ReadStreamInventory(SafeFileHandle file, CancellationToken ct)
     {
         for (int attempt = 0, size = 64 * 1024; attempt < 3; attempt++, size *= 4)
         {
