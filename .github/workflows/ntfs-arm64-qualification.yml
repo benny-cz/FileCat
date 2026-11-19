@@ -3,6 +3,10 @@ name: Windows ARM64 NTFS qualification
 on:
   workflow_dispatch:
     inputs:
+      keys:
+        description: Run the native EFS key comparison, recovery and backup wizard checks
+        type: boolean
+        default: false
       scale:
         description: Run the 10,000-file native storage benchmark
         type: boolean
@@ -34,6 +38,7 @@ jobs:
           }
       - name: Exercise native storage at medium integrity
         env:
+          FILECAT_QUALIFY_KEYS: ${{ inputs.keys }}
           FILECAT_QUALIFY_SCALE: ${{ inputs.scale }}
         shell: pwsh
         run: |
@@ -142,6 +147,25 @@ jobs:
             @{ Project = 'tests/FileCat.Core.Tests'; Log = 'native-efs-archive-output.trx'; Count = '10';
                Filter = 'FullyQualifiedName~ArchiveEfsSpoolTests' }
           )
+          if ($env:FILECAT_QUALIFY_KEYS -eq 'true') {
+            $keyFilter = @(
+              'Fresh_private_key_comparison_supports_Capi_and_Cng_without_exporting_private_material'
+              'A_cached_key_B_does_not_make_certificate_A_a_matching_key_even_when_direct_cached_acquisition_succeeds'
+              'A_source_caching_preference_is_not_copied_into_the_fresh_context_or_healed_in_the_original'
+              'Unqualified_provider_parameters_and_a_different_encoded_certificate_do_not_become_known_key_access'
+              'A_public_certificate_or_foreign_invoker_does_not_establish_private_key_access'
+              'Exact_current_user_store_lookup_does_not_select_another_certificate_or_enroll_a_key'
+              'Backup_review_lists_only_selected_files_and_rechecks_their_exact_identities'
+              'Default_recovery_workflow_requires_setup_and_an_explicit_recovery_choice_after_backup_failure'
+            ) | ForEach-Object { "FullyQualifiedName~$_" }
+            $env:FILECAT_TEST_EFS_BACKUP_WIZARD = '1'
+            $outputSuites += @(
+              @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-keys.trx'; Count = '11';
+                 Filter = $keyFilter -join '|' },
+              @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-wizard.trx'; Count = '2';
+                 Filter = 'FullyQualifiedName~Parented_private_key_backup_distinguishes_cancellation_from_completed_export' }
+            )
+          }
           foreach ($suite in $outputSuites) {
             ./eng/validation/run-medium-integrity-test.ps1 -Project $suite.Project -LogFileName $suite.Log -Filter $suite.Filter
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -179,6 +203,8 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-hex-output.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-copy-output.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-keys.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-wizard.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-file-details.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-scale.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-archive-output.trx

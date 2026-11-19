@@ -65,7 +65,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             return new(false, false, [], Problem(StorageReasonKind.IdentityChanged, "efs-backup-association-changed",
                 "None of the originally reviewed files could still be associated with the selected key. Inspect the selection again."));
 
-        var backup = new WindowsEfsKeys().BackUpAssociatedCertificate(reviewed, certificateSha1, ownerWindow, explicitlyRequested: true, ct, invokeWizard);
+        var backup = _efsKeys.BackUpAssociatedCertificate(reviewed, certificateSha1, ownerWindow, explicitlyRequested: true, ct, invokeWizard);
         if (backup.Completion is null) return new(false, backup.State == WindowsEfsKeys.BackupState.Canceled, [], backup.Problem);
 
         var covered = ImmutableArray.CreateBuilder<int>();

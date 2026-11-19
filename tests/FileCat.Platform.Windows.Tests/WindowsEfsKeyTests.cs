@@ -22,7 +22,8 @@ public sealed unsafe partial class WindowsEfsKeyTests
     }
     private static void NativeFixture()
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+        Assert.SkipUnless(WindowsStorageTransforms.SupportsHost(WindowsStorageAbiTests.QualifyNativeArm64Jobs) &&
+            Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
             "Explicit EFS key qualification in the disposable Windows VM only; creates and deletes only uniquely named fixture keys/certificates.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity);
     }
@@ -150,7 +151,7 @@ public sealed unsafe partial class WindowsEfsKeyTests
         try
         {
             using var native = StorageReviewResources.EnterNative(Ct);
-            var service = new WindowsEfsKeys();
+            var service = new WindowsEfsKeys(WindowsStorageAbiTests.QualifyNativeArm64Jobs);
             Assert.Equal(StorageEfsKeyState.MatchedAvailable, service.ProbeAssociatedCertificate(Sid, fixture.Certificate.Thumbprint, Ct).State);
             var missing = service.ProbeAssociatedCertificate(Sid, absent.Certificate.Thumbprint, Ct);
             Assert.Equal(StorageEfsKeyState.Unavailable, missing.State); Assert.False(missing.CertificatePresent);

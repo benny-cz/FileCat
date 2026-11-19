@@ -104,7 +104,8 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void Backup_review_lists_only_selected_files_and_rechecks_their_exact_identities()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         string root = Directory.CreateTempSubdirectory("filecat-efs-selected-backup-").FullName;
         try
         {
@@ -113,7 +114,7 @@ public sealed partial class WindowsEfsJobTests
             string unselected = Write(folder, "unselected.bin");
             File.Encrypt(first); File.Encrypt(second); File.Encrypt(unselected);
             ItemRef Select(string path) => ItemRef.ForFileSystemPath(path, EntryKind.File);
-            var manager = Manager(root, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            var manager = Manager(root, new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64).CreateEfsJobCandidate(), qualifyNativeArm64);
             StorageEfsFileBackupReview reviewed;
             string hash;
             using (StorageReviewResources.EnterNative(Ct))
@@ -544,12 +545,13 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void Default_recovery_workflow_requires_setup_and_an_explicit_recovery_choice_after_backup_failure()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         string root = Directory.CreateTempSubdirectory("filecat-efs-job-recovery-workflow-").FullName;
         try
         {
             string path = Write(root, "clear.txt");
-            var manager = Manager(root, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            var manager = Manager(root, new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64).CreateEfsJobCandidate(), qualifyNativeArm64);
             var requests = new List<DecisionRequest>();
             bool allWaitingAndClear = true;
             manager.DecisionRequested += pending =>

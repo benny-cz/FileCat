@@ -29,7 +29,7 @@ internal sealed unsafe partial class WindowsEfsKeys
         ArgumentNullException.ThrowIfNull(association);
         ValidateRequest(association.InvokerSid, certificateSha1);
         ct.ThrowIfCancellationRequested();
-        if (!WindowsStorageTransforms.IsQualifiedHost)
+        if (!WindowsStorageTransforms.SupportsHost(qualifyNativeArm64))
             return Refused("efs-backup-host", "The EFS backup wizard requires its qualified Windows host.");
         if (association.Users.IsDefaultOrEmpty || !association.Users.Any(user => user.Sid == association.InvokerSid && user.CertificateSha1 == certificateSha1))
             return Refused("efs-backup-association", "The selected certificate is outside the invoking user's observed EFS associations.");
