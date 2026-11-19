@@ -31,6 +31,10 @@ on:
         description: Qualify native NTFS storage commands, EFS consent and selection refresh
         type: boolean
         default: false
+      sparse:
+        description: Qualify sparse main and named streams through native storage transforms
+        type: boolean
+        default: false
       scale:
         description: Run the 10,000-file native storage benchmark
         type: boolean
@@ -86,6 +90,7 @@ jobs:
           FILECAT_QUALIFY_EVIDENCE: ${{ inputs.evidence }}
           FILECAT_QUALIFY_KEYS: ${{ inputs.keys }}
           FILECAT_QUALIFY_SCALE: ${{ inputs.scale }}
+          FILECAT_QUALIFY_SPARSE: ${{ inputs.sparse }}
         shell: pwsh
         run: |
           $evidence = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-evidence'
@@ -199,6 +204,20 @@ jobs:
             @{ Project = 'tests/FileCat.Core.Tests'; Log = 'native-efs-recovery-output.trx'; Count = '3';
                Filter = 'FullyQualifiedName~Disk_image_efs_protection_controls_recovery_drag_and_spool|FullyQualifiedName~A_recovery_output_reader_stops_when_its_open_disk_image_becomes_encrypted' }
           )
+          if ($env:FILECAT_QUALIFY_SPARSE -eq 'true') {
+            $env:FILECAT_TEST_SPARSE_TRANSFORMS = '1'
+            $sparseFilter = @(
+              'Efs_native_actions_preserve_identity_and_logical_bytes_in_bounded_sparse_fixtures'
+              'Compression_native_actions_preserve_identity_and_logical_bytes_in_bounded_sparse_fixtures'
+              'Reviewed_compression_jobs_preserve_sparse_streams_and_do_not_call_native_for_noops'
+              'Reviewed_efs_binding_preserves_sparse_main_and_named_layouts'
+              'Named_sparse_layout_growth_before_or_during_the_call_is_never_reported_as_success'
+              'A_sparse_range_overflow_refuses_before_a_native_call_while_a_noop_requires_no_inventory'
+              'Reviewed_hex_save_as_keeps_sparse_ranges_in_an_approved_clear_copy'
+            ) | ForEach-Object { "FullyQualifiedName~WindowsSparseTransformTests.$_" }
+            $outputSuites += @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-storage-sparse.trx';
+                Count = '23'; Filter = $sparseFilter -join '|' }
+          }
           if ($env:FILECAT_QUALIFY_EVIDENCE -eq 'true') {
             $env:FILECAT_TEST_STORAGE_SCALE = '1'
             $evidenceFilter = @(
@@ -497,6 +516,7 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-listing-performance-*.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-listing-volume-cold-*.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-scale.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-sparse.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-evidence-limits.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-archive-output.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-recovery-output.trx

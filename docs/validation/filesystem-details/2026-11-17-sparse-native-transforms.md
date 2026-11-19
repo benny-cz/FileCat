@@ -14,3 +14,9 @@ The initial fixture assumed that a sparse named stream implies a sparse attribut
 Final VM build completed with zero warnings and errors. All nine cases passed with `FILECAT_TEST_SPARSE_TRANSFORMS=1`. Exact outputs are in `.tmp/filecat-sparse-transforms-v2-tests.xml` and `.tmp/filecat-sparse-transforms-v2-results.log`. The initial probe is retained as `.tmp/filecat-sparse-transforms-tests.xml`.
 
 The remaining gates include the FileCat held-path and held-stream adapters, read-only/denied cases, large logical size, named compression mixed with sparse layout, bounds under many extents and concurrent changes, and per-route output behavior. The fixture establishes native behavior for the tested shapes on this volume. Product sparse eligibility remains gated.
+
+## Large sparse decompression on the x64 VM
+
+A later run on Windows 11 x64 build 26340 produced a different native result from the earlier [sparse removal pass](2026-11-18-ntfs-compression-volume-matrix.md). Compression was removed from the 30,000,000,001-byte file and the sparse flag stayed set. Windows reported a new allocation at the start of the file. The first range grew from `65536+65536` to `0+131072`. The range at offset 2,097,152 stayed 65,536 bytes long. Total reported allocation grew from 8,192 to 196,608 bytes.
+
+The FileCat job detected the changed hole map and finished with an uncertain native result. The same postcondition refusal recurred in three runs. Of the 24 selected tests in the diagnostic run, the other 23 passed. The ARM64 workflow covers those 23 bounded transform, overflow, concurrent-change and Save As cases. Large sparse decompression remains an open qualification case. The x64 diagnostic receipt is `.tmp/filecat-efs-live-166b6897-r1/storage-sparse-observed-8ebe335c/native-storage-sparse-observed-x64.trx`.

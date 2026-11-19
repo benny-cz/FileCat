@@ -315,10 +315,20 @@ public sealed partial class WindowsSparseTransformTests
             }
             StreamObservation namedBefore;
             using (var named = File.OpenRead(path + NamedStream)) namedBefore = ObserveStream(named);
-            RunJob(jobs, path, StorageAction.RemoveCompression, changed: true);
+            var job = Submit(jobs, path, StorageAction.RemoveCompression);
 
             using var result = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var after = Assert.IsType<WindowsStorageTransforms.SparseLayout>(WindowsStorageTransforms.ReadSparseLayout(result, ct));
+            var observed = WindowsStorageTransforms.ReadSparseLayout(result, ct);
+            TestContext.Current.TestOutputHelper?.WriteLine($"Before removal: EOF {before.Length}, allocation {before.Allocation}, " +
+                string.Join(", ", before.Ranges));
+            TestContext.Current.TestOutputHelper?.WriteLine($"After removal: EOF {observed?.Length}, allocation {observed?.Allocation}, " +
+                $"{File.GetAttributes(result)}, format {WindowsCompression.Query(result).Native}, " +
+                string.Join(", ", observed?.Ranges ?? []));
+            Assert.True(job.State == JobState.Completed, $"{job.State}: " + string.Join(", ",
+                job.StorageResult!.Reasons.Select(reason => reason.Problem.Message)));
+            Assert.Equal(1, job.StorageResult!.Counts.Changed);
+            AssertCallEvidence(jobs, job, changed: true);
+            var after = Assert.IsType<WindowsStorageTransforms.SparseLayout>(observed);
             Assert.Equal(identity, ProtectedHexFile.Identity(result).ToString());
             Assert.Equal(largeLength, after.Length);
             Assert.Equal(before.Ranges, after.Ranges);
@@ -410,7 +420,7 @@ public sealed partial class WindowsSparseTransformTests
         Action? afterCall = null)
     {
         var ct = TestContext.Current.CancellationToken;
-        var adapter = new WindowsStorageTransforms();
+        var adapter = new WindowsStorageTransforms(qualifyNativeArm64: WindowsStorageAbiTests.QualifyNativeArm64Jobs);
         var target = StoragePaths.Capture([ItemRef.ForFileSystemPath(path, EntryKind.File)])[0];
         using var reserve = StorageReviewResources.ReservePins(1);
         using var native = StorageReviewResources.EnterNative(ct);
@@ -480,10 +490,15 @@ public sealed partial class WindowsSparseTransformTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    private static JobManager CreateManager(string path, string? evidenceRoot = null) =>
-        new(new PortableFileOperations(), new ProviderRegistry(), Directory.CreateDirectory(
+    private static JobManager CreateManager(string path, string? evidenceRoot = null)
+    {
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        return new(new PortableFileOperations(), new ProviderRegistry(), Directory.CreateDirectory(
             Path.Join(evidenceRoot ?? Path.GetDirectoryName(path)!, "journal")).FullName, ArchiveJobBackends.Empty,
-            new WindowsStorageTransforms(), WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend);
+            new WindowsStorageTransforms(qualifyNativeArm64: arm64),
+            arm64 ? WindowsStorageReviewEvidence.CreateArm64QualificationJournal : WindowsStorageReviewEvidence.CreateJournal,
+            arm64 ? WindowsStorageReviewEvidence.Arm64QualificationBackend : WindowsStorageReviewEvidence.Backend);
+    }
 
     private static Job Submit(JobManager jobs, string path, StorageAction action)
     {
@@ -522,9 +537,11 @@ public sealed partial class WindowsSparseTransformTests
 
     private static void RequireFixture()
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost &&
-            Environment.GetEnvironmentVariable("FILECAT_TEST_SPARSE_TRANSFORMS") == "1",
-            "Requires an explicitly prepared disposable NTFS volume in the Windows 11 VM.");
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_SPARSE_TRANSFORMS") == "1",
+            "Requires an explicitly prepared disposable NTFS volume on Windows 11.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.True(WindowsStorageTransforms.SupportsHost(arm64));
+        if (arm64) WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
         Assert.False(WindowsTokenAuthority.IsHighIntegrity);
     }
 
