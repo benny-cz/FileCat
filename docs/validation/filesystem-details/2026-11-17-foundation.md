@@ -54,3 +54,9 @@ Use the isolated guest/Mac checkouts named `FileCat-native-20261117-01a1e6d0`. G
 List rows, picture tiles, focused inspection and accessible descriptions now use the same registered cloud-root snapshot. The root context is available to a freshly opened picture view and updates with the active tab. Presentation distinguishes a managed file from evidence of its current residency and keeps the parent navigation row outside the cloud description. Places uses the same snapshot.
 
 The Windows x64 VM passed all 29 selected file-list, accessibility and marked-item tests, including the two cached-root cases. The simulated Windows shell supplied the root once. No per-row discovery was required. The SHA-256 of `native-cloud-root-qualified-x64.trx` is `F38DD11A2F51FCAA810DF67ECF98B9E9281D3F8ED6C131137A8A264EC99EE2C5`. Apple silicon passed 27 corresponding App cases, with two Windows-only skips, and all 15 cloud and reparse taxonomy cases covering pin hints, observed socket tags and unknown surrogate and non-surrogate tags.
+
+## Observation admission after a failed worker start
+
+The scheduler starts missing worker capacity before adding the request to the device queue. A failed start retires the work item and releases the shared observation permit. The regression injects a failure at thread startup, reacquires all four device permits, then sends another request through the same scheduler and device. The retry runs with a valid permit. The rejected request never reaches the later worker.
+
+The ownership and scheduler selection passed 32 cases each on the Ubuntu x64 VM and Apple silicon, with zero failures or skips. The receipt SHA-256 is `43069CBE57877BEA93F7AFAA3CF8DC0FB78695A2BD344DDBEAA4725A1DC8D4AB` for `owned-enqueue-ubuntu-r1.trx` and `89331F3F0377D8178A671AF5AB8A457B5CFE3DE7566F708B0F5ACA753421E271` for `owned-enqueue-macos-r1.trx`.

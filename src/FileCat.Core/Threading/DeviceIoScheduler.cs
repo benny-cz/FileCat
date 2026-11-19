@@ -62,6 +62,7 @@ public sealed partial class DeviceIoScheduler : IDisposable
     public int ThreadsPerDevice { get; }
     public int MaxThreadsPerDevice { get; }
     internal TimeSpan IdleQueueTimeout { get; set; } = TimeSpan.FromSeconds(30);
+    internal Action<Thread> StartWorkerThread { get; init; } = static thread => thread.Start();
 
     /// <summary>Shutdown has begun; callers must not publish newly admitted work.</summary>
     public bool IsStopped => _disposed;
@@ -93,7 +94,15 @@ public sealed partial class DeviceIoScheduler : IDisposable
         var item = new WorkItem<T>(work, ct, retainRunningOwner);
         // A queue may retire between GetOrAdd and admission. Retry on a fresh queue rather than
         // canceling a live caller or leaving work stranded on a worker that has exited.
-        while (!_devices.GetOrAdd(deviceKey, k => new DeviceQueue(this, k)).Enqueue(item, priority)) { }
+        try
+        {
+            while (!_devices.GetOrAdd(deviceKey, k => new DeviceQueue(this, k)).Enqueue(item, priority)) { }
+        }
+        catch
+        {
+            item.Cancel();
+            throw;
+        }
         return item.Task;
     }
 
@@ -227,13 +236,14 @@ public sealed partial class DeviceIoScheduler : IDisposable
                     return true;
                 }
                 if (_shutdown) return false; // idle retirement; the caller retries on a new queue
+                // A pulsed worker still counts as idle until it reacquires this lock. A burst can therefore
+                // outgrow those idle slots before any worker starts its call; admit the remaining capacity now.
+                // Start the worker before publishing the work item. A failed start must not leave the item queued.
+                if (_queue.Count >= _idle && _workers.Count < owner.MaxThreadsPerDevice && ActiveWorkers() < owner.ThreadsPerDevice)
+                    StartWorker();
                 _queue.Enqueue(item, ((int)priority, _seq++));
                 if (Diagnostics.FileCatEventSource.Log.IsEnabled()) Diagnostics.FileCatEventSource.Log.QueueDepth(key, _queue.Count);
                 if (_idle > 0) Monitor.Pulse(_lock);
-                // A pulsed worker still counts as idle until it reacquires this lock. A burst can therefore
-                // outgrow those idle slots before any worker starts its call; admit the remaining capacity now.
-                if (_queue.Count > _idle && _workers.Count < owner.MaxThreadsPerDevice && ActiveWorkers() < owner.ThreadsPerDevice)
-                    StartWorker();
                 return true;
             }
         }
@@ -248,15 +258,28 @@ public sealed partial class DeviceIoScheduler : IDisposable
         private void StartWorker()
         {
             var w = new Worker();
-            var t = new Thread(() => Loop(w))
+            try
             {
-                IsBackground = true,
-                Name = $"FileCat I/O {key}",
-                Priority = ThreadPriority.Normal,
-            };
-            w.Thread = t;
-            _workers.Add(w);
-            t.Start();
+                var t = new Thread(() => Loop(w))
+                {
+                    IsBackground = true,
+                    Name = $"FileCat I/O {key}",
+                    Priority = ThreadPriority.Normal,
+                };
+                w.Thread = t;
+                _workers.Add(w);
+                owner.StartWorkerThread(t);
+            }
+            catch
+            {
+                _workers.Remove(w);
+                if (_workers.Count == 0 && _queue.Count == 0)
+                {
+                    _shutdown = true;
+                    owner.Forget(key, this);
+                }
+                throw;
+            }
         }
 
         private void Loop(Worker self)

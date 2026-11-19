@@ -79,4 +79,34 @@ public sealed class FileDetailsOwnershipTests
         }
         finally { foreach (var lease in leases) lease.Dispose(); }
     }
+
+    [Fact]
+    public async Task A_worker_start_failure_releases_admission_and_the_failed_read_never_reaches_a_later_worker()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        string device = Guid.NewGuid().ToString();
+        var failure = new InvalidOperationException("Fixture worker failed to start.");
+        int starts = 0, rejectedReads = 0;
+        using var io = new DeviceIoScheduler(threadsPerDevice: 1, maxThreadsPerDevice: 1)
+        {
+            StartWorkerThread = thread =>
+            {
+                if (Interlocked.Increment(ref starts) == 1) throw failure;
+                thread.Start();
+            }
+        };
+        var rejected = FileObservationRequests.RunOwned(io, device, IoPriority.Interactive,
+            _ => Interlocked.Increment(ref rejectedReads), ct);
+        Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() => rejected));
+        using (await DetailsAdmission.AcquireAsync(device, ct))
+        using (await DetailsAdmission.AcquireAsync(device, ct))
+        using (await DetailsAdmission.AcquireAsync(device, ct))
+        using (await DetailsAdmission.AcquireAsync(device, ct).WaitAsync(TimeSpan.FromSeconds(10), ct)) { }
+
+        var accepted = FileObservationRequests.RunOwned(io, device, IoPriority.Interactive,
+            _ => FileObservationRequests.IsAdmittedFor(device), ct);
+        Assert.True(await accepted.WaitAsync(TimeSpan.FromSeconds(10), ct));
+        Assert.Equal(2, starts);
+        Assert.Equal(0, Volatile.Read(ref rejectedReads));
+    }
 }
