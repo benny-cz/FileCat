@@ -16,9 +16,9 @@ public sealed class WindowsEfsSetupTests
     private static string Sid { get { using var identity = WindowsIdentity.GetCurrent(); return identity.User!.Value; } }
     private static StorageEfsConsent Consent() => StorageEfsConsent.Capture(Guid.NewGuid(), StorageAction.EncryptEfs, StorageScope.SelectedItems,
         [new StorageObjectIdentity(1, new string('A', 32)) { VolumeBinding = "11111111-1111-1111-1111-111111111111" }], new(true, true));
-    private static void NativeFixture()
+    private static void NativeFixture(bool qualifyNativeArm64 = false)
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+        Assert.SkipUnless(WindowsStorageTransforms.SupportsHost(qualifyNativeArm64) && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
             "Explicit zero-byte EFS setup in a disposable normal-user Windows VM; Windows may create/enroll this user's EFS key.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity);
     }
@@ -164,18 +164,25 @@ public sealed class WindowsEfsSetupTests
     [Fact]
     public void First_use_in_a_deliberately_fresh_identity_creates_an_actual_key_only_after_explicit_setup()
     {
-        NativeFixture(); Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_FIRST_USE") == "1",
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        NativeFixture(qualifyNativeArm64);
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_FIRST_USE") == "1",
             "Requires a separately prepared fresh disposable account with no existing EFS certificate.");
         Assert.Equal(0, EfsCertificateCount());
-        var adapter = new WindowsStorageTransforms();
-        Assert.Equal("efs-setup-consent", Assert.Throws<StorageInspectionException>(() => adapter.InspectEfsSetup(Sid, Consent(), false, Ct)).Problem.Code);
-        Assert.Equal(0, EfsCertificateCount());
-        using var native = StorageReviewResources.EnterNative(Ct);
-        var result = adapter.InspectEfsSetup(Sid, Consent(), true, Ct);
-        Assert.True(result.ProvisioningAttempted); Assert.False(result.Canceled); Assert.Null(result.Problem); Assert.Null(result.CleanupProblem);
-        Assert.True(result.Association?.HasMatchedCurrentUserKey); Assert.Null(result.RetainedSetupPath);
-        Assert.True(EfsCertificateCount() > 0);
-        TestContext.Current.TestOutputHelper?.WriteLine($"EFS_FIRST_USE account={Sid} beforeEfsCertificates=0 afterEfsCertificates={EfsCertificateCount()} matchedKeys={result.Association!.CurrentUserKeys.Length} cleanup=True");
+        string directory = Namespace();
+        try
+        {
+            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => directory, qualifyNativeArm64: qualifyNativeArm64);
+            Assert.Equal("efs-setup-consent", Assert.Throws<StorageInspectionException>(() => adapter.InspectEfsSetup(Sid, Consent(), false, Ct)).Problem.Code);
+            Assert.Equal(0, EfsCertificateCount());
+            using var native = StorageReviewResources.EnterNative(Ct);
+            var result = adapter.InspectEfsSetup(Sid, Consent(), true, Ct);
+            Assert.True(result.ProvisioningAttempted); Assert.False(result.Canceled); Assert.Null(result.Problem); Assert.Null(result.CleanupProblem);
+            Assert.True(result.Association?.HasMatchedCurrentUserKey); Assert.Null(result.RetainedSetupPath);
+            Assert.True(EfsCertificateCount() > 0);
+            TestContext.Current.TestOutputHelper?.WriteLine($"EFS_FIRST_USE account={Sid} beforeEfsCertificates=0 afterEfsCertificates={EfsCertificateCount()} matchedKeys={result.Association!.CurrentUserKeys.Length} cleanup=True");
+        }
+        finally { Directory.Delete(directory, recursive: true); }
     }
 
     private static int EfsCertificateCount()

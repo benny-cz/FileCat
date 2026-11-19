@@ -16,7 +16,8 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void Another_users_file_with_allowed_ntfs_access_cannot_be_decrypted_without_an_efs_key()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_NO_KEY_ROOT");
         if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires the disposable two-user NTFS fixture.");
         using var certificates = new X509Store(StoreName.My, StoreLocation.CurrentUser);
@@ -30,7 +31,7 @@ public sealed partial class WindowsEfsJobTests
         string privateRoot = Directory.CreateTempSubdirectory("filecat-efs-no-key-").FullName;
         try
         {
-            var manager = Manager(privateRoot, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            var manager = Manager(privateRoot, new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64).CreateEfsJobCandidate(), qualifyNativeArm64);
             int keyPrompts = 0;
             manager.DecisionRequested += pending => { keyPrompts++; pending.Resolve(new(DecisionAction.CancelJob)); };
             var job = Run(manager, StorageAction.DecryptEfs, [ItemRef.ForFileSystemPath(source, EntryKind.File)]);
@@ -59,7 +60,8 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void A_restored_fixture_key_can_decrypt_the_same_file_under_an_independent_windows_account()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_RESTORED_KEY_ROOT");
         if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires the isolated backup and restore fixture.");
         using var identity = WindowsIdentity.GetCurrent();
@@ -80,7 +82,7 @@ public sealed partial class WindowsEfsJobTests
         string privateRoot = Directory.CreateTempSubdirectory("filecat-efs-recovered-key-").FullName;
         try
         {
-            var manager = Manager(privateRoot, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            var manager = Manager(privateRoot, new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64).CreateEfsJobCandidate(), qualifyNativeArm64);
             int keyPrompts = 0;
             manager.DecisionRequested += pending => { keyPrompts++; pending.Resolve(new(DecisionAction.CancelJob)); };
             var job = Run(manager, StorageAction.DecryptEfs, [ItemRef.ForFileSystemPath(source, EntryKind.File)]);

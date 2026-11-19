@@ -8,9 +8,16 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed class WindowsStorageAbiTests
 {
-    internal static bool QualifyNativeArm64Jobs => WindowsStorageTransforms.IsNativeArm64QualificationHost &&
-        Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS") == "1" &&
-        Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE") == "Arm64";
+    internal static bool QualifyNativeArm64Jobs
+    {
+        get
+        {
+            if (Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS") != "1") return false;
+            Assert.Equal("Arm64", Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE"));
+            Assert.True(WindowsStorageTransforms.IsNativeArm64QualificationHost, "This fixture requires a native ARM64 Windows client.");
+            return true;
+        }
+    }
 
     internal static void RequireNativeEfsOutputFixture()
     {

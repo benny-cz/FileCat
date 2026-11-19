@@ -1,0 +1,135 @@
+param(
+    [Parameter(Mandatory)][string]$Root,
+    [Parameter(Mandatory)][string]$DotNet,
+    [string]$TestBin,
+    [ValidateSet('Controller','Owner','Recipient')][string]$Role = 'Controller',
+    [string]$AccountSid
+)
+
+$ErrorActionPreference = 'Stop'
+$Root = [IO.Path]::GetFullPath($Root)
+if ($Root -notmatch '^[A-Za-z]:\\.+\\filecat-efs-recovery-[0-9a-f]{32}$') {
+    throw 'The recovery fixture requires a fresh, uniquely named directory on a local drive.'
+}
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$data = Join-Path $Root 'data'
+$testDll = Join-Path $Root 'bin\FileCat.Platform.Windows.Tests.dll'
+$source = Join-Path $data 'recovery-source.bin'
+$pfx = Join-Path $data 'test-key.pfx'
+
+function Invoke-Case([string]$Method, [string]$Receipt) {
+    $xmlPath = Join-Path $data $Receipt
+    & $DotNet $testDll -method "*$Method" -noLogo -xml $xmlPath
+    if ($LASTEXITCODE) { throw "Native EFS test exited with code $LASTEXITCODE." }
+    [xml]$xml = Get-Content -LiteralPath $xmlPath -Raw
+    $assembly = $xml.assemblies.assembly
+    $test = $assembly.collection.test
+    if ($assembly.total -ne '1' -or $assembly.passed -ne '1' -or $test.result -ne 'Pass' -or $test.name -notlike "*.$Method") {
+        throw "The exact native case must execute and pass in $Receipt."
+    }
+}
+
+function Get-EfsCertificate {
+    Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.EnhancedKeyUsageList.ObjectId -contains '1.3.6.1.4.1.311.10.3.4' }
+}
+
+if ($Role -ne 'Controller') {
+    $user = $identity.Name.Split('\')[-1]
+    $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+    if ($identity.User.Value -ne $AccountSid -or !$env:USERPROFILE.EndsWith("\$user", [StringComparison]::OrdinalIgnoreCase) -or
+        $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        throw 'Run the fixture only under its new standard account with a loaded profile.'
+    }
+    $env:FILECAT_TEST_EFS = '1'
+    $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
+    $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+    $password = ConvertTo-SecureString ((Split-Path -Leaf $Root) + 'Aa1!') -AsPlainText -Force
+    if (@(Get-EfsCertificate).Count -ne 0) { throw 'The fresh fixture account already has an EFS certificate.' }
+
+    if ($Role -eq 'Owner') {
+        $env:FILECAT_TEST_EFS_FIRST_USE = '1'
+        Invoke-Case 'First_use_in_a_deliberately_fresh_identity_creates_an_actual_key_only_after_explicit_setup' 'first-use.xml'
+        [IO.File]::WriteAllText($source, 'synthetic recovery payload')
+        Set-Content -LiteralPath $source -Stream fixture -Value 'synthetic recovery stream' -NoNewline -Encoding Ascii
+        [IO.File]::Encrypt($source)
+        [IO.File]::WriteAllText((Join-Path $data 'plain-control.bin'), 'matching plain ACL control')
+        $other = Join-Path $data 'other-user.bin'
+        [IO.File]::WriteAllText($other, 'synthetic encrypted control')
+        [IO.File]::Encrypt($other)
+        $keys = @(Get-EfsCertificate)
+        if ($keys.Count -ne 1 -or !$keys[0].HasPrivateKey) { throw 'Expected the fixture owner to have one EFS private key.' }
+        Export-PfxCertificate -Cert $keys[0] -FilePath $pfx -Password $password -ChainOption EndEntityCertOnly | Out-Null
+        $keys[0].Thumbprint | Set-Content -LiteralPath (Join-Path $data 'thumbprint.txt') -Encoding Ascii
+        $AccountSid | Set-Content -LiteralPath (Join-Path $data 'owner-sid.txt') -Encoding Ascii
+    } else {
+        $env:FILECAT_TEST_EFS_NO_KEY_ROOT = $data
+        Invoke-Case 'Another_users_file_with_allowed_ntfs_access_cannot_be_decrypted_without_an_efs_key' 'no-key.xml'
+        $denied = $false
+        try { [void][IO.File]::ReadAllBytes($source) }
+        catch { if ($_.Exception.GetBaseException() -is [UnauthorizedAccessException]) { $denied = $true } else { throw } }
+        if (!$denied) { throw 'The recipient could read the recovery source before importing its key.' }
+        $restored = Import-PfxCertificate -FilePath $pfx -Password $password -CertStoreLocation Cert:\CurrentUser\My
+        if (!$restored.HasPrivateKey -or $restored.Thumbprint -cne (Get-Content -LiteralPath (Join-Path $data 'thumbprint.txt')).Trim()) {
+            throw 'The imported key does not match the owner fixture certificate.'
+        }
+        $env:FILECAT_TEST_EFS_RESTORED_KEY_ROOT = $data
+        Invoke-Case 'A_restored_fixture_key_can_decrypt_the_same_file_under_an_independent_windows_account' 'restored-key.xml'
+    }
+    exit 0
+}
+
+$runnerTemp = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
+if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ARCH -ne 'ARM64' -or
+    !$Root.StartsWith($runnerTemp, [StringComparison]::OrdinalIgnoreCase) -or (Test-Path -LiteralPath $Root)) {
+    throw 'Use a fresh fixture on the disposable hosted Windows ARM64 runner.'
+}
+$drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($Root))
+if ($drive.DriveType -ne 'Fixed' -or $drive.DriveFormat -ne 'NTFS') { throw 'The recovery fixture requires fixed NTFS.' }
+
+$users = @()
+$credentials = @()
+$ownsRoot = $false
+try {
+    foreach ($prefix in 'fcEfsSrc_', 'fcEfsRec_') {
+        $name = $prefix + [guid]::NewGuid().ToString('N').Substring(0,8)
+        $secret = ConvertTo-SecureString ([guid]::NewGuid().ToString('N') + 'Aa1!') -AsPlainText -Force
+        $account = New-LocalUser -Name $name -Password $secret -Description 'Disposable FileCat EFS recovery fixture'
+        $users += $account
+        Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $account
+        $credentials += [pscredential]::new("$env:COMPUTERNAME\$name", $secret)
+    }
+
+    $rootInfo = New-Item -ItemType Directory -Path $Root
+    $ownsRoot = $true
+    $controller = $identity.User.Value
+    $owner = $users[0].SID.Value
+    $recipient = $users[1].SID.Value
+    $controlAcl = "O:${controller}D:P(A;OICI;FA;;;${controller})(A;OICI;FA;;;SY)"
+    $security = [Security.AccessControl.DirectorySecurity]::new()
+    $sections = [Security.AccessControl.AccessControlSections]'Owner,Access'
+    $security.SetSecurityDescriptorSddlForm($controlAcl + "(A;OICI;0x1200a9;;;${owner})(A;OICI;0x1200a9;;;${recipient})", $sections)
+    $rootInfo.SetAccessControl($security)
+    $dataInfo = New-Item -ItemType Directory -Path $data
+    $security.SetSecurityDescriptorSddlForm($controlAcl + "(A;OICI;0x1301bf;;;${owner})(A;OICI;0x1301bf;;;${recipient})", $sections)
+    $dataInfo.SetAccessControl($security)
+
+    $action = Join-Path $Root 'fixture.ps1'
+    Copy-Item -LiteralPath $PSCommandPath -Destination $action
+    Copy-Item -LiteralPath $TestBin -Destination (Join-Path $Root 'bin') -Recurse
+    $powershell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    for ($i = 0; $i -lt $users.Count; $i++) {
+        $childRole = @('Owner','Recipient')[$i]
+        $params = @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',"`"$action`"",'-Root',"`"$Root`"",
+            '-DotNet',"`"$DotNet`"",'-Role',$childRole,'-AccountSid',$users[$i].SID.Value)
+        $output = Join-Path $Root "$childRole.out.log"
+        $errors = Join-Path $Root "$childRole.err.log"
+        $child = Start-Process -FilePath $powershell -ArgumentList $params -Credential $credentials[$i] -LoadUserProfile -WindowStyle Hidden `
+            -WorkingDirectory $Root -RedirectStandardOutput $output -RedirectStandardError $errors -PassThru -Wait
+        if ($child.ExitCode -ne 0) { Get-Content -LiteralPath $errors; throw "$childRole fixture exited with code $($child.ExitCode)." }
+    }
+    'Passed first-use, no-key decryption refusal, and independent restored-key decryption.'
+}
+finally {
+    foreach ($account in $users) { Remove-LocalUser -InputObject $account -ErrorAction Continue }
+    if ($ownsRoot -and (Test-Path -LiteralPath $pfx -PathType Leaf)) { Remove-Item -LiteralPath $pfx }
+}
