@@ -106,9 +106,9 @@ public sealed partial class DiskSpaceWindow
         {
             if (Model.Tree is not { } tree) return "No measurements yet.";
             var view = Model.PublishedReportView;
-            string scope = view.Scope == AnalysisTree.RootKey && tree.Snapshot.Roots.Length == 1 &&
-                view.Grouping == AnalysisGroupingDimension.FolderHierarchy ? tree.Snapshot.Roots[0].Label : tree.NameOf(view.Scope);
-            return CapacityScope(AnalysisNames.Display(scope, 120), view) + "\n" + _summary.Text + "\n" + _coverageHeadline.Text;
+            string scope = ResultScopeName(tree, view.Scope);
+            return CapacityScope(AnalysisNames.Display(scope, 120), view) + "\n" + Model.ScopeSummary + "\n" +
+                CoverageHeadline(tree.Snapshot.Coverage, tree.Snapshot.Freshness);
         }
 
         private UInt128? FullVolumeAllocation()

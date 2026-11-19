@@ -49,16 +49,21 @@ public sealed partial class DiskSpaceWindow
             [new("Close coverage details", true, IsDefault: true, IsCancel: true)]);
     }, "Read measurement coverage, scan boundaries, issues and storage information.");
 
-    private static string CoverageHeadline(NamespaceCoverage coverage, AnalysisFreshness freshness) => freshness switch
+    private static string CoverageHeadline(NamespaceCoverage coverage, AnalysisFreshness freshness, bool compact = false) => freshness switch
     {
         AnalysisFreshness.SourceUnavailable => "Source unavailable · showing recorded observations",
         AnalysisFreshness.IdentityMismatch => "Source changed · showing recorded observations",
         AnalysisFreshness.PossiblyStale => "Results may be stale",
         _ => coverage switch
         {
-            NamespaceCoverage.CompleteUnderPolicy => "Complete under the scan policy",
-            NamespaceCoverage.Partial => "Partial results · some contents were not observed",
+            NamespaceCoverage.CompleteUnderPolicy => compact ? "Complete under policy" : "Complete under the scan policy",
+            NamespaceCoverage.Partial => compact ? "Partial results" : "Partial results · some contents were not observed",
             _ => "Coverage is unknown"
         }
     };
+
+    private static string ResultScopeName(AnalysisTree tree, string scope) => scope == AnalysisTree.RootKey &&
+        tree.Snapshot.Roots.Length == 1 && tree.GroupingDimension == AnalysisGroupingDimension.FolderHierarchy
+            ? tree.Snapshot.Roots[0].Label : tree.NameOf(scope);
+
 }

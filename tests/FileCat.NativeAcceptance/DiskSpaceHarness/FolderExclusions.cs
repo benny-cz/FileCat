@@ -150,7 +150,7 @@ internal sealed partial class HarnessApp
                 throw new InvalidDataException("The native view did not apply only the requested panel filename mask.");
             await CheckNativeVolumeCapacityAsync(window, model, "folder-exclusions-capacity.png");
             await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
-                text.Text?.Contains("Folder exclusion rules: 1. Folders skipped: 1.", StringComparison.Ordinal) == true));
+                text.Text == "Folders skipped: 1"));
             var panelStatus = window.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "Panel filter active");
             Point? panelTop = panelStatus.TranslatePoint(default, window);
             if (panelTop is null || panelTop.Value.Y < 0 || panelTop.Value.Y + panelStatus.Bounds.Height > window.ClientSize.Height)
@@ -265,7 +265,7 @@ internal sealed partial class HarnessApp
         }
         catch (Exception error)
         {
-            _indexedProbeError = error.GetType().Name + ": " + error.Message;
+            _indexedProbeError = error.ToString();
             try { RenderNativeFrame("folder-exclusions-failure.png"); } catch (Exception) { }
             WriteReport("folder-exclusion-probe-failed");
         }

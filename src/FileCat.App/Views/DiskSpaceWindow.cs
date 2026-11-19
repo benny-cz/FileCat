@@ -284,6 +284,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly Border _rescanHelp = new() { Focusable = true };
         private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap, FontSize = 18 };
         private readonly TextBlock _folderBoundaryCounts = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        private string _folderExclusionDetail = "";
         private readonly TextBlock _scope = new() { TextWrapping = TextWrapping.Wrap }, _coverage = new() { TextWrapping = TextWrapping.Wrap };
         private readonly TextBlock _coverageHeadline = new() { TextWrapping = TextWrapping.Wrap };
         private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap }, _error = new() { TextWrapping = TextWrapping.Wrap };
@@ -385,7 +386,7 @@ public sealed partial class DiskSpaceWindow : Window
             ToolTip.SetTip(_exportExternal, new RichTip("Export entire captured inventory", detail: "Choose a folder and new filename, then review sensitive paths and metadata. Display filters do not limit this inventory; existing files are preserved."));
             _exportReport.IsVisible = Model.HistoryServices is not null; _exportReport.Click += async (_, _) => await ExportReportAsync(); _analysisActions.Commands.Children.Add(_exportReport);
             ToolTip.SetTip(_exportReport, new RichTip("Export a captured report (individual analysis)", detail: "Choose Markdown, HTML, spreadsheet-safe CSV or the current PNG/SVG chart, the explicit captured scope, and whether to omit names and locations. Existing files are kept."));
-            _analysisActions.Commands.Children.Add(ActionButton("Copy summary", () => _ = CopyCapturedTextAsync(($"{_scope.Text}\n{_summary.Text}\n{_coverage.Text}", "")),
+            _analysisActions.Commands.Children.Add(ActionButton("Copy summary", () => _ = CopyCapturedTextAsync(($"{_scope.Text}\n{Model.ScopeSummary}\n{_coverage.Text}", "")),
                 "Copy the displayed scope, totals and measurement coverage as text."));
             var history = ActionButton("History…", () => _ = ShowHistoryAsync(), "Browse, open, pin and review removal of this profile's rolling analysis history.");
             history.IsEnabled = Model.HistoryServices is not null; _analysisActions.Commands.Children.Add(history);
@@ -395,7 +396,7 @@ public sealed partial class DiskSpaceWindow : Window
             _resultResourceLimits = window.ResourceLimitsButton(scratchDirectory, () => Model.ScratchReservedBytes);
             _analysisActions.Commands.Children.Add(_resultResourceLimits);
             _coverageDetails = window.CoverageDetails(() => _coverage.Text + "\n" +
-                (_folderBoundaryCounts.IsVisible ? _folderBoundaryCounts.Text + "\n" : "") + Model.Tree?.ComponentCoverageDescription);
+                _folderExclusionDetail + "\n" + Model.Tree?.ComponentCoverageDescription);
             nav.Children.Add(_coverageDetails);
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _query, _case } };
             filters.Children.Add(_rootFilter); filters.Children.Add(_unknown);
@@ -410,7 +411,7 @@ public sealed partial class DiskSpaceWindow : Window
             ToolTip.SetTip(_sort, new RichTip("Sort observed table rows", detail: "Numeric sorting uses exact recorded integers. Missing numeric values follow known amounts in either direction. Partial amounts rank by their known subtotal. Charts keep their accounting order; focus and marks keep their observation identities."));
             _volumeCapacityRibbon = window.VolumeCapacityRibbon(() => Model.VolumeCapacities, () => Model.Tree?.Snapshot.Roots ?? [],
                 FullVolumeAllocation, CurrentAnalysisCapacityContext);
-            toolbar.Children.Add(nav); toolbar.Children.Add(_setupActions);
+            toolbar.Children.Add(nav); toolbar.Children.Add(_setupActions); toolbar.Children.Add(_breadcrumbs);
             toolbar.Children.Add(filters); toolbar.Children.Add(_volumeCapacityRibbon);
             toolbar.Children.Add(_analysisActions); toolbar.Children.Add(_legend); toolbar.Children.Add(_error);
             AddRecordedResultControls(toolbar);
@@ -419,7 +420,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _coverageHeadline, _analysisActions, _coverageDetails, filters]);
             _toolbarViewport = new ScrollViewer { Content = toolbar, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
             AutomationProperties.SetName(_toolbarViewport, "Analysis view controls");
-            _viewSummary = new StackPanel { Spacing = 3, Children = { _summary, _breadcrumbs, _coverageHeadline, _folderBoundaryCounts, _panelFilterStatus } };
+            _viewSummary = new StackPanel { Spacing = 3, Children = { _summary, _coverageHeadline, _folderBoundaryCounts, _panelFilterStatus } };
             var header = new StackPanel { Margin = new Thickness(10, 4), Children = { _viewSummary, _toolbarViewport } };
             Grid.SetRow(header, 1); Children.Add(header);
             _chartHost.Children.Add(_treemap); _chartHost.Children.Add(_sunburst); _explorer.Children.Add(_chartHost);
@@ -751,17 +752,21 @@ public sealed partial class DiskSpaceWindow : Window
                 _rootFilter.IsVisible = tree is not null && tree.Snapshot.Roots.Length > 1;
                 _unknown.IsVisible = tree is not null && (tree.Projection.UnknownFilterNodes.Count > 0 || tree.Projection.IncludesUnknownFilterResults);
                 _unknown.Content = tree?.Projection.IncludesUnknownFilterResults == true ? "Show confirmed matches" : $"Inspect {tree?.Projection.UnknownFilterNodes.Count ?? 0:N0} uncertain results";
-                _scope.Text = tree is null ? "Captured scope appears here after Start." : AnalysisNames.Display(tree.NameOf(Model.Selection.Scope));
+                string scopeName = tree is null ? "Captured scope appears here after Start." : ResultScopeName(tree, Model.Selection.Scope);
+                _scope.Text = AnalysisNames.Display(scopeName);
                 RefreshBreadcrumbs();
                 _scope.IsVisible = false;
-                _summary.Text = Model.ScopeSummary;
-                _coverageHeadline.Text = tree is null ? "" : CoverageHeadline(tree.Snapshot.Coverage, tree.Snapshot.Freshness);
+                bool compact = Bounds.Width > 0 && Bounds.Width < 640;
+                _summary.Text = compact ? Model.CompactScopeSummary : Model.ScopeSummary;
+                _coverageHeadline.Text = tree is null ? "" : AnalysisNames.Display(scopeName, compact ? 42 : 120) + " · " +
+                    CoverageHeadline(tree.Snapshot.Coverage, tree.Snapshot.Freshness, compact);
                 _coverageHeadline.IsVisible = tree is not null;
                 _coverageDetails.IsVisible = tree is not null;
                 int folderRules = tree is null ? 0 : AnalysisFolderExclusions.RuleCount(tree.Snapshot.Policy);
                 _folderBoundaryCounts.IsVisible = folderRules != 0;
-                if (folderRules != 0)
-                    _folderBoundaryCounts.Text = $"Folder exclusion rules: {folderRules:N0}. Folders skipped: {tree!.Snapshot.BoundaryTotals.GetValueOrDefault(AnalysisBoundaryKind.FolderExclusion):N0}.";
+                ulong skipped = tree?.Snapshot.BoundaryTotals.GetValueOrDefault(AnalysisBoundaryKind.FolderExclusion) ?? 0;
+                _folderExclusionDetail = folderRules == 0 ? "" : $"Folder exclusion rules: {folderRules:N0}. Folders skipped: {skipped:N0}.";
+                _folderBoundaryCounts.Text = compact ? $"Folders skipped: {skipped:N0}" : _folderExclusionDetail;
                 _coverage.Text = tree is null ? "Unknown, unavailable and zero remain separate." :
                     (tree.Snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Traversal complete under the captured policy" : "Traversal has gaps") +
                     (tree.Snapshot.Freshness == AnalysisFreshness.Observed ? ". Observed metadata over time." : ". The source may have changed or become unavailable.") +
@@ -834,8 +839,9 @@ public sealed partial class DiskSpaceWindow : Window
                     _inspectorExact.Text = selected is null ? "" : DiskSpaceViewModel.InspectorExactMeasurements(selected, tree.Projection.Metric);
                     var displayPath = Model.FocusedDisplayPath(out var boundary);
                     _inspector.Text = selected is null ? "Choose an entry in either chart or the table. Marks and the review basket are separate." :
-                        AnalysisNames.Display(selected.Name) + "\n\n" + DiskSpaceViewModel.InspectorMeasurements(selected, tree.Projection.Metric) +
-                        "\n\n" + DiskSpaceViewModel.StatusText(selected) + "\n" +
+                        AnalysisNames.Display(selected.Name) + (selected.IncludedByPolicy
+                            ? "\n\n" + DiskSpaceViewModel.InspectorMeasurements(selected, tree.Projection.Metric) + "\n\n" : "\n") +
+                        DiskSpaceViewModel.StatusText(selected) + "\n" +
                         (boundary is not null ? boundary + "\n" : "") +
                         (HasMacPackageName(selected, tree.Snapshot.Policy) ? MacPackageContents(tree.Snapshot.Policy) + "\n" : "") + displayPath +
                         "\n" +

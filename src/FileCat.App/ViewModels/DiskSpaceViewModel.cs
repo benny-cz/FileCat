@@ -362,21 +362,23 @@ public sealed partial class DiskSpaceViewModel : IDisposable
 
     internal static string InspectorMeasurements(AnalysisTreeItem item, AnalysisMetric metric)
     {
+        if (!item.IncludedByPolicy) return "Excluded by policy";
         string value = ValueText(item, metric);
         bool shared = item.Synthetic && item.Key.StartsWith("shared:", StringComparison.Ordinal);
         if (shared && value != "Unknown" && metric is AnalysisMetric.OnDisk or AnalysisMetric.UniqueFileSize)
             value += " counted once here";
+        string logical = LogicalText(item);
         string fileSize = item.ReferenceLogical is { } references
-            ? $"File size across {references.Files:N0} matching {(references.Files == 1 ? "path" : "paths")}: " +
+            ? $"\nFile size across {references.Files:N0} matching {(references.Files == 1 ? "path" : "paths")}: " +
                 (references.UnknownFiles != 0 && references.KnownBytes == 0 ? "Unknown" :
                     Bytes(references.KnownBytes) + (references.UnknownFiles == 0 ? "" : " known (partial)"))
-            : "File size: " + LogicalText(item);
-        string coverage = item.IncludedByPolicy && item.Kind == AnalysisKind.Directory && item.NamespaceIncomplete
+            : metric == AnalysisMetric.FileSize && value == logical ? "" : "\nFile size: " + logical;
+        string coverage = item.Kind == AnalysisKind.Directory && item.NamespaceIncomplete
             ? item.MetadataState == MeasurementState.Failed && item.Files == 0
                 ? "Folder contents were not read. Its size is unknown.\n"
                 : "Some folder contents were not observed.\n"
             : "";
-        return $"{coverage}{MetricTitle(metric)}: {value}\n{fileSize}\nFile paths: {FilePathsText(item)}" +
+        return $"{coverage}{MetricTitle(metric)}: {value}{fileSize}\nFile paths: {FilePathsText(item)}" +
             (EntryExplanation(item) is { } explanation ? "\n" + explanation : "");
     }
 
@@ -407,29 +409,27 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         : item.Unknown && item.Value == 0 ? "Unknown" : metric == AnalysisMetric.Files ? item.Value.ToString(exact ? "0" : "N0", exact ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture)
         : (exact ? item.Value.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.Value)) +
         (item.IdentityUnverified > 0 && metric == AnalysisMetric.OnDisk ? " · unverified" : item.Unknown ? " known" : "");
-    public string ScopeSummary
+    public string ScopeSummary => FormatScopeSummary(compact: false);
+    internal string CompactScopeSummary => FormatScopeSummary(compact: true);
+
+    private string FormatScopeSummary(bool compact)
     {
-        get
-        {
-            if (Tree is not { } tree) return "No measurements yet";
-            string label = tree.Projection.Metric switch
-            {
-                AnalysisMetric.FileSize => "File size",
-                AnalysisMetric.UniqueFileSize => "Verified unique file size",
-                AnalysisMetric.OnDisk => "On disk — reported",
-                _ => "Files"
-            };
-            if (tree.Projection.Metric == AnalysisMetric.OnDisk && !tree.Projection.Totals.CompatibleBasis)
-                return label + ": allocation bases differ; no combined total.";
-            string scope = Selection.Scope; UInt128 value = tree.ScopeValue(scope); var item = tree.Items.GetValueOrDefault(scope);
-            string amount = item is not null && item.IdentityUnverified > 0
-                ? tree.Projection.Metric == AnalysisMetric.UniqueFileSize
-                    ? $"{Bytes(value)} known with verified identities; {Bytes(item.IdentityUnverified)} identity-unverified path bytes excluded from unique chart area"
-                    : $"{Bytes(checked(value - item.IdentityUnverified))} known with verified identities + {Bytes(item.IdentityUnverified)} reported for identity-unverified paths"
-                : (tree.Projection.Metric == AnalysisMetric.Files ? value.ToString("N0", CultureInfo.CurrentCulture) + (value == 1 ? " file" : " files") : Bytes(value)) + " known";
-            return label + ": " + amount + (item is null ? "" : item.ReferenceLogical is not null ? " · " + FilePathsText(item) : $" · {item.Files:N0} observed file " + (item.Files == 1 ? "path" : "paths")) +
-                (tree.GroupingDimension == AnalysisGroupingDimension.FolderHierarchy ? "" : " · " + AnalysisGroupingRules.Title(tree.GroupingDimension)) + (item?.Unknown == true ? " · partial" : "");
-        }
+        if (Tree is not { } tree) return "No measurements yet";
+        var metric = tree.Projection.Metric;
+        string label = metric == AnalysisMetric.UniqueFileSize ? "Verified unique file size" : MetricTitle(metric);
+        if (metric == AnalysisMetric.OnDisk && !tree.Projection.Totals.CompatibleBasis)
+            return label + ": allocation bases differ; no combined total.";
+        string scope = Selection.Scope;
+        UInt128 value = tree.ScopeValue(scope);
+        var item = tree.Items.GetValueOrDefault(scope);
+        string amount = item is not null && item.IdentityUnverified > 0
+            ? metric == AnalysisMetric.UniqueFileSize
+                ? $"{Bytes(value)} known with verified identities; {Bytes(item.IdentityUnverified)} identity-unverified path bytes excluded from unique chart area"
+                : $"{Bytes(checked(value - item.IdentityUnverified))} known with verified identities + {Bytes(item.IdentityUnverified)} reported for identity-unverified paths"
+            : (metric == AnalysisMetric.Files ? value.ToString("N0", CultureInfo.CurrentCulture) + (value == 1 ? " file" : " files") : Bytes(value)) + " known";
+        return label + ": " + amount + (item is null ? "" : item.ReferenceLogical is not null ? " · " + FilePathsText(item) :
+            $" · {item.Files:N0} " + (compact ? "" : "observed file ") + (item.Files == 1 ? "path" : "paths")) +
+            (tree.GroupingDimension == AnalysisGroupingDimension.FolderHierarchy ? "" : " · " + AnalysisGroupingRules.Title(tree.GroupingDimension)) + (item?.Unknown == true ? " · partial" : "");
     }
     public static string Bytes(UInt128 bytes)
     {
