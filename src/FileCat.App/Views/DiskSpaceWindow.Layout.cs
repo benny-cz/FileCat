@@ -154,10 +154,11 @@ public sealed partial class DiskSpaceWindow
             Dispatcher.UIThread.Post(() =>
             {
                 if (viewport.IsEffectivelyVisible && TopLevel.GetTopLevel(viewport)?.FocusManager?.GetFocusedElement() is Control control &&
+                    control is not ScrollViewer && (control is not ItemsControl || control is ComboBox) &&
                     ReferenceEquals(control.GetVisualAncestors().OfType<ScrollViewer>().FirstOrDefault(), viewport))
                 {
                     // A caret request may be handled by the editor's own scroller. Reveal the whole
-                    // focused control here, then reveal this viewport in the outer analysis page.
+                    // focused command or field here. Lists reveal their own focused rows.
                     DialogLayout.RevealVertically(viewport, control);
                     viewport.BringIntoView();
                 }
