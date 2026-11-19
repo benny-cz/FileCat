@@ -69,6 +69,12 @@ internal sealed partial class HarnessApp : Application
         _window = new DiskSpaceWindow(AddLiveSession, () => _services.Keymap);
         if (Program.LargeText) _window.FontSize = 20;
         if (Program.Compact) { _window.Width = 380; _window.Height = 430; }
+        if (Program.ComprehensionProbe && _window.Screens.Primary is { } primary)
+        {
+            _window.WindowStartupLocation = WindowStartupLocation.Manual;
+            _window.Width = 1060;
+            _window.Position = primary.WorkingArea.Position;
+        }
         _window.Opened += (_, _) =>
         {
             _tabs = _window.GetVisualDescendants().OfType<TabControl>().Single();
@@ -109,6 +115,7 @@ internal sealed partial class HarnessApp : Application
         if (Program.GrowthRecipeProbe) _indexedProbeTask = GrowthRecipeProbeAsync();
         if (Program.DuplicateReviewProbe) _indexedProbeTask = DuplicateReviewProbeAsync();
         if (Program.FolderExclusionProbe) _indexedProbeTask = FolderExclusionProbeAsync();
+        if (Program.ComprehensionProbe) _indexedProbeTask = CaptureComprehensionStudyAsync();
     }
 
     private async Task ProfileProbeAsync()
@@ -281,12 +288,17 @@ internal static class Program
     internal static bool DetailedStreamProbe { get; private set; }
     internal static bool DetailedForkProbe { get; private set; }
     internal static bool FolderExclusionProbe { get; private set; }
+    internal static bool ComprehensionProbe { get; private set; }
     internal static string? PackageTier { get; private set; }
     internal static bool ResourceKeyboardProbe { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture" or "--indexed-deferred-probe" or "--branch-refresh-probe" or "--saved-recipe-probe" or "--growth-recipe-probe" or "--duplicate-review-probe" or "--detailed-stream-probe" or "--detailed-fork-probe" or "--cleanup-review-probe" or "--folder-exclusion-probe" or "--resource-keyboard-probe"))) return 64;
+        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture" or "--indexed-deferred-probe" or "--branch-refresh-probe" or "--saved-recipe-probe" or "--growth-recipe-probe" or "--duplicate-review-probe" or "--detailed-stream-probe" or "--detailed-fork-probe" or "--cleanup-review-probe" or "--folder-exclusion-probe" or "--resource-keyboard-probe" or "--comprehension-probe"))) return 64;
+        ComprehensionProbe = args.Contains("--comprehension-probe", StringComparer.Ordinal);
+        if (ComprehensionProbe && (!OperatingSystem.IsMacOS() ||
+            !args.Contains("--replacement-compositor-capture", StringComparer.Ordinal) ||
+            args.Any(arg => arg is not ("--comprehension-probe" or "--replacement-compositor-capture")))) return 64;
         FolderExclusionProbe = args.Contains("--folder-exclusion-probe", StringComparer.Ordinal);
         PackageTier = Environment.GetEnvironmentVariable("FILECAT_TEST_ANALYSIS_PACKAGE_TIER");
         if (PackageTier is not null && (!FolderExclusionProbe || !OperatingSystem.IsWindows() || PackageTier is not ("portable" or "fdd"))) return 64;
@@ -322,7 +334,7 @@ internal static class Program
         if (BranchRefreshProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe || IndexedDeferredProbe)) return 64;
         if (IndexedDeferredProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile || ReplacementUiProbe)) return 64;
         ReplacementCompositorCapture = args.Contains("--replacement-compositor-capture", StringComparer.Ordinal);
-        if (ReplacementCompositorCapture && (!(ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe || GrowthRecipeProbe || DuplicateReviewProbe || FolderExclusionProbe) || !OperatingSystem.IsMacOS())) return 64;
+        if (ReplacementCompositorCapture && (!(ReplacementUiProbe || IndexedDeferredProbe || BranchRefreshProbe || GrowthRecipeProbe || DuplicateReviewProbe || FolderExclusionProbe || ComprehensionProbe) || !OperatingSystem.IsMacOS())) return 64;
         if (ReplacementUiProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile)) return 64;
         if (MemoryFallbackProbe && args.Contains("--indexed-probe", StringComparer.Ordinal)) return 64;
         if (ProfileProbe && WindowsInput) return 64;
