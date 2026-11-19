@@ -96,6 +96,12 @@ A separate attempt set a visible, owned window on a protected software-key fixtu
 
 A live fixture needs an isolated interactive Windows desktop. This result covers key creation. Provider credentials during acquisition or private-key use, and recovery of an actual TPM-backed EFS file, still require separate qualification.
 
+### Interactive Windows Security dialog
+
+The disposable Windows 11 x64 profile ran the Microsoft Software Key Storage Provider probe on the default input desktop in Session 1 at medium integrity. The provider accepted the strong-key policy and the probe's owner HWND. During interactive finalization, a visible **Windows Security** credential dialog had that exact HWND as its Win32 owner.
+
+The dialog stayed in the background. Its UI Automation tree exposed no enabled Cancel button, and the foreground request left it in the background. The probe was stopped after its observation period. A full silent enumeration in the same profile verified that the one named software key was absent. The receipts are `.tmp/filecat-efs-live-166b6897-r1/owned-windows.log` and `.tmp/filecat-efs-live-166b6897-r1/protected-provider-verify.log`. This establishes a live prompt during protected-key creation. Key creation with user approval, subsequent key use and FileCat's credential-access outcome still need fixtures. [Microsoft strong-key UI policy](https://learn.microsoft.com/en-us/windows/win32/api/ncrypt/ns-ncrypt-ncrypt_ui_policy)
+
 ### Isolated CryptoAPI comparison
 
 The gated EFS setup review can now request explicit access to a CryptoAPI key. FileCat starts a fresh ShellHost process for that one comparison. The same-user pipe checks the peer process on each end. The helper checks the live FileCat owner window and the invoking SID, opens the exact certificate in CurrentUser My and compares its key with a fresh, cache-free context. The helper resets the process-wide `PP_CLIENT_HWND` and releases the acquired handle before the result can authorize recovery. FileCat then asks for a separate recovery choice. [Windows key acquisition and window ownership](https://learn.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-cryptacquirecertificateprivatekey)
