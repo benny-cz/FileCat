@@ -40,7 +40,7 @@ public sealed partial class AnalysisScratchArenaTests
         var record = arena.Append([1, 2, 3], Cancellation); using var checkpoint = arena.Capture();
         long position = fault switch { "header" => 4, "payload" => 16, _ => directory.File.Length - 1 };
         if (fault == "truncate") directory.File.Data.SetLength(position);
-        else { directory.File.Data.Position = position; directory.File.Data.WriteByte(0x80); }
+        else directory.File.Data.GetBuffer()[checked((int)position)] ^= 0x80;
         Assert.Throws<InvalidDataException>(() => checkpoint.Read(record, Cancellation));
     }
 
