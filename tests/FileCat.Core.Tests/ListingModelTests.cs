@@ -1,6 +1,7 @@
 using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
+using FileCat.Core.Search;
 using FileCat.Core.Selection;
 using FileCat.Core.Threading;
 
@@ -354,6 +355,54 @@ public sealed class ListingModelTests : IDisposable
         await _ui.WaitUntilAsync(() => !m.IsRefreshing && m.TotalCount == 3);
         var marked = await _ui.InvokeAsync(() => m.GetSelection().Select(r => r.Name).ToArray());
         Assert.Equal(["c.txt"], marked);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Refresh_keeps_the_exact_original_mark_and_focus_in_a_reference_listing(bool workingSet)
+    {
+        var first = ItemRef.ForFileSystemPath(Path.Combine(_dir.Dir("first"), "shared.txt"), EntryKind.File);
+        var wanted = ItemRef.ForFileSystemPath(Path.Combine(_dir.Dir("wanted"), "shared.txt"), EntryKind.File);
+        File.WriteAllText(first.FileSystemPath!, "first");
+        File.WriteAllText(wanted.FileSystemPath!, "wanted");
+        var provider = new ResultSetProvider(_providers, new PortableFileOperations());
+        _providers.Register(provider);
+        var set = new ResultSet("marks", "marks", "fixture") { IsWorkingSet = workingSet };
+        provider.Adopt(set);
+        set.Add(first, "first");
+        set.Add(wanted, "wanted");
+        var model = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui));
+        try
+        {
+            await _ui.InvokeAsync(() => model.Load(ResultSetProvider.LocationOf(set)));
+            await _ui.WaitUntilAsync(() => model.State == ListingState.Complete);
+            long marks = await _ui.InvokeAsync(() =>
+            {
+                int row = Enumerable.Range(0, model.VisibleCount).Single(index => model.GetItemRef(model.GetStoreIndex(index)).Equals(wanted));
+                model.SetFocus(row);
+                model.SetMark(row, true);
+                model.Refresh();
+                return model.MarkRevision;
+            });
+            await _ui.WaitUntilAsync(() => !model.IsRefreshing && model.State == ListingState.Complete);
+            await _ui.InvokeAsync(() =>
+            {
+                Assert.Equal(wanted, Assert.Single(model.GetSelection()));
+                Assert.Equal(wanted, model.GetItemRef(model.FocusedStoreIndex));
+                Assert.Equal(marks, model.MarkRevision);
+                Assert.Equal(1, set.Remove([wanted]));
+                model.Refresh();
+            });
+            await _ui.WaitUntilAsync(() => !model.IsRefreshing && model.State == ListingState.Complete);
+            await _ui.InvokeAsync(() =>
+            {
+                Assert.Empty(model.GetSelection());
+                Assert.Equal(0, model.MarkedCount);
+                Assert.Equal(marks, model.MarkRevision);
+            });
+        }
+        finally { await _ui.InvokeAsync(model.Dispose); }
     }
 
     [Fact]

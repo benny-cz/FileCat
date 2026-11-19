@@ -352,7 +352,7 @@ jobs:
             $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
             $env:FILECAT_TEST_STORAGE_UI = '1'
             $env:FILECAT_TEST_EFS_UI = '1'
-            $suites += @{ Log = 'native-storage-commands.trx'; Count = '8'; Filter = 'FullyQualifiedName~StorageCommandNativeTests' }
+            $suites += @{ Log = 'native-storage-commands.trx'; Count = '10'; Filter = 'FullyQualifiedName~StorageCommandNativeTests' }
           }
           if ($env:FILECAT_QUALIFY_REMOTE -eq 'true') {
             $suites += @{ Log = 'native-efs-remote-upload.trx'; Count = '39';

@@ -11,6 +11,7 @@ using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
+using FileCat.Core.Search;
 using FileCat.Platform.Windows;
 using Location = FileCat.Core.Resources.Location;
 
@@ -41,6 +42,13 @@ public sealed class StorageCommandNativeTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         while (!condition()) { timeout.Token.ThrowIfCancellationRequested(); Dispatcher.UIThread.RunJobs(); await Task.Delay(10, timeout.Token); }
         Dispatcher.UIThread.RunJobs();
+    }
+
+    private static void AcceptDecryption(Window window)
+    {
+        foreach (string prefix in new[] { "I accept this concurrent link-change limitation", "I understand the selected files will lose EFS protection" })
+            window.GetVisualDescendants().OfType<CheckBox>().Single(control => control.IsVisible &&
+                AutomationProperties.GetName(control)?.StartsWith(prefix, StringComparison.Ordinal) == true).IsChecked = true;
     }
 
     [AvaloniaFact]
@@ -91,11 +99,15 @@ public sealed class StorageCommandNativeTests
     public async Task Efs_review_transfers_the_displayed_consent_to_real_encryption_and_decryption_jobs()
     {
         bool arm64 = RequireNativeCommandFixture(efs: true);
+        string? setupDirectory = null;
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 760, height: 620,
-            storageTransforms: new WindowsStorageTransforms(qualifyNativeArm64: arm64).CreateEfsJobCandidate(),
+            storageTransforms: new WindowsStorageTransforms(efsSetupBaseDirectory: () =>
+                setupDirectory ?? throw new InvalidOperationException("The fixture must prepare its own EFS setup directory."),
+                qualifyNativeArm64: arm64).CreateEfsJobCandidate(),
             qualifyNativeArm64Storage: arm64);
         try
         {
+            setupDirectory = Directory.CreateDirectory(Path.Join(root, "efs-setup")).FullName;
             string path = Path.Join(root, "files", "a.txt");
             var sources = new[] { ItemRef.ForFileSystemPath(path, EntryKind.File) };
             var decisions = new List<DecisionRequest>();
@@ -135,7 +147,9 @@ public sealed class StorageCommandNativeTests
                     Assert.Equal(!encrypt, File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
                     var job = services.Jobs.SubmitStorage(choice.Roots, choice.Approval, _ => { }, choice.Mode);
                     await Until(() => job.State.IsFinished());
-                    Assert.Equal(JobState.Completed, job.State);
+                    Assert.True(job.State == JobState.Completed,
+                        $"{label} ended as {job.State}. {job.Summary} " +
+                        string.Join(" ", job.StorageResult?.Reasons.Select(reason => reason.Problem.Message) ?? []));
                     Assert.Equal(1, job.StorageResult!.Counts.Changed);
                     Assert.Equal(choice.Approval.EfsConsent, job.Request.StorageTransform!.EfsConsent);
                     Assert.Equal(encrypt, File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
@@ -189,13 +203,7 @@ public sealed class StorageCommandNativeTests
             Assert.Single(Actions()).IsChecked = true;
             Button Primary() => window.GetVisualDescendants().OfType<Button>()
                 .Single(button => button is not RadioButton && button.Content as string == label);
-            if (efs)
-            {
-                CheckBox Consent(string prefix) => window.GetVisualDescendants().OfType<CheckBox>().Single(control => control.IsVisible &&
-                    AutomationProperties.GetName(control)?.StartsWith(prefix, StringComparison.Ordinal) == true);
-                Consent("I accept this concurrent link-change limitation").IsChecked = true;
-                Consent("I understand the selected files will lose EFS protection").IsChecked = true;
-            }
+            if (efs) AcceptDecryption(window);
             await Until(() => Primary().IsEnabled);
             if (change == "refresh")
             {
@@ -230,5 +238,92 @@ public sealed class StorageCommandNativeTests
             Assert.Equal(change == "refresh" ? 0 : change == "marks" ? 2 : 1, listing.MarkedCount);
         }
         finally { ((OverlayDialogService)vm.Dialogs).CancelAll(); AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(StorageAction.Compress)]
+    [InlineData(StorageAction.DecryptEfs)]
+    public async Task A_scoped_storage_command_refreshes_only_the_existing_find_results_and_keeps_later_marks(StorageAction action)
+    {
+        bool efs = action == StorageAction.DecryptEfs;
+        bool arm64 = RequireNativeCommandFixture(efs);
+        var platform = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(
+            storageTransforms: efs ? platform.CreateEfsJobCandidate() : platform, qualifyNativeArm64Storage: arm64,
+            prepareFiles: folder =>
+            {
+                foreach (string branch in new[] { "left", "right" })
+                {
+                    string path = Path.Join(Directory.CreateDirectory(Path.Join(folder, branch)).FullName, "canary.bin");
+                    File.WriteAllText(path, new string('A', 8192));
+                    if (efs) File.Encrypt(path);
+                }
+            });
+        FindWindow? find = null;
+        try
+        {
+            string left = Path.Join(root, "files", "left", "canary.bin"), right = Path.Join(root, "files", "right", "canary.bin");
+            var mainTab = vm.ActiveTab!;
+            await Until(() => mainTab.Listing.State == ListingState.Complete);
+            vm.Execute(CommandIds.FindFiles);
+            await Until(() => FindWindow.OpenWindows.Count == 1);
+            find = FindWindow.OpenWindows.Single();
+            find.NamesBox.Text = "canary.bin";
+            find.StartSearch(RefineMode.Replace);
+            await Until(() => find.StorageCommandAvailability.Enabled);
+            var tab = find.ResultsTab!;
+            var listing = tab.Listing;
+            var location = tab.Location;
+            var session = find.Session;
+            long navigation = tab.NavigationGeneration;
+            ItemRef[] Results() => Enumerable.Range(0, listing.VisibleCount)
+                .Select(index => listing.GetItemRef(listing.GetStoreIndex(index))).Where(item => item.Kind == EntryKind.File).ToArray();
+            var results = Results();
+            Assert.Equal(2, results.Length);
+            var selected = Assert.Single(results, item => item.FileSystemPath == left);
+            var other = Assert.Single(results, item => item.FileSystemPath == right);
+            listing.MarkItems([selected], [0], true);
+            Assert.Equal(selected, Assert.Single(listing.GetSelection()));
+
+            string label = efs ? "Decrypt" : "Compress";
+            find.Run(efs ? CommandIds.EfsProtection : CommandIds.StorageAttributes);
+            RadioButton? ActionButton() => find.GetVisualDescendants().OfType<RadioButton>()
+                .SingleOrDefault(button => AutomationProperties.GetName(button) == label);
+            await Until(() => ActionButton() is not null);
+            ActionButton()!.IsChecked = true;
+            if (efs) AcceptDecryption(find);
+            Button Primary() => find.GetVisualDescendants().OfType<Button>()
+                .Single(button => button is not RadioButton && button.Content as string == label);
+            await Until(() => Primary().IsEnabled);
+            listing.MarkItems([selected, other], [0], false);
+            listing.MarkItems([selected, other], [1], true);
+            long marks = listing.MarkRevision;
+            int generation = listing.Generation;
+            Primary().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+            await Until(() => services.Jobs.Jobs.Count == 1 && services.Jobs.Jobs[0].State.IsFinished() &&
+                listing.Generation != generation && find.StorageCommandAvailability.Enabled);
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.Equal(1, job.StorageResult!.Counts.Changed);
+            Assert.Equal(selected, Assert.Single(job.Request.Sources));
+            Assert.Same(mainTab, vm.ActiveTab);
+            Assert.Same(tab, find.ResultsTab);
+            Assert.Same(session, find.Session);
+            Assert.Equal(location, tab.Location);
+            Assert.Equal(navigation, tab.NavigationGeneration);
+            Assert.Equal(marks, listing.MarkRevision);
+            Assert.Equal(other, Assert.Single(listing.GetSelection()));
+            Assert.Equal("canary.bin", find.NamesBox.Text);
+
+            var attribute = efs ? FileAttributes.Encrypted : FileAttributes.Compressed;
+            foreach (var result in Results())
+                Assert.Equal(result.Equals(selected) != efs, ((FileAttributes)result.NativeAttributes).HasFlag(attribute));
+            Assert.Equal(!efs, File.GetAttributes(left).HasFlag(attribute));
+            Assert.Equal(efs, File.GetAttributes(right).HasFlag(attribute));
+            Assert.Equal(new string('A', 8192), File.ReadAllText(left));
+            Assert.Equal(new string('A', 8192), File.ReadAllText(right));
+        }
+        finally { find?.Dialogs.CancelAll(); find?.Close(); AccessibilityTests.Close(services, window, root); }
     }
 }

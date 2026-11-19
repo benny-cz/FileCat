@@ -83,8 +83,8 @@ public sealed class ListingModel : IDisposable
     private ItemRef? _pendingVisitTop;
     public int VisitTopStoreIndex { get; private set; } = -1;
     private Dictionary<EntryKind, HashSet<string>>? _pendingMarks;
-    private HashSet<ItemRef>? _pendingSupplementaryMarks;
-    private ItemRef? _pendingSupplementaryFocus;
+    private (HashSet<ItemRef> Items, HashSet<string> Names)? _pendingIdentityMarks;
+    private ItemRef? _pendingIdentityFocus;
     /// <summary>
     /// Folder sizes computed here (Space), by name, with the folder's own time then. A refresh (a change the folder
     /// watcher saw, Ctrl+R) carries each over while that time is unchanged; a change in the folder makes it stale.
@@ -393,7 +393,7 @@ public sealed class ListingModel : IDisposable
         int store = VisibleAt(visibleIndex);
         _pendingFocusName = null;
         _pendingFocusKind = null;
-        _pendingSupplementaryFocus = null;
+        _pendingIdentityFocus = null;
         CancelVisitViewport();
         _focusAnchored = true;
         if (store == _focusStore) return;
@@ -496,8 +496,8 @@ public sealed class ListingModel : IDisposable
         _pendingVisitTop = visitTop?.Kind == EntryKind.Parent ? null : visitTop;
         VisitTopStoreIndex = HasParentRow && visitTop?.Kind == EntryKind.Parent ? 0 : -1;
         _pendingMarks = null;
-        _pendingSupplementaryMarks = null;
-        _pendingSupplementaryFocus = null;
+        _pendingIdentityMarks = null;
+        _pendingIdentityFocus = null;
         _computedSizes = new(StringComparer.Ordinal);
         _pendingSizes = null;
         _awaitingEntries = true;
@@ -512,7 +512,7 @@ public sealed class ListingModel : IDisposable
 
     /// <summary>
     /// Re-enumerates the current location. The old rows stay visible until the new enumeration finishes
-    /// (or briefly stalls); marks and focus then transfer by name. Vanished items are not substituted.
+    /// (or briefly stalls); marks and focus transfer to equivalent entries in the new listing.
     /// </summary>
     public void Refresh()
     {
@@ -526,12 +526,11 @@ public sealed class ListingModel : IDisposable
         }
         if (State == ListingState.Loading && _pendingRefresh is null)
         {
-            if (Location.Scheme == Schemes.HiddenData)
+            if (RefreshUsesItemIdentity)
             {
-                var selection = CaptureSupplementarySelection();
+                var selection = CaptureIdentitySelection();
                 Load(Location);
-                _pendingSupplementaryMarks = selection.Marks;
-                _pendingSupplementaryFocus = selection.Focus;
+                SetPendingIdentitySelection(selection);
                 return;
             }
             // Loading again keeps the name still awaited (going up focuses the folder just left), or the row the user moved to.
@@ -708,11 +707,14 @@ public sealed class ListingModel : IDisposable
     private void SwapToRefresh(Pipeline p)
     {
         CancelVisitViewport();
-        var supplementary = Location?.Scheme == Schemes.HiddenData ? CaptureSupplementarySelection() : default;
-        // Carry marks and focus by exact name into the new generation.
-        var marked = new Dictionary<EntryKind, HashSet<string>>();
-        using (var scan = new EntryStore.Scan(_store, _appliedCount, _marks.Count))
+        bool useItemIdentity = RefreshUsesItemIdentity;
+        var identitySelection = useItemIdentity ? CaptureIdentitySelection() : default;
+        Dictionary<EntryKind, HashSet<string>>? marked = null;
+        if (!useItemIdentity && _marks.Count > 0)
         {
+            // A name and kind are sufficient when entries share the listing's parent.
+            marked = new();
+            using var scan = new EntryStore.Scan(_store, _appliedCount, _marks.Count);
             foreach (int i in _marks.Enumerate())
             {
                 if (i < _appliedCount)
@@ -725,7 +727,7 @@ public sealed class ListingModel : IDisposable
         }
         string? focusName = null;
         EntryKind? focusKind = null;
-        if (_focusAnchored && _focusStore >= 0 && _focusStore < _appliedCount)
+        if (!useItemIdentity && _focusAnchored && _focusStore >= 0 && _focusStore < _appliedCount)
         {
             var focused = _store[_focusStore];
             focusName = focused.Name;
@@ -745,29 +747,37 @@ public sealed class ListingModel : IDisposable
         _issues.Clear();
         IsPartial = false;
         LastRefreshError = null;
-        _pendingMarks = Location?.Scheme != Schemes.HiddenData && marked.Count > 0 ? marked : null;
-        _pendingSupplementaryMarks = supplementary.Marks;
-        _pendingSupplementaryFocus = supplementary.Focus;
+        _pendingMarks = marked;
+        SetPendingIdentitySelection(identitySelection);
         _pendingSizes = _computedSizes.Count > 0 ? _computedSizes : null;
         _computedSizes = new(StringComparer.Ordinal);
         _awaitingEntries = true;
-        _pendingFocusName = Location?.Scheme == Schemes.HiddenData ? null : focusName;
-        _pendingFocusKind = Location?.Scheme == Schemes.HiddenData ? null : focusKind;
+        _pendingFocusName = focusName;
+        _pendingFocusKind = focusKind;
         _focusStore = -1;
     }
 
-    private (HashSet<ItemRef>? Marks, ItemRef? Focus) CaptureSupplementarySelection()
+    private bool RefreshUsesItemIdentity => Location?.Scheme is Schemes.HiddenData or Schemes.ResultSet;
+
+    private (HashSet<ItemRef>? Marks, ItemRef? Focus) CaptureIdentitySelection()
     {
-        var marked = _pendingSupplementaryMarks is { } pending ? new HashSet<ItemRef>(pending) : [];
+        var marked = _pendingIdentityMarks is { } pending ? new HashSet<ItemRef>(pending.Items) : [];
         foreach (int i in _marks.Enumerate())
             if (i < _appliedCount && _store[i].Kind != EntryKind.Parent) marked.Add(GetItemRef(i));
-        var focused = _pendingSupplementaryFocus;
+        var focused = _pendingIdentityFocus;
         if (focused is null && _focusAnchored && _focusStore >= 0 && _focusStore < _appliedCount)
         {
             var entry = _store[_focusStore];
             focused = entry.Kind == EntryKind.Parent ? new ItemRef(Location!, entry.Name, EntryKind.Parent) : GetItemRef(_focusStore);
         }
         return (marked.Count > 0 ? marked : null, focused);
+    }
+
+    private void SetPendingIdentitySelection((HashSet<ItemRef>? Marks, ItemRef? Focus) selection)
+    {
+        _pendingIdentityMarks = selection.Marks is { } marks
+            ? (marks, marks.Select(item => item.Name).ToHashSet(StringComparer.Ordinal)) : null;
+        _pendingIdentityFocus = selection.Focus;
     }
 
     private void ApplyResult(Pipeline p, PipelineResult r)
@@ -793,7 +803,7 @@ public sealed class ListingModel : IDisposable
         // Resolve names that were waiting for their entry to arrive.
         List<(int Index, long Size, bool LowerBound)>? sized = null;
         if (_pendingMarks is not null || _pendingFocusName is not null || _pendingSizes is not null ||
-            _pendingSupplementaryMarks is not null || _pendingSupplementaryFocus is not null ||
+            _pendingIdentityMarks is not null || _pendingIdentityFocus is not null ||
             _pendingVisitFocus is not null || _pendingVisitTop is not null)
         {
             using var scan = new EntryStore.Scan(_store, r.Count, r.Count - previousCount);
@@ -802,27 +812,31 @@ public sealed class ListingModel : IDisposable
                 var e = scan[i];
                 if (e.Kind == EntryKind.Parent)
                 {
-                    if (_pendingSupplementaryFocus?.Kind == EntryKind.Parent)
+                    if (_pendingIdentityFocus?.Kind == EntryKind.Parent)
                     {
                         _focusStore = i;
-                        _pendingSupplementaryFocus = null;
+                        _pendingIdentityFocus = null;
                         _focusAnchored = true;
                         change |= ListingChange.Focus;
                     }
                     continue;
                 }
-                if (_pendingSupplementaryMarks is not null || _pendingSupplementaryFocus is not null)
+                // Compare names before materializing an original reference for a candidate row.
+                bool mayRestoreMark = _pendingIdentityMarks is { } marks && marks.Names.GetAlternateLookup<ReadOnlySpan<char>>().Contains(e.Name);
+                bool mayRestoreFocus = _pendingIdentityFocus is { } focus && focus.Kind == e.Kind && e.Name.SequenceEqual(focus.Name);
+                if (mayRestoreMark || mayRestoreFocus)
                 {
                     var reference = GetItemRef(i);
-                    if (_pendingSupplementaryMarks?.Remove(reference) == true)
+                    if (mayRestoreMark && _pendingIdentityMarks is { } pending && pending.Items.Remove(reference))
                     {
                         _marks.Set(i, true);
+                        if (pending.Items.Count == 0) _pendingIdentityMarks = null;
                         change |= ListingChange.Marks;
                     }
-                    if (_pendingSupplementaryFocus?.Equals(reference) == true)
+                    if (mayRestoreFocus && _pendingIdentityFocus!.Equals(reference))
                     {
                         _focusStore = i;
-                        _pendingSupplementaryFocus = null;
+                        _pendingIdentityFocus = null;
                         _focusAnchored = true;
                         change |= ListingChange.Focus;
                     }
@@ -873,7 +887,7 @@ public sealed class ListingModel : IDisposable
             change |= ListingChange.Rows;
         }
 
-        if (!_focusAnchored && _pendingFocusName is null && _pendingSupplementaryFocus is null)
+        if (!_focusAnchored && _pendingFocusName is null && _pendingIdentityFocus is null)
         {
             // Entries stream in and re-sort: an untouched cursor stays on the first row, not on whichever entry
             // happened to be first in the first batch.
@@ -898,9 +912,9 @@ public sealed class ListingModel : IDisposable
 
         if (r.Completion)
         {
-            if (_pendingSupplementaryFocus is not null)
+            if (_pendingIdentityFocus is not null)
             {
-                // The selected category disappeared. Do not move focus onto an identically named survivor.
+                // The focused reference disappeared. A same-name row can refer to a different item.
                 _focusStore = HasParentRow ? 0 : -1;
                 _focusVisibleHint = 0;
                 _focusAnchored = true;
@@ -908,8 +922,8 @@ public sealed class ListingModel : IDisposable
             }
             p.CompletionApplied = true;
             _pendingMarks = null;
-            _pendingSupplementaryMarks = null;
-            _pendingSupplementaryFocus = null;
+            _pendingIdentityMarks = null;
+            _pendingIdentityFocus = null;
             _pendingVisitFocus = null;
             _pendingVisitTop = null;
             _pendingSizes = null;
@@ -1354,8 +1368,8 @@ public sealed class ListingModel : IDisposable
         _marks = new MarkSet();
         _computedSizes = new(StringComparer.Ordinal);
         _pendingMarks = null;
-        _pendingSupplementaryMarks = null;
-        _pendingSupplementaryFocus = null;
+        _pendingIdentityMarks = null;
+        _pendingIdentityFocus = null;
         _pendingSizes = null;
         _pendingFocusName = null;
         _pendingFocusKind = null;
