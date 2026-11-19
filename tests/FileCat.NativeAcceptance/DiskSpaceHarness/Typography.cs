@@ -47,6 +47,7 @@ internal sealed partial class HarnessApp
             allocation.SelectedIndex = component;
             location.Text = locationText;
             window.UpdateLayout();
+            foreach (var scroll in location.GetVisualAncestors().OfType<ScrollViewer>()) scroll.Offset = default;
         }
     }
 
@@ -129,7 +130,10 @@ internal sealed partial class HarnessApp
         catch (TimeoutException error)
         {
             RenderNativeFrame("analysis-reading-layout-control-failure.png");
-            throw new InvalidOperationException($"{label} is clipped or has an obscured hit area at {BoundsInWindow(window, control)}.", error);
+            string scrolls = string.Join("; ", control.GetVisualAncestors().OfType<ScrollViewer>().Select(scroll =>
+                $"{AutomationProperties.GetName(scroll) ?? scroll.Name} viewport {scroll.Bounds.Size} offset {scroll.Offset}, control at {control.TranslatePoint(default, scroll)}"));
+            throw new InvalidOperationException($"{label} is clipped or has an obscured hit area at {BoundsInWindow(window, control)}. " +
+                $"Focused {control.IsFocused}, hit {Hits(window, control)}. {scrolls}", error);
         }
     }
 

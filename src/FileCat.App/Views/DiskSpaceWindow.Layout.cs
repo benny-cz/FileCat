@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
+using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
@@ -56,6 +57,54 @@ public sealed partial class DiskSpaceWindow
         Text = choice?.ToString(),
         TextWrapping = TextWrapping.Wrap
     });
+
+    private void KeepTabsInView(Control header)
+    {
+        _tabs.Template = new FuncControlTemplate<TabControl>((tabs, names) =>
+        {
+            var items = new ItemsPresenter
+            {
+                Name = "PART_ItemsPresenter", Margin = new Thickness(0, 0, 0, 2),
+                [!ItemsPresenter.ItemsPanelProperty] = new TemplateBinding(ItemsControl.ItemsPanelProperty)
+            };
+            names.Register(items.Name, items);
+            var strip = new ScrollViewer { Content = items, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+            AutomationProperties.SetName(strip, "Analysis session tabs");
+            DockPanel.SetDock(strip, Dock.Top);
+
+            // TabControl owns the content and selection through these template parts.
+            var page = new Panel { ClipToBounds = true, Children = { Page("PART_SelectedContentHost2", false), Page("PART_SelectedContentHost", true) } };
+            tabs.LayoutUpdated += (_, _) =>
+            {
+                double reserved = Math.Max(180, FontSize * 6.5);
+                double limit = Math.Max(FontSize + 18, ClientSize.Height - header.Bounds.Height - reserved);
+                if (!double.IsFinite(strip.MaxHeight) || Math.Abs(strip.MaxHeight - limit) > .5) strip.MaxHeight = limit;
+            };
+            tabs.SelectionChanged += (_, args) =>
+            {
+                if (ReferenceEquals(args.Source, tabs) && tabs.SelectedItem is TabItem tab)
+                    Dispatcher.UIThread.Post(() => { if (ReferenceEquals(tabs.SelectedItem, tab)) tab.BringIntoView(); }, DispatcherPriority.Loaded);
+            };
+            return new Border
+            {
+                [!Border.BackgroundProperty] = new TemplateBinding(BackgroundProperty),
+                Child = new DockPanel { Children = { strip, page } }
+            };
+
+            ContentPresenter Page(string name, bool visible)
+            {
+                var presenter = new ContentPresenter
+                {
+                    Name = name, IsVisible = visible,
+                    [!MarginProperty] = new TemplateBinding(TabControl.PaddingProperty),
+                    [!ContentPresenter.HorizontalContentAlignmentProperty] = new TemplateBinding(TabControl.HorizontalContentAlignmentProperty),
+                    [!ContentPresenter.VerticalContentAlignmentProperty] = new TemplateBinding(TabControl.VerticalContentAlignmentProperty)
+                };
+                names.Register(name, presenter);
+                return presenter;
+            }
+        });
+    }
 
     private static Binding ReadingFont(double increase) => new(nameof(FontSize))
     {

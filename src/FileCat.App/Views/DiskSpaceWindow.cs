@@ -111,6 +111,7 @@ public sealed partial class DiskSpaceWindow : Window
         header.Children.Add(ActionButton("Continue in FileCat", Hide, "Hide this window and keep its sessions in the running FileCat instance."));
         AutomationProperties.SetLiveSetting(_notice, AutomationLiveSetting.Polite);
         var windowHeader = new StackPanel { Children = { header, _notice } };
+        KeepTabsInView(windowHeader);
         var dock = new DockPanel(); DockPanel.SetDock(windowHeader, Dock.Top); dock.Children.Add(windowHeader); dock.Children.Add(_tabs);
         Content = ThemeLayers.Over(new Grid { Children = { dock, _overlay } }, dock);
         ToolTipNames.Install();
@@ -741,6 +742,13 @@ public sealed partial class DiskSpaceWindow : Window
                 _explorer.IsVisible = _basketFooter.IsVisible = _basketHost.IsVisible = !setupOnly;
                 _viewSummary.IsVisible = !setupOnly;
                 foreach (var control in _dataControls) control.IsVisible = !setupOnly;
+                Panel statusParent = setupOnly ? _setup : this;
+                if (_status.Parent != statusParent)
+                {
+                    (_status.Parent as Panel)?.Children.Remove(_status);
+                    _status.Margin = setupOnly ? default : new Thickness(10, 3, 10, 8);
+                    statusParent.Children.Add(_status);
+                }
                 _stop.IsVisible = Model.Running || Model.IsPreparing;
                 _components.IsEnabled = !Model.IsPreparing && Model.Phase == AnalysisPhase.Ready;
                 _resolved.Text = Model.ResolvedTargets; _status.Text = Model.Status; _error.Text = Model.FilterError; _error.IsVisible = Model.FilterError is not null;

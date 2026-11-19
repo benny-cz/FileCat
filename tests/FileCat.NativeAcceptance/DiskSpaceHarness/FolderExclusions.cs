@@ -180,7 +180,16 @@ internal sealed partial class HarnessApp
             {
                 model.Focus(AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "photo.png").Id));
                 wideThemes = await CheckWideTypographyAsync(window, model);
-                await CheckCompactDoubleTextAsync(window);
+                string themeBefore = ThemeManager.RequestedName;
+                try
+                {
+                    foreach (string theme in ThemeManager.Names)
+                    {
+                        ThemeManager.Apply(theme);
+                        await CheckCompactDoubleTextAsync(window);
+                    }
+                }
+                finally { ThemeManager.Apply(themeBefore); }
                 cleanupThemes = await CheckDialogTypographyAsync(window);
             }
             Click("Clear filter");

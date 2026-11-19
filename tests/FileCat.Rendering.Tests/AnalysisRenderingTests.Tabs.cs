@@ -22,9 +22,10 @@ public sealed partial class AnalysisRenderingTests
     {
         using var styles = new ProductStyles();
         foreach (string theme in new[] { "Classic", "ClassicDark", "Cyberpunk", "Steampunk", "Psychedelic", "DosCommander", "HighContrast" })
+        foreach (double fontSize in new[] { 20d, 28d })
         {
             ThemeManager.Apply(theme);
-            var window = new DiskSpaceWindow { Width = 380, Height = 430, FontSize = 20 };
+            var window = new DiskSpaceWindow { Width = 380, Height = 430, FontSize = fontSize };
             try
             {
                 for (int i = 0; i < AnalysisLimits.Sessions; i++) window.AddSession(new DiskSpaceViewModel(Fixture() with { Origin = AnalysisOrigin.ImportedInventory }));
@@ -32,7 +33,8 @@ public sealed partial class AnalysisRenderingTests
                 var tabs = window.GetVisualDescendants().OfType<TabControl>().Single();
                 foreach (var tab in tabs.Items.OfType<TabItem>())
                 {
-                    Assert.Equal(20, tab.FontSize); Assert.True(tab.Bounds.Height >= 32);
+                    Assert.Equal(fontSize, tab.FontSize); Assert.True(tab.Bounds.Height >= 32);
+                    tab.BringIntoView(); Frame(window);
                     var at = tab.TranslatePoint(default, window); Assert.NotNull(at);
                     Assert.True(at.Value.X >= 0 && at.Value.X + tab.Bounds.Width <= window.ClientSize.Width + .5,
                         theme + " clipped " + tab.Header + " horizontally: " + at + " / " + tab.Bounds);

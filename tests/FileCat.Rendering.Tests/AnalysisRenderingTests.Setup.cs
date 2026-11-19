@@ -13,12 +13,14 @@ namespace FileCat.Rendering.Tests;
 
 public sealed partial class AnalysisRenderingTests
 {
-    [AvaloniaFact]
-    public async Task ReadySetupKeepsStartVisibleWithLargeTextAndEightNarrowTabsWithoutBindingSources()
+    [AvaloniaTheory]
+    [InlineData(20d)]
+    [InlineData(28d)]
+    public async Task ReadySetupKeepsStartVisibleWithLargeTextAndEightNarrowTabsWithoutBindingSources(double fontSize)
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
         ThemeManager.Apply("ClassicDark"); int bindings = 0;
-        var window = new DiskSpaceWindow { Width = 380, Height = 430, FontSize = 20 };
+        var window = new DiskSpaceWindow { Width = 380, Height = 430, FontSize = fontSize };
         try
         {
             for (int i = 0; i < 8; i++) window.AddSession(new DiskSpaceViewModel(fixture.Services, _ =>
