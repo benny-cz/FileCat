@@ -537,8 +537,19 @@ internal sealed partial class HarnessApp
             throw new IOException("The native standard indexed scan did not finish.");
         await using var lease = await model.AcquireRecordedDatasetAsync(cancellation);
         var open = VisibleButton("Open recorded result")!;
-        await RevealLayoutControlAsync(window, open, "Open recorded result");
-        open.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (OperatingSystem.IsWindows())
+        {
+            open.BringIntoView();
+            await ReadyAsync(() => open.IsEnabled && FullyVisible(window, open) && Hits(window, open), TimeSpan.FromSeconds(5));
+            if (!WindowsGuestInput.ForegroundIsOwned())
+                WindowsGuestInput.ActivateFromDesktop(window.TryGetPlatformHandle()?.Handle ?? 0);
+            WindowsClick(open);
+        }
+        else
+        {
+            await RevealLayoutControlAsync(window, open, "Open recorded result");
+            open.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        }
         try { await ReadyAsync(() => IndexedList() is { ItemCount: 1 }); }
         catch (TimeoutException error)
         {
