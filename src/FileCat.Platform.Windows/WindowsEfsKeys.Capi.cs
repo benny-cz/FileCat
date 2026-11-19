@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
 
 namespace FileCat.Platform.Windows;
 
@@ -37,9 +38,9 @@ internal sealed unsafe partial class WindowsEfsKeys
         RequireInvoker(sid, ct);
         if (OwnedWindowThread(ownerWindow) == 0)
             return Unknown("efs-key-owner", "The reviewed FileCat window closed before key access was confirmed.");
-        if (result is { State: StorageEfsKeyState.MatchedAvailable, NativeError: 0 })
+        if (result is { State: StorageEfsKeyState.MatchedAvailable, NativeError: 0 } matched)
             return Evidence(sid, certificateSha1, true, true, StorageEfsKeyState.MatchedAvailable, StorageEfsKeyProvider.Capi, null, null, null)
-                with { Subject = reviewed.Subject };
+                with { Subject = reviewed.Subject, BackupProblem = matched.NonExportable ? NonExportable : null };
         if (result is { State: StorageEfsKeyState.Unavailable, NativeError: not 0 } refused)
             return Error(sid, certificateSha1, null, null, refused.NativeError, "efs-private-key",
                 "Windows could not compare the reviewed CryptoAPI key.", StorageEfsKeyProvider.Capi);
@@ -61,6 +62,8 @@ internal sealed unsafe partial class WindowsEfsKeys
                 "Windows reported that the export completed. Key access could not be confirmed for this review.", true));
         if (result is { Backup: { } backup } reported)
             return BackupOutcome(association, hash, new(backup, reported.BackupError));
+        if (result is { State: StorageEfsKeyState.MatchedAvailable, NonExportable: true })
+            return new(BackupState.Unavailable, null, NonExportable);
         if (result is { State: StorageEfsKeyState.Unavailable, NativeError: BadPublicKey })
             return Refused("efs-key-mismatch", "The private key does not match the exact file-associated certificate.", BadPublicKey);
         return Refused("efs-backup-worker", "The isolated CryptoAPI worker could not verify the reviewed key and complete the backup.", result?.NativeError);
@@ -69,11 +72,14 @@ internal sealed unsafe partial class WindowsEfsKeys
     internal WindowsEfsCapiWorker.Result InspectCapiInWorker(string sid, string hash, nint owner, int parent, bool export, CancellationToken ct)
     {
         if (!ExternalCapiOwner(owner, parent))
-            return new(StorageEfsKeyState.Unknown, 0, null, 0);
+            return new(StorageEfsKeyState.Unknown, 0, null, 0, NonExportable: false);
         NativeBackup? backup = null;
-        var evidence = InspectAssociatedCertificate(sid, hash, ct, export ? (certificate, _) => backup = ExportPrivateKey(certificate, owner) : null,
+        var evidence = InspectAssociatedCertificate(sid, hash, ct, export ? (certificate, problem) =>
+        {
+            if (problem is null) backup = ExportPrivateKey(certificate, owner);
+        } : null,
             capi: new(owner, parent));
-        return new(evidence.State, evidence.NativeError ?? 0, backup?.State, backup?.Error ?? 0);
+        return new(evidence.State, evidence.NativeError ?? 0, backup?.State, backup?.Error ?? 0, evidence.BackupProblem == NonExportable);
     }
 
     private static StorageEfsKeyEvidence CompareIsolatedCapiKey(nint fresh, string sid, string hash,
@@ -101,8 +107,10 @@ internal sealed unsafe partial class WindowsEfsKeys
                 result = Unknown("efs-key-comparison-unestablished", "A fresh owned CryptoAPI key comparison could not be established.");
             else
             {
-                useMatchedCertificate?.Invoke(fresh, null);
-                result = Evidence(sid, hash, true, true, StorageEfsKeyState.MatchedAvailable, StorageEfsKeyProvider.Capi, null, null, null);
+                var backupProblem = ReadCapiBackupProblem(key, keySpec, ct);
+                useMatchedCertificate?.Invoke(fresh, backupProblem);
+                result = Evidence(sid, hash, true, true, StorageEfsKeyState.MatchedAvailable, StorageEfsKeyProvider.Capi, null, null, null)
+                    with { BackupProblem = backupProblem };
             }
         }
         finally
@@ -123,6 +131,22 @@ internal sealed unsafe partial class WindowsEfsKeys
             Evidence(sid, hash, true, true, StorageEfsKeyState.Unknown, StorageEfsKeyProvider.Capi, null, code, message);
     }
 
+    private static StorageProblem? ReadCapiBackupProblem(nint provider, uint keySpec, CancellationToken ct)
+    {
+        using var charge = StorageNativeAllowance.RequireCurrent().ClaimScratch();
+        ct.ThrowIfCancellationRequested();
+        if (!CryptGetUserKey(provider, keySpec, out nint key) || key == 0) return null;
+        try
+        {
+            uint permissions = 0, bytes = sizeof(uint);
+            const uint export = 0x0004, archive = 0x0100;
+            bool read = CryptGetKeyParam(key, 6 /* KP_PERMISSIONS */, &permissions, ref bytes, 0);
+            ct.ThrowIfCancellationRequested();
+            return read && bytes == sizeof(uint) && (permissions & (export | archive)) == 0 ? NonExportable : null;
+        }
+        finally { CryptDestroyKey(key); }
+    }
+
     private static bool ExternalCapiOwner(nint window, int parent) =>
         parent > 0 && parent != Environment.ProcessId && window != 0 && IsWindowVisible(window) &&
         GetWindowThreadProcessId(window, out uint process) != 0 && process == (uint)parent;
@@ -130,4 +154,13 @@ internal sealed unsafe partial class WindowsEfsKeys
     [LibraryImport("advapi32.dll", EntryPoint = "CryptSetProvParam", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetCapiClientWindow(nint provider, uint param, nint* value, uint flags);
+    [LibraryImport("advapi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CryptGetUserKey(nint provider, uint keySpec, out nint key);
+    [LibraryImport("advapi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CryptGetKeyParam(nint key, uint parameter, uint* data, ref uint size, uint flags);
+    [LibraryImport("advapi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CryptDestroyKey(nint key);
 }

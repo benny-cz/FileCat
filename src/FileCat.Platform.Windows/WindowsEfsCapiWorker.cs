@@ -14,12 +14,14 @@ namespace FileCat.Platform.Windows;
 internal static partial class WindowsEfsCapiWorker
 {
     internal const string Argument = "--efs-capi-key-access";
-    private const string PipePrefix = "FileCat.EfsCapi.";
+    // A mismatched helper must reject the pipe before it can admit an export.
+    private const string PipePrefix = "FileCat.EfsCapi.V2.";
     private const int HashLength = 40, SidLimit = byte.MaxValue, HashOffset = sizeof(long) + 1 + SidLimit;
-    private const int ExportOffset = HashOffset + HashLength, ReplyLength = 4 * sizeof(int);
+    private const int ExportOffset = HashOffset + HashLength, ReplyLength = 5 * sizeof(int);
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(8);
 
-    internal readonly record struct Result(StorageEfsKeyState State, int NativeError, WindowsEfsKeys.BackupState? Backup, int BackupError);
+    internal readonly record struct Result(StorageEfsKeyState State, int NativeError, WindowsEfsKeys.BackupState? Backup,
+        int BackupError, bool NonExportable);
     private static string Executable => Path.Join(AppContext.BaseDirectory, "FileCat.ShellHost.exe");
     internal static bool Available => File.Exists(Executable);
 
@@ -66,8 +68,10 @@ internal static partial class WindowsEfsCapiWorker
             int error = BinaryPrimitives.ReadInt32LittleEndian(reply.AsSpan(sizeof(int)));
             int backup = BinaryPrimitives.ReadInt32LittleEndian(reply.AsSpan(2 * sizeof(int)));
             int backupError = BinaryPrimitives.ReadInt32LittleEndian(reply.AsSpan(3 * sizeof(int)));
-            if (!Enum.IsDefined(state) || (backup != -1 && (!export || !Enum.IsDefined((WindowsEfsKeys.BackupState)backup)))) return null;
-            return new(state, error, backup == -1 ? null : (WindowsEfsKeys.BackupState)backup, backupError);
+            int nonExportable = BinaryPrimitives.ReadInt32LittleEndian(reply.AsSpan(4 * sizeof(int)));
+            if (!Enum.IsDefined(state) || (backup != -1 && (!export || !Enum.IsDefined((WindowsEfsKeys.BackupState)backup))) ||
+                nonExportable is not (0 or 1) || (nonExportable == 1 && (state != StorageEfsKeyState.MatchedAvailable || backup != -1))) return null;
+            return new(state, error, backup == -1 ? null : (WindowsEfsKeys.BackupState)backup, backupError, nonExportable == 1);
         }
         catch (Exception error) when (error is IOException or TimeoutException or Win32Exception or InvalidOperationException or UnauthorizedAccessException)
         { return null; }
@@ -123,6 +127,7 @@ internal static partial class WindowsEfsCapiWorker
             BinaryPrimitives.WriteInt32LittleEndian(reply[sizeof(int)..], result.NativeError);
             BinaryPrimitives.WriteInt32LittleEndian(reply[(2 * sizeof(int))..], (int?)result.Backup ?? -1);
             BinaryPrimitives.WriteInt32LittleEndian(reply[(3 * sizeof(int))..], result.BackupError);
+            BinaryPrimitives.WriteInt32LittleEndian(reply[(4 * sizeof(int))..], result.NonExportable ? 1 : 0);
             pipe.Write(reply);
             return 0;
         }

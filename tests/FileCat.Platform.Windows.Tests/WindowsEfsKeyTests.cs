@@ -55,7 +55,7 @@ public sealed unsafe partial class WindowsEfsKeyTests
         var result = WindowsEfsKeys.ProbeHeldCertificate(fixture.Certificate.Handle, Sid, fixture.Certificate.Thumbprint, Ct);
         Assert.Equal(StorageEfsKeyState.MatchedAvailable, result.State); Assert.True(result.CertificatePresent); Assert.True(result.ProviderAssociationPresent);
         Assert.Equal(cng ? StorageEfsKeyProvider.Cng : StorageEfsKeyProvider.Capi, result.Provider); Assert.Null(result.Problem); Assert.Null(result.NativeError);
-        Assert.Equal(cng ? "efs-key-nonexportable" : null, result.BackupProblem?.Code);
+        Assert.Equal("efs-key-nonexportable", result.BackupProblem?.Code);
         TestContext.Current.TestOutputHelper?.WriteLine($"EFS_KEY_PROOF provider={result.Provider} state={result.State} nonExportableFixture=True");
         // Repeat against the original context: the service neither consumes it nor creates a cached comparison bypass.
         Assert.Equal(StorageEfsKeyState.MatchedAvailable, WindowsEfsKeys.ProbeHeldCertificate(fixture.Certificate.Handle, Sid, fixture.Certificate.Thumbprint, Ct).State);

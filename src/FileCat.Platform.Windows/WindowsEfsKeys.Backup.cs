@@ -9,6 +9,8 @@ internal sealed unsafe partial class WindowsEfsKeys
     internal enum BackupState { WindowsReportedComplete, Canceled, Unavailable }
     internal sealed record BackupResult(BackupState State, int? NativeError, StorageProblem? Problem, StorageEfsBackupCompletion? Completion = null);
     private readonly record struct NativeBackup(BackupState State, int Error);
+    private static readonly StorageProblem NonExportable = new(StorageReasonKind.PermissionOrPolicy, "efs-key-nonexportable",
+        "Windows marks this EFS private key as non-exportable.", true);
     internal delegate BackupResult InvokeBackupWizard(Func<BackupResult> show);
 
     [StructLayout(LayoutKind.Sequential)]

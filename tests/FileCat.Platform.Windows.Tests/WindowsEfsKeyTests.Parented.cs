@@ -90,6 +90,11 @@ public sealed unsafe partial class WindowsEfsKeyTests
                 Assert.Equal(StorageEfsKeyProvider.Capi, matched.Provider);
                 Assert.Equal(hash, matched.CertificateSha1);
                 Assert.Equal(sid, matched.InvokerSid);
+                Assert.Equal("efs-key-nonexportable", matched.BackupProblem?.Code);
+                var refused = service.BackUpAssociatedCertificate(association, hash, owner, true, Ct,
+                    invokeWizard: _ => throw new InvalidOperationException("The non-exportable key must be refused before opening the wizard."));
+                Assert.Equal(WindowsEfsKeys.BackupState.Unavailable, refused.State);
+                Assert.Equal("efs-key-nonexportable", refused.Problem?.Code);
             }
             finally { store.Remove(first.Certificate); }
             store.Add(wrong);

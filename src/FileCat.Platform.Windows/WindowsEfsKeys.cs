@@ -134,7 +134,8 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
                 if (!callerFree || key == 0 || keySpec is not (1 or 2 or uint.MaxValue) || (keySpec == uint.MaxValue) != (binding.Type == 0))
                     return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.Unknown, provider, null,
                         "efs-key-comparison-unestablished", "A fresh owned certificate-to-key comparison was not established; a cached or ambiguous result cannot authorize encryption.");
-                var backupProblem = provider == StorageEfsKeyProvider.Cng ? ReadCngBackupProblem(key, ct) : null;
+                var backupProblem = provider == StorageEfsKeyProvider.Cng
+                    ? ReadCngBackupProblem(key, ct) : ReadCapiBackupProblem(key, keySpec, ct);
                 useMatchedCertificate?.Invoke(fresh, backupProblem);
                 return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.MatchedAvailable, provider, null, null, null)
                     with { Subject = CertificateSubject(fresh), BackupProblem = backupProblem };

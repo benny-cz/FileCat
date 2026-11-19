@@ -148,9 +148,7 @@ internal sealed unsafe partial class WindowsEfsKeys
         uint policy = 0;
         int status = ReadCngProperty(key, "Export Policy", &policy, sizeof(uint), out int bytes, 0x40 /* NCRYPT_SILENT_FLAG */);
         ct.ThrowIfCancellationRequested();
-        return status == 0 && bytes == sizeof(uint) && policy == 0
-            ? new(StorageReasonKind.PermissionOrPolicy, "efs-key-nonexportable", "Windows marks this EFS private key as non-exportable.", true)
-            : null;
+        return status == 0 && bytes == sizeof(uint) && policy == 0 ? NonExportable : null;
     }
 
     [LibraryImport("ncrypt.dll", EntryPoint = "NCryptGetProperty", StringMarshalling = StringMarshalling.Utf16)]
