@@ -18,7 +18,8 @@ public partial class WindowsFileOperations
     private const uint ZipLinkFileOptions = NonDirectoryFile | OpenReparsePoint;
 
     private static LegacyZipInPlaceResult? PublishLegacyZipLinkReplacement(SafeFileHandle directory, string archive, string stage, string backup,
-        LegacyZipRollbackFile original, SafeFileHandle originalPin, LegacyZipRollbackFile rebuilt, SafeFileHandle stagePin, Action checkpoint, Action? beforeCommit)
+        LegacyZipRollbackFile original, SafeFileHandle originalPin, LegacyZipRollbackFile rebuilt, SafeFileHandle stagePin,
+        Action checkpoint, Action? beforeCommit, Action? afterCommit)
     {
         bool prepared = false, commitAttempted = false;
         try
@@ -117,6 +118,7 @@ public partial class WindowsFileOperations
             source.Dispose();
             commitAttempted = true;
             transaction.Commit("Windows could not confirm publication of the hard-linked ZIP update.");
+            afterCommit?.Invoke();
 
             using var adopted = OpenOrThrow(directory, archive, GenericRead | Synchronize, ShareRead, Open, ZipLinkFileOptions, "Verify the published ZIP rebuild");
             VerifyZipLinkMetadata(adopted, adopted, null, rebuilt, publishedMark, metadata, security, eas, streams, static () => { });

@@ -27,7 +27,7 @@ public partial class WindowsFileOperations : ILegacyZipInPlacePublisher
 
     internal static LegacyZipInPlaceResult? PublishLegacyZipInPlaceCore(string archive, string stage, string backup,
         LegacyZipRollbackFile original, SafeFileHandle originalPin, LegacyZipRollbackFile rebuilt, SafeFileHandle stagePin,
-        Action checkpoint, Action? beforeCommit, Action? beforeCleanupCommit = null)
+        Action checkpoint, Action? beforeCommit, Action? beforeCleanupCommit = null, Action? afterCommit = null)
     {
         string folder = Path.GetDirectoryName(archive)!;
         if (folder != Path.GetDirectoryName(stage) || folder != Path.GetDirectoryName(backup))
@@ -43,7 +43,7 @@ public partial class WindowsFileOperations : ILegacyZipInPlacePublisher
             string archiveName = Path.GetFileName(archive), stageName = Path.GetFileName(stage);
             if (WindowsArchiveNative.Regular(originalPin, original.Version.Length, artifact: false, mayRename: true) > 1)
                 return PublishLegacyZipLinkReplacement(directory, archiveName, stageName, Path.GetFileName(backup),
-                    original, originalPin, rebuilt, stagePin, checkpoint, beforeCommit);
+                    original, originalPin, rebuilt, stagePin, checkpoint, beforeCommit, afterCommit);
             using var transaction = new WindowsFileTransaction("FileCat legacy ZIP publication");
             var published = new LegacyZipRollbackFile(new(original.Version.Identity, rebuilt.Version.Length, rebuilt.Version.Sha256),
                 rebuilt.Origin, Encrypted: false);
@@ -92,6 +92,7 @@ public partial class WindowsFileOperations : ILegacyZipInPlacePublisher
                 checkpoint();
                 commitAttempted = true;
                 transaction.Commit("Windows could not confirm publication of the ZIP update.");
+                afterCommit?.Invoke();
                 using var adopted = OpenOrThrow(directory, archiveName, GenericRead | Synchronize, ShareRead, Open,
                     NonDirectoryFile | OpenReparsePoint, "Verify the published ZIP");
                 var committedMark = VerifyLegacyZipRollbackFile(adopted, published, allowMissingOrigin: false);
