@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
 using FileCat.Core.Records;
+using FileCat.Core.Resources;
 using FileCat.Core.State;
 using Microsoft.Win32.SafeHandles;
 
@@ -69,6 +71,46 @@ public sealed class WindowsStorageAbiTests
             File.Delete(path);
             Directory.Delete(directory);
         }
+    }
+
+    [Fact]
+    public void Compression_rejects_explicit_stream_targets_at_the_manager_and_native_boundaries()
+    {
+        string directory = CreateFixture();
+        string path = Path.Join(directory, "reviewed 名前.bin");
+        string journal = Path.Join(directory, "journal");
+        const string main = "fixture main stream", named = "fixture named stream";
+        var ct = TestContext.Current.CancellationToken;
+        try
+        {
+            File.WriteAllText(path, main);
+            File.WriteAllText(path + ":fixture", named);
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: QualifyNativeArm64Jobs);
+            var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), adapter, journal);
+            var ordinary = ItemRef.ForFileSystemPath(path, EntryKind.File);
+            foreach (var action in new[] { StorageAction.Compress, StorageAction.RemoveCompression })
+            {
+                foreach (string suffix in new[] { ":fixture", ":fixture:$DATA", "::$DATA" })
+                {
+                    string streamPath = path + suffix;
+                    var explicitStream = new ItemRef(ordinary.Parent, ordinary.Name + suffix, EntryKind.File);
+                    Assert.Throws<ArgumentException>(() => manager.PrepareStorageReview([ordinary, explicitStream], action, ct));
+                    Assert.Throws<ArgumentException>(() => adapter.InspectRoot(new(explicitStream, streamPath), action, ct));
+                    Assert.Equal("target-spelling", Assert.Throws<StorageInspectionException>(() =>
+                        adapter.InspectRoot(new(ordinary, streamPath), action, ct)).Problem.Code);
+                }
+                using var review = manager.PrepareStorageReview([ordinary], action, ct);
+                Assert.Equal(path, Assert.Single(review.Targets).Path);
+                Assert.Null(Assert.Single(review.Roots).Observation.Ineligible);
+            }
+
+            Assert.Empty(manager.Jobs);
+            Assert.False(Directory.Exists(journal));
+            Assert.Equal(main, File.ReadAllText(path));
+            Assert.Equal(named, File.ReadAllText(path + ":fixture"));
+            Assert.Equal(0, (int)(File.GetAttributes(path) & FileAttributes.Compressed));
+        }
+        finally { Directory.Delete(directory, recursive: true); }
     }
 
     [Fact]

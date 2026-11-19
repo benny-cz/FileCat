@@ -126,6 +126,42 @@ public sealed class RecoveryJobTests : IDisposable
     }
 
     [Fact]
+    public async Task A_recovery_output_reader_stops_when_its_open_disk_image_becomes_encrypted()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") != "1",
+            "Requires the Windows EFS qualification fixture.");
+        string image = Path.Combine(_dir.Path, "source.img");
+        File.Copy(RecoveryFixtures.Image("fat16"), image);
+        var files = new IdentityAwareTestFiles();
+        _recovery.GetSourceIdentity = files.GetFileIdentity;
+        _recovery.GetOpenedSourceIdentity = files.GetHandleIdentity;
+        var location = RecoveryProvider.ForImage(image, 1).WithPath("docs");
+        var row = Assert.Single((await ListAsync(location)).Entries, entry => entry.Name == "report.txt");
+        var item = _recovery.GetItemRef(location, row);
+        IUnprotectedContentOutput output = _recovery;
+        using var reader = Assert.IsAssignableFrom<IContentSource>(
+            output.OpenUnprotectedOutput(item, ContentOutputKind.Extraction, out var provenance));
+        var observed = Assert.IsType<OutputEfsObservation>(provenance);
+        var before = observed.Freeze();
+        Assert.Equal(OutputEfsObservation.State.Clear, before.Protection);
+        var contributor = Assert.Single(before.Contributors);
+
+        byte[] buffer = new byte[512];
+        Assert.Equal(buffer.Length, reader.Read(0, buffer));
+        Assert.Equal(RecoveryFixtures.Content("report.txt", 10000)[..buffer.Length], buffer);
+
+        File.Encrypt(image);
+        Assert.True(File.GetAttributes(image).HasFlag(FileAttributes.Encrypted));
+        Array.Fill(buffer, (byte)0xA5);
+        var refused = Assert.Throws<IOException>(() => reader.Read(buffer.Length, buffer));
+        Assert.Contains("disk image uses Windows EFS", refused.Message, StringComparison.Ordinal);
+        Assert.All(buffer, value => Assert.Equal((byte)0xA5, value));
+        var after = observed.Freeze();
+        Assert.Equal(OutputEfsObservation.State.Encrypted, after.Protection);
+        Assert.Equal(contributor, Assert.Single(after.Contributors));
+    }
+
+    [Fact]
     public async Task A_volume_without_deleted_items_says_so()
     {
         // A blank FAT12 floppy: a boot sector, two empty tables, and an empty root folder.

@@ -23,6 +23,10 @@ on:
         description: Qualify EFS upload and source retirement with a controlled remote fixture
         type: boolean
         default: false
+      reports:
+        description: Qualify native NTFS details and supplementary-value report publication
+        type: boolean
+        default: false
       scale:
         description: Run the 10,000-file native storage benchmark
         type: boolean
@@ -157,8 +161,8 @@ jobs:
           $results = 'tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx'
           [xml]$receipt = Get-Content -LiteralPath $results -Raw
           $counters = $receipt.TestRun.ResultSummary.Counters
-          if ($counters.total -ne '13' -or $counters.executed -ne '13' -or $counters.passed -ne '13') {
-            throw 'All thirteen native fixture cases must execute and pass.'
+          if ($counters.total -ne '14' -or $counters.executed -ne '14' -or $counters.passed -ne '14') {
+            throw 'All fourteen native fixture cases must execute and pass.'
           }
 
           $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_OUTPUTS = '1'
@@ -187,7 +191,9 @@ jobs:
             @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-file-details.trx'; Count = '16';
                Filter = $detailsFilter -join '|' },
             @{ Project = 'tests/FileCat.Core.Tests'; Log = 'native-efs-archive-output.trx'; Count = '10';
-               Filter = 'FullyQualifiedName~ArchiveEfsSpoolTests' }
+               Filter = 'FullyQualifiedName~ArchiveEfsSpoolTests' },
+            @{ Project = 'tests/FileCat.Core.Tests'; Log = 'native-efs-recovery-output.trx'; Count = '3';
+               Filter = 'FullyQualifiedName~Disk_image_efs_protection_controls_recovery_drag_and_spool|FullyQualifiedName~A_recovery_output_reader_stops_when_its_open_disk_image_becomes_encrypted' }
           )
           if ($env:FILECAT_QUALIFY_EVIDENCE -eq 'true') {
             $env:FILECAT_TEST_STORAGE_SCALE = '1'
@@ -312,8 +318,11 @@ jobs:
               throw "All $($scope.Count) native $($scope.Level)-integrity broker cases must execute and pass."
             }
           }
-      - name: Qualify native ARM64 EFS upload and source retirement
-        if: inputs.remote
+      - name: Qualify native ARM64 application output routes
+        if: inputs.remote || inputs.reports
+        env:
+          FILECAT_QUALIFY_REMOTE: ${{ inputs.remote }}
+          FILECAT_QUALIFY_REPORTS: ${{ inputs.reports }}
         shell: pwsh
         run: |
           $project = 'tests/FileCat.App.Tests'
@@ -328,13 +337,28 @@ jobs:
           $env:FILECAT_EDIT_NATIVE_ROOT = $fixture
           $env:TMP = $fixture
           $env:TEMP = $fixture
-          $filter = 'FullyQualifiedName~FileCat.App.Tests.EfsRemoteUploadTests|FullyQualifiedName~FileCat.App.Tests.SftpRetainedEditTests'
-          ./eng/validation/run-medium-integrity-test.ps1 -Project $project -LogFileName native-efs-remote-upload.trx -Filter $filter
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          [xml]$receipt = Get-Content -LiteralPath "$project/TestResults/native-efs-remote-upload.trx" -Raw
-          $counters = $receipt.TestRun.ResultSummary.Counters
-          if ($counters.total -ne '39' -or $counters.executed -ne '39' -or $counters.passed -ne '39') {
-            throw 'All 39 native remote-upload and retained-edit cases must execute and pass.'
+          $suites = @()
+          if ($env:FILECAT_QUALIFY_REMOTE -eq 'true') {
+            $suites += @{ Log = 'native-efs-remote-upload.trx'; Count = '39';
+                Filter = 'FullyQualifiedName~FileCat.App.Tests.EfsRemoteUploadTests|FullyQualifiedName~FileCat.App.Tests.SftpRetainedEditTests' }
+          }
+          if ($env:FILECAT_QUALIFY_REPORTS -eq 'true') {
+            $reports = @(
+              'Protected_or_unverified_report_text_cannot_reach_a_picker_or_clipboard'
+              'Saving_a_value_report_cancels_a_stale_picker_and_only_creates_new_files'
+              'Saving_file_system_details_replaces_a_clear_file_and_preserves_an_Efs_destination'
+              'Canonical_details_refuses_unqualified_full_content_before_display_copy_or_save'
+            ) | ForEach-Object { "FullyQualifiedName~$_" }
+            $suites += @{ Log = 'native-efs-report-output.trx'; Count = '8'; Filter = $reports -join '|' }
+          }
+          foreach ($suite in $suites) {
+            ./eng/validation/run-medium-integrity-test.ps1 -Project $project -LogFileName $suite.Log -Filter $suite.Filter
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            [xml]$receipt = Get-Content -LiteralPath "$project/TestResults/$($suite.Log)" -Raw
+            $counters = $receipt.TestRun.ResultSummary.Counters
+            if ($counters.total -ne $suite.Count -or $counters.executed -ne $suite.Count -or $counters.passed -ne $suite.Count) {
+              throw "All $($suite.Count) native cases must execute and pass in $($suite.Log)."
+            }
           }
       - name: Measure native and managed NTFS listing at scale
         if: inputs.listing
@@ -459,5 +483,7 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-scale.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-evidence-limits.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-archive-output.trx
+            tests/FileCat.Core.Tests/TestResults/native-efs-recovery-output.trx
             tests/FileCat.App.Tests/TestResults/native-efs-remote-upload.trx
+            tests/FileCat.App.Tests/TestResults/native-efs-report-output.trx
           if-no-files-found: error
