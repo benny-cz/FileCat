@@ -79,3 +79,7 @@ The Mac and Ubuntu VM each passed 105 focused r1771 scratch, observation and dat
 |---|---|
 | Mac | `24f691ba7b5717f257f84805494d7ce597ae9e6f62039aecb77201d7869219ae` |
 | Ubuntu VM | `db0f630041831d31453ff9b2842c521b1b4590bbec6eef918c7131a787f747a9` |
+
+Windows r1770 passed the bounded-preview case on the same retained NTFS fixture of 9,999,999 files plus the root. FileCat observed 6,185,614 paths in 1,624.16 seconds with a 4,096-path partial preview. The only issue was `analysis-scratch-budget-reached`. The window displayed the budget reason and disabled the recorded-result action. Sampled scratch reservation peaked at 4,294,952,305 bytes. Final shared reservation, source-close failures and owned process counts were zero. The test retained the source. The separate DirectorySizer measurement is from r1702. The scale receipts establish ten-million-path bounded previews and one-million-file indexing on all three test machines.
+
+The r1770 result XML SHA-256 is `b7eb1257a57fa686e9646f9b66d42726dc944db05a70192eab9a4fa7288d2ed4` and the receipt SHA-256 is `adc2a70c48e8ebd69a8e36482d173ef157dcbf19317bb657ba490483948b4957`.
