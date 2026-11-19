@@ -289,6 +289,59 @@ public sealed partial class WindowsStorageTraversalTests
     }
 
     [Fact]
+    public void A_new_hard_link_after_compression_preparation_is_blocked_or_refused_before_the_native_call()
+    {
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows client NTFS fixture.");
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-storage-late-alias-").FullName;
+        try
+        {
+            string path = Path.Join(root, "original"), alias = Path.Join(root, "alias");
+            File.WriteAllText(path, "kept on the same file");
+            Assert.True(CreateHardLink(alias, path, 0), $"Uncontended link creation failed with {Marshal.GetLastPInvokeError()}.");
+            File.Delete(alias);
+
+            const StorageAction action = StorageAction.Compress;
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
+            var selected = Review(adapter, path, EntryKind.File, action);
+            using var review = selected.Review;
+            using var owner = selected.Owner;
+            using var native = StorageReviewResources.EnterNative(ct);
+            bool linked;
+            using (var traversal = adapter.OpenReviewedRoot(owner.Leases[0], action, ct))
+            {
+                Assert.Null(traversal.Root.PrepareMutation(action, ct).Ineligible);
+                linked = CreateHardLink(alias, path, 0);
+                int resultCode = linked ? 0 : Marshal.GetLastPInvokeError();
+                TestContext.Current.TestOutputHelper?.WriteLine($"Link creation during held preparation: {resultCode}");
+                var mutation = traversal.Root.ApplyAdmitted(action);
+                if (linked)
+                {
+                    Assert.False(mutation.NativeCallAttempted);
+                    Assert.Equal(StorageEffect.Skipped, mutation.Effect);
+                    Assert.Equal("multiple-names", mutation.Problem?.Code);
+                }
+                else
+                {
+                    Assert.Contains(resultCode, new[] { 5, 32 });
+                    Assert.True(mutation.NativeCallAttempted);
+                    Assert.Equal(StorageEffect.Changed, mutation.Effect);
+                }
+            }
+            Assert.Equal(!linked, File.GetAttributes(path).HasFlag(FileAttributes.Compressed));
+            Assert.Equal("kept on the same file", File.ReadAllText(path));
+            Assert.Equal(linked, File.Exists(alias));
+            if (linked)
+            {
+                Assert.False(File.GetAttributes(alias).HasFlag(FileAttributes.Compressed));
+                Assert.Equal("kept on the same file", File.ReadAllText(alias));
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public unsafe void Case_sensitive_siblings_keep_distinct_IDs_and_drive_extended_and_volume_paths_keep_one_physical_pin()
     {
         bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
@@ -406,4 +459,7 @@ public sealed partial class WindowsStorageTraversalTests
 
     [LibraryImport("kernel32.dll", EntryPoint = "SetFileInformationByHandle", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)] private static unsafe partial bool SetInfo(SafeFileHandle file, int infoClass, void* input, uint length);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateHardLinkW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static partial bool CreateHardLink(string name, string existing, nint security);
 }

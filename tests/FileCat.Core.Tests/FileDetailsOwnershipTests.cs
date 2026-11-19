@@ -109,4 +109,48 @@ public sealed class FileDetailsOwnershipTests
         Assert.Equal(2, starts);
         Assert.Equal(0, Volatile.Read(ref rejectedReads));
     }
+
+    [Fact]
+    public async Task Repeated_queued_cancellation_and_scheduler_shutdown_return_every_observation_permit()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        string device = Guid.NewGuid().ToString();
+        using var io = new DeviceIoScheduler(threadsPerDevice: 1, maxThreadsPerDevice: 1);
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var held = io.RunOwned(device, IoPriority.Interactive, _ =>
+        {
+            entered.SetResult();
+            Assert.True(release.Wait(TimeSpan.FromSeconds(15), ct));
+            return true;
+        }, ct);
+        int reads = 0;
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+            for (int i = 0; i < 12; i++)
+            {
+                using var canceled = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                var queued = FileObservationRequests.RunOwned(io, device, IoPriority.Interactive,
+                    _ => Interlocked.Increment(ref reads), canceled.Token);
+                Assert.False(queued.IsCompleted);
+                canceled.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => queued.WaitAsync(TimeSpan.FromSeconds(10), ct));
+            }
+            var stopped = FileObservationRequests.RunOwned(io, device, IoPriority.Interactive,
+                _ => Interlocked.Increment(ref reads), ct);
+            Assert.False(stopped.IsCompleted);
+            io.Dispose();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stopped.WaitAsync(TimeSpan.FromSeconds(10), ct));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => FileObservationRequests.RunOwned(io,
+                device, IoPriority.Interactive, _ => Interlocked.Increment(ref reads), ct).WaitAsync(TimeSpan.FromSeconds(10), ct));
+            using (await DetailsAdmission.AcquireAsync(device, ct))
+            using (await DetailsAdmission.AcquireAsync(device, ct))
+            using (await DetailsAdmission.AcquireAsync(device, ct))
+            using (await DetailsAdmission.AcquireAsync(device, ct).WaitAsync(TimeSpan.FromSeconds(10), ct)) { }
+        }
+        finally { release.Set(); }
+        Assert.True(await held.WaitAsync(TimeSpan.FromSeconds(10), ct));
+        Assert.Equal(0, Volatile.Read(ref reads));
+    }
 }

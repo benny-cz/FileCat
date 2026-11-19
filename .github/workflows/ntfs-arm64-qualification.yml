@@ -158,6 +158,7 @@ jobs:
             'Noop_ReadOnly_file_needs_no_write_handle_even_with_an_existing_writer'
             'Renamed_review_path_replaced_by_another_object_never_chases_the_original_or_changes_the_replacement'
             'Conflicting_writer_refuses_before_call_then_fresh_preparation_can_change_the_same_held_object'
+            'A_new_hard_link_after_compression_preparation_is_blocked_or_refused_before_the_native_call'
             'Case_sensitive_siblings_keep_distinct_IDs_and_drive_extended_and_volume_paths_keep_one_physical_pin'
             'Replacing_a_child_after_the_native_cursor_reads_its_id_preserves_both_files'
             'Readonly_file_and_reparse_subtree_are_skipped_while_independent_siblings_are_changed'
@@ -175,8 +176,8 @@ jobs:
           $results = 'tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx'
           [xml]$receipt = Get-Content -LiteralPath $results -Raw
           $counters = $receipt.TestRun.ResultSummary.Counters
-          if ($counters.total -ne '19' -or $counters.executed -ne '19' -or $counters.passed -ne '19') {
-            throw 'All nineteen native fixture cases must execute and pass.'
+          if ($counters.total -ne '20' -or $counters.executed -ne '20' -or $counters.passed -ne '20') {
+            throw 'All twenty native fixture cases must execute and pass.'
           }
 
           $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_OUTPUTS = '1'
