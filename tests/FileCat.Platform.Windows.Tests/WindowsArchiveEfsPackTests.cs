@@ -268,10 +268,5 @@ public sealed partial class WindowsArchiveEfsPackTests
         Assert.True(error is IOException { HResult: efsInTransaction or sharingViolation or transactionConflict }, error?.ToString());
     }
 
-    private static void RequireFixture()
-    {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Requires a disposable normal-user Windows VM with EFS enabled.");
-        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
-    }
+    private static void RequireFixture() => WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
 }

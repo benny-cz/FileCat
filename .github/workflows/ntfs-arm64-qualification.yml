@@ -7,6 +7,10 @@ on:
         description: Run the native EFS key comparison, recovery and backup wizard checks
         type: boolean
         default: false
+      archives:
+        description: Qualify EFS protections for archive packing, editing and publication
+        type: boolean
+        default: false
       scale:
         description: Run the 10,000-file native storage benchmark
         type: boolean
@@ -42,6 +46,7 @@ jobs:
           }
       - name: Exercise native storage at medium integrity
         env:
+          FILECAT_QUALIFY_ARCHIVES: ${{ inputs.archives }}
           FILECAT_QUALIFY_KEYS: ${{ inputs.keys }}
           FILECAT_QUALIFY_SCALE: ${{ inputs.scale }}
         shell: pwsh
@@ -151,6 +156,36 @@ jobs:
             @{ Project = 'tests/FileCat.Core.Tests'; Log = 'native-efs-archive-output.trx'; Count = '10';
                Filter = 'FullyQualifiedName~ArchiveEfsSpoolTests' }
           )
+          if ($env:FILECAT_QUALIFY_ARCHIVES -eq 'true') {
+            $archiveFilter = @(
+              'Pack_refuses_EFS_before_loading_an_input_or_creating_a_stage'
+              'Legacy_pack_and_move_stop_when_the_actual_source_is_encrypted_after_initial_capture'
+              'Legacy_packing_holds_clear_inputs_through_worker_reads'
+              'A_retained_packing_view_holds_the_source_clear_until_release'
+              'The_legacy_zip_stays_clear_from_the_held_baseline_through_member_extraction'
+              'The_native_archive_review_lease_holds_the_exact_outer_file_clear_until_release'
+              'Encrypting_the_outer_zip_refuses_the_legacy_edit_before_working_output'
+              'A_legacy_commit_review_discloses_encryption_and_keeps_the_working_copy'
+              'An_existing_working_file_encrypted_outside_FileCat_is_refused_before_capture'
+              'An_open_working_file_cannot_be_encrypted_during_capture'
+              'Save_copy_capture_refuses_an_efs_inherited_temporary_file_before_payload'
+              'Recovered_save_copy_keeps_efs_payloads_out_of_unreviewed_publication'
+              'The_legacy_commit_copy_stays_clear_during_path_based_job_reads_and_is_retired'
+              'A_legacy_commit_copy_encrypted_before_sealing_is_kept_before_queueing'
+              'A_live_snapshot_blocks_encryption_while_jobs_read_it_and_retires_its_own_file'
+              'Legacy_revision_does_not_hash_an_archive_encrypted_after_the_reader_opens'
+              'Archive_update_refuses_a_target_encrypted_after_review_before_staging'
+              'Native_transaction_refuses_an_encrypted_snapshot_before_copying_original_bytes'
+              'Native_update_read_view_refuses_protection_drift_on_the_held_original'
+              'Legacy_update_preserves_newly_encrypted_original_during_preparation_or_backup_review'
+              'Legacy_update_refuses_changed_or_encrypted_stage_after_verification'
+              'Legacy_update_keeps_both_files_if_the_replacement_or_unverified_backup_becomes_EFS_protected'
+              'Legacy_partial_replace_restores_only_the_exact_encrypted_original_to_a_vacant_name'
+              'WindowsLegacyZipEfsSpoolTests'
+            ) | ForEach-Object { "FullyQualifiedName~$_" }
+            $outputSuites += @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-archive-protection.trx';
+                Count = '49'; Filter = $archiveFilter -join '|' }
+          }
           if ($env:FILECAT_QUALIFY_KEYS -eq 'true') {
             $keyFilter = @(
               'Fresh_private_key_comparison_supports_Capi_and_Cng_without_exporting_private_material'
@@ -236,6 +271,7 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-hex-output.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-copy-output.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-archive-protection.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-keys.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-wizard.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-file-details.trx
