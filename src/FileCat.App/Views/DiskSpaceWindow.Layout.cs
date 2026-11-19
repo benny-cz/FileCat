@@ -134,7 +134,12 @@ public sealed partial class DiskSpaceWindow
         var viewport = new ScrollViewer { Content = content, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         AutomationProperties.SetName(viewport, name);
         bool revealQueued = false;
-        viewport.GotFocus += (_, _) => QueueReveal();
+        viewport.GotFocus += (_, _) =>
+        {
+            viewport.InvalidateMeasure();
+            QueueReveal();
+        };
+        viewport.LostFocus += (_, _) => viewport.InvalidateMeasure();
         viewport.AddHandler(Control.RequestBringIntoViewEvent, (_, args) =>
         {
             if (args.Source is Visual source && TopLevel.GetTopLevel(viewport)?.FocusManager?.GetFocusedElement() is Visual focused &&

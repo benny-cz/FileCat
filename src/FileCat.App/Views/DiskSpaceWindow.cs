@@ -303,7 +303,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly Grid _explorer = new() { RowDefinitions = new RowDefinitions("3*,Auto,2*"), ColumnDefinitions = new ColumnDefinitions("*,300"), MinHeight = 240 };
         private readonly Grid _chartHost = new(); private readonly ScrollViewer _inspectorScroll;
         private readonly Grid _table = new() { RowDefinitions = new RowDefinitions("Auto,*") };
-        private readonly RankedColumns _tableHeader = new(header: true) { Margin = new Thickness(8, 4, 24, 4) };
+        private readonly RankedColumns _tableHeader = new(header: true) { Margin = new Thickness(8, 3, 24, 3) };
         private readonly Button _inspect;
         private ScrollViewer? _viewport;
         private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(500) };
@@ -585,7 +585,15 @@ public sealed partial class DiskSpaceWindow : Window
                 }
                 // Give the results space alongside the wrapped controls on short or large-text displays.
                 // A separate finite list viewport keeps row virtualization active.
-                _toolbarViewport.MaxHeight = _window.ControlsViewportHeight(_viewport.Bounds.Height, _viewSummary.DesiredSize.Height);
+                double controlsHeight = _window.ControlsViewportHeight(_viewport.Bounds.Height, _viewSummary.DesiredSize.Height);
+                if (_viewport.Bounds.Width < 640 && !_toolbarViewport.IsKeyboardFocusWithin)
+                {
+                    // Keep the first table row in view when qualifiers take extra lines. The
+                    // toolbar can grow again when a user focuses one of its controls.
+                    double reserved = _viewSummary.DesiredSize.Height + _tableHeader.DesiredSize.Height + 2 * _window.FontSize + 22;
+                    controlsHeight = Math.Min(controlsHeight, Math.Max(24, _viewport.Bounds.Height - reserved));
+                }
+                _toolbarViewport.MaxHeight = controlsHeight;
                 double minimum = Children.Where(c => c.IsVisible && c != _explorer).Sum(c => c.DesiredSize.Height) + (_explorer.IsVisible ? _explorer.MinHeight : 0);
                 double height = Math.Max(_viewport.Bounds.Height, minimum);
                 if (double.IsFinite(height) && Math.Abs(Height - height) > .5) Height = height;
@@ -790,7 +798,11 @@ public sealed partial class DiskSpaceWindow : Window
                 _scope.MaxLines = compact ? 1 : 2;
                 _scope.TextTrimming = TextTrimming.CharacterEllipsis;
                 _scope.IsVisible = tree is not null;
-                if (firstReading && _viewport is not null) _viewport.Offset = default;
+                if (firstReading)
+                {
+                    _toolbarViewport.Offset = default;
+                    if (_viewport is not null) _viewport.Offset = default;
+                }
                 var (amount, details) = Model.ScopeReading(compact);
                 _summary.Text = KeepMeasurementUnits(amount);
                 _summaryDetails.Text = details;
