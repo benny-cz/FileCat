@@ -31,6 +31,22 @@ public sealed class CloudFilesTests
         Assert.Equal("not established", CloudFiles.Observe(CloudFiles.RecallOnOpen, false, enumerationAttributes: false).LocalContent);
         Assert.Equal("not fully present", CloudFiles.Observe(CloudFiles.RecallOnOpen, false).LocalContent);
     }
+
+    [Fact]
+    public void A_recognized_placeholder_type_is_cloud_evidence_without_a_sync_root_or_recall_hint()
+    {
+        const uint cloudTag = 0x9000F01A;
+        const FileAttributes reparse = FileAttributes.ReparsePoint;
+        var cloud = CloudFiles.Observe(reparse, inSyncRoot: false, cloudTag);
+        Assert.Equal(CloudState.Managed, cloud.Indicator);
+        Assert.Equal("unspecified", cloud.PinPolicy);
+        Assert.Equal("not established", cloud.LocalContent);
+        Assert.Equal("not inspected", cloud.Synchronization);
+        Assert.Equal(CloudState.Managed, CloudFiles.StateOf(reparse, inSyncRoot: false, cloudTag));
+        Assert.Equal(CloudState.None, CloudFiles.StateOf(FileAttributes.Archive, inSyncRoot: false, cloudTag));
+        Assert.Equal(CloudState.None, CloudFiles.StateOf(reparse, inSyncRoot: false, ReparseLinks.AppExecutionAliasTag));
+    }
+
     [Fact]
     public void A_folder_lies_in_the_sync_root_that_holds_it()
     {

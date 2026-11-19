@@ -7,3 +7,11 @@ The canonical file-system details summary recognized the file and its Cloud File
 The folder case separately verified that the registered sync root and placeholder folder retained directory semantics with the existing file, icon and folder operations. Both cases passed with zero failures or skips. The exact result is in `.tmp/filecat-cloud-detail-validation-tests.xml`. This covers the prepared Windows provider. macOS dataless and other provider cases need their own fixtures.
 
 The archive target probe reported the cloud-folder refusal on both the registered root and its placeholder folder. The separate junction and ordinary-directory controls passed without using a machine's OneDrive folder. This moves the sync-root assertion to the fixture that actually registers the provider. See `.tmp/filecat-owned-cloud-archive.log` for the Windows x64 results.
+
+## No-fetch legacy sparse and supplementary-data checks
+
+A Windows 11 x64 VSTest rerun reported one fetch while reading the prepared sparse placeholder through the legacy inspector. Counters after placeholder creation, the canonical summary and full reports, and the storage reviews were all zero. Removing the legacy supplementary-data collector alone still produced one fetch. The legacy sparse-range probe separately opened the placeholder with `FILE_READ_DATA`.
+
+For recognized Cloud Files placeholders and items carrying offline or recall-on-data-access evidence, the legacy report now omits both the sparse-range query and the supplementary-data collector. The report retains the sparse attribute and identifies the omitted queries. The fixture recorded zero fetches through setup, details, both storage reviews, legacy inspection, and its final control. It retained the 5,000-byte logical size, zero resident bytes and the provider's in-sync observation.
+
+All five Windows x64 cases passed. They included the placeholder folder, an ordinary sparse-file range report, an ordinary named-stream report with its excerpts, and the canonical metadata-only report. The receipt `cloud-tag-native-guard.trx` has SHA-256 `3D4835CDB2E11CF763382AAED05A5E2DAF8738F8D899AB23AD35A8DC83DED358`. The native ARM64 details workflow now includes both Cloud Files cases.

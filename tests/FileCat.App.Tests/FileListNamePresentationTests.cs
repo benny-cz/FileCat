@@ -151,6 +151,22 @@ public sealed class FileListNamePresentationTests
         finally { PlatformFactory.WindowsFactory = previous; }
     }
 
+    [AvaloniaFact]
+    public void A_cached_cloud_tag_supplies_file_row_speech_outside_registered_roots()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Windows Cloud Files presentation.");
+        var entry = new EntryData("file.txt", EntryKind.File)
+        {
+            Attributes = (uint)FileAttributes.ReparsePoint,
+            NativeReparseTag = 0x9000F01A,
+        };
+        string warnings = FileListControl.ItemWarnings(entry);
+        Assert.Contains("Cloud-managed item", warnings);
+        Assert.Contains("Pin policy: unspecified; local content: not established; synchronization: not inspected", warnings);
+        Assert.DoesNotContain("opening may download", warnings);
+        Assert.Equal(EntryFlags.None, entry.Flags);
+    }
+
     [Fact]
     public void Drive_labels_and_remote_names_are_safe_in_the_focused_status()
     {

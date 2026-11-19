@@ -131,7 +131,7 @@ public sealed partial class FileListControl
                     if (Core.FileSystem.EntryPresentation.IsLink(entry, Tab.Location) || IconProvider.IsShortcut(entry))
                         dc.DrawImage(overlays.LinkOverlay, new Rect(imageBox.X + 2, imageBox.Bottom - 18, 16, 16));
                     if (entry.Kind is EntryKind.File or EntryKind.Directory && Core.FileSystem.EntryPresentation.IsWindowsFileSystem(entry, Tab.Location) &&
-                        overlays.CloudOverlay(Core.FileSystem.CloudFiles.StateOf((FileAttributes)entry.Attributes, inCloudRoot)) is { } cloud)
+                        overlays.CloudOverlay(Core.FileSystem.CloudFiles.StateOf((FileAttributes)entry.Attributes, inCloudRoot, entry.NativeReparseTag)) is { } cloud)
                         dc.DrawImage(cloud, new Rect(imageBox.X + 2, imageBox.Y + 2, 16, 16));
                 }
 

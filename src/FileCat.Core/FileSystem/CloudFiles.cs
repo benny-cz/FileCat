@@ -27,16 +27,23 @@ public static class CloudFiles
     /// <summary>
     /// Cached enumeration hints only. Neither pin intent nor absence of recall proves complete local content.
     /// </summary>
-    public static CloudState StateOf(FileAttributes attributes, bool inSyncRoot)
+    public static CloudState StateOf(FileAttributes attributes, bool inSyncRoot) => StateOf(attributes, inSyncRoot, 0);
+
+    public static CloudState StateOf(FileAttributes attributes, bool inSyncRoot, uint reparseTag)
     {
         // Both at once is the Cloud Files API's "excluded" pin state: the provider does not sync it at all (Dropbox's own
         // .dropbox and .dropbox.cache, a folder's desktop.ini), so it is neither in the cloud nor kept from it.
         if ((attributes & (Pinned | Unpinned)) == (Pinned | Unpinned)) return CloudState.None;
         if ((attributes & (RecallOnDataAccess | RecallOnOpen | FileAttributes.Offline)) != 0) return CloudState.RecallPossible;
-        return inSyncRoot || (attributes & (Pinned | Unpinned)) != 0 ? CloudState.Managed : CloudState.None;
+        bool knownPlaceholder = (attributes & FileAttributes.ReparsePoint) != 0 && ReparsePresentation.IsCloudTag(reparseTag);
+        return inSyncRoot || knownPlaceholder || (attributes & (Pinned | Unpinned)) != 0
+            ? CloudState.Managed : CloudState.None;
     }
 
-    public static CloudObservation Observe(FileAttributes attributes, bool inSyncRoot, bool enumerationAttributes = true)
+    public static CloudObservation Observe(FileAttributes attributes, bool inSyncRoot, bool enumerationAttributes = true) =>
+        Observe(attributes, inSyncRoot, 0, enumerationAttributes);
+
+    public static CloudObservation Observe(FileAttributes attributes, bool inSyncRoot, uint reparseTag, bool enumerationAttributes = true)
     {
         // 0x40000 is RECALL_ON_OPEN in enumeration, but EA in queried attributes.
         var hints = enumerationAttributes ? attributes : attributes & ~RecallOnOpen;
@@ -44,7 +51,7 @@ public static class CloudFiles
         string policy = excluded ? "excluded" : (attributes & Pinned) != 0 ? "keep locally"
             : (attributes & Unpinned) != 0 ? "allow removal" : "unspecified";
         bool recall = (hints & (RecallOnOpen | RecallOnDataAccess | FileAttributes.Offline)) != 0;
-        return new(StateOf(hints, inSyncRoot), policy, recall ? "not fully present" : "not established", "not inspected");
+        return new(StateOf(hints, inSyncRoot, reparseTag), policy, recall ? "not fully present" : "not established", "not inspected");
     }
 
     /// <summary>The sync root <paramref name="path"/> lies in (itself included), or null.</summary>

@@ -89,7 +89,7 @@ public sealed unsafe partial class WindowsFileRecords
             EncryptionLabel = "EFS",
             Restrictions = hasBasic ? Known(RecordText.Attributes(attributes), FactScope.Entry, BasicSource) : Failed<string>(FactScope.Entry, BasicSource),
             Cloud = hasBasic && (ReparsePresentation.IsCloudTag(reparseTag) || (attributes & 0x580000) != 0)
-                ? Known(CloudFiles.Observe((FileAttributes)attributes, ReparsePresentation.IsCloudTag(reparseTag), enumerationAttributes: false), FactScope.Entry, BasicSource)
+                ? Known(CloudFiles.Observe((FileAttributes)attributes, inSyncRoot: false, reparseTag, enumerationAttributes: false), FactScope.Entry, BasicSource)
                 : FileDetailsSnapshot.Unknown<CloudObservation>(FactScope.Entry),
             Sparse = hasBasic ? Known((attributes & 0x200) != 0, FactScope.Entry, BasicSource + " · sparse indication; current main-data holes not assessed") : Failed<bool>(FactScope.Entry, BasicSource),
             Notes = ["The native queries share one metadata-only object handle; metadata may change between queries.",

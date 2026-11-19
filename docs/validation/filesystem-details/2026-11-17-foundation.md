@@ -55,6 +55,10 @@ List rows, picture tiles, focused inspection and accessible descriptions now use
 
 The Windows x64 VM passed all 29 selected file-list, accessibility and marked-item tests, including the two cached-root cases. The simulated Windows shell supplied the root once. No per-row discovery was required. The SHA-256 of `native-cloud-root-qualified-x64.trx` is `F38DD11A2F51FCAA810DF67ECF98B9E9281D3F8ED6C131137A8A264EC99EE2C5`. Apple silicon passed 27 corresponding App cases, with two Windows-only skips, and all 15 cloud and reparse taxonomy cases covering pin hints, observed socket tags and unknown surrogate and non-surrogate tags.
 
+A recognized Cloud Files tag on a reparse entry now supplies managed status to the list, picture grid, focused inspection and screen-reader description, even when its sync root is absent from the cached list. Pin intent, local content and synchronization retain their own evidence. A tag without the reparse attribute and an unrelated app-alias tag supply no cloud evidence.
+
+The Windows VM passed all 13 presentation and accessibility cases, including the new tag-only row. Its TRX SHA-256 is `A6ADF9150898DE7518145A1BC7BD94A4C5B28651658EFE828DD8ACE9E4812CBB`. Apple silicon passed the corresponding ten portable App cases, with three Windows-only skips, and all 16 Core cloud and reparse taxonomy cases.
+
 ## Observation admission after a failed worker start
 
 The scheduler starts missing worker capacity before adding the request to the device queue. A failed start retires the work item and releases the shared observation permit. The regression injects a failure at thread startup, reacquires all four device permits, then sends another request through the same scheduler and device. The retry runs with a valid permit. The rejected request never reaches the later worker.

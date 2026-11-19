@@ -63,6 +63,8 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
         private int _clusterSize;
         private uint _reparseTag;
         private (List<IndexName> Names, int Blocks, int BlocksInUse, int BlockSize)? _index;
+        private bool CloudOrOffline => ReparsePresentation.IsCloudTag(_reparseTag) ||
+            (_attributes & (uint)(FileAttributes.Offline | CloudFiles.RecallOnDataAccess)) != 0;
 
         public InspectionReport Run()
         {
@@ -107,7 +109,9 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             if (ReparseIndexSection() is { } reparsePoints) _sections.Add(reparsePoints);
             _sections.Add(LayoutSection());
             if (fat && !_remote && privileged) _sections.Add(FatSection(root));
-            if (Core.HiddenData.HiddenDataSection.Of(new WindowsHiddenData(), path) is { } hidden) _sections.Add(hidden);
+            if (CloudOrOffline)
+                _warnings.Add("Supplementary data was omitted for this cloud-managed or offline item.");
+            else if (Core.HiddenData.HiddenDataSection.Of(new WindowsHiddenData(), path) is { } hidden) _sections.Add(hidden);
             if (SecuritySection() is { } security) _sections.Add(security);
             if (EfsSection() is { } efs) _sections.Add(efs);
             if (SecureSection() is { } secure) _sections.Add(secure);
@@ -527,7 +531,8 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                 }
             }
             if (_clusterSize > 0) fields.Add(("Cluster size", RecordText.Bytes(_clusterSize)));
-            if ((_attributes & 0x200) != 0 && !_isFolder) fields.Add(("Sparse", SparseRanges()));
+            if ((_attributes & 0x200) != 0 && !_isFolder)
+                fields.Add(("Sparse", CloudOrOffline ? "yes (stored ranges were not queried for this cloud-managed or offline item)" : SparseRanges()));
             var data = _record?.Attributes.FirstOrDefault(a => a.Type == NtfsAttributeTypes.Data && a.Name.Length == 0 && a.StartVcn == 0);
             if (data is { Resident: true })
                 fields.Add(("Resident", $"yes: its {data.Size:N0} bytes are kept inside its MFT record, in no cluster of their own"));

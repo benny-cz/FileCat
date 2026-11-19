@@ -181,11 +181,14 @@ jobs:
           }
 
           $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_OUTPUTS = '1'
+          $env:FILECAT_TEST_CLOUD_FILES = '1'
           $env:FILECAT_TEST_STORAGE_UI = '1'
           $env:FILECAT_ENUM_NATIVE_LINKS = '1'
           $detailsFilter = @(
             'Summary_and_metadata_full_inspect_one_object_without_legacy_payload_sections'
             'Summary_preserves_the_native_missing_target_status'
+            'A_cloud_placeholder_reads_its_state_without_being_downloaded'
+            'A_cloud_sync_root_and_its_placeholder_folders_are_folders_not_links'
             'Full_NTFS_report_reads_actual_names_and_observed_volume_relative_paths'
             'Full_record_maps_a_native_NTFS_file_and_leaves_summary_and_directories_without_the_section'
             'Native_listing_preserves_names_attributes_batches_and_metadata_without_child_opens'
@@ -203,7 +206,7 @@ jobs:
                Filter = 'FullyQualifiedName~HexEfsJournalTests|FullyQualifiedName~HexPatchProvenanceTests' },
             @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-copy-output.trx'; Count = '7';
                Filter = 'FullyQualifiedName~Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs|FullyQualifiedName~Copy_then_delete_keeps_the_efs_source|FullyQualifiedName~WindowsEfsReplacementTests' },
-            @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-file-details.trx'; Count = '16';
+            @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-file-details.trx'; Count = '18';
                Filter = $detailsFilter -join '|' },
             @{ Project = 'tests/FileCat.Core.Tests'; Log = 'native-efs-archive-output.trx'; Count = '10';
                Filter = 'FullyQualifiedName~ArchiveEfsSpoolTests' },

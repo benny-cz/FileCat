@@ -1356,7 +1356,7 @@ public sealed partial class FileListControl : Control
                         dc.DrawImage(verifiedOverlay, iconRect);
                     if (e.Kind is EntryKind.File or EntryKind.Directory
                         && Core.FileSystem.EntryPresentation.IsWindowsFileSystem(e, Tab?.Location)
-                        && icons?.CloudOverlay(Core.FileSystem.CloudFiles.StateOf((FileAttributes)e.Attributes, inCloudRoot)) is { } cloudOverlay)
+                        && icons?.CloudOverlay(Core.FileSystem.CloudFiles.StateOf((FileAttributes)e.Attributes, inCloudRoot, e.NativeReparseTag)) is { } cloudOverlay)
                         dc.DrawImage(cloudOverlay, iconRect);
                 }
                 textX = iconX + IconSize + 4;
@@ -1924,7 +1924,8 @@ public sealed partial class FileListControl : Control
         if (Core.FileSystem.EntryPresentation.IsWindowsFileSystem(entry, Tab?.Location))
         {
             if (entry.NativeReparseTag != 0) report.Append("Observed reparse tag: 0x").AppendLine(entry.NativeReparseTag.ToString("X8"));
-            if (Core.FileSystem.CloudFiles.Observe((FileAttributes)entry.Attributes, IsInCloudRoot(Tab)) is { Indicator: not Core.FileSystem.CloudState.None } cloud)
+            if (Core.FileSystem.CloudFiles.Observe((FileAttributes)entry.Attributes, IsInCloudRoot(Tab), reparseTag: entry.NativeReparseTag)
+                is { Indicator: not Core.FileSystem.CloudState.None } cloud)
                 report.AppendLine(cloud.Description);
         }
         report.AppendLine("File-system details: Not inspected; this view uses cached listing facts.");
@@ -2284,7 +2285,8 @@ public sealed partial class FileListControl : Control
         if (Core.FileSystem.EntryPresentation.Kind(e, location) is { Length: > 0 } kind && e.Tag is not IDisplayDetails)
             details += ", " + kind;
         if (e.Kind is EntryKind.File or EntryKind.Directory && Core.FileSystem.EntryPresentation.IsWindowsFileSystem(e, location) &&
-            Core.FileSystem.CloudFiles.Observe((FileAttributes)e.Attributes, inCloudRoot) is { Indicator: not Core.FileSystem.CloudState.None } cloud)
+            Core.FileSystem.CloudFiles.Observe((FileAttributes)e.Attributes, inCloudRoot, reparseTag: e.NativeReparseTag)
+                is { Indicator: not Core.FileSystem.CloudState.None } cloud)
             details += ", " + cloud.Description;
         if (e.Tag is IDisplayDetails display && display.DetailsText.Length > 0) details += ", " + Formatters.SafeName(display.DetailsText);
         return details;
