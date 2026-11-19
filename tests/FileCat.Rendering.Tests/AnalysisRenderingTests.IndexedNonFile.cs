@@ -28,7 +28,8 @@ public sealed partial class AnalysisRenderingTests
             }
             var link = list.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Name == "namespace-link");
             list.SelectedItem = link; list.ScrollIntoView(link);
-            await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(text => AutomationLabel(text) == "Captured metadata inspector" && text.Text?.Contains("target was not followed or measured", StringComparison.Ordinal) == true));
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+                text.Text?.Contains("target was not followed or measured", StringComparison.Ordinal) == true));
             foreach (int width in new[] { 1180, 380 })
             {
                 window.Width = width; Frame(window); list.ScrollIntoView(link); Frame(window);

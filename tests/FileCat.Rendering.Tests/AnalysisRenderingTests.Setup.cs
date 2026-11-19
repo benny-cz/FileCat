@@ -49,7 +49,7 @@ public sealed partial class AnalysisRenderingTests
         {
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             var second = window.GetVisualDescendants().OfType<TextBox>().Single(box => AutomationLabel(box) == "Analysis location 2");
-            Assert.IsType<Grid>(second.Parent).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.IsAssignableFrom<Grid>(second.Parent).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Add location").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             var editors = window.GetVisualDescendants().OfType<TextBox>().Where(box => AutomationLabel(box)?.StartsWith("Analysis location ", StringComparison.Ordinal) == true).ToArray();

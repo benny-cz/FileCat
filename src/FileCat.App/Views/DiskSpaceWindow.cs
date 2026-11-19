@@ -250,6 +250,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly Button _volumeCapacityRibbon;
         private readonly AnalysisActions _analysisActions = new();
         private readonly WrapPanel _setupActions = new() { ItemSpacing = 7, LineSpacing = 5 };
+        private readonly WrapPanel _setupOpenActions = new() { ItemSpacing = 7, LineSpacing = 5 };
         private readonly Button _coverageDetails;
         private readonly StackPanel _roots = new() { Spacing = 5 };
         private readonly List<TextBox> _rootEditors = [];
@@ -258,7 +259,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly StackPanel _basketFooter = new() { Spacing = 4 };
         private readonly TextBlock _resolved = new() { TextWrapping = TextWrapping.Wrap };
         private readonly Button _start = new() { Content = "Start analysis", Classes = { "primary" } };
-        private readonly ComboBox _components = new() { ItemsSource = new[] { "Standard allocation", "Detailed allocation (partial component support)" }, MinWidth = 250 };
+        private readonly ComboBox _components = new() { ItemsSource = new[] { "Standard allocation", "Detailed allocation" }, MinWidth = 250 };
         private const string UsePanelFilterLabel = "Use panel filter for display after scan";
         private const string UsePrivateIndexLabel = "Use a private index for standard analysis";
         private readonly CheckBox _usePanelFilter = new() { Content = new TextBlock { Text = UsePanelFilterLabel, TextWrapping = TextWrapping.Wrap } };
@@ -358,7 +359,9 @@ public sealed partial class DiskSpaceWindow : Window
             }
             AddFastNtfsSetup();
             _setup.Children.Add(_resolved);
-            _setupViewport = new ScrollViewer { Content = _setup, MaxHeight = 250, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+            _setup.Children.Add(_setupOpenActions);
+            _setupViewport = AnalysisControlsViewport(_setup, "Analysis setup controls");
+            _setupViewport.MaxHeight = 250;
             Children.Add(_setupViewport);
             var toolbar = new StackPanel { Spacing = 6 };
             var nav = new WrapPanel { ItemSpacing = 7, LineSpacing = 5 };
@@ -720,7 +723,8 @@ public sealed partial class DiskSpaceWindow : Window
                     foreach (var command in new[] { _openComparison, _importExternal, _openSaved })
                     {
                         (command.Parent as Panel)?.Children.Remove(command);
-                        openCommands.Children.Insert(0, command);
+                        var destination = setupOnly && command != _openSaved ? _setupOpenActions : openCommands;
+                        destination.Children.Insert(0, command);
                     }
                 }
                 RefreshVolumeCapacityRibbon(_volumeCapacityRibbon, Model.Tree is null ? ImmutableDictionary<string, AnalysisVolumeCapacity>.Empty : Model.VolumeCapacities);

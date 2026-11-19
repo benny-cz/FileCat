@@ -63,10 +63,10 @@ public sealed partial class DiskSpaceWindow
         Converter = new FuncValueConverter<double, double>(size => size + increase)
     };
 
-    private static ScrollViewer AnalysisControlsViewport(Control content)
+    private static ScrollViewer AnalysisControlsViewport(Control content, string name = "Analysis view controls")
     {
         var viewport = new ScrollViewer { Content = content, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        AutomationProperties.SetName(viewport, "Analysis view controls");
+        AutomationProperties.SetName(viewport, name);
         viewport.GotFocus += (_, _) => Dispatcher.UIThread.Post(() =>
         {
             // The inner scroller reveals the command. The outer scroller must reveal the inner viewport too.
@@ -90,6 +90,8 @@ public sealed partial class DiskSpaceWindow
             _remove = remove;
             ColumnSpacing = 8;
             RowSpacing = 4;
+            ColumnDefinitions = new("*,Auto");
+            RowDefinitions = new("Auto,0");
             Children.Add(path);
             Children.Add(remove);
             remove.HorizontalAlignment = HorizontalAlignment.Right;
@@ -101,8 +103,10 @@ public sealed partial class DiskSpaceWindow
             if (_stacked != stacked)
             {
                 _stacked = stacked;
-                ColumnDefinitions = new(stacked ? "*" : "*,Auto");
-                RowDefinitions = new(stacked ? "Auto,Auto" : "Auto");
+                ColumnDefinitions[1].Width = stacked ? new GridLength(0) : GridLength.Auto;
+                RowDefinitions[1].Height = stacked ? GridLength.Auto : new GridLength(0);
+                ColumnSpacing = stacked ? 0 : 8;
+                RowSpacing = stacked ? 4 : 0;
                 SetColumn(_remove, stacked ? 0 : 1);
                 SetRow(_remove, stacked ? 1 : 0);
             }
@@ -110,9 +114,16 @@ public sealed partial class DiskSpaceWindow
         }
     }
 
-    private sealed class RankedColumns(bool header) : Grid
+    private sealed class RankedColumns : Grid
     {
+        private readonly bool _header;
         private bool? _wide;
+
+        internal RankedColumns(bool header)
+        {
+            _header = header;
+            ColumnDefinitions = new("34,5*,4*,3*,2*,3*");
+        }
 
         protected override Size MeasureOverride(Size availableSize)
         {
@@ -120,10 +131,11 @@ public sealed partial class DiskSpaceWindow
             if (_wide != wide)
             {
                 _wide = wide;
-                ColumnDefinitions = new(wide ? "34,5*,4*,3*,2*,3*" : "34,5*,4*");
-                ColumnSpacing = 6;
+                for (int i = 3; i < ColumnDefinitions.Count; i++)
+                    ColumnDefinitions[i].Width = wide ? new GridLength(i == 4 ? 2 : 3, GridUnitType.Star) : new GridLength(0);
+                ColumnSpacing = wide ? 6 : 4;
                 foreach (var child in Children) child.IsVisible = wide || GetColumn(child) < 3;
-                if (header) ((TextBlock)Children[2]).Text = wide ? "Active metric" : "Value";
+                if (_header) ((TextBlock)Children[2]).Text = wide ? "Active metric" : "Value";
             }
             return base.MeasureOverride(availableSize);
         }
