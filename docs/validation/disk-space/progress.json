@@ -15,14 +15,14 @@
   },
   "mergedRendererQualification": {
     "windowsVm": { "run": "r1598", "groups": 40, "passed": 981, "skipped": 8, "failed": 0, "errors": 0, "total": 989 },
-    "mac": { "run": "r1676", "passed": 982, "skipped": 10, "failed": 0, "errors": 0, "total": 992 },
-    "ubuntuVm": { "run": "r1676", "passed": 982, "skipped": 10, "failed": 0, "errors": 0, "total": 992 },
+    "mac": { "run": "r1748", "passed": 983, "skipped": 10, "failed": 0, "errors": 0, "total": 993 },
+    "ubuntuVm": { "run": "r1748", "passed": 983, "skipped": 10, "failed": 0, "errors": 0, "total": 993 },
     "qualification": "NATIVE_PACKAGES_QUALIFICATION.md"
   },
   "mergedCoreQualification": {
-    "selection": "*Analysis*",
-    "mac": { "run": "r1676", "passed": 2034, "skipped": 4, "failed": 0, "errors": 0, "total": 2038 },
-    "ubuntuVm": { "run": "r1676", "passed": 2034, "skipped": 4, "failed": 0, "errors": 0, "total": 2038 },
+    "selection": "Analysis, FileDetailsTests, UnixFileDetailsNativeTests",
+    "mac": { "run": "r1748", "passed": 2066, "skipped": 14, "failed": 0, "errors": 0, "total": 2080 },
+    "ubuntuVm": { "run": "r1748", "passed": 2068, "skipped": 12, "failed": 0, "errors": 0, "total": 2080 },
     "qualification": "NATIVE_PACKAGES_QUALIFICATION.md"
   },
   "folderExclusions": {
@@ -13123,7 +13123,7 @@
     }
   },
   "nextWork": [
-    "The branch synchronized with main ef79336b in 713b212e. All three merged renderer runs are recorded. Close the remaining W8 desktop, performance, resource and release gates and verify the retained preview after a scratch limit. Complete the independent review once the integrated live checks finish.",
+    "The branch synchronized with main f6da2ebe in 4b685da4. Mac and Ubuntu completed r1748 Core, navigation and Renderer. Windows r1702 continues the native ten-million-path fixture. Follow it with the verified Windows desktop and regression batches. Collect human comprehension responses and close the remaining W8 qualification and independent review.",
     "Main40480c8e integration, internal progressive indexed previews, transactional recorded-result ownership handoff, scope preservation and dynamic live-region naming now have r1298 all-three scoped qualification. Indexed deferred selection and review now have r1328 evidence on all three platforms. Continue branch refresh/watchers, global resources and the remaining W0-W8 gates. Public entry remains off.",
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Progressive indexed startup and explicit recorded-result handoff now pass r1298; finish deferred indexed selection/review and the qualified public entry/lifecycle without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu normal native resize at480/1100 now passes (r978); maximize/restore and display changes remain unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
