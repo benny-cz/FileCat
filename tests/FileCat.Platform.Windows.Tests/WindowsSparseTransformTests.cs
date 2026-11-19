@@ -558,7 +558,7 @@ public sealed partial class WindowsSparseTransformTests
         finally { Directory.Delete(directory, recursive: true); }
     }
 
-    private static unsafe void WriteStream(string streamPath, bool sparse, bool holes, bool allHole, int seed)
+    internal static unsafe void WriteStream(string streamPath, bool sparse, bool holes, bool allHole, int seed)
     {
         using var stream = new FileStream(streamPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         if (sparse) Assert.True(Control(stream.SafeFileHandle, SetSparse, null, 0, null, 0, out _, 0),

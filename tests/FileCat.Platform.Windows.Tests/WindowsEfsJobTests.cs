@@ -482,6 +482,66 @@ public sealed partial class WindowsEfsJobTests
     }
 
     [Fact]
+    public void Unreadable_sparse_stream_after_encryption_retains_observed_key_and_stops_the_job()
+    {
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
+        string root = Directory.CreateTempSubdirectory("filecat-efs-job-late-inventory-").FullName;
+        Microsoft.Win32.SafeHandles.SafeFileHandle? competingWrite = null;
+        try
+        {
+            string first = Write(root, "first.txt"), second = Write(root, "second.txt");
+            string sparseStream = first + ":sparse";
+            WindowsSparseTransformTests.WriteStream(sparseStream, sparse: true, holes: true, allHole: false, seed: 21);
+            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => root, qualifyNativeArm64: qualifyNativeArm64);
+            int calls = 0;
+            var manager = Manager(root, adapter.CreateEfsJobCandidate((_, sid, scope, token) =>
+            {
+                var setup = adapter.InspectEfsSetup(sid, scope, true, token);
+                Assert.Null(setup.Problem);
+                return StorageEfsRecoveryApproval.DeclareArrangement(scope, setup,
+                    Assert.Single(setup.Association!.CurrentUserKeys).CertificateSha1, acknowledged: true);
+            }, (action, succeeded) =>
+            {
+                Assert.Equal(StorageAction.EncryptEfs, action);
+                Assert.True(succeeded);
+                competingWrite = File.OpenHandle(sparseStream, FileMode.Open, FileAccess.Write, FileShare.Write);
+                calls++;
+            }), qualifyNativeArm64);
+
+            var job = Run(manager, StorageAction.EncryptEfs,
+                [ItemRef.ForFileSystemPath(first, EntryKind.File), ItemRef.ForFileSystemPath(second, EntryKind.File)]);
+            Assert.Equal(1, calls);
+            Assert.Equal(JobState.Failed, job.State);
+            var result = Assert.IsType<StorageResultSnapshot>(job.StorageResult);
+            Assert.Equal(1, result.Counts.Uncertain);
+            Assert.True(result.ReviewPending);
+            Assert.False(result.PersistenceFault);
+            Assert.True(IsEncrypted(first));
+            Assert.False(IsEncrypted(second));
+            Assert.Equal("Synthetic user content", File.ReadAllText(first));
+
+            var call = Assert.Single(Evidence(manager, job).Calls);
+            var recorded = Assert.IsType<StorageMutationResult>(call.Result);
+            Assert.Equal(first, call.Path);
+            Assert.True(recorded.NativeCallAttempted);
+            Assert.Equal(StorageEffect.Uncertain, recorded.Effect);
+            Assert.Equal("efs-postcondition-unreadable", recorded.Problem?.Code);
+            Assert.Contains("The named sparse stream's allocation could not be inspected", recorded.Problem!.Message);
+            Assert.Equal(call.Identity, recorded.After?.Identity);
+            Assert.Equal(StorageObservationState.Enabled, recorded.After?.Efs);
+            var reviewed = Assert.IsType<StorageEfsReviewedKey>(call.EfsReviewedKey);
+            Assert.True(Assert.IsType<StorageEfsResultKeys>(recorded.EfsKeys).Matches(reviewed));
+            Assert.True(History(manager, job).EffectUncertain);
+        }
+        finally
+        {
+            competingWrite?.Dispose();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Default_recovery_workflow_requires_setup_and_an_explicit_recovery_choice_after_backup_failure()
     {
         RequireEfs();

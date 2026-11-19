@@ -13,3 +13,9 @@ Each run used the independent all-stream decompression acknowledgment, recorded 
 An independent regular file had 1,025 real NTFS data streams, including the unnamed stream. Preparation returned `stream-inventory-limit` before mutation admission. An attempt to use that unprepared binding was refused. The EFS flag stayed clear, and the unnamed stream and the first and last named-stream canaries retained their bytes.
 
 The combined EFS binding and Windows storage-inspection selection passed 23 tests. Eight cases requiring separate prepared volumes or large sparse fixtures were skipped. All four new cases passed. The xUnit XML and runner log are in `.tmp/filecat-efs-late-streams-r1-tests.xml` and `.tmp/filecat-efs-late-streams-r1.log`.
+
+## Sparse stream becomes unreadable after encryption
+
+On Windows 11 x64 build 26340, medium integrity and 4 KiB NTFS, a two-file job encrypted its first file. A competing writer then held its sparse named stream without read sharing before the post-call inspection. FileCat successfully observed the encrypted state and verified the reviewed EFS key on the original held file. The named-stream allocation query failed. FileCat recorded one uncertain call with the verified state and key, published a pending review, and stopped before encrypting the second file. The first file's main data was unchanged.
+
+The control using the previous implementation reproduced the loss of the post-call observation. All seven tests passed with the fix, including selected and recursive EFS jobs, canceled recovery, late sparse range changes and the pre-call inventory limit. No cases were skipped. The receipts are `late-inventory-control-r3.xml` and `late-inventory-final-r3.xml` in `.tmp/filecat-arm64-efs-copy-3adf9280-r1/`. The fixed test bundle SHA-256 was `D2DE0B8945E7880EDC7B6947E127455E4B9FC6CF48EB5AA50D21740745EF1856`.

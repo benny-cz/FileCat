@@ -227,6 +227,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             RequireAction(action);
             var before = _prepared ?? throw new InvalidOperationException("Prepare the same EFS object before durable intent and atomic call admission.");
             _prepared = null; bool attempted = false;
+            StorageObservation? observedAfter = null;
             StorageEfsResultKeys? observedKeys = null;
             try
             {
@@ -249,7 +250,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 // Supported pathname API: the acknowledged in-place reparse race remains possible after this check.
                 attempted = true;
                 var call = _invoke(_apiPath, action);
-                var after = Observe(CancellationToken.None);
+                var after = observedAfter = Observe(CancellationToken.None);
                 if (after.Ineligible is not null || after.Efs is not (StorageObservationState.Enabled or StorageObservationState.Disabled))
                     return Result(after, StorageEffect.Uncertain, after.Ineligible ?? Problem(StorageReasonKind.Unknown, "efs-postcondition-unknown", "The held EFS effect could not be established."));
                 if (_recovery is { } recovery && after.Efs == StorageObservationState.Enabled)
@@ -280,10 +281,10 @@ internal sealed unsafe partial class WindowsStorageTransforms
             {
                 if (!attempted && error is StorageInspectionException inspection)
                     return new(before, null, StorageEffect.NotProcessed, inspection.Problem);
-                return new(before, null, attempted ? StorageEffect.Uncertain : StorageEffect.NotProcessed,
+                return new(before, observedAfter, attempted ? StorageEffect.Uncertain : StorageEffect.NotProcessed,
                     Problem(StorageReasonKind.Unknown, attempted ? "efs-postcondition-unreadable" : "efs-precall-failed",
-                        attempted ? "An EFS call may have changed an item; the held object or captured spelling could not be verified: " + error.Message
-                            : "No EFS call was attempted: " + error.Message)) { NativeCallAttempted = attempted };
+                        attempted ? "The complete postcondition of the EFS call could not be verified: " + error.Message
+                            : "No EFS call was attempted: " + error.Message)) { NativeCallAttempted = attempted, EfsKeys = observedKeys };
             }
             StorageMutationResult Result(StorageObservation after, StorageEffect effect, StorageProblem? issue) =>
                 new(before, after, effect, issue) { NativeCallAttempted = true, EfsKeys = observedKeys };
