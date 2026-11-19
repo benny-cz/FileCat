@@ -169,6 +169,12 @@ internal sealed partial class HarnessApp
             window.GetVisualDescendants().OfType<ToggleButton>().Single(button =>
                 button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions")).IsChecked = false;
             RenderNativeFrame("folder-exclusions-result.png");
+            bool compactDoubleText = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_DOUBLE_TEXT") == "1";
+            if (compactDoubleText)
+            {
+                model.Focus(AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "photo.png").Id));
+                await CheckCompactDoubleTextAsync(window);
+            }
             Click("Clear filter");
             await ReadyAsync(() => !model.PanelFilterApplied);
             string rootScope = AnalysisTree.Key(snapshot.Nodes.Single(node => node.ParentId == 0).Id);
@@ -251,7 +257,7 @@ internal sealed partial class HarnessApp
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
                 readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
-                standardIndexChoice = true, scratchThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true,
+                standardIndexChoice = true, scratchThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true, compactDoubleText,
                 packageTier = Program.PackageTier, packageFastNtfsReason, warmShell, firstResultMilliseconds, chartFrames, windowTransitions };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
@@ -269,6 +275,34 @@ internal sealed partial class HarnessApp
             try { RenderNativeFrame("folder-exclusions-failure.png"); } catch (Exception) { }
             WriteReport("folder-exclusion-probe-failed");
         }
+    }
+
+    private async Task CheckCompactDoubleTextAsync(DiskSpaceWindow window)
+    {
+        double original = window.FontSize;
+        window.FontSize = 28;
+        try
+        {
+            window.UpdateLayout();
+            var filter = window.GetVisualDescendants().OfType<TextBox>().Single(control => control.IsEffectivelyVisible &&
+                AutomationProperties.GetName(control) == "Filter observations");
+            Control[] controls = [filter, Command("Coverage details"), Command("Inspect selection"), Command("Review cleanup")];
+            foreach (var control in controls)
+            {
+                if (!control.Focus()) throw new InvalidOperationException("Keyboard focus could not reach a compact result control at 28 DIP text size.");
+                control.BringIntoView();
+                await ReadyAsync(() => ReferenceEquals(window.FocusManager?.GetFocusedElement(), control) &&
+                    control.TranslatePoint(default, window) is { } point && point.Y >= 0 && point.X >= 0 &&
+                    point.Y + control.Bounds.Height <= window.ClientSize.Height + 1 && point.X + control.Bounds.Width <= window.ClientSize.Width + 1);
+            }
+        }
+        finally
+        {
+            window.FontSize = original;
+            window.UpdateLayout();
+        }
+
+        Button Command(string name) => FindAnalysisButton(window, name) ?? throw new InvalidOperationException($"Missing compact command: {name}.");
     }
 
     private async Task<WarmShellTiming?> CheckPanelRevealAsync(DiskSpaceWindow window, DiskSpaceViewModel model, string folder, string file)
