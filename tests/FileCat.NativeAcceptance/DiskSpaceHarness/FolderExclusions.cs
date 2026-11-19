@@ -356,6 +356,7 @@ internal sealed partial class HarnessApp
                 }
                 if (coverage.GetVisualParent() is not Border status || (status.BorderThickness.Left > 0) != warning)
                     throw new InvalidOperationException($"{theme} did not distinguish the coverage state with a labeled warning.");
+                CheckVisualCaptions(window);
                 if (compact && (!InResultViewport(scope) || !InResultViewport(amount) || !InResultViewport(coverage) ||
                     !list.GetVisualDescendants().OfType<ListBoxItem>().Any(row => row.IsEffectivelyVisible && InResultViewport(row))))
                     throw new InvalidOperationException($"{theme} clipped the scope, amount, coverage or first table row at compact width.");

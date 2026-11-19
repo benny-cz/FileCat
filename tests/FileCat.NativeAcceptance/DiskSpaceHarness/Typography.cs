@@ -37,6 +37,7 @@ internal sealed partial class HarnessApp
                     text.Text?.StartsWith("Detailed allocation", StringComparison.Ordinal) == true);
                 if (label.TextLayout.Height > label.Bounds.Height + 1 || label.TextLayout.Width > label.Bounds.Width + 1)
                     throw new InvalidOperationException($"{theme} clipped the selected allocation option ({label.Bounds.Size}).");
+                CheckVisualCaptions(window);
                 RenderNativeFrame($"analysis-reading-layout-setup-{theme}.png");
             }
         }
@@ -106,7 +107,11 @@ internal sealed partial class HarnessApp
                 if (!keep.IsDefault || !keep.IsCancel || unavailable.IsEnabled || !details.IsExpanded ||
                     !FullyVisible(window, unavailable) || BoundsInWindow(window, keep).Intersects(BoundsInWindow(window, unavailable)) || !Hits(window, keep))
                     throw new InvalidOperationException($"{theme} clipped or overlapped cleanup actions, lost expanded details or changed the safe default.");
-                RenderNativeFrame($"analysis-reading-layout-cleanup-{theme}.png");
+                CheckVisualCaptions(window);
+                var close = window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible && button.Name == "DialogCloseButton");
+                if (!FullyVisible(window, close) || !close.GetVisualDescendants().OfType<PathIcon>().Any())
+                    throw new InvalidOperationException($"{theme} hid the cleanup dialog's close icon.");
+                await RecipeFrameAsync($"analysis-reading-layout-cleanup-{theme}.png", true, _indexedLifetime.Token);
                 themes.Add(theme);
             }
             keep.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -141,6 +146,13 @@ internal sealed partial class HarnessApp
 
     private static T Find<T>(DiskSpaceWindow window, string name) where T : Control =>
         window.GetVisualDescendants().OfType<T>().Single(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == name);
+
+    private static void CheckVisualCaptions(DiskSpaceWindow window)
+    {
+        if (window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+            text.Text?.StartsWith("Avalonia.Controls.", StringComparison.Ordinal) == true))
+            throw new InvalidOperationException("A control rendered a type name in place of its content.");
+    }
 
     private static Rect BoundsInWindow(DiskSpaceWindow window, Control control) =>
         new(control.TranslatePoint(default, window) ?? new Point(-1000, -1000), control.Bounds.Size);

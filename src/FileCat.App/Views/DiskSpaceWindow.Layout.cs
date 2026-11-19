@@ -24,11 +24,19 @@ public sealed partial class DiskSpaceWindow
         // Keep command strings available to automation and use the theme's existing control templates.
         Styles.Add(new Style(s => s.Is<Button>())
         {
-            Setters = { new Setter(MinHeightProperty, 32d), new Setter(ContentControl.ContentTemplateProperty, DialogLayout.WrappingText) }
+            Setters =
+            {
+                new Setter(MinHeightProperty, 32d), new Setter(ContentControl.VerticalContentAlignmentProperty, VerticalAlignment.Center),
+                new Setter(ContentControl.ContentTemplateProperty, TextTemplate(nameof(ContentControl.Content), DialogLayout.WrappingText))
+            }
         });
         Styles.Add(new Style(s => s.OfType<CheckBox>())
         {
-            Setters = { new Setter(MinHeightProperty, 30d), new Setter(ContentControl.ContentTemplateProperty, DialogLayout.WrappingText) }
+            Setters =
+            {
+                new Setter(MinHeightProperty, 30d),
+                new Setter(ContentControl.ContentTemplateProperty, TextTemplate(nameof(ContentControl.Content), DialogLayout.WrappingText))
+            }
         });
         Styles.Add(new Style(s => s.OfType<TextBox>()) { Setters = { new Setter(MinHeightProperty, 32d) } });
         Styles.Add(new Style(s => s.OfType<ComboBox>())
@@ -42,7 +50,8 @@ public sealed partial class DiskSpaceWindow
         });
         Styles.Add(new Style(s => s.OfType<Expander>())
         {
-            Setters = { new Setter(HeaderedContentControl.HeaderTemplateProperty, DialogLayout.WrappingListText) }
+            Setters = { new Setter(HeaderedContentControl.HeaderTemplateProperty,
+                TextTemplate(nameof(HeaderedContentControl.Header), DialogLayout.WrappingListText)) }
         });
         Styles.Add(new Style(s => s.OfType<TextBlock>().Class("dialogTitle"))
         {
@@ -53,6 +62,12 @@ public sealed partial class DiskSpaceWindow
             Setters = { new Setter(Border.PaddingProperty, new Thickness(12, 8)) }
         });
     }
+
+    private static Binding TextTemplate(string property, IDataTemplate template) => new(property)
+    {
+        RelativeSource = new RelativeSource(RelativeSourceMode.Self),
+        Converter = new FuncValueConverter<object?, IDataTemplate?>(content => content is string ? template : null)
+    };
 
     private static readonly IDataTemplate WrappingChoice = new FuncDataTemplate<object>(choice => choice is not Control, (choice, _) => new TextBlock
     {
