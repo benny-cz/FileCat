@@ -8,7 +8,8 @@ internal sealed partial class AnalysisIndexedAcquisition
 {
     internal static async Task<AnalysisIndexedAcquisition> PrepareExportAsync(AppServices services, CancellationToken cancellation)
     {
-        var owner = await PrepareAsync(services, cancellation).ConfigureAwait(false);
+        // Exports own a separately reviewed destination and may need same-volume APFS staging.
+        var owner = await PrepareAsync(services, cancellation, useConfiguredScratch: false).ConfigureAwait(false);
         try
         {
             if (OperatingSystem.IsMacOS() && owner._ancestorGuard[1])

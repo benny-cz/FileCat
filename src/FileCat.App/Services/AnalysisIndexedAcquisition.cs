@@ -12,12 +12,13 @@ namespace FileCat.App.Services;
 /// </summary>
 internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
 {
+    private const int DefaultScratchBoundary = 3;
     private readonly AppServices _services;
     private readonly bool _indexedStorage;
     internal bool IndexedStorage => _indexedStorage;
     private readonly string[] _privatePaths;
-    private readonly IAnalysisBackend?[] _protection = new IAnalysisBackend?[3];
-    private readonly bool[] _ancestorGuard = new bool[3];
+    private readonly IAnalysisBackend?[] _protection = new IAnalysisBackend?[DefaultScratchBoundary + 1];
+    private readonly bool[] _ancestorGuard = new bool[DefaultScratchBoundary + 1];
     internal Task<AnalysisRollingCaptureOutcome?> HistoryCompletion { get; private set; } = Task.FromResult<AnalysisRollingCaptureOutcome?>(null);
     private readonly object _gate = new();
     private AnalysisPrivateDirectory? _scratch, _quotaDirectory;
@@ -30,15 +31,21 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
     internal AnalysisHostProfileIdentity? Profile { get; private set; }
     internal string ProfileIdentity => _rescanProfileCorrelation ?? Profile?.ToString() ?? _ephemeralProfile;
     internal string? MemoryPreparationNotice { get; private set; }
-    private AnalysisIndexedAcquisition(AppServices services, bool indexedStorage)
-    { _services = services; _indexedStorage = indexedStorage; _privatePaths = [services.Paths.AnalysisSnapshotsDirectory, services.Paths.AnalysisScratchDirectory, services.Paths.AnalysisHistoryDirectory]; }
+    private AnalysisIndexedAcquisition(AppServices services, bool indexedStorage, bool useConfiguredScratch)
+    {
+        _services = services; _indexedStorage = indexedStorage;
+        _privatePaths = [services.Paths.AnalysisSnapshotsDirectory,
+            useConfiguredScratch ? services.Paths.AnalysisScratchDirectory : services.Paths.DefaultAnalysisScratchDirectory,
+            services.Paths.AnalysisHistoryDirectory, services.Paths.DefaultAnalysisScratchDirectory];
+        if (useConfiguredScratch && services.Paths.AnalysisScratchSelectionError is { } reason) UseMemoryPreparation(reason);
+    }
 
     internal static async Task<AnalysisIndexedAcquisition> PrepareAsync(AppServices services, CancellationToken cancellation = default,
-        bool indexedStorage = true, Action<string>? preparationDeviceChanged = null)
+        bool indexedStorage = true, Action<string>? preparationDeviceChanged = null, bool useConfiguredScratch = true)
     {
         ArgumentNullException.ThrowIfNull(services);
         if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
-        cancellation.ThrowIfCancellationRequested(); var owner = new AnalysisIndexedAcquisition(services, indexedStorage);
+        cancellation.ThrowIfCancellationRequested(); var owner = new AnalysisIndexedAcquisition(services, indexedStorage, useConfiguredScratch);
         try
         {
             preparationDeviceChanged?.Invoke(PathUtil.GetDeviceKey(owner._privatePaths[0]));
@@ -69,19 +76,7 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
                 }
                 return true;
             }, cancellation).ConfigureAwait(false);
-            preparationDeviceChanged?.Invoke(PathUtil.GetDeviceKey(owner._privatePaths[1]));
-            await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(owner._privatePaths[1]), token =>
-            {
-                owner.CheckPreparation(1, token);
-                if (owner.MemoryPreparationNotice is null)
-                {
-                    try { owner._scratch = OpenDirectory(owner._privatePaths[1]); }
-                    catch (Exception error) when (StorageUnavailable(error)) { owner.UseMemoryPreparation(); }
-                }
-                owner.CheckPreparation(1, token); owner.PrepareProtection(1, token);
-                if (owner._scratch is { } directory && !owner._ancestorGuard[1]) RequireSamePrivateRoot(directory, owner._protection[1]!);
-                return true;
-            }, cancellation).ConfigureAwait(false);
+            await owner.PrepareScratchAsync(cancellation, preparationDeviceChanged).ConfigureAwait(false);
             preparationDeviceChanged?.Invoke(PathUtil.GetDeviceKey(owner._privatePaths[2]));
             await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(owner._privatePaths[2]), token =>
             {
@@ -115,7 +110,73 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
         try { source.Dispose(); }
         catch (Exception error) when (error is not AnalysisCloseUnconfirmedException) { throw new AnalysisCloseUnconfirmedException(error); }
     }
-    private void UseMemoryPreparation() => MemoryPreparationNotice = "Secure private storage is unavailable. Using bounded memory; existing private state was preserved.";
+    private void UseMemoryPreparation(string reason = "Secure private storage is unavailable.") =>
+        MemoryPreparationNotice ??= reason + " Using bounded memory; existing private state was preserved.";
+
+    private async Task PrepareScratchAsync(CancellationToken cancellation, Action<string>? deviceChanged)
+    {
+        string defaultPath = _privatePaths[DefaultScratchBoundary];
+        if (!PathUtil.SafetyComparer.Equals(_privatePaths[1], defaultPath))
+        {
+            if (MemoryPreparationNotice is null)
+            {
+                string device = PathUtil.GetDeviceKey(_privatePaths[1]);
+                deviceChanged?.Invoke(device);
+                bool ready = await AnalysisIo.Run(_services.Io, device, token =>
+                {
+                    CheckPreparation(1, token);
+                    AnalysisPrivateDirectory scratch;
+                    try { _scratch = scratch = OpenDirectory(_privatePaths[1]); }
+                    catch (Exception error) when (StorageUnavailable(error))
+                    {
+                        UseMemoryPreparation("The selected private scratch folder is unavailable.");
+                        return false;
+                    }
+                    CheckPreparation(1, token);
+                    PrepareProtection(1, token);
+                    if (!_ancestorGuard[1])
+                    {
+                        RequireSamePrivateRoot(scratch, _protection[1]!);
+                        return true;
+                    }
+                    DisposePreparedOnWorker(Interlocked.Exchange(ref _protection[1], null)!);
+                    _ancestorGuard[1] = false; _privateWitnesses[1] = null;
+                    DisposePreparedOnWorker(Interlocked.Exchange(ref _scratch, null)!);
+                    return false;
+                }, cancellation).ConfigureAwait(false);
+                if (ready)
+                {
+                    string defaultDevice = PathUtil.GetDeviceKey(defaultPath);
+                    deviceChanged?.Invoke(defaultDevice);
+                    await AnalysisIo.Run(_services.Io, defaultDevice, token =>
+                    {
+                        CheckPreparation(DefaultScratchBoundary, token);
+                        try { _ = File.GetAttributes(defaultPath); }
+                        catch (Exception error) when (error is FileNotFoundException or DirectoryNotFoundException) { return true; }
+                        PrepareProtection(DefaultScratchBoundary, token);
+                        return true;
+                    }, cancellation).ConfigureAwait(false);
+                    return;
+                }
+            }
+            _privatePaths[1] = defaultPath;
+        }
+
+        string defaultScratchDevice = PathUtil.GetDeviceKey(defaultPath);
+        deviceChanged?.Invoke(defaultScratchDevice);
+        await AnalysisIo.Run(_services.Io, defaultScratchDevice, token =>
+        {
+            CheckPreparation(1, token);
+            if (MemoryPreparationNotice is null)
+            {
+                try { _scratch = OpenDirectory(defaultPath); }
+                catch (Exception error) when (StorageUnavailable(error)) { UseMemoryPreparation(); }
+            }
+            CheckPreparation(1, token); PrepareProtection(1, token);
+            if (_scratch is { } directory && !_ancestorGuard[1]) RequireSamePrivateRoot(directory, _protection[1]!);
+            return true;
+        }, cancellation).ConfigureAwait(false);
+    }
     private void CheckPreparation(int index, CancellationToken cancellation)
     {
         cancellation.ThrowIfCancellationRequested();
@@ -183,11 +244,12 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
             if (sourceCount is < 1 or > AnalysisLimits.Roots) throw new ArgumentException("Choose between one and 32 prepared roots.", nameof(sources));
             if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
             var locations = ntfs is null ? sources.Select(RuntimeReopenLocator).ToArray() : [];
+            var privateRoots = Enumerable.Range(0, _protection.Length).Where(index => _protection[index] is not null)
+                .Select(index => new AnalysisPrivateRoot(PathUtil.GetDeviceKey(_privatePaths[index]), () => TakeProtection(index))
+                    { RequiresDisjointSource = _ancestorGuard[index] }).ToImmutableArray();
             var storage = new AnalysisStorageOptions(PathUtil.GetDeviceKey(_privatePaths[1]),
                 () => Interlocked.Exchange(ref _scratch, null) ?? throw new IOException("Private scratch ownership has already transferred."),
-                [new(PathUtil.GetDeviceKey(_privatePaths[0]), () => TakeProtection(0)) { RequiresDisjointSource = _ancestorGuard[0] },
-                 new(PathUtil.GetDeviceKey(_privatePaths[1]), () => TakeProtection(1)) { RequiresDisjointSource = _ancestorGuard[1] },
-                 new(PathUtil.GetDeviceKey(_privatePaths[2]), () => TakeProtection(2)) { RequiresDisjointSource = _ancestorGuard[2] }])
+                privateRoots)
             { CreateProfileQuota = _indexedStorage && MemoryPreparationNotice is null ? OpenProfileQuota : null, ProfileDeviceKey = PathUtil.GetDeviceKey(_privatePaths[0]),
                 AllowMemoryFallback = true, MemoryOnly = !_indexedStorage || MemoryPreparationNotice is not null };
             var coordinator = new AnalysisCoordinator(_services.Io, ProfileIdentity);

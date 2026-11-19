@@ -3,8 +3,10 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
+using FileCat.App.Controls.DiskSpace;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
+using FileCat.Core.Analysis;
 
 namespace FileCat.Rendering.Tests;
 
@@ -13,6 +15,28 @@ public sealed partial class AnalysisRenderingTests
     // Stable test identifiers must not replace the spoken text of a live region.
     private static string? AutomationLabel(Control control) => AutomationProperties.GetName(control) is { Length: > 0 } name
         ? name : AutomationProperties.GetAutomationId(control);
+
+    [AvaloniaFact]
+    public async Task ChartScopeLabelsNameTheirMetricUnitsAndUnknownAmounts()
+    {
+        using var styles = new ProductStyles(); using var model = new DiskSpaceViewModel(Fixture());
+        await model.RebuildAsync(true);
+        var tree = model.Tree!;
+        Assert.Equal(DiskSpaceViewModel.Bytes(32768), AnalysisChartControl.ScopeAmount(tree, "n:3", exact: false));
+        Assert.Equal("Unknown", AnalysisChartControl.ScopeAmount(tree, "n:6", exact: false));
+        foreach (var chart in new AnalysisChartControl[] { new TreemapControl(), new SunburstControl() })
+        {
+            chart.SetView(tree, "n:3", null, []);
+            string label = AutomationProperties.GetName(chart)!;
+            Assert.Contains("On disk — reported:", label);
+            Assert.Contains(" bytes", label);
+            chart.SetView(tree, "n:6", null, []);
+            Assert.Contains("On disk — reported: Unknown", AutomationProperties.GetName(chart));
+        }
+        model.Metric = AnalysisMetric.Files;
+        await model.RebuildAsync(true);
+        Assert.Equal("1 file path", AnalysisChartControl.ScopeAmount(model.Tree!, "n:3", exact: false));
+    }
 
     [AvaloniaFact]
     public async Task LiveAnalysisStatusSpeaksItsUpdatedTextRatherThanItsStableTestIdentifier()

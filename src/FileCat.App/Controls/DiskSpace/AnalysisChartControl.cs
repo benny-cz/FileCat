@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using FileCat.App.Services;
+using FileCat.App.ViewModels;
 using FileCat.Core.Analysis;
 
 namespace FileCat.App.Controls.DiskSpace;
@@ -42,8 +43,14 @@ public abstract partial class AnalysisChartControl : Control
     protected abstract void DrawPart(DrawingContext context, Part part, IBrush fill, IPen border);
     private double ComparisonHeaderHeight => Tree is IAnalysisComparisonChartData ? _labelLineHeight + 6 : 0;
     protected virtual Rect PlotBounds => new(8, 8 + ComparisonHeaderHeight, Math.Max(0, Bounds.Width - 16), Math.Max(0, Bounds.Height - 16 - ComparisonHeaderHeight));
-    private static string ComparisonHeading(IAnalysisComparisonChartData chart) => (chart.Previous ? "Previous" : "Current") + " · " + (chart.Metric switch
-    { AnalysisMetric.FileSize => "File size", AnalysisMetric.UniqueFileSize => "Unique file size", AnalysisMetric.OnDisk => "On disk — reported", _ => "Files" });
+    private static string MetricLabel(AnalysisMetric metric) => metric switch
+    {
+        AnalysisMetric.FileSize => "File size",
+        AnalysisMetric.UniqueFileSize => "Unique file size",
+        AnalysisMetric.OnDisk => "On disk — reported",
+        _ => "Files"
+    };
+    private static string ComparisonHeading(IAnalysisComparisonChartData chart) => (chart.Previous ? "Previous" : "Current") + " · " + MetricLabel(chart.Metric);
     protected double TileLabelHeight => 2 * _labelLineHeight + 12;
     static AnalysisChartControl() => AffectsRender<AnalysisChartControl>(Avalonia.Controls.Documents.TextElement.FontSizeProperty);
     public AnalysisChartControl()
@@ -61,7 +68,8 @@ public abstract partial class AnalysisChartControl : Control
         if (_pressed) { _pending = next; return; }
         if (_view?.Tree != tree || _view.Scope != scope) { _layoutSize = default; _parts = []; _displayItems.Clear(); }
         _view = next;
-        AutomationProperties.SetName(this, $"{ViewName}: {(tree is IAnalysisComparisonChartData comparison ? ComparisonHeading(comparison) + ". " : "")}{AnalysisNames.Display(tree.NameOf(scope))}, {tree.ScopeValue(scope)} reported units. Colors: {AnalysisChartColors.Title(color)}. Use the table for every entry and its measurement and identity states.");
+        string metric = tree is IAnalysisComparisonChartData comparison ? ComparisonHeading(comparison) : MetricLabel(tree.Metric);
+        AutomationProperties.SetName(this, $"{ViewName}: {AnalysisNames.Display(tree.NameOf(scope))}. {metric}: {ScopeAmount(tree, scope, exact: true)}. Colors: {AnalysisChartColors.Title(color)}. Use the table for every entry and its measurement and identity states.");
         if (IsFocused) ShowTip(focus); else if (_hover is not null) ShowTip(_hover);
         InvalidateVisual();
     }
@@ -182,9 +190,16 @@ public abstract partial class AnalysisChartControl : Control
         _drawingStyles.Add(key, style);
         return style;
     }
-    private string CenterAmount(IAnalysisChartData tree) => tree is IAnalysisComparisonChartData ? tree.Metric == AnalysisMetric.Files
-        ? tree.ScopeValue(Scope).ToString("N0", CultureInfo.CurrentCulture) + " paths" : FileCat.App.ViewModels.DiskSpaceViewModel.Bytes(tree.ScopeValue(Scope))
-        : tree.ScopeValue(Scope).ToString(CultureInfo.InvariantCulture);
+    private string CenterAmount(IAnalysisChartData tree) => ScopeAmount(tree, Scope, exact: false);
+    internal static string ScopeAmount(IAnalysisChartData tree, string scope, bool exact)
+    {
+        UInt128 value = tree.ScopeValue(scope);
+        bool partial = tree.Items.GetValueOrDefault(scope)?.Unknown == true;
+        if (partial && value == 0 && tree.Metric != AnalysisMetric.Files) return "Unknown";
+        string amount = tree.Metric == AnalysisMetric.Files ? value.ToString("N0", CultureInfo.CurrentCulture) + (value == 1 ? " file path" : " file paths")
+            : exact ? value.ToString("N0", CultureInfo.CurrentCulture) + (value == 1 ? " byte" : " bytes") : DiskSpaceViewModel.Bytes(value);
+        return partial ? amount + (tree.Metric == AnalysisMetric.Files ? " observed" : " known") : amount;
+    }
     private AnalysisTreeItem? Item(string key)
     {
         if (_view is null) return null;

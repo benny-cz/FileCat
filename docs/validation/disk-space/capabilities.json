@@ -27,6 +27,9 @@
     {
       "id": "windows-primary-allocation-v1",
       "platform": "Windows",
+      "filesystem": "Local NTFS",
+      "packageTier": "Ordinary application",
+      "method": "Reported primary allocation through held NTFS metadata handles",
       "enabledInProduct": true,
       "assurance": "ObservedMetadata",
       "tests": [
@@ -36,7 +39,8 @@
         "AnalysisWindowsTests.NestedRootsAreCoveredOnceInEitherSelectionOrder"
       ],
       "evidence": "windows-vm-native-r18.xml",
-      "lastQualifiedBuild": null,
+      "lastQualifiedBuild": "r1770 on 6e19902c exercised Standard linked NTFS acquisition and its scratch-budget fallback",
+      "scaleEvidence": "NATIVE_MILLION_SCALE_QUALIFICATION.md",
       "limitations": [
         "Read-only regression fixtures pass on the ordinary host and guest users; sparse/compressed/resident/preallocation/cloud/filter and filesystem matrices remain unqualified.",
         "Explicit file-root fixture denies primary content reads and permits metadata observations."
@@ -45,6 +49,9 @@
     {
       "id": "darwin-stat-total-blocks-v1",
       "platform": "macOS arm64",
+      "filesystem": "Local APFS",
+      "packageTier": "Ordinary application",
+      "method": "Reported block allocation from the held observation",
       "enabledInProduct": true,
       "assurance": "ObservedMetadata",
       "tests": [
@@ -54,7 +61,8 @@
         "AnalysisScanningTests.UnixNestedRootsAreCoveredOnceInEitherSelectionOrder"
       ],
       "evidence": "mac-core-r26.xml",
-      "lastQualifiedBuild": null,
+      "lastQualifiedBuild": "r1710 native APFS scale and r1778 on c4a4a928 Core analysis and APFS clone-sharing regression",
+      "scaleEvidence": "NATIVE_MILLION_SCALE_QUALIFICATION.md",
       "limitations": [
         "Total reported block allocation; not exclusive ownership or primary-fork-only allocation.",
         "Basic fixture only; clones, forks, mounts, cloud and substitution matrix remain unqualified.",
@@ -64,13 +72,17 @@
     {
       "id": "linux-statx-blocks-v1",
       "platform": "Linux",
+      "filesystem": "Qualified local Linux mounts including tested ext4",
+      "packageTier": "Ordinary application",
+      "method": "Reported statx blocks with native mount identity",
       "enabledInProduct": true,
       "assurance": "ObservedMetadata",
       "tests": [
         "AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink"
       ],
       "evidence": "ubuntu-core-r26.xml",
-      "lastQualifiedBuild": null,
+      "lastQualifiedBuild": "r1620 native ext4 scale and r1778 on c4a4a928 Core analysis regression",
+      "scaleEvidence": "NATIVE_MILLION_SCALE_QUALIFICATION.md",
       "limitations": [
         "Requires statx mount identity and openat2 containment; btrfs object uniqueness is not asserted without subvolume identity.",
         "Initial ext4 regressions and native desktop subsets pass; broader filesystem, cloud, race and resource matrices remain unqualified."
@@ -145,6 +157,7 @@
       "method": "Held primary file read, first 16 KiB",
       "assurance": "Revalidated live object and recorded version",
       "qualificationTests": ["AnalysisRenderingTests.NativePrimaryPreviewUsesBoundBytesAndRefusesChangedContent"],
+      "evidence": "NTFS_PRIMARY_CONTENT_QUALIFICATION.md",
       "lastQualifiedBuild": "r1462 development",
       "reason": "Preview requires a finished live local NTFS analysis. Historical or imported paths require an explicit current-source binding."
     },
@@ -160,6 +173,7 @@
         "AnalysisRenderingTests.NativeReviewedCopyQueuesOnlyApprovedEntriesAndKeepsLateCollisions",
         "AnalysisRenderingTests.NativeReviewedCopyPreservesStreamsAndKeepsExistingFiles"
       ],
+      "evidence": "REVIEWED_FILE_ACTIONS_QUALIFICATION.md",
       "lastQualifiedBuild": "r1462 development",
       "reason": "Reviewed copy requires a verified source and a destination that supports publishing a new file safely."
     },
@@ -217,6 +231,7 @@
         "AnalysisRenderingTests.NativeDuplicateReadConsentChecksBoundScopeAndLeavesSelectionsIntact",
         "AnalysisRenderingTests.NativeDuplicateReadConsentRejectsCapturedDataWithoutItsRuntimeOwner"
       ],
+      "evidence": "DUPLICATE_CONTENT_QUALIFICATION.md",
       "lastQualifiedBuild": "r1462 development",
       "reason": "Stable content evidence requires explicit review and a qualified ordinary live file binding."
     }

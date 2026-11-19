@@ -29,7 +29,11 @@ public sealed partial class DiskSpaceWindow
             ? $"{DiskSpaceViewModel.Bytes((UInt128)reserved)} for this index and its derived data."
             : "This view currently holds no private index reservation.");
         if (scratchDirectory is not null)
-            Add("Private scratch folder", AnalysisNames.DisplayPath(scratchDirectory, OperatingSystem.IsWindows() ? AnalysisNameRules.Windows : AnalysisNameRules.Unix));
+        {
+            Add("Configured private scratch folder", AnalysisNames.DisplayPath(scratchDirectory, OperatingSystem.IsWindows() ? AnalysisNameRules.Windows : AnalysisNameRules.Unix));
+            Add("Use another scratch disk", "Close FileCat and relaunch with --analysis-scratch followed by an existing absolute local folder in quotes. " +
+                "FileCat creates its own private folder there for index files. When using --data, choose a folder inside that data root.");
+        }
         Add("Standard scans", $"Choose up to {AnalysisLimits.Roots:N0} locations. Standard scans use bounded memory unless you request a private index and secure scratch is available. " +
             "A scan that reaches its limit can finish early with partial results. " +
             "For more complete coverage after a limit, scan a smaller folder or exclude folders you do not need.");

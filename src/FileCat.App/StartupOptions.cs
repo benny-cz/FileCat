@@ -16,6 +16,7 @@ public sealed class StartupOptions
     /// for recovering deleted files from the disk that holds FileCat's usual places (release plan V09, I09).
     /// </summary>
     public string? DataRoot { get; set; }
+    public string? AnalysisScratchParent { get; private set; }
     public string? Workspace { get; set; }
     public string? ListFile { get; set; }
     public bool NewInstance { get; set; }
@@ -41,6 +42,7 @@ public sealed class StartupOptions
                 case "--right" or "/r": o.RightLocation = Next(); break;
                 case "--profile": o.Profile = Next(); break;
                 case "--data": o.DataRoot = Next() is { Length: > 0 } data ? Path.GetFullPath(data) : null; break;
+                case "--analysis-scratch": o.AnalysisScratchParent = i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal) ? Next() : ""; break;
                 case "--workspace": o.Workspace = Next(); break;
                 case "--list" or "--loadlist": o.ListFile = Next(); break;
                 case "--new-instance" or "/n": o.NewInstance = true; break;

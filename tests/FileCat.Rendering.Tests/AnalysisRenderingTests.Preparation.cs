@@ -122,7 +122,13 @@ public sealed partial class AnalysisRenderingTests
         public string Root { get; } = Path.Combine(Environment.CurrentDirectory, ".tmp", "analysis-preparation-" + Guid.NewGuid().ToString("N"));
         public int UiThread { get; } = Environment.CurrentManagedThreadId;
         public AppServices Services { get; }
-        public PreparationFixture() { Directory.CreateDirectory(Root); Services = AppServices.CreateForPaths(AppPaths.Resolve(dataRoot: Root)); }
+        public PreparationFixture(bool alternateScratch = false, bool createScratchParent = true)
+        {
+            Directory.CreateDirectory(Root);
+            string? parent = alternateScratch ? Path.Combine(Root, "alternate-scratch") : null;
+            if (parent is not null && createScratchParent) Directory.CreateDirectory(parent);
+            Services = AppServices.CreateForPaths(AppPaths.Resolve(dataRoot: Root, analysisScratchParent: parent));
+        }
         public void Dispose() { Services.Dispose(); Directory.Delete(Root, recursive: true); }
     }
     private sealed class PreparedSource(string path) : IAnalysisBackend

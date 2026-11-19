@@ -35,6 +35,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
             Add("/", OpenOwned(null, "/", DirectoryFlags, 0));
             foreach (string component in parent.Split('/', StringSplitOptions.RemoveEmptyEntries))
                 Add(component, OpenOwned(Root, component, DirectoryFlags, 0));
+            _ = ReadSpace(Root, _mac);
             if (MkdirAt(Root, name, 0x1c0) != 0 && Marshal.GetLastPInvokeError() != 17) // 0700; EEXIST
                 throw Error("The private analysis directory could not be created.");
             Add(name, OpenOwned(Root, name, DirectoryFlags, 0));

@@ -43,6 +43,7 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
                     ShareRead | ShareWrite, Open, DirectoryFile | OpenReparsePoint));
             }
             RejectReparse(Root);
+            _ = Space();
             const uint rootAccess = GenericRead | GenericWrite | ReadControl | Synchronize;
             var reservation = AnalysisNativeHandles.Acquire();
             try

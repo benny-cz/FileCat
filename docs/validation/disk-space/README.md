@@ -4,7 +4,9 @@ The standard analyzer opens from Tools → Disk space…, command search, and th
 
 The development packages passed Standard desktop workflows on the Windows VM, Mac and Ubuntu VM. Actual Windows NVDA and Ubuntu Orca announced the Resource limits close button. Native Return and Escape restored focus on both systems. The Mac accessibility API exposed the title, reservation amount and focused button. See the [package and accessibility results](NATIVE_PACKAGES_QUALIFICATION.md).
 
-Native wide and deep million-path workflows pass across all three platforms. On the retained Ubuntu ten-million-path fixture, the 4 GiB scratch budget stopped acquisition around nine million observed paths. The result reported partial coverage and retained a 4,096-path preview. See the [native scale measurements](NATIVE_MILLION_SCALE_QUALIFICATION.md).
+Native wide and deep million-path workflows pass across all three platforms. Each retained ten-million-path fixture reached the 4 GiB scratch budget and kept a 4,096-path preview with partial coverage. [Native scale measurements](NATIVE_MILLION_SCALE_QUALIFICATION.md).
+
+Resource limits shows the configured scratch location. To choose a different disk for private indexes, close FileCat and relaunch with `--analysis-scratch "<existing absolute local folder>"`. FileCat creates a private child for its index files and keeps the named analyses, history and shared quota in the current profile. When using `--data`, give the scratch parent the same absolute path spelling inside the chosen data root.
 
 Standard analysis reports filesystem capacity from its held source. Compact folder views and dedicated NTFS, HFS+, and ext4 whole-volume fixtures pass on the three native runtimes. The first observable root also publishes before child enumeration can block. See the [capacity and preview checkpoint](VOLUME_CAPACITY_QUALIFICATION.md).
 

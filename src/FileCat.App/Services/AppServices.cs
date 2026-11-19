@@ -327,9 +327,10 @@ public sealed class AppServices : IDisposable
 
     /// <param name="overrideRoot">Isolated state root (the TV-01 benchmark never touches the user's profile).</param>
     /// <param name="dataRoot">--data: everything FileCat writes goes below this folder.</param>
-    public static AppServices Initialize(string? profile, string? overrideRoot = null, string? dataRoot = null)
+    public static AppServices Initialize(string? profile, string? overrideRoot = null, string? dataRoot = null, string? analysisScratchParent = null)
     {
-        Current = new AppServices(AppPaths.Resolve(profile, overrideRoot: overrideRoot, dataRoot: dataRoot), archiveBackends: ProductionArchiveBackends());
+        Current = new AppServices(AppPaths.Resolve(profile, overrideRoot: overrideRoot, dataRoot: dataRoot,
+            analysisScratchParent: analysisScratchParent), archiveBackends: ProductionArchiveBackends());
         return Current;
     }
 

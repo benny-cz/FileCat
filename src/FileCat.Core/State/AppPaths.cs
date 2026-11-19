@@ -1,3 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
+using FileCat.Core.FileSystem;
+
 namespace FileCat.Core.State;
 
 /// <summary>
@@ -26,6 +30,7 @@ public sealed class AppPaths
             privateRoot = Path.Combine(privateRoot, "FileCat");
         }
         ListingScratchDirectory = Path.Combine(privateRoot, "scratch", profile);
+        AnalysisScratchDirectory = DefaultAnalysisScratchDirectory;
         HexRecoveryDirectory = Path.Combine(privateRoot, "hex-recovery", profile);
         OwnRoots = [.. ownRoots, privateRoot];
     }
@@ -48,7 +53,9 @@ public sealed class AppPaths
     public string HexRecoveryDirectory { get; }
 
     /// <summary>Owner-private, disposable analysis sessions. Created by the analysis native store, not Ensure.</summary>
-    public string AnalysisScratchDirectory => Path.Combine(ListingScratchDirectory, "analysis");
+    public string AnalysisScratchDirectory { get; private set; }
+    internal string DefaultAnalysisScratchDirectory => Path.Combine(ListingScratchDirectory, "analysis");
+    internal string? AnalysisScratchSelectionError { get; private set; }
     /// <summary>Owner-private named inventories, independent of disposable caches.</summary>
     public string AnalysisSnapshotsDirectory => Path.Combine(LocalDirectory, "analysis-snapshots");
     /// <summary>Isolated owner-private rolling inventories; retention never opens the named-store root.</summary>
@@ -111,14 +118,17 @@ public sealed class AppPaths
     ];
 
     /// <param name="dataRoot">--data: everything FileCat writes goes below this folder (recovering from the disk that holds FileCat's usual places).</param>
-    public static AppPaths Resolve(string? profile = null, string? baseDirectory = null, string? overrideRoot = null, string? dataRoot = null)
+    /// <param name="analysisScratchParent">Explicit existing parent for this launch's private analysis scratch directory.</param>
+    public static AppPaths Resolve(string? profile = null, string? baseDirectory = null, string? overrideRoot = null, string? dataRoot = null,
+        string? analysisScratchParent = null)
     {
         profile = ProfileFolderName(profile);
         var suffix = profile == "default" ? string.Empty : Path.Combine("profiles", profile);
         if (!string.IsNullOrEmpty(overrideRoot))
         {
             var root = Path.Combine(overrideRoot, suffix);
-            return new AppPaths(root, Path.Combine(root, "local"), true, profile, [overrideRoot]).Ensure();
+            return new AppPaths(root, Path.Combine(root, "local"), true, profile, [overrideRoot])
+                .ConfigureAnalysisScratch(analysisScratchParent, overrideRoot).Ensure();
         }
         baseDirectory ??= AppContext.BaseDirectory;
         if (!string.IsNullOrEmpty(dataRoot))
@@ -126,20 +136,50 @@ public sealed class AppPaths
             string data = Path.GetFullPath(dataRoot);
             var root = Path.Combine(data, suffix);
             // A portable copy or an installed one alike: which administrator helper it may use does not change.
-            return new AppPaths(root, Path.Combine(root, "local"), File.Exists(Path.Combine(baseDirectory, PortableMarker)), profile, [data], data).Ensure();
+            return new AppPaths(root, Path.Combine(root, "local"), File.Exists(Path.Combine(baseDirectory, PortableMarker)), profile, [data], data)
+                .ConfigureAnalysisScratch(analysisScratchParent, data).Ensure();
         }
         string? portableProblem = null;
         if (File.Exists(Path.Combine(baseDirectory, PortableMarker)))
         {
             var root = Path.Combine(baseDirectory, "Data", suffix);
             // A marker in a folder the user cannot write to (for example under Program Files) must not stop startup.
-            if (IsWritable(root)) return new AppPaths(root, Path.Combine(root, "local"), true, profile, [Path.Combine(baseDirectory, "Data")]).Ensure();
+            if (IsWritable(root)) return new AppPaths(root, Path.Combine(root, "local"), true, profile, [Path.Combine(baseDirectory, "Data")])
+                .ConfigureAnalysisScratch(analysisScratchParent).Ensure();
             portableProblem = $"The portable data folder \"{root}\" is not writable, so FileCat keeps its settings in your user profile instead.";
         }
         var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.Create);
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create);
         return new AppPaths(Path.Combine(roaming, "FileCat", suffix), Path.Combine(local, "FileCat", suffix), false, profile,
-            [Path.Combine(roaming, "FileCat"), Path.Combine(local, "FileCat")]) { PortableUnavailableReason = portableProblem }.Ensure();
+            [Path.Combine(roaming, "FileCat"), Path.Combine(local, "FileCat")]) { PortableUnavailableReason = portableProblem }
+            .ConfigureAnalysisScratch(analysisScratchParent).Ensure();
+    }
+
+    private AppPaths ConfigureAnalysisScratch(string? parent, string? containmentRoot = null)
+    {
+        if (parent is null) return this;
+        if (!Path.IsPathFullyQualified(parent) || PathUtil.HasAmbiguousUnixName(parent) ||
+            parent.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]).Any(part => part is "." or ".."))
+            AnalysisScratchSelectionError = "Choose an absolute analysis scratch folder without relative path components.";
+        else
+        {
+            try
+            {
+                string full = Path.GetFullPath(parent);
+                // Exact spelling keeps this write boundary valid in case-sensitive Windows directories.
+                string? root = containmentRoot is null ? null : Path.TrimEndingDirectorySeparator(Path.GetFullPath(containmentRoot));
+                if (root is not null && !full.Equals(root, StringComparison.Ordinal) &&
+                    !full.StartsWith(Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+                    AnalysisScratchSelectionError = "The analysis scratch folder must be inside this launch's data folder.";
+                else
+                {
+                    string profile = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(SettingsDirectory)))[..24].ToLowerInvariant();
+                    AnalysisScratchDirectory = Path.Combine(full, "filecat-analysis-" + profile);
+                }
+            }
+            catch (ArgumentException) { AnalysisScratchSelectionError = "The selected analysis scratch folder path is invalid."; }
+        }
+        return this;
     }
 
     /// <summary>

@@ -304,6 +304,19 @@ public sealed class RecoverySafetyTests
     }
 
     [Fact]
+    public void AnalysisScratchChoiceStaysWithTheLaunch()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "alternate scratch");
+        var options = StartupOptions.Parse(["--analysis-scratch", folder, "files"]);
+        Assert.Equal(folder, options.AnalysisScratchParent);
+        Assert.Single(options.ToForwardArgs());
+        Assert.DoesNotContain(folder, options.ToForwardArgs());
+        var missing = StartupOptions.Parse(["--analysis-scratch", "--data", folder]);
+        Assert.Equal("", missing.AnalysisScratchParent);
+        Assert.Equal(Path.GetFullPath(folder), missing.DataRoot);
+    }
+
+    [Fact]
     public void Data_names_a_folder_of_its_own_and_another_instance()
     {
         var options = StartupOptions.Parse(["--data", "recovery data", @"C:\folder"]);

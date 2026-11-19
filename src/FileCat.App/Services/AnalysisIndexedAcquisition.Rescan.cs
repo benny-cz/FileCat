@@ -5,7 +5,7 @@ namespace FileCat.App.Services;
 
 internal sealed partial class AnalysisIndexedAcquisition
 {
-    private readonly RootBinding?[] _privateWitnesses = new RootBinding?[3];
+    private readonly RootBinding?[] _privateWitnesses = new RootBinding?[DefaultScratchBoundary + 1];
     private AnalysisSession? _rescanPredecessor;
     private string? _rescanProfileCorrelation;
     private string[] _runtimeLocations = [];
@@ -94,6 +94,7 @@ internal sealed partial class AnalysisIndexedAcquisition
             for (int i = 0; i < witnesses.Length; i++)
             {
                 var expected = witnesses[i]; var actual = next._privateWitnesses[i];
+                if (i == DefaultScratchBoundary && expected is null && actual is null) continue;
                 if (expected?.ObservedObjectIdentity is null || actual is null || guards[i] != next._ancestorGuard[i] ||
                     actual.Scheme != expected.Scheme || actual.CanonicalLocator != expected.CanonicalLocator ||
                     actual.SourceIdentity != expected.SourceIdentity || actual.ObservedObjectIdentity != expected.ObservedObjectIdentity ||

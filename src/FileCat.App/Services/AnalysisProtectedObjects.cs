@@ -38,22 +38,27 @@ internal sealed class AnalysisProtectedObjects(AppPaths paths, DeviceIoScheduler
         var identities = new HashSet<string>(StringComparer.Ordinal);
         foreach (string protectedPath in protectedPaths)
         {
-            string identity = await AnalysisIo.Run(io, PathUtil.GetDeviceKey(protectedPath),
-                token => Capture(protectedPath, token), cancellation).ConfigureAwait(false);
-            identities.Add(identity);
+            bool optionalScratch = paths.AnalysisScratchDirectory != paths.DefaultAnalysisScratchDirectory &&
+                PathUtil.SafetyComparer.Equals(protectedPath, paths.AnalysisScratchDirectory);
+            string? identity = await AnalysisIo.Run(io, PathUtil.GetDeviceKey(protectedPath),
+                token => Capture(protectedPath, token, optionalScratch), cancellation).ConfigureAwait(false);
+            if (identity is not null) identities.Add(identity);
         }
         return identities;
     }
 
-    private static string Capture(string path, CancellationToken cancellation)
+    private static string? Capture(string path, CancellationToken cancellation, bool optionalScratch)
     {
         for (int depth = 0; depth <= AnalysisLimits.Depth; depth++)
         {
             cancellation.ThrowIfCancellationRequested();
             FileAttributes attributes;
             try { attributes = File.GetAttributes(path); }
-            catch (FileNotFoundException) { path = Parent(path); continue; }
-            catch (DirectoryNotFoundException) { path = Parent(path); continue; }
+            catch (Exception error) when (error is FileNotFoundException or DirectoryNotFoundException)
+            {
+                if (optionalScratch) return null;
+                path = Parent(path); continue;
+            }
 
             // A FileCat store may deliberately redirect outside its enclosing data root.
             // Missing stores can use an existing parent. A present redirection needs its own binding.

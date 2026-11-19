@@ -95,6 +95,34 @@ public sealed partial class AnalysisPrivateStorageTests
     }
 
     [Fact]
+    public void AlternateScratchDeclaresOnlyItsPrivateLeafAndRespectsDataContainment()
+    {
+        using var temp = new TempDir();
+        string data = Path.Combine(temp.Path, "data");
+        string parent = Directory.CreateDirectory(Path.Combine(data, "other scratch")).FullName;
+        string outside = Directory.CreateDirectory(Path.Combine(temp.Path, "outside")).FullName;
+        var standard = AppPaths.Resolve(dataRoot: data);
+        var alternate = AppPaths.Resolve(dataRoot: data, analysisScratchParent: parent);
+        Assert.Null(alternate.AnalysisScratchSelectionError);
+        Assert.Equal(standard.AnalysisSnapshotsDirectory, alternate.AnalysisSnapshotsDirectory);
+        Assert.Equal(standard.AnalysisHistoryDirectory, alternate.AnalysisHistoryDirectory);
+        Assert.Equal(parent, Path.GetDirectoryName(alternate.AnalysisScratchDirectory));
+        Assert.Contains(alternate.WriteFolders, item => item.Folder == alternate.AnalysisScratchDirectory);
+        Assert.DoesNotContain(alternate.WriteFolders, item => item.Folder == parent);
+        Assert.Empty(Directory.GetFileSystemEntries(parent));
+        Assert.Equal(alternate.AnalysisScratchDirectory, AppPaths.Resolve(dataRoot: data, analysisScratchParent: parent).AnalysisScratchDirectory);
+        Assert.NotEqual(alternate.AnalysisScratchDirectory, AppPaths.Resolve("another", dataRoot: data, analysisScratchParent: parent).AnalysisScratchDirectory);
+
+        var refused = AppPaths.Resolve(dataRoot: data, analysisScratchParent: outside);
+        Assert.Contains("inside this launch's data folder", refused.AnalysisScratchSelectionError);
+        Assert.Equal(standard.AnalysisScratchDirectory, refused.AnalysisScratchDirectory);
+        Assert.Empty(Directory.GetFileSystemEntries(outside));
+        var differentSpelling = AppPaths.Resolve(dataRoot: data,
+            analysisScratchParent: Path.Combine(temp.Path, "DATA", "other scratch"));
+        Assert.Contains("inside this launch's data folder", differentSpelling.AnalysisScratchSelectionError);
+    }
+
+    [Fact]
     public void UnixNativeCreateNewRoundTripConflictsAndInterruptedWritesKeepExistingBytes()
     {
         Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix native storage fixture."); Ordinary();
