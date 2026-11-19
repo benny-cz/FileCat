@@ -89,9 +89,9 @@ internal sealed partial class HarnessApp
             if (source is not null) await AnalysisIo.ReleaseAsync(_services!.Io, source);
         }
     }
-    private async Task ReadyAsync(Func<bool> condition)
+    private async Task ReadyAsync(Func<bool> condition, TimeSpan? timeout = null)
     {
-        var until = DateTimeOffset.UtcNow.AddSeconds(45);
+        var until = DateTimeOffset.UtcNow + (timeout ?? TimeSpan.FromSeconds(45));
         while (_window?.IsVisible == true && DateTimeOffset.UtcNow < until)
         {
             if (condition()) { await Task.Delay(100); if (condition()) return; }

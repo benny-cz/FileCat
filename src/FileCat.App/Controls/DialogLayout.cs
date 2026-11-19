@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
@@ -320,6 +321,17 @@ internal sealed class DialogForm : Grid
 
 internal static class DialogLayout
 {
+    internal static void RevealVertically(ScrollViewer scroll, Control target)
+    {
+        if (target.Bounds.Height > scroll.Viewport.Height) return;
+        var viewport = scroll.GetVisualDescendants().OfType<ScrollContentPresenter>().FirstOrDefault();
+        if (viewport is null || target.TranslatePoint(default, viewport) is not { } top) return;
+        double delta = top.Y < 0 ? top.Y : Math.Max(0, top.Y + target.Bounds.Height - viewport.Bounds.Height);
+        if (Math.Abs(delta) > 0.5)
+            scroll.Offset = new Vector(scroll.Offset.X, Math.Clamp(scroll.Offset.Y + delta, 0,
+                Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height)));
+    }
+
     // Keep the original string Content (and thus the accessible name and access key) intact.
     internal static readonly IDataTemplate WrappingText = new FuncDataTemplate<string>((text, _) =>
         new AccessText { Text = text, TextWrapping = TextWrapping.Wrap });

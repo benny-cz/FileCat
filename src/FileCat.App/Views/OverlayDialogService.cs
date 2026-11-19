@@ -310,14 +310,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         // viewport. Later validation text can also move the editor after focus.
         var body = editor.GetVisualAncestors().OfType<ScrollViewer>()
             .FirstOrDefault(view => view.Name == "DialogBodyScroll");
-        if (body is null || editor.Bounds.Height > body.Viewport.Height) return;
-        var viewport = body.GetVisualDescendants().OfType<ScrollContentPresenter>().FirstOrDefault();
-        if (viewport is null || editor.TranslatePoint(default, viewport) is not { } field) return;
-        double delta = field.Y < 0 ? field.Y :
-            Math.Max(0, field.Y + editor.Bounds.Height - viewport.Bounds.Height);
-        if (Math.Abs(delta) > 0.5)
-            body.Offset = new Vector(body.Offset.X, Math.Clamp(body.Offset.Y + delta,
-                0, Math.Max(0, body.Extent.Height - body.Viewport.Height)));
+        if (body is not null) DialogLayout.RevealVertically(body, editor);
     }
 
     private bool IsCurrent(Session? session) => session is not null && _sessions.Count > 0 && ReferenceEquals(_sessions[^1], session);

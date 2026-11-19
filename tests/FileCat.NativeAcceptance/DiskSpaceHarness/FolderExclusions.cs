@@ -62,6 +62,17 @@ internal sealed partial class HarnessApp
 
     private async Task FolderExclusionProbeAsync()
     {
+        var layoutIssues = new List<string>();
+        async Task CheckLayoutAsync(string stage, Func<Task> check)
+        {
+            try { await check(); }
+            catch (Exception error) when (error is InvalidOperationException or TimeoutException or ArgumentException)
+            {
+                layoutIssues.Add(stage + " · " + error.Message);
+                RenderNativeFrame("analysis-reading-layout-" + stage + "-failure.png");
+            }
+        }
+
         try
         {
             if (OperatingSystem.IsWindows()) WindowsGuestInput.DesktopGuard();
@@ -81,7 +92,7 @@ internal sealed partial class HarnessApp
             var windowTransitions = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_WINDOW_TRANSITIONS") == "1"
                 ? await CheckWindowTransitionsAsync(window, () => VisibleButton("Start analysis")) : null;
             bool compactDoubleText = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_DOUBLE_TEXT") == "1";
-            if (compactDoubleText) await CheckSetupTypographyAsync(window);
+            if (compactDoubleText) await CheckLayoutAsync("setup", () => CheckSetupTypographyAsync(window));
             var limits = VisibleButton("Resource limits…") ?? throw new InvalidOperationException("Missing resource limits in setup.");
             var setup = limits.GetVisualAncestors().OfType<ScrollViewer>().First();
             await ReadyAsync(() => setup.Viewport.Height > 0 && limits.Bounds.Height > 0);
@@ -179,18 +190,18 @@ internal sealed partial class HarnessApp
             if (compactDoubleText)
             {
                 model.Focus(AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "photo.png").Id));
-                wideThemes = await CheckWideTypographyAsync(window, model);
+                await CheckLayoutAsync("wide", async () => { wideThemes = await CheckWideTypographyAsync(window, model); });
                 string themeBefore = ThemeManager.RequestedName;
                 try
                 {
                     foreach (string theme in ThemeManager.Names)
                     {
                         ThemeManager.Apply(theme);
-                        await CheckCompactDoubleTextAsync(window);
+                        await CheckLayoutAsync("compact-" + theme, () => CheckCompactDoubleTextAsync(window));
                     }
                 }
                 finally { ThemeManager.Apply(themeBefore); }
-                cleanupThemes = await CheckDialogTypographyAsync(window);
+                await CheckLayoutAsync("cleanup", async () => { cleanupThemes = await CheckDialogTypographyAsync(window); });
             }
             Click("Clear filter");
             await ReadyAsync(() => !model.PanelFilterApplied);
@@ -273,9 +284,11 @@ internal sealed partial class HarnessApp
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
                 readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
-                standardIndexChoice = true, scratchThemes, resultThemes, wideThemes, cleanupThemes,
+                standardIndexChoice = true, scratchThemes, resultThemes, wideThemes, cleanupThemes, layoutIssues,
                 resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true, compactDoubleText,
                 packageTier = Program.PackageTier, packageFastNtfsReason, warmShell, firstResultMilliseconds, chartFrames, windowTransitions };
+            if (layoutIssues.Count != 0)
+                throw new InvalidOperationException("One or more layout checks failed.");
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
 
@@ -288,7 +301,7 @@ internal sealed partial class HarnessApp
         }
         catch (Exception error)
         {
-            _indexedProbeError = error.ToString();
+            _indexedProbeError = (layoutIssues.Count == 0 ? "" : string.Join("\n", layoutIssues) + "\n") + error;
             try { RenderNativeFrame("folder-exclusions-failure.png"); } catch (Exception) { }
             WriteReport("folder-exclusion-probe-failed");
         }
@@ -386,7 +399,7 @@ internal sealed partial class HarnessApp
                         control.TranslatePoint(default, window) is { } point && point.Y >= -1 && point.X >= -1 &&
                         point.Y + control.Bounds.Height <= window.ClientSize.Height + 1 && point.X + control.Bounds.Width <= window.ClientSize.Width + 1 &&
                         control.GetVisualAncestors().OfType<ScrollViewer>().All(scroll => control.TranslatePoint(default, scroll) is { } relative &&
-                            relative.Y >= -1 && relative.Y + control.Bounds.Height <= scroll.Bounds.Height + 1));
+                            relative.Y >= -1 && relative.Y + control.Bounds.Height <= scroll.Bounds.Height + 1), TimeSpan.FromSeconds(5));
                 }
                 catch (TimeoutException error)
                 {

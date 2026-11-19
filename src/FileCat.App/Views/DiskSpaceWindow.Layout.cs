@@ -7,10 +7,12 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 
 namespace FileCat.App.Views;
@@ -116,12 +118,31 @@ public sealed partial class DiskSpaceWindow
     {
         var viewport = new ScrollViewer { Content = content, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         AutomationProperties.SetName(viewport, name);
-        viewport.GotFocus += (_, _) => Dispatcher.UIThread.Post(() =>
+        bool revealQueued = false;
+        viewport.GotFocus += (_, _) => QueueReveal();
+        viewport.AddHandler(Control.RequestBringIntoViewEvent, (_, args) =>
         {
-            // The inner scroller reveals the command. The outer scroller must reveal the inner viewport too.
-            if (viewport.IsEffectivelyVisible && viewport.IsKeyboardFocusWithin) viewport.BringIntoView();
-        }, DispatcherPriority.Loaded);
+            if (!ReferenceEquals(args.Source, viewport)) QueueReveal();
+        }, RoutingStrategies.Bubble, handledEventsToo: true);
         return viewport;
+
+        void QueueReveal()
+        {
+            if (revealQueued || !viewport.IsKeyboardFocusWithin) return;
+            revealQueued = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (viewport.IsEffectivelyVisible && TopLevel.GetTopLevel(viewport)?.FocusManager?.GetFocusedElement() is Control control &&
+                    viewport.IsVisualAncestorOf(control))
+                {
+                    // A caret request may be handled by the editor's own scroller. Reveal the whole
+                    // focused control here, then reveal this viewport in the outer analysis page.
+                    DialogLayout.RevealVertically(viewport, control);
+                    viewport.BringIntoView();
+                }
+                revealQueued = false;
+            }, DispatcherPriority.Loaded);
+        }
     }
 
     private double ControlsViewportHeight(double height, double summaryHeight) =>

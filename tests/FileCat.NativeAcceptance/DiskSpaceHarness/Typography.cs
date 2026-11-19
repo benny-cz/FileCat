@@ -100,7 +100,7 @@ internal sealed partial class HarnessApp
                 ThemeManager.Apply(theme);
                 window.Width = themes.Count % 2 == 0 ? widthBefore : widthBefore + 70;
                 window.UpdateLayout();
-                await ReadyAsync(() => FullyVisible(window, keep) && keep.IsFocused);
+                await ReadyAsync(() => FullyVisible(window, keep) && keep.IsFocused, TimeSpan.FromSeconds(5));
                 var footer = keep.GetVisualAncestors().OfType<Border>().Single(border => border.Classes.Contains("dialogFooter"));
                 var unavailable = footer.GetVisualDescendants().OfType<Button>().Single(button => !ReferenceEquals(button, keep));
                 if (!keep.IsDefault || !keep.IsCancel || unavailable.IsEnabled || !details.IsExpanded ||
@@ -115,6 +115,8 @@ internal sealed partial class HarnessApp
         }
         finally
         {
+            if (FindAnalysisButton(window, "Cancel / Keep files") is { IsEnabled: true } close)
+                close.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             ThemeManager.Apply(themeBefore);
             window.Width = widthBefore;
             window.FontSize = sizeBefore;
@@ -126,7 +128,7 @@ internal sealed partial class HarnessApp
     {
         if (!control.Focus(NavigationMethod.Tab)) throw new InvalidOperationException($"Cannot focus {label}.");
         control.BringIntoView();
-        try { await ReadyAsync(() => control.IsFocused && FullyVisible(window, control) && Hits(window, control)); }
+        try { await ReadyAsync(() => control.IsFocused && FullyVisible(window, control) && Hits(window, control), TimeSpan.FromSeconds(5)); }
         catch (TimeoutException error)
         {
             RenderNativeFrame("analysis-reading-layout-control-failure.png");
