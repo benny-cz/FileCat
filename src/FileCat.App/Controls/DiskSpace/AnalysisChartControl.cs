@@ -168,7 +168,8 @@ public abstract partial class AnalysisChartControl : Control
                 using (context.PushClip(label))
                 {
                     Text(context, title, label.TopLeft, p.Text, width);
-                    Text(context, CenterAmount(tree), new(label.X, center.Y + 2), p.TextMuted, width);
+                    var amount = Format(CenterAmount(tree), p.TextMuted);
+                    if (amount.Width <= width) context.DrawText(amount, new(label.X, center.Y + 2));
                 }
             }
         }
@@ -198,7 +199,7 @@ public abstract partial class AnalysisChartControl : Control
         if (partial && value == 0 && tree.Metric != AnalysisMetric.Files) return "Unknown";
         string amount = tree.Metric == AnalysisMetric.Files ? value.ToString("N0", CultureInfo.CurrentCulture) + (value == 1 ? " file path" : " file paths")
             : exact ? value.ToString("N0", CultureInfo.CurrentCulture) + (value == 1 ? " byte" : " bytes") : DiskSpaceViewModel.Bytes(value);
-        return partial ? amount + (tree.Metric == AnalysisMetric.Files ? " observed" : " known") : amount;
+        return partial && exact ? amount + (tree.Metric == AnalysisMetric.Files ? " observed" : " known") : amount;
     }
     private AnalysisTreeItem? Item(string key)
     {

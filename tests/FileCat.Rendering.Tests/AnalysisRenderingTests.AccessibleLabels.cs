@@ -24,6 +24,10 @@ public sealed partial class AnalysisRenderingTests
         var tree = model.Tree!;
         Assert.Equal(DiskSpaceViewModel.Bytes(32768), AnalysisChartControl.ScopeAmount(tree, "n:3", exact: false));
         Assert.Equal("Unknown", AnalysisChartControl.ScopeAmount(tree, "n:6", exact: false));
+        Assert.True(tree.Items[AnalysisTree.RootKey].Unknown);
+        Assert.EndsWith(" known", AnalysisChartControl.ScopeAmount(tree, AnalysisTree.RootKey, exact: true));
+        Assert.Equal(DiskSpaceViewModel.Bytes(tree.ScopeValue(AnalysisTree.RootKey)),
+            AnalysisChartControl.ScopeAmount(tree, AnalysisTree.RootKey, exact: false));
         foreach (var chart in new AnalysisChartControl[] { new TreemapControl(), new SunburstControl() })
         {
             chart.SetView(tree, "n:3", null, []);
