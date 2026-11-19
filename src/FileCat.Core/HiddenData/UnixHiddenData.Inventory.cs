@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using FileCat.Core.FileSystem;
@@ -8,38 +9,87 @@ namespace FileCat.Core.HiddenData;
 
 public sealed partial class UnixHiddenData
 {
+    private const int LinuxGetXattrAtNumber = 464, LinuxListXattrAtNumber = 465; // Linux x64 syscall table
+    private const int LinuxNoSys = 38;
+    private static readonly Lazy<bool> LinuxHasXattrAt = new(() =>
+    {
+        // Ask the kernel about an invalid descriptor before inspecting any object. A provider's own error must not
+        // send an inventory through the legacy data-descriptor route.
+        _ = LinuxListXattrAt(LinuxListXattrAtNumber, -1, string.Empty, 0x1000 /* AT_EMPTY_PATH */, null, 0);
+        return Marshal.GetLastPInvokeError() != LinuxNoSys;
+    });
+
     public HiddenInventory ReadInventory(string path, HiddenInventoryRequest request, CancellationToken ct)
     {
         PathUtil.RefuseAmbiguousUnixName(path);
         ct.ThrowIfCancellationRequested();
         if (!IsSupported) return HiddenInventory.Unavailable(path, HiddenInventoryState.Unsupported, "Extended attributes are unsupported on this platform.");
         if (OperatingSystem.IsMacOS()) return MacInventory(path, request, ct);
-        using var file = OpenInventoryFile(path, ct);
-        var stat = UnixFiles.Stat(file) ?? throw new IOException("Held inventory identity is unavailable.");
-        ct.ThrowIfCancellationRequested();
-        var result = CollectInventory(path, (buffer, size) => LinuxFdList(file, buffer, size),
-            name => LinuxFdGet(file, name, null, 0), ct);
+        using var pin = PinInventoryFile(path, ct, out var stat);
+        using var directory = OpenInventoryDescriptorDirectory(path, ct);
+        var (result, source) = CollectLinuxInventory(path, pin, directory, stat, ct);
         return new(path, DateTimeOffset.UtcNow, result.Items,
-            [new(HiddenKind.Attribute, result.State, result.Items.Length, "visible to this user; held inode", result.Reason)], "flistxattr / fgetxattr length queries")
+            [new(HiddenKind.Attribute, result.State, result.Items.Length, "visible to this user; held inode", result.Reason)], source)
         { Identity = stat.Identity, BoundToObject = true, Notice = "No attribute values were read. Namespaces inaccessible to this user may be omitted by the filesystem." };
     }
 
+    private static (InventoryNames Names, string Source) CollectLinuxInventory(string path, SafeFileHandle pin, SafeFileHandle directory,
+        UnixStat original, CancellationToken ct)
+    {
+        string entry = pin.DangerousGetHandle().ToInt32().ToString(CultureInfo.InvariantCulture);
+        if (RuntimeInformation.ProcessArchitecture == Architecture.X64 && LinuxHasXattrAt.Value)
+        {
+            // Resolve only the live pin's procfs magic link, relative to the checked directory. Path-based xattr
+            // syscalls query the inode without opening its data fork. An empty path on O_PATH returns EBADF on older kernels.
+            int fd = directory.DangerousGetHandle().ToInt32();
+            var inventory = CollectInventory(path,
+                (buffer, size) => LinuxListXattrAt(LinuxListXattrAtNumber, fd, entry, 0, buffer, size),
+                name => LinuxGetXattrAtSize(directory, entry, name), ct);
+            return (inventory, "listxattrat / getxattrat length queries on the held inode");
+        }
+
+        using var file = ReopenInventoryFile(path, directory, entry, original, ct);
+        return (CollectInventory(path, (buffer, size) => LinuxFdList(file, buffer, size), name => LinuxFdGet(file, name, null, 0), ct),
+            "flistxattr / fgetxattr length queries on the held inode");
+    }
+
     private static SafeFileHandle OpenInventoryFile(string path, CancellationToken ct)
+    {
+        using var pin = PinInventoryFile(path, ct, out var original);
+        using var directory = OpenInventoryDescriptorDirectory(path, ct);
+        string entry = pin.DangerousGetHandle().ToInt32().ToString(CultureInfo.InvariantCulture);
+        return ReopenInventoryFile(path, directory, entry, original, ct);
+    }
+
+    private static SafeFileHandle PinInventoryFile(string path, CancellationToken ct, out UnixStat original)
     {
         ct.ThrowIfCancellationRequested();
         int noFollow = RuntimeInformation.ProcessArchitecture is Architecture.Arm64 or Architecture.Arm or Architecture.Ppc64le ? 0x8000 : 0x20000;
         int fd = InventoryOpen(path, 0x200000 | 0x80000 | noFollow); // O_PATH | O_CLOEXEC | O_NOFOLLOW
         if (fd < 0) throw Error(path);
-        using var pin = new SafeFileHandle((nint)fd, true);
-        ct.ThrowIfCancellationRequested();
-        var original = UnixFiles.Stat(pin) ?? throw new IOException("Pinned inode metadata is unavailable.");
-        ct.ThrowIfCancellationRequested();
-        if (!original.IsRegular && !original.IsDirectory) throw new NotSupportedException("This inode's attribute inventory is not qualified; no FIFO, device or symlink data descriptor is opened.");
-        // Reopen only the pinned inode through procfs, never the mutable original path. Its type cannot change while
-        // pinned. No content read is issued; fgetxattr needs a real descriptor rather than O_PATH.
-        fd = InventoryOpen("/proc/self/fd/" + fd, 0x80000 | 0x800 | 0x100); // O_RDONLY | O_CLOEXEC | O_NONBLOCK | O_NOCTTY
-        if (fd < 0) throw Error(path);
-        var opened = new SafeFileHandle((nint)fd, true);
+        var pin = new SafeFileHandle(fd, ownsHandle: true);
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+            original = UnixFiles.Stat(pin) ?? throw new IOException("Pinned inode metadata is unavailable.");
+            ct.ThrowIfCancellationRequested();
+            if (!original.IsRegular && !original.IsDirectory)
+                throw new NotSupportedException("Supplementary data is unavailable for this object kind.");
+            return pin;
+        }
+        catch { pin.Dispose(); throw; }
+    }
+
+    private static SafeFileHandle OpenInventoryDescriptorDirectory(string path, CancellationToken ct)
+    {
+        var (directory, error) = LinuxPinnedDescriptors.OpenDirectory(ct);
+        return directory ?? throw InventoryError(path, error);
+    }
+
+    private static SafeFileHandle ReopenInventoryFile(string path, SafeFileHandle directory, string entry, UnixStat original, CancellationToken ct)
+    {
+        var (opened, error) = LinuxPinnedDescriptors.ReopenReadOnly(directory, entry, ct);
+        if (opened is null) throw InventoryError(path, error);
         try
         {
             ct.ThrowIfCancellationRequested();
@@ -50,6 +100,14 @@ public sealed partial class UnixHiddenData
             return opened;
         }
         catch { opened.Dispose(); throw; }
+    }
+
+    private static unsafe nint LinuxGetXattrAtSize(SafeFileHandle directory, string entry, string name)
+    {
+        // struct xattr_args contains a 64-bit value pointer, 32-bit size and 32-bit flags. All zero requests only the length.
+        ulong* arguments = stackalloc ulong[2];
+        arguments[0] = arguments[1] = 0;
+        return LinuxGetXattrAt(LinuxGetXattrAtNumber, directory, entry, 0, name, arguments, 16);
     }
 
     internal sealed record InventoryNames(ImmutableArray<HiddenItem> Items, HiddenInventoryState State, string? Reason);
@@ -148,4 +206,9 @@ public sealed partial class UnixHiddenData
     private static partial nint LinuxFdList(SafeFileHandle file, byte[]? names, nint size);
     [LibraryImport("libc", EntryPoint = "fgetxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial nint LinuxFdGet(SafeFileHandle file, string name, byte[]? value, nint size);
+    [LibraryImport("libc", EntryPoint = "syscall", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial nint LinuxListXattrAt(nint syscall, int directory, string entry, uint flags, byte[]? names, nint size);
+    [LibraryImport("libc", EntryPoint = "syscall", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static unsafe partial nint LinuxGetXattrAt(nint syscall, SafeFileHandle directory, string entry, uint flags,
+        string name, ulong* arguments, nuint argumentSize);
 }

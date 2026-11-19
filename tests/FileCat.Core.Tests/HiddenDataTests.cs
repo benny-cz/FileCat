@@ -12,6 +12,56 @@ public sealed partial class HiddenDataTests
         HiddenDataDecoder.Describe(new HiddenItem(name, kind, value.Length), value).Summary;
 
     [Fact]
+    public void Linux_inventory_uses_the_qualified_kernel_route_and_preserves_permission_outcomes()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
+            "Requires Linux x64 xattr syscalls.");
+        string? route = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_XATTR_INVENTORY");
+        if (route is not ("modern" or "legacy" or "refused")) Assert.Skip("Requires a prepared kernel xattr inventory route.");
+        using var directory = new TempDir();
+        string file = directory.File("attribute.bin");
+        const string name = "user.filecat.fixture";
+        byte[] value = "private attribute value"u8.ToArray();
+        Assert.Equal(0, SetAttribute(file, name, value));
+        var adapter = new UnixHiddenData();
+        var ct = TestContext.Current.CancellationToken;
+        if (route == "refused")
+        {
+            var error = Assert.Throws<IOException>(() => adapter.ReadInventory(file, new(), ct));
+            Assert.Equal(38, error.HResult); // The actual lookup was refused, while the syscall capability probe succeeded.
+            return;
+        }
+
+        var readable = adapter.ReadInventory(file, new(), ct);
+        Assert.True(readable.BoundToObject);
+        Assert.Equal(FileSystem.UnixFiles.Stat(file)?.Identity, readable.Identity);
+        Assert.StartsWith(route == "modern" ? "listxattrat / getxattrat" : "flistxattr / fgetxattr", readable.Source);
+        Assert.True(readable.IsComplete);
+        Assert.False(readable.ValueBearingQueryIssued);
+        Assert.Equal(value.Length, Assert.Single(readable.Items, item => item.Name == name).Size);
+
+        if (OperatingSystem.IsLinux()) File.SetUnixFileMode(file, UnixFileMode.None);
+        try
+        {
+            Assert.Throws<UnauthorizedAccessException>(() => { using var ignored = File.OpenRead(file); });
+            if (route == "legacy")
+            {
+                Assert.Throws<UnauthorizedAccessException>(() => adapter.ReadInventory(file, new(), ct));
+                return;
+            }
+
+            var unreadable = adapter.ReadInventory(file, new(), ct);
+            Assert.True(unreadable.BoundToObject);
+            Assert.Equal(readable.Identity, unreadable.Identity);
+            Assert.Equal(HiddenInventoryState.Partial, Assert.Single(unreadable.Categories).State);
+            Assert.StartsWith("listxattrat / getxattrat", unreadable.Source);
+            Assert.Equal(-1, Assert.Single(unreadable.Items, item => item.Name == name).Size);
+            Assert.False(unreadable.ValueBearingQueryIssued);
+        }
+        finally { if (OperatingSystem.IsLinux()) File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite); }
+    }
+
+    [Fact]
     public void Reviewed_linux_attribute_actions_refuse_a_replacement_inode()
     {
         Assert.SkipUnless(OperatingSystem.IsLinux(), "Requires the Linux descriptor-bound xattr adapter.");
