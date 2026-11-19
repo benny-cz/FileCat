@@ -48,25 +48,49 @@ public sealed class StorageCommandIntegrationTests
     }
     private static Button Primary(MainWindow window, string text) => Assert.Single(window.GetVisualDescendants().OfType<Button>(),
         button => button is not RadioButton && button.Content as string == text);
-    private static Job ResultJob(IReadOnlyList<ItemRef> items)
+    private static Job ResultJob(IReadOnlyList<ItemRef> items, StorageAction action)
     {
-        var job = new Job(new JobRequest { Kind = JobKind.StorageTransform, Sources = items,
-            StorageTransform = new(StorageAction.Compress, StorageScope.SelectedItems, Guid.NewGuid()) }, "Compress", "fixture", [], []);
-        job.SetStorageResult(new(StorageAction.Compress, StorageScope.SelectedItems, job.Request.StorageTransform!.ReviewRevision, new(Changed: 1, Failed: 1))
+        bool efs = action == StorageAction.DecryptEfs;
+        const StorageScope scope = StorageScope.SelectedItems;
+        var revision = Guid.NewGuid();
+        var completed = new StorageObjectIdentity(1, new string('A', 32)) { VolumeBinding = "01234567-89ab-cdef-0123-456789abcdef" };
+        var incomplete = completed with { ObjectId = new string('B', 32) };
+        var before = new StorageObservation(StorageObservationState.Disabled,
+            efs ? StorageObservationState.Enabled : StorageObservationState.Disabled, completed, false, null);
+        var consent = efs ? StorageEfsConsent.Capture(revision, action, scope, [completed, incomplete], new(true)) : null;
+        var request = new JobRequest
         {
-            Roots = [new(0, new(1, "complete-root"), StorageCompleteness.Complete, true),
-                new(1, new(1, "incomplete-root"), StorageCompleteness.Incomplete, false)],
-            Discovery = StorageCompleteness.Incomplete,
+            Kind = JobKind.StorageTransform,
+            Sources = items,
+            StorageTransform = new(action, scope, revision)
+            {
+                Roots = [new(0, 0, before), new(1, 1, before with { Identity = incomplete })],
+                EfsConsent = consent,
+            },
+        };
+        var job = new Job(request, "Storage change", "fixture", [], []);
+        StorageOutcomeCounts counts = efs ? new(Changed: 1, Uncertain: 1) : new(Changed: 1, Failed: 1);
+        job.SetStorageResult(new(action, scope, revision, counts)
+        {
+            Roots = [new(0, completed, StorageCompleteness.Complete, true), new(1, incomplete, StorageCompleteness.Incomplete, false)],
+            Discovery = efs ? StorageCompleteness.UnknownRemainder : StorageCompleteness.Incomplete,
+            Canceled = efs,
+            ReviewPending = efs,
         });
+        job.SetState(efs ? JobState.Canceled : JobState.CompletedWithIssues);
         Assert.Empty(job.CompletedRootIndices); return job;
     }
 
     [AvaloniaTheory]
-    [InlineData("refresh")]
-    [InlineData("marks")]
-    [InlineData("navigation")]
-    [InlineData("closed")]
-    public async Task Completion_only_unmarks_the_captured_selection_when_navigation_and_mark_intent_still_match(string change)
+    [InlineData(StorageAction.Compress, "refresh")]
+    [InlineData(StorageAction.Compress, "marks")]
+    [InlineData(StorageAction.Compress, "navigation")]
+    [InlineData(StorageAction.Compress, "closed")]
+    [InlineData(StorageAction.DecryptEfs, "refresh")]
+    [InlineData(StorageAction.DecryptEfs, "marks")]
+    [InlineData(StorageAction.DecryptEfs, "navigation")]
+    [InlineData(StorageAction.DecryptEfs, "closed")]
+    public async Task Completion_only_unmarks_the_captured_selection_when_navigation_and_mark_intent_still_match(StorageAction action, string change)
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
@@ -75,7 +99,7 @@ public sealed class StorageCommandIntegrationTests
             await Until(() => listing.State == ListingState.Complete && listing.VisibleCount == 3);
             listing.MarkNames(["a.txt", "b.txt"], true);
             var origin = StorageSelectionOrigin.Capture(tab); var captured = MainViewModel.CaptureStorageItems(listing);
-            var job = ResultJob(captured.Items); long revision = listing.MarkRevision;
+            var job = ResultJob(captured.Items, action); long revision = listing.MarkRevision;
             if (change == "refresh")
             {
                 int generation = listing.Generation; tab.Refresh();
