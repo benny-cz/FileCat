@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$TestRoot,
     [Parameter(Mandatory)][string]$NvdaPath,
+    [switch]$HighContrastPictures,
     [switch]$VerifyCanceledKeyBackup,
     [switch]$VerifyCompletedKeyBackup,
     [switch]$VerifySelectedFileBackup
@@ -367,6 +368,11 @@ public static class StorageReviewInput {
     $speechPath = Join-Path $fixture 'nvda.log'
     $script:speechIndex = 0
     New-Item -ItemType Directory -Path $left,$right,$state,$nvdaConfig -Force | Out-Null
+    if ($HighContrastPictures) {
+        [IO.File]::WriteAllText((Join-Path $state 'settings.json'),
+            '{"SchemaVersion":1,"Theme":"HighContrast","ThemeAnimations":false,"RowDensity":"Comfortable","FontSize":24,"ContentFontSize":24}')
+    }
+    $record.HighContrastPictures = [bool]$HighContrastPictures
     [IO.File]::WriteAllText((Join-Path $nvdaConfig 'nvda.ini'), "[general]`r`nshowWelcomeDialogAtStartup = False`r`n[update]`r`nautoCheck = False`r`nstartupNotification = False`r`nallowUsageStats = False`r`naskedAllowUsageStats = True`r`n")
     $file = Join-Path $left 'alpha-review.txt'
     [IO.File]::WriteAllText($file, ('FileCat storage review fixture. ' * 512))
@@ -418,6 +424,14 @@ public static class StorageReviewInput {
     Key @(0x24) $true
     Key @(0x28) $true
     Hear 'focused file' 'alpha-review\.txt'
+    if ($HighContrastPictures) {
+        $record.Stage = 'enter picture view'
+        Show-Command 'Show or hide pictures' 'Pictures: thumbnail grid in this tab.'
+        $focused = $ui::FocusedElement.Current
+        if ($focused.Name -notmatch 'alpha-review\.txt' -and $focused.ClassName -ne 'FileList') {
+            throw 'Opening the picture grid did not return focus to the file pane.'
+        }
+    }
     if ($VerifySelectedFileBackup) {
         Verify-SelectedFileKeyBackup
         $attributes = (Get-Item -LiteralPath $file).Attributes
