@@ -9,6 +9,35 @@ internal sealed unsafe partial class WindowsEfsKeys
     private const string KeyWindowProperty = "HWND Handle";
     private sealed record CngInteraction(nint Owner, Action<Action>? InvokeOwner);
 
+    internal static bool NeedsParentedCngAccess(StorageEfsKeyEvidence key) =>
+        key is { State: StorageEfsKeyState.InteractionRequired, Provider: StorageEfsKeyProvider.Cng,
+            CertificatePresent: true, ProviderAssociationPresent: true };
+
+    internal StorageEfsKeyEvidence AccessReviewedCngKey(StorageEfsAssociationSnapshot association, string certificateSha1,
+        nint ownerWindow, bool explicitlyRequested, CancellationToken ct, Action<Action>? invokeOwner)
+    {
+        ArgumentNullException.ThrowIfNull(association);
+        ValidateRequest(association.InvokerSid, certificateSha1);
+        ct.ThrowIfCancellationRequested();
+        if (!WindowsStorageTransforms.SupportsHost(qualifyNativeArm64))
+            return Evidence(association.InvokerSid, certificateSha1, null, null, StorageEfsKeyState.Unsupported,
+                StorageEfsKeyProvider.Unknown, null, "efs-key-host", "Key provider interaction requires a qualified Windows host.");
+        if (!explicitlyRequested || OwnedWindowThread(ownerWindow) == 0)
+            return Evidence(association.InvokerSid, certificateSha1, null, null, StorageEfsKeyState.InteractionRequired,
+                StorageEfsKeyProvider.Unknown, null, "efs-key-owner", "Request key provider access from a visible FileCat window.");
+
+        string sid = association.InvokerSid;
+        if (association.Users.IsDefaultOrEmpty || association.CurrentUserKeys.IsDefaultOrEmpty ||
+            !association.Users.Any(user => user.Sid == sid && user.CertificateSha1 == certificateSha1) ||
+            !association.CurrentUserKeys.Any(key => key.InvokerSid == sid && key.CertificateSha1 == certificateSha1 &&
+                NeedsParentedCngAccess(key)))
+            return Evidence(sid, certificateSha1, null, null, StorageEfsKeyState.Unknown, StorageEfsKeyProvider.Unknown, null,
+                "efs-key-review", "Choose a key that requires provider access in the current EFS review.");
+
+        return InspectAssociatedCertificate(sid, certificateSha1, ct, useMatchedCertificate: null,
+            interaction: new(ownerWindow, invokeOwner));
+    }
+
     internal static StorageEfsKeyEvidence ProbeParentedCngCertificate(nint certificate, string invokerSid, string certificateSha1,
         nint ownerWindow, bool explicitlyRequested, CancellationToken ct, Action<Action>? invokeOwner = null)
     {

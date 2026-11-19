@@ -56,6 +56,60 @@ public sealed unsafe partial class WindowsEfsKeyTests
         }
     }
 
+    [Fact]
+    public void Reviewed_parented_acquisition_requires_explicit_access_to_the_associated_cng_key()
+    {
+        RequireParentedFixture();
+        using var fixture = KeyFixture.Create(cng: true);
+        using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+        store.Open(OpenFlags.ReadWrite | OpenFlags.OpenExistingOnly);
+        string sid = Sid;
+        string hash = fixture.Certificate.Thumbprint;
+        var pending = new StorageEfsKeyEvidence(sid, hash, true, true, StorageEfsKeyState.InteractionRequired,
+            StorageEfsKeyProvider.Cng, DateTime.UtcNow, null, null);
+        var association = new StorageEfsAssociationSnapshot(new(1, "00000000000000000000000000000001"), sid,
+            [new(sid, hash, null)], [pending]);
+        var service = new WindowsEfsKeys(WindowsStorageAbiTests.QualifyNativeArm64Jobs);
+        nint owner = CreateProviderOwner(0, "STATIC", "FileCat EFS reviewed key qualification", 0x10CF0000,
+            80, 80, 420, 160, 0, 0, 0, 0);
+        Assert.NotEqual(0, owner);
+        try
+        {
+            using var allowance = StorageReviewResources.EnterNative(Ct);
+            var unapproved = service.AccessReviewedCngKey(association, hash, owner, false, Ct, UnexpectedDispatch);
+            Assert.Equal("efs-key-owner", unapproved.Problem?.Code);
+            var otherAssociation = service.AccessReviewedCngKey(association with { Users = [] }, hash, owner, true, Ct, UnexpectedDispatch);
+            Assert.Equal("efs-key-review", otherAssociation.Problem?.Code);
+            var capi = service.AccessReviewedCngKey(association with
+            {
+                CurrentUserKeys = [pending with { Provider = StorageEfsKeyProvider.Capi }],
+            }, hash, owner, true, Ct, UnexpectedDispatch);
+            Assert.Equal("efs-key-review", capi.Problem?.Code);
+            var missing = service.AccessReviewedCngKey(association, hash, owner, true, Ct, UnexpectedDispatch);
+            Assert.False(missing.CertificatePresent);
+
+            store.Add(fixture.Certificate);
+            try
+            {
+                int comparisons = 0;
+                var compared = service.AccessReviewedCngKey(association, hash, owner, true, Ct, callback =>
+                {
+                    comparisons++;
+                    callback();
+                });
+                Assert.Equal(1, comparisons);
+                Assert.Equal(StorageEfsKeyState.MatchedAvailable, compared.State);
+                Assert.Equal(StorageEfsKeyProvider.Cng, compared.Provider);
+                Assert.Equal(sid, compared.InvokerSid);
+                Assert.Equal(hash, compared.CertificateSha1);
+            }
+            finally { store.Remove(fixture.Certificate); }
+        }
+        finally { Assert.True(DestroyProviderOwner(owner)); }
+
+        static void UnexpectedDispatch(Action _) => Assert.Fail("The review did not authorize a provider comparison.");
+    }
+
     private static void RequireParentedFixture()
     {
         NativeFixture();

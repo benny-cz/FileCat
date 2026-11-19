@@ -17,7 +17,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         InspectEfsSetup(invokerSid, scopeConsent, explicitSetupAccepted, ct);
 
     internal StorageEfsSetupResult InspectEfsSetup(string invokerSid, StorageEfsConsent scopeConsent, bool explicitSetupAccepted,
-        CancellationToken ct, Action<string>? createdForQualification = null)
+        CancellationToken ct, Action<string>? createdForQualification = null, bool allowProviderInteraction = false)
     {
         ArgumentNullException.ThrowIfNull(scopeConsent);
         if (!explicitSetupAccepted) throw Refuse("efs-setup-consent", "EFS setup may create or enroll a key only after an explicit setup choice.");
@@ -70,7 +70,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
             createdForQualification?.Invoke(capturedFile);
             ValidateCanary(ct);
             association = WindowsEfsAssociations.Read(apiFile, canaryIdentity, invokerSid, _efsKeys, ValidateCanary, ct);
-            if (!association.HasMatchedCurrentUserKey)
+            if (!association.HasMatchedCurrentUserKey && !(allowProviderInteraction &&
+                association.CurrentUserKeys.Any(WindowsEfsKeys.NeedsParentedCngAccess)))
                 problem = Problem(StorageReasonKind.PermissionOrPolicy, "efs-setup-key-unavailable", "The actual setup file has no freshly matched accessible key for the invoking user. A recovery declaration cannot replace that check.");
         }
         catch (OperationCanceledException)

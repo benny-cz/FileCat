@@ -445,11 +445,14 @@ public static class OperationDialogs
         if (request.Keys.IsDefaultOrEmpty) return new(DecisionAction.CancelJob);
         var body = new StackPanel { Spacing = 8, MinWidth = 460, MaxWidth = 620 };
         body.Children.Add(Text("Windows account " + Formatters.SafeName(request.Invoker) + " (" + request.InvokerSid + ")"));
+        int selectedIndex = 0;
+        for (int i = 0; i < request.Keys.Length; i++)
+            if (request.Keys[i].CertificateSha1 == request.SelectedCertificateSha1) { selectedIndex = i; break; }
         var candidates = new ComboBox
         {
             ItemsSource = request.Keys.Select(key => key.Subject is { Length: > 0 } subject
                 ? Formatters.SafeName(subject) + " · " + key.CertificateSha1 : key.CertificateSha1).ToArray(),
-            SelectedIndex = 0,
+            SelectedIndex = selectedIndex,
         };
         AutomationProperties.SetName(candidates, "Reviewed EFS certificate");
         body.Children.Add(candidates);
@@ -464,15 +467,53 @@ public static class OperationDialogs
         }
 
         nint owner = vm.View.TopLevel?.TryGetPlatformHandle() is { HandleDescriptor: "HWND", Handle: not 0 } hwnd ? hwnd.Handle : 0;
+        StorageEfsRecoveryKeyOption? Selected() =>
+            (uint)candidates.SelectedIndex < (uint)request.Keys.Length ? request.Keys[candidates.SelectedIndex] : null;
+        bool CanAccess() => owner != 0 && Selected() is { RequiresProviderAccess: true };
+        bool CanDeclare() => Selected() is { RequiresProviderAccess: false };
+        bool CanBackUp() => owner != 0 && CanDeclare();
+
         var buttons = new List<DialogButton>();
-        if (owner != 0) buttons.Add(new("Back up EFS key…", DecisionAction.BackUpEfsKey));
-        buttons.Add(new("Use existing recovery", DecisionAction.DeclareEfsRecovery));
+        var access = new DialogButtonPresentation(new("Access EFS key…"));
+        var backup = new DialogButtonPresentation(new("Back up EFS key…"));
+        var declare = new DialogButtonPresentation(new("Use existing recovery"));
+        if (request.Keys.Any(key => key.RequiresProviderAccess))
+        {
+            var accessHint = Text("");
+            AutomationProperties.SetLiveSetting(accessHint, AutomationLiveSetting.Polite);
+            void UpdateAccessHint()
+            {
+                accessHint.Text = Selected() is { RequiresProviderAccess: true }
+                    ? owner != 0 ? "Windows may ask for credentials to access this key. Verify access before choosing how to recover it."
+                        : "Open this review from a visible FileCat window to request access to this key."
+                    : "";
+                accessHint.IsVisible = accessHint.Text.Length != 0;
+                access.Update(access.Snapshot);
+                backup.Update(backup.Snapshot);
+                declare.Update(declare.Snapshot);
+            }
+            candidates.SelectionChanged += (_, _) => UpdateAccessHint();
+            UpdateAccessHint();
+            body.Children.Insert(2, accessHint);
+            if (owner != 0) buttons.Add(new("Access EFS key…", DecisionAction.AccessEfsKey)
+                { IsAvailable = CanAccess, Validate = CanAccess, Presentation = access });
+        }
+        if (owner != 0) buttons.Add(new("Back up EFS key…", DecisionAction.BackUpEfsKey)
+            { IsAvailable = CanBackUp, Validate = CanBackUp, Presentation = backup });
+        buttons.Add(new("Use existing recovery", DecisionAction.DeclareEfsRecovery)
+            { IsAvailable = CanDeclare, Validate = CanDeclare, Presentation = declare });
         buttons.Add(new("Cancel operation", DecisionAction.CancelJob, IsDefault: true, IsCancel: true));
         var answer = await vm.Dialogs.ShowCustomAsync(request.Title, body, buttons, closer: closer);
-        if (answer is not (DecisionAction.DeclareEfsRecovery or DecisionAction.BackUpEfsKey) ||
-            (uint)candidates.SelectedIndex >= (uint)request.Keys.Length)
-            return new(DecisionAction.CancelJob);
-        return new((DecisionAction)answer) { EfsRecovery = new(request.Keys[candidates.SelectedIndex].CertificateSha1, owner) };
+        bool approved = answer switch
+        {
+            DecisionAction.AccessEfsKey => CanAccess(),
+            DecisionAction.BackUpEfsKey => CanBackUp(),
+            DecisionAction.DeclareEfsRecovery => CanDeclare(),
+            _ => false,
+        };
+        return approved && Selected() is { } selected
+            ? new((DecisionAction)answer!) { EfsRecovery = new(selected.CertificateSha1, owner) }
+            : new(DecisionAction.CancelJob);
     }
 
     private static async Task<Decision> ConflictAsync(MainViewModel vm, Job job, ConflictRequest c, DialogCloser closer)

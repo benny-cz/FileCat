@@ -13,8 +13,9 @@ internal sealed unsafe partial class WindowsStorageTransforms
         new EfsJobs(this, recoveryDecision ?? throw new ArgumentNullException(nameof(recoveryDecision)),
             nativeCallReturnedForQualification: nativeCallReturnedForQualification);
 
-    internal IStorageTransforms CreateEfsJobCandidate(WindowsEfsKeys.InvokeBackupWizard? invokeWizard = null) =>
-        new EfsJobs(this, (job, sid, consent, ct) => ReviewEfsRecovery(job, sid, consent, ct, invokeWizard), invokeWizard);
+    internal IStorageTransforms CreateEfsJobCandidate(WindowsEfsKeys.InvokeBackupWizard? invokeWizard = null,
+        Action<Action>? invokeProviderOwner = null) =>
+        new EfsJobs(this, (job, sid, consent, ct) => ReviewEfsRecovery(job, sid, consent, ct, invokeWizard, invokeProviderOwner), invokeWizard);
 
     private sealed class EfsJobs(WindowsStorageTransforms adapter,
         Func<Job, string, StorageEfsConsent, CancellationToken, StorageEfsRecoveryApproval?> recoveryDecision,

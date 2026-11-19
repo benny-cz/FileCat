@@ -319,6 +319,7 @@ public enum DecisionAction
     KeepSource,
     BackUpEfsKey,
     DeclareEfsRecovery,
+    AccessEfsKey,
 }
 
 public sealed record Decision(DecisionAction Action, bool ApplyToAll = false)

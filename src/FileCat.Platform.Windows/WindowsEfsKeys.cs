@@ -28,7 +28,7 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
         InspectAssociatedCertificate(invokerSid, certificateSha1, ct, useMatchedCertificate: null);
 
     private StorageEfsKeyEvidence InspectAssociatedCertificate(string invokerSid, string certificateSha1, CancellationToken ct,
-        Action<nint>? useMatchedCertificate)
+        Action<nint>? useMatchedCertificate, CngInteraction? interaction = null)
     {
         ValidateRequest(invokerSid, certificateSha1);
         ct.ThrowIfCancellationRequested();
@@ -54,7 +54,7 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
                 int error = Marshal.GetLastPInvokeError();
                 return Error(invokerSid, certificateSha1, error == NotFound ? false : null, null, error, "efs-certificate-missing", "The exact file-associated certificate was not found in CurrentUser My.");
             }
-            try { return ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct, useMatchedCertificate); }
+            try { return ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct, useMatchedCertificate, interaction); }
             finally { FreeCertificate(certificate); }
         }
         finally { CloseStore(store, 0); }

@@ -8,7 +8,7 @@ namespace FileCat.Platform.Windows;
 internal sealed unsafe partial class WindowsStorageTransforms
 {
     private StorageEfsRecoveryApproval? ReviewEfsRecovery(Job job, string invokerSid, StorageEfsConsent consent, CancellationToken ct,
-        WindowsEfsKeys.InvokeBackupWizard? invokeWizard)
+        WindowsEfsKeys.InvokeBackupWizard? invokeWizard, Action<Action>? invokeProviderOwner)
     {
         string account;
         using (StorageNativeAllowance.RequireCurrent().ClaimScratch())
@@ -24,25 +24,50 @@ internal sealed unsafe partial class WindowsStorageTransforms
         { ProceedLabel = "Set up EFS…", InitialAction = DecisionAction.CancelJob, OffersApplyToAll = false });
         if (setupDecision.Action != DecisionAction.Proceed || setupDecision.ApplyToAll) return null;
 
-        var setup = InspectEfsSetup(invokerSid, consent, explicitSetupAccepted: true, ct);
+        var setup = InspectEfsSetup(invokerSid, consent, explicitSetupAccepted: true, ct, allowProviderInteraction: invokeProviderOwner is not null);
         ct.ThrowIfCancellationRequested();
         if (setup.Canceled) return null;
         if (setup.Problem is { } failed) throw new StorageInspectionException(failed);
         var association = setup.Association ?? throw Refuse("efs-setup-association", "Windows did not establish the actual setup key association.");
-        var keys = association.CurrentUserKeys.Where(key => key.InvokerSid == invokerSid && key.State == StorageEfsKeyState.MatchedAvailable &&
-            key.CertificatePresent == true && key.ProviderAssociationPresent == true &&
-            association.Users.Any(user => user.Sid == invokerSid && user.CertificateSha1 == key.CertificateSha1))
-            .Select(key => new StorageEfsRecoveryKeyOption(key.CertificateSha1, key.Subject)).ToImmutableArray();
-        if (keys.IsEmpty) throw Refuse("efs-setup-key-unavailable", "The actual setup key could not be matched to an accessible private key for this account.");
-
         string? previous = null;
+        string? selectedCertificate = null;
         while (true)
         {
             ct.ThrowIfCancellationRequested();
-            var decision = job.Ask(new StorageEfsRecoveryDecision(account, invokerSid, keys, previous, setup.CleanupProblem, setup.RetainedSetupPath));
+            var keys = association.CurrentUserKeys.Where(key => key.InvokerSid == invokerSid &&
+                key.CertificatePresent == true && key.ProviderAssociationPresent == true &&
+                association.Users.Any(user => user.Sid == invokerSid && user.CertificateSha1 == key.CertificateSha1) &&
+                (key.State == StorageEfsKeyState.MatchedAvailable ||
+                 (invokeProviderOwner is not null && WindowsEfsKeys.NeedsParentedCngAccess(key))))
+                .Select(key => new StorageEfsRecoveryKeyOption(key.CertificateSha1, key.Subject,
+                    RequiresProviderAccess: key.State == StorageEfsKeyState.InteractionRequired)).ToImmutableArray();
+            if (keys.IsEmpty) throw Refuse("efs-setup-key-unavailable", "The actual setup key could not be matched to an accessible private key for this account.");
+            var decision = job.Ask(new StorageEfsRecoveryDecision(account, invokerSid, keys, previous, setup.CleanupProblem,
+                setup.RetainedSetupPath, selectedCertificate));
             if (decision.Action == DecisionAction.CancelJob) return null;
-            if (decision.ApplyToAll || decision.EfsRecovery is not { } selected || !keys.Any(key => key.CertificateSha1 == selected.CertificateSha1))
+            if (decision.ApplyToAll || decision.EfsRecovery is not { } selected ||
+                keys.FirstOrDefault(key => key.CertificateSha1 == selected.CertificateSha1) is not { } option)
                 throw Refuse("efs-recovery-selection", "Choose a certificate from this job's actual EFS setup association.");
+            ct.ThrowIfCancellationRequested();
+            selectedCertificate = option.CertificateSha1;
+            if (option.RequiresProviderAccess)
+            {
+                if (decision.Action != DecisionAction.AccessEfsKey)
+                    throw Refuse("efs-recovery-access", "Verify access to this EFS key before choosing a recovery arrangement.");
+                var compared = job.RunEfsRecoveryInteraction(() => _efsKeys.AccessReviewedCngKey(association,
+                    selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct, invokeProviderOwner));
+                ct.ThrowIfCancellationRequested();
+                if (compared is { State: StorageEfsKeyState.MatchedAvailable, CertificatePresent: true, ProviderAssociationPresent: true } &&
+                    compared.InvokerSid == invokerSid && compared.CertificateSha1 == selectedCertificate)
+                {
+                    association = association with { CurrentUserKeys = association.CurrentUserKeys.Select(key =>
+                        key.InvokerSid == invokerSid && key.CertificateSha1 == selectedCertificate ? compared : key).ToImmutableArray() };
+                    setup = setup with { Association = association };
+                    previous = null;
+                }
+                else previous = compared.Problem?.Message ?? "Windows could not verify access to this EFS key.";
+                continue;
+            }
             if (decision.Action == DecisionAction.DeclareEfsRecovery)
                 return StorageEfsRecoveryApproval.DeclareArrangement(consent, setup, selected.CertificateSha1, acknowledged: true);
             if (decision.Action != DecisionAction.BackUpEfsKey)

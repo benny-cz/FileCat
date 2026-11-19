@@ -370,7 +370,8 @@ public sealed class AppServices : IDisposable
             throw new PlatformNotSupportedException("NTFS storage review qualification requires a non-elevated Windows 11 process on the selected native architecture.");
         var storage = qualifyNtfsStorage ? new FileCat.Platform.Windows.WindowsStorageTransforms(
             efsSetupBaseDirectory: () => paths.LocalDirectory, qualifyNativeArm64: nativeArm64Storage)
-            .CreateEfsJobCandidate(static show => Avalonia.Threading.Dispatcher.UIThread.Invoke(show)) : null;
+            .CreateEfsJobCandidate(static show => Avalonia.Threading.Dispatcher.UIThread.Invoke(show),
+                invokeProviderOwner: static compare => Avalonia.Threading.Dispatcher.UIThread.Invoke(compare)) : null;
         Current = new AppServices(paths, archiveBackends: archiveBackends, storageTransforms: storage, qualifyNativeArm64Storage: nativeArm64Storage);
         return Current;
     }
