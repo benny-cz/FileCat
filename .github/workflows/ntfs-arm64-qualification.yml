@@ -43,6 +43,10 @@ on:
         description: Compare each listing path after a separate read-only NTFS image mount
         type: boolean
         default: false
+      listing_smb:
+        description: Compare native and managed listing on a mapped and UNC SMB share
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -375,6 +379,13 @@ jobs:
         run: |
           $root = Join-Path $env:RUNNER_TEMP ('filecat-native-listing-remount-' + [guid]::NewGuid().ToString('N'))
           ./eng/validation/Measure-NtfsListingAfterRemount.ps1 -ScratchRoot $root
+      - name: Compare native and managed listing over SMB
+        if: inputs.listing_smb
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP ('filecat-native-listing-smb-' + [guid]::NewGuid().ToString('N'))
+          $binary = 'tests/FileCat.Platform.Windows.Tests/bin/Release/net10.0/FileCat.Platform.Windows.Tests.dll'
+          ./eng/validation/Test-NativeSmbListing.ps1 -TestBinary $binary -EvidenceDirectory $root -Architecture Arm64
       - name: Restore a fixture EFS key under a second account
         if: inputs.recovery
         shell: pwsh
@@ -427,6 +438,9 @@ jobs:
             ${{ runner.temp }}/filecat-native-storage-operations/fixture/data/local/journal/job-storage-*.fcj
             ${{ runner.temp }}/filecat-native-listing-remount-*/mount-samples.json
             ${{ runner.temp }}/filecat-native-listing-remount-*/diskpart.log
+            ${{ runner.temp }}/filecat-native-listing-smb-*/smb-listing.json
+            ${{ runner.temp }}/filecat-native-listing-smb-*/case-sensitivity.txt
+            ${{ runner.temp }}/filecat-native-listing-smb-*/native-listing-smb.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-hex-output.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-copy-output.trx

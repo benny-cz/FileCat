@@ -7,3 +7,9 @@ Windows 11 x64 build 26340 ran the suite at medium integrity (RID 8192). It pass
 - A private Samba 4.19.5 SMB3 fixture on the Ubuntu VM exposed independent case-distinct names, a Unicode name and a directory. Windows native and managed listings agreed on names, kinds, attributes, flags, sizes and timestamps through both a mapped drive and its UNC spelling. Both reported a missing directory with the same failure type. The compression candidate refused the mapped file with the remote-volume reason. The temporary mapping was removed after the run.
 
 The suite also exercised the prior NTFS, FAT32 and exFAT volume controls, recursive access denial, sharing conflicts and native long-name and link-tag tests. Additional provider, removable-device and release gates remain open.
+
+## Windows SMB loopback fixture
+
+Windows 11 x64 build 26340 ran the new read-only share fixture over SMB 3.1.1 at medium integrity. The mapped and UNC routes each yielded four matching entries, including hidden and system attributes, a Unicode filename and an empty folder. The test required the real Win32 find cursor to reach the end of the listing. It also verified missing-directory behavior and matched error 442 (`ERROR_CASE_SENSITIVE_PATH`) with zero published entries for the server's per-directory case-sensitive NTFS subtree.
+
+The fixture creates and removes its own share and temporary drive mapping. The exact run records one executed and passing test in `.tmp/filecat-smb-405dfd78-r1/r6-native-listing-smb.trx` with native test assembly SHA-256 `BEFCC2D2459F76CDC17A01907A56F110C6862701F706176647F5124B861BD990`. The native ARM64 qualification workflow can also run this fixture. A server that exposes case-distinct names over SMB remains a separate ARM64 qualification scope. [Windows temporary drive mapping API](https://learn.microsoft.com/en-us/windows/win32/api/winnetwk/nf-winnetwk-wnetuseconnectionw)

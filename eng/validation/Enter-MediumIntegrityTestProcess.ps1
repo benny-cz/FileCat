@@ -16,15 +16,17 @@ public static class FileCatCiTokenIntegrity
 
     public static int IntegrityRid()
     {
-        if (!OpenProcessToken(GetCurrentProcess(), 0x8, out var token)) throw new InvalidOperationException("OpenProcessToken failed: " + Marshal.GetLastWin32Error());
+        IntPtr token;
+        if (!OpenProcessToken(GetCurrentProcess(), 0x8, out token)) throw new InvalidOperationException("OpenProcessToken failed: " + Marshal.GetLastWin32Error());
         try
         {
-            GetTokenInformation(token, 25, IntPtr.Zero, 0, out var length);
+            int length;
+            GetTokenInformation(token, 25, IntPtr.Zero, 0, out length);
             if (length <= 0 || length > 4096) throw new InvalidOperationException("Invalid token integrity length: " + length);
             var data = Marshal.AllocHGlobal(length);
             try
             {
-                if (!GetTokenInformation(token, 25, data, length, out _)) throw new InvalidOperationException("GetTokenInformation failed: " + Marshal.GetLastWin32Error());
+                if (!GetTokenInformation(token, 25, data, length, out length)) throw new InvalidOperationException("GetTokenInformation failed: " + Marshal.GetLastWin32Error());
                 var sid = new SecurityIdentifier(Marshal.ReadIntPtr(data));
                 return int.Parse(sid.Value.Substring("S-1-16-".Length));
             }
@@ -36,15 +38,17 @@ public static class FileCatCiTokenIntegrity
     // TokenOwner (4): the default owner of every object this token creates.
     public static string OwnerSid()
     {
-        if (!OpenProcessToken(GetCurrentProcess(), 0x8, out var token)) throw new InvalidOperationException("OpenProcessToken failed: " + Marshal.GetLastWin32Error());
+        IntPtr token;
+        if (!OpenProcessToken(GetCurrentProcess(), 0x8, out token)) throw new InvalidOperationException("OpenProcessToken failed: " + Marshal.GetLastWin32Error());
         try
         {
-            GetTokenInformation(token, 4, IntPtr.Zero, 0, out var length);
+            int length;
+            GetTokenInformation(token, 4, IntPtr.Zero, 0, out length);
             if (length <= 0 || length > 4096) throw new InvalidOperationException("Invalid token owner length: " + length);
             var data = Marshal.AllocHGlobal(length);
             try
             {
-                if (!GetTokenInformation(token, 4, data, length, out _)) throw new InvalidOperationException("GetTokenInformation failed: " + Marshal.GetLastWin32Error());
+                if (!GetTokenInformation(token, 4, data, length, out length)) throw new InvalidOperationException("GetTokenInformation failed: " + Marshal.GetLastWin32Error());
                 return new SecurityIdentifier(Marshal.ReadIntPtr(data)).Value;
             }
             finally { Marshal.FreeHGlobal(data); }
@@ -53,7 +57,8 @@ public static class FileCatCiTokenIntegrity
     }
     public static void OwnObjectsAs(string sidValue)
     {
-        if (!OpenProcessToken(GetCurrentProcess(), 0x88, out var token)) throw new InvalidOperationException("OpenProcessToken adjust failed: " + Marshal.GetLastWin32Error());
+        IntPtr token;
+        if (!OpenProcessToken(GetCurrentProcess(), 0x88, out token)) throw new InvalidOperationException("OpenProcessToken adjust failed: " + Marshal.GetLastWin32Error());
         var sid = new SecurityIdentifier(sidValue);
         var bytes = new byte[sid.BinaryLength];
         sid.GetBinaryForm(bytes, 0);
@@ -74,7 +79,8 @@ public static class FileCatCiTokenIntegrity
     }
     public static void LowerToMedium()
     {
-        if (!OpenProcessToken(GetCurrentProcess(), 0x88, out var token)) throw new InvalidOperationException("OpenProcessToken adjust failed: " + Marshal.GetLastWin32Error());
+        IntPtr token;
+        if (!OpenProcessToken(GetCurrentProcess(), 0x88, out token)) throw new InvalidOperationException("OpenProcessToken adjust failed: " + Marshal.GetLastWin32Error());
         var sid = new SecurityIdentifier("S-1-16-8192");
         var bytes = new byte[sid.BinaryLength];
         sid.GetBinaryForm(bytes, 0);

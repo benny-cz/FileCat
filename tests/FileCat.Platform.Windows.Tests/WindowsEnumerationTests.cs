@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 using Microsoft.Win32.SafeHandles;
 using FindData = FileCat.Platform.Windows.WindowsFileSystemProvider.FindData;
 
@@ -267,6 +268,15 @@ public sealed class WindowsEnumerationTests
         string? unc = Environment.GetEnvironmentVariable("FILECAT_ENUM_NATIVE_SMB_ROOT");
         if (string.IsNullOrWhiteSpace(mapped) || string.IsNullOrWhiteSpace(unc))
             Assert.Skip("Set FILECAT_ENUM_MAPPED_SMB_ROOT and FILECAT_ENUM_NATIVE_SMB_ROOT to the same prepared SMB fixture folder.");
+        if (Environment.GetEnvironmentVariable("FILECAT_ENUM_SMB_ARCHITECTURE") is { Length: > 0 } architecture)
+        {
+            Assert.Equal(architecture, RuntimeInformation.ProcessArchitecture.ToString());
+            Assert.Equal(architecture, RuntimeInformation.OSArchitecture.ToString());
+            Assert.False(WindowsTokenAuthority.IsHighIntegrity);
+        }
+        Assert.Equal(DriveType.Network, new DriveInfo(Path.GetPathRoot(mapped)!).DriveType);
+        Assert.StartsWith(@"\\", unc, StringComparison.Ordinal);
+        bool windowsServer = Environment.GetEnvironmentVariable("FILECAT_ENUM_SMB_WINDOWS_SERVER") == "1";
         var ct = TestContext.Current.CancellationToken;
         var nativeProvider = new WindowsFileSystemProvider { UseNativeEnumeration = true };
         var managedProvider = new WindowsFileSystemProvider();
@@ -274,10 +284,12 @@ public sealed class WindowsEnumerationTests
         {
             var location = Location.FileSystem(root);
             var native = new Sink(); var managed = new Sink();
+            var actualApi = new ObservedFindApi();
             await managedProvider.EnumerateAsync(location, managed, ct);
-            await nativeProvider.EnumerateAsync(location, native, ct);
+            await nativeProvider.EnumerateWithFindApi(location, native, ct, actualApi);
+            Assert.True(actualApi.Completed, "The SMB comparison must complete a real Win32 find cursor.");
             Assert.Contains("Case.txt", native.Entries.Keys);
-            Assert.Contains("case.txt", native.Entries.Keys);
+            if (!windowsServer) Assert.Contains("case.txt", native.Entries.Keys);
             Assert.Contains("Unicode 名前.bin", native.Entries.Keys);
             Assert.Equal(EntryKind.Directory, native.Entries["owned-folder"].Kind);
             Assert.Equal(managed.Entries.Keys.Order(StringComparer.Ordinal), native.Entries.Keys.Order(StringComparer.Ordinal));
@@ -292,9 +304,45 @@ public sealed class WindowsEnumerationTests
                 Assert.Equal(entry.Created, got.Created);
             }
 
+            var empty = Location.FileSystem(Path.Join(root, "owned-folder"));
+            var nativeEmpty = new Sink(); var managedEmpty = new Sink();
+            await managedProvider.EnumerateAsync(empty, managedEmpty, ct);
+            await nativeProvider.EnumerateAsync(empty, nativeEmpty, ct);
+            Assert.Empty(managedEmpty.Entries);
+            Assert.Empty(nativeEmpty.Entries);
+
             var missing = Location.FileSystem(Path.Join(root, "fixture-directory-does-not-exist"));
             await Assert.ThrowsAsync<DirectoryNotFoundException>(() => managedProvider.EnumerateAsync(missing, new Sink(), ct));
             await Assert.ThrowsAsync<DirectoryNotFoundException>(() => nativeProvider.EnumerateAsync(missing, new Sink(), ct));
+            if (windowsServer)
+            {
+                const int caseSensitivePath = 442; // ERROR_CASE_SENSITIVE_PATH
+                var sensitive = Location.FileSystem(Path.Join(root, "case-distinct"));
+                var managedRefusal = new Sink(); var nativeRefusal = new Sink();
+                var managedError = await Assert.ThrowsAsync<IOException>(() => managedProvider.EnumerateAsync(sensitive, managedRefusal, ct));
+                var nativeError = await Assert.ThrowsAsync<IOException>(() => nativeProvider.EnumerateAsync(sensitive, nativeRefusal, ct));
+                Assert.Equal(caseSensitivePath, managedError.HResult & 0xFFFF);
+                Assert.Equal(caseSensitivePath, nativeError.HResult);
+                Assert.Empty(managedRefusal.Entries);
+                Assert.Empty(nativeRefusal.Entries);
+            }
+            TestContext.Current.TestOutputHelper?.WriteLine($"SMB listing {root}: {native.Entries.Count} entries, Win32 cursor completed.");
+        }
+    }
+
+    private sealed unsafe class ObservedFindApi : WindowsFileSystemProvider.IFindApi
+    {
+        private readonly WindowsFileSystemProvider.Win32FindApi _api = new();
+        internal bool Completed { get; private set; }
+
+        public SafeHandle Open(string pattern, bool largeFetch, FindData* data, out int error) =>
+            _api.Open(pattern, largeFetch, data, out error);
+
+        public bool Advance(SafeHandle cursor, FindData* data, out int error)
+        {
+            bool advanced = _api.Advance(cursor, data, out error);
+            if (!advanced && error == 18) Completed = true;
+            return advanced;
         }
     }
 

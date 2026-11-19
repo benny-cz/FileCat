@@ -101,7 +101,7 @@ public sealed unsafe partial class WindowsFileSystemProvider
         bool Advance(SafeHandle cursor, FindData* data, out int error);
     }
 
-    private readonly struct Win32FindApi : IFindApi
+    internal readonly struct Win32FindApi : IFindApi
     {
         public SafeHandle Open(string pattern, bool largeFetch, FindData* data, out int error)
         {
