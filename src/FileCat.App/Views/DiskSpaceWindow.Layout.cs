@@ -122,7 +122,8 @@ public sealed partial class DiskSpaceWindow
         viewport.GotFocus += (_, _) => QueueReveal();
         viewport.AddHandler(Control.RequestBringIntoViewEvent, (_, args) =>
         {
-            if (!ReferenceEquals(args.Source, viewport)) QueueReveal();
+            if (args.Source is Visual source && TopLevel.GetTopLevel(viewport)?.FocusManager?.GetFocusedElement() is Visual focused &&
+                (ReferenceEquals(source, focused) || focused.IsVisualAncestorOf(source))) QueueReveal();
         }, RoutingStrategies.Bubble, handledEventsToo: true);
         return viewport;
 
