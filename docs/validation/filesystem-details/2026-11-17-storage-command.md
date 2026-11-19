@@ -58,3 +58,9 @@ All ten cases executed and passed on native Windows 11 Enterprise ARM64, build 2
 The App regression opens the compression review for two same-name workspace results, expands **Selected items (2)** and verifies that the named read-only textbox includes both original paths. Navigating the origin tab after the review became actionable preserved the displayed paths and the reviewed pins. Cancel released both pins without submitting a job.
 
 The expanded App selection passed 42 cases on the Windows x64 VM and 30 on Apple silicon, with 12 Windows-specific skips on the Mac. The Windows TRX SHA-256 is `180380DF2915692BC6AF6EE0119C70BAA565198479AD7191C4A0D1EDA2B5B615`. The Apple silicon TRX SHA-256 is `607EC8F9CFDEDDAEAA927CD9F195FFF99F4E0D7DF2E3D64AB9B8D64874D7916F`.
+
+### Recursive refresh across open tabs
+
+Windows 11 x64 build 26340 ran the actual Compress and Decrypt jobs through the 640 × 420 DIP headless App fixture. Each reviewed a folder and its existing contents. The selected folder, nested folder and file changed in each job. The source's parent tab and two open descendant tabs refreshed in place. A sibling with a similar name retained its listing generation and mark. The nested tab kept its mark, while the completed mark in the originating selection cleared. Navigation generations and the active tab matched the initial view.
+
+Both native cases executed and passed with zero skips. The App test binary SHA-256 is `C10CC45DDBEBE780FBA779E4102B5CA8203605443FA6838308E0A53BE6769E3E`. Under `.tmp/filecat-efs-live-166b6897-r1/storage-recursive-refresh-7c127fe7`, the Windows `attached-tabs-r2.trx` has SHA-256 `2F37BF394CADE17CD0BB4F87F101AAA7604FB923F5BB2C3FB382ABF35BEF3096`. The 66 focused shared App command, dialog, focus and Operations cases passed on Apple silicon. The Mac TRX SHA-256 is `327A849815B84BC760C549BEC74E7A2FF61A768BA606A8432E821C1E03C86DCB`.

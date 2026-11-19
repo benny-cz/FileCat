@@ -44,9 +44,9 @@ public sealed class StorageCommandNativeTests
         Dispatcher.UIThread.RunJobs();
     }
 
-    private static void AcceptDecryption(Window window)
+    private static void AcceptDecryption(Window window, string lossConsent = "I understand the selected files will lose EFS protection")
     {
-        foreach (string prefix in new[] { "I accept this concurrent link-change limitation", "I understand the selected files will lose EFS protection" })
+        foreach (string prefix in new[] { "I accept this concurrent link-change limitation", lossConsent })
             window.GetVisualDescendants().OfType<CheckBox>().Single(control => control.IsVisible &&
                 AutomationProperties.GetName(control)?.StartsWith(prefix, StringComparison.Ordinal) == true).IsChecked = true;
     }
@@ -236,6 +236,79 @@ public sealed class StorageCommandNativeTests
             Assert.Equal(!efs, File.GetAttributes(b).HasFlag(attribute));
             await Until(() => listing.Generation != reviewedGeneration && !listing.IsRefreshing && listing.State == ListingState.Complete);
             Assert.Equal(change == "refresh" ? 0 : change == "marks" ? 2 : 1, listing.MarkedCount);
+        }
+        finally { ((OverlayDialogService)vm.Dialogs).CancelAll(); AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(StorageAction.Compress)]
+    [InlineData(StorageAction.DecryptEfs)]
+    public async Task Recursive_storage_refresh_updates_parent_and_descendant_tabs_and_preserves_other_marks(StorageAction action)
+    {
+        bool efs = action == StorageAction.DecryptEfs;
+        bool arm64 = RequireNativeCommandFixture(efs);
+        var platform = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420,
+            storageTransforms: efs ? platform.CreateEfsJobCandidate() : platform, qualifyNativeArm64Storage: arm64,
+            prepareFiles: folder =>
+            {
+                string branch = Directory.CreateDirectory(Path.Join(folder, "branch")).FullName;
+                string nested = Directory.CreateDirectory(Path.Join(branch, "nested")).FullName;
+                string unrelated = Directory.CreateDirectory(Path.Join(folder, "branch-other")).FullName;
+                string content = Path.Join(nested, "content.txt");
+                File.WriteAllText(content, "scoped file");
+                File.WriteAllText(Path.Join(unrelated, "other.txt"), "unrelated file");
+                if (efs) foreach (string path in new[] { branch, nested, content }) File.Encrypt(path);
+            });
+        try
+        {
+            var origin = vm.ActiveTab!;
+            string parent = origin.Location!.Path;
+            string branch = Path.Join(parent, "branch"), nested = Path.Join(branch, "nested");
+            string unrelated = Path.Join(parent, "branch-other");
+            var branchTab = origin.Panel.OpenTab(Location.FileSystem(branch), activate: false);
+            var nestedTab = origin.Panel.OpenTab(Location.FileSystem(nested), activate: false);
+            var unrelatedTab = origin.Panel.OpenTab(Location.FileSystem(unrelated), activate: false);
+            var tabs = new[] { origin, branchTab, nestedTab, unrelatedTab };
+            await Until(() => tabs.All(tab => tab.Listing.State == ListingState.Complete));
+            origin.Listing.MarkNames(["branch"], true);
+            nestedTab.Listing.MarkNames(["content.txt"], true);
+            unrelatedTab.Listing.MarkNames(["other.txt"], true);
+            Assert.All(new[] { origin, nestedTab, unrelatedTab }, tab => Assert.Equal(1, tab.Listing.MarkedCount));
+            var generations = tabs.Select(tab => tab.Listing.Generation).ToArray();
+            var navigation = tabs.Select(tab => tab.NavigationGeneration).ToArray();
+
+            string label = efs ? "Decrypt" : "Compress";
+            vm.Execute(efs ? CommandIds.EfsProtection : CommandIds.StorageAttributes);
+            IEnumerable<RadioButton> Options(string name) => window.GetVisualDescendants().OfType<RadioButton>()
+                .Where(button => AutomationProperties.GetName(button) == name);
+            await Until(() => Options(label).Any());
+            Assert.Single(Options(label)).IsChecked = true;
+            Assert.Single(Options("Selected folders and their existing contents")).IsChecked = true;
+            if (efs) AcceptDecryption(window, "I understand this removes folder encryption defaults and EFS protection");
+            var primary = window.GetVisualDescendants().OfType<Button>()
+                .Single(button => button is not RadioButton && button.Content as string == label);
+            await Until(() => primary.IsEnabled);
+            primary.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Until(() => services.Jobs.Jobs.Count == 1 && services.Jobs.Jobs[0].State.IsFinished() &&
+                vm.CurrentNotification?.Message.Contains("changed", StringComparison.OrdinalIgnoreCase) == true);
+            var job = Assert.Single(services.Jobs.Jobs);
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.Equal(StorageScope.ExistingDescendants, job.Request.StorageTransform!.Scope);
+            Assert.Equal(3, job.StorageResult!.Counts.Changed);
+            await Until(() => tabs.Take(3).Select((tab, index) => tab.Listing.Generation > generations[index] &&
+                !tab.Listing.IsRefreshing && tab.Listing.State == ListingState.Complete).All(ready => ready));
+            Assert.Equal(generations[3], unrelatedTab.Listing.Generation);
+            Assert.Equal(navigation, tabs.Select(tab => tab.NavigationGeneration));
+            Assert.Same(origin, vm.ActiveTab);
+            Assert.Equal(0, origin.Listing.MarkedCount);
+            Assert.Equal("content.txt", Assert.Single(nestedTab.Listing.GetSelection()).Name);
+            Assert.Equal("other.txt", Assert.Single(unrelatedTab.Listing.GetSelection()).Name);
+
+            var attribute = efs ? FileAttributes.Encrypted : FileAttributes.Compressed;
+            Assert.All(new[] { branch, nested, Path.Join(nested, "content.txt") },
+                path => Assert.Equal(!efs, File.GetAttributes(path).HasFlag(attribute)));
+            Assert.False(File.GetAttributes(Path.Join(unrelated, "other.txt")).HasFlag(attribute));
         }
         finally { ((OverlayDialogService)vm.Dialogs).CancelAll(); AccessibilityTests.Close(services, window, root); }
     }

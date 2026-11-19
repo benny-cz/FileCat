@@ -20,6 +20,8 @@ A second standard account could read the clear ACL control. Windows denied its r
 
 The two exact cases executed with zero skips at source commit `3ce157dc7`. The SHA-256 of `managed-owner.xml` is `4A841C555468987B4426AAF40F215AED3B023C0B147FF41065D4D6FAA4121311`. The SHA-256 of `managed-agent.xml` is `B1FCBE9C07C84E1AFB08C0F6CF7E3B2537761D687F40516196A2123CDF480CFC`. [Native ARM64 run and receipts](https://github.com/benny-cz/FileCat/actions/runs/44632813934)
 
+The combined native ARM64 run at `24bf9ed11` repeated both cases with one pass and zero skips each. It also retained the independent Windows recovery-agent query in `managed-cipher.log`, SHA-256 `C37CA98143BDD4794B6CF73E9BABAC6D6C7E314BFB13323136FB766175CCF1DB`. [Combined ARM64 qualification receipts](https://github.com/benny-cz/FileCat/actions/runs/44638561490)
+
 ## Windows x64 managed recovery policy
 
 The disposable Windows 11 x64 VM on build 26340 ran the same two cases twice through `Test-NativeEfsRecovery.ps1 -Managed -DisposableX64Vm`. Both rounds used fresh standard owner and recovery accounts. FileCat matched the owner's distinct EFS key and recorded that key after Encrypt. Windows attached the policy recovery agent. The second account could read the ordinary ACL control and could only read the encrypted file after importing that agent's private key. FileCat's Decrypt retained the file identity and both exact stream payloads. A separate read after each run verified absence of the fixture's effective EFS policy, public recovery certificate and temporary PFX.
