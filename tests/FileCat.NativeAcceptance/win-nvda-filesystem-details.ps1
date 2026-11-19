@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$NvdaPath,
     [Parameter(Mandatory)][string]$ReportPath,
-    [switch]$NarrowHighContrast
+    [switch]$NarrowHighContrast,
+    [switch]$PictureView
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,7 +41,7 @@ if ($session -eq 0 -or (Get-CimInstance Win32_ComputerSystem).Manufacturer -notm
     !$appPath.StartsWith($root, [StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($appPath) -ine 'FileCat.exe' -or
     !$nvdaPath.StartsWith($root, [StringComparison]::OrdinalIgnoreCase) -or (Get-AuthenticodeSignature -LiteralPath $nvdaPath).Status -ne 'Valid' -or
     !$report.StartsWith($root, [StringComparison]::OrdinalIgnoreCase) -or (Test-Path -LiteralPath $report) -or
-    (Get-Process FileCat,nvda -ErrorAction SilentlyContinue | Where-Object SessionId -eq $session)) {
+    (Get-Process dotnet,testhost,FileCat,FileCat.ShellHost,FileCat.*QualificationHost,nvda -ErrorAction SilentlyContinue)) {
     throw 'Use an idle interactive VMware guest, an owned FileCat build and signed NVDA below FileCatValidation, and a fresh receipt path.'
 }
 
@@ -137,6 +138,7 @@ $result = [ordered]@{
     AppDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $appPath) 'FileCat.dll')).Hash
     NvdaVersion = (Get-Item -LiteralPath $nvdaPath).VersionInfo.ProductVersion
     NarrowHighContrast = [bool]$NarrowHighContrast
+    PictureView = [bool]$PictureView
     Fixture = Split-Path $fixture -Leaf; Steps = @(); Error = $null
 }
 try {
@@ -164,6 +166,24 @@ try {
     [void](Take-Speech)
     Send-Key $main @(0x28) $true
     Hear 'the focused file' 'alpha-details\.txt'
+    if ($PictureView) {
+        $result.Stage = 'switch to picture view'
+        Add-Type -AssemblyName System.Windows.Forms
+        Send-Key $main @(0x11, 0x10, 0x50)
+        Await {
+            $focus = $ui::FocusedElement.Current
+            $focus.ProcessId -eq $application.Id -and $focus.Name -eq 'Search commands' -and
+                [DetailsNativeInput]::GetForegroundWindow() -eq [IntPtr]$main.Current.NativeWindowHandle
+        } 'FileCat command search' | Out-Null
+        [System.Windows.Forms.SendKeys]::SendWait('Show or hide pictures')
+        Send-Key $main @(0x0D)
+        Await {
+            $main.FindAll($scope::Descendants, $all) | Where-Object {
+                $_.Current.ClassName -eq 'FileList' -and $_.Current.Name -like 'Panel 1, source, pictures grid,*' -and
+                    ($_.FindAll($scope::Children, $all) | Where-Object { $_.Current.Name -eq 'alpha-details.txt' })
+            } | Select-Object -First 1
+        } 'the same file in the picture grid' | Out-Null
+    }
     [void](Take-Speech)
     Send-Key $main @(0x11, 0x12, 0x0D)
     $details = Await { OwnedDetails } 'file-system details window'
@@ -208,7 +228,8 @@ try {
     [void](Take-Speech)
     Send-Key $details @(0x1B)
     Await { !(OwnedDetails) } 'the details window to close' | Out-Null
-    Hear 'focus returning to the same file' 'alpha-details\.txt'
+    $returnedSpeech = if ($PictureView) { 'pictures grid.*alpha-details\.txt' } else { 'alpha-details\.txt' }
+    Hear 'focus returning to the same file' $returnedSpeech
     if ((Get-FileHash -LiteralPath $file).Hash -ne $beforeHash -or
         (Get-Content -LiteralPath $file -Stream 'filecat-test' -Raw) -ne $alternate) { throw 'A fixture changed during inspection.' }
     $result.Passed = $true

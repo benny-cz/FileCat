@@ -294,6 +294,7 @@ public sealed partial class WindowsSparseTransformTests
         string root = Directory.CreateTempSubdirectory("filecat-large-sparse-removal-").FullName;
         string path = Path.Join(root, "large.bin");
         var ct = TestContext.Current.CancellationToken;
+        bool measureExtents = Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_EXTENTS") == "1";
         try
         {
             WriteStream(path, sparse: true, holes: true, allHole: false, seed: 57);
@@ -312,6 +313,7 @@ public sealed partial class WindowsSparseTransformTests
                 Assert.Equal(largeLength, before.Length);
                 Assert.Equal(WindowsCompression.Lznt1, WindowsCompression.Query(data).Native);
                 Assert.InRange(before.Allocation, 1, Length);
+                if (measureExtents) WriteRetrievalMap("Before removal", data, ct);
             }
             StreamObservation namedBefore;
             using (var named = File.OpenRead(path + NamedStream)) namedBefore = ObserveStream(named);
@@ -324,6 +326,7 @@ public sealed partial class WindowsSparseTransformTests
             TestContext.Current.TestOutputHelper?.WriteLine($"After removal: EOF {observed?.Length}, allocation {observed?.Allocation}, " +
                 $"{File.GetAttributes(result)}, format {WindowsCompression.Query(result).Native}, " +
                 string.Join(", ", observed?.Ranges ?? []));
+            if (measureExtents) WriteRetrievalMap("After removal", result, ct);
             Assert.True(job.State == JobState.Completed, $"{job.State}: " + string.Join(", ",
                 job.StorageResult!.Reasons.Select(reason => reason.Problem.Message)));
             Assert.Equal(1, job.StorageResult!.Counts.Changed);
@@ -642,6 +645,23 @@ public sealed partial class WindowsSparseTransformTests
         TestContext.Current.TestOutputHelper!.WriteLine(
             $"  {name} eof={observation.Length} allocation={observation.Allocation} attributes={observation.Attributes} compression={observation.Compression} " +
             $"ranges={string.Join(",", observation.Ranges.Select(r => $"{r.Offset}+{r.Length}"))} sha256={observation.Digest}");
+
+    private static unsafe void WriteRetrievalMap(string phase, SafeFileHandle file, CancellationToken ct)
+    {
+        const uint getRetrievalPointers = 0x00090073;
+        var map = WindowsFileRecords.ReadRetrievalPointers((long cursor, byte[] output) =>
+        {
+            fixed (byte* buffer = output)
+            {
+                bool success = Control(file, getRetrievalPointers, &cursor, sizeof(long), buffer,
+                    (uint)output.Length, out uint returned, 0);
+                return (success ? 0 : Marshal.GetLastPInvokeError(), (int)returned);
+            }
+        }, ct);
+        string records = string.Join(", ", map.Value!.Select(run =>
+            $"{run.Vcn}+{run.Length} {(run.Lcn < 0 ? "unallocated or compressed" : "allocated")}"));
+        TestContext.Current.TestOutputHelper?.WriteLine($"{phase} retrieval map: {map.State}, {records} {map.Reason}".TrimEnd());
+    }
 
     private static Observation Observe(string path)
     {
