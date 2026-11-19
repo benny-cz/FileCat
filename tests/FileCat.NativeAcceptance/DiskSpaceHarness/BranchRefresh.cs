@@ -132,7 +132,8 @@ internal sealed partial class HarnessApp
         Button? Button(string name) => _window!.GetVisualDescendants().OfType<Button>()
             .SingleOrDefault(button => button.IsEffectivelyVisible && Equals(button.Content, name));
         T? Control<T>(string name) where T : Avalonia.Controls.Control => _window!.GetVisualDescendants().OfType<T>()
-            .SingleOrDefault(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == name);
+            .SingleOrDefault(control => control.IsEffectivelyVisible &&
+                (AutomationProperties.GetName(control) == name || AutomationProperties.GetAutomationId(control) == name));
         async Task CheckSavedPreviewAsync()
         {
             await ReadyAsync(() => Control<ListBox>("Captured recipe candidates")?.ItemCount == 1);

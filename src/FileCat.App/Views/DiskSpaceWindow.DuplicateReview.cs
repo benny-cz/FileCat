@@ -56,7 +56,7 @@ public sealed partial class DiskSpaceWindow
         var navigation = new WrapPanel { IsVisible = captured.Length > pageSize, ItemSpacing = 8, Children = { previous, next } };
         var inspect = new Button { Content = "Inspect recorded path", IsEnabled = false };
         var detail = Text("");
-        AutomationProperties.SetName(detail, "Duplicate candidate recorded path");
+        AutomationProperties.SetAutomationId(detail, "Duplicate candidate recorded path");
         AutomationProperties.SetLiveSetting(detail, AutomationLiveSetting.Polite);
         var body = new StackPanel { Spacing = 8, Children = { header, observation, reads, unknown, rule, availability, page, list, navigation, inspect, detail } };
         if (estimate.Coverage != NamespaceCoverage.CompleteUnderPolicy)

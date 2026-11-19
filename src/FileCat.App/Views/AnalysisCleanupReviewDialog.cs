@@ -80,7 +80,7 @@ public sealed partial class DiskSpaceWindow
             var measuredDetails = ReadingLabel("Secondary");
             measuredDetails.IsVisible = false;
             AutomationProperties.SetLiveSetting(selectionTotals, AutomationLiveSetting.Polite);
-            AutomationProperties.SetName(selectionTotals, "Recorded cleanup selection totals");
+            AutomationProperties.SetAutomationId(selectionTotals, "Recorded cleanup selection totals");
             var allocationDetails = ReadingLabel("Secondary");
             var list = new ListBox { MaxHeight = 248, ItemTemplate = DialogLayout.WrappingListText };
             ScrollViewer.SetHorizontalScrollBarVisibility(list, ScrollBarVisibility.Disabled);
@@ -91,7 +91,7 @@ public sealed partial class DiskSpaceWindow
             var navigation = new WrapPanel { ItemSpacing = 8, LineSpacing = 6, Children = { previous, next, inspect } };
             previous.IsVisible = next.IsVisible = ids.Length > PageSize;
             var details = Text("", live: true);
-            AutomationProperties.SetName(details, "Recorded cleanup entry details");
+            AutomationProperties.SetAutomationId(details, "Recorded cleanup entry details");
             var technical = new Expander
             {
                 Header = "Measurement and entry details",

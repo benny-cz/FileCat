@@ -24,7 +24,7 @@ public sealed partial class DiskSpaceWindow
         var selected = plan.Items.Select(item => item.Target.PathId).ToImmutableHashSet();
         var reviewScope = plan.Select(selected);
         var summary = DuplicateText("");
-        AutomationProperties.SetName(summary, "Approved primary-content read scope");
+        AutomationProperties.SetAutomationId(summary, "Approved primary-content read scope");
         AutomationProperties.SetLiveSetting(summary, AutomationLiveSetting.Polite);
         var list = DuplicateList("Eligible primary-content reads");
         var details = DuplicateDetails("Exact reviewed content path");

@@ -163,7 +163,7 @@ internal static class AnalysisRecipeDialog
             AutomationProperties.SetName(rows, "Captured recipe candidates");
             body.Children.Add(rows);
             var details = Text("");
-            AutomationProperties.SetName(details, "Recorded candidate evidence");
+            AutomationProperties.SetAutomationId(details, "Recorded candidate evidence");
             AutomationProperties.SetLiveSetting(details, AutomationLiveSetting.Polite);
             var inspect = new Button { Content = "Inspect recorded candidate", IsEnabled = false };
             rows.SelectionChanged += (_, _) =>
