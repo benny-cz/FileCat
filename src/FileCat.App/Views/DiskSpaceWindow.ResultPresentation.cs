@@ -3,8 +3,6 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Data;
-using Avalonia.Data.Converters;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -21,6 +19,7 @@ public sealed partial class DiskSpaceWindow
     private static TextBlock ReadingLabel(string role = "Text", FontWeight weight = FontWeight.Normal) => new()
     {
         TextWrapping = TextWrapping.Wrap,
+        LineSpacing = 2,
         FontWeight = weight,
         [!TextBlock.ForegroundProperty] = new DynamicResourceExtension("FcAnalysis" + role)
     };
@@ -70,11 +69,15 @@ public sealed partial class DiskSpaceWindow
     private static TextBlock MeasureLabel()
     {
         var label = ReadingLabel("Text", FontWeight.Bold);
-        label.Bind(TextBlock.FontSizeProperty, new Binding(nameof(FontSize))
-        {
-            RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor) { AncestorType = typeof(Window) },
-            Converter = new FuncValueConverter<double, double>(size => size + 3)
-        });
+        label.Bind(TextBlock.FontSizeProperty, ReadingFont(4));
+        return label;
+    }
+
+    private static TextBlock SectionLabel(string text)
+    {
+        var label = ReadingLabel("Accent", FontWeight.SemiBold);
+        label.Text = text;
+        label.Bind(TextBlock.FontSizeProperty, ReadingFont(2));
         return label;
     }
 

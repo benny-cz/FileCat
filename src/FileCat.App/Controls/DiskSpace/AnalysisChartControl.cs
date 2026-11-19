@@ -103,7 +103,7 @@ public abstract partial class AnalysisChartControl : Control
             _drawingStyles.Clear();
         }
         context.FillRectangle(new SolidColorBrush(AnalysisChartPalette.Panel(p)), new Rect(Bounds.Size));
-        if (_view is null) { Text(context, "Start an analysis to explore its measured storage.", new(16, 20), p.TextMuted); return; }
+        if (_view is null) { Text(context, "Start an analysis to explore its measured storage.", new(16, 20), p.TextMuted, Bounds.Width - 32); return; }
         var tree = _view.Tree;
         string family = p.FontFamily ?? FontFamily.Default.Name;
         double fontSize = GetValue(Avalonia.Controls.Documents.TextElement.FontSizeProperty);
@@ -143,18 +143,22 @@ public abstract partial class AnalysisChartControl : Control
             var style = Style(AnalysisChartColors.Category(tree, item, _view.Color).Key, outline,
                 item.Synthetic || item.IdentityUnverified > 0, p);
             DrawPart(context, part, style.Fill, style.Border);
-            if (this is TreemapControl && part.Bounds.Width > 72 && part.Bounds.Height >= _labelLineHeight + 10)
+            if (this is TreemapControl && part.Bounds.Width > Math.Max(72, 4 * _layoutFontSize) && part.Bounds.Height >= _labelLineHeight + 10)
             {
                 var label = new Rect(part.Bounds.Position, new Size(part.Bounds.Width, Math.Min(part.Bounds.Height, TileLabelHeight)));
                 using (context.PushClip(label.Deflate(4)))
                 {
                     Text(context, (marked ? "✓ " : "") + AnalysisNames.Display(item.Name, 90), part.Bounds.TopLeft + new Vector(7, 5), style.TextColor, part.Bounds.Width - 14);
                     if (part.Bounds.Height >= TileLabelHeight)
-                        Text(context, FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, tree.Metric), part.Bounds.TopLeft + new Vector(7, 6 + _labelLineHeight), style.TextColor, part.Bounds.Width - 14);
+                    {
+                        var amount = Format(FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, tree.Metric), style.TextColor);
+                        if (amount.Width <= part.Bounds.Width - 14)
+                            context.DrawText(amount, part.Bounds.TopLeft + new Vector(7, 6 + _labelLineHeight));
+                    }
                 }
             }
         }
-        if (_parts.Length == 0) Text(context, "Zero, unknown and shared entries remain available in the table.", new(16, PlotBounds.Top + 14), p.TextMuted);
+        if (_parts.Length == 0) Text(context, "Zero, unknown and shared entries remain available in the table.", new(16, PlotBounds.Top + 14), p.TextMuted, Bounds.Width - 32);
         if (this is SunburstControl)
         {
             string title = AnalysisNames.Display(tree.NameOf(Scope), 24);

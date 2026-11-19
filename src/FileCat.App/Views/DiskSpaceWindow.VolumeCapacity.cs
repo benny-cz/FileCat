@@ -107,12 +107,7 @@ public sealed partial class DiskSpaceWindow
             label.Text = text;
             return label;
         }
-        static TextBlock Heading(string text)
-        {
-            var label = ReadingLabel("Accent", FontWeight.SemiBold);
-            label.Text = text;
-            return label;
-        }
+        static TextBlock Heading(string text) => SectionLabel(text);
     }
 
     private static string CapacityScope(string label, AnalysisSavedView view) => label +

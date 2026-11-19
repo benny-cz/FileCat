@@ -80,6 +80,8 @@ internal sealed partial class HarnessApp
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var windowTransitions = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_WINDOW_TRANSITIONS") == "1"
                 ? await CheckWindowTransitionsAsync(window, () => VisibleButton("Start analysis")) : null;
+            bool compactDoubleText = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_DOUBLE_TEXT") == "1";
+            if (compactDoubleText) await CheckSetupTypographyAsync(window);
             var limits = VisibleButton("Resource limits…") ?? throw new InvalidOperationException("Missing resource limits in setup.");
             var setup = limits.GetVisualAncestors().OfType<ScrollViewer>().First();
             await ReadyAsync(() => setup.Viewport.Height > 0 && limits.Bounds.Height > 0);
@@ -172,11 +174,14 @@ internal sealed partial class HarnessApp
             RenderNativeFrame("folder-exclusions-result.png");
             model.Focus(model.Rows[0].Key);
             var resultThemes = await CheckResultThemesAsync(window, model, warning: false, "compact");
-            bool compactDoubleText = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_DOUBLE_TEXT") == "1";
+            IReadOnlyList<ScratchThemeFrame>? wideThemes = null;
+            IReadOnlyList<string>? cleanupThemes = null;
             if (compactDoubleText)
             {
                 model.Focus(AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "photo.png").Id));
+                wideThemes = await CheckWideTypographyAsync(window, model);
                 await CheckCompactDoubleTextAsync(window);
+                cleanupThemes = await CheckDialogTypographyAsync(window);
             }
             Click("Clear filter");
             await ReadyAsync(() => !model.PanelFilterApplied);
@@ -259,7 +264,8 @@ internal sealed partial class HarnessApp
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
                 readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
-                standardIndexChoice = true, scratchThemes, resultThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true, compactDoubleText,
+                standardIndexChoice = true, scratchThemes, resultThemes, wideThemes, cleanupThemes,
+                resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true, compactDoubleText,
                 packageTier = Program.PackageTier, packageFastNtfsReason, warmShell, firstResultMilliseconds, chartFrames, windowTransitions };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");

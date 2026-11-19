@@ -97,6 +97,7 @@ public sealed partial class DiskSpaceWindow : Window
         var defaults = new Keymap(CommandRegistry.CreateDefault());
         _keymap = keymap ?? (() => defaults);
         _newAnalysis = newAnalysis; Title = "Disk space — FileCat"; Width = 1180; Height = 780; MinWidth = 360; MinHeight = 360;
+        ConfigureAnalysisLayout();
         WindowFit.Attach(this);
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (IOException) { }
         _dialogs = new(_overlay, () => _tabs);
@@ -104,7 +105,7 @@ public sealed partial class DiskSpaceWindow : Window
         // Up to eight modeless sessions must stay reachable on a narrow screen. Wrap their
         // headers instead of letting the theme's compact dialog tabs clip the later sessions.
         _tabs.ItemsPanel = new FuncTemplate<Panel?>(() => new WrapPanel { Orientation = Orientation.Horizontal });
-        var header = new WrapPanel { ItemSpacing = 8, Margin = new Thickness(10, 8) };
+        var header = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Margin = new Thickness(10, 8) };
         header.Children.Add(ActionButton("New analysis", () => _newAnalysis?.Invoke(), "Choose another captured scope in a new analysis tab."));
         header.Children.Add(ActionButton("Close analysis", () => _ = CloseTabAsync(), "Close the selected analysis. Active work and review references need a preserving choice."));
         header.Children.Add(ActionButton("Continue in FileCat", Hide, "Hide this window and keep its sessions in the running FileCat instance."));
@@ -300,7 +301,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly Grid _explorer = new() { RowDefinitions = new RowDefinitions("3*,Auto,2*"), ColumnDefinitions = new ColumnDefinitions("*,300"), MinHeight = 240 };
         private readonly Grid _chartHost = new(); private readonly ScrollViewer _inspectorScroll;
         private readonly Grid _table = new() { RowDefinitions = new RowDefinitions("Auto,*") };
-        private readonly Grid _tableHeader = new() { Margin = new Thickness(8, 3, 24, 3) };
+        private readonly RankedColumns _tableHeader = new(header: true) { Margin = new Thickness(8, 4, 24, 4) };
         private readonly Button _inspect;
         private ScrollViewer? _viewport;
         private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(500) };
@@ -317,11 +318,11 @@ public sealed partial class DiskSpaceWindow : Window
             _group.SelectedIndex = (int)Model.Grouping;
             _sort.SelectedIndex = (int)Model.Sort; _sortDirection.SelectedIndex = Model.SortDescending ? 0 : 1;
             RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto");
-            _setup.Children.Add(SessionText("Understand this storage. Choose what to measure.", 20));
+            _setup.Children.Add(SectionLabel("Locations to scan"));
             _setup.Children.Add(_roots);
             foreach (string root in roots) AddRoot(root);
             if (_rootEditors.Count == 0) AddRoot("");
-            var choose = new WrapPanel { ItemSpacing = 8 };
+            var choose = new WrapPanel { ItemSpacing = 8, LineSpacing = 5 };
             choose.Children.Add(ActionButton("Add location", () => { if (_rootEditors.Count < AnalysisLimits.Roots) AddRoot(""); }, "Add one explicit filesystem location, up to 32."));
             choose.Children.Add(ActionButton("Choose folders…", () => _ = ChooseFoldersAsync(), "Choose source folders without changing the main panels."));
             choose.Children.Add(ActionButton("Choose files…", () => _ = ChooseFilesAsync(), "Choose explicit file paths. Hard links remain separate paths but share verified object charges."));
@@ -420,14 +421,7 @@ public sealed partial class DiskSpaceWindow : Window
             toolbar.Children.Add(_runtimeChangeHint);
             _dataControls.AddRange([_mode, _metric, _group, _color, _pause, _inspect, _save, _compare, _breadcrumbs, _summary,
                 _coverageHeadline, _analysisActions, _coverageDetails, filters]);
-            _toolbarViewport = new ScrollViewer { Content = toolbar, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
-            AutomationProperties.SetName(_toolbarViewport, "Analysis view controls");
-            _toolbarViewport.GotFocus += (_, _) => Dispatcher.UIThread.Post(() =>
-            {
-                // A focused command scrolls within the toolbar first. The page also needs to
-                // reveal the toolbar if the summary and larger controls have pushed it below the fold.
-                if (!_disposed && _toolbarViewport.IsKeyboardFocusWithin) _toolbarViewport.BringIntoView();
-            }, DispatcherPriority.Loaded);
+            _toolbarViewport = AnalysisControlsViewport(toolbar);
             _coverageStatus = new ReadingStatus(_coverageHeadline);
             AutomationProperties.SetAutomationId(_scope, "AnalysisReadingScope");
             AutomationProperties.SetAutomationId(_summary, "AnalysisReadingAmount");
@@ -486,20 +480,13 @@ public sealed partial class DiskSpaceWindow : Window
             {
                 var heading = ReadingLabel("Secondary", FontWeight.SemiBold);
                 heading.Text = i == 0 ? "" : headings[i];
-                heading.TextWrapping = TextWrapping.NoWrap;
-                heading.TextTrimming = TextTrimming.CharacterEllipsis;
+                heading.TextAlignment = i is >= 2 and <= 4 ? TextAlignment.Right : TextAlignment.Left;
                 AutomationProperties.SetName(heading, headings[i]); Grid.SetColumn(heading, i); _tableHeader.Children.Add(heading);
             }
-            _tableHeader.SizeChanged += (_, _) =>
-            {
-                FitColumns(_tableHeader);
-                ((TextBlock)_tableHeader.Children[2]).Text = _tableHeader.Bounds.Width < 750 ? "Value" : headings[2];
-            };
             _table.Children.Add(ReadingSurface(_tableHeader, default, new Thickness(0, 0, 0, 1)));
             Grid.SetRow(_list, 1); _table.Children.Add(_list);
             Grid.SetRow(_table, 2); _explorer.Children.Add(_table);
-            var inspectorHeading = ReadingLabel("Accent", FontWeight.SemiBold);
-            inspectorHeading.Text = "Selection inspector";
+            var inspectorHeading = SectionLabel("Selection inspector");
             _inspectorPanel.Children.Add(inspectorHeading);
             _inspectorPanel.Children.Add(_selectionReading);
             _measurementDetails.Content = _inspectorExact;
@@ -594,8 +581,7 @@ public sealed partial class DiskSpaceWindow : Window
                 }
                 // Give the results space alongside the wrapped controls on short or large-text displays.
                 // A separate finite list viewport keeps row virtualization active.
-                double toolbarMinimum = Math.Max(48, 2 * _window.FontSize + 10);
-                _toolbarViewport.MaxHeight = Math.Max(toolbarMinimum, _viewport.Bounds.Height / 2 - _viewSummary.DesiredSize.Height - 4);
+                _toolbarViewport.MaxHeight = _window.ControlsViewportHeight(_viewport.Bounds.Height, _viewSummary.DesiredSize.Height);
                 double minimum = Children.Where(c => c.IsVisible && c != _explorer).Sum(c => c.DesiredSize.Height) + (_explorer.IsVisible ? _explorer.MinHeight : 0);
                 double height = Math.Max(_viewport.Bounds.Height, minimum);
                 if (double.IsFinite(height) && Math.Abs(Height - height) > .5) Height = height;
@@ -615,14 +601,15 @@ public sealed partial class DiskSpaceWindow : Window
         private void AddRoot(string path)
         {
             if (_rootEditors.Count >= AnalysisLimits.Roots) return;
-            var box = new TextBox { Text = path, MinWidth = 180, HorizontalAlignment = HorizontalAlignment.Stretch };
-            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") }; row.Children.Add(box);
+            var box = new TextBox { Text = path, HorizontalAlignment = HorizontalAlignment.Stretch };
             var remove = ActionButton("Remove", () =>
             {
                 if (_rootEditors.Count <= 1) return;
-                _rootEditors.Remove(box); _roots.Children.Remove(row); RemoveFolderExclusionEditor(box); NameRootEditors();
+                _rootEditors.Remove(box);
+                if (box.Parent is Grid editorRow) _roots.Children.Remove(editorRow);
+                RemoveFolderExclusionEditor(box); NameRootEditors();
             }, "Remove this location before starting.");
-            Grid.SetColumn(remove, 1); row.Children.Add(remove); _roots.Children.Add(row); _rootEditors.Add(box);
+            _roots.Children.Add(new LocationEditorRow(box, remove)); _rootEditors.Add(box);
             AddFolderExclusionEditor(box);
             NameRootEditors();
         }
@@ -693,9 +680,9 @@ public sealed partial class DiskSpaceWindow : Window
         }
         private Control Row(AnalysisTreeItem item)
         {
-            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("32,*,125,115,60,80"), Margin = new Thickness(4, 3) };
-            row.SizeChanged += (_, _) => FitColumns(row);
-            var mark = new CheckBox { IsChecked = item.NodeId is { } id && Model.Selection.Marks.Contains(id), IsEnabled = item.NodeId.HasValue, Margin = new Thickness(0, 0, 6, 0) };
+            var row = new RankedColumns(header: false) { Margin = new Thickness(4, 3) };
+            var mark = new CheckBox { IsChecked = item.NodeId is { } id && Model.Selection.Marks.Contains(id), IsEnabled = item.NodeId.HasValue,
+                VerticalAlignment = VerticalAlignment.Center };
             mark.Click += (_, e) => { Model.Focus(item.Key, true); e.Handled = true; };
             void UpdateMark() => mark.IsChecked = item.NodeId is { } id && Model.Selection.Marks.Contains(id);
             mark.AttachedToVisualTree += (_, _) => Model.Changed += UpdateMark; mark.DetachedFromVisualTree += (_, _) => Model.Changed -= UpdateMark;
@@ -703,15 +690,21 @@ public sealed partial class DiskSpaceWindow : Window
             bool package = HasMacPackageName(item, Model.Tree?.Snapshot.Policy);
             string caption = AnalysisNames.Display(item.Name) + (package ? " (package)" : "");
             string[] values = [caption, DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric), DiskSpaceViewModel.LogicalText(item), DiskSpaceViewModel.FilePathsText(item), DiskSpaceViewModel.StatusText(item)];
-            for (int i = 0; i < values.Length; i++) { var text = new TextBlock { Text = values[i], TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center }; Grid.SetColumn(text, i + 1); row.Children.Add(text); }
+            for (int i = 0; i < values.Length; i++)
+            {
+                var text = new TextBlock
+                {
+                    Text = i == 0 ? values[i] : KeepMeasurementUnits(values[i]),
+                    TextWrapping = i == 0 ? TextWrapping.NoWrap : TextWrapping.Wrap,
+                    TextTrimming = i == 0 ? TextTrimming.CharacterEllipsis : TextTrimming.None,
+                    TextAlignment = i is >= 1 and <= 3 ? TextAlignment.Right : TextAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                Grid.SetColumn(text, i + 1);
+                row.Children.Add(text);
+            }
             ToolTip.SetTip(row, new RichTip(AnalysisNames.Display(item.Name, 240), detail: $"Active metric: {DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric, true)}. File size: {DiskSpaceViewModel.LogicalText(item, true)}. File paths: {DiskSpaceViewModel.FilePathsText(item)}.", hints: [DiskSpaceViewModel.EntryExplanation(item) ?? (item.Unknown ? "Some measurements or namespace entries are unavailable." : "Observed metadata, not an immutable filesystem snapshot.")]));
             AutomationProperties.SetName(row, string.Join("; ", values)); return row;
-        }
-        private static void FitColumns(Grid row)
-        {
-            bool wide = row.Bounds.Width >= 750;
-            row.ColumnDefinitions = new ColumnDefinitions(wide ? "32,*,125,115,60,80" : "32,*,115,0,0,0");
-            foreach (var child in row.Children) if (Grid.GetColumn(child) >= 3) child.IsVisible = wide;
         }
         private void Refresh()
         {

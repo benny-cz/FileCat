@@ -299,8 +299,7 @@ public sealed partial class DiskSpaceWindow
             Children.Add(_resultSummary);
             var controls = new StackPanel { Spacing = 6, Children = { toolbar, navigation, filters, _volumeCapacityRibbon, actions, _legend, provenanceLabel, _historyNotice } };
             AddRuntimeChangeHint(controls);
-            _resultControls = new ScrollViewer { Content = controls, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
-            AutomationProperties.SetName(_resultControls, "Analysis view controls");
+            _resultControls = AnalysisControlsViewport(controls);
             Children.Add(_resultControls);
             _inspectorSurface = ReadingSurface(_inspector, new Thickness(8), new Thickness(1, 0, 0, 0));
             _body.Children.Add(_main); _body.Children.Add(_inspectorSurface); Children.Add(_body);
@@ -316,15 +315,19 @@ public sealed partial class DiskSpaceWindow
             _list.ItemTemplate = new FuncDataTemplate<object>((row, _) =>
             {
                 var item = DisplayItem(row); if (item is null) return new TextBlock();
-                var grid = new Grid { ColumnDefinitions = new("3*,2*,2*,2*,2*"), MinHeight = 32, Margin = new Thickness(6, 3) };
+                var grid = new Grid { ColumnDefinitions = new("4*,3*,3*,2*,3*"), ColumnSpacing = 8, RowSpacing = 4,
+                    MinHeight = 32, Margin = new Thickness(6, 4) };
                 string? rawName = row is AnalysisHierarchyRow hierarchy ? hierarchy.Path.Name : null;
                 string caption = item.Name + (HasMacPackageName(item, _explorer.Descriptor.Policy, rawName) ? " (package)" : "");
                 string[] cells = [caption, DiskSpaceViewModel.ValueText(item, _grouping?.Metric ?? _explorer.Metric), DiskSpaceViewModel.LogicalText(item),
                     DiskSpaceViewModel.FilePathsText(item), DiskSpaceViewModel.StatusText(item)];
                 for (int column = 0; column < cells.Length; column++)
                 {
-                    var text = new TextBlock { Text = cells[column], TextWrapping = column == 0 ? TextWrapping.NoWrap : TextWrapping.Wrap,
-                        TextTrimming = column == 0 ? TextTrimming.CharacterEllipsis : TextTrimming.None, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+                    var text = new TextBlock { Text = column == 0 ? cells[column] : KeepMeasurementUnits(cells[column]),
+                        TextWrapping = column == 0 ? TextWrapping.NoWrap : TextWrapping.Wrap,
+                        TextTrimming = column == 0 ? TextTrimming.CharacterEllipsis : TextTrimming.None,
+                        TextAlignment = column is >= 1 and <= 3 ? TextAlignment.Right : TextAlignment.Left,
+                        VerticalAlignment = VerticalAlignment.Center };
                     Grid.SetColumn(text, column); grid.Children.Add(text);
                 }
                 bool? stacked = null;
@@ -333,7 +336,7 @@ public sealed partial class DiskSpaceWindow
                     if (grid.Bounds.Width <= 0) return;
                     bool compact = grid.Bounds.Width < 40 * ((TextBlock)grid.Children[0]).FontSize;
                     if (stacked == compact) return; stacked = compact;
-                    grid.ColumnDefinitions = new(compact ? "*,*" : "3*,2*,2*,2*,2*");
+                    grid.ColumnDefinitions = new(compact ? "*,*" : "4*,3*,3*,2*,3*");
                     grid.RowDefinitions = new(compact ? "Auto,Auto,Auto" : "Auto");
                     string[] labels = ["", "Active metric: ", "File size: ", "File paths: ", "State: "];
                     for (int column = 0; column < cells.Length; column++)
@@ -342,8 +345,8 @@ public sealed partial class DiskSpaceWindow
                         Grid.SetRow(text, compact && column > 0 ? 1 + (column - 1) / 2 : 0);
                         Grid.SetColumn(text, compact ? column == 0 ? 0 : (column - 1) % 2 : column);
                         Grid.SetColumnSpan(text, compact && column == 0 ? 2 : 1);
-                        text.Text = (compact ? labels[column] : "") + cells[column];
-                        text.Margin = new Thickness(0, 0, 12, compact ? 4 : 0);
+                        text.Text = column == 0 ? cells[column] : (compact ? labels[column] : "") + KeepMeasurementUnits(cells[column]);
+                        text.TextAlignment = !compact && column is >= 1 and <= 3 ? TextAlignment.Right : TextAlignment.Left;
                     }
                 }
                 grid.SizeChanged += (_, _) => FitRow();
@@ -367,8 +370,7 @@ public sealed partial class DiskSpaceWindow
             _main.Children.Add(_exploreFolder);
             _exploreGroup = ActionButton("Explore selected group", ExploreGroup, "Open the captured members of the selected accounting group.");
             _main.Children.Add(_exploreGroup);
-            var inspectorHeading = ReadingLabel("Accent", FontWeight.SemiBold);
-            inspectorHeading.Text = "Selection inspector";
+            var inspectorHeading = SectionLabel("Selection inspector");
             _inspector.Children.Add(inspectorHeading); _inspector.Children.Add(_inspectorStatus); _inspector.Children.Add(_inspectionReading); _inspector.Children.Add(_details);
             _inspector.Children.Add(_showCapturedFolder);
             _previewFile.Click += (_, _) => _ = PreviewFocusedAsync();
@@ -457,7 +459,7 @@ public sealed partial class DiskSpaceWindow
             viewport.LayoutUpdated += (_, _) =>
             {
                 if (_disposed) return;
-                _resultControls.MaxHeight = Math.Max(48, viewport.Bounds.Height / 2 - _resultSummary.DesiredSize.Height);
+                _resultControls.MaxHeight = _window.ControlsViewportHeight(viewport.Bounds.Height, _resultSummary.DesiredSize.Height);
             };
             return viewport;
         }
