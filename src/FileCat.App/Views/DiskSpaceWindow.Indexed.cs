@@ -455,7 +455,7 @@ public sealed partial class DiskSpaceWindow
         private Task WaitForInteractionAsync(CancellationToken cancellation) => _interacting && _interactionEnd is { } end ? end.Task.WaitAsync(cancellation) : Task.CompletedTask;
         public ScrollViewer CreateViewport()
         {
-            var viewport = new ScrollViewer { Content = this, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+            var viewport = AnalysisControlsViewport(this, "Indexed analysis page");
             viewport.LayoutUpdated += (_, _) =>
             {
                 if (_disposed) return;

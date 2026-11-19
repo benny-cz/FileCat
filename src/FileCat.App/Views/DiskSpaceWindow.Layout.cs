@@ -154,7 +154,7 @@ public sealed partial class DiskSpaceWindow
             Dispatcher.UIThread.Post(() =>
             {
                 if (viewport.IsEffectivelyVisible && TopLevel.GetTopLevel(viewport)?.FocusManager?.GetFocusedElement() is Control control &&
-                    viewport.IsVisualAncestorOf(control))
+                    ReferenceEquals(control.GetVisualAncestors().OfType<ScrollViewer>().FirstOrDefault(), viewport))
                 {
                     // A caret request may be handled by the editor's own scroller. Reveal the whole
                     // focused control here, then reveal this viewport in the outer analysis page.

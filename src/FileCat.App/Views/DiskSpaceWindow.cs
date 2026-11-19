@@ -563,7 +563,8 @@ public sealed partial class DiskSpaceWindow : Window
         public ScrollViewer CreateViewport()
         {
             Height = 690;
-            _viewport = new ScrollViewer { Name = "AnalysisPageScroll", Content = this, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+            _viewport = AnalysisControlsViewport(this, "Analysis page");
+            _viewport.Name = "AnalysisPageScroll";
             _viewport.LayoutUpdated += (_, _) =>
             {
                 if (_disposed || _viewport is null) return;
