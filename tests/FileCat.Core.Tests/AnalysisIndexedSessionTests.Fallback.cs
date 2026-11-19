@@ -4,7 +4,10 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
-public sealed partial class AnalysisIndexedSessionTests
+// The native fixture shares the real device turn and process-wide scan slots with other analysis tests.
+// Run it in isolation so its deadline measures the fallback, including native handle retirement.
+[Collection("Analysis I/O capacity")]
+public sealed class AnalysisNativeMemoryFallbackTests
 {
     [Fact]
     public async Task NativeUnixSourcesExcludePrivateRootsWhenSecureScratchIsUnavailable()
@@ -12,7 +15,10 @@ public sealed partial class AnalysisIndexedSessionTests
         Assert.SkipWhen(OperatingSystem.IsWindows(), "Windows native backend runs in its platform test assembly.");
         await AnalysisNativeMemoryFallbackCases.Run(path => new UnixAnalysisBackend(path));
     }
+}
 
+public sealed partial class AnalysisIndexedSessionTests
+{
     [Fact]
     public async Task UnavailableInitialScratchUsesFullBoundedMemoryAndRetainsPrivateExclusion()
     {
