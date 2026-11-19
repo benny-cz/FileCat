@@ -103,4 +103,22 @@ The isolated GitHub Windows 11 Enterprise build 26200 runner executed the same 1
 | Process handles, sampled initial to peak | 290 to 380 |
 | Working set, sampled initial to peak | 55,009,280 to 80,232,448 bytes |
 
-The unrelated Create Directory job stayed queued while storage work was paused and completed after Resume. The first pass recorded 10,001 changes including the directory, and one flushed intent at which Pause won admission before a native call. Both boundary files preserved their bytes. The fresh pass found 10,001 already-satisfied objects and compressed the new file with one recorded call. This receipt covers the engine, scheduler and report reads. The full ARM64 Operations window still needs a separate native run.
+The unrelated Create Directory job stayed queued while storage work was paused and completed after Resume. The first pass recorded 10,001 changes including the directory, and one flushed intent at which Pause won admission before a native call. Both boundary files preserved their bytes. The fresh pass found 10,001 already-satisfied objects and compressed the new file with one recorded call. This receipt covers the engine, scheduler and report reads.
+
+### Native ARM64 Operations window under load
+
+A separate Windows 11 ARM64 run used the real Operations window on the hosted desktop (session 2, medium integrity, Windows build 26200, fixed 4 KiB NTFS) with FileCat's default rendering. The driver used the same 10,000 ordinary 8,192-byte file workload and native UI Automation actions as on x64. It paused at 181 checked items. The unrelated folder job remained queued with the exclusive-storage wait reason. The first and second report pages started at calls 1 and 65 and showed the same captured digest. An independent SHA-256 scan matched this digest at byte 238,156, line 363 of the retained journal. [ARM64 Operations run and artifacts](https://github.com/benny-cz/FileCat/actions/runs/44504721371)
+
+| Measurement | Result |
+| --- | ---: |
+| Fixture creation | 7.63 s |
+| Compression through completion including automation and pause | 272.15 s |
+| Observed paused interval | 10.52 s |
+| Pause to available Resume | 138 ms |
+| Open recorded calls to first available page | 307 ms |
+| Request next page to available results | 218 ms |
+| Final durable journal | 13,189,656 bytes |
+| Main process handles, sampled initial to peak | 877 to 1,073 |
+| Main process working set, sampled initial to peak | 268,222,464 to 318,722,048 bytes |
+
+Resume finished with 10,001 changes, including the selected directory. The queued folder was created afterward. All 10,000 files were compressed, and the sampled boundary contents matched the seed. The dispatcher logged four delays over 50 ms during the measured job, with a maximum of 118.8 ms. Its overall maximum of 1,852.2 ms occurred during app startup. The source commit was `5acb88db4035fb560c49bc97f53eb35e694749de`. The ARM64 qualification executable SHA-256 was `0A93C75FA695743B3A0AC1638D92521564F43D41AE687030FFBCF8C4273606CE` and the FileCat assembly SHA-256 was `357B746FC874803EDC340453792DF86A9CBD96E342D89C6B6697BBA251048D95`.
