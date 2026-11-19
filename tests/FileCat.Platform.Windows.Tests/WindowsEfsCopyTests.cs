@@ -6,20 +6,43 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed class WindowsEfsCopyTests
 {
-    [Fact]
-    public async Task Native_copy_preserves_efs_on_ntfs_without_a_question()
+    [Theory]
+    [InlineData(JobKind.Copy)]
+    [InlineData(JobKind.Move)]
+    public async Task Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs(JobKind kind)
     {
         RequireEfs();
         string root = Directory.CreateTempSubdirectory("filecat-efs-copy-").FullName;
         try
         {
             string destination = Directory.CreateDirectory(Path.Join(root, "destination")).FullName;
-            string source = Encrypt(root, "secret.bin", [9, 4, 1]);
-            var (_, questions) = await Run(root, new WindowsFileOperations(), JobKind.Copy, [source], destination, _ => new(DecisionAction.CancelJob));
+            var files = new WindowsFileOperations();
+            byte[] payload = [9, 4, 1], named = [6, 5, 2];
+            string source = Path.Join(root, "secret.bin");
+            File.WriteAllBytes(source, payload);
+            File.WriteAllBytes(source + ":proof", named);
+            File.Encrypt(source);
+            string identity = Assert.IsType<string>(files.GetFileIdentity(source));
+            var (job, questions) = await Run(root, files, kind, [source], destination, _ => new(DecisionAction.CancelJob));
             Assert.Empty(questions);
-            string target = Path.Join(destination, Path.GetFileName(source));
+            Assert.Equal(JobState.Completed, job.State);
+            string target = Assert.Single(Directory.GetFiles(destination));
+            Assert.Equal(Path.Join(destination, Path.GetFileName(source)), target);
             Assert.True(File.GetAttributes(target).HasFlag(FileAttributes.Encrypted));
-            Assert.Equal(File.ReadAllBytes(source), File.ReadAllBytes(target));
+            Assert.Equal(payload, File.ReadAllBytes(target));
+            Assert.Equal(named, File.ReadAllBytes(target + ":proof"));
+            if (kind == JobKind.Move)
+            {
+                Assert.False(File.Exists(source));
+                Assert.Equal(identity, files.GetFileIdentity(target));
+            }
+            else
+            {
+                Assert.Equal(identity, files.GetFileIdentity(source));
+                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+                Assert.Equal(payload, File.ReadAllBytes(source));
+                Assert.Equal(named, File.ReadAllBytes(source + ":proof"));
+            }
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -279,6 +302,5 @@ public sealed class WindowsEfsCopyTests
         return path;
     }
 
-    private static void RequireEfs() => Assert.SkipUnless(WindowsStorageReviewEvidence.IsSupportedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-        "Requires a disposable normal-user Windows VM with EFS enabled.");
+    private static void RequireEfs() => WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
 }

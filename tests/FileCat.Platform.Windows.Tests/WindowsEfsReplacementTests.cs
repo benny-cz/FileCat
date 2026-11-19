@@ -81,6 +81,5 @@ public sealed class WindowsEfsReplacementTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    private static void RequireFixture() => Assert.SkipUnless(WindowsStorageReviewEvidence.IsSupportedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-        "Requires a disposable normal-user Windows VM with EFS enabled.");
+    private static void RequireFixture() => WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
 }

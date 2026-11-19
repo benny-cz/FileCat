@@ -112,6 +112,8 @@ jobs:
           $outputSuites = @(
             @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-hex-output.trx'; Count = '14';
                Filter = 'FullyQualifiedName~HexEfsJournalTests|FullyQualifiedName~HexPatchProvenanceTests' },
+            @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-copy-output.trx'; Count = '7';
+               Filter = 'FullyQualifiedName~Native_copy_and_same_volume_move_preserve_efs_and_named_streams_on_ntfs|FullyQualifiedName~Copy_then_delete_keeps_the_efs_source|FullyQualifiedName~WindowsEfsReplacementTests' },
             @{ Project = 'tests/FileCat.Core.Tests'; Log = 'native-efs-archive-output.trx'; Count = '10';
                Filter = 'FullyQualifiedName~ArchiveEfsSpoolTests' }
           )
@@ -132,5 +134,6 @@ jobs:
             ${{ runner.temp }}/filecat-native-storage-abi-evidence/*
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-hex-output.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-copy-output.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-archive-output.trx
           if-no-files-found: error
