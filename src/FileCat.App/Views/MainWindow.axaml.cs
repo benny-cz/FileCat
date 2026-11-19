@@ -286,7 +286,10 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     internal void AnnounceRestoredRowIfCurrent(FileListControl list)
     {
-        if (!OperatingSystem.IsMacOS() || !list.IsFocused ||
+        // NVDA can announce only the grid when focus returns to picture results.
+        bool windowsPictureResults = OperatingSystem.IsWindows() && list.PictureMode &&
+            list.Tab?.Location?.Scheme == Schemes.ResultSet;
+        if (!(OperatingSystem.IsMacOS() || windowsPictureResults) || !list.IsFocused ||
             !ReferenceEquals(FocusManager?.GetFocusedElement(), list)) return;
         RestoredFocusAnnouncement.Text = "Focus returned to " + list.DescribeFocus();
         LiveRegions.Repeat(RestoredFocusAnnouncement);

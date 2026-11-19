@@ -2,14 +2,15 @@ param(
     [Parameter(Mandatory)][string]$TestRoot,
     [Parameter(Mandatory)][string]$NvdaPath,
     [switch]$HighContrastPictures,
+    [switch]$VerifyDuplicateRoots,
     [switch]$VerifyCanceledKeyBackup,
     [switch]$VerifyCompletedKeyBackup,
     [switch]$VerifySelectedFileBackup
 )
 
 $ErrorActionPreference = 'Stop'
-if (@($VerifyCanceledKeyBackup, $VerifyCompletedKeyBackup, $VerifySelectedFileBackup).Where({ $_.IsPresent }).Count -gt 1) {
-    throw 'Choose one backup mode per fixture.'
+if (@($VerifyCanceledKeyBackup, $VerifyCompletedKeyBackup, $VerifySelectedFileBackup, $VerifyDuplicateRoots).Where({ $_.IsPresent }).Count -gt 1) {
+    throw 'Choose one backup or duplicate-root mode per fixture.'
 }
 $testRoot = [IO.Path]::GetFullPath($TestRoot)
 $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation')) + '\'
@@ -166,6 +167,26 @@ public static class StorageReviewInput {
             Key @(0x09)
         }
         throw "Keyboard focus did not reach $name."
+    }
+    function Verify-OriginalLocations([string]$reviewName) {
+        $record.Stage = "$reviewName original locations"
+        $name = 'Selected items and original locations, select text to copy'
+        [void](Take-Speech)
+        $items = Find-Control $name 'Edit'
+        if (!$items -or $items.Current.IsOffscreen) {
+            Tab-To 'Selected items (2)' 'Button'
+            Key @(0x20)
+            $items = Await { Find-Control $name 'Edit' } 'the expanded original locations'
+        }
+        Tab-To $name 'Edit'
+        Hear "$reviewName original locations control" 'Selected items and original locations'
+        $value = $items.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current
+        if (!$value.IsReadOnly) { throw 'The original locations control must be read-only.' }
+        foreach ($path in $file,$duplicate) {
+            $quoted = ConvertTo-Json -InputObject $path -Compress
+            if (!$value.Value.Contains("Original location: $quoted")) { throw "The review omitted $path." }
+        }
+        $record.ReviewedOriginals[$reviewName] = @($file,$duplicate)
     }
     function Review-Decision {
         $reviewName = "Review decision$([char]0x2026)"
@@ -373,10 +394,23 @@ public static class StorageReviewInput {
             '{"SchemaVersion":1,"Theme":"HighContrast","ThemeAnimations":false,"RowDensity":"Comfortable","FontSize":24,"ContentFontSize":24}')
     }
     $record.HighContrastPictures = [bool]$HighContrastPictures
+    $record.VerifyDuplicateRoots = [bool]$VerifyDuplicateRoots
     [IO.File]::WriteAllText((Join-Path $nvdaConfig 'nvda.ini'), "[general]`r`nshowWelcomeDialogAtStartup = False`r`n[update]`r`nautoCheck = False`r`nstartupNotification = False`r`nallowUsageStats = False`r`naskedAllowUsageStats = True`r`n")
     $file = Join-Path $left 'alpha-review.txt'
     [IO.File]::WriteAllText($file, ('FileCat storage review fixture. ' * 512))
     $initialHash = (Get-FileHash -LiteralPath $file).Hash
+    $listArgument = @()
+    $expectedFileRows = 1
+    if ($VerifyDuplicateRoots) {
+        $duplicate = Join-Path $right 'alpha-review.txt'
+        [IO.File]::WriteAllText($duplicate, 'Distinct payload in the second original.')
+        $duplicateHash = (Get-FileHash -LiteralPath $duplicate).Hash
+        $selectionList = Join-Path $fixture 'originals.txt'
+        [IO.File]::WriteAllLines($selectionList, @($file,$duplicate))
+        $listArgument = @('--list', "`"$selectionList`"")
+        $expectedFileRows = 2
+        $record.ReviewedOriginals = @{}
+    }
     if ($VerifyCompletedKeyBackup -or $VerifySelectedFileBackup) {
         $streamText = 'FileCat alternate stream for the EFS fixture.'
         Set-Content -LiteralPath $file -Stream 'proof' -Value $streamText -NoNewline -Encoding ASCII
@@ -391,8 +425,9 @@ public static class StorageReviewInput {
     $record.FileCatDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $exe) 'FileCat.dll')).Hash
     $record.WindowsDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $exe) 'FileCat.Platform.Windows.dll')).Hash
     $record.NvdaVersion = (Get-Item -LiteralPath $nvdaPath).VersionInfo.ProductVersion
-    $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru -ArgumentList @(
-        '--ntfs-storage-review', '--new-instance', '--reset-layout', '--data', "`"$state`"", '--left', "`"$left`"", '--right', "`"$right`"")
+    $applicationArguments = @(
+        '--ntfs-storage-review', '--new-instance', '--reset-layout', '--data', "`"$state`"", '--left', "`"$left`"", '--right', "`"$right`"") + $listArgument
+    $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru -ArgumentList $applicationArguments
     $main = Await {
         $app.Refresh()
         if ($app.HasExited) { throw "The qualification instance exited with $($app.ExitCode)." }
@@ -400,7 +435,8 @@ public static class StorageReviewInput {
     } 'the qualification window'
     $list = Await {
         $main.FindAll($scope::Descendants, $all) | Where-Object {
-            $_.Current.ClassName -eq 'FileList' -and ($_.FindAll($scope::Children, $all) | Where-Object { $_.Current.Name -eq 'alpha-review.txt' })
+            $_.Current.ClassName -eq 'FileList' -and
+                @($_.FindAll($scope::Children, $all) | Where-Object { $_.Current.Name -eq 'alpha-review.txt' }).Count -eq $expectedFileRows
         } | Select-Object -First 1
     } 'the populated source list'
     $handle = [IntPtr]$main.Current.NativeWindowHandle
@@ -424,6 +460,11 @@ public static class StorageReviewInput {
     Key @(0x24) $true
     Key @(0x28) $true
     Hear 'focused file' 'alpha-review\.txt'
+    if ($VerifyDuplicateRoots) {
+        $record.Stage = 'mark both originals'
+        Key @(0x11, 0x10, 0x41)
+        Await { $list.Current.HelpText -match '2 marked' } 'both original items to be marked' | Out-Null
+    }
     if ($HighContrastPictures) {
         $record.Stage = 'enter picture view'
         Show-Command 'Show or hide pictures' 'Pictures: thumbnail grid in this tab.'
@@ -473,6 +514,7 @@ public static class StorageReviewInput {
     }
     else {
         Approve-Decryption
+        if ($VerifyDuplicateRoots) { Verify-OriginalLocations 'EFS' }
         [void](Take-Speech)
         Key @(0x1B)
         Await { !(Find-Control '*Windows file encryption (EFS)*') } 'EFS review dismissal' | Out-Null
@@ -489,6 +531,7 @@ public static class StorageReviewInput {
         Await { (Find-Control 'Remove compression' 'Button').Current.IsEnabled } 'removal footer state' | Out-Null
         Require-Footer 'Remove compression' $true
         Snapshot 'compression review'
+        if ($VerifyDuplicateRoots) { Verify-OriginalLocations 'Compression' }
         [void](Take-Speech)
         Key @(0x1B)
         Await { !(Find-Control 'NTFS compression*') } 'compression review dismissal' | Out-Null
@@ -497,6 +540,10 @@ public static class StorageReviewInput {
     if ((Get-FileHash -LiteralPath $file).Hash -ne $initialHash -or
         ((Get-Item -LiteralPath $file).Attributes -band ([IO.FileAttributes]::Encrypted -bor [IO.FileAttributes]::Compressed))) {
         throw 'The fixture did not finish with its original content and clear attributes.'
+    }
+    if ($VerifyDuplicateRoots -and ((Get-FileHash -LiteralPath $duplicate).Hash -ne $duplicateHash -or
+        ((Get-Item -LiteralPath $duplicate).Attributes -band ([IO.FileAttributes]::Encrypted -bor [IO.FileAttributes]::Compressed)))) {
+        throw 'The second original did not finish with its initial content and clear attributes.'
     }
     if ($VerifyCompletedKeyBackup) {
         if ((Get-Content -LiteralPath $file -Stream 'proof' -Raw) -cne $streamText) { throw 'Decryption changed the alternate stream bytes.' }

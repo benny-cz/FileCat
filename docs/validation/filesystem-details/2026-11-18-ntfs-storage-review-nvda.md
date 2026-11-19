@@ -24,3 +24,15 @@ On Windows 11 x64, `-HighContrastPictures` supplied FileCat's High Contrast pres
 NVDA 2026.3.1 announced both reviews, the unchecked EFS acknowledgments, and the decryption warning after switching actions. The fixture checked visible footer buttons and their enabled states for both compression actions and both EFS actions. Escape returned focus and speech to the same file in the picture grid after each review. The file's SHA-256 and clear compression and EFS attributes matched the initial state. Windows system text scaling still needs a separate fixture.
 
 The tested app and Windows platform assemblies are from `26bfcec30aec2715cc35621a74a79cde59e339b1`. The SHA-256 of `FileCat.dll` is `1B1660119E742BFD0063ACF2DF8E9B9348CCA482BFBDED5C4022BD97FEFE5C65`. The receipt `.tmp/filecat-efs-live-166b6897-r1/native-storage-contrast-picture-r1.json` has SHA-256 `21C0CBD8B06FDEE40927A1EF9A8A40EB1328D53D1E10DEC3DEA924B0954DD7E2`.
+
+## Two original paths with the same filename
+
+On the same Windows x64 VM, `-VerifyDuplicateRoots` imported a list of two local files that share a name and have different paths and payloads. The keyboard marked both imported results after listing completion. From the resulting tab, it opened the EFS and compression reviews at 640 × 420 DIP and 96 DPI.
+
+In each review, the keyboard expanded **Selected items (2)** and focused the read-only text that carries the original locations. NVDA announced the text control. UI Automation returned both complete paths in its value. After Escape, focus returned to the imported results. Both files retained their original hashes and clear compression and EFS attributes.
+
+The list-view receipt `native-storage-duplicate-roots-r1.json` has SHA-256 `276C989FF846CC8E28FD699C89FA81C508F19D3291AED9697C7C8FB783CFB4D2`. The tested SHA-256 values are `542744CD5FFD77E66FE43C90222F81E9F3DA329B76EF162AE5347C23D487C4C7` for `FileCat.dll` and `0D4B9B81C5EF5B8FC3E55E948FFCF47EB050F31AEEC9833DA5521436F0E060FA` for `FileCat.Platform.Windows.dll`.
+
+Combining `-VerifyDuplicateRoots` with `-HighContrastPictures` initially restored keyboard focus after EFS review while NVDA announced only the results grid. On Windows, FileCat now uses the existing polite restored-row announcement when the modal releases focus to a results picture grid. It describes the focused tile and its original location. The repeated fixture passed both EFS and compression reviews with both paths available and the same original tile announced on return. NVDA also reported the native focus event in that run. Both original file hashes and attributes matched the baseline.
+
+The combined receipt `native-storage-duplicate-roots-r3.json` has SHA-256 `53D84C61AC284F850F4BCA5A18E6E0F3BCB253857B9094A9EBBE3BD566CBAE89`. The tested SHA-256 of `FileCat.dll` is `DE59120E93EA8C1F876FBA333EC321AB61F668B4B1D76B6F3954673A07D05E5B`. The Windows platform assembly matched the list run. The focused dialog, filter, picture and storage-command tests on Apple silicon macOS passed all 36 cases.

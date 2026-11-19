@@ -89,3 +89,5 @@ Native ARM64 reproduced the same result at `080538ad`. Adding the link succeeded
 ### Late System attribute on the target or its ancestor
 
 The Windows x64 fixture added the System attribute while the selected file and its prepared compression handle were held. When the attribute went on the selected file, FileCat refused with `system-entry` before the native call, and the file remained clear. When it went on the ancestor, FileCat compressed the otherwise eligible selected file. Both runs preserved the new attribute and the selected file's bytes. The focused run, including the late hard-link case, passed all three tests. The SHA-256 of `native-storage-system.trx` is `18B2F7172C216BA54816F8440C6805B2998330FA26F482A267B35C208A3168DB`.
+
+Native ARM64 passed both System-attribute cases at `c9a07bf3` within the 22-case ABI and job run. The SHA-256 of `native-storage-abi.trx` is `C78D2083EDC7ABB7806B5DD3E0C97192E2B8B72FF7F963AF46FB4D47D3E8914D`. [Native ARM64 qualification](https://github.com/benny-cz/FileCat/actions/runs/44614167312)
