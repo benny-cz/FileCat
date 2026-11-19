@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Text.Json;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Resources;
 
 namespace FileCat.Core.Tests;
 
@@ -34,6 +35,122 @@ public sealed class StorageEfsEvidenceTests
             [new(sid, thumbprint, true, true, StorageEfsKeyState.MatchedAvailable, StorageEfsKeyProvider.Capi, DateTime.UnixEpoch, null, null)]);
         return StorageEfsRecoveryApproval.DeclareArrangement(consent, new(association, true, false, null, null, null, null),
             thumbprint, acknowledged: true);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Version_three_pairs_a_denied_intent_before_another_call_can_be_admitted(bool pause)
+    {
+        var seed = Header();
+        var firstObservation = seed.Roots[0].Observation;
+        var request = new JobRequest
+        {
+            Kind = JobKind.StorageTransform,
+            Sources = [new(Location.FileSystem(@"C:\captured"), "file", EntryKind.File)],
+            StorageTransform = new(seed.Action, seed.Scope, seed.ReviewRevision)
+            {
+                Roots = [new(0, 0, firstObservation)],
+                EfsConsent = seed.EfsConsent,
+            },
+        };
+        var job = new Job(request, "EFS admission fixture", "fixture", [], []);
+        job.SetState(JobState.Queued);
+        job.SealAdmission();
+        Assert.Equal(JobStartDisposition.Started, job.TryStart());
+
+        var header = JobJournal.CaptureStorageHeader(request, job.Id, job.CreatedUtc);
+        var approval = DeclareRecovery(header.EfsConsent!);
+        var resumedObservation = firstObservation with { Compression = StorageObservationState.Enabled };
+        using var held = new HeldEfsFile(header.Roots[0].Path, firstObservation, approval, job.Cancel);
+        using var data = new MemoryStream();
+        int flushes = 0;
+        using var writer = new StorageTransformJournalWriter(data, () =>
+        {
+            switch (++flushes)
+            {
+                case 2 when pause: job.Pause(); break;
+                case 2: job.Cancel(); break;
+                case 3 when pause:
+                    Assert.Equal(0, held.Calls);
+                    held.Current = resumedObservation;
+                    job.Resume();
+                    break;
+            }
+        }, header);
+        job.AttachStorageWriter(writer);
+
+        var result = StorageObjectCallRunner.Run(job, writer, 0, held);
+
+        Assert.True(result.Canceled);
+        Assert.False(result.PersistenceFault);
+        Assert.Equal(pause ? 1 : 0, held.Calls);
+        Assert.Equal(pause ? 2 : 1, held.Preparations);
+        Assert.Equal(pause ? StorageEffect.Changed : StorageEffect.NotProcessed, result.Result.Effect);
+        Assert.Null(writer.Collector.Pending);
+
+        using var temp = new TempDir();
+        string path = Path.Join(temp.Path, StorageJournalPolicy.FileName(header.CreatedUtc, header.JobId));
+        File.WriteAllBytes(path, data.ToArray());
+        var page = JournalRecovery.ReadStorageCalls(path, writer.Prefix!, ct: TestContext.Current.CancellationToken);
+        Assert.Equal(pause ? 2 : 1, page.Calls.Length);
+        Assert.All(page.Calls, call =>
+        {
+            Assert.Equal(header.EfsConsent!.ConsentId, call.EfsConsentId);
+            Assert.Equal(approval.Evidence, call.EfsReviewedKey);
+        });
+        Assert.Equal(StorageCallDisposition.NotAttempted, page.Calls[0].Disposition);
+        Assert.Equal(pause ? StorageNoCallReason.Paused : StorageNoCallReason.Canceled, page.Calls[0].NoCallReason);
+        Assert.Equal(firstObservation, page.Calls[0].Before);
+        Assert.Null(page.Calls[0].Result);
+        if (pause)
+        {
+            var admitted = page.Calls[1];
+            Assert.Equal(resumedObservation, admitted.Before);
+            Assert.Equal(StorageCallDisposition.Observed, admitted.Disposition);
+            var observed = Assert.Single(admitted.Result!.EfsKeys!.Keys);
+            Assert.Equal(approval.CertificateSha1, observed.CertificateSha1);
+            Assert.Equal(StorageEfsKeyState.MatchedAvailable, observed.State);
+        }
+    }
+
+    private sealed class HeldEfsFile(string path, StorageObservation initial, StorageEfsRecoveryApproval approval, Action stop)
+        : IStorageEfsObjectLease
+    {
+        public string Path => path;
+        public StorageObjectIdentity Identity { get; } = initial.Identity;
+        public StorageEfsRecoveryApproval RecoveryApproval => approval;
+        internal StorageObservation Current { get; set; } = initial;
+        internal int Calls { get; private set; }
+        internal int Preparations { get; private set; }
+
+        public StorageObservation Observe(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            return Current;
+        }
+
+        public StorageObservation PrepareMutation(StorageAction action, CancellationToken ct)
+        {
+            Assert.Equal(StorageAction.EncryptEfs, action);
+            Preparations++;
+            return Observe(ct);
+        }
+
+        public StorageMutationResult ApplyAdmitted(StorageAction action)
+        {
+            Assert.Equal(StorageAction.EncryptEfs, action);
+            Calls++;
+            stop();
+            return new(Current, Current with { Efs = StorageObservationState.Enabled, Compression = StorageObservationState.Disabled },
+                StorageEffect.Changed, null)
+            {
+                NativeCallAttempted = true,
+                EfsKeys = new(true, [new(approval.CertificateSha1, StorageEfsKeyState.MatchedAvailable)]),
+            };
+        }
+
+        public void Dispose() { }
     }
 
     [Theory]
