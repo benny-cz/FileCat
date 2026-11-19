@@ -95,3 +95,13 @@ On Windows 11 x64 build 26340 at medium integrity, the Microsoft Software Key St
 A separate attempt set a visible, owned window on a protected software-key fixture in Session 0 and called interactive finalization. The call was still active after the observation window, with no verified prompt or completion. The test stopped its own process. A complete provider enumeration later verified that all seven named fixtures were absent. The raw receipts are in `.tmp/filecat-protected-provider-9c1ac645-r1/`.
 
 A live fixture needs an isolated interactive Windows desktop. This result covers key creation. Provider credentials during acquisition or private-key use, and recovery of an actual TPM-backed EFS file, still require separate qualification.
+
+### Isolated CryptoAPI comparison
+
+The gated EFS setup review can now request explicit access to a CryptoAPI key. FileCat starts a fresh ShellHost process for that one comparison. The same-user pipe checks the peer process on each end. The helper checks the live FileCat owner window and the invoking SID, opens the exact certificate in CurrentUser My and compares its key with a fresh, cache-free context. The helper resets the process-wide `PP_CLIENT_HWND` and releases the acquired handle before the result can authorize recovery. FileCat then asks for a separate recovery choice. [Windows key acquisition and window ownership](https://learn.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-cryptacquirecertificateprivatekey)
+
+Windows 11 x64 build 26340 executed 21 focused cases at medium integrity with zero skips. The new case passed a controlled pending observation of a disposable software CryptoAPI certificate to the real worker. It matched the exact stored private key and refused a different key attached to the same public certificate. The same run passed the existing setup and recovery decision test, both selected-file wizard outcomes and both setup wizard outcomes. The receipt is `.tmp/filecat-capi-worker-7dacd3b9-r1/r3/capi-worker-r3.trx`.
+
+The platform assembly SHA-256 was `B76023363463815691E2E430A26A5CD592E13420CECFBE3FC843D1E1876E8530`. The test assembly SHA-256 was `B5118C95F82A908FF9F5AD064E323E3DCF1F9DDD206065F6D5EA8BC3B2A82D01`. The ShellHost assembly SHA-256 was `00D996AB2972078F3ABAC5F00EB889A74365C907B100309FB53E080137160CDA`.
+
+Live CryptoAPI credential prompts and private-key export through an interactive CryptoAPI provider still need qualification. The hosted ARM64 key workflow includes the isolated comparison.

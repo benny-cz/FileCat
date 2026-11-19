@@ -28,7 +28,7 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
         InspectAssociatedCertificate(invokerSid, certificateSha1, ct, useMatchedCertificate: null);
 
     private StorageEfsKeyEvidence InspectAssociatedCertificate(string invokerSid, string certificateSha1, CancellationToken ct,
-        Action<nint>? useMatchedCertificate, CngInteraction? interaction = null)
+        Action<nint>? useMatchedCertificate, CngInteraction? interaction = null, CapiInteraction? capi = null)
     {
         ValidateRequest(invokerSid, certificateSha1);
         ct.ThrowIfCancellationRequested();
@@ -54,7 +54,7 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
                 int error = Marshal.GetLastPInvokeError();
                 return Error(invokerSid, certificateSha1, error == NotFound ? false : null, null, error, "efs-certificate-missing", "The exact file-associated certificate was not found in CurrentUser My.");
             }
-            try { return ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct, useMatchedCertificate, interaction); }
+            try { return ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct, useMatchedCertificate, interaction, capi); }
             finally { FreeCertificate(certificate); }
         }
         finally { CloseStore(store, 0); }
@@ -66,7 +66,7 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
         ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct, useMatchedCertificate, interaction: null);
 
     private static StorageEfsKeyEvidence ProbeHeldCertificate(nint certificate, string invokerSid, string certificateSha1, CancellationToken ct,
-        Action<nint>? useMatchedCertificate, CngInteraction? interaction)
+        Action<nint>? useMatchedCertificate, CngInteraction? interaction, CapiInteraction? capi = null)
     {
         ValidateRequest(invokerSid, certificateSha1); RequireInvoker(invokerSid, ct);
         var allowance = StorageNativeAllowance.RequireCurrent();
@@ -86,6 +86,9 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
         if (interaction is not null && provider != StorageEfsKeyProvider.Cng)
             return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.InteractionRequired, provider, null,
                 "efs-capi-parent-required", "This key provider needs a separately qualified process for window interaction.");
+        if (capi is not null && provider != StorageEfsKeyProvider.Capi)
+            return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.Unknown, provider, null,
+                "efs-key-provider-changed", "The reviewed key no longer uses CryptoAPI.");
         using var freshCharge = allowance.ClaimScratch();
         ct.ThrowIfCancellationRequested();
         nint fresh = CreateContext(1 /* CERT_STORE_CERTIFICATE_CONTEXT */, 1 /* X509 */, source->Encoded, source->Length, 0, null);
@@ -113,6 +116,7 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
             }
             using var keyCharge = allowance.ClaimScratch();
             ct.ThrowIfCancellationRequested();
+            if (capi is not null) return CompareIsolatedCapiKey(fresh, invokerSid, certificateSha1, capi, binding.KeySpec, ct);
             if (interaction is not null)
             {
                 using var ownerTokenCharge = allowance.ClaimScratch();

@@ -246,8 +246,8 @@ jobs:
                  Filter = $keyFilter -join '|' },
               @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-wizard.trx'; Count = '4';
                  Filter = 'FullyQualifiedName~Parented_private_key_backup_distinguishes_cancellation_from_completed_export|FullyQualifiedName~Selected_file_key_backup_reports_only_the_matching_files_after_export' },
-              @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-parented-provider.trx'; Count = '3';
-                 Filter = 'FullyQualifiedName~Fresh_parented_acquisition_still_requires_the_exact_public_key|FullyQualifiedName~Reviewed_parented_acquisition_requires_explicit_access' }
+              @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-parented-provider.trx'; Count = '4';
+                 Filter = 'FullyQualifiedName~Fresh_parented_acquisition_still_requires_the_exact_public_key|FullyQualifiedName~Reviewed_parented_acquisition_requires_explicit_access|FullyQualifiedName~Isolated_CryptoAPI_review_compares_only_the_exact_stored_key' }
             )
           }
           foreach ($suite in $outputSuites) {

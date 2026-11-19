@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using FileCat.Platform.Windows;
 using FileCat.Platform.Windows.Shell;
 
 namespace FileCat.ShellHost;
@@ -15,6 +16,7 @@ internal static partial class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args is [WindowsEfsCapiWorker.Argument, var pipe, var parent]) return WindowsEfsCapiWorker.Run(pipe, parent);
         if (!OperatingSystem.IsWindows() || args.Length == 0 || args[0] != ShellHostProtocol.ServeArgument) return 2;
         bool testFaults = args.Contains(ShellHostProtocol.TestFaultsArgument);
         Mitigations.Apply();

@@ -38,7 +38,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
                 key.CertificatePresent == true && key.ProviderAssociationPresent == true &&
                 association.Users.Any(user => user.Sid == invokerSid && user.CertificateSha1 == key.CertificateSha1) &&
                 (key.State == StorageEfsKeyState.MatchedAvailable ||
-                 (invokeProviderOwner is not null && WindowsEfsKeys.NeedsParentedCngAccess(key))))
+                 (invokeProviderOwner is not null && WindowsEfsKeys.CanRequestSetupKeyAccess(key))))
                 .Select(key => new StorageEfsRecoveryKeyOption(key.CertificateSha1, key.Subject,
                     RequiresProviderAccess: key.State == StorageEfsKeyState.InteractionRequired)).ToImmutableArray();
             if (keys.IsEmpty) throw Refuse("efs-setup-key-unavailable", "The actual setup key could not be matched to an accessible private key for this account.");
@@ -54,8 +54,11 @@ internal sealed unsafe partial class WindowsStorageTransforms
             {
                 if (decision.Action != DecisionAction.AccessEfsKey)
                     throw Refuse("efs-recovery-access", "Verify access to this EFS key before choosing a recovery arrangement.");
-                var compared = job.RunEfsRecoveryInteraction(() => _efsKeys.AccessReviewedCngKey(association,
-                    selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct, invokeProviderOwner));
+                var provider = association.CurrentUserKeys.First(key =>
+                    key.InvokerSid == invokerSid && key.CertificateSha1 == selected.CertificateSha1).Provider;
+                var compared = job.RunEfsRecoveryInteraction(() => provider == StorageEfsKeyProvider.Capi
+                    ? _efsKeys.AccessReviewedCapiKey(association, selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct)
+                    : _efsKeys.AccessReviewedCngKey(association, selected.CertificateSha1, selected.OwnerWindow, explicitlyRequested: true, ct, invokeProviderOwner));
                 ct.ThrowIfCancellationRequested();
                 if (compared is { State: StorageEfsKeyState.MatchedAvailable, CertificatePresent: true, ProviderAssociationPresent: true } &&
                     compared.InvokerSid == invokerSid && compared.CertificateSha1 == selectedCertificate)

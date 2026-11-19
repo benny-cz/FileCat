@@ -57,6 +57,54 @@ public sealed unsafe partial class WindowsEfsKeyTests
     }
 
     [Fact]
+    public void Isolated_CryptoAPI_review_compares_only_the_exact_stored_key()
+    {
+        RequireParentedFixture();
+        using var first = KeyFixture.Create(cng: false);
+        using var other = KeyFixture.Create(cng: false);
+        using var wrong = X509CertificateLoader.LoadCertificate(first.Certificate.RawData);
+        CopyProvider(other.Certificate.Handle, wrong.Handle);
+        using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+        store.Open(OpenFlags.ReadWrite | OpenFlags.OpenExistingOnly);
+        string sid = Sid, hash = first.Certificate.Thumbprint;
+        var pending = new StorageEfsKeyEvidence(sid, hash, true, true, StorageEfsKeyState.InteractionRequired,
+            StorageEfsKeyProvider.Capi, DateTime.UtcNow, null, null);
+        Assert.True(WindowsEfsKeys.CanRequestSetupKeyAccess(pending));
+        Assert.False(WindowsEfsKeys.CanRequestSetupKeyAccess(pending with { ProviderAssociationPresent = null }));
+        var association = new StorageEfsAssociationSnapshot(new(1, "00000000000000000000000000000001"), sid,
+            [new(sid, hash, null)], [pending]);
+        var service = new WindowsEfsKeys(WindowsStorageAbiTests.QualifyNativeArm64Jobs);
+        nint owner = CreateProviderOwner(0, "STATIC", "FileCat isolated EFS key qualification", 0x10CF0000,
+            80, 80, 420, 160, 0, 0, 0, 0);
+        Assert.NotEqual(0, owner);
+        try
+        {
+            using var allowance = StorageReviewResources.EnterNative(Ct);
+            Assert.Equal("efs-key-owner", service.AccessReviewedCapiKey(association, hash, owner, false, Ct).Problem?.Code);
+            Assert.Equal("efs-key-review", service.AccessReviewedCapiKey(association with { Users = [] }, hash, owner, true, Ct).Problem?.Code);
+            store.Add(first.Certificate);
+            try
+            {
+                var matched = service.AccessReviewedCapiKey(association, hash, owner, true, Ct);
+                Assert.Equal(StorageEfsKeyState.MatchedAvailable, matched.State);
+                Assert.Equal(StorageEfsKeyProvider.Capi, matched.Provider);
+                Assert.Equal(hash, matched.CertificateSha1);
+                Assert.Equal(sid, matched.InvokerSid);
+            }
+            finally { store.Remove(first.Certificate); }
+            store.Add(wrong);
+            try
+            {
+                var mismatch = service.AccessReviewedCapiKey(association, hash, owner, true, Ct);
+                Assert.Equal(StorageEfsKeyState.Unavailable, mismatch.State);
+                Assert.Equal("efs-key-mismatch", mismatch.Problem?.Code);
+            }
+            finally { store.Remove(wrong); }
+        }
+        finally { Assert.True(DestroyProviderOwner(owner)); }
+    }
+
+    [Fact]
     public void Reviewed_parented_acquisition_requires_explicit_access_to_the_associated_cng_key()
     {
         RequireParentedFixture();
