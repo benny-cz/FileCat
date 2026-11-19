@@ -29,11 +29,25 @@ The test assembly SHA-256 is `8E5B61860804581EFA71983D817A6E58B31090AB47DF774626
 
 ### Windows process launch comparison
 
-The same enhanced test assembly ran twice in each of three modes on Windows 11 x64 build 26340 using the same account and NTFS volume. VSTest and a direct launch of the test's Windows executable each allocated the entire 65,536-byte leading hole. Both direct launches through `dotnet` with the test DLL preserved the two original ranges. The Windows executable therefore reproduced the change without VSTest. The underlying Windows behavior and the outcome under the FileCat desktop executable remain unqualified.
+The same enhanced test assembly ran twice in each of three modes on Windows 11 x64 build 26340 using the same account and NTFS volume. VSTest and a direct launch of the test's Windows executable each allocated the entire 65,536-byte leading hole. Both direct launches through `dotnet` with the test DLL preserved the two original ranges. The Windows executable reproduced the change independently of VSTest. The reason Windows made different allocation decisions remains open.
 
 In every run the original file ID, sparse flag, 30,000,000,001-byte EOF, first 4 MiB and final byte matched the fixture. The entire named stream retained its digest, length, sparse layout, allocation and compression format. Each changed-hole run recorded the exact native attempt and `sparse-postcondition-changed` in the durable result. FileCat kept the result pending with its effect uncertain. The hole-preservation assertion still failed for those runs.
 
 The enhanced assembly SHA-256 is `AFC425AA355EB3345573EF02A90FA08B68711F3FB6B1D0570C318504788C3DD5`. The receipt directory is `.tmp/filecat-efs-live-166b6897-r1/storage-sparse-payload-8633ad7c/three-launches-r2`. The comparison receipt `three-launches-r2.json` has SHA-256 `DED60D73E7A37C964EF488ADF459A9577670A9A554DE4F82EB4653A4FD0B8F6D`. The second-round VSTest, standalone executable and DLL receipts have SHA-256 `E978EE713350519A63F99EAD6E03D790BC6E638BC1CAE6E5488A205919A99DBB`, `B9DAB1567CDB1F3BF7C429896EF5A00C364C31FBFCC8D0CE3091C37116DFE2BE` and `6AB4F29B537E5EC180FD39EF617664A257CC0500E003DCA562BEDF65AA9017EB`.
+
+### FileCat desktop result
+
+The native x64 FileCat desktop qualification host reproduced the allocation change through the keyboard-reviewed **Remove compression** action. At 640 × 420 DIP, Operations reported one uncertain result and Ctrl+J reached its pending review. The independent observer verified the original identity, sparse flag, unchanged EOF, first 4 MiB, final zero byte and entire named stream. Windows removed main-stream compression and reported 196,608 allocated bytes with the leading hole filled. The applicable preservation gate is the hole map.
+
+The receipt `native-storage-large-sparse-ui-r3.json` under `.tmp/filecat-efs-live-166b6897-r1` has SHA-256 `0320C8432CD8624B575F74D0245302C8E91F266DBD12D372080A59652D43E4ED`. The tested `FileCat.dll` and `FileCat.Platform.Windows.dll` have SHA-256 `24042895EE6888B59F0FB82CB3FD79C8171D6A51C9EA7BA53628D5A30F18EE56` and `0D4B9B81C5EF5B8FC3E55E948FFCF47EB050F31AEEC9833DA5521436F0E060FA`.
+
+### Admission for large sparse removal
+
+The compression candidate now refuses a required removal from a sparse main stream above 30,000,000,000 bytes. It uses the logical length and sparse flag from the same held stream. It applies the rule both during fresh review and when a previously reviewed file grows before work starts. An already-clear large sparse file still completes as already satisfied without a native call. The broader rule for compression enablement remains independent.
+
+The Windows x64 regression executed once through VSTest and once directly. Both passed without skips. It verified fresh refusal before approval, late-growth refusal before the native call, unchanged compressed layout and the already-clear no-op. The test binary has SHA-256 `73629CD03D5BE01771CA8451C690E41B70DB899A788605202AE2665044817ED4`. Under `.tmp/filecat-efs-live-166b6897-r1/storage-sparse-boundary-cb04c6c2`, `vstest-1.trx` has SHA-256 `70D305199696E73A6F1B5D0FF1763FE07172CEBA5CBE68ED933243B09B778E68` and `direct-1.xml` has SHA-256 `BC2FF46DF5A4674F3CBE5237E78D8A9E42ED21C8A0727658E61B119A3EF3E245`.
+
+The updated x64 desktop fixture opened the original-item disclosure with the reason, kept **Remove compression** and **Queue** disabled, and wrote no mutation journal. The original LZNT1 compression, 8,192 allocated bytes, logical length, hole map, checked main-stream bytes and complete named stream all matched. The receipt `native-storage-large-sparse-refusal-ui-r2.json` has SHA-256 `25E5D6CDE076A2A6C03D0DC87F0E06DF50D3666727957546ED40A7A81DA0E83C`. The tested Windows platform assembly SHA-256 is `65E2B5856E43FCD543999D9A5FCE11CB7DDDB3E83482CF7F7614AAC31F69C2F3`.
 
 ## Native ARM64 bounded sparse cases
 

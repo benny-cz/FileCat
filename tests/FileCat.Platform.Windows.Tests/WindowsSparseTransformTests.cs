@@ -285,97 +285,65 @@ public sealed partial class WindowsSparseTransformTests
     }
 
     [Fact]
-    public void Reviewed_removal_keeps_sparse_ranges_above_the_compression_enable_ceiling()
+    public void Large_sparse_removal_is_refused_on_review_and_after_late_growth()
     {
         RequireFixture();
         Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_SIZE") == "1",
             "Requires the separately prepared NTFS large sparse fixture.");
         const long largeLength = 30_000_000_001L;
+        const StorageAction remove = StorageAction.RemoveCompression;
         string root = Directory.CreateTempSubdirectory("filecat-large-sparse-removal-").FullName;
         string path = Path.Join(root, "large.bin");
         var ct = TestContext.Current.CancellationToken;
-        bool measureExtents = Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_EXTENTS") == "1";
         try
         {
             WriteStream(path, sparse: true, holes: true, allHole: false, seed: 57);
             WriteStream(path + NamedStream, sparse: true, holes: true, allHole: false, seed: 91);
-            var jobs = CreateManager(path);
-            RunJob(jobs, path, StorageAction.Compress, changed: true);
-            using (var data = File.OpenHandle(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+            InvokeCompression(path, StorageAction.Compress);
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: WindowsStorageAbiTests.QualifyNativeArm64Jobs);
+            var jobs = CreateManager(path, adapter: adapter);
+            var target = ItemRef.ForFileSystemPath(path, EntryKind.File);
+            using var original = jobs.PrepareStorageReview([target], remove, ct);
+            Assert.Equal(StorageObservationState.Enabled, Assert.Single(original.Roots).Observation.Compression);
+            var approval = original.Approve(remove, StorageScope.SelectedItems);
+            using var owner = original.Transfer(adapter, approval);
+            using (var data = File.OpenHandle(path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete))
                 RandomAccess.SetLength(data, largeLength);
 
-            WindowsStorageTransforms.SparseLayout before;
-            string identity;
-            using (var data = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var fresh = jobs.PrepareStorageReview([target], remove, ct))
             {
-                before = Assert.IsType<WindowsStorageTransforms.SparseLayout>(WindowsStorageTransforms.ReadSparseLayout(data, ct));
-                identity = ProtectedHexFile.Identity(data).ToString();
-                Assert.Equal(largeLength, before.Length);
+                Assert.Equal("large-sparse-removal", Assert.Single(fresh.Roots).Observation.Ineligible?.Code);
+                Assert.Throws<InvalidOperationException>(() => fresh.Approve(remove, StorageScope.SelectedItems));
+            }
+            using (var native = StorageReviewResources.EnterNative(ct))
+            using (var traversal = adapter.OpenReviewedRoot(owner.Leases[0], remove, ct))
+            {
+                Assert.Equal("large-sparse-removal", traversal.Root.PrepareMutation(remove, ct).Ineligible?.Code);
+                var refused = traversal.Root.ApplyAdmitted(remove);
+                Assert.Equal(StorageEffect.Skipped, refused.Effect);
+                Assert.Equal("large-sparse-removal", refused.Problem?.Code);
+                Assert.False(refused.NativeCallAttempted);
+            }
+            Assert.Empty(jobs.Jobs);
+            Assert.Empty(Directory.EnumerateFiles(Path.Join(root, "journal")));
+            using (var data = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            {
+                Assert.True(File.GetAttributes(data).HasFlag(FileAttributes.SparseFile));
                 Assert.Equal(WindowsCompression.Lznt1, WindowsCompression.Query(data).Native);
-                Assert.InRange(before.Allocation, 1, Length);
-                if (measureExtents) WriteRetrievalMap("Before removal", data, ct);
+                var layout = Assert.IsType<WindowsStorageTransforms.SparseLayout>(WindowsStorageTransforms.ReadSparseLayout(data, ct));
+                Assert.Equal(largeLength, layout.Length);
+                Assert.Equal(new[]
+                {
+                    new WindowsStorageTransforms.AllocatedRange(64 * 1024, 64 * 1024),
+                    new WindowsStorageTransforms.AllocatedRange(2 * 1024 * 1024, 64 * 1024)
+                }, layout.Ranges);
             }
-            StreamObservation namedBefore;
-            using (var named = File.OpenRead(path + NamedStream)) namedBefore = ObserveStream(named);
-            var job = Submit(jobs, path, StorageAction.RemoveCompression);
 
-            using var result = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var observed = WindowsStorageTransforms.ReadSparseLayout(result, ct);
-            TestContext.Current.TestOutputHelper?.WriteLine($"Before removal: EOF {before.Length}, allocation {before.Allocation}, " +
-                string.Join(", ", before.Ranges));
-            TestContext.Current.TestOutputHelper?.WriteLine($"After removal: EOF {observed?.Length}, allocation {observed?.Allocation}, " +
-                $"{File.GetAttributes(result)}, format {WindowsCompression.Query(result).Native}, " +
-                string.Join(", ", observed?.Ranges ?? []));
-            if (measureExtents) WriteRetrievalMap("After removal", result, ct);
-            var after = Assert.IsType<WindowsStorageTransforms.SparseLayout>(observed);
-            Assert.Equal(identity, ProtectedHexFile.Identity(result).ToString());
-            Assert.Equal(largeLength, after.Length);
-            Assert.True(File.GetAttributes(result).HasFlag(FileAttributes.SparseFile));
-            Assert.InRange(after.Allocation, 1, Length);
-            Assert.Equal(WindowsCompression.None, WindowsCompression.Query(result).Native);
-            var expected = new byte[Length];
-            expected[64 * 1024] = 57;
-            expected[2 * 1024 * 1024] = 58;
-            var prefix = new byte[Length];
-            using (var main = File.OpenRead(path))
-            {
-                main.ReadExactly(prefix);
-                main.Position = largeLength - 1;
-                Assert.Equal(0, main.ReadByte());
-            }
-            Assert.True(prefix.AsSpan().SequenceEqual(expected), "The initial data and zero-filled ranges must retain their bytes.");
-            using var namedResult = File.OpenRead(path + NamedStream);
-            var namedAfter = ObserveStream(namedResult);
-            Assert.Equal(identity, ProtectedHexFile.Identity(namedResult.SafeFileHandle).ToString());
-            Assert.Equal(namedBefore.Length, namedAfter.Length);
-            Assert.Equal(namedBefore.Allocation, namedAfter.Allocation);
-            Assert.Equal(namedBefore.Attributes & FileAttributes.SparseFile, namedAfter.Attributes & FileAttributes.SparseFile);
-            Assert.Equal(namedBefore.Digest, namedAfter.Digest);
-            Assert.Equal(namedBefore.Ranges, namedAfter.Ranges);
-            Assert.Equal(namedBefore.Compression, namedAfter.Compression);
-            TestContext.Current.TestOutputHelper?.WriteLine($"Original file identity, first {Length} bytes, final hole byte and named-stream data/layout verified.");
-
-            var snapshot = Assert.IsType<StorageResultSnapshot>(job.StorageResult);
-            if (!WindowsStorageTransforms.SparseLayout.SameHoles(before, after))
-            {
-                Assert.Equal(JobState.Failed, job.State);
-                Assert.Equal(new StorageOutcomeCounts(Uncertain: 1), snapshot.Counts);
-                string name = StorageJournalPolicy.FileName(job.CreatedUtc, job.Id);
-                var call = Assert.Single(jobs.ReadStorageCalls(name, Assert.IsType<StorageJournalPrefix>(snapshot.DurablePrefix), ct: ct).Calls);
-                var outcome = Assert.IsType<StorageMutationResult>(call.Result);
-                Assert.True(outcome.NativeCallAttempted);
-                Assert.Equal("sparse-postcondition-changed", outcome.Problem?.Code);
-                var pending = jobs.ReadStorageReview(name, ct);
-                Assert.True(pending.ReviewPending);
-                Assert.True(pending.Current.History.EffectUncertain);
-                TestContext.Current.TestOutputHelper?.WriteLine("The durable native result retained uncertainty and required review.");
-            }
-            Assert.Equal(before.Ranges, after.Ranges);
-            Assert.True(job.State == JobState.Completed, $"{job.State}: " + string.Join(", ",
-                snapshot.Reasons.Select(reason => reason.Problem.Message)));
-            Assert.Equal(1, snapshot.Counts.Changed);
-            AssertCallEvidence(jobs, job, changed: true);
-            TestContext.Current.TestOutputHelper?.WriteLine($"EOF {after.Length}, allocation {before.Allocation} to {after.Allocation}, {after.Ranges.Length} allocated ranges");
+            string clear = Path.Join(root, "clear.bin");
+            WriteStream(clear, sparse: true, holes: true, allHole: false, seed: 57);
+            using (var data = File.OpenHandle(clear, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+                RandomAccess.SetLength(data, largeLength);
+            RunJob(jobs, clear, remove, changed: false);
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -516,12 +484,12 @@ public sealed partial class WindowsSparseTransformTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    private static JobManager CreateManager(string path, string? evidenceRoot = null)
+    private static JobManager CreateManager(string path, string? evidenceRoot = null, WindowsStorageTransforms? adapter = null)
     {
         bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
         return new(new PortableFileOperations(), new ProviderRegistry(), Directory.CreateDirectory(
             Path.Join(evidenceRoot ?? Path.GetDirectoryName(path)!, "journal")).FullName, ArchiveJobBackends.Empty,
-            new WindowsStorageTransforms(qualifyNativeArm64: arm64),
+            adapter ?? new WindowsStorageTransforms(qualifyNativeArm64: arm64),
             arm64 ? WindowsStorageReviewEvidence.CreateArm64QualificationJournal : WindowsStorageReviewEvidence.CreateJournal,
             arm64 ? WindowsStorageReviewEvidence.Arm64QualificationBackend : WindowsStorageReviewEvidence.Backend);
     }
@@ -668,23 +636,6 @@ public sealed partial class WindowsSparseTransformTests
         TestContext.Current.TestOutputHelper!.WriteLine(
             $"  {name} eof={observation.Length} allocation={observation.Allocation} attributes={observation.Attributes} compression={observation.Compression} " +
             $"ranges={string.Join(",", observation.Ranges.Select(r => $"{r.Offset}+{r.Length}"))} sha256={observation.Digest}");
-
-    private static unsafe void WriteRetrievalMap(string phase, SafeFileHandle file, CancellationToken ct)
-    {
-        const uint getRetrievalPointers = 0x00090073;
-        var map = WindowsFileRecords.ReadRetrievalPointers((long cursor, byte[] output) =>
-        {
-            fixed (byte* buffer = output)
-            {
-                bool success = Control(file, getRetrievalPointers, &cursor, sizeof(long), buffer,
-                    (uint)output.Length, out uint returned, 0);
-                return (success ? 0 : Marshal.GetLastPInvokeError(), (int)returned);
-            }
-        }, ct);
-        string records = string.Join(", ", map.Value!.Select(run =>
-            $"{run.Vcn}+{run.Length} {(run.Lcn < 0 ? "unallocated or compressed" : "allocated")}"));
-        TestContext.Current.TestOutputHelper?.WriteLine($"{phase} retrieval map: {map.State}, {records} {map.Reason}".TrimEnd());
-    }
 
     private static Observation Observe(string path)
     {

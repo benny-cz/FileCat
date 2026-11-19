@@ -10,6 +10,9 @@ namespace FileCat.Platform.Windows;
 /// <summary>Qualification-stage C adapter. WindowsPlatform keeps the unsupported adapter until execution gates close.</summary>
 internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransforms, IStorageEfsSetup
 {
+    // Native x64 removal can allocate a hole at this length. Keep the unqualified large sparse scope unavailable.
+    private const long FirstUnqualifiedSparseRemovalLength = 30_000_000_001L;
+
     // The qualification target is the Windows 11 client, not a Server product with the same build number.
     private static bool IsWindows11Client => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) && !IsOS(29 /* OS_ANYSERVER */);
     internal static bool IsQualifiedHost => RuntimeInformation.ProcessArchitecture == Architecture.X64 && IsWindows11Client;
@@ -156,10 +159,11 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
                 problem = Problem(StorageReasonKind.Unknown, "inconsistent-storage", "Both compression and EFS were observed; automatic conversion is refused.");
         }
         return new(new(compression, efs, facts.Identity, facts.IsDirectory, problem),
-            (facts.Attributes & (uint)FileAttributes.ReadOnly) != 0, facts.Size);
+            (facts.Attributes & (uint)FileAttributes.ReadOnly) != 0,
+            (facts.Attributes & (uint)FileAttributes.SparseFile) != 0, facts.Size);
     }
 
-    private sealed record Inspection(StorageObservation Basic, bool ReadOnly, long Size)
+    private sealed record Inspection(StorageObservation Basic, bool ReadOnly, bool SparseFile, long Size)
     {
         internal StorageObservation For(StorageAction? action)
         {
@@ -172,6 +176,9 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
                 if (ReadOnly) problem = Problem(StorageReasonKind.PermissionOrPolicy, "read-only-file", "The file is read-only; its attributes will not be cleared.");
                 else if (action == StorageAction.Compress && Size > 30_000_000_000L)
                     problem = Problem(StorageReasonKind.FileCatBoundary, "enable-size-limit", "This file exceeds FileCat's qualified 30,000,000,000-byte compression-enable limit.");
+                else if (action == StorageAction.RemoveCompression && SparseFile && Size >= FirstUnqualifiedSparseRemovalLength)
+                    problem = Problem(StorageReasonKind.FileCatBoundary, "large-sparse-removal",
+                        "Windows can allocate space in sparse holes when removing compression. FileCat does not remove compression from sparse files larger than 30,000,000,000 bytes.");
             }
             return Basic with { Ineligible = problem };
         }
