@@ -27,7 +27,7 @@ public partial class WindowsFileOperations : ILegacyZipInPlacePublisher
 
     internal static LegacyZipInPlaceResult? PublishLegacyZipInPlaceCore(string archive, string stage, string backup,
         LegacyZipRollbackFile original, SafeFileHandle originalPin, LegacyZipRollbackFile rebuilt, SafeFileHandle stagePin,
-        Action checkpoint, Action? beforeCommit)
+        Action checkpoint, Action? beforeCommit, Action? beforeCleanupCommit = null)
     {
         string folder = Path.GetDirectoryName(archive)!;
         if (folder != Path.GetDirectoryName(stage) || folder != Path.GetDirectoryName(backup))
@@ -98,7 +98,7 @@ public partial class WindowsFileOperations : ILegacyZipInPlacePublisher
                 RequirePreservedLegacyZipMetadata(adopted, published.Version.Length, originalInfo, originalSecurity);
             }
 
-            string? cleanupReview = CleanupLegacyZipBackupCore(archive, stage, published, rebuilt, beforeCommit: null)
+            string? cleanupReview = CleanupLegacyZipBackupCore(archive, stage, published, rebuilt, beforeCommit: beforeCleanupCommit)
                 ?? CleanupLegacyZipBackupCore(archive, backup, published, snapshot, beforeCommit: null);
             return new(true, cleanupReview);
         }
