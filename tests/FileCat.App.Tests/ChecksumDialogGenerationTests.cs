@@ -37,7 +37,7 @@ public sealed class ChecksumDialogGenerationTests
             var output = window.GetVisualDescendants().OfType<TextBox>().Single(c => AutomationProperties.GetName(c) == "Checksums");
             var body = Assert.IsType<StackPanel>(output.Parent);
             var progress = Assert.Single(body.Children.OfType<ProgressBar>());
-            var save = Assert.Single(body.Children.OfType<Button>());
+            var save = Assert.Single(body.Children.OfType<Button>(), b => Equals(b.Content, "Save as manifest…"));
             var algorithm = Assert.Single(body.Children.OfType<ComboBox>());
             await Until(() => !progress.IsVisible && save.IsEnabled, TimeSpan.FromSeconds(5));
             string sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes));

@@ -32,7 +32,7 @@ public sealed class AdministratorActionsTests
         RequireWindows(elevated: false);
         var (services, vm, window, root) = OpenWindows();
         DirectoryInfo? fixture = null;
-        DirectorySecurity? originalAcl = null;
+        byte[]? originalAcl = null;
         try
         {
             string? folder = Environment.GetEnvironmentVariable("FILECAT_ADMIN_TEST_RESTRICTED");
@@ -40,8 +40,8 @@ public sealed class AdministratorActionsTests
             {
                 fixture = Directory.CreateDirectory(Path.Combine(root, "access denied folder"));
                 File.WriteAllText(Path.Combine(fixture.FullName, "admin-only.txt"), "fixture");
-                originalAcl = fixture.GetAccessControl();
                 var denied = fixture.GetAccessControl();
+                originalAcl = denied.GetSecurityDescriptorBinaryForm();
                 using var identity = WindowsIdentity.GetCurrent();
                 denied.AddAccessRule(new FileSystemAccessRule(identity.User!, FileSystemRights.ListDirectory, AccessControlType.Deny));
                 fixture.SetAccessControl(denied);
@@ -69,7 +69,12 @@ public sealed class AdministratorActionsTests
         }
         finally
         {
-            if (originalAcl is not null) fixture!.SetAccessControl(originalAcl);
+            if (originalAcl is not null)
+            {
+                var restored = new DirectorySecurity();
+                restored.SetSecurityDescriptorBinaryForm(originalAcl, AccessControlSections.Access);
+                fixture!.SetAccessControl(restored);
+            }
             AccessibilityTests.Close(services, window, root);
         }
     }

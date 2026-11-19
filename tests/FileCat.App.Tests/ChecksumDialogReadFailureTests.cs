@@ -37,7 +37,8 @@ public sealed class ChecksumDialogReadFailureTests
             var output = window.GetVisualDescendants().OfType<TextBox>().Single(c => AutomationProperties.GetName(c) == "Checksums");
             var body = Assert.IsType<StackPanel>(output.Parent);
             var progress = Assert.Single(body.Children.OfType<ProgressBar>());
-            var save = Assert.Single(body.Children.OfType<Button>());
+            var save = Assert.Single(body.Children.OfType<Button>(), b => Equals(b.Content, "Save as manifest…"));
+            var retry = Assert.Single(body.Children.OfType<Button>(), b => Equals(b.Content, "Checksum access-denied files as administrator…"));
             var clock = Stopwatch.StartNew();
             while (progress.IsVisible && clock.Elapsed < TimeSpan.FromSeconds(3))
                 await Task.Delay(10, TestContext.Current.CancellationToken);
@@ -47,13 +48,13 @@ public sealed class ChecksumDialogReadFailureTests
             TestContext.Current.TestOutputHelper!.WriteLine(JsonSerializer.Serialize(new { missing, multiple, Output = text, ProgressVisible = progress.IsVisible, SaveEnabled = save.IsEnabled, DialogStillOpen = ((OverlayDialogService)vm.Dialogs).IsOpen, OwnedExistingContentUnchanged = unchanged, ExpectedSHA256 = Convert.ToHexStringLower(SHA256.HashData(bytes)), ActualCompleteDialog = true, HeadlessComponentOnly = true }));
             Assert.True(unchanged);
             Assert.False(progress.IsVisible);
-            if (missing) { Assert.Contains("Error:", text); Assert.False(save.IsEnabled); }
-            else
-            {
-                string hash = Convert.ToHexStringLower(SHA256.HashData(bytes));
-                Assert.Equal(multiple ? $"{hash}  owned-one.bin{Environment.NewLine}{hash}  owned-two.bin" : $"{hash}  owned-one.bin", text);
-                Assert.True(save.IsEnabled);
-            }
+            Assert.False(retry.IsVisible);
+            string hash = Convert.ToHexStringLower(SHA256.HashData(bytes));
+            const string error = "The item no longer exists or its folder was removed.";
+            string firstLine = missing && !multiple ? $"owned-one.bin  {error}" : $"{hash}  owned-one.bin";
+            string secondLine = missing ? $"owned-two.bin  {error}" : $"{hash}  owned-two.bin";
+            Assert.Equal(multiple ? firstLine + Environment.NewLine + secondLine : firstLine, text);
+            Assert.Equal(!missing || multiple, save.IsEnabled);
         }
         finally
         {

@@ -302,7 +302,7 @@ public sealed partial class MainViewModel
         if (Services.Recovery.OpenDevice is null)
             return "Scanning drives directly is not available here. Make an image of the drive on another drive (for example with dd), then recover deleted files from the image.";
         if (!OperatingSystem.IsWindows()) return null; // the system asks for approval when the drive is opened
-        if (Environment.IsPrivilegedProcess || FileCat.Platform.Windows.Elevation.ElevationBroker.Locate(Services.Paths.IsPortable, out _) is not null) return null;
+        if (WindowsTokenAuthority.IsHighIntegrity || FileCat.Platform.Windows.Elevation.ElevationBroker.Locate(Services.Paths.IsPortable, out _) is not null) return null;
         return $"Reading a drive needs administrator rights, and {(Services.Paths.IsPortable ? "portable FileCat" : "this FileCat build")} has no installed helper to ask Windows for them. " +
                "Choose Tools → Open FileCat as administrator and close this window before scanning a drive. You can also recover from a disk image.";
     }
@@ -365,7 +365,7 @@ public sealed partial class MainViewModel
             await RefuseScanAsync(safety);
             return;
         }
-        string how = Environment.IsPrivilegedProcess
+        string how = WindowsTokenAuthority.IsHighIntegrity
             ? "FileCat runs as administrator and reads the drive itself, only reading: FileCat changes nothing on it. "
             : "Windows asks for administrator approval, and FileCat's helper then only reads the drive: FileCat changes nothing on it. ";
         // A drive with a letter is mounted: Windows writes its own pending changes to it, sooner while it is read (release
@@ -419,7 +419,7 @@ public sealed partial class MainViewModel
             await RefuseScanAsync(safety);
             return;
         }
-        string how = Environment.IsPrivilegedProcess
+        string how = WindowsTokenAuthority.IsHighIntegrity
             ? "FileCat runs as administrator and reads the disk itself, only reading: FileCat changes nothing on it. "
             : "Windows asks for administrator approval, and FileCat's helper then only reads the disk: FileCat changes nothing on it. ";
         string text = $"Scan {name} for deleted files? The scan lists the disk's partitions, and looks where partitions usually start for ones that were deleted or whose table was lost. " + how +

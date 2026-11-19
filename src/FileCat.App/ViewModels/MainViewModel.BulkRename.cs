@@ -89,6 +89,14 @@ public sealed partial class MainViewModel
         AutomationProperties.SetAutomationId(summary, "Bulk rename validation status");
         AutomationProperties.SetLiveSetting(summary, AutomationLiveSetting.Polite);
         var editorButton = new Button { Content = "Edit names in editor…" };
+        var administratorButton = new Button
+        {
+            Content = "Review as administrator…",
+            ContentTemplate = DialogLayout.WrappingText,
+            IsVisible = CanRequestAdministratorTask,
+            IsEnabled = false,
+        };
+        var closer = new DialogCloser();
         IReadOnlyList<string>? explicitNames = null;
         IReadOnlyList<RenamePreview> rows = [];
         RenameRules? plannedFor = null;
@@ -177,6 +185,7 @@ public sealed partial class MainViewModel
             rows = [];
             preview.SetRows(rows);
             editorButton.IsEnabled = false;
+            administratorButton.IsEnabled = false;
             var validation = ValidateCounters();
             summary.Text = validation.Message ?? "Checking names…";
             summary.Classes.Set("error", validation.Error);
@@ -226,6 +235,7 @@ public sealed partial class MainViewModel
             plannedFor = rules;
             plannedScope = scope;
             editorButton.IsEnabled = rows.Count > 0;
+            administratorButton.IsEnabled = CanRename();
             int changing = rows.Count(r => r.Changes), problems = rows.Count(r => r.Problem is not null);
             summary.Text = $"{changing:N0} of {rows.Count:N0} names change" + (problems > 0 ? $" · {problems:N0} problems block the rename" : "") +
                            (sel.Value.HiddenMarked > 0 ? hidden.IsChecked == true ? $" · includes {sel.Value.HiddenMarked:N0} hidden marked items" : $" · {sel.Value.HiddenMarked:N0} hidden marked items excluded" : "") +
@@ -322,7 +332,7 @@ public sealed partial class MainViewModel
                 searchOptions,
                 // Keep the alternate naming action in view before the large preview.
                 // A review with hundreds of rows should not bury it below the list.
-                DialogLayout.Actions(editorButton),
+                DialogLayout.Actions(editorButton, administratorButton),
                 preview,
                 summary,
             },
@@ -332,11 +342,10 @@ public sealed partial class MainViewModel
         RequestPreview();
         bool CanRename() => plannedFor is not null && plannedScope == scopeRevision && plannedFor == Rules() &&
             rows.All(r => r.Problem is null) && rows.Any(r => r.Changes);
-        var actions = new List<DialogButton> { new("Cancel", "cancel", IsCancel: true) };
-        if (CanRequestAdministratorTask) actions.Add(new("Review as administrator…", "administrator") { IsAvailable = CanRename });
-        actions.Add(new("Rename", "rename", IsDefault: true));
-        var answer = await Dialogs.ShowCustomAsync("Bulk rename", body, actions, nameMask, CanRename, resizable: true,
-            pinnedReview: pinnedReview);
+        administratorButton.Click += (_, _) => { if (CanRename()) closer.Close("administrator"); };
+        var answer = await Dialogs.ShowCustomAsync("Bulk rename", body,
+            [new("Cancel", "cancel", IsCancel: true), new("Rename", "rename", IsDefault: true)],
+            nameMask, CanRename, closer: closer, resizable: true, pinnedReview: pinnedReview);
         dialogOpen = false;
         generation++;
         previewCancellation?.Cancel();

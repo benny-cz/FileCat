@@ -215,6 +215,8 @@ public static class CommandIcons
         [CommandIds.ThemePrevious] = [new(PaletteShape, "TextMuted"), new("M10.5,6.5 L4,6.5 M6.25,4.25 L4,6.5 L6.25,8.75", "ActiveAccent")],
         // Tools
         [CommandIds.FindDeleted] = [new(Trash, "TextMuted"), new("M8,12.5 L8,7 M6,9 L8,7 L10,9", "Success")],
+        [CommandIds.OpenAdministratorWindow] = [new("M8,1.5 L14,4 L13.5,8 C13,11 11,13 8,14.5 C5,13 3,11 2.5,8 L2,4 Z"),
+            new("M8,11 L8,5 M5.5,7.5 L8,5 L10.5,7.5", "ActiveAccent")],
         [CommandIds.Operations] = [new("M1.5,3.5 L14.5,3.5 M1.5,8 L14.5,8 M1.5,12.5 L14.5,12.5", "TextMuted"), new("M1.5,3.5 L10,3.5 M1.5,8 L5.5,8", "Progress")],
         [CommandIds.RecentNotifications] = [new("M3,11.5 L4.5,9.5 L4.5,6.5 C4.5,4.4 5.8,3 8,3 C10.2,3 11.5,4.4 11.5,6.5 L11.5,9.5 L13,11.5 Z M6.5,13 L9.5,13", "TextMuted")],
         [CommandIds.Palette] = [new(Magnifier, "TextMuted"), new("M4.5,5 L6.5,6.5 L4.5,8", "ActiveAccent")],
