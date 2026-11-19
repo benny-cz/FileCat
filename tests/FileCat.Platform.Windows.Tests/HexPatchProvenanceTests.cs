@@ -52,8 +52,7 @@ public sealed class HexPatchProvenanceTests
     [InlineData(true)]
     public void An_actual_Efs_patch_retains_its_origin_after_partial_application_and_undo_redo(bool undoRedo)
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1", "Disposable normal-user Windows EFS input qualification.");
-        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
+        WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
         string root = Directory.CreateTempSubdirectory("filecat-hex-origin-efs-").FullName;
         string target = Path.Join(root, "target"), patchPath = Path.Join(root, "patch.json"); File.WriteAllBytes(target, [1, 2, 3, 4]);
         File.WriteAllText(patchPath, JsonSerializer.Serialize(new
@@ -92,9 +91,7 @@ public sealed class HexPatchProvenanceTests
     [Fact]
     public void Efs_patch_review_holds_the_output_folder_and_writes_only_after_approval()
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Disposable normal-user Windows EFS input qualification.");
-        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
+        WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
         string root = Directory.CreateTempSubdirectory("filecat-hex-reviewed-patch-").FullName;
         string target = Path.Join(root, "input");
         string output = Directory.CreateDirectory(Path.Join(root, "output")).FullName;
@@ -149,8 +146,7 @@ public sealed class HexPatchProvenanceTests
     [InlineData(true)]
     public void Efs_save_as_publishes_a_clear_copy_and_preserves_the_download_mark(bool marked)
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Disposable normal-user Windows EFS input qualification.");
+        WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
         string root = Directory.CreateTempSubdirectory("filecat-hex-reviewed-saveas-").FullName;
         string target = Path.Join(root, "input"), destination = Path.Join(root, "copy");
         const string downloadMark = "[ZoneTransfer]\r\nZoneId=3\r\n";

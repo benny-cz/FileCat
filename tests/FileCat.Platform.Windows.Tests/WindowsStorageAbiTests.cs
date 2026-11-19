@@ -12,6 +12,19 @@ public sealed class WindowsStorageAbiTests
         Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS") == "1" &&
         Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE") == "Arm64";
 
+    internal static void RequireNativeEfsOutputFixture()
+    {
+        string? ownedRoot = Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ABI_ROOT");
+        bool arm64 = WindowsStorageTransforms.IsNativeArm64QualificationHost &&
+            Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ARM64_OUTPUTS") == "1" &&
+            Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE") == "Arm64" &&
+            Path.IsPathFullyQualified(ownedRoot ?? "") && string.Equals(ownedRoot,
+                Path.TrimEndingDirectorySeparator(Path.GetTempPath()), StringComparison.OrdinalIgnoreCase);
+        Assert.SkipUnless(WindowsStorageTransforms.SupportsHost(arm64) && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires an explicitly prepared disposable Windows EFS output fixture.");
+        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
+    }
+
     [Fact]
     public void Ntfs_compression_changes_held_streams_and_preserves_their_bytes()
     {

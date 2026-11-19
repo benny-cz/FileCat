@@ -123,7 +123,7 @@ public sealed class ArchiveEfsSpoolTests
     }
 
     [Fact]
-    public void An_encrypted_later_rar_volume_refuses_a_nested_disk_spool()
+    public async Task An_encrypted_later_rar_volume_refuses_disk_spool_extraction_and_drag()
     {
         if (!IsEfsFixture) Assert.Skip(FixtureRequirement);
         using var directory = new TempDir();
@@ -138,17 +138,21 @@ public sealed class ArchiveEfsSpoolTests
         Assert.True(File.GetAttributes(later).HasFlag(FileAttributes.Encrypted));
         string cache = Path.Join(directory.Path, "cache");
         var providers = new ProviderRegistry();
-        var archives = new ArchiveProvider(cache, providers);
+        var files = new IdentityAwareTestFiles();
+        var archives = new ArchiveProvider(cache, providers) { GetSourceIdentity = files.GetFileIdentity, GetOpenedSourceIdentity = files.GetHandleIdentity };
         providers.Register(archives);
+        providers.Register(new LocalFileSystemProvider());
         try
         {
             var archive = ArchiveProvider.ForFile(first);
-            var member = new ItemRef(archive.WithPath("exe"), "test.exe", EntryKind.File);
+            var member = new ItemRef(archive.WithPath("exe"), "test.exe", EntryKind.File, 45056);
             using var content = Assert.IsType<MemoryContentSource>(archives.OpenContent(member));
             Assert.Equal(45056, content.Length);
             var refusal = Assert.Throws<ArchiveWriteException>(() => archives.OpenSpool(archive.WithPath("exe/test.exe")));
             Assert.Equal(ArchiveOuterEfs.SpoolUnavailable, refusal.Message);
-            Assert.False(Directory.Exists(cache));
+            await RequirePublicationRefused(directory, cache, providers, files, member);
+            Assert.False(File.GetAttributes(first).HasFlag(FileAttributes.Encrypted));
+            Assert.True(File.GetAttributes(later).HasFlag(FileAttributes.Encrypted));
         }
         finally { archives.Release(first); }
     }
@@ -185,8 +189,7 @@ public sealed class ArchiveEfsSpoolTests
         if (!IsEfsFixture) Assert.Skip(FixtureRequirement);
         using var directory = new TempDir();
         string path = Path.Join(directory.Path, legacyZip ? "source.zip" : "source.tar.gz");
-        string cache = Path.Join(directory.Path, "cache"), drag = Path.Join(directory.Path, "drag-temp");
-        string destination = directory.Dir("destination");
+        string cache = Path.Join(directory.Path, "cache");
         byte[] payload = new byte[large ? 33 * 1024 * 1024 : 4];
         payload[0] = 50;
         if (legacyZip)
@@ -214,7 +217,6 @@ public sealed class ArchiveEfsSpoolTests
         providers.Register(new LocalFileSystemProvider());
         var location = legacyZip ? ZipProvider.ForFile(path) : ArchiveProvider.ForFile(path);
         var item = new ItemRef(location, "payload.bin", EntryKind.File, payload.Length);
-        var ct = TestContext.Current.CancellationToken;
         try
         {
             using (var read = ProgressiveContent.Sequential(providers.For(location).OpenContent(item))!)
@@ -224,25 +226,7 @@ public sealed class ArchiveEfsSpoolTests
                 Assert.Equal(payload[0], first[0]);
             }
 
-            var staged = DragStaging.Stage([item], providers, files, drag, ct);
-            Assert.Null(staged.Paths);
-            Assert.Contains(ArchiveOuterEfs.OutputUnavailable(ContentOutputKind.Drag), staged.Refusal);
-            if (Directory.Exists(drag)) Assert.Empty(Directory.EnumerateFiles(drag, "*", SearchOption.AllDirectories));
-
-            var manager = new JobManager(files, providers, Path.Join(directory.Path, "journal"));
-            var retired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            manager.JobFinished += _ => retired.TrySetResult();
-            var job = manager.Submit(new JobRequest
-            {
-                Kind = JobKind.Copy,
-                Sources = [item],
-                Destination = Location.FileSystem(destination),
-            });
-            try { await retired.Task.WaitAsync(TimeSpan.FromSeconds(20), ct); }
-            finally { if (!job.State.IsFinished()) job.Cancel(); }
-            Assert.Contains(job.Issues, issue => issue.Message.Contains(ArchiveOuterEfs.OutputUnavailable(ContentOutputKind.Extraction), StringComparison.Ordinal));
-            Assert.Empty(Directory.EnumerateFileSystemEntries(destination));
-            Assert.False(Directory.Exists(cache));
+            await RequirePublicationRefused(directory, cache, providers, files, item);
             Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
         }
         finally
@@ -250,6 +234,32 @@ public sealed class ArchiveEfsSpoolTests
             zip.Release(path);
             archives.Release(path);
         }
+    }
+
+    private static async Task RequirePublicationRefused(TempDir directory, string cache, ProviderRegistry providers,
+        IdentityAwareTestFiles files, ItemRef item)
+    {
+        string drag = Path.Join(directory.Path, "drag-temp"), destination = directory.Dir("destination");
+        var ct = TestContext.Current.CancellationToken;
+        var staged = DragStaging.Stage([item], providers, files, drag, ct);
+        Assert.Null(staged.Paths);
+        Assert.Contains(ArchiveOuterEfs.OutputUnavailable(ContentOutputKind.Drag), staged.Refusal);
+        if (Directory.Exists(drag)) Assert.Empty(Directory.EnumerateFiles(drag, "*", SearchOption.AllDirectories));
+
+        var manager = new JobManager(files, providers, Path.Join(directory.Path, "journal"));
+        var retired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        manager.JobFinished += _ => retired.TrySetResult();
+        var job = manager.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [item],
+            Destination = Location.FileSystem(destination),
+        });
+        try { await retired.Task.WaitAsync(TimeSpan.FromSeconds(20), ct); }
+        finally { if (!job.State.IsFinished()) job.Cancel(); }
+        Assert.Contains(job.Issues, issue => issue.Message.Contains(ArchiveOuterEfs.OutputUnavailable(ContentOutputKind.Extraction), StringComparison.Ordinal));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(destination));
+        Assert.False(Directory.Exists(cache));
     }
 
     [System.Runtime.Versioning.SupportedOSPlatformGuard("windows")]

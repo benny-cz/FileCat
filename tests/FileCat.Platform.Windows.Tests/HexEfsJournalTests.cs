@@ -5,17 +5,11 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed class HexEfsJournalTests
 {
-    private static void NativeFixture()
-    {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Explicit EFS output qualification in the disposable normal-user Windows VM.");
-        Assert.False(WindowsTokenAuthority.IsHighIntegrity);
-    }
-
     [Fact]
     public void Efs_target_remains_readable_and_editable_in_memory_but_save_creates_no_journal()
     {
-        NativeFixture(); string directory = Directory.CreateTempSubdirectory("filecat-hex-efs-").FullName;
+        WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
+        string directory = Directory.CreateTempSubdirectory("filecat-hex-efs-").FullName;
         string target = Path.Join(directory, "target.bin"), journals = Path.Join(directory, "journals");
         File.WriteAllBytes(target, [1, 2, 3, 4]); File.Encrypt(target);
         try
@@ -36,7 +30,7 @@ public sealed class HexEfsJournalTests
     [InlineData(1)]
     public void Efs_applied_after_a_journal_flush_stops_save_and_keeps_the_journal(int writtenRanges)
     {
-        NativeFixture();
+        WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
         string directory = Directory.CreateTempSubdirectory("filecat-hex-efs-late-save-").FullName;
         string target = Path.Join(directory, "target.bin"), journals = Path.Join(directory, "journals");
         byte[] original = [1, 2, 3, 4];
@@ -69,7 +63,7 @@ public sealed class HexEfsJournalTests
     [InlineData(true)]
     public void Efs_applied_during_recovery_stops_the_next_write_and_keeps_the_journal(bool rollback)
     {
-        NativeFixture();
+        WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
         string directory = Directory.CreateTempSubdirectory("filecat-hex-efs-late-recovery-").FullName;
         string target = Path.Join(directory, "target.bin"), journals = Path.Join(directory, "journals");
         File.WriteAllBytes(target, [1, 2, 3, 4]);
@@ -102,7 +96,8 @@ public sealed class HexEfsJournalTests
     [InlineData(true)]
     public void A_target_encrypted_after_a_clear_save_interruption_blocks_recovery_and_retains_the_journal(bool rollback)
     {
-        NativeFixture(); string directory = Directory.CreateTempSubdirectory("filecat-hex-efs-recovery-").FullName;
+        WindowsStorageAbiTests.RequireNativeEfsOutputFixture();
+        string directory = Directory.CreateTempSubdirectory("filecat-hex-efs-recovery-").FullName;
         string target = Path.Join(directory, "target.bin"), journals = Path.Join(directory, "journals");
         File.WriteAllBytes(target, [1, 2, 3, 4]); string journal;
         try
