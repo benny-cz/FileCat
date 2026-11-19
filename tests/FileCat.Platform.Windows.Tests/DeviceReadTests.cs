@@ -191,10 +191,11 @@ public sealed class DeviceReadTests : IDisposable
             Assert.Equal(length, source.Read(offset, part));
             Assert.True(whole.AsSpan(offset, length).SequenceEqual(part), $"{offset}+{length}");
         }
-        // More than one helper-sized read at once.
+        // More than one helper-sized read at once. On a mounted volume the data after the
+        // boot sector can change between calls, so compare only the stable sector here.
         var large = new byte[RawReadProtocol.MaxRead + 1000];
         Assert.Equal(large.Length, source.Read(0, large));
-        Assert.True(whole.AsSpan().SequenceEqual(large.AsSpan(0, whole.Length)));
+        Assert.Equal(boot, large[..boot.Length]);
         Assert.Equal(0, source.Read(source.Length, new byte[16]));
     }
 

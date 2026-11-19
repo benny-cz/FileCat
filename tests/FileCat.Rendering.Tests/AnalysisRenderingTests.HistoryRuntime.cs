@@ -137,6 +137,7 @@ public sealed partial class AnalysisRenderingTests
     [InlineData(false, false)] [InlineData(false, true)] [InlineData(true, false)] [InlineData(true, true)]
     public async Task SettingsHistoryPolicyRequiresItsSeparatePreservingReviewAndDisablingKeepsAllBytes(bool initiallyEnabled, bool accept)
     {
+        if (initiallyEnabled) OrdinaryPreparation();
         using var styles = new ProductStyles(); using var profile = new PreparationFixture();
         profile.Services.Settings.AnalysisPreferences = new() { RollingHistory = new(initiallyEnabled) };
         Dictionary<string, string>? historyBefore = null;

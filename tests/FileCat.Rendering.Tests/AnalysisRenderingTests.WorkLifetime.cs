@@ -78,6 +78,7 @@ public sealed partial class AnalysisRenderingTests
     [InlineData(true)]
     public async Task ClosedWindowKeepsItsSlotUntilTheActualProjectionOrNavigationReturns(bool navigation)
     {
+        using var styles = new ProductStyles();
         using var release = new ManualResetEventSlim(); var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         int calls = 0; AnalysisOrderedRows? lateOrder = null;
         using var model = new DiskSpaceViewModel(Fixture(), (rows, field, descending, token) =>
