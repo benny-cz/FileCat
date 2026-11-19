@@ -1,6 +1,6 @@
 # Independent final review
 
-The independent review is in progress. It started after the r1778 regression passed on Windows, macOS and Ubuntu on source `c4a4a928`. The review uses that build and the linked native receipts as its baseline. [Merged regression results](NATIVE_PACKAGES_QUALIFICATION.md).
+The independent technical review started after the r1778 regression passed on Windows, macOS and Ubuntu on source `c4a4a928`. All findings recorded below have passing retests on the applicable platforms. Participant responses are still required for the comprehension gate. [Merged regression results](NATIVE_PACKAGES_QUALIFICATION.md) · [Comprehension study](UX_COMPREHENSION_STUDY.md).
 
 Start a separate review pass from the final requirements, current code, native behavior and attack surfaces. Do not assume an implementation decision or an earlier passing test establishes correctness. Record reproducible findings with severity, trigger, expected behavior, actual behavior and the affected build/source hash. Fix each finding and repeat the relevant tests; perform another review pass if the fix changes the reviewed behavior.
 
@@ -12,10 +12,37 @@ Start a separate review pass from the final requirements, current code, native b
 
 Completion requires no unresolved review findings, no unperformed mandatory qualification, and a final report that distinguishes verified behavior from practical limits. Never claim that testing proves the absence of every possible bug.
 
-## Findings under retest
+## Findings and retests
 
-- The Mac compositor showed a bare byte number in Sunburst. The chart automation names also used “reported units” for every metric. Fix `e4b4510e` adds the active metric and its units to the accessible names and formats the visible scope amount with its units. The focused test covers a known size, an unknown size and a file count.
-- Resource limits showed the fixed scratch path. Moving index files to another disk required moving the entire profile with `--data`. Fix `e4b4510e` adds the per-launch `--analysis-scratch` option. Native preparation qualifies the existing local parent before creating an owner-private child. The alternate path retains the profile's shared quota and preserves the existing private boundary. An unavailable selected path falls back to bounded memory. The focused tests exercise both paths, retain ordinary neighboring data and check the `--data` boundary.
+- The Mac compositor showed a bare byte number in Sunburst. The chart automation names also used “reported units” for every metric. Fix `e4b4510e` adds the active metric and its units to the accessible names. The first retest exposed a clipped qualifier in the visible center. Fix `7b17b2df` fits the amount and unit together and keeps coverage wording in the summary and accessibility label. The refreshed Mac compositor capture shows the complete `3,3 MiB` amount. The focused test covers known bytes, an unknown size, a file count and the partial qualifier.
+- Resource limits showed the fixed scratch path. Moving index files to another disk required moving the entire profile with `--data`. Fix `e4b4510e` adds the per-launch `--analysis-scratch` option. Native preparation qualifies the existing local parent before creating an owner-private child. The alternate path retains the profile's shared quota and preserves the existing private boundary. An unavailable selected path falls back to bounded memory. All three platforms exercised ordinary neighboring data and `--data` containment. Ubuntu r1796 also wrote its index to a separate mounted ext4 filesystem, retained the original profile and source, and detached the image. The test XML and mount receipt SHA-256 values are `4787ab4802f88d0ccfb6091faf44fec41c5f60c8063c24c99d92689a3f0d4197` and `bc5912360e4e176da9dff161743b3569be9bd5988a8b26f5201af8aa6f984329`.
 - The enabled Standard backends lacked scoped qualified build identifiers. The preview, copy and stable-content rows also lacked evidence links. Fix `e4b4510e` identifies the applicable builds and cites the native receipts for each scoped capability. [Capability evidence](capabilities.json).
+- The existing chart theme test expected unformatted digits. The Mac, Ubuntu and Windows Renderer logs each show that assertion as the sole failure. The corresponding locale assertion and the expanded actual diagnostics ZIP check passed in the r1792 repeat. The diagnostics fixture verifies that names and contents in the query, recipe, catalog, inventory, history, selection and alternate-scratch canaries stay out of the ZIP and are preserved on disk.
 
-The r1787 focused checks have advanced on all three platforms. The complete regression receipts and a fresh native desktop capture are pending. The comprehension study still needs participant responses. [Comprehension study](UX_COMPREHENSION_STUDY.md).
+## Native and regression results
+
+All three machines passed eight focused checks and the Core and App suites in r1787. The Renderer column combines unchanged r1787 results with the rerun of the one failed locale assertion. The r1792 repeat passed all three selected tests on each platform. It verified the cached inputs and replaced only the App and Renderer DLL and PDB pairs. All native desktop rechecks used application SHA-256 `3e735e78f3b9a130423feb9590b57f8ea1a299064aa547e906c7ca324f0ae99e` and ended with clear process inventories.
+
+| Platform | r1787 Core passed/discovered | r1787 App passed/discovered | Renderer passed/discovered after scoped rerun | Follow-up desktop |
+|---|---:|---:|---:|---|
+| Windows VM | 1,986 / 2,039 | 23 / 26 | 985 / 996 | r1793 setup, eight themes, charts, indexed result, source preservation and normal close |
+| Mac | 2,090 / 2,107 | 22 / 26 | 986 / 996 | r1795 native 2× chart, unknown coverage, capacity and cleanup captures |
+| Ubuntu VM | 2,091 / 2,107 | 23 / 26 | 986 / 996 | r1794 native Openbox, eight themes, charts, indexed result and normal close |
+
+| Platform | Original Renderer XML SHA-256 | Focused r1792 XML SHA-256 | Desktop receipt SHA-256 |
+|---|---|---|---|
+| Windows VM | `8a3bd38ab98c38e9b6ace8bf700297e30a72205c613ed9b1d330d511c34235ae` | `89e9506af4e8de9cdf60aed29dc502b604c86abef25d26f51a5f4b474d32b9a3` | `cd1ad91cd3692a41ded5488de4b7c5c2caf66a83e7789ee2c9c1c940bc5e8b5d` |
+| Mac | `499b529c1209373e198559e51988848de7b6fe1e0bbb572bc808eb7053b54df3` | `eca0e37dcfd27d5550c64cb2881852729e73da8a698fb38b4bec994b9a102cc7` | `d67e80287bd7102a74145fdd34444748fee99ff6dc86eeefc2a9a34fe80b1888` |
+| Ubuntu VM | `6d43f9b2b96548c852ecd22520a1730cb5c8ab3fdfd9fb4e2153a3b672cc798f` | `f7246c8274c9a7b930677a89d86c8fd784679a74741513a37ebac1b11577ffee` | `69aa695f3068a02dbf20ab251dcd3259ae02528c7eec51f8a7c8d1b992582524` |
+
+The Windows native run reached the first laid-out result in 777.22 ms. Both VMs restored setup to 380 × 430 DIP after maximizing. Windows and Ubuntu met the 33 ms chart-frame-work target for 700 flat entries and 4,096 observations across eight folders. Ubuntu used its isolated X11 desktop while the regular GNOME session was locked. Native keyboard and screen-reader evidence for all three operating systems is recorded with its individual platform scope. [Desktop and accessibility evidence](NATIVE_PACKAGES_QUALIFICATION.md).
+
+## Security review scope
+
+- The authority checks inspect actual process and thread identity. r1787 passed the retained-privilege and Linux identity controls, the inert inventory round trip, 21 poisoned checksum/graph cases, and the malformed framing and bounds tests. Reviewed live access binds to the runtime revision and its held native source. Captured paths stay inert until an explicit current-source choice.
+- Windows reviewed copy binds the source and streams, preserves existing destinations, journals the outcome, and requires approved membership. The r1787 stream and conflict controls passed. Move, source replacement, permanent deletion and recycling stay unavailable where exact-entry proof is missing. Both memory and indexed cleanup reviews preserved their source and the default Keep files action.
+- The Windows metadata helper uses a first-instance local pipe, exact client data rights, identification-level security and held peer checks. The r1787 rights and invalid-frame controls passed. The installed development evidence separately covers ordinary requester and elevated helper consent, decline, cancellation and scope. Default builds keep Fast NTFS unavailable pending trusted release-installer qualification. [Helper evidence](FAST_NTFS_BROKER_QUALIFICATION.md).
+- Both rescan epochs preserved the private boundaries in r1787. The new scratch path uses held local no-follow ancestry and verifies the filesystem before creation. The native test volumes preserved ordinary neighboring files and the original profile. The r1792 diagnostics ZIP proved the recorded canaries and scratch location stayed private.
+- Preview and duplicate reads require the qualified ordinary live NTFS binding and stable version proof. Windows fixtures exercise the real held read and changed-version refusal. Unqualified archive-content analysis and direct cleanup verbs retain their declared fallbacks. [Capability evidence](capabilities.json).
+
+The ten-million-path native evidence qualifies the bounded-preview fallback. The one-million-file receipts qualify complete indexing for the measured wide and deep fixtures. The feedback figures measure application key-event-to-layout. Mac resource evidence reports native physical footprint as its own counter. [Scale measurements](NATIVE_MILLION_SCALE_QUALIFICATION.md).
