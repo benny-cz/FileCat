@@ -637,8 +637,9 @@ public sealed partial class ReportWindow : Window
                 FileTypeChoices = [new FilePickerFileType("Text") { Patterns = ["*.txt"] }],
             });
             if (ct.IsCancellationRequested || !ReferenceEquals(_reader, capturedReader) || picked?.TryGetLocalPath() is not { } target) return;
+            string? verificationWarning = null;
             if (details && OperatingSystem.IsWindows())
-                await Task.Run(() => FileCat.Platform.Windows.WindowsMetadataReportOutput.Save(target, capturedText, () => startedOutput = target, ct), ct);
+                verificationWarning = await Task.Run(() => FileCat.Platform.Windows.WindowsMetadataReportOutput.Save(target, capturedText, () => startedOutput = target, ct), ct);
             else if (!details && supplementary is null)
                 await File.WriteAllTextAsync(target, capturedText, new UTF8Encoding(true), ct);
             else await Task.Run(async () =>
@@ -658,7 +659,7 @@ public sealed partial class ReportWindow : Window
                     await output.WriteAsync(contents.AsMemory(offset, Math.Min(chunkSize, contents.Length - offset)), ct);
                 await output.FlushAsync(ct);
             }, ct);
-            if (!ct.IsCancellationRequested) _status.Text = $"Saved as {target}.";
+            if (!ct.IsCancellationRequested) _status.Text = verificationWarning ?? $"Saved as {target}.";
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
