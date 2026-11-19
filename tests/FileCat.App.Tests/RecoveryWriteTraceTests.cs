@@ -37,7 +37,7 @@ public sealed class RecoveryWriteTraceTests
         bool windows = OperatingSystem.IsWindows() && (disk is not null || drive is not null);
         if (!windows && (unix is null || OperatingSystem.IsWindows()) || expect is not ("scan" or "refuse" or "denied") || output is null)
             Assert.Skip("Set FILECAT_V09_DISK or FILECAT_V09_DRIVE (Windows) or FILECAT_V09_UNIX_DEVICE, FILECAT_V09_OUT and FILECAT_V09_EXPECT (scan, refuse, denied); FILECAT_V09_DATA and FILECAT_V09_WAIT as needed.");
-        if (windows && !Environment.IsPrivilegedProcess) Assert.Skip("Reading a drive without the installed helper needs administrator rights.");
+        if (windows && !WindowsTokenAuthority.IsHighIntegrity) Assert.Skip("Reading a drive without the installed helper needs administrator rights.");
         string? data = Environment.GetEnvironmentVariable("FILECAT_V09_DATA");
         int wait = int.TryParse(Environment.GetEnvironmentVariable("FILECAT_V09_WAIT"), out int w) ? w : 70;
         var log = TestContext.Current.TestOutputHelper;

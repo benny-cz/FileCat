@@ -296,13 +296,16 @@ public sealed partial class MainViewModel
         tab.Refresh();
     }
 
+    internal Func<bool, bool> HasWindowsRecoveryBroker { get; set; } =
+        static portable => FileCat.Platform.Windows.Elevation.ElevationBroker.Locate(portable, out _) is not null;
+
     /// <summary>Why drives cannot be scanned here, or null when they can (FileCat runs as administrator, or its helper can ask).</summary>
     private string? DriveScanProblem()
     {
         if (Services.Recovery.OpenDevice is null)
             return "Scanning drives directly is not available here. Make an image of the drive on another drive (for example with dd), then recover deleted files from the image.";
         if (!OperatingSystem.IsWindows()) return null; // the system asks for approval when the drive is opened
-        if (WindowsTokenAuthority.IsHighIntegrity || FileCat.Platform.Windows.Elevation.ElevationBroker.Locate(Services.Paths.IsPortable, out _) is not null) return null;
+        if (WindowsTokenAuthority.IsHighIntegrity || HasWindowsRecoveryBroker(Services.Paths.IsPortable)) return null;
         return $"Reading a drive needs administrator rights, and {(Services.Paths.IsPortable ? "portable FileCat" : "this FileCat build")} has no installed helper to ask Windows for them. " +
                "Choose Tools → Open FileCat as administrator and close this window before scanning a drive. You can also recover from a disk image.";
     }

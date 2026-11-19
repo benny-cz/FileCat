@@ -46,14 +46,11 @@ public sealed class RecoverySafetyTests
             var selected = Platform.Windows.Recovery.DeviceTopology.Disks().FirstOrDefault(d =>
                 d.InterfacePath is not null && d.Identity is not null && d.Length > 0);
             if (selected is null) Assert.Skip("The test host has no verifiable disk interface.");
-            if (!Environment.IsPrivilegedProcess &&
-                Platform.Windows.Elevation.ElevationBroker.Locate(services.Paths.IsPortable, out _) is null)
-                Assert.Skip("The recording reader requires elevation or an installed helper to pass preflight.");
-
             var reader = new ReplacedReader(selected.Identity!, selected.Length);
             int opens = 0;
             services.Recovery.SharesDisk = (_, _) => false;
             services.Recovery.OpenDevice = (_, _, _) => { Interlocked.Increment(ref opens); return reader; };
+            vm.HasWindowsRecoveryBroker = _ => true;
             vm.Dialogs = new AdmissionDialogs(() => { });
             var panel = vm.Workspace.Panels[0];
             var original = panel.ActiveTab;
@@ -87,10 +84,6 @@ public sealed class RecoverySafetyTests
                 : null;
             if (Platform.Windows.Recovery.SelectedDiskInterfaceSource.VolumeSelectionIdentity(selected) is null)
                 Assert.Skip("The test volume has no verifiable single-disk interface identity.");
-            if (!Environment.IsPrivilegedProcess &&
-                Platform.Windows.Elevation.ElevationBroker.Locate(services.Paths.IsPortable, out _) is null)
-                Assert.Skip("The recording reader requires elevation or an installed helper to pass preflight.");
-
             string replacementIdentity = changedDiskNumber
                 ? Assert.IsType<string>(Platform.Windows.Recovery.SelectedDiskInterfaceSource.VolumeSelectionIdentity(
                     selected! with { Number = selected.Number == int.MaxValue ? selected.Number - 1 : selected.Number + 1 }))
@@ -99,6 +92,7 @@ public sealed class RecoverySafetyTests
             int opens = 0;
             services.Recovery.SharesDisk = (_, _) => false;
             services.Recovery.OpenDevice = (_, _, _) => { Interlocked.Increment(ref opens); return reader; };
+            vm.HasWindowsRecoveryBroker = _ => true;
             vm.Dialogs = new AdmissionDialogs(() => { });
             var panel = vm.Workspace.Panels[0];
             var original = panel.ActiveTab;
@@ -177,16 +171,11 @@ public sealed class RecoverySafetyTests
             Interlocked.Increment(ref opens);
             throw new IOException("Recording fixture reader; no device access.");
         };
+        vm.HasWindowsRecoveryBroker = _ => true;
         var panel = vm.Workspace.Panels[0];
         var original = panel.ActiveTab;
         try
         {
-            if (route.StartsWith("windows-", StringComparison.Ordinal) && OperatingSystem.IsWindows() &&
-                !Environment.IsPrivilegedProcess && Platform.Windows.Elevation.ElevationBroker.Locate(services.Paths.IsPortable, out _) is null)
-            {
-                Assert.Skip("Windows device admission needs elevation or an installed helper; the recording reader prevents real device access.");
-                return;
-            }
             if (route == "windows-drive")
             {
                 string drive = Path.GetPathRoot(root)!;
