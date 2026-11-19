@@ -1,0 +1,67 @@
+name: Windows ARM64 NTFS qualification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-storage-abi:
+    name: Native compression and EFS details
+    runs-on: windows-11-arm
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Build with locked dependencies
+        shell: pwsh
+        run: |
+          dotnet restore tests/FileCat.Platform.Windows.Tests --locked-mode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build tests/FileCat.Platform.Windows.Tests -c Release --no-restore
+          exit $LASTEXITCODE
+      - name: Exercise the native ABI at medium integrity
+        shell: pwsh
+        run: |
+          $evidence = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-evidence'
+          New-Item -ItemType Directory -Path $evidence | Out-Null
+          $fixture = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-fixture'
+          New-Item -ItemType Directory -Path $fixture | Out-Null
+          $volume = Get-Volume -DriveLetter ([IO.Path]::GetPathRoot($fixture)[0])
+          $os = Get-CimInstance Win32_OperatingSystem
+          if ($volume.FileSystem -ne 'NTFS' -or $volume.AllocationUnitSize -ne 4096 -or $os.ProductType -ne 1) {
+            throw 'Requires a Windows client with a prepared 4 KiB local NTFS volume.'
+          }
+          [ordered]@{
+            commit = $env:GITHUB_SHA
+            operatingSystem = $os.Caption
+            build = $os.BuildNumber
+            filesystem = $volume.FileSystem
+            allocationUnit = $volume.AllocationUnitSize
+            testAssembly = (Get-FileHash tests/FileCat.Platform.Windows.Tests/bin/Release/net10.0/FileCat.Platform.Windows.Tests.dll).Hash
+          } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $evidence 'native-storage-abi.json')
+          dotnet --info | Out-File -LiteralPath (Join-Path $evidence 'dotnet.txt')
+          # The second fixture can enroll a software EFS key in this disposable runner's profile.
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ROOT = $fixture
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+          ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName native-storage-abi.trx -Filter 'FullyQualifiedName~WindowsStorageAbiTests'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $results = 'tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx'
+          [xml]$receipt = Get-Content -LiteralPath $results -Raw
+          $counters = $receipt.TestRun.ResultSummary.Counters
+          if ($counters.total -ne '2' -or $counters.executed -ne '2' -or $counters.passed -ne '2') {
+            throw 'Both native fixture cases must execute and pass.'
+          }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: native-storage-abi-windows-arm64
+          path: |
+            ${{ runner.temp }}/filecat-native-storage-abi-evidence/*
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx
+          if-no-files-found: error
