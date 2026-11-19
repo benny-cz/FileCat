@@ -1,5 +1,6 @@
 using System.Formats.Tar;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using FileCat.Archives;
 using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
@@ -9,23 +10,28 @@ using FileCat.Core.State;
 using FileCat.Platform.Windows;
 using FileCat.Remote.Sftp;
 using FileCat.Remote.Tests;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.App.Tests;
 
 public sealed class EfsRemoteUploadTests
 {
     [Theory]
-    [InlineData(JobKind.Copy, false)]
-    [InlineData(JobKind.Copy, true)]
-    [InlineData(JobKind.Move, false)]
-    [InlineData(JobKind.Move, true)]
-    public async Task Efs_is_reviewed_before_a_server_stage_and_a_declined_move_keeps_its_source(JobKind kind, bool approve)
+    [InlineData(JobKind.Copy, false, false)]
+    [InlineData(JobKind.Copy, true, false)]
+    [InlineData(JobKind.Move, false, false)]
+    [InlineData(JobKind.Move, true, false)]
+    [InlineData(JobKind.Copy, true, true)]
+    [InlineData(JobKind.Move, false, true)]
+    public async Task Efs_is_reviewed_before_a_server_stage_and_a_declined_move_keeps_its_source(JobKind kind, bool approve, bool sparse)
     {
         RequireEfsFixture();
         using var fixture = new Fixture();
-        byte[] payload = [1, 4, 9, 16];
-        string source = fixture.CreateEncryptedFile(payload);
+        string source = sparse ? fixture.CreateSparseFile(encrypted: true) : fixture.CreateEncryptedFile([1, 4, 9, 16]);
+        byte[] payload = File.ReadAllBytes(source);
         int questions = 0;
+        string? reviewedStage = null, writtenStage = null;
+        fixture.Server.DuringUpload = () => writtenStage = Assert.Single(fixture.Names);
         Job job = await fixture.Run(source, kind, pending =>
         {
             var review = Assert.IsType<ConfirmRequest>(pending.Request);
@@ -34,6 +40,8 @@ public sealed class EfsRemoteUploadTests
             Assert.False(review.OffersApplyToAll);
             Assert.Contains(source, review.Message);
             Assert.Contains("/upload/secret.bin", review.Message);
+            Assert.Equal(sparse, review.Message.Contains("server copy may use more disk space", StringComparison.Ordinal));
+            reviewedStage = ReviewedStage(review, "Temporary server file: ");
             Assert.Empty(fixture.Names);
             questions++;
             return new(approve ? DecisionAction.Proceed : DecisionAction.Skip);
@@ -42,24 +50,43 @@ public sealed class EfsRemoteUploadTests
         if (approve)
         {
             Assert.Equal(["secret.bin"], fixture.Names);
+            Assert.Equal(reviewedStage, writtenStage);
             Assert.Equal(payload, fixture.Server.Lookup("/upload/secret.bin", true)!.Data);
             Assert.Contains(job.Issues, issue => issue.Message.Contains("Uploaded without Windows EFS", StringComparison.Ordinal));
         }
         else Assert.Empty(fixture.Names);
+        Assert.Equal(approve && sparse, HasSparseNotice(job));
         Assert.Equal(kind == JobKind.Copy || !approve, File.Exists(source));
         if (File.Exists(source)) Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
     }
 
     [Fact]
-    public async Task Reopening_an_encrypted_upload_after_disconnect_requires_fresh_approval()
+    public async Task A_clear_sparse_upload_warns_after_the_logical_bytes_are_published()
     {
         RequireEfsFixture();
         using var fixture = new Fixture();
-        byte[] payload = new byte[512 * 1024];
-        new Random(17).NextBytes(payload);
-        string source = fixture.CreateEncryptedFile(payload);
+        string source = fixture.CreateSparseFile(encrypted: false);
+        var job = await fixture.Run(source, JobKind.Copy, _ => throw new InvalidOperationException("Unexpected upload decision."));
+        Assert.Equal(["secret.bin"], fixture.Names);
+        Assert.Equal(File.ReadAllBytes(source), fixture.Server.Lookup("/upload/secret.bin", true)!.Data);
+        Assert.True(HasSparseNotice(job));
+        Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.SparseFile));
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    public async Task Reopening_an_encrypted_upload_after_disconnect_reviews_the_resume_and_restart_names(bool approveRetry, bool serverCanResume)
+    {
+        RequireEfsFixture();
+        using var fixture = new Fixture();
+        string source = fixture.CreateSparseFile(encrypted: true);
+        byte[] payload = File.ReadAllBytes(source);
         fixture.Server.DropAfterBytes = 150_000;
+        fixture.Server.ContinuesUploads = serverCanResume;
         int approvals = 0, errors = 0;
+        string? initialStage = null, restartStage = null, writtenRestart = null;
         var job = await fixture.Run(source, JobKind.Move, pending =>
         {
             if (pending.Request is ErrorRequest error)
@@ -74,21 +101,44 @@ public sealed class EfsRemoteUploadTests
             if (++approvals == 1)
             {
                 Assert.Empty(fixture.Names);
+                initialStage = ReviewedStage(confirm, "Temporary server file: ");
                 return new(DecisionAction.Proceed, ApplyToAll: true);
             }
             string staged = Assert.Single(fixture.Names);
+            Assert.Equal(initialStage, staged);
+            Assert.Equal(staged, ReviewedStage(confirm, "Temporary server file to resume: "));
+            restartStage = ReviewedStage(confirm, "Temporary server file if restarted: ");
+            Assert.NotEqual(staged, restartStage);
             Assert.Equal(150_000, fixture.Server.Lookup("/upload/" + staged, true)!.Data.Length);
             Assert.Empty(fixture.Server.WritesAt);
-            return new(DecisionAction.Skip);
+            fixture.Server.DuringUpload = () => writtenRestart = Assert.Single(fixture.Names);
+            return new(approveRetry ? DecisionAction.Proceed : DecisionAction.Skip);
         });
         Assert.Equal(2, approvals);
         Assert.Equal(1, errors);
-        Assert.Empty(fixture.Names);
-        Assert.Empty(fixture.Server.WritesAt);
-        Assert.DoesNotContain(job.Issues, issue => issue.Message.Contains("Uploaded without Windows EFS", StringComparison.Ordinal));
-        Assert.Contains(job.Issues, issue => issue.Message.Contains("earlier attempt", StringComparison.Ordinal));
-        Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
-        Assert.Equal(payload, File.ReadAllBytes(source));
+        if (approveRetry)
+        {
+            Assert.Equal(["secret.bin"], fixture.Names);
+            Assert.Equal(payload, fixture.Server.Lookup("/upload/secret.bin", true)!.Data);
+            Assert.False(File.Exists(source));
+            if (serverCanResume) Assert.Equal([150_000L], fixture.Server.WritesAt);
+            else
+            {
+                Assert.Empty(fixture.Server.WritesAt);
+                Assert.Equal(restartStage, writtenRestart);
+            }
+            Assert.True(HasSparseNotice(job));
+        }
+        else
+        {
+            Assert.Empty(fixture.Names);
+            Assert.Empty(fixture.Server.WritesAt);
+            Assert.DoesNotContain(job.Issues, issue => issue.Message.Contains("Uploaded without Windows EFS", StringComparison.Ordinal));
+            Assert.Contains(job.Issues, issue => issue.Message.Contains("earlier attempt", StringComparison.Ordinal));
+            Assert.False(HasSparseNotice(job));
+            Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(payload, File.ReadAllBytes(source));
+        }
     }
 
     [Fact]
@@ -146,6 +196,31 @@ public sealed class EfsRemoteUploadTests
     private static void RequireEfsFixture() => Assert.SkipUnless(OperatingSystem.IsWindows() && !WindowsTokenAuthority.IsHighIntegrity &&
         Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1", "Requires the disposable normal-user Windows NTFS fixture.");
 
+    private static string ReviewedStage(ConfirmRequest review, string label)
+    {
+        string line = Assert.Single(review.Message.Split('\n'), line => line.StartsWith(label, StringComparison.Ordinal));
+        string name = line[(line.LastIndexOf('/') + 1)..];
+        Assert.StartsWith(JournalRecovery.StagedPrefix, name);
+        return name;
+    }
+
+    private static bool HasSparseNotice(Job job) => job.Issues.Any(issue => issue.Outcome == StepOutcome.Committed &&
+        issue.Message.Contains("server copy may use more disk space", StringComparison.Ordinal));
+
+    [DllImport("kernel32.dll", EntryPoint = "DeviceIoControl", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetSparse(SafeFileHandle file, uint operation, nint input, uint inputBytes, nint output,
+        uint outputBytes, out uint written, nint overlapped);
+
+    internal static void WriteSparseFile(string path)
+    {
+        using var file = File.OpenHandle(path, FileMode.CreateNew, FileAccess.ReadWrite);
+        Assert.True(SetSparse(file, 0x000900c4 /* FSCTL_SET_SPARSE */, 0, 0, 0, 0, out _, 0));
+        RandomAccess.SetLength(file, 2 * 1024 * 1024);
+        RandomAccess.Write(file, [1, 4, 9, 16], 0);
+        RandomAccess.Write(file, [23, 11, 7], 1024 * 1024);
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly string _root = Directory.CreateTempSubdirectory("filecat-efs-upload-").FullName;
@@ -183,6 +258,15 @@ public sealed class EfsRemoteUploadTests
             string path = Path.Join(_root, "secret.bin");
             File.WriteAllBytes(path, bytes);
             File.Encrypt(path);
+            return path;
+        }
+
+        internal string CreateSparseFile(bool encrypted)
+        {
+            string path = Path.Join(_root, "secret.bin");
+            WriteSparseFile(path);
+            if (encrypted) File.Encrypt(path);
+            Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.SparseFile));
             return path;
         }
 
