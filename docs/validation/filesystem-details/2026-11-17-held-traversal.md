@@ -59,3 +59,9 @@ Source SHA-256 values at that checkpoint:
 WP2/N-C1/N-C2/N-ID remain partial. Complete closed-ID rediscovery/overlap attribution in the worker, deterministic cursor replacement and attribute-only adversary probes, recognized cloud/fetch sentinels and wider volume/provider capabilities, enable-boundary/large-removal, ACL/full/device-loss/removable/mapped-network/non-NTFS cases, and creation/move/inheritance observations. Do not infer those outcomes from the ordinary NTFS run.
 
 WP3 must connect the prepared held call to control-lock admission, exact intent/result persistence, bounded census/retention/recovery and terminal owner retirement. The Windows adapter and UI stay unavailable until those gates and the remaining review/refresh/UI qualification pass. EFS protocol/key/output work and the filesystem plan's remaining collectors/native/output gates also remain part of the active objective.
+
+## Native cursor replacement, 2026-11-19
+
+On the disposable Windows 11 x64 VM at medium integrity, the cursor returned one child from a native batch and kept the other child observations pending. The fixture moved a compressed child out and moved a different compressed file into its captured name. The directory default was already clear, so traversal was using its listing handle. The stale entry reported an identity change and attempted no compression call. Both moved and replacement files retained their payload and compression. The unchanged sibling had compression removed and retained its payload.
+
+The x64 receipt records **1 passed, 0 failed, 0 skipped** in `.tmp/filecat-efs-live-166b6897-r1/cursor-vm-4a3450ea-cursor-native-x64-r3.trx`. The test assembly SHA-256 was `8620E572771109A1BD6144594207A1A4812C3D6220707CA2F70CCD6FEC60494B`. The native ARM64 qualification workflow includes this case. N-ID remains partial pending the other adversary cases.

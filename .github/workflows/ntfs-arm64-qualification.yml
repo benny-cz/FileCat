@@ -141,6 +141,7 @@ jobs:
           $filter = @(
             'WindowsStorageAbiTests'
             'Recursive_job_covers_reverse_order_overlaps_hidden_files_and_named_streams_without_double_counts'
+            'Replacing_a_child_after_the_native_cursor_reads_its_id_preserves_both_files'
             'Readonly_file_and_reparse_subtree_are_skipped_while_independent_siblings_are_changed'
             'Native_access_denial_preserves_independent_siblings'
             'Selected_Efs_jobs_share_one_lazy_key_choice_and_record_native_effects_on_disk'
@@ -156,8 +157,8 @@ jobs:
           $results = 'tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx'
           [xml]$receipt = Get-Content -LiteralPath $results -Raw
           $counters = $receipt.TestRun.ResultSummary.Counters
-          if ($counters.total -ne '12' -or $counters.executed -ne '12' -or $counters.passed -ne '12') {
-            throw 'All twelve native fixture cases must execute and pass.'
+          if ($counters.total -ne '13' -or $counters.executed -ne '13' -or $counters.passed -ne '13') {
+            throw 'All thirteen native fixture cases must execute and pass.'
           }
 
           $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_OUTPUTS = '1'

@@ -36,6 +36,81 @@ public sealed partial class WindowsStorageTraversalTests
         }
         finally { Directory.Delete(root, true); }
     }
+
+    [Fact]
+    public void Replacing_a_child_after_the_native_cursor_reads_its_id_preserves_both_files()
+    {
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows client NTFS fixture.");
+        string root = Directory.CreateTempSubdirectory("filecat-storage-cursor-replacement-").FullName;
+        try
+        {
+            string selected = Directory.CreateDirectory(Path.Join(root, "selected")).FullName;
+            string[] paths = ["a", "b", "c"];
+            string replacement = Path.Join(root, "replacement");
+            File.WriteAllText(replacement, "replacement");
+            foreach (string name in paths)
+                File.WriteAllText(Path.Join(selected, name), "original " + name);
+            foreach (string path in paths.Select(name => Path.Join(selected, name)).Append(replacement))
+            {
+                using var fixture = File.OpenHandle(path, access: FileAccess.ReadWrite, share: FileShare.Read);
+                Assert.True(WindowsCompression.InvokeAdmitted(fixture, StorageAction.Compress).NativeSucceeded);
+            }
+            const StorageAction action = StorageAction.RemoveCompression;
+            var ct = TestContext.Current.CancellationToken;
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
+            var reviewed = Review(adapter, selected, EntryKind.Directory, action);
+            using var review = reviewed.Review;
+            using var owner = reviewed.Owner;
+            using var native = StorageReviewResources.EnterNative(ct);
+            using var traversal = adapter.OpenReviewedRoot(owner.Leases[0], action, ct);
+            Assert.Equal(StorageEffect.AlreadySatisfied, Apply(traversal.Root, action).Effect);
+            using var entries = traversal.Entries(traversal.Root, ct).GetEnumerator();
+            Assert.True(entries.MoveNext());
+            string first = Path.GetFileName(entries.Current.Path);
+            Assert.IsAssignableFrom<IStorageObjectLease>(entries.Current.Object).Dispose();
+
+            // The first yield leaves the other two entries in the same native cursor batch.
+            string[] remainingNames = paths.Where(name => name != first).ToArray();
+            Assert.Equal(2, remainingNames.Length);
+            string victim = Path.Join(selected, remainingNames[0]);
+            string moved = Path.Join(root, "retained");
+            File.Move(victim, moved);
+            File.Move(replacement, victim);
+            string sibling = Path.Join(selected, remainingNames[1]);
+
+            var processed = new HashSet<string>(StringComparer.Ordinal);
+            while (entries.MoveNext())
+            {
+                var entry = entries.Current;
+                Assert.True(processed.Add(entry.Path));
+                using var held = Assert.IsAssignableFrom<IStorageObjectLease>(entry.Object);
+                if (entry.Path == victim)
+                {
+                    var refused = held.PrepareMutation(action, ct);
+                    Assert.Equal("cursor-entry-changed", refused.Ineligible?.Code);
+                    var result = held.ApplyAdmitted(action);
+                    Assert.False(result.NativeCallAttempted);
+                    Assert.Equal(StorageEffect.Skipped, result.Effect);
+                    Assert.Equal(StorageReasonKind.IdentityChanged, result.Problem?.Kind);
+                }
+                else
+                {
+                    Assert.Equal(sibling, entry.Path);
+                    Assert.Equal(StorageEffect.Changed, Apply(held, action).Effect);
+                }
+            }
+            Assert.Equal(2, processed.Count);
+            Assert.Equal("original " + remainingNames[0], File.ReadAllText(moved));
+            Assert.Equal("replacement", File.ReadAllText(victim));
+            Assert.Equal("original " + remainingNames[1], File.ReadAllText(sibling));
+            Assert.True(File.GetAttributes(moved).HasFlag(FileAttributes.Compressed));
+            Assert.True(File.GetAttributes(victim).HasFlag(FileAttributes.Compressed));
+            Assert.False(File.GetAttributes(sibling).HasFlag(FileAttributes.Compressed));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     [Fact]
     public void Overlap_planning_uses_held_native_ancestry_and_original_source_mappings_without_mutating_defaults()
     {
