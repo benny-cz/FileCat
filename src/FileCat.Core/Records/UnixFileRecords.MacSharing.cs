@@ -43,6 +43,7 @@ public sealed partial class UnixFileRecords
             ("Clone ID", clone.Describe(id => id == 0 ? "None reported" : $"0x{id:X16}")),
             ("Sharing", flags.Describe(value => (value & 0x40) != 0 ? "All blocks reported shared" :
                 (value & 1) != 0 ? "May share blocks" : "No sharing flag reported")),
+            ("Sparse representation flag", flags.Describe(value => (value & 0x10) != 0 ? "Set" : "Clear")),
             ("Extended flags", flags.Describe(value => $"0x{value:X}")), ("Source", MacSharingSource)])
         {
             Lines = ["These fields describe one file. Total shared storage and space reclaimed by removal require separate observations."],
