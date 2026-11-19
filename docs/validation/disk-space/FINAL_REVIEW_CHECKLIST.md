@@ -94,3 +94,17 @@ Table columns adapt to both available width and text size. Values align and keep
 All live runs and the r1863 renderer suite used application SHA-256 `b30bb4c404bf8b981e5d15c91e12f0eb48737021e6a123cd353cf7c8b48f183c` from product source `14d99040`. The live checks covered all eight themes on each platform, with Treemap and Sunburst at standard text size, the 380 × 430 DIP result at 20 DIP text, and setup, focused result controls, and cleanup at 28 DIP text. The cleanup checks switched themes and resized the open dialog while preserving keyboard focus, expanded details, and action availability. The live runs preserved their source fixtures and closed the test-owned FileCat instances. Testing deferred where an existing tester was active. [Typography and control layout plan](../../design/FILECAT_DISK_SPACE_UX_IMPROVEMENT_PLAN.md#typography-and-spacing)
 
 The focused renderer suite passed 24 cases on each platform with zero skips, including pointer and keyboard checks for eight tabs at both large text sizes. The XML SHA-256 values are Windows `753574e0468ff71cf80c2a84cd294c1b1a1061769b1da3f53ac98b936b2f4503`, Ubuntu `6f856a9634f53c29c7281dde7bf30d51dbbef8a8b8be7d0fe02955f4cfcc5149`, and Mac `a93537a2aa7df197d002bb0d4aa951d7d2a991c80c8d26bc5100fc1b909499f3`.
+
+### Main synchronization regression
+
+Merge `49033caa` incorporates `main` through `0117fa15`. The Working Sets conflict resolution keeps recorded disk-space observations out of Working Sets and preserves native metadata on accepted filesystem entries. The combined regression test exercises both behaviors in one batch. The solution and DiskSpaceHarness built successfully.
+
+The r1870 live workflows used application SHA-256 `88fd4ba43d2cb209700751f64c8305432709ed82abafe9eb5999681bab9fac82`. The runs covered all eight themes, folder exclusions, compact and large-text controls, capacity, and the recorded result workflow. Windows used its ordinary interactive desktop, Ubuntu used isolated X11 with Openbox, and Mac used its Retina compositor. Each run preserved its source fixtures and closed its FileCat instances. Post-run process inventories were clear, and the temporary VM volumes were detached.
+
+| Platform | Focused Core | Renderer | Native clean-exit receipt SHA-256 |
+|---|---:|---:|---|
+| Windows VM | 22 passed | 24 passed | `d764e26f090d9821b3a7076ffa15b0c2302a2a33fff8a91476d31000e5562daa` |
+| Ubuntu VM | 22 passed | 24 passed | `5bb69f005cb96ad4dd3227ad3d0bfa4d9aff307f9368ae361366f3365fe1ab6c` |
+| Mac | 22 passed | 24 passed | Compact `6877e0c403f9483c53abd8a6ea593f0ee8c34e03634f52154de0ab85c57307dc`, wide `748878bdcadcbe46584ba223b38502454cadce0c6fa249d1c3d901694ffa95ce` |
+
+The r1875 Unix and r1876 Windows Core and renderer batches had zero skips or failures. Core covered Working Sets, search predicates, reparse presentation, and the updated Mach-O symbol budget test. The Windows batch also passed 172 platform cases and 15 app cases, including native enumeration, storage evidence, EFS operations, and EFS remote upload. The final Windows run used the test account's system-volume temp folder after the separate VHD returned an unsupported-function result for file backing queries. The platform suite skipped 66 cases that require additional fixtures, including dedicated storage volumes, SMB, key rotation, or elevated authority. The Windows platform and app XML SHA-256 values are `d32b1ab2b3e067dc0d9e31aab77bbff6fff12852883829ba430f49e0fcfbb076` and `5af059aad4b98ff57d54592196ee59ad746d0533f33c3ceb2ca83800d3545994`.
