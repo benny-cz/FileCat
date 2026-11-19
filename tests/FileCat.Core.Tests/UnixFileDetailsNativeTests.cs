@@ -156,19 +156,21 @@ public sealed partial class UnixFileDetailsNativeTests
         BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(64), 5);
         "apfs\0"u8.CopyTo(fields.AsSpan(68));
 
-        var (sensitive, preserving) = UnixFileRecords.ParseMacApfsNamespace(fields, device);
+        var (sensitive, preserving, volumeVerified) = UnixFileRecords.ParseMacApfsNamespace(fields, device);
+        Assert.True(volumeVerified);
         Assert.Equal(FactState.Known, sensitive.State);
         Assert.Equal(FactScope.Volume, sensitive.Scope);
         Assert.True(sensitive.Value);
         Assert.Equal(FactState.Unsupported, preserving.State);
         Assert.Equal(FactState.Partial, UnixFileRecords.ParseMacApfsNamespace(fields, device + 1).Sensitive.State);
-        Assert.Equal(FactState.Partial, UnixFileRecords.ParseMacApfsNamespace(fields.AsSpan(0, 70), device).Sensitive.State);
+        Assert.False(UnixFileRecords.ParseMacApfsNamespace(fields, device + 1).VolumeVerified);
+        Assert.False(UnixFileRecords.ParseMacApfsNamespace(fields.AsSpan(0, 70), device).VolumeVerified);
         BinaryPrimitives.WriteInt32LittleEndian(fields.AsSpan(60), int.MaxValue);
-        Assert.Equal(FactState.Partial, UnixFileRecords.ParseMacApfsNamespace(fields, device).Sensitive.State);
+        Assert.False(UnixFileRecords.ParseMacApfsNamespace(fields, device).VolumeVerified);
     }
 
     [Fact]
-    public void Mac_full_report_observes_APFS_case_variants_without_following_a_leaf_link()
+    public void Mac_full_report_describes_APFS_case_and_normalization_on_the_observed_volume()
     {
         Assert.SkipUnless(OperatingSystem.IsMacOS(), "Requires Darwin volume attributes.");
         string? sensitive = Environment.GetEnvironmentVariable("FILECAT_TEST_APFS_SENSITIVE");
@@ -193,8 +195,27 @@ public sealed partial class UnixFileDetailsNativeTests
             var section = Assert.Single(report.Technical.Sections, section => section.Title == "APFS volume namespace");
             Assert.Contains(("Case sensitive", caseSensitive ? "Yes" : "No"), section.Fields);
             Assert.Contains(("Case preserving", "Yes"), section.Fields);
-            Assert.Contains(("Unicode normalization", "Not inspected"), section.Fields);
+            Assert.Contains(section.Fields, field => field.Name == "Unicode normalization" &&
+                field.Value.Contains("Canonically equivalent names match", StringComparison.Ordinal));
             Assert.Equal(ReportContentKind.MetadataOnly, report.ContentKind);
+        }
+
+        const string composed = "caf\u00e9";
+        const string decomposed = "cafe\u0301";
+        foreach (string root in new[] { sensitive, insensitive })
+        {
+            var stored = Directory.EnumerateFileSystemEntries(root).Select(Path.GetFileName).ToArray();
+            foreach (var (first, equivalent) in new[] { ("nfc-" + composed, "nfc-" + decomposed), ("nfd-" + decomposed, "nfd-" + composed) })
+            {
+                Assert.Contains(first, stored);
+                Assert.DoesNotContain(equivalent, stored);
+                var original = reader.ReadSummary(Path.Join(root, first), ct).Identity;
+                var alias = reader.ReadFull(Path.Join(root, equivalent), FileDetailsPolicy.MetadataOnly, ct);
+                Assert.Equal(FactState.Known, original.State);
+                Assert.Equal(FactState.Known, alias.Summary.Identity.State);
+                Assert.Equal(original.Value, alias.Summary.Identity.Value);
+                Assert.Contains(alias.Technical.Sections, section => section.Title == "APFS volume namespace");
+            }
         }
     }
 
