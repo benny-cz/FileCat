@@ -9,7 +9,11 @@ namespace FileCat.Platform.Windows;
 /// <param name="BytesWritten">Bytes actually written; less than the length when holes of a sparse source stayed holes.</param>
 /// <param name="Sparse">The new file kept the source's unallocated ranges as holes.</param>
 /// <param name="OriginMark">The source's Mark-of-the-Web: <c>Copied</c>, <c>None</c> (the source had none), or <c>Lost</c>.</param>
-public sealed record HexSaveAsResult(long BytesWritten, bool Sparse, HexOriginMark OriginMark);
+public sealed record HexSaveAsResult(long BytesWritten, bool Sparse, HexOriginMark OriginMark)
+{
+    /// <summary>The destination required writing bytes from holes that could have stayed unallocated.</summary>
+    public bool ExpandedSparseHoles { get; init; }
+}
 
 public enum HexOriginMark { None, Copied, Lost }
 
@@ -41,25 +45,20 @@ public static partial class HexSaveAs
         review.Begin(HexOutputKind.SaveAs, ct);
         var source = review.Source;
         var before = source.GetRevision();
-        List<(long Start, long Length)>? allocated;
-        if (review.NeedsEfsConsent)
-        {
-            var layout = WindowsStorageTransforms.ReadSparseLayout(source.Handle, ct);
-            if ((layout is not null) != source.IsSparse || layout is not null && layout.Length != source.Length)
-                throw new IOException("The source sparse state changed. Reopen it before saving a copy.");
-            allocated = layout?.Ranges.Select(range => (range.Offset, range.Length)).ToList();
-        }
-        else allocated = source.IsSparse ? AllocatedRanges(source.Handle, source.Length) : null;
-        var regions = allocated is null ? [(0L, source.Length)] : Merge(allocated, review.Ranges);
+        var sparseLayout = OperatingSystem.IsWindows() ? WindowsStorageTransforms.ReadSparseLayout(source.Handle, ct) : null;
+        if ((sparseLayout is not null) != source.IsSparse || sparseLayout is not null && sparseLayout.Length != source.Length)
+            throw new IOException("The source sparse state changed. Reopen it before saving a copy.");
+        var regions = sparseLayout is null ? [(0L, source.Length)] : Merge(sparseLayout.Ranges, review.Ranges);
         long needed = regions.Sum(r => r.Length);
+        bool hasOmittedHoles = needed < source.Length;
         long free = FreeBytes(Path.GetDirectoryName(review.Destination)!);
         if (free >= 0 && needed > free - FreeSpaceMargin)
             throw new IOException($"The destination drive has {Format(free)} free, but the new file needs about {Format(needed)}. Choose another drive or free up space.");
 
         (long Written, bool Sparse) Write(SafeFileHandle output)
         {
-            bool sparse = allocated is not null && TrySetSparse(output);
-            if (!sparse && allocated is not null)
+            bool sparse = sparseLayout is not null && TrySetSparse(output);
+            if (!sparse && sparseLayout is not null)
             {
                 // Holes must be written as zeros on a volume without sparse files.
                 regions = [(0L, source.Length)];
@@ -102,6 +101,9 @@ public static partial class HexSaveAs
             source.ValidateForSave(review.Ranges);
             if (before is null || source.GetRevision() != before)
                 throw new IOException("Another program wrote the file while it was being copied, so the new file was not kept: it could mix old and new bytes. Save As again.");
+            if (OperatingSystem.IsWindows() && !WindowsStorageTransforms.SparseLayout.SameHoles(sparseLayout,
+                    WindowsStorageTransforms.ReadSparseLayout(source.Handle, ct)))
+                throw new IOException("The source's allocated ranges changed while it was being copied. Review it and save again.");
         }
 
         if (review.NeedsEfsConsent)
@@ -112,7 +114,8 @@ public static partial class HexSaveAs
                 review.RequireSourceProtection();
                 if (mark is not null) review.CopyDownloadMark(stream.SafeFileHandle, mark);
                 Revalidate();
-                return new HexSaveAsResult(written, sparse, mark is null ? HexOriginMark.None : HexOriginMark.Copied);
+                return new HexSaveAsResult(written, sparse, mark is null ? HexOriginMark.None : HexOriginMark.Copied)
+                    { ExpandedSparseHoles = hasOmittedHoles && !sparse };
             }, ct);
 
         bool created = false;
@@ -128,7 +131,8 @@ public static partial class HexSaveAs
             Revalidate();
             File.Move(review.Temporary, review.Destination, overwrite: false);
             created = false;
-            return new HexSaveAsResult(result.Written, result.Sparse, mark);
+            return new HexSaveAsResult(result.Written, result.Sparse, mark)
+                { ExpandedSparseHoles = hasOmittedHoles && !result.Sparse };
         }
         finally { if (created && File.Exists(review.Temporary)) File.Delete(review.Temporary); }
     }
@@ -194,9 +198,10 @@ public static partial class HexSaveAs
     }
 
     /// <summary>Allocated ranges plus edited ranges (which may fall into holes), sorted and merged.</summary>
-    private static List<(long Start, long Length)> Merge(List<(long Start, long Length)> allocated, IReadOnlyList<HexPatchRange> edits)
+    private static List<(long Start, long Length)> Merge(WindowsStorageTransforms.AllocatedRange[] allocated, IReadOnlyList<HexPatchRange> edits)
     {
-        var all = allocated.Concat(edits.Select(e => (e.Offset, (long)e.Original.Length))).OrderBy(r => r.Item1).ToList();
+        var all = allocated.Select(range => (range.Offset, range.Length))
+            .Concat(edits.Select(e => (e.Offset, (long)e.Original.Length))).OrderBy(range => range.Item1);
         var merged = new List<(long Start, long Length)>();
         foreach (var (start, length) in all)
         {
@@ -210,35 +215,13 @@ public static partial class HexSaveAs
         return merged;
     }
 
-    private static unsafe List<(long Start, long Length)> AllocatedRanges(SafeFileHandle handle, long length)
-    {
-        const uint QueryAllocatedRanges = 0x000940CF;
-        const int MoreData = 234;
-        var result = new List<(long, long)>();
-        var output = new AllocatedRange[512];
-        long from = 0;
-        while (from < length)
-        {
-            var query = new AllocatedRange { Offset = from, Length = length - from };
-            uint returned;
-            bool ok;
-            fixed (AllocatedRange* outPtr = output)
-                ok = DeviceIoControl(handle, QueryAllocatedRanges, &query, (uint)sizeof(AllocatedRange), outPtr,
-                    (uint)(sizeof(AllocatedRange) * output.Length), out returned, IntPtr.Zero);
-            int error = ok ? 0 : Marshal.GetLastPInvokeError();
-            if (!ok && error != MoreData) throw new Win32Exception(error);
-            int count = (int)(returned / (uint)sizeof(AllocatedRange));
-            for (int i = 0; i < count; i++) result.Add((output[i].Offset, output[i].Length));
-            if (ok || count == 0) break;
-            from = output[count - 1].Offset + output[count - 1].Length;
-        }
-        return result;
-    }
-
     private static unsafe bool TrySetSparse(SafeFileHandle handle)
     {
         const uint SetSparse = 0x000900C4;
-        return DeviceIoControl(handle, SetSparse, null, 0, null, 0, out _, IntPtr.Zero);
+        if (DeviceIoControl(handle, SetSparse, null, 0, null, 0, out _, IntPtr.Zero)) return true;
+        int error = Marshal.GetLastPInvokeError();
+        if (error is 1 or 50 or 87) return false; // Unsupported control on the destination filesystem.
+        throw new Win32Exception(error, "The new file's sparse allocation could not be set.");
     }
 
     private static long FreeBytes(string directory)
@@ -252,13 +235,6 @@ public static partial class HexSaveAs
     }
 
     private static string Format(long bytes) => bytes >= 1L << 30 ? $"{bytes / (double)(1L << 30):0.#} GiB" : $"{bytes / (double)(1L << 20):0.#} MiB";
-
-    // FILE_ALLOCATED_RANGE_BUFFER
-    private struct AllocatedRange
-    {
-        public long Offset;
-        public long Length;
-    }
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

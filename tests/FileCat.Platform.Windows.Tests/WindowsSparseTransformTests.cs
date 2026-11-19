@@ -38,6 +38,7 @@ public sealed unsafe partial class WindowsSparseTransformTests
             review.ApproveEfsExport();
             var result = HexSaveAs.CreateNew(review, TestContext.Current.CancellationToken);
             Assert.True(result.Sparse);
+            Assert.False(result.ExpandedSparseHoles);
             Assert.InRange(result.BytesWritten, 1, Length / 2);
             using var copy = new FileStream(destination, FileMode.Open, FileAccess.Read, FileShare.Read);
             var observed = ObserveStream(copy);
@@ -46,6 +47,58 @@ public sealed unsafe partial class WindowsSparseTransformTests
             Assert.Equal(Convert.ToHexString(SHA256.HashData(expected)), observed.Digest);
             Assert.False(observed.Attributes.HasFlag(FileAttributes.Encrypted));
             Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Hex_save_as_reports_expanded_holes_and_preserves_bytes_on_an_owned_FAT32_volume(bool encrypted)
+    {
+        RequireFixture();
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_SPARSE_SAVEAS_FAT32_ROOT");
+        Assert.SkipUnless(!string.IsNullOrWhiteSpace(root), "Requires the prepared FAT32 output fixture.");
+        if (encrypted) Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1", "Requires the explicit EFS fixture opt-in.");
+        var drive = new DriveInfo(Path.GetPathRoot(root)!);
+        Assert.Equal("FAT32", drive.DriveFormat);
+        Assert.Equal("FCSPARSEOUT", drive.VolumeLabel);
+        Assert.InRange(drive.TotalSize, 128L << 20, 320L << 20);
+        string destination = Path.Join(root, (encrypted ? "efs-" : "clear-") + Guid.NewGuid().ToString("N") + ".bin");
+
+        Run("main-holes", (path, before) =>
+        {
+            if (encrypted) File.Encrypt(path);
+            byte[] expected = File.ReadAllBytes(path);
+            const int editedHole = 1024 * 1024;
+            Assert.Equal(0, expected[editedHole]);
+            expected[editedHole] = 0x6d;
+            var ct = TestContext.Current.CancellationToken;
+            using (var source = new ProtectedHexFile(path))
+            using (var overlay = new HexPatchOverlay(source))
+            {
+                overlay.Write(editedHole, [0x6d]);
+                if (encrypted)
+                {
+                    Assert.Contains("approval", Assert.Throws<IOException>(() => HexSaveAs.CreateNew(source, overlay, destination, ct)).Message);
+                    Assert.Empty(Directory.EnumerateFileSystemEntries(root));
+                }
+
+                using var review = HexSaveAs.Prepare(source, overlay, destination);
+                Assert.Equal(encrypted, review.NeedsEfsConsent);
+                if (encrypted) review.ApproveEfsExport();
+                var result = HexSaveAs.CreateNew(review, ct);
+                Assert.False(result.Sparse);
+                Assert.True(result.ExpandedSparseHoles);
+                Assert.Equal(Length, result.BytesWritten);
+                Assert.Equal(HexOriginMark.None, result.OriginMark);
+            }
+
+            Assert.Equal(expected, File.ReadAllBytes(destination));
+            Assert.Equal((FileAttributes)0, File.GetAttributes(destination) & (FileAttributes.SparseFile | FileAttributes.Encrypted));
+            Assert.Equal(new[] { destination }, Directory.EnumerateFileSystemEntries(root));
+            Assert.Equal(encrypted, File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(before.Main.Ranges, Observe(path).Main.Ranges);
+            File.Delete(destination);
         });
     }
 
@@ -332,6 +385,15 @@ public sealed unsafe partial class WindowsSparseTransformTests
             Assert.Equal(1, refused.StorageResult!.Counts.Failed);
             Assert.Contains(refused.StorageResult.Reasons, r => r.Problem.Code == "sparse-range-limit");
             AssertCallEvidence(jobs, refused, changed: false);
+            using (var source = new ProtectedHexFile(path))
+            using (var overlay = new HexPatchOverlay(source))
+            {
+                string destination = Path.Join(root, "copy.bin");
+                var failure = Assert.Throws<StorageInspectionException>(() =>
+                    HexSaveAs.CreateNew(source, overlay, destination, TestContext.Current.CancellationToken));
+                Assert.Equal("sparse-range-limit", failure.Problem.Code);
+                Assert.Equal(new[] { path }, Directory.GetFiles(root));
+            }
             using var held = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             Assert.Equal(WindowsCompression.None, WindowsCompression.Query(held).Native);
             Assert.True(File.GetAttributes(held).HasFlag(FileAttributes.SparseFile));
