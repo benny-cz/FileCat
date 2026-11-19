@@ -36,7 +36,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         center.IsOpen = true;
         center.Selected = row;
         Activate();
-        Dispatcher.UIThread.Post(() => OperationsPane.FocusForKeyboard(), DispatcherPriority.Loaded);
+        Dispatcher.UIThread.Post(() => OperationsPane.FocusForKeyboard(prioritizeStorageReview: false), DispatcherPriority.Loaded);
         return true;
     }
     private readonly Dictionary<PanelViewModel, PanelView> _panelViews = new();

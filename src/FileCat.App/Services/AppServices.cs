@@ -366,13 +366,14 @@ public sealed class AppServices : IDisposable
 
     /// <summary>Creates the native qualification host with isolated state and explicitly selected backends.</summary>
     internal static AppServices InitializeForQualification(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends,
-        bool qualifyNtfsStorage = false, bool nativeArm64Storage = false)
+        bool qualifyNtfsStorage = false, bool nativeArm64Storage = false, Action<bool>? compressionSetReturned = null)
     {
         ArgumentNullException.ThrowIfNull(paths); ArgumentNullException.ThrowIfNull(archiveBackends);
         if ((nativeArm64Storage && !qualifyNtfsStorage) || (qualifyNtfsStorage && !CanQualifyNtfsStorage(nativeArm64Storage)))
             throw new PlatformNotSupportedException("NTFS storage review qualification requires a non-elevated Windows 11 process on the selected native architecture.");
         var storage = qualifyNtfsStorage ? new FileCat.Platform.Windows.WindowsStorageTransforms(
-            efsSetupBaseDirectory: () => paths.LocalDirectory, qualifyNativeArm64: nativeArm64Storage)
+            efsSetupBaseDirectory: () => paths.LocalDirectory, qualifyNativeArm64: nativeArm64Storage,
+            compressionSetReturnedForQualification: compressionSetReturned)
             .CreateEfsJobCandidate(static show => Avalonia.Threading.Dispatcher.UIThread.Invoke(show),
                 invokeProviderOwner: static compare => Avalonia.Threading.Dispatcher.UIThread.Invoke(compare)) : null;
         Current = new AppServices(paths, archiveBackends: archiveBackends, storageTransforms: storage, qualifyNativeArm64Storage: nativeArm64Storage);

@@ -3,14 +3,16 @@ param(
     [Parameter(Mandatory)][string]$NvdaPath,
     [switch]$HighContrastPictures,
     [switch]$VerifyDuplicateRoots,
+    [switch]$VerifyOperationsRecovery,
     [switch]$VerifyCanceledKeyBackup,
     [switch]$VerifyCompletedKeyBackup,
     [switch]$VerifySelectedFileBackup
 )
 
 $ErrorActionPreference = 'Stop'
-if (@($VerifyCanceledKeyBackup, $VerifyCompletedKeyBackup, $VerifySelectedFileBackup, $VerifyDuplicateRoots).Where({ $_.IsPresent }).Count -gt 1) {
-    throw 'Choose one backup or duplicate-root mode per fixture.'
+if (@($VerifyCanceledKeyBackup, $VerifyCompletedKeyBackup, $VerifySelectedFileBackup, $VerifyDuplicateRoots,
+    $VerifyOperationsRecovery).Where({ $_.IsPresent }).Count -gt 1) {
+    throw 'Choose one of the optional fixture modes.'
 }
 $testRoot = [IO.Path]::GetFullPath($TestRoot)
 $validationRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValidation')) + '\'
@@ -54,12 +56,18 @@ using System.Runtime.InteropServices;
 public static class StorageReviewInput {
     [StructLayout(LayoutKind.Sequential)]
     private struct Rect { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Point { public int X, Y; }
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr window, uint command);
     [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr window);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out Rect bounds);
     [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr window, out Rect bounds);
+    [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(Point point);
+    [DllImport("user32.dll")] private static extern IntPtr GetAncestor(IntPtr window, uint flags);
+    [DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] private static extern void mouse_event(uint flags, uint x, uint y, uint data, UIntPtr extra);
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr window, IntPtr after,
         int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll")] public static extern uint MapVirtualKey(uint key, uint kind);
@@ -84,6 +92,15 @@ public static class StorageReviewInput {
         uint dpi = GetDpiForWindow(window);
         if (dpi == 0 || !GetClientRect(window, out bounds)) return Array.Empty<int>();
         return new[] { (int)Math.Round(bounds.Right * 96.0 / dpi), (int)Math.Round(bounds.Bottom * 96.0 / dpi) };
+    }
+    public static bool ClickUncoveredTitle(IntPtr window) {
+        Rect bounds;
+        if (!GetWindowRect(window, out bounds)) return false;
+        var point = new Point { X = (bounds.Left + bounds.Right) / 2, Y = bounds.Top + 12 };
+        if (GetAncestor(WindowFromPoint(point), 2) != window || !SetCursorPos(point.X, point.Y)) return false;
+        mouse_event(2, 0, 0, 0, UIntPtr.Zero);
+        mouse_event(4, 0, 0, 0, UIntPtr.Zero);
+        return true;
     }
 }
 '@
@@ -187,6 +204,98 @@ public static class StorageReviewInput {
             if (!$value.Value.Contains("Original location: $quoted")) { throw "The review omitted $path." }
         }
         $record.ReviewedOriginals[$reviewName] = @($file,$duplicate)
+    }
+    function Find-Report([string]$title) {
+        Await {
+            $ui::RootElement.FindAll($scope::Children, $all) | Where-Object {
+                $_.Current.ProcessId -eq $app.Id -and $_.Current.Name -like "*$title*"
+            } | Select-Object -First 1
+        } $title
+    }
+    function Find-MenuItem([string]$name) {
+        Await {
+            $item = Find-Control $name 'MenuItem'
+            if ($item) { return $item }
+            foreach ($popup in $ui::RootElement.FindAll($scope::Children, $all)) {
+                if ($popup.Current.ProcessId -ne $app.Id -or $popup.Current.NativeWindowHandle -eq $main.Current.NativeWindowHandle) { continue }
+                $item = $popup.FindAll($scope::Descendants, $all) | Where-Object {
+                    $_.Current.Name -like $name -and $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::MenuItem
+                } | Select-Object -First 1
+                if ($item) { return $item }
+            }
+        } "menu item $name"
+    }
+    function Open-CompressionFromMenu {
+        foreach ($menuName in 'File','Inspect') {
+            (Find-MenuItem $menuName).GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+        }
+        (Find-MenuItem 'NTFS compression*').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        Await { Find-Control 'Choose action' 'Button' } 'the new compression review' | Out-Null
+    }
+    function Acknowledge-PendingReport($report) {
+        $main = $report
+        $handle = [IntPtr]$report.Current.NativeWindowHandle
+        [void][StorageReviewInput]::SetForegroundWindow($handle)
+        Await { Find-Control 'Line 1 of *FileCat storage history review*' 'Text' } 'the displayed storage snapshot' | Out-Null
+        Tab-To "Acknowledge reviewed history$([char]0x2026)" 'Button'
+        Key @(0x20)
+    }
+    function Invoke-StorageStop([string]$markers, [string]$focusedName, [bool]$verifyBlocker = $false) {
+        $record.Stage = "submit compression for $focusedName"
+        Open-CompressionFromMenu
+        Tab-To 'Compress' 'RadioButton'
+        Key @(0x20)
+        Await { Find-Control 'Every selected item passed inspection for this action.' } 'completed compression inspection' | Out-Null
+        Tab-To 'Compress' 'Button'
+        Key @(0x20)
+        $returned = Join-Path $markers 'set-returned'
+        Await {
+            if (Test-Path -LiteralPath $returned) { (Get-Item -LiteralPath $returned).Length -eq 1 }
+        } 'native compression SET to return' | Out-Null
+        if ([IO.File]::ReadAllBytes($returned)[0] -ne 1) { throw 'Windows did not report a successful compression SET.' }
+        if ($verifyBlocker) {
+            $record.Stage = 'leave the blocked review for its running operation'
+            Await {
+                $focus = $ui::FocusedElement.Current
+                $focus.Name -eq $focusedName -or $focus.ClassName -eq 'FileList'
+            } 'file focus after submitting the first review' | Out-Null
+            [void](Take-Speech)
+            Open-CompressionFromMenu
+            $blocker = 'Cancel preparation and show the blocking operation'
+            Await { Find-Control $blocker 'Button' } 'the review escape to the blocking operation' | Out-Null
+            Tab-To $blocker 'Button'
+            Key @(0x2D, 0x09) # NVDA+Tab reports the current focus.
+            Hear 'blocked preparation escape' 'Cancel preparation and show the blocking operation'
+            Key @(0x20)
+            Await {
+                !(Find-Control $blocker 'Button') -and $ui::FocusedElement.Current.Name -like "*$focusedName*Running*"
+            } 'focus on the exact running blocker after dismissing review' | Out-Null
+            Snapshot 'running blocker'
+        }
+        $record.Stage = "stop compression for $focusedName"
+        if (!$verifyBlocker) { Key @(0x11, 0x4A) }
+        [void](Take-Speech)
+        Tab-To 'Stop' 'Button'
+        Hear "Stop control for $focusedName" '\bStop\b'
+        $stop = $ui::FocusedElement.Current
+        if (!$stop.IsEnabled -or $stop.HelpText -notlike '*An admitted call finishes; completed changes remain.*') {
+            throw 'The Stop control did not explain what happens to admitted and completed calls.'
+        }
+        Key @(0x20)
+        Await { Find-Control '*Stopping*waiting for the current call to finish*' } 'stopping state before postcondition release' | Out-Null
+        Snapshot "stopping $focusedName"
+        New-Item -ItemType File -Path (Join-Path $markers 'fail-postcondition') | Out-Null
+        $record.Stage = "review pending compression for $focusedName"
+        Await { Find-Control "*Review storage changes for *$focusedName*" 'Button' } 'same-session pending storage review' | Out-Null
+        Await { Find-Control '*Result not confirmed*' } 'uncertain result in Operations' | Out-Null
+        [void](Take-Speech)
+        Key @(0x11, 0x4A)
+        Await {
+            $focus = $ui::FocusedElement.Current
+            $focus.Name -like "*Review storage changes for *$focusedName*" -and !$focus.IsOffscreen
+        } 'keyboard focus in the pending storage review' | Out-Null
+        Hear "pending review for $focusedName" 'Review storage changes'
+        Snapshot "pending $focusedName"
     }
     function Review-Decision {
         $reviewName = "Review decision$([char]0x2026)"
@@ -389,18 +498,29 @@ public static class StorageReviewInput {
     $speechPath = Join-Path $fixture 'nvda.log'
     $script:speechIndex = 0
     New-Item -ItemType Directory -Path $left,$right,$state,$nvdaConfig -Force | Out-Null
-    if ($HighContrastPictures) {
+    if ($HighContrastPictures -or $VerifyOperationsRecovery) {
         [IO.File]::WriteAllText((Join-Path $state 'settings.json'),
             '{"SchemaVersion":1,"Theme":"HighContrast","ThemeAnimations":false,"RowDensity":"Comfortable","FontSize":24,"ContentFontSize":24}')
     }
     $record.HighContrastPictures = [bool]$HighContrastPictures
     $record.VerifyDuplicateRoots = [bool]$VerifyDuplicateRoots
+    $record.VerifyOperationsRecovery = [bool]$VerifyOperationsRecovery
     [IO.File]::WriteAllText((Join-Path $nvdaConfig 'nvda.ini'), "[general]`r`nshowWelcomeDialogAtStartup = False`r`n[update]`r`nautoCheck = False`r`nstartupNotification = False`r`nallowUsageStats = False`r`naskedAllowUsageStats = True`r`n")
     $file = Join-Path $left 'alpha-review.txt'
     [IO.File]::WriteAllText($file, ('FileCat storage review fixture. ' * 512))
     $initialHash = (Get-FileHash -LiteralPath $file).Hash
     $listArgument = @()
     $expectedFileRows = 1
+    $operationsArgument = @()
+    if ($VerifyOperationsRecovery) {
+        $olderMarker = Join-Path $state 'first-postcondition'
+        $currentMarker = Join-Path $state 'second-postcondition'
+        New-Item -ItemType Directory -Path $olderMarker,$currentMarker | Out-Null
+        $operationsArgument = @('--ntfs-storage-postcondition-fixture', "`"$olderMarker`"")
+        $secondFile = Join-Path $right 'beta-operations-review.txt'
+        [IO.File]::WriteAllText($secondFile, ('Separate current storage-operations fixture. ' * 512))
+        $secondHash = (Get-FileHash -LiteralPath $secondFile).Hash
+    }
     if ($VerifyDuplicateRoots) {
         $duplicate = Join-Path $right 'alpha-review.txt'
         [IO.File]::WriteAllText($duplicate, 'Distinct payload in the second original.')
@@ -426,7 +546,8 @@ public static class StorageReviewInput {
     $record.WindowsDllSHA256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $exe) 'FileCat.Platform.Windows.dll')).Hash
     $record.NvdaVersion = (Get-Item -LiteralPath $nvdaPath).VersionInfo.ProductVersion
     $applicationArguments = @(
-        '--ntfs-storage-review', '--new-instance', '--reset-layout', '--data', "`"$state`"", '--left', "`"$left`"", '--right', "`"$right`"") + $listArgument
+        '--ntfs-storage-review', '--new-instance', '--reset-layout', '--data', "`"$state`"", '--left', "`"$left`"", '--right', "`"$right`"") +
+        $listArgument + $operationsArgument
     $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru -ArgumentList $applicationArguments
     $main = Await {
         $app.Refresh()
@@ -456,10 +577,87 @@ public static class StorageReviewInput {
         if ($reader.HasExited) { throw "NVDA exited with $($reader.ExitCode) during startup." }
         Select-String -LiteralPath $speechPath -SimpleMatch 'NVDA initialized' -Quiet -ErrorAction SilentlyContinue
     } 'NVDA startup' 60 | Out-Null
+    if ([StorageReviewInput]::GetForegroundWindow() -ne $handle) {
+        if (![StorageReviewInput]::ClickUncoveredTitle($handle)) { throw 'A foreground window covers the owned FileCat fixture.' }
+        Await { [StorageReviewInput]::GetForegroundWindow() -eq $handle } 'foreground FileCat after NVDA startup' | Out-Null
+    }
+    $list.SetFocus()
+    Key @(0x2D, 0x09)
     Hear 'active FileCat window' 'FileCat.{0,180}window|Panel 1, source'
     Key @(0x24) $true
     Key @(0x28) $true
     Hear 'focused file' 'alpha-review\.txt'
+    if ($VerifyOperationsRecovery) {
+        Invoke-StorageStop $olderMarker 'alpha-review.txt' $true
+        $review = Find-Control '*Review storage changes for *alpha-review.txt*' 'Button'
+        Tab-To $review.Current.Name 'Button'
+        Key @(0x20)
+        $report = Find-Report 'Storage history snapshot'
+        Acknowledge-PendingReport $report
+        $record.Stage = 'acknowledge the first uncertain history'
+        Await { Find-Control 'Acknowledge reviewed history' 'Button' } 'exact-history acknowledgment prompt' | Out-Null
+        [void][StorageReviewInput]::SetForegroundWindow($handle)
+        Tab-To 'Acknowledge reviewed history' 'Button'
+        Key @(0x20)
+        Await { Find-Control '*Reviewed; effect remains uncertain*' 'ListItem' } 'first reviewed uncertainty' | Out-Null
+        $record.Stage = 'restart to load retained history'
+        [void]$app.CloseMainWindow()
+        if (!$app.WaitForExit(10000)) { throw 'The first qualification instance did not close.' }
+        $applicationArguments = @('--ntfs-storage-review', '--new-instance', '--reset-layout',
+            '--data', "`"$state`"", '--left', "`"$right`"", '--right', "`"$left`"",
+            '--ntfs-storage-postcondition-fixture', "`"$currentMarker`"")
+        $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru -ArgumentList $applicationArguments
+        $main = Await {
+            $app.Refresh()
+            if ($app.HasExited) { throw "The restarted instance exited with $($app.ExitCode)." }
+            if ($app.MainWindowHandle -ne [IntPtr]::Zero) { $ui::FromHandle($app.MainWindowHandle) }
+        } 'the restarted qualification window'
+        $handle = [IntPtr]$main.Current.NativeWindowHandle
+        [void][StorageReviewInput]::SetForegroundWindow($handle)
+        if (![StorageReviewInput]::ResizeClient($handle, 640, 420)) { throw 'Could not resize the restarted window.' }
+        $record.Stage = 'verify the earlier acknowledgment after restart'
+        $earlier = Await { Find-Control 'Review storage changes for Storage changes*' 'Button' } 'the startup history candidate'
+        Key @(0x11, 0x4A)
+        Tab-To $earlier.Current.Name 'Button'
+        Key @(0x20)
+        $report = Find-Report 'Storage history snapshot'
+        $report.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close()
+        Await {
+            !(Find-Control 'Review storage changes for Storage changes*' 'Button') -and
+                (Find-Control '*Reviewed; effect remains uncertain*' 'ListItem')
+        } 'the earlier acknowledgment verified against its journal' | Out-Null
+        $second = Await { Find-Control 'beta-operations-review.txt' 'ListItem' } 'the second selected file'
+        $second.SetFocus()
+        Invoke-StorageStop $currentMarker 'beta-operations-review.txt'
+        $record.Stage = 'reopen the earlier reviewed uncertainty'
+        $retained = Await { Find-Control '*Reviewed; effect remains uncertain*' 'ListItem' } 'retained storage history row'
+        [void](Take-Speech)
+        Tab-To $retained.Current.Name 'ListItem'
+        Hear 'retained storage history row' 'Reviewed; effect remains uncertain'
+        Key @(0x20)
+        Await {
+            $row = Find-Control '*Reviewed; effect remains uncertain*' 'ListItem'
+            if ($row) { $row.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Current.IsSelected }
+        } 'the selected retained storage history row' | Out-Null
+        Key @(0x0D)
+        $report = Find-Report 'Retained storage review'
+        Await {
+            $report.FindAll($scope::Descendants, $all) | Where-Object {
+                $_.Current.Name -like '*Reviewed; effect remains uncertain*'
+            } | Select-Object -First 1
+        } 'the retained uncertainty statement' | Out-Null
+        $report.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close()
+        if (!(Find-Control '*Review storage changes for *beta-operations-review.txt*' 'Button') -or
+            ((Get-FileHash -LiteralPath $file).Hash -ne $initialHash) -or
+            ((Get-FileHash -LiteralPath $secondFile).Hash -ne $secondHash) -or
+            !(([IO.File]::GetAttributes($file)) -band [IO.FileAttributes]::Compressed) -or
+            !(([IO.File]::GetAttributes($secondFile)) -band [IO.FileAttributes]::Compressed)) {
+            throw 'Reviewing the older history must leave both payloads, compression, and the new pending review intact.'
+        }
+        $record.Stage = 'complete'
+        $record.Passed = $true
+        return
+    }
     if ($VerifyDuplicateRoots) {
         $record.Stage = 'mark both originals'
         Key @(0x11, 0x10, 0x41)

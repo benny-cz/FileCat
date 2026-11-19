@@ -37,6 +37,7 @@ public partial class OperationsView : UserControl
     public OperationsView()
     {
         InitializeComponent();
+        ReviewedReports.AddHandler(KeyDownEvent, OnReviewedRecoveryKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += (_, _) => ObserveCenter(Center);
         // While the selected recovery action can be stopped, Stop is kept in view when the recovery area's content or size
         // changes: the action starting, a status line wrapping, the window settling around the drawer.
@@ -295,11 +296,10 @@ public partial class OperationsView : UserControl
     internal bool ContainsFocus(object? focused) => focused is Visual visual && (ReferenceEquals(visual, this) || this.IsVisualAncestorOf(visual));
 
     /// <summary>
-    /// Ctrl+J from the keyboard (plan §11.5, §11.8): the keyboard goes to "Review decision…" of the first operation that
-    /// waits for a decision (selected first, as the decision notice tells keyboard users to go there), otherwise to the
-    /// selected operation in the list, otherwise to the first control of Operations. False when nothing could take focus.
+    /// Ctrl+J focuses a waiting decision, the selected pending storage review, or the operations history.
+    /// Opening a specific blocker skips the pending history so the blocker remains selected.
     /// </summary>
-    internal bool FocusForKeyboard()
+    internal bool FocusForKeyboard(bool prioritizeStorageReview = true)
     {
         if (Center is not { } center) return false;
         if (center.Jobs.FirstOrDefault(job => job.NeedsDecision) is { } waiting)
@@ -308,6 +308,13 @@ public partial class OperationsView : UserControl
             UpdateLayout();
             if (DetailsReviewDecision is { IsEffectivelyVisible: true, IsEffectivelyEnabled: true } review && review.Focus(NavigationMethod.Tab))
                 return true;
+        }
+        if (prioritizeStorageReview && center.SelectedInterrupted is { IsStorage: true, IsActionBusy: false } storage &&
+            FindStorageReviewButton(storage) is { IsEffectivelyEnabled: true } reviewStorage &&
+            reviewStorage.Focus(NavigationMethod.Tab))
+        {
+            reviewStorage.BringIntoView();
+            return true;
         }
         if (HistoryList is { IsEffectivelyVisible: true, ItemCount: > 0 } list && Controls.ListKeys.Focus(list)) return true;
         return this.GetVisualDescendants().OfType<InputElement>()
@@ -650,7 +657,7 @@ public partial class OperationsView : UserControl
         var action = center.CanStopStorageHistory && center.SelectedInterrupted?.CanStopReview != true
             ? buttons.FirstOrDefault(button => button.Name == "StorageHistoryStop" && button.IsEffectivelyVisible)
             : center.SelectedInterrupted is { IsStorage: true, IsActionBusy: false } storage
-            ? buttons.FirstOrDefault(button => ReferenceEquals(button.Tag, storage) && button.Content as string == storage.ReportButtonText && button.IsEffectivelyVisible)
+            ? FindStorageReviewButton(storage)
             : center.SelectedInterrupted is { CanReviewArchiveCleanup: true, IsActionBusy: false } selected
             ? buttons.FirstOrDefault(button => ReferenceEquals(button.Tag, selected) && button.Content as string == selected.CleanupLabel && button.IsEffectivelyVisible)
             : center.SelectedInterrupted is null && center.HasReviewedRecovery
@@ -660,6 +667,10 @@ public partial class OperationsView : UserControl
         if (bottom > viewport) RecoveryScroll.Offset = RecoveryScroll.Offset.WithY(RecoveryScroll.Offset.Y + Math.Min(bottom - viewport, top.Y));
         else if (top.Y < 0) RecoveryScroll.Offset = RecoveryScroll.Offset.WithY(RecoveryScroll.Offset.Y + top.Y);
     }
+
+    private Button? FindStorageReviewButton(InterruptedJobViewModel storage) =>
+        RecoveryScroll.GetVisualDescendants().OfType<Button>().FirstOrDefault(button =>
+            ReferenceEquals(button.Tag, storage) && button.Content as string == storage.ReportButtonText && button.IsEffectivelyVisible);
 
     private void OnHideInterrupted(object? sender, RoutedEventArgs e)
     {
@@ -708,7 +719,23 @@ public partial class OperationsView : UserControl
 
     private async void OnReviewedRecoveryReport(object? sender, RoutedEventArgs e)
     {
-        if ((sender as Button)?.Tag is not RecoveryReviewRecord record) return;
+        if ((sender as Button)?.Tag is RecoveryReviewRecord record) await OpenReviewedRecoveryReportAsync(record);
+    }
+
+    private async void OnReviewedRecoveryKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || e.Source is Button)
+            return;
+        var focused = TopLevel.GetTopLevel(ReviewedReports)?.FocusManager?.GetFocusedElement();
+        var record = (focused as ListBoxItem)?.DataContext as RecoveryReviewRecord ??
+            ReviewedReports.SelectedItem as RecoveryReviewRecord;
+        if (record is null) return;
+        e.Handled = true;
+        await OpenReviewedRecoveryReportAsync(record);
+    }
+
+    private async Task OpenReviewedRecoveryReportAsync(RecoveryReviewRecord record)
+    {
         if (record.IsStorage)
         {
             if (Main is { } main) await main.ShowRetainedStorageHistoryAsync(record);

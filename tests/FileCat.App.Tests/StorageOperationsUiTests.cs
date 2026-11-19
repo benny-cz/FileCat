@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -100,6 +101,57 @@ public sealed class StorageOperationsUiTests
         Assert.StartsWith(title, selected.Title);
         Assert.DoesNotContain("interrupted", selected.Title, StringComparison.OrdinalIgnoreCase);
         center.RemoveFinished(); Assert.Equal(2, center.Interrupted.Count); Dispatcher.UIThread.RunJobs();
+    }
+
+    [AvaloniaFact]
+    public void Operations_keyboard_entry_focuses_the_pending_storage_review()
+    {
+        var fixture = AccessibilityTests.OpenMainWindow(width: 640, height: 420);
+        try
+        {
+            var center = fixture.Vm.Operations;
+            var job = MakeJob();
+            job.SetStorageResult(Result(job) with { ReviewPending = true });
+            job.SetState(JobState.Failed);
+            var row = new JobViewModel(job);
+            center.Jobs.Add(row);
+            center.Selected = row;
+            center.AddInterrupted(fixture.Services.Jobs.StorageHistoryCandidate(job));
+            center.IsOpen = true;
+            fixture.Window.UpdateLayout();
+            var pane = fixture.Window.GetVisualDescendants().OfType<OperationsView>().Single();
+            Assert.True(pane.FocusForKeyboard());
+            var button = Assert.IsType<Button>(fixture.Window.FocusManager?.GetFocusedElement());
+            Assert.Equal("Review storage changes", button.Content);
+            Assert.Same(center.SelectedInterrupted, button.Tag);
+            Assert.True(pane.FocusForKeyboard(prioritizeStorageReview: false));
+            var history = pane.FindControl<ListBox>("HistoryList")!;
+            var focused = Assert.IsAssignableFrom<Control>(fixture.Window.FocusManager?.GetFocusedElement());
+            Assert.True(ReferenceEquals(history, focused) || history.IsVisualAncestorOf(focused));
+        }
+        finally { AccessibilityTests.Close(fixture.Services, fixture.Window, fixture.Root); }
+    }
+
+    [AvaloniaFact]
+    public void Enter_on_a_focused_reviewed_storage_row_reaches_its_report_action()
+    {
+        var fixture = AccessibilityTests.OpenMainWindow(width: 640, height: 420);
+        try
+        {
+            var center = fixture.Vm.Operations;
+            center.AddReviewedRecovery(new("unavailable-fixture", "Reviewed storage", nameof(JobKind.StorageTransform),
+                DateTime.UtcNow, "Acknowledged reviewed history", string.Empty, true));
+            center.IsOpen = true;
+            fixture.Window.UpdateLayout();
+            var pane = fixture.Window.GetVisualDescendants().OfType<OperationsView>().Single();
+            var reports = pane.FindControl<ListBox>("ReviewedReports")!;
+            var row = Assert.IsType<ListBoxItem>(reports.ContainerFromIndex(0));
+            Assert.True(row.Focus());
+            var enter = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter, Source = row };
+            row.RaiseEvent(enter);
+            Assert.True(enter.Handled);
+        }
+        finally { AccessibilityTests.Close(fixture.Services, fixture.Window, fixture.Root); }
     }
 
     [Fact]
