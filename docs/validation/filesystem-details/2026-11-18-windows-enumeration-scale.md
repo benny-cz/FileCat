@@ -39,7 +39,7 @@ Windows 11 Enterprise build 26200 on the hosted native ARM64 runner measured man
 | 10,000 | 4.93 ms | 4.17 ms | −15.4% |
 | 1,000,000 | 378.75 ms | 393.92 ms | +4.0% |
 
-The first managed and native passes took 17.56 and 11.18 ms at 10,000 entries and 458.45 and 406.76 ms at one million. Every pass ended with the same process handle count it started with. At one million entries, warm managed and native allocations were approximately 48.03 MB per pass. The highest process working set in the one-million-entry test was 53,817,344 bytes. Both exact test cases executed and passed. The source commit was `11822f0ecd37303007b6cb7c1ba7809f2baa40b9` and the Windows platform test assembly SHA-256 was `EED3DAA7AD27D09AFB3D3C7E5ECD5109B6ACAF55588F96C430CBA13077942A6C`. Independent ARM64 cold-cache measurements remain open.
+The first managed and native passes took 17.56 and 11.18 ms at 10,000 entries and 458.45 and 406.76 ms at one million. Every pass ended with the same process handle count it started with. At one million entries, warm managed and native allocations were approximately 48.03 MB per pass. The highest process working set in the one-million-entry test was 53,817,344 bytes. Both exact test cases executed and passed. The source commit was `11822f0ecd37303007b6cb7c1ba7809f2baa40b9` and the Windows platform test assembly SHA-256 was `EED3DAA7AD27D09AFB3D3C7E5ECD5109B6ACAF55588F96C430CBA13077942A6C`.
 
 The native ARM64 rerun after the find API refactor also returned every entry. Warm medians were 4.87 ms managed and 4.13 ms native at 10,000 entries, and 372.84 ms managed and 388.54 ms native at one million. Process handles matched before and after each pass. At one million entries, the peak working set was 53,821,440 bytes and the two paths allocated approximately 48.03 MB per warm pass. The platform test assembly SHA-256 was `21C3ABF378E8B48C611B6D539E9B3A03011E0DB815100C67EF1780958DEDA475` at commit `e0274701743e850f1c0c53db88aeea22e498584e`. [Native ARM64 rerun and TRX results](https://github.com/benny-cz/FileCat/actions/runs/44515650631)
 
@@ -63,4 +63,15 @@ The forced-spill test kept the 48-byte records, modified a tag through Update, h
 
 The Windows 11 x64 VM verified the remount benchmark with one managed and native pair at 10,000 entries. Each sample used a fresh test process at medium integrity after detaching and mounting the same owned 4 KiB NTFS image read-only. The controller checked the disk, partition and volume identities on each mount. Both samples returned exactly 10,000 entries. The managed sample took 41.93 ms and the native sample took 40.78 ms. Each started and ended with 288 process handles. The remount can clear the mounted filesystem's state while lower-level backing caches remain active. Guest-reboot measurements are recorded separately above.
 
-The x64 receipts are in `.tmp/filecat-listing-remount-0117fa15-r1/`. The ARM64 qualification workflow can exercise three alternating pairs at both sizes using the same remount controller.
+The x64 receipts are in `.tmp/filecat-listing-remount-0117fa15-r1/`.
+
+### Native ARM64 remount results
+
+On Windows 11 Enterprise ARM64 build 26200, the controller ran three alternating pairs at each size on an owned 4 KiB NTFS image. All 12 fresh medium-integrity processes returned the exact expected count. Every pass started and finished with 277 handles. The maximum peak working set was 53,673,984 bytes. Lower-level caches remained in service across these NTFS remounts. [Native ARM64 run and mount receipts](https://github.com/benny-cz/FileCat/actions/runs/44522098503)
+
+| Entries | Managed median | Native median | Native timing difference |
+| ---: | ---: | ---: | ---: |
+| 10,000 | 28.03 ms | 29.29 ms | +4.5% |
+| 1,000,000 | 1,599.15 ms | 1,630.89 ms | +2.0% |
+
+Per-pass managed/native allocations were 511,016/512,400 bytes at 10,000 entries and 48,032,312/48,033,696 bytes at one million. The source was `3c74139d2318bd8303c26e1ba6de6f7584288e55`, and the Windows platform test assembly SHA-256 was `1A6F1458BCA090575B8B9F038A685973DAA68536B0250D81EF8A41F9004DEDC1`. The sample order, receipt names and common disk, partition and volume identities are in `mount-samples.json`.

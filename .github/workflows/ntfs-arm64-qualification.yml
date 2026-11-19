@@ -236,11 +236,14 @@ jobs:
               'Default_recovery_workflow_requires_setup_and_an_explicit_recovery_choice_after_backup_failure'
             ) | ForEach-Object { "FullyQualifiedName~$_" }
             $env:FILECAT_TEST_EFS_BACKUP_WIZARD = '1'
+            $env:FILECAT_TEST_EFS_KEY_WINDOW = '1'
             $outputSuites += @(
               @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-keys.trx'; Count = '11';
                  Filter = $keyFilter -join '|' },
               @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-wizard.trx'; Count = '2';
-                 Filter = 'FullyQualifiedName~Parented_private_key_backup_distinguishes_cancellation_from_completed_export' }
+                 Filter = 'FullyQualifiedName~Parented_private_key_backup_distinguishes_cancellation_from_completed_export' },
+              @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-parented-provider.trx'; Count = '2';
+                 Filter = 'FullyQualifiedName~Fresh_parented_acquisition_still_requires_the_exact_public_key' }
             )
           }
           foreach ($suite in $outputSuites) {
@@ -431,6 +434,7 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-archive-protection.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-keys.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-wizard.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-parented-provider.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-file-details.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-listing-performance-*.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-listing-volume-cold-*.trx

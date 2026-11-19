@@ -62,7 +62,11 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
 
     /// <summary>Borrow an API-owned certificate context and its caller's scratch charge. Used by native qualification.</summary>
     internal static StorageEfsKeyEvidence ProbeHeldCertificate(nint certificate, string invokerSid, string certificateSha1, CancellationToken ct,
-        Action<nint>? useMatchedCertificate = null)
+        Action<nint>? useMatchedCertificate = null) =>
+        ProbeHeldCertificate(certificate, invokerSid, certificateSha1, ct, useMatchedCertificate, interaction: null);
+
+    private static StorageEfsKeyEvidence ProbeHeldCertificate(nint certificate, string invokerSid, string certificateSha1, CancellationToken ct,
+        Action<nint>? useMatchedCertificate, CngInteraction? interaction)
     {
         ValidateRequest(invokerSid, certificateSha1); RequireInvoker(invokerSid, ct);
         var allowance = StorageNativeAllowance.RequireCurrent();
@@ -79,6 +83,9 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
         catch (KeyInspectionException error)
         { return Evidence(invokerSid, certificateSha1, true, error.NativeError == NotFound ? false : null, error.State, StorageEfsKeyProvider.Unknown, error.NativeError, error.Code, error.Message); }
         var provider = binding.Type == 0 ? StorageEfsKeyProvider.Cng : StorageEfsKeyProvider.Capi;
+        if (interaction is not null && provider != StorageEfsKeyProvider.Cng)
+            return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.InteractionRequired, provider, null,
+                "efs-capi-parent-required", "This key provider needs a separately qualified process for window interaction.");
         using var freshCharge = allowance.ClaimScratch();
         ct.ThrowIfCancellationRequested();
         nint fresh = CreateContext(1 /* CERT_STORE_CERTIFICATE_CONTEXT */, 1 /* X509 */, source->Encoded, source->Length, 0, null);
@@ -106,6 +113,11 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
             }
             using var keyCharge = allowance.ClaimScratch();
             ct.ThrowIfCancellationRequested();
+            if (interaction is not null)
+            {
+                using var ownerTokenCharge = allowance.ClaimScratch();
+                return CompareParentedCngKey(fresh, invokerSid, certificateSha1, interaction, ct);
+            }
             bool acquired = Acquire(fresh, AcquireFlags, 0, out nint key, out uint keySpec, out bool callerFree);
             int nativeError = acquired ? 0 : Marshal.GetLastPInvokeError();
             try
@@ -185,6 +197,12 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
     private static void RequireInvoker(string expected, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested(); using var charge = StorageNativeAllowance.RequireCurrent().ClaimScratch();
+        CheckInvoker(expected, ct);
+    }
+
+    private static void CheckInvoker(string expected, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
         if (WindowsTokenAuthority.IsHighIntegrity) throw new UnauthorizedAccessException("EFS key checks require the normal invoking user.");
         using var identity = WindowsIdentity.GetCurrent();
         if (identity.User?.Value != expected) throw new UnauthorizedAccessException("The invoking EFS identity changed; the key check grants no cross-account authority.");
