@@ -55,15 +55,22 @@ internal sealed partial class HarnessApp
     private async Task<IReadOnlyList<ScratchThemeFrame>> CheckWideTypographyAsync(DiskSpaceWindow window, DiskSpaceViewModel model)
     {
         var original = new Size(window.Width, window.Height);
+        var originalState = window.WindowState;
         double font = window.FontSize;
         var mode = Find<ComboBox>(window, "Chart view");
         int initialMode = mode.SelectedIndex;
         try
         {
-            window.Width = 1060;
-            window.Height = 720;
             window.FontSize = 14;
-            await ReadyAsync(() => window.ClientSize.Width >= 900 && window.ClientSize.Height >= 580);
+            var screen = window.Screens.ScreenFromWindow(window) ?? window.Screens.Primary;
+            if (screen is not null && (screen.WorkingArea.Width < 1100 * screen.Scaling || screen.WorkingArea.Height < 780 * screen.Scaling))
+                window.WindowState = WindowState.Maximized;
+            else
+            {
+                window.Width = 1060;
+                window.Height = 720;
+            }
+            await ReadyAsync(() => window.ClientSize.Width >= 900 && window.ClientSize.Height >= 450);
             mode.SelectedIndex = 0;
             var treemap = await CheckResultThemesAsync(window, model, warning: false, "layout-treemap");
             mode.SelectedIndex = 1;
@@ -72,6 +79,7 @@ internal sealed partial class HarnessApp
         }
         finally
         {
+            window.WindowState = originalState;
             window.Width = original.Width;
             window.Height = original.Height;
             window.FontSize = font;
