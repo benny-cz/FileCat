@@ -2,7 +2,8 @@ using FileCat.Core.Analysis;
 
 namespace FileCat.Core.Tests;
 
-[CollectionDefinition("Analysis native source device")]
+// These fixtures share native device turns and scan slots with other analysis tests.
+[CollectionDefinition("Analysis native source device", DisableParallelization = true)]
 public sealed class AnalysisNativeSourceDeviceCollection;
 
 [Collection("Analysis native source device")]

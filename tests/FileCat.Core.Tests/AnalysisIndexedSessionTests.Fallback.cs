@@ -4,9 +4,7 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
-// The native fixture shares the real device turn and process-wide scan slots with other analysis tests.
-// Run it in isolation so its deadline measures the fallback, including native handle retirement.
-[Collection("Analysis I/O capacity")]
+[Collection("Analysis native source device")]
 public sealed class AnalysisNativeMemoryFallbackTests
 {
     [Fact]
