@@ -291,7 +291,6 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetName(provenanceLabel, "Analysis provenance: " + provenance);
             AutomationProperties.SetAutomationId(_readingScope, "AnalysisReadingScope");
             AutomationProperties.SetAutomationId(_summary, "AnalysisReadingAmount");
-            AutomationProperties.SetAutomationId(_status, "AnalysisReadingCoverage");
             _readingStatus = new ReadingStatus(_status);
             _resultSummary.Children.Add(ReadingSurface(new StackPanel { Spacing = 2,
                 Children = { _readingScope, _summary, _readingStatus, _readingDetails } },
@@ -418,7 +417,7 @@ public sealed partial class DiskSpaceWindow
             _readingScope.Text = AnalysisNames.Display(scope, 120);
             _summary.Text = KeepMeasurementUnits(amount);
             ShowReadingLabel(_readingDetails, KeepMeasurementUnits(facts));
-            _plainSummary = amount + " · " + facts;
+            _plainSummary = _readingScope.Text + "\n" + amount + " · " + facts;
             _readingStatus.SetWarning(HasCoverageWarning(coverage, freshness) || uncertainMatches);
         }
 
