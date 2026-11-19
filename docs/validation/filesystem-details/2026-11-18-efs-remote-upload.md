@@ -6,6 +6,10 @@ The Windows 11 x64 VM passed seven focused tests with no skips. The six EFS test
 
 Ubuntu and macOS each passed 783 focused remote regressions across the ordinary SFTP controls and real FTP, FTPES and FTPS servers, with one Windows-only link fixture skipped per host. Two crash controls on each host passed after the standalone package was given the expected harness layout. Windows EFS combined with real protocol transports and the origin of retained and derived uploads remain open in E-OUT4.
 
+## Native ARM64 upload and source retirement
+
+On Windows 11 Enterprise ARM64 build 26200, the medium-integrity app test process used actual 4 KiB NTFS sources with a scripted SFTP server. All 15 upload cases and 24 retained-edit cases passed with zero skips. They verified consent before creating a server stage, keeping an encrypted original after declining a move, renewed consent for resume or restart, and refusal to retire a source encrypted after remote publication. The cases preserved the sparse-file notice and checked protection at the actual ZIP, TAR and retained edit snapshot. Source commit was `0f709d9699eb4dcbdf8994dd04a3457fb3743ea4`. Live SFTP, FTP and FTPS evidence is recorded in the separate x64 protocol checkpoint. [Run and `native-efs-remote-upload.trx`](https://github.com/benny-cz/FileCat/actions/runs/44517702874)
+
 ## Sparse sources and exact stage review
 
 The upload reads the sparse attribute from the same Windows handle used for the EFS check. The sparse upload sends the whole logical byte stream. Its successful publication reports that the server copy may need more space. The EFS review shows that potential growth along with the exact destination and temporary server name before the upload writes. A reconnect that can resume shows both the existing stage and the fresh one FileCat will use if the server declines to append. The decision applies to that attempt.

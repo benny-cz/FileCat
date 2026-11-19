@@ -1,7 +1,11 @@
 using FileCat.Core.Archives;
+using FileCat.Core.FileSystem;
 using FileCat.Platform.Windows.Archives;
 
 namespace FileCat.Platform.Windows.Tests;
+
+[CollectionDefinition("Windows archive capacity", DisableParallelization = true)]
+public sealed class WindowsArchiveCapacityCollection;
 
 public sealed partial class WindowsArchiveStorageTests
 {
@@ -42,17 +46,36 @@ public sealed partial class WindowsArchiveStorageTests
         Assert.Equal(ArchiveWriteReason.PublicationUnavailable, Assert.Throws<ArchiveWriteException>(() => publication.ClaimNewName("result.tar", review, TestContext.Current.CancellationToken)).Reason);
         Assert.True(File.Exists(stage.DisplayPath)); Assert.False(File.Exists(root.PathOf("result.tar")));
     }
-    [Fact]
-    public void Held_NTFS_capacity_agrees_with_independent_path_API_and_requires_the_exact_parent()
+    [Collection("Windows archive capacity")]
+    public sealed class CapacityTests
     {
-        RequireWindows(); using var root = new Fixture(); using var directory = WindowsArchiveDirectory.Open(root.Root);
-        var estimate = new ArchiveSpaceEstimate(0, 1024, 52, 0);
-        var review = ((IArchiveDestinationSpace)directory).ReviewSpace(directory.Identity.ToString(), estimate, TestContext.Current.CancellationToken);
-        var independent = FileCat.Core.FileSystem.FileSystemCapacity.Query(root.Root);
-        Assert.NotNull(independent); Assert.True(review.CapacityKnown); review.RequireAvailable();
-        Assert.Equal("windows-volume:" + directory.Identity.VolumeSerial.ToString("X16"), review.Capacity!.VolumeIdentity);
-        Assert.InRange(review.Capacity.AvailableBytes, Math.Max(0, independent.AvailableBytes - (64L << 20)), independent.AvailableBytes + (64L << 20));
-        Assert.Equal(ArchiveWriteReason.NeedsReview, Assert.Throws<ArchiveWriteException>(() => ((IArchiveDestinationSpace)directory).ReviewSpace("wrong-parent", estimate, TestContext.Current.CancellationToken)).Reason);
+        [Fact]
+        public void Held_NTFS_capacity_agrees_with_independent_path_API_and_requires_the_exact_parent()
+        {
+            RequireWindows();
+            using var root = new Fixture();
+            using var directory = WindowsArchiveDirectory.Open(root.Root);
+            var destination = (IArchiveDestinationSpace)directory;
+            var estimate = new ArchiveSpaceEstimate(0, 1024, 52, 0);
+            var ct = TestContext.Current.CancellationToken;
+
+            // Compare with path-based observations on both sides of the held query. Even outside the
+            // parallel test collections, the runner can allocate or free clusters on this shared volume.
+            var before = FileSystemCapacity.Query(root.Root);
+            var review = destination.ReviewSpace(directory.Identity.ToString(), estimate, ct);
+            var after = FileSystemCapacity.Query(root.Root);
+
+            Assert.NotNull(before);
+            Assert.NotNull(after);
+            Assert.Equal(before.VolumeIdentity, after.VolumeIdentity);
+            Assert.True(review.CapacityKnown);
+            review.RequireAvailable();
+            Assert.Equal("windows-volume:" + directory.Identity.VolumeSerial.ToString("X16"), review.Capacity!.VolumeIdentity);
+            Assert.InRange(review.Capacity.AvailableBytes, Math.Min(before.AvailableBytes, after.AvailableBytes),
+                Math.Max(before.AvailableBytes, after.AvailableBytes));
+            Assert.Equal(ArchiveWriteReason.NeedsReview,
+                Assert.Throws<ArchiveWriteException>(() => destination.ReviewSpace("wrong-parent", estimate, ct)).Reason);
+        }
     }
     [Fact]
     public void Readonly_source_uses_portable_new_file_mode_while_its_native_attribute_remains_reviewed()
