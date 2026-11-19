@@ -41,7 +41,8 @@ public sealed partial class WindowsEfsJobTests
         byte[] streamBytes = File.ReadAllBytes(stream);
         var source = ItemRef.ForFileSystemPath(target, EntryKind.File);
 
-        var adapter = new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64);
+        string evidence = Directory.CreateTempSubdirectory("filecat-efs-detach-").FullName;
+        var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => evidence, qualifyNativeArm64: qualifyNativeArm64);
         int approvals = 0;
         var attempts = new List<(StorageAction Action, bool Succeeded)>();
         var candidate = adapter.CreateEfsJobCandidate(ApproveRecovery, (returnedAction, succeeded) =>
@@ -50,15 +51,17 @@ public sealed partial class WindowsEfsJobTests
             File.WriteAllText(Path.Join(control, "prepared"), "");
             WaitForFixture("detached");
         });
-        string evidence = Directory.CreateTempSubdirectory("filecat-efs-detach-").FullName;
         try
         {
             var manager = Manager(evidence, candidate, qualifyNativeArm64);
             var pending = new List<InterruptedJob>();
             manager.StorageReviewRequired += pending.Add;
             var interrupted = Run(manager, action, [source]);
-            Assert.Equal((action, true), Assert.Single(attempts));
             var result = Assert.IsType<StorageResultSnapshot>(interrupted.StorageResult);
+            Assert.True(attempts.Count == 1, $"{interrupted.State}: " + string.Join(", ",
+                result.Reasons.Select(reason => reason.Problem.Code + " " + reason.Problem.Message)
+                    .Concat(interrupted.Issues.Select(issue => issue.Message))));
+            Assert.Equal((action, true), attempts[0]);
             Assert.Equal(JobState.Failed, interrupted.State);
             Assert.Equal(new StorageOutcomeCounts(Uncertain: 1), result.Counts);
             Assert.Equal(StorageCompleteness.Incomplete, Assert.Single(result.Roots).Completeness);
