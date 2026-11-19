@@ -54,3 +54,25 @@ The reader now scans for record endings within each read buffer and parses the f
 | Pruning and successful admission retry | 16.43 s | 12.14 s |
 
 The updated Windows evidence selection passed 19 tests with one FAT/exFAT fixture skip. Five EFS job tests passed, with eight prepared-fixture skips. Both Windows selections ran on .NET 10.0.15 from base `3aab13f2` plus the reader and fixture changes. The updated test bundle SHA-256 is `3115BE1346DBF496C154D1D83B79364DA974306EE0BA2FEE6D1A075938820A02`. Ubuntu passed 103 portable history, framing, retention and EFS evidence tests. Build-host receipts are `.tmp/filecat-occupied-evidence-3aab13f2-r1.xml`, `.tmp/filecat-occupied-evidence-3aab13f2-r2.xml`, `.tmp/filecat-occupied-evidence-3aab13f2-r2-efs.xml` and `.tmp/filecat-occupied-evidence-3aab13f2-r2-portable.trx`.
+
+## Native Windows Operations under load
+
+On Windows 11 x64 build 26340, the [native Operations driver](../../../tests/FileCat.NativeAcceptance/win-ax-ntfs-storage-scale.ps1) used Windows UI Automation in an isolated service-session desktop at medium integrity (RID 8192) with compatibility rendering. The fixture used 10,000 ordinary 8,192-byte files on fixed 4 KiB NTFS. It opened the real compression review from the File menu, confirmed recursive scope, and paused the running job at 763 checked items. Operations displayed discovery counts without percentages or transfer speed history. A Create Folder request on the other panel showed the exclusive-storage wait reason and had no output while compression was paused.
+
+The driver opened the real operation report, read call pages beginning at calls 1 and 65, and matched the durable SHA-256 shown on both pages. The processed count stayed unchanged while the job was paused. Resume finished the storage job with 10,001 changes, including the directory, and the unrelated queued folder was then created. All 10,000 files carried the compressed attribute. The first and last file hashes matched the fixture bytes.
+
+| Measurement | Result |
+| --- | ---: |
+| Fixture creation | 12.16 s |
+| Compression through completion, including automation and pause | 263.38 s |
+| Observed paused interval | 100.03 s |
+| UI Automation Pause to available Resume | 2.28 s |
+| Open recorded calls to first available page | 2.62 s |
+| Navigate to next available page | 2.52 s |
+| Durable storage journal | 13,219,660 bytes |
+| Main process handles, sampled initial to peak | 1,788 to 6,990 |
+| Main process working set, sampled initial to peak | 383,696,896 to 591,126,528 bytes |
+
+The dispatcher probe recorded four delays above 50 ms during the observed work intervals, with a maximum of 114.8 ms. The worst delay in the entire run was 1,858.9 ms and fell outside those intervals. The samples include the cost of UI Automation. Attribution of the additional process handles and measurement on the signed-in desktop remain open.
+
+The initial attempt refused a shared-writable journal directory. A private disposable profile resolved that fixture issue. It also reproduced the shell taskbar API returning `E_NOTIMPL` in the isolated session. The updated app treated this optional API as unavailable and the completed run produced no crash log. The Windows component SHA-256 was `54E7A82C7FADA85BD0497808EC0C87987251D5A0A7D3356E923883ECF2C55571`. The fixtures and dispatcher receipts are `operations-scale.json` and `r2-operations-dispatcher.json` under `.tmp/filecat-storage-ui-scale-cdd562ad-r1/`.

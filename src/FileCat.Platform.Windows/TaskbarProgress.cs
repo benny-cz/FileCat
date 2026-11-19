@@ -42,7 +42,7 @@ public static class TaskbarProgress
             if (state is TaskbarProgressState.Normal or TaskbarProgressState.Paused or TaskbarProgressState.Error)
                 _taskbar.SetProgressValue(window, (ulong)Math.Round(Math.Clamp(fraction, 0, 1) * 10_000), 10_000);
         }
-        catch (Exception ex) when (ex is COMException or InvalidCastException)
+        catch (Exception ex) when (ex is COMException or InvalidCastException or NotImplementedException)
         {
             _unavailable = true;
         }
