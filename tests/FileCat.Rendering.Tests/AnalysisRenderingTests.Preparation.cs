@@ -119,17 +119,21 @@ public sealed partial class AnalysisRenderingTests
     private static void OrdinaryPreparation() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Requires an ordinary process.");
     private sealed class PreparationFixture : IDisposable
     {
-        public string Root { get; } = Path.Combine(Environment.CurrentDirectory, ".tmp", "analysis-preparation-" + Guid.NewGuid().ToString("N"));
+        private readonly bool _ownsRoot;
+        public string Root { get; }
         public int UiThread { get; } = Environment.CurrentManagedThreadId;
         public AppServices Services { get; }
-        public PreparationFixture(bool alternateScratch = false, bool createScratchParent = true)
+        public PreparationFixture(bool alternateScratch = false, bool createScratchParent = true, string? preparedRoot = null)
         {
-            Directory.CreateDirectory(Root);
+            _ownsRoot = preparedRoot is null;
+            Root = preparedRoot ?? Path.Combine(Environment.CurrentDirectory, ".tmp", "analysis-preparation-" + Guid.NewGuid().ToString("N"));
+            if (_ownsRoot) Directory.CreateDirectory(Root);
+            else Assert.True(Path.IsPathFullyQualified(Root) && File.Exists(Path.Combine(Root, ".filecat-scratch-volume-fixture")));
             string? parent = alternateScratch ? Path.Combine(Root, "alternate-scratch") : null;
             if (parent is not null && createScratchParent) Directory.CreateDirectory(parent);
             Services = AppServices.CreateForPaths(AppPaths.Resolve(dataRoot: Root, analysisScratchParent: parent));
         }
-        public void Dispose() { Services.Dispose(); Directory.Delete(Root, recursive: true); }
+        public void Dispose() { Services.Dispose(); if (_ownsRoot) Directory.Delete(Root, recursive: true); }
     }
     private sealed class PreparedSource(string path) : IAnalysisBackend
     {

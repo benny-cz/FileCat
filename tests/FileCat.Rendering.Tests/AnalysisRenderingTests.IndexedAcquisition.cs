@@ -13,7 +13,9 @@ public sealed partial class AnalysisRenderingTests
     [AvaloniaFact]
     public async Task AlternateScratchUsesOnlyItsOwnLeafAndPreservesBothPrivateBoundaries()
     {
-        OrdinaryPreparation(); using var fixture = new PreparationFixture(alternateScratch: true);
+        OrdinaryPreparation();
+        string? mountedFixture = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_SCRATCH_VOLUME_FIXTURE");
+        using var fixture = new PreparationFixture(alternateScratch: true, createScratchParent: mountedFixture is null, preparedRoot: mountedFixture);
         var paths = fixture.Services.Paths;
         var token = TestContext.Current.CancellationToken;
         string old = paths.DefaultAnalysisScratchDirectory;
@@ -29,10 +31,19 @@ public sealed partial class AnalysisRenderingTests
         await using (var acquisition = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, token))
         {
             Assert.Null(acquisition.MemoryPreparationNotice);
-            IAnalysisBackend? source = await AnalysisIo.Run(fixture.Services.Io, PathUtil.GetDeviceKey(fixture.Root), _ => NativeRoot(fixture.Root), token);
+            var sources = new List<IAnalysisBackend>();
             AnalysisSession session;
-            try { session = acquisition.Start([source]); source = null; }
-            finally { if (source is not null) await AnalysisIo.ReleaseAsync(fixture.Services.Io, source); }
+            try
+            {
+                sources.Add(await AnalysisIo.Run(fixture.Services.Io, PathUtil.GetDeviceKey(fixture.Root), _ => NativeRoot(fixture.Root), token));
+                if (mountedFixture is not null)
+                {
+                    string mount = Path.GetDirectoryName(nearby)!;
+                    sources.Add(await AnalysisIo.Run(fixture.Services.Io, PathUtil.GetDeviceKey(mount), _ => NativeRoot(mount), token));
+                }
+                session = acquisition.Start(sources); sources.Clear();
+            }
+            finally { await Task.WhenAll(sources.Select(source => AnalysisIo.ReleaseAsync(fixture.Services.Io, source))); }
             await session.Completion.WaitAsync(TimeSpan.FromSeconds(45), token);
             Assert.Equal(0UL, session.SourceCloseFailures);
             Assert.True(session.ScratchReservedBytes > 0);
