@@ -58,3 +58,9 @@ A captured tag follows an in-memory result reference through the result provider
 Search refinement applies the same rule to its refreshed local match. The Ubuntu fixture retained the captured tag and relative folder for a symbolic link, then cleared the tag when a plain file replaced the link at the same name. The replacement was given the captured size and modification time. The target bytes stayed intact. All 29 focused Core cases passed, including this refinement fixture.
 
 The forced-spill test kept the 48-byte records, modified a tag through Update, hid one row and returned the updated tag through the sorted and filtered mapped view. The suite also exercised in-memory sort parity and provider payload ownership. All 34 focused Store, presentation, working-set and refinement cases passed on the Ubuntu VM. The native Windows x64 and ARM64 parity tests verified the 56-byte managed entry layout.
+
+## Separate read-only NTFS mounts
+
+The Windows 11 x64 VM verified the remount benchmark with one managed and native pair at 10,000 entries. Each sample used a fresh test process at medium integrity after detaching and mounting the same owned 4 KiB NTFS image read-only. The controller checked the disk, partition and volume identities on each mount. Both samples returned exactly 10,000 entries. The managed sample took 41.93 ms and the native sample took 40.78 ms. Each started and ended with 288 process handles. The remount can clear the mounted filesystem's state while lower-level backing caches remain active. Guest-reboot measurements are recorded separately above.
+
+The x64 receipts are in `.tmp/filecat-listing-remount-0117fa15-r1/`. The ARM64 qualification workflow can exercise three alternating pairs at both sizes using the same remount controller.
