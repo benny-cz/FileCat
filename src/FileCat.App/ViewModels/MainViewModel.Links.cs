@@ -18,8 +18,6 @@ namespace FileCat.App.ViewModels;
 /// </summary>
 public sealed partial class MainViewModel
 {
-    private const int MaxLinks = 10_000;
-
     /// <summary>
     /// Where a single link is proposed: under the item's own name, or, where that is taken (always so in the item's own
     /// folder), "name - link", as Explorer proposes "- Shortcut".
@@ -44,7 +42,8 @@ public sealed partial class MainViewModel
         var sel = SourceSelection();
         if (sel is null) return;
         using var initialScope = new PreparationScope(sel.Value.Tab, Services.Io, sel.Value.Items);
-        if (sel.Value.Items.Count > MaxLinks) { Notify($"Create at most {MaxLinks:N0} links at a time.", true); return; }
+        if (sel.Value.Items.Count > AdministratorLinkDraft.MaxLinks)
+        { Notify($"Create at most {AdministratorLinkDraft.MaxLinks:N0} links at a time.", true); return; }
         var items = sel.Value.Items.ToList();
         if (items.Any(i => i.FileSystemPath is null))
         {
@@ -65,6 +64,34 @@ public sealed partial class MainViewModel
         catch (OperationCanceledException) { return; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         { if (initialScope.Current) Notify("Cannot prepare links: " + ex.Message, true); return; }
+        await ShowCreateLinkDialogAsync(items, origin, context, initial, canSymlink);
+    }
+
+    internal async Task ReviewAdministratorLinkDraftAsync(AdministratorLinkDraft draft)
+    {
+        if (!OperatingSystem.IsWindows() || !Services.Shell.IsElevated || Workspace.ActivePanel is not { } panel) return;
+        try
+        {
+            var items = draft.Targets.Select(target =>
+                ItemRef.ForFileSystemPath(target.Path, target.IsDirectory ? EntryKind.Directory : EntryKind.File)).ToArray();
+            var origin = panel.OpenTab(items[0].Parent, items.Length == 1 ? items[0].Name : null);
+            var fs = Services.Platform.FileOperations;
+            bool? canSymlink = await MutationIoAsync(Path.GetDirectoryName(draft.Destination) ?? draft.Destination,
+                () => fs.CanCreateSymbolicLinks, () => { if (Services.Io.IsStopped) throw new OperationCanceledException(); });
+            await ShowCreateLinkDialogAsync(items, origin, origin.Location, draft.Destination, canSymlink, draft);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            await Dialogs.AlertAsync("Could not review symbolic links", ex.Message);
+        }
+    }
+
+    private async Task ShowCreateLinkDialogAsync(IReadOnlyList<ItemRef> items, TabViewModel origin, Location? context,
+        string initial, bool? canSymlink, AdministratorLinkDraft? draft = null)
+    {
+        var fs = Services.Platform.FileOperations;
+        bool offerAdministrator = OperatingSystem.IsWindows() && !Services.Shell.IsElevated;
         var pathBox = new TextBox { Text = initial, MinWidth = 240 };
         Avalonia.Automation.AutomationProperties.SetName(pathBox, "Link path");
         bool allFolders = items.All(i => i.IsContainer), allFiles = items.All(i => !i.IsContainer);
@@ -75,31 +102,46 @@ public sealed partial class MainViewModel
         if (OperatingSystem.IsWindows()) kinds.Add((LinkKind.Junction, new RadioButton { Content = "Junction (folders on local drives)", GroupName = "linkKind" }));
         kinds.Add((LinkKind.Hard, new RadioButton { Content = "Hard link (files on the same drive)", GroupName = "linkKind" }));
         // Without the symbolic-link right, start with the kind that works without it.
-        var preferred = canSymlink == false && allFolders && OperatingSystem.IsWindows() ? LinkKind.Junction
+        var preferred = draft is not null ? draft.Kind
+            : canSymlink == false && allFolders && OperatingSystem.IsWindows() ? LinkKind.Junction
             : canSymlink == false && allFiles ? LinkKind.Hard : LinkKind.Symbolic;
         foreach (var (kind, button) in kinds) button.IsChecked = kind == preferred;
-        var relative = new CheckBox { Content = "Store the target relative to the link's folder" };
+        var relative = new CheckBox { Content = "Store the target relative to the link's folder", IsChecked = draft?.RelativeTarget == true };
         var privilege = new TextBlock
         {
             HorizontalAlignment = HorizontalAlignment.Left,
             Classes = { "error" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
-            Text = "This account cannot create symbolic links: that needs Developer Mode (Settings → System → For developers) or administrator rights. A junction works for folders on local drives, and a hard link for files on the same drive.",
+            Text = "Creating symbolic links requires Developer Mode or administrator rights. A junction works for folders on local drives, and a hard link for files on the same drive.",
         };
         var preview = new ListBox { Height = 200 };
         Avalonia.Automation.AutomationProperties.SetName(preview, "Links to create");
         var summary = new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 640 };
         IReadOnlyList<LinkPreview> rows = [];
         string? pathProblem = "Checking…";
+        bool previewAccessDenied = false;
         (string, LinkKind, bool)? plannedFor = null;
-        int generation = 0; bool open = true;
+        int generation = 0; bool open = true, launching = false;
         Task? previewWork = null; bool requested = false;
+        var administratorReview = new Button { Content = "Review as administrator…", HorizontalAlignment = HorizontalAlignment.Left };
+        Avalonia.Automation.AutomationProperties.SetHelpText(administratorReview,
+            "Windows asks for approval. The selected links reopen for review in a separate FileCat window with administrator rights.");
+        var closer = new DialogCloser();
         (string, LinkKind, bool) Current() => (pathBox.Text ?? "", Kind(), relative.IsChecked == true);
-
         LinkKind Kind() => kinds.First(k => k.Button.IsChecked == true).Kind;
+        bool HasCurrentPreview() => plannedFor == Current() && pathProblem is null && rows.Count > 0 && rows.All(r => r.Problem is null);
+        bool CanCreate() => !launching && HasCurrentPreview() && (Kind() != LinkKind.Symbolic || canSymlink != false);
+        bool CanElevate() => offerAdministrator && !launching &&
+            (previewAccessDenied && plannedFor == Current() || HasCurrentPreview());
+        void UpdateAdministratorReview()
+        {
+            administratorReview.IsVisible = offerAdministrator;
+            administratorReview.IsEnabled = CanElevate();
+        }
         void Refresh()
         {
             if (!open) return;
             ++generation; plannedFor = null; requested = true;
+            UpdateAdministratorReview();
             // One owned preview per dialog. Edits replace the pending request instead of growing the device queue.
             if (previewWork is null || previewWork.IsCompleted) previewWork = RefreshPendingAsync();
         }
@@ -116,7 +158,7 @@ public sealed partial class MainViewModel
             privilege.IsVisible = kind == LinkKind.Symbolic && canSymlink == false;
             var options = new LinkOptions(kind, relative.IsChecked == true && kind == LinkKind.Symbolic);
             string text = pathBox.Text ?? ""; var key = Current();
-            plannedFor = null; pathProblem = "Checking…"; summary.Text = pathProblem;
+            plannedFor = null; previewAccessDenied = false; pathProblem = "Checking…"; summary.Text = pathProblem;
             string? problem; IReadOnlyList<LinkPreview> result;
             try
             {
@@ -126,7 +168,16 @@ public sealed partial class MainViewModel
                 if (problem is null)
                 {
                     string folder = resolved.Folder!;
-                    var directory = await MutationIoAsync(folder, () => fs.TryGetInfo(folder), Check);
+                    var directory = await MutationIoAsync(folder, () =>
+                    {
+                        var info = fs.TryGetInfo(folder);
+                        if (info is null && offerAdministrator)
+                        {
+                            try { _ = File.GetAttributes(folder); }
+                            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { }
+                        }
+                        return info;
+                    }, Check);
                     if (directory?.IsDirectory != true) problem = $"The folder \"{folder}\" does not exist.";
                     else
                     {
@@ -148,6 +199,7 @@ public sealed partial class MainViewModel
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
                 if (!open || mine != generation || Services.Io.IsStopped) return;
+                previewAccessDenied = ex is UnauthorizedAccessException || ErrorText.Classify(ex) == "access";
                 problem = ex.Message; result = [];
             }
             pathProblem = problem; rows = result; plannedFor = key;
@@ -159,14 +211,50 @@ public sealed partial class MainViewModel
                 ? $"{Formatters.Plural(problems, "link has a problem", "links have problems")}; nothing is created until every link can be."
                 : $"{Formatters.Plural(rows.Count, LinkPlanner.KindName(kind), LinkPlanner.KindName(kind) + "s")} will be created.");
             summary.Classes.Set("error", problem is not null || problems > 0);
+            UpdateAdministratorReview();
         }
         var debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         debounce.Tick += (_, _) => { debounce.Stop(); Refresh(); };
-        pathBox.TextChanged += (_, _) => { ++generation; plannedFor = null; debounce.Stop(); if (open) debounce.Start(); };
+        pathBox.TextChanged += (_, _) =>
+        {
+            ++generation; plannedFor = null;
+            UpdateAdministratorReview();
+            debounce.Stop(); if (open) debounce.Start();
+        };
         // Radio groups may check the new choice before clearing the old one. Recheck
         // after both transitions so Kind() cannot leave the prior preview selected.
         foreach (var (_, button) in kinds) button.IsCheckedChanged += (_, _) => Refresh();
         relative.IsCheckedChanged += (_, _) => Refresh();
+        administratorReview.Click += async (_, _) =>
+        {
+            if (!open || !CanElevate()) return;
+            launching = true;
+            UpdateAdministratorReview();
+            try
+            {
+                var rowsToReview = rows;
+                bool relativeTarget = relative.IsChecked == true;
+                LinkKind kind = Kind();
+                var resolved = ResolveLinkPath(pathBox.Text ?? "", items.Count, context);
+                if (resolved.Error is not null || resolved.Folder is null ||
+                    resolved.Name is { } name && PathUtil.ValidateNewName(name) is not null) return;
+                string destination = resolved.Name is { } leaf ? Path.Combine(resolved.Folder, leaf)
+                    : items.Count == 1 ? AppendSeparator(resolved.Folder) : resolved.Folder;
+                var captured = await Task.Run(() => rowsToReview.Count != 0
+                    ? AdministratorLinkDraft.Capture(rowsToReview, relativeTarget, kind)
+                    : AdministratorLinkDraft.Capture(items, destination, relativeTarget, kind));
+                if (open && await OpenAdministratorWindowAsync(linkDraft: captured)) closer.Close("administrator");
+            }
+            catch (Exception ex) when (ex is IOException or NotSupportedException or ArgumentException)
+            {
+                if (open) await Dialogs.AlertAsync("Could not reopen symbolic-link draft", ex.Message);
+            }
+            finally
+            {
+                launching = false;
+                if (open) UpdateAdministratorReview();
+            }
+        };
 
         var kindRow = new WrapPanel { ItemSpacing = 16, LineSpacing = 4 };
         foreach (var (_, button) in kinds) kindRow.Children.Add(button);
@@ -177,6 +265,7 @@ public sealed partial class MainViewModel
             {
                 kindRow,
                 privilege,
+                administratorReview,
                 new TextBlock { Text = items.Count == 1 ? "Link (folder and name):" : "Create the links in:" },
                 pathBox,
                 relative,
@@ -185,13 +274,14 @@ public sealed partial class MainViewModel
             },
         };
         Refresh();
-        var answer = await Dialogs.ShowCustomAsync(items.Count == 1 ? $"Create link to \"{Formatters.SafeName(items[0].Name)}\"" : $"Create links to {items.Count:N0} items", body,
-            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Create", "create", IsDefault: true)], pathBox,
-            // Only a preview of exactly what is entered can be created.
-            () => plannedFor == Current() && pathProblem is null && rows.Count > 0 && rows.All(r => r.Problem is null));
+        string title = items.Count == 1 ? $"Create link to \"{Formatters.SafeName(items[0].Name)}\"" : $"Create links to {items.Count:N0} items";
+        if (draft is not null) title += " as administrator";
+        var answer = await Dialogs.ShowCustomAsync(title, body,
+            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Create", "create", IsDefault: true)],
+            pathBox, CanCreate, closer);
         open = false; ++generation; debounce.Stop();
         if (previewWork is not null) await previewWork;
-        if (Services.Io.IsStopped || answer as string != "create" || plannedFor != Current() || pathProblem is not null || rows.Count == 0 || rows.Any(r => r.Problem is not null)) return;
+        if (Services.Io.IsStopped || answer as string != "create" || !CanCreate()) return;
         string linkFolder = Path.GetDirectoryName(rows[0].LinkPath)!;
         var job = Services.Jobs.Submit(new JobRequest
         {

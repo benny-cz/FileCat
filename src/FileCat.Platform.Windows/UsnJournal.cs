@@ -6,6 +6,9 @@ using System.Text;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Records;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
+using FileCat.Platform.Windows.Native;
+using FileCat.Platform.Windows.Recovery;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
@@ -27,12 +30,12 @@ internal static unsafe partial class UsnJournalReader
     /// NTFS wrote it anew through the file it belongs to ($LogFile, $MFT). Reads must then be sector-aligned in memory,
     /// offset, and length.
     /// </param>
-    public static SafeFileHandle OpenVolume(string root, bool unbuffered = false)
+    public static SafeFileHandle OpenVolume(string root, bool unbuffered = false, string? expectedDevice = null)
     {
-        var buffer = new char[64];
-        string device;
-        fixed (char* b = buffer)
-            device = GetVolumeNameForVolumeMountPoint(root, b, (uint)buffer.Length) ? new string(b).TrimEnd('\0').TrimEnd('\\') : @"\\.\" + root.TrimEnd('\\');
+        var mountedDevice = DeviceTopology.VolumeDevice(root);
+        if (expectedDevice is not null && !string.Equals(mountedDevice, expectedDevice, StringComparison.OrdinalIgnoreCase))
+            throw new IOException($"The volume mounted at {root} changed. Open its change journal again from the current folder.");
+        string device = mountedDevice ?? @"\\.\" + root.TrimEnd('\\');
         var handle = CreateFile(device, GenericRead, 3, 0, 3, unbuffered ? 0x2000_0000u : 0, 0);
         if (!handle.IsInvalid) return handle;
         int error = Marshal.GetLastPInvokeError();
@@ -145,9 +148,9 @@ internal static unsafe partial class UsnJournalReader
 
         public void Dispose() => hint.Dispose();
 
-        public static Folders Open(string root, bool refs)
+        public static Folders Open(string root, bool refs, string? device = null)
         {
-            var handle = CreateFile(root, FileReadAttributes | Synchronize, 7, 0, 3, 0x0200_0000 /* backup semantics */, 0);
+            var handle = CreateFile(device is null ? root : device + "\\", FileReadAttributes | Synchronize, 7, 0, 3, 0x0200_0000 /* backup semantics */, 0);
             if (handle.IsInvalid)
             {
                 int error = Marshal.GetLastPInvokeError();
@@ -202,10 +205,6 @@ internal static unsafe partial class UsnJournalReader
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool DeviceIoControl(SafeHandle device, uint code, void* input, uint inputSize, void* output, uint outputSize, uint* returned, nint overlapped);
-
-    [LibraryImport("kernel32.dll", EntryPoint = "GetVolumeNameForVolumeMountPointW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool GetVolumeNameForVolumeMountPoint(string mountPoint, char* name, uint size);
 
     [LibraryImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", SetLastError = true)]
     private static partial uint GetFinalPathNameByHandle(SafeFileHandle handle, char* path, uint size, uint flags);
@@ -338,7 +337,7 @@ public sealed class JournalEntryTag : IDisplayDetails, ILocatableEntry, IReporte
 public sealed class UsnJournalProvider : ResourceProvider
 {
     // One folder cache and volume handle per volume, kept across refreshes (their rows use it to find items).
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, UsnJournalReader.Folders> FoldersByRoot = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(string Root, string? Volume), UsnJournalReader.Folders> FoldersByMount = new();
 
     public override string Scheme => Schemes.Journal;
 
@@ -349,15 +348,32 @@ public sealed class UsnJournalProvider : ResourceProvider
     public static Location ForPath(string path) => Of(WindowsFileRecords.VolumeRoot(path));
 
     /// <summary>Why the volume that holds <paramref name="path"/> has no change journal to list, or null when it may have one.</summary>
-    public static string? WhyNot(string path)
+    public static string? WhyNot(string path) => Resolve(path).Problem;
+
+    /// <summary>Resolve the mount and capture its volume identity before administrator approval.</summary>
+    public static (Location? Journal, string? Problem) Resolve(string path)
     {
-        if (PathUtil.IsUncPath(path)) return "A network share's change journal stays on its server.";
+        const string network = "A network share's change journal stays on its server.";
+        if (PathUtil.IsUncPath(path)) return (null, network);
         try
         {
-            string format = new DriveInfo(WindowsFileRecords.VolumeRoot(path)).DriveFormat;
-            return format is "NTFS" or "ReFS" ? null : $"{format} keeps no change journal: only NTFS and ReFS do.";
+            string root = WindowsFileRecords.VolumeRoot(path);
+            if (NativeMethods.GetDriveType(root) == NativeMethods.DRIVE_REMOTE) return (null, network);
+            if (DeviceTopology.VolumeDevice(root) is not { } device)
+                return (null, $"FileCat could not identify a local volume at {root}.");
+            string format = FileSystemName(device + "\\");
+            return format is "NTFS" or "ReFS" ? (new Location(Schemes.Journal, root, session: device), null)
+                : (null, $"{format} keeps no change journal. FileCat reads change journals on NTFS and ReFS.");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { return ex.Message; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { return (null, ex.Message); }
+    }
+
+    private static unsafe string FileSystemName(string root)
+    {
+        char* name = stackalloc char[64];
+        if (!NativeMethods.GetVolumeInformation(root, null, 0, out _, out _, out _, name, 64))
+            throw new IOException(new Win32Exception(Marshal.GetLastPInvokeError()).Message);
+        return new string(name);
     }
 
     public override string GetDisplayPath(Location location) => $"{PathUtil.WithUpperDrive(location.Path)} › change journal";
@@ -377,17 +393,18 @@ public sealed class UsnJournalProvider : ResourceProvider
 
     public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct) => Task.Run(() =>
     {
-        if (!Environment.IsPrivilegedProcess)
-            throw new UnauthorizedAccessException("Reading a volume's change journal needs administrator rights: run FileCat as administrator.");
+        if (!WindowsTokenAuthority.IsHighIntegrity)
+            throw new UnauthorizedAccessException("Reading a volume's change journal needs administrator rights. Choose Tools → Change journal of this drive to request access.");
         string root = location.Path;
-        using var volume = UsnJournalReader.OpenVolume(root);
+        using var volume = UsnJournalReader.OpenVolume(root, expectedDevice: location.Session);
         var journal = UsnJournalReader.Query(volume, out int error);
         if (journal is null)
             throw new IOException(error == UsnJournalReader.ErrorJournalNotActive
                 ? $"The change journal is off on {root}: nothing records its changes."
                 : $"The change journal of {root} cannot be read: {new System.ComponentModel.Win32Exception(error).Message}");
-        bool refs = new DriveInfo(root).DriveFormat == "ReFS";
-        var folders = FoldersByRoot.AddOrUpdate(root, _ => UsnJournalReader.Folders.Open(root, refs), (_, existing) => existing);
+        bool refs = FileSystemName(location.Session is { } device ? device + "\\" : root) == "ReFS";
+        var folders = FoldersByMount.GetOrAdd((root.ToUpperInvariant(), location.Session),
+            _ => UsnJournalReader.Folders.Open(root, refs, location.Session));
         // One row per change: an item's records gather until its close record.
         var open = new Dictionary<UInt128, Change>();
         EntryData Row(Change change, bool stillOpen)

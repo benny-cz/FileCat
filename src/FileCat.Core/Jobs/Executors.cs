@@ -288,6 +288,13 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
     protected void Issue(IssueSeverity severity, string path, string message, StepOutcome outcome, string? cause = null) =>
         Job.AddIssue(new JobIssue(severity, path, message, outcome) { Cause = cause });
 
+    protected void CheckAdministratorPaths(string? source, string target)
+    {
+        if (!Job.Request.AdministratorFileRetry) return;
+        if (source is not null) PathUtil.RequireOrdinaryWindowsPath(source, allowMissing: false);
+        PathUtil.RequireOrdinaryWindowsPath(target, allowMissing: true);
+    }
+
     /// <summary>Runs an I/O action; transient sharing violations (antivirus) retry briefly, others ask the user.</summary>
     protected bool TryIo(string path, string what, Action action)
     {
@@ -448,10 +455,11 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private bool Move => Job.Kind == JobKind.Move;
 
     private void TransferIssue(IssueSeverity severity, string source, string target, string message,
-        StepOutcome outcome, string effect, string sourceDisposition, string targetDisposition, string certainty)
+        StepOutcome outcome, string effect, string sourceDisposition, string targetDisposition, string certainty, string? cause = null)
     {
         Job.AddIssue(new JobIssue(severity, source, message, outcome)
         {
+            Cause = cause,
             SourcePath = source,
             TargetPath = target,
             SourceIsLocal = true,
@@ -471,6 +479,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     public override void Execute()
     {
         var destDir = Job.Request.Destination!.Path;
+        CheckAdministratorPaths(null, destDir);
         // A queued recovery may outlive the UI review. Refuse the whole request before destination creation or
         // discovery when any reviewed root changed or became unavailable.
         if (Job.Request.ExpectedSources is not null || Job.Request.ExpectedSourceTrees is not null || Job.Request.RequireResultSourceMetadata)
@@ -482,16 +491,26 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         {
             if (!Directory.Exists(destDir))
             {
-                if (!TryIo(destDir, "create the destination folder", () => Directory.CreateDirectory(destDir))) return;
+                if (!TryIo(destDir, "create the destination folder", () => Directory.CreateDirectory(destDir)))
+                {
+                    if (Job.AccessIssueCount > 0) Job.RecordTransferAccessDenied(null);
+                    return;
+                }
                 Journal.Note("created destination " + destDir);
             }
             var sources = Job.Request.Sources;
             for (int i = 0; i < sources.Count; i++)
             {
                 Job.Checkpoint();
+                long accessIssues = Job.AccessIssueCount, completed = Job.ItemsDone, changedIssues = Job.ChangedIssueCount;
                 var result = ProcessRoot(sources[i], destDir);
                 if (result is Result.Committed) Job.RootCompleted(i);
-                else if (result is Result.Failed or Result.Skipped) Job.RootFailed(i);
+                else if (result is Result.Failed or Result.Skipped)
+                {
+                    Job.RootFailed(i);
+                    if (Job.AccessIssueCount > accessIssues && Job.ItemsDone == completed && Job.ChangedIssueCount == changedIssues)
+                        Job.RecordTransferAccessDenied(i);
+                }
             }
         }
         finally
@@ -596,6 +615,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             return Result.Failed;
         }
         var dst = Path.Combine(targetDir, name);
+        CheckAdministratorPaths(src, dst);
         if (info.IsDirectory && !info.IsLink && InsideItself(dst, src))
         {
             Job.ItemFailed();
@@ -615,6 +635,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         // existing copy-then-delete traversal leaves excluded children (and their source folders) intact.
         if (Move && SameVolume(src, dst) && (Options.Filter is null || !info.IsDirectory || info.IsLink))
             return MoveByRename(src, dst, info);
+        if (Move && Job.Request.AdministratorFileRetry)
+            throw new IOException("Administrator retry moves items only by renaming them on their original volume.");
         // A replacement planned by a comparison happens only while the target is as compared: one edited while the plan
         // was reviewed is not overwritten (release plan DPI P10).
         (long Size, long ModifiedTicks)? compared = Job.Request.ExpectedTargets is { } expected && expected.TryGetValue(root, out var seen) ? seen : null;
@@ -753,6 +775,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     private Result MoveByRename(string src, string dst, FileSystemItemInfo info)
     {
+        CheckAdministratorPaths(src, dst);
         Job.Checkpoint();
         if (!SourceRenameStillReviewed(src, info)) return Result.Failed;
         Job.SetCurrent(src);
@@ -791,6 +814,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             }
         }
         // A conflict answer can arrive long after the root was admitted.
+        CheckAdministratorPaths(src, target);
         if (!SourceRenameStillReviewed(src, info)) return Result.Failed;
         if (replace && (targetReview = ReviewForReplacement(dst, existing!, atQuestion)) is null)
         {
@@ -839,6 +863,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         {
             // Another volume behind the same drive letter (a mounted folder): use the guarded copy-then-delete path.
             Journal.Done(step, StepOutcome.CanceledBeforeChange);
+            if (Job.Request.AdministratorFileRetry) throw;
             return info.IsDirectory && !info.IsLink ? CopyDirectory(src, target, info) : CopyFileItem(src, target, info);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -846,6 +871,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             bool refused = false;
             ok = TryIo(src, "move the item", () =>
             {
+                CheckAdministratorPaths(src, target);
                 if (!SourceRenameStillReviewed(src, info)) { refused = true; return; }
                 Fs.Move(src, target, replaceExisting: false);
             }) && !refused;
@@ -894,6 +920,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     /// </param>
     private Result CopyDirectory(string src, string dst, FileSystemItemInfo info, Func<bool>? ensureParent = null, int depth = 0)
     {
+        CheckAdministratorPaths(src, dst);
         Job.Checkpoint();
         if (depth >= MaxRecursiveTreeDepth)
         {
@@ -972,7 +999,11 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         {
             if (created || existing is not null) return true;
             if (ensureParent is not null && !ensureParent()) return false;
-            if (!TryIo(target, "create a folder", () => Fs.CreateDirectoryForCopy(target, UnixPermissions.WhileCopying(isDirectory: true)))) return false;
+            if (!TryIo(target, "create a folder", () =>
+                {
+                    CheckAdministratorPaths(src, target);
+                    Fs.CreateDirectoryForCopy(target, UnixPermissions.WhileCopying(isDirectory: true));
+                })) return false;
             created = true;
             if (macMetadata is { HasMetadata: true } || linuxMetadata is not null) createdIdentity = UnixFiles.Stat(target)?.Identity;
             UnixPermissions.TryCopyFolderMode(src, target, final: false); // no wider than the source while it fills
@@ -1067,7 +1098,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         {
             _enumerationFailed.Add(dir);
             Job.ItemFailed();
-            Issue(IssueSeverity.Error, dir, "The folder could not be read: " + ErrorText.Describe(ex), StepOutcome.Failed);
+            Issue(IssueSeverity.Error, dir, "The folder could not be read: " + ErrorText.Describe(ex), StepOutcome.Failed, ErrorText.Classify(ex));
             return [];
         }
         return children;
@@ -1114,6 +1145,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     private Result CopyFileItem(string src, string dst, FileSystemItemInfo info, bool firstAttempt = true, (long Size, long ModifiedTicks)? expectedTarget = null, bool followLink = false)
     {
+        CheckAdministratorPaths(src, dst);
         Job.Checkpoint();
         if (!SourceItemStillReviewed(src)) return Result.Failed;
         Job.SetCurrent(src);
@@ -1168,6 +1200,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Issue(IssueSeverity.Warning, dst, ChangedSinceQuestion, StepOutcome.CanceledBeforeChange);
             return Result.Skipped;
         }
+
+        CheckAdministratorPaths(src, target);
 
         if (info.IsLink) return CopyLink(src, target, info, replace, target == dst ? expectedTarget : null, targetReview);
 
@@ -1228,6 +1262,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             var pace = new TransferPace();
             try
             {
+                CheckAdministratorPaths(src, writeTo);
                 var options = new FileCopyOptions
                 {
                     CopyLinkAsLink = !followLink,
@@ -1332,7 +1367,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     Job.ItemFailed();
                     TransferIssue(IssueSeverity.Error, src, target, "Not copied: " + ErrorText.Describe(ex),
                         StepOutcome.Failed, "Copy failed; no published copy confirmed", "Original kept",
-                        "Target state not confirmed; inspect before retrying", "Failure reported by the copy operation");
+                        "Target state not confirmed; inspect before retrying", "Failure reported by the copy operation", cls);
                     return Result.Failed;
                 }
                 throw new OperationCanceledException();
@@ -1369,6 +1404,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             string? refusal = null;
             bool published = TryIo(target, replace ? "replace the existing item" : "publish the copied item", () =>
             {
+                CheckAdministratorPaths(writeTo, target);
                 // The target may change while copying or while a failed publication waits for Retry.
                 // This is a fresh metadata/type check, not an atomic filesystem compare-and-replace.
                 if (expectedTarget is { } baseline && target == dst && !TargetStillCompared(target, baseline))
@@ -1861,6 +1897,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private bool RenameExisting(string path, bool isDirectory)
     {
         var newPath = UniqueSibling(path, isDirectory);
+        CheckAdministratorPaths(path, newPath);
         int step = Journal.Intent("rename-existing", path, newPath);
         bool ok = TryIo(path, "rename the existing item", () => Fs.Move(path, newPath, false));
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
@@ -2298,6 +2335,7 @@ internal sealed class CreateExecutor(Job job, IFileSystemOperations fs, JobJourn
         var parent = Job.Request.Destination!.Path;
         var name = Job.Request.NewName ?? throw new InvalidOperationException("A name is required.");
         var full = Path.GetFullPath(Path.Combine(parent, name));
+        CheckAdministratorPaths(null, full);
         if (!PathUtil.IsSameOrUnder(full, parent)) throw new InvalidOperationException("The name must stay inside the current folder.");
         Job.AddTotals(1, 0);
         if (Fs.TryGetInfo(full) is not null)
@@ -2312,7 +2350,11 @@ internal sealed class CreateExecutor(Job job, IFileSystemOperations fs, JobJourn
         {
             var created = new List<string>();
             for (var p = full; p is not null && !Directory.Exists(p); p = Path.GetDirectoryName(p)) created.Add(p);
-            ok = TryIo(full, "create the folder", () => Directory.CreateDirectory(full));
+            ok = TryIo(full, "create the folder", () =>
+            {
+                CheckAdministratorPaths(null, full);
+                Directory.CreateDirectory(full);
+            });
             // Recorded outermost first so that undo (which runs in reverse) removes the deepest folder first.
             if (ok) foreach (var c in Enumerable.Reverse(created)) Job.AddUndo(new UndoStep(UndoKind.RemoveEmptyDirectory, c, c, 0, 0));
         }
@@ -2339,6 +2381,7 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
         var src = root.FileSystemPath!;
         var newName = Job.Request.NewName ?? throw new InvalidOperationException("A new name is required.");
         var dst = Path.Combine(Path.GetDirectoryName(src)!, newName);
+        CheckAdministratorPaths(src, dst);
         Job.AddTotals(1, 0);
         var info = Fs.TryGetInfo(src);
         if (info is null)
@@ -2377,7 +2420,11 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
             return;
         }
         int step = Journal.Intent("rename", src, dst);
-        bool ok = TryIo(src, "rename the item", () => Fs.Move(src, dst, replaceExisting: false));
+        bool ok = TryIo(src, "rename the item", () =>
+        {
+            CheckAdministratorPaths(src, dst);
+            Fs.Move(src, dst, replaceExisting: false);
+        });
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
         if (!ok)
         {

@@ -330,18 +330,30 @@ public sealed partial class MainViewModel
         var pinnedReview = preview.DetachNavigationForDialog();
         Invalidate();
         RequestPreview();
-        var answer = await Dialogs.ShowCustomAsync("Bulk rename", body,
-            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Rename", "rename", IsDefault: true)], nameMask,
-            // Only a preview of the rules as they stand can run (explicit names replace the rules until one changes).
-            () => plannedFor is not null && plannedScope == scopeRevision && plannedFor == Rules() &&
-                rows.All(r => r.Problem is null) && rows.Any(r => r.Changes), resizable: true,
+        bool CanRename() => plannedFor is not null && plannedScope == scopeRevision && plannedFor == Rules() &&
+            rows.All(r => r.Problem is null) && rows.Any(r => r.Changes);
+        var actions = new List<DialogButton> { new("Cancel", "cancel", IsCancel: true) };
+        if (CanRequestAdministratorTask) actions.Add(new("Review as administrator…", "administrator") { IsAvailable = CanRename });
+        actions.Add(new("Rename", "rename", IsDefault: true));
+        var answer = await Dialogs.ShowCustomAsync("Bulk rename", body, actions, nameMask, CanRename, resizable: true,
             pinnedReview: pinnedReview);
         dialogOpen = false;
         generation++;
         previewCancellation?.Cancel();
         debounce.Stop();
         if (previewWork is not null) await previewWork;
-        if (answer as string != "rename") return;
+        if (answer is "administrator" && CanRename())
+        {
+            var changes = rows.Where(row => row.Changes).ToArray();
+            await RequestAdministratorTaskAsync(new(AdministratorTaskKind.Rename)
+            {
+                Paths = changes.Select(row => row.Item.FileSystemPath!).ToArray(),
+                Names = changes.Select(row => row.NewName).ToArray(),
+            }, "Review bulk rename as administrator",
+                $"Review the exact new names for {Formatters.Plural(changes.Length, "selected item", "selected items")}.");
+            return;
+        }
+        if (answer is not "rename") return;
         if (plannedFor is null || plannedScope != scopeRevision || plannedFor != Rules() ||
             rows.Any(r => r.Problem is not null) || !rows.Any(r => r.Changes)) return;
         // The destination can change after preview. A second bounded check precedes job admission;

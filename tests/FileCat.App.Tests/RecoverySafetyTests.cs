@@ -230,7 +230,36 @@ public sealed class RecoverySafetyTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
-    private sealed class AdmissionDialogs(Action confirmed) : IDialogService
+    [AvaloniaFact]
+    public async Task A_protected_Unix_device_offers_read_only_authorization_before_the_scan()
+    {
+        if (!(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) || Environment.IsPrivilegedProcess)
+            Assert.Skip("This tests ordinary Linux or macOS device access.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string path = Path.Combine(root, "protected-device.img");
+            File.WriteAllBytes(path, new byte[1024]);
+            File.SetUnixFileMode(path, UnixFileMode.None);
+            var device = new FileCat.Recovery.Unix.UnixBlockDevice(path, 1024, "fixture", "virtual", false, "fixture-disk", [], null)
+            {
+                Identity = Core.FileSystem.UnixFiles.Stat(path, followLinks: true)?.Identity.ToString(),
+            };
+            var panel = vm.Workspace.Panels[0];
+            var original = panel.ActiveTab;
+            var dialogs = new AdmissionDialogs(() => { }, "Authorize and scan", approve: false);
+            vm.Dialogs = dialogs;
+            services.Recovery.SharesDisk = (_, _) => false;
+            services.Recovery.OpenDevice = (_, _, _) => throw new InvalidOperationException("Cancel must leave the device unopened.");
+            await vm.FindDeletedOnUnixDeviceAsync(panel, device, null, () => false);
+            Assert.Equal(1, dialogs.ScanConfirmations);
+            Assert.Contains(dialogs.KeyPoints, point => point.Contains("read-only access", StringComparison.Ordinal));
+            Assert.Same(original, panel.ActiveTab);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    private sealed class AdmissionDialogs(Action confirmed, string expectedAction = "Scan", bool approve = true) : IDialogService
     {
         public int ScanConfirmations { get; private set; }
         public IReadOnlyList<string> KeyPoints { get; private set; } = [];
@@ -244,10 +273,10 @@ public sealed class RecoverySafetyTests
         }
         public Task<bool> ConfirmAsync(string title, string message, string confirmText = "OK", bool danger = false, string cancelText = "Cancel")
         {
-            Assert.Equal("Scan", confirmText);
+            Assert.Equal(expectedAction, confirmText);
             ScanConfirmations++;
             confirmed();
-            return Task.FromResult(true);
+            return Task.FromResult(approve);
         }
         public Task AlertAsync(string title, string message) { Alerts.Add(message); return Task.CompletedTask; }
         public Task<PromptResult?> PromptAsync(PromptOptions options) => throw new InvalidOperationException("Unexpected prompt");

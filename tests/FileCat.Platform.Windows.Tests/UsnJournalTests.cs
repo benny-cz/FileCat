@@ -20,9 +20,10 @@ public sealed class UsnJournalTests
         Directory.CreateDirectory(dir);
         try
         {
-            if (UsnJournalProvider.WhyNot(dir) is { } why)
+            var (location, problem) = UsnJournalProvider.Resolve(dir);
+            if (location is null)
             {
-                Assert.Skip(why);
+                Assert.Skip(problem!);
                 return;
             }
             string name = "journal-" + Guid.NewGuid().ToString("N")[..8] + ".txt";
@@ -31,7 +32,10 @@ public sealed class UsnJournalTests
             string renamed = Path.ChangeExtension(file, ".log");
             File.Move(file, renamed);
             var provider = new UsnJournalProvider();
-            var location = UsnJournalProvider.ForPath(dir);
+            Assert.StartsWith(@"\\?\Volume{", location.Session);
+            var changed = new Location(location.Scheme, location.Path, session: @"\\?\Volume{00000000-0000-0000-0000-000000000000}");
+            var refused = await Assert.ThrowsAsync<IOException>(() => provider.EnumerateAsync(changed, new ListSink(), TestContext.Current.CancellationToken));
+            Assert.Contains("changed", refused.Message, StringComparison.Ordinal);
             Assert.Equal($"{Path.GetPathRoot(dir)!.ToUpperInvariant()} › change journal", provider.GetDisplayPath(location).Replace("c:", "C:", StringComparison.Ordinal));
             var sink = new ListSink();
             try

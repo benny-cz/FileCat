@@ -77,7 +77,8 @@ public sealed partial class MainViewModel
             case CommandIds.EditNew: await EditNewAsync(); return true;
             case CommandIds.Edit: await EditFocusedAsync(); return true;
             case CommandIds.View: ViewFocused(hex: false); return true;
-            case CommandIds.ChangeJournal: OpenChangeJournal(); return true;
+            case CommandIds.ChangeJournal: await OpenChangeJournalAsync(); return true;
+            case CommandIds.OpenAdministratorWindow: await OpenAdministratorWindowAsync(); return true;
             case CommandIds.ViewAlternate: ViewFocused(hex: true); return true;
             case CommandIds.Undo: await UndoLastAsync(); return true;
             case CommandIds.Operations: Operations.IsOpen = !Operations.IsOpen; return true;
@@ -679,6 +680,7 @@ public sealed partial class MainViewModel
         OnJobFinishedCore(job);
         OnClipboardMoveFinished(job);
         OnVirtualClipboardCopyFinished(job);
+        OfferDeferredAdministratorFileRetry(job);
     }
 
     private void OnJobFinishedCore(Job job)
@@ -931,6 +933,13 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
         {
+            if (CanRequestAdministratorTask && ErrorText.Classify(ex) == "access" &&
+                item.FileSystemPath is { } path && AdministratorWindow.LocalVolume(path) is not null)
+            {
+                await RequestAdministratorTaskAsync(new(AdministratorTaskKind.View) { Paths = [path], Alternate = hex },
+                    "View as administrator", $"Open {Formatters.SafeName(path)} in FileCat’s internal viewer.");
+                return;
+            }
             Notify($"Cannot view \"{name}\": {DescribeViewError(item, ex)}", ex is not OperationCanceledException);
         }
     }

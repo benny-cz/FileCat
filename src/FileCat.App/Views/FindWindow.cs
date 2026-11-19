@@ -129,6 +129,9 @@ public sealed partial class FindWindow : Window, IViewActions
     private int _appended;
     private SearchSession? _session;
     private string _searchScope = string.Empty;
+    private SearchCriteria? _startedCriteria;
+    private string[] _startedIgnoredFolders = [];
+    private DateTime _startedAtUtc;
     private CancellationTokenSource? _cts;
     private DateTime _lastRefresh;
     private int _shownCount = -1;
@@ -149,6 +152,14 @@ public sealed partial class FindWindow : Window, IViewActions
         s_open.Add(window);
         window.Closed += (_, _) => s_open.Remove(window);
         window.Show();
+        return window;
+    }
+
+    internal static FindWindow OpenAdministratorRetry(MainViewModel vm, AdministratorSearchDraft draft)
+    {
+        var window = Open(vm, draft.Folders[0].Folder, null);
+        window.Apply(draft.Criteria);
+        window.StartSearch(RefineMode.Replace, retry: draft);
         return window;
     }
 
@@ -490,6 +501,8 @@ public sealed partial class FindWindow : Window, IViewActions
             new Separator(),
             ActionItem("Show in panel", null, ShowInPanel, () => _set is not null, CommandIds.OpenInTarget),
             ActionItem("Search log…", null, () => _ = ShowLogAsync(), () => _session?.Log.Count > 0, "find.log"),
+            ActionItem("Search access-denied folders as administrator…", null, () => _ = RetryDeniedFoldersAsync(),
+                () => _vm.CanRequestAdministratorTask && _session is { Finished: true } session && session.DeniedFolders.Count > 0, "find.log"),
         ]));
         _menu.Items.Add(Submenu("_View", [
             CommandItem(CommandIds.SortName), ActionItem("Sort by folder", null, () => _tab?.SortByMetadata(ColumnSpec.FolderSortKey), () => _tab is not null, "find.sortFolder"),
@@ -797,7 +810,7 @@ public sealed partial class FindWindow : Window, IViewActions
     /// Starts a search; a refining one combines its matches with the items found so far when it finishes, and one for
     /// <paramref name="duplicates"/> groups the files it finds when it finishes.
     /// </summary>
-    internal void StartSearch(RefineMode mode, DuplicateCriteria? duplicates = null)
+    internal void StartSearch(RefineMode mode, DuplicateCriteria? duplicates = null, AdministratorSearchDraft? retry = null)
     {
         if (_closed) return;
         ShowError(null);
@@ -807,13 +820,18 @@ public sealed partial class FindWindow : Window, IViewActions
             return;
         }
         if (mode != RefineMode.Replace && _set is null) mode = RefineMode.Replace;
-        var criteria = Criteria;
-        var ignored = _services.Settings.SearchIgnoredFolders.Where(f => f.Enabled).Select(f => f.Folder).ToList();
-        if (!criteria.TryBuildQuery(DateTime.UtcNow, ignored, _within, out var query, out var error, new ProviderArchiveMembers(_services.Providers), _services.Platform.HiddenData))
+        var criteria = retry?.Criteria ?? Criteria;
+        var ignored = retry?.IgnoredFolders ?? _services.Settings.SearchIgnoredFolders.Where(f => f.Enabled).Select(f => f.Folder).ToArray();
+        var capturedAt = retry?.CapturedAtUtc ?? DateTime.UtcNow;
+        if (!criteria.TryBuildQuery(capturedAt, ignored, _within, out var query, out var error,
+            new ProviderArchiveMembers(_services.Providers), _services.Platform.HiddenData, retry?.Folders))
         {
             ShowError(error);
             return;
         }
+        _startedCriteria = criteria;
+        _startedIgnoredFolders = ignored;
+        _startedAtUtc = capturedAt;
         var history = _services.History;
         _storagePublishing = true;
         StorageResultsSettled = false;
@@ -825,7 +843,8 @@ public sealed partial class FindWindow : Window, IViewActions
         _groups = [];
         _duplicates = mode == RefineMode.Replace ? duplicates : null;
         var title = TitleOf(criteria);
-        var provenance = query!.Describe();
+        var provenance = retry is null ? query!.Describe() :
+            $"Administrator retry of {Formatters.Plural(retry.Folders.Length, "access-denied folder", "access-denied folders")} · {query!.Describe()}";
         _searchScope = provenance;
         // Refinement matches are private scratch data; only the displayed set needs a provider location.
         var found = mode == RefineMode.Replace
@@ -851,7 +870,7 @@ public sealed partial class FindWindow : Window, IViewActions
                 _ => "; added " + query.Describe(),
             };
         }
-        _session = new SearchSession(query, found, _services.Io);
+        _session = new SearchSession(query!, found, _services.Io);
         _cts = new CancellationTokenSource();
         var session = _session;
         var token = _cts.Token;
@@ -1152,6 +1171,24 @@ public sealed partial class FindWindow : Window, IViewActions
         string folder = Directory.Exists(entry.Path) ? entry.Path : Path.GetDirectoryName(entry.Path) ?? entry.Path;
         string? name = Directory.Exists(entry.Path) ? null : Path.GetFileName(entry.Path);
         ShowInMainPanel(Location.FileSystem(folder), name);
+    }
+
+    private async Task RetryDeniedFoldersAsync()
+    {
+        if (!_vm.CanRequestAdministratorTask || _session is not { Finished: true } session || _startedCriteria is not { } criteria) return;
+        var ignored = _startedIgnoredFolders;
+        var capturedAt = _startedAtUtc;
+        var folders = await Task.Run(() => session.DeniedFolders.Where(folder =>
+            AdministratorWindow.LocalVolume(folder.Folder) is not null).Distinct().ToArray());
+        if (_closed || _session != session) return;
+        if (folders.Length == 0) { ShowNotification("There are no access-denied local folders to retry."); return; }
+        await _vm.RequestAdministratorTaskAsync(new(AdministratorTaskKind.Search)
+        {
+            Paths = folders.Select(folder => folder.Folder).ToArray(),
+            Search = new(criteria, capturedAt, ignored, folders),
+        }, "Search as administrator",
+            $"Retry the original criteria in {Formatters.Plural(folders.Length, "access-denied local folder", "access-denied local folders")}.",
+            _dialogs);
     }
 
     // ---- Acting on found items --------------------------------------------------------------------------------

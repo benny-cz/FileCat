@@ -50,6 +50,9 @@ public sealed partial class Job
     private ulong[] _completedRoots = [];
     private ulong[] _failedRoots = [];
     private int _completedRootCount, _failedRootCount;
+    private readonly HashSet<int> _accessDeniedRoots = [];
+    private bool _accessDeniedBeforeTransfer;
+    private long _accessIssueCount, _changedIssueCount;
     private readonly List<UndoStep> _undo = [];
     private readonly ManualResetEventSlim _runGate = new(true);
     private readonly object _startLock = new();
@@ -275,6 +278,22 @@ public sealed partial class Job
         {
             lock (_lock) return _failedRootCount;
         }
+    }
+
+    /// <summary>Transfer roots denied before any item in that root finished. Unrelated failures are excluded.</summary>
+    internal IReadOnlyList<int> AccessDeniedRoots
+    {
+        get { lock (_lock) return _accessDeniedBeforeTransfer ? Enumerable.Range(0, Request.Sources.Count).ToArray() : _accessDeniedRoots.Order().ToArray(); }
+    }
+
+    internal long AccessIssueCount => Interlocked.Read(ref _accessIssueCount);
+    internal long ChangedIssueCount => Interlocked.Read(ref _changedIssueCount);
+
+    internal void RecordTransferAccessDenied(int? rootIndex)
+    {
+        lock (_lock)
+            if (rootIndex is { } index) _accessDeniedRoots.Add(index);
+            else _accessDeniedBeforeTransfer = true;
     }
 
     private static List<int> Positions(ulong[] bits)
@@ -520,6 +539,9 @@ public sealed partial class Job
 
     internal void AddIssue(JobIssue issue)
     {
+        if (issue.Cause == "access") Interlocked.Increment(ref _accessIssueCount);
+        if (issue.Outcome is StepOutcome.Committed or StepOutcome.PartiallyApplied or StepOutcome.Uncertain)
+            Interlocked.Increment(ref _changedIssueCount);
         lock (_lock)
         {
             if (_issueTotal < long.MaxValue) _issueTotal++;
@@ -595,6 +617,12 @@ public sealed partial class Job
     public void MarkRetriedAsAdministrator()
     {
         RetriedAsAdministrator = true;
+        NotifyChanged();
+    }
+
+    internal void AllowAdministratorRetry()
+    {
+        RetriedAsAdministrator = false;
         NotifyChanged();
     }
 

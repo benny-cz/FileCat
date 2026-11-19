@@ -8,6 +8,8 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == Services.UnixPermissionApproval.Argument)
+            return Services.UnixPermissionApproval.RunHelper(args);
         if (TryRunStorageCloudQueryWorker(args) is { } workerExit) return workerExit;
         if (args.Length > 0 && Services.ArchiveWorker.IsArgument(args[0])) return Services.ArchiveWorker.Run(args);
         if (args.Length > 0 && Services.ArchiveWorker.IsLinuxArgument(args[0])) return Services.ArchiveWorker.RunLinux(args);
@@ -31,6 +33,24 @@ internal static class Program
             return 0;
         }
         var options = StartupOptions.Parse(args);
+        if (options.NewInstance && options.AdministratorLinkReview is { } review && Core.State.WindowsTokenAuthority.IsHighIntegrity)
+        {
+            try { options.LinkDraft = Services.AdministratorLinkDraft.Read(review.Path, review.Hash); }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or
+                                       NotSupportedException or System.ComponentModel.Win32Exception or System.Text.Json.JsonException)
+            {
+                options.LinkDraftProblem = ex.Message;
+            }
+        }
+        if (options.NewInstance && options.AdministratorRequest is { } request && Core.State.WindowsTokenAuthority.IsHighIntegrity)
+        {
+            try { options.AdministratorTask = Services.AdministratorTask.Read(request.Path, request.Hash); }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or
+                                       NotSupportedException or System.ComponentModel.Win32Exception or System.Text.Json.JsonException)
+            {
+                options.LinkDraftProblem = ex.Message;
+            }
+        }
         using var storageCloudQuery = OperatingSystem.IsWindows() ? StartStorageCloudQuery(typeof(Program)) : null;
         bool menuTrace = Environment.GetEnvironmentVariable("FILECAT_MENU_TRACE") == "1" && options.DataRoot is not null;
         if (menuTrace)

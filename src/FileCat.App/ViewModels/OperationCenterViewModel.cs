@@ -159,7 +159,9 @@ public sealed partial class JobViewModel : ObservableObject
             UndoAttemptState.Consumed => "Undo attempt consumed; its result is on the inverse operation",
             _ => string.Empty,
         };
-        CanRetryElevated = !IsStorage && OperatingSystem.IsWindows() && Platform.Windows.Elevation.ElevationPlanBuilder.OffersRetry(j);
+        CanRetryElevated = !IsStorage && OperatingSystem.IsWindows() && !Core.State.WindowsTokenAuthority.IsHighIntegrity &&
+            (Services.AdministratorFileRetry.IsSupportedKind(j.Kind) ? Services.AdministratorFileRetry.HasDeniedWork(j) :
+            MainViewModel.OffersAdministratorWindowRetry(j) || Platform.Windows.Elevation.ElevationPlanBuilder.OffersRetry(j));
         CanShowResults = IsFinished && j.Kind is (JobKind.VerifyChecksums or JobKind.VerifyBeside) && j.VerificationReport is not null;
         // State only: whether the file is still there is checked when the action runs, never on this refresh path.
         CanOpenArchive = j.State is JobState.Completed or JobState.CompletedWithIssues && j.Kind == JobKind.ArchiveUpdate &&

@@ -1037,6 +1037,19 @@ public partial class PanelView : UserControl
         LocationMenuRequested?.Invoke();
     }
 
+    private async void OnReopenDeniedFolder(object? sender, RoutedEventArgs e)
+    {
+        if (Panel?.ActiveTab is { } tab && TopLevel.GetTopLevel(this)?.DataContext is MainViewModel vm)
+            await vm.ReopenDeniedFolderAsAdministratorAsync(tab);
+    }
+
+    private async void OnReopenDeniedRegistry(object? sender, RoutedEventArgs e)
+    {
+        if (Panel?.ActiveTab is { CanReopenDeniedRegistry: true, Location: { } key } &&
+            TopLevel.GetTopLevel(this)?.DataContext is MainViewModel vm && !vm.Dialogs.IsOpen)
+            await vm.RequestAdministratorRegistryAsync(key);
+    }
+
     /// <summary>Accessible sort choices live outside the custom file-list renderer's native bridge.</summary>
     private void OnSortClick(object? sender, RoutedEventArgs e)
     {

@@ -130,6 +130,14 @@
       </Border>
 
       <!-- Comparison / issue banners -->
+      <Border DockPanel.Dock="Top" Classes="banner"
+              IsVisible="{Binding ActiveTab.DeniedFolderVolume, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <Button Content="Reopen folder as administrator…" HorizontalAlignment="Left" Click="OnReopenDeniedFolder"
+                AutomationProperties.HelpText="Windows asks for approval and opens this folder in a separate FileCat window." />
+      </Border>
+      <Border DockPanel.Dock="Top" Classes="banner" IsVisible="{Binding ActiveTab.CanReopenDeniedRegistry}">
+        <Button Content="Reopen Registry key as administrator…" HorizontalAlignment="Left" Click="OnReopenDeniedRegistry" />
+      </Border>
       <Border DockPanel.Dock="Top" Classes="banner" IsVisible="{Binding ActiveTab.AnalysisStatus, Converter={x:Static ObjectConverters.IsNotNull}}">
         <TextBlock Classes="small" Text="{Binding ActiveTab.AnalysisStatus}" />
       </Border>

@@ -413,6 +413,10 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
         OpenLocations(options, initial);
+        if (initial && options.StartupJournal is { } journal)
+            OpenStartupChangeJournal(journal.Root, journal.Volume);
+        if (initial && options.AdministratorFolder is { } folder)
+            OpenAdministratorFolder(folder.Folder, folder.Volume);
     }
 
     private async Task OpenArgumentsInWorkspaceAsync(string workspace, StartupOptions options)

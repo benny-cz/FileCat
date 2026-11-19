@@ -97,6 +97,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _quickSearchNoMatch;
     [ObservableProperty] private string? _comparisonLabel;
     [ObservableProperty] private string? _banner;
+    [ObservableProperty] private string? _deniedFolderVolume;
+    [ObservableProperty] private bool _canReopenDeniedRegistry;
     /// <summary>The filter's mask as typed, or null when every item shows (the panel's filter box shows it).</summary>
     [ObservableProperty] private string? _filterText;
     /// <summary>Validation for the filter field only; location and listing warnings keep their own banner.</summary>
@@ -904,6 +906,14 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 _freeSpaceUnavailable = false;
             }
             IsLoading = Listing.State == ListingState.Loading || Listing.IsRefreshing;
+            DeniedFolderVolume = !IsLoading && Location is { IsFileSystem: true } folder &&
+                (Listing.LoadError is UnauthorizedAccessException || Listing.LastRefreshError is UnauthorizedAccessException) &&
+                !Services.Shell.IsElevated ? AdministratorWindow.LocalVolume(folder.Path) : null;
+            CanReopenDeniedRegistry = OperatingSystem.IsWindows() && !Services.Shell.IsElevated && !IsLoading &&
+                Location is { Scheme: Schemes.Registry, Path.Length: > 0 } key &&
+                key.Path.Split('\\')[0] is "HKCU" or "HKLM" or "HKU" or "HKCC" &&
+                (Listing.LoadError ?? Listing.LastRefreshError) is { } registryError &&
+                MainViewModel.AdministratorAccessDenied(registryError);
             if (Listing.Issues.Count > 0) Banner = Listing.Issues[^1];
             if (Listing.State == ListingState.Complete)
             {

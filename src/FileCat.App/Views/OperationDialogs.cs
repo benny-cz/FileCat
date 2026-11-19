@@ -672,7 +672,11 @@ public static class OperationDialogs
         var applyAll = new CheckBox { Content = "Skip similar problems in this operation automatically" };
         body.Children.Add(applyAll);
         bool isAuth = e.ErrorClass == "access" && PathUtil.IsUncPath(e.Path);
-        if (e.ErrorClass == "access" && !isAuth && OperatingSystem.IsWindows() &&
+        bool canDeferAdministrator = vm.CanDeferAdministratorFileRetry(job, e);
+        if (canDeferAdministrator)
+            body.Children.Add(Muted("FileCat will continue the ordinary operation and offer one review of the access-denied items when it finishes."));
+        else if (e.ErrorClass == "access" && !isAuth && vm.CanRequestAdministratorTask && job.Kind != JobKind.Recycle &&
+            !AdministratorFileRetry.IsSupportedKind(job.Kind) &&
             Platform.Windows.Elevation.ElevationBroker.Locate(vm.Services.Paths.IsPortable, out _) is not null)
             body.Children.Add(Muted("To retry as administrator, choose Skip (with the checkbox for similar problems); when the operation ends, use Retry as administrator in the operations pane (Ctrl+J). One approval then covers every skipped item."));
         var buttons = new List<DialogButton>
@@ -681,11 +685,17 @@ public static class OperationDialogs
             new("Skip", DecisionAction.Skip),
             new("Cancel operation", DecisionAction.CancelJob, IsCancel: true),
         };
+        if (canDeferAdministrator) buttons.Insert(1, new DialogButton("Review denied items as administrator…", "administrator"));
         if (isAuth) buttons.Insert(0, new DialogButton("Sign in…", "signin"));
         while (true)
         {
             if (job.Token.IsCancellationRequested) return new Decision(DecisionAction.CancelJob);
             var r = await vm.Dialogs.ShowCustomAsync(e.Title, body, buttons, closer: closer);
+            if (r as string == "administrator")
+            {
+                vm.DeferAdministratorFileRetry(job);
+                return new Decision(DecisionAction.Skip, ApplyToAll: true);
+            }
             if (r as string == "signin")
             {
                 await vm.SignInToServerAsync(PathUtil.GetUncServer(e.Path)!);
@@ -780,10 +790,11 @@ public static class OperationDialogs
 
     // ---- Checksums ----------------------------------------------------------------------------------------
 
-    public static async Task ShowChecksumsAsync(MainViewModel vm, IReadOnlyList<string> files)
+    public static async Task ShowChecksumsAsync(MainViewModel vm, IReadOnlyList<string> files, string? initialKind = null, string? initialExpected = null)
     {
         ChecksumKind[] kinds = [ChecksumKind.Sha256, ChecksumKind.Sha512, ChecksumKind.Sha384, ChecksumKind.Sha1, ChecksumKind.Md5, ChecksumKind.Crc32];
-        var algorithm = new ComboBox { ItemsSource = new[] { "SHA-256", "SHA-512", "SHA-384", "SHA-1 (compatibility)", "MD5 (compatibility)", "CRC-32 (compatibility)" }, SelectedIndex = 0 };
+        int initialIndex = Enum.TryParse<ChecksumKind>(initialKind, out var requested) ? Array.IndexOf(kinds, requested) : 0;
+        var algorithm = new ComboBox { ItemsSource = new[] { "SHA-256", "SHA-512", "SHA-384", "SHA-1 (compatibility)", "MD5 (compatibility)", "CRC-32 (compatibility)" }, SelectedIndex = Math.Max(0, initialIndex) };
         Avalonia.Automation.AutomationProperties.SetName(algorithm, "Checksum algorithm");
         // One line for one file (and room for a scroll bar under a long SHA-512 line); more for more.
         var output = new TextBox { IsReadOnly = true, AcceptsReturn = true, FontFamily = new FontFamily("Cascadia Mono,Consolas,Menlo,monospace"), MinHeight = files.Count == 1 ? 56 : 160, MaxHeight = 360, TextWrapping = TextWrapping.NoWrap };
@@ -791,7 +802,7 @@ public static class OperationDialogs
         var progress = new ProgressBar { Minimum = 0, Maximum = 100, IsVisible = false };
         var save = new Button { Content = "Save as manifest…", IsEnabled = false };
         // The value a download page gives, pasted: compared with what the file has (the algorithm follows from its length).
-        var expected = new TextBox { PlaceholderText = "Paste a checksum to compare with, such as the one on the download page" };
+        var expected = new TextBox { PlaceholderText = "Paste a checksum to compare with, such as the one on the download page", Text = initialExpected };
         Avalonia.Automation.AutomationProperties.SetName(expected, "Compare with");
         var verdict = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         var body = new StackPanel { Spacing = 6 };
@@ -802,6 +813,11 @@ public static class OperationDialogs
         body.Children.Add(expected);
         body.Children.Add(verdict);
         body.Children.Add(save);
+        var retry = new Button { Content = "Checksum access-denied files as administrator…", IsVisible = false };
+        body.Children.Add(retry);
+        var denied = new List<string>();
+        var closer = new DialogCloser();
+        retry.Click += (_, _) => closer.Close("administrator");
         var results = new List<(string Path, string Hash)>();
         var computedKind = ChecksumKind.Sha256;
         bool computing = false, dialogOpen = true, computationStarted = false;
@@ -847,6 +863,8 @@ public static class OperationDialogs
             var token = demand.Token;
             bool Current() => dialogOpen && ReferenceEquals(cts, demand) && !token.IsCancellationRequested;
             save.IsEnabled = false;
+            retry.IsVisible = false;
+            denied.Clear();
             results.Clear();
             progress.IsVisible = true;
             output.Text = string.Empty;
@@ -857,29 +875,43 @@ public static class OperationDialogs
             var lines = new List<string>();
             try
             {
-                total = files.Sum(f => new FileInfo(f).Length);
+                total = await Task.Run(() => files.Sum(f =>
+                {
+                    try { return new FileInfo(f).Length; }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return 0; }
+                }), token);
                 foreach (var f in files)
                 {
-                    var hash = await Task.Run(() =>
+                    try
                     {
-                        var before = Core.Verification.VerificationService.Stamp(f);
-                        string value = Checksums.Compute(f, kind, token, n =>
+                        var hash = await Task.Run(() =>
                         {
-                            long now = Interlocked.Add(ref done, n);
-                            Dispatcher.UIThread.Post(() => { if (Current()) progress.Value = total > 0 ? 100.0 * now / total : 0; });
-                        });
-                        token.ThrowIfCancellationRequested();
-                        // Kept for the checks beside files (D-57): a checksum file added later need not read it again.
-                        if (before is { } stamp) Core.Verification.VerificationService.Current?.Remember(f, stamp, new Dictionary<ChecksumKind, string> { [kind] = value });
-                        return value;
-                    }, token);
-                    if (!Current()) return;
-                    results.Add((f, hash));
-                    lines.Add($"{hash}  {Path.GetFileName(f)}");
+                            var before = Core.Verification.VerificationService.Stamp(f);
+                            string value = Checksums.Compute(f, kind, token, n =>
+                            {
+                                long now = Interlocked.Add(ref done, n);
+                                Dispatcher.UIThread.Post(() => { if (Current()) progress.Value = total > 0 ? 100.0 * now / total : 0; });
+                            });
+                            token.ThrowIfCancellationRequested();
+                            if (before is { } stamp) Core.Verification.VerificationService.Current?.Remember(f, stamp, new Dictionary<ChecksumKind, string> { [kind] = value });
+                            return value;
+                        }, token);
+                        if (!Current()) return;
+                        results.Add((f, hash));
+                        lines.Add($"{hash}  {Path.GetFileName(f)}");
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        if (!Current()) return;
+                        lines.Add($"{Path.GetFileName(f)}  {ErrorText.Describe(ex)}");
+                        if (vm.CanRequestAdministratorTask && ErrorText.Classify(ex) == "access" &&
+                            AdministratorWindow.LocalVolume(f) is not null) denied.Add(f);
+                    }
                     output.Text = string.Join(Environment.NewLine, lines);
                 }
                 computedKind = kind;
                 save.IsEnabled = results.Count > 0;
+                retry.IsVisible = denied.Count != 0;
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -908,7 +940,7 @@ public static class OperationDialogs
             else Compare();
         };
         // A checksum on the clipboard is most likely the one to compare with: it is filled in (and picks the algorithm).
-        if (vm.View.TopLevel?.Clipboard is { } clipboard)
+        if (initialExpected is null && vm.View.TopLevel?.Clipboard is { } clipboard)
         {
             try
             {
@@ -922,7 +954,7 @@ public static class OperationDialogs
         try
         {
             r = await vm.Dialogs.ShowCustomAsync($"Checksums of {Formatters.Plural(files.Count, "file", "files")}", body,
-                [new DialogButton("Copy", "copy"), new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
+                [new DialogButton("Copy", "copy"), new DialogButton("Close", "close", IsDefault: true, IsCancel: true)], closer: closer);
         }
         finally
         {
@@ -930,6 +962,11 @@ public static class OperationDialogs
             cts?.Cancel();
         }
         if (r as string == "copy" && output.Text is { Length: > 0 } text) vm.CopyTextToClipboard(text);
+        if (r is "administrator" && denied.Count > 0)
+            await vm.RequestAdministratorTaskAsync(new(AdministratorTaskKind.Checksums)
+            {
+                Paths = denied.ToArray(), Detail = computedKind.ToString(), Context = expected.Text,
+            }, "Calculate checksums as administrator", "Read the selected access-denied files using the same checksum algorithm.");
     }
 
     /// <summary>

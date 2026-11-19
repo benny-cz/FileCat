@@ -12,6 +12,8 @@ namespace FileCat.Core.Search;
 public sealed class SearchQuery
 {
     public required IReadOnlyList<string> Roots { get; init; }
+    /// <summary>Explicitly selected retries retain the original root and depth for matching and exclusions.</summary>
+    public IReadOnlyList<SearchRetryFolder>? RetryFolders { get; init; }
     public Mask? Names { get; init; }
     public string? Text { get; init; }
     public bool MatchCase { get; init; }
@@ -105,6 +107,8 @@ public enum SearchLogKind
     Warning,
 }
 
+public sealed record SearchRetryFolder(string Root, string Folder, int Depth);
+
 /// <summary>A line of a search's log (plan §11): skipped scope, provider warnings, and their original locations.</summary>
 public sealed record SearchLogEntry(SearchLogKind Kind, string Path, string? Detail = null, Location? Parent = null, string? Name = null)
 {
@@ -141,6 +145,11 @@ public sealed class SearchSession
     private volatile string? _skip;
     private readonly object _logLock = new();
     private readonly List<SearchLogEntry> _log = [];
+    private readonly List<SearchRetryFolder> _deniedFolders = [];
+    public IReadOnlyList<SearchRetryFolder> DeniedFolders
+    {
+        get { lock (_logLock) return _deniedFolders.ToArray(); }
+    }
     private DeviceIoScheduler? _observations;
     private readonly bool _ownsObservations;
 
@@ -242,7 +251,24 @@ public sealed class SearchSession
                 _results.IsComplete = false;
                 return;
             }
-            if (_query.WithinResults is { } within)
+            if (_query.RetryFolders is { } retry)
+            {
+                foreach (var folder in retry)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (folder.Depth < 0 || folder.Depth > _query.MaxDepth ||
+                        !PathUtil.IsSameOrUnder(folder.Folder, folder.Root)) continue;
+                    try
+                    {
+                        if (HasLinkInPath(folder.Folder))
+                            AddLog(SearchLogKind.Skipped, folder.Folder, "The folder became a link.");
+                        else Walk(folder.Root, folder.Folder, folder.Depth, ct);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    { AddLog(SearchLogKind.Inaccessible, folder.Folder, ex.Message); }
+                }
+            }
+            else if (_query.WithinResults is { } within)
             {
                 Narrow(within, ct);
             }
@@ -276,6 +302,17 @@ public sealed class SearchSession
             if (_ownsObservations) _observations?.Dispose();
             _results.NotifyChanged();
         }
+    }
+
+    private static bool HasLinkInPath(string path)
+    {
+        string? component = Path.TrimEndingDirectorySeparator(path);
+        while (component is not null)
+        {
+            if ((File.GetAttributes(component) & FileAttributes.ReparsePoint) != 0) return true;
+            component = Path.GetDirectoryName(component);
+        }
+        return false;
     }
 
     private void AddLog(SearchLogKind kind, string path, string? detail = null, Location? parent = null, string? name = null)
@@ -398,6 +435,9 @@ public sealed class SearchSession
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
             {
                 if (ex is AmbiguousUnixNameException) _truncated = true;
+                if (ex is UnauthorizedAccessException)
+                    lock (_logLock)
+                        if (_deniedFolders.Count < MaxLog) _deniedFolders.Add(new(root, frame.Dir, frame.Depth));
                 AddLog(SearchLogKind.Inaccessible, frame.Dir, ex.Message);
                 continue;
             }

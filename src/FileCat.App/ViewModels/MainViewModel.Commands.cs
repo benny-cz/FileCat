@@ -33,7 +33,11 @@ public sealed partial class MainViewModel
     public CommandAvailability GetAvailability(string id)
     {
         if (!MainMenuModel.IsPlatformApplicable(id))
-            return CommandAvailability.No("UNC paths are available on Windows network shares and mapped drives.");
+            return CommandAvailability.No(id == CommandIds.CopyUncPaths
+                ? "UNC paths are available on Windows network shares and mapped drives."
+                : "This command is available on Windows.");
+        if (id == CommandIds.OpenAdministratorWindow)
+            return Services.Shell.IsElevated ? CommandAvailability.No("This FileCat window is already running as administrator.") : CommandAvailability.Yes;
         if (id == CommandIds.DiskSpace && Environment.IsPrivilegedProcess)
             return CommandAvailability.No("Start an ordinary, unelevated FileCat to analyze storage.");
         var context = Services.Commands.Get(id)?.Context;

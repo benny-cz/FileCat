@@ -148,8 +148,16 @@ public sealed partial class MainViewModel
         body.Children.Add(new TextBlock { Text = "Created:", IsVisible = mac });
         body.Children.Add(created);
         body.Children.Add(recursive);
-        var answer = await Dialogs.ShowCustomAsync("Permissions and times", body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Apply", "ok", IsDefault: true)]);
-        if (answer as string != "ok" || Services.Io.IsStopped) return;
+        var buttons = new List<DialogButton> { new("Cancel", "cancel", IsCancel: true) };
+        if (UnixPermissionApproval.CanAsk)
+            buttons.Add(new("Review permissions as administrator…", "administrator")
+            {
+                IsAvailable = () => touched != 0 && recursive.IsChecked != true,
+                HelpText = "Review permission changes on the selected files and folders, then ask the system for approval.",
+            });
+        buttons.Add(new("Apply", "ok", IsDefault: true));
+        var answer = await Dialogs.ShowCustomAsync("Permissions and times", body, buttons);
+        if (answer is not ("ok" or "administrator") || Services.Io.IsStopped) return;
 
         UnixFileMode set = 0, clear = 0;
         foreach (var (box, bit) in boxes)
@@ -171,6 +179,17 @@ public sealed partial class MainViewModel
         bool deep = recursive.IsChecked == true && folders;
         // Without folders to go into, boxes set back to what every item already has change nothing.
         bool permissionsChange = deep ? (set | clear) != 0 : metadata.ModesChange(set, clear);
+        if (answer is "administrator")
+        {
+            if (deep || setAttributes != 0 || clearAttributes != 0 || mod is not null || cre is not null)
+            {
+                await Dialogs.AlertAsync("Administrator permission change",
+                    "Review the selected items' permission bits by themselves. Apply timestamp, Finder and recursive changes separately.");
+                return;
+            }
+            await ReviewUnixPermissionsAsync(sel, set, clear, tab);
+            return;
+        }
         if (!permissionsChange && setAttributes == 0 && clearAttributes == 0 && mod is null && cre is null)
         {
             Notify("Nothing to change.");
@@ -185,5 +204,35 @@ public sealed partial class MainViewModel
         });
         scope.SelectionTransferred = true;
         Track(job, tab);
+    }
+
+    private async Task ReviewUnixPermissionsAsync(IReadOnlyList<ItemRef> items, UnixFileMode set, UnixFileMode clear, TabViewModel tab)
+    {
+        try
+        {
+            var entries = await Task.Run(() => UnixPermissionApproval.Capture(
+                items.Select(item => item.FileSystemPath ?? throw new NotSupportedException("Choose files or folders on a local filesystem.")), set, clear));
+            if (entries.Length == 0) { Notify("Nothing to change."); return; }
+            string changes = string.Join('\n', entries.Select(entry => $"{Formatters.SafeName(entry.Path)}  " +
+                $"{UnixPermissions.Octal((UnixFileMode)entry.Before.Mode)} → {UnixPermissions.Octal((UnixFileMode)entry.Mode)}"));
+            if (!await Dialogs.ConfirmReviewAsync("Administrator permission change", changes,
+                [$"Change permissions on {Formatters.Plural(entries.Length, "selected item", "selected items")}.",
+                 "The system will ask for approval. Only the displayed permission bits are applied."], "Authorize changes", danger: true)) return;
+            var result = await UnixPermissionApproval.RequestAsync(entries);
+            if (result.Changed != 0)
+            {
+                Services.Metadata.Invalidate();
+                if (!tab.Listing.IsDisposed) tab.Refresh();
+            }
+            string message = $"Updated permissions on {Formatters.Plural(result.Changed, "item", "items")}.";
+            if (result.Problem is { } problem) await Dialogs.AlertAsync("Permission changes stopped", message + " " + Formatters.SafeName(problem));
+            else Notify(message);
+        }
+        catch (OperationCanceledException) { Notify("Administrator approval was canceled."); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or
+                                  System.ComponentModel.Win32Exception or System.Text.Json.JsonException)
+        {
+            await Dialogs.AlertAsync("Could not change permissions as administrator", Formatters.SafeName(ex.Message));
+        }
     }
 }

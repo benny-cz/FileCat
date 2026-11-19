@@ -113,6 +113,26 @@ must remain byte-identical. Recovery is not guaranteed, and ext4/APFS undelete i
   through a helper for the displayed plan, with an administrator approval for that plan.
   The portable and framework-dependent ZIPs have no such helper.
 
+On Windows, **Tools → Open FileCat as administrator** opens a separate administrator
+window after Windows approval. **Tools → Change journal of this drive** offers the same
+approval when needed and opens the selected NTFS or ReFS journal. An access-denied local
+folder offers **Reopen folder as administrator**. In **Create link**, **Review as administrator**
+brings a local symbolic link, hard link or junction into the new window for a fresh preview.
+The viewer, checksums, Find, Registry and portable recovery also offer administrator review
+when needed. Find retries the blocked local folders with the original criteria. Bulk Rename
+can review its prepared changes, and the Operations pane can retry a denied empty-file creation
+or recursive attribute and timestamp change.
+For local copy, same-drive move, rename and folder creation, **Review denied items as administrator**
+in the access-denied dialog waits for the ordinary operation to finish, then opens one retry review.
+The installed broker handles plans that fit its operations. Portable FileCat reviews the retry in
+a separate administrator window, which also handles transfers that need the original conflict prompts.
+Canceling that review makes the original retry available again in Operations.
+
+On Linux and macOS, **Permissions and times → Review permissions as administrator** asks the
+system to approve mode changes to selected files and folders. It supports read, write, execute
+and sticky permissions on those items. **Tools → Recover deleted files → Authorize and scan**
+requests read-only access to the selected device.
+
 Untrusted content crosses narrower boundaries where implemented: pictures decode in a worker,
 HTML Page preview has scripts and network requests disabled, and Windows Shell extensions run
 outside the main process. These boundaries differ by platform; the

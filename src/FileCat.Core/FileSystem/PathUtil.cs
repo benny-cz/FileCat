@@ -57,6 +57,24 @@ public static class PathUtil
 
     public static bool SubtreesOverlap(string a, string b) => IsSameOrUnder(a, b) || IsSameOrUnder(b, a);
 
+    internal static void RequireOrdinaryWindowsPath(string path, bool allowMissing)
+    {
+        string full = Path.GetFullPath(path);
+        string root = Path.GetPathRoot(full)!;
+        string part = root;
+        foreach (string name in full[root.Length..].Split('\\', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (ValidateNewName(name) is { } problem) throw new IOException(problem);
+            part = Path.Combine(part, name);
+            try
+            {
+                if ((File.GetAttributes(part) & FileAttributes.ReparsePoint) != 0)
+                    throw new IOException($"Choose the actual location of {part}. An administrator retry cannot go through a link or mount point.");
+            }
+            catch (Exception ex) when (allowMissing && ex is FileNotFoundException or DirectoryNotFoundException) { return; }
+        }
+    }
+
     public static bool IsUncPath(string path) =>
         path.Length > 2 && IsSep(path[0]) && IsSep(path[1]) && path[2] != '?' && path[2] != '.';
 

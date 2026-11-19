@@ -214,6 +214,7 @@ public static class CommandIds
     /// <summary>Deleted items of a disk image, read-only (P10).</summary>
     public const string FindDeleted = "tools.findDeleted";
     public const string ChangeJournal = "tools.changeJournal";
+    public const string OpenAdministratorWindow = "tools.openAdministratorWindow";
     public const string CommandLineFocus = "cmdline.focus";
     public const string CommandHistory = "cmdline.history";
     public const string InsertName = "cmdline.insertName";
@@ -480,6 +481,7 @@ public sealed class CommandRegistry
         Add(CommandIds.DiskSpace, "Disk space…", C);
         Add(CommandIds.FindDeleted, "Recover deleted files…", C);
         Add(CommandIds.ChangeJournal, "Change journal of this drive", C);
+        Add(CommandIds.OpenAdministratorWindow, "Open FileCat as administrator…", C);
         Add(CommandIds.CommandLineFocus, "Focus command line", C, null, CommandContext.Panel, "Ctrl+E");
         Add(CommandIds.CommandHistory, "Command history…", C, "Cmd hist", CommandContext.Panel, "Alt+F8");
         Add(CommandIds.InsertName, "Insert focused name into command line", C, null, CommandContext.Panel, "Ctrl+Enter");
@@ -535,6 +537,7 @@ public sealed class CommandRegistry
         // What a title cannot say: which items a command takes, and where its result goes.
         r.Describe(CommandIds.CompareFiles, "Two marked files, one marked in each panel, or the file under the cursor and the file of the same name in the other panel.");
         r.Describe(CommandIds.ChangeJournal, "Lists what the drive's change journal records, newest first: each item made, changed, renamed, or deleted, when, and in which folder. Enter goes to an item, F3 shows the whole entry. Needs administrator rights (NTFS and ReFS).");
+        r.Describe(CommandIds.OpenAdministratorWindow, "Opens a separate FileCat window with Windows administrator rights after you approve the Windows prompt.");
         r.Describe(CommandIds.DiskSpace, "Choose locations and inspect their disk usage by folder and file.");
         r.Describe(CommandIds.FindDeleted, "Choose a drive or a disk image: its deleted files open in a new tab, to copy (F5) to another drive.");
         r.Describe(CommandIds.ChooseTarget, "Where F5 and F6 copy and move to, with three or more panels; “Set as target” on a panel's header does the same.");
@@ -589,6 +592,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.Help, "Browse commands and their current keys; press F2 on a selected row to assign a key.");
         r.Describe(CommandIds.ChangeShortcut, "Choose a command, then assign or reset its keyboard shortcut.");
         K(CommandIds.ChangeJournal, "USN", "UsnJrnl", "$J", "journal", "recent changes", "what changed", "forensics", "timeline");
+        K(CommandIds.OpenAdministratorWindow, "admin", "elevate", "UAC", "permissions", "run as");
         K(CommandIds.DiskSpace, "disk space", "storage", "largest files", "folder usage", "disk map");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");
         K(CommandIds.FindFiles, "search", "locate", "look for", "grep", "find in files");

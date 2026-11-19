@@ -194,7 +194,8 @@ public sealed class SearchCriteria
     /// when a mask, hex pattern, or range cannot work, or a folder to search is missing.
     /// </summary>
     public bool TryBuildQuery(DateTime nowUtc, IReadOnlyList<string> ignoredFolders, IReadOnlyList<(Resources.ItemRef Item, string Relative)>? within,
-        out SearchQuery? query, out string? error, IArchiveMembers? archives = null, HiddenData.IHiddenData? hiddenData = null)
+        out SearchQuery? query, out string? error, IArchiveMembers? archives = null, HiddenData.IHiddenData? hiddenData = null,
+        IReadOnlyList<SearchRetryFolder>? retryFolders = null)
     {
         query = null;
         if (!NativeSearchPredicates.Validate(Advanced.AttributesSet, Advanced.AttributesClear, within, Advanced.CarriesHiddenData, out error)) return false;
@@ -215,7 +216,7 @@ public sealed class SearchCriteria
             return false;
         }
         var roots = within is null ? Roots() : [];
-        if (within is null)
+        if (within is null && retryFolders is null)
         {
             if (roots.Count == 0)
             {
@@ -233,6 +234,7 @@ public sealed class SearchCriteria
         query = new SearchQuery
         {
             Roots = roots,
+            RetryFolders = retryFolders,
             Names = mask,
             Text = Hex || string.IsNullOrEmpty(Text) ? null : Text,
             Bytes = bytes,

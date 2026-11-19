@@ -44,9 +44,33 @@ public sealed partial class MainViewModel
             ? selected.Parent.WithPath(selected.Parent.Path.Length == 0 ? selected.Name : selected.Parent.Path + "\\" + selected.Name)
             : selected.Parent;
         string? valueName = current || selected?.Kind != EntryKind.RegistryValue ? null : selected.Name;
+        await ExportRegistrySelectionAsync(key, valueName);
+    }
+
+    private async Task ExportRegistrySelectionAsync(Location key, string? valueName)
+    {
         string suggested = (valueName ?? key.Path[(key.Path.LastIndexOf('\\') + 1)..]).Replace(' ', '_') + ".reg";
+        var path = await ChooseRegistryExportPathAsync(suggested);
+        if (path is null || !await ConfirmRegistryExportDestinationAsync(path)) return;
+        try
+        {
+            Notify("Exporting Registry selection…");
+            await Task.Run(() => RegistryInterchange.Export(key, valueName, path));
+            Notify($"Exported {Services.Providers.Display(key)} to {path}. Import must use the intended Registry view explicitly.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or
+                                   System.ComponentModel.Win32Exception or System.Security.SecurityException)
+        {
+            if (CanRequestAdministratorTask && AdministratorAccessDenied(ex))
+                await RequestAdministratorRegistryExportAsync([(key, valueName)], Path.GetFileName(path));
+            else Notify($"Registry export failed: {ex.Message}", true);
+        }
+    }
+
+    private async Task<string?> ChooseRegistryExportPathAsync(string suggested)
+    {
         var top = View.TopLevel;
-        if (top is null) return;
+        if (top is null) return null;
         var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Export Registry to .reg",
@@ -55,19 +79,12 @@ public sealed partial class MainViewModel
             FileTypeChoices = [new FilePickerFileType("Registry files") { Patterns = ["*.reg"] }],
         });
         string? path = file?.TryGetLocalPath();
-        if (path is null) { if (file is not null) Notify("Choose a local file path for Registry export.", true); return; }
-        if (!path.EndsWith(".reg", StringComparison.OrdinalIgnoreCase)) path += ".reg";
-        if (File.Exists(path) && !await Dialogs.ConfirmAsync("Replace export file?",
-            $"Replace {path} with an export of {Services.Providers.Display(key)}?", "Replace file", danger: true)) return;
-        try
-        {
-            Notify("Exporting Registry selection…");
-            await Task.Run(() => RegistryInterchange.Export(key, valueName, path));
-            Notify($"Exported {Services.Providers.Display(key)} to {path}. Import must use the intended Registry view explicitly.");
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or System.ComponentModel.Win32Exception)
-        { Notify($"Registry export failed: {ex.Message}", true); }
+        if (path is null) { if (file is not null) Notify("Choose a local file path for Registry export.", true); return null; }
+        return path.EndsWith(".reg", StringComparison.OrdinalIgnoreCase) ? path : path + ".reg";
     }
+
+    private async Task<bool> ConfirmRegistryExportDestinationAsync(string path) => !File.Exists(path) ||
+        await Dialogs.ConfirmAsync("Replace export file?", $"Replace {path} with the export?", "Replace file", danger: true);
 
     private async Task ImportRegistryAsync()
     {
@@ -490,18 +507,21 @@ public sealed partial class MainViewModel
         });
         if (named is null) return;
         string path = Path.Combine(folder.Path, named.Text);
-        if (File.Exists(path) && !await Dialogs.ConfirmAsync("Replace export file?", $"Replace {path} with the export?", "Replace file", danger: true)) return;
+        if (!await ConfirmRegistryExportDestinationAsync(path)) return;
+        var selection = items.Select(i => i.Kind == EntryKind.RegistryKey ? (KeyOf(i), (string?)null) : (i.Parent, (string?)i.Name)).ToArray();
         try
         {
             Notify("Exporting to .reg…");
-            await Task.Run(() => RegistryInterchange.ExportMany(
-                items.Select(i => i.Kind == EntryKind.RegistryKey ? (KeyOf(i), (string?)null) : (i.Parent, (string?)i.Name)).ToList(), path));
+            await Task.Run(() => RegistryInterchange.ExportMany(selection, path));
             Notify($"Exported to {path}. It holds raw types and data, not permissions or the 32/64-bit view.");
             RefreshTabsShowing(folder.Path);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or System.ComponentModel.Win32Exception)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or
+                                   System.ComponentModel.Win32Exception or System.Security.SecurityException)
         {
-            Notify($"Registry export failed: {ex.Message}", true);
+            if (CanRequestAdministratorTask && AdministratorAccessDenied(ex))
+                await RequestAdministratorRegistryExportAsync(selection, named.Text);
+            else Notify($"Registry export failed: {ex.Message}", true);
         }
     }
 

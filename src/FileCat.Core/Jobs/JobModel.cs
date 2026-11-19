@@ -222,6 +222,8 @@ public sealed class JobRequest
     public Archives.ArchivePlan? Archive { get; init; }
     /// <summary>For <see cref="JobKind.Elevated"/>: the plan the administrator broker displays and runs.</summary>
     public ElevationPlan? Elevation { get; init; }
+    /// <summary>A reviewed file operation in the Windows administrator window. Refuse linked paths and cross-volume moves.</summary>
+    internal bool AdministratorFileRetry { get; init; }
     /// <summary>
     /// For <see cref="JobKind.VerifyChecksums"/>: the checksum lines that the check of the same files against everything beside
     /// them (it ran first, for the same command) compared, as it read them: the checksum file, the line, the algorithm, the

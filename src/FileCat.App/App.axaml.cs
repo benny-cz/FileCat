@@ -93,6 +93,12 @@ public partial class App : Application
             finally { remembered?.Dispose(); }
             vm.OpenArguments(StartupOptions, initial: true);
             desktop.MainWindow = window;
+            if (StartupOptions.LinkDraft is { } draft)
+                window.Opened += async (_, _) => await vm.ReviewAdministratorLinkDraftAsync(draft);
+            else if (StartupOptions.AdministratorTask is { } request)
+                window.Opened += async (_, _) => await vm.ReviewAdministratorTaskAsync(request, StartupOptions.AdministratorRequest);
+            else if (StartupOptions.LinkDraftProblem is { } draftProblem)
+                window.Opened += async (_, _) => await vm.Dialogs.AlertAsync("Could not reopen the administrator request", draftProblem);
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
             // Signing out or shutting down while operations run: Windows shows the reason set by the view model and
             // lets the user decide; interrupted jobs are reviewed at the next start.

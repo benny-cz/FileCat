@@ -21,6 +21,17 @@ public sealed class StartupOptions
     public string? ListFile { get; set; }
     public bool NewInstance { get; set; }
     public bool ResetLayout { get; set; }
+    internal (string Root, string Volume)? StartupJournal { get; private set; }
+    internal (string Folder, string Volume)? AdministratorFolder { get; private set; }
+    internal (string Path, string Hash)? AdministratorLinkReview { get; private set; }
+    internal (string Path, string Hash)? AdministratorRequest { get; private set; }
+    internal Services.AdministratorTask? AdministratorTask { get; set; }
+    internal Services.AdministratorLinkDraft? LinkDraft { get; set; }
+    internal string? LinkDraftProblem { get; set; }
+    internal const string OpenJournalArgument = "--change-journal";
+    internal const string ReopenFolderArgument = "--reopen-denied-folder";
+    internal const string ReviewLinksArgument = "--review-symbolic-links";
+    internal const string AdministratorTaskArgument = "--review-administrator-task";
 
     /// <summary>TV-01 native benchmark: synthetic entries per panel (0 = off). Implies a new, isolated instance.</summary>
     public int BenchmarkCount { get; set; }
@@ -45,6 +56,22 @@ public sealed class StartupOptions
                 case "--analysis-scratch": o.AnalysisScratchParent = i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal) ? Next() : ""; break;
                 case "--workspace": o.Workspace = Next(); break;
                 case "--list" or "--loadlist": o.ListFile = Next(); break;
+                case OpenJournalArgument:
+                    if (Next() is { Length: > 0 } root && Next() is { Length: > 0 } volume)
+                        o.StartupJournal = (root, volume);
+                    break;
+                case ReopenFolderArgument:
+                    if (Next() is { Length: > 0 } folder && Next() is { Length: > 0 } folderVolume)
+                        o.AdministratorFolder = (folder, folderVolume);
+                    break;
+                case ReviewLinksArgument:
+                    if (Next() is { Length: > 0 } review && Next() is { Length: > 0 } hash)
+                        o.AdministratorLinkReview = (review, hash);
+                    break;
+                case AdministratorTaskArgument:
+                    if (Next() is { Length: > 0 } request && Next() is { Length: > 0 } requestHash)
+                        o.AdministratorRequest = (request, requestHash);
+                    break;
                 case "--new-instance" or "/n": o.NewInstance = true; break;
                 case "--reset-layout": o.ResetLayout = true; break;
                 case "--benchmark":

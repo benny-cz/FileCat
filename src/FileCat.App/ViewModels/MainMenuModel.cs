@@ -50,7 +50,7 @@ public static class MainMenuModel
             CommandIds.ColumnProfilePrefix + "5", CommandIds.ColumnProfilePrefix + "6", CommandIds.ColumnProfilePrefix + "7",
             CommandIds.ColumnProfilePrefix + "8", CommandIds.ColumnProfilePrefix + "9", "-", CommandIds.ThemePick, CommandIds.ThemeCycle, CommandIds.ThemePrevious, "-",
             CommandIds.ToggleToolbar, CommandIds.ToggleDriveButtons]),
-        ("_Tools", [CommandIds.DiskSpace, CommandIds.FindDeleted, CommandIds.ChangeJournal, "-", CommandIds.Operations, CommandIds.RecentNotifications,
+        ("_Tools", [CommandIds.DiskSpace, CommandIds.FindDeleted, CommandIds.ChangeJournal, CommandIds.OpenAdministratorWindow, "-", CommandIds.Operations, CommandIds.RecentNotifications,
             CommandIds.ViewerWindows, CommandIds.ClearHistory, CommandIds.Palette, CommandIds.Settings, "-", CommandIds.SaveWorkspace, CommandIds.LoadWorkspace, CommandIds.RestorePreviousWorkspace, "-",
             CommandIds.DiagnosticsExport, CommandIds.HexRecovery]),
         ("_Help", [CommandIds.Help, CommandIds.ChangeShortcut, CommandIds.CheckUpdates, CommandIds.About]),
@@ -112,8 +112,12 @@ public static class MainMenuModel
     /// <summary>Where a command is in the menus ("Commands", "File › Registry"), or null when no menu has it.</summary>
     public static string? PathOf(string id) => s_paths.Value.GetValueOrDefault(id);
 
-    /// <summary>Hide Windows-only path actions where the platform cannot produce their result.</summary>
-    public static bool IsPlatformApplicable(string id) => id != CommandIds.CopyUncPaths || OperatingSystem.IsWindows();
+    /// <summary>Hide commands whose platform capabilities are unavailable.</summary>
+    public static bool IsPlatformApplicable(string id) => id switch
+    {
+        CommandIds.CopyUncPaths or CommandIds.ChangeJournal or CommandIds.OpenAdministratorWindow => OperatingSystem.IsWindows(),
+        _ => true,
+    };
 
     /// <summary>A menu header without its access-key underscore ("_File" is File).</summary>
     private static string Plain(string header) => header.Replace("_", string.Empty, StringComparison.Ordinal);
