@@ -160,7 +160,7 @@ $credentials = @()
 $ownsRoot = $false
 $agent = $null
 $policyBlob = $null
-$agentStoreAdded = $false
+$agentPolicyKey = $null
 $efsPolicy = 'HKLM:\Software\Policies\Microsoft\SystemCertificates\EFS'
 try {
     foreach ($prefix in 'fcEfsSrc_', 'fcEfsRec_') {
@@ -191,26 +191,27 @@ try {
             (Get-ChildItem -LiteralPath "$efsPolicy\Certificates" -ErrorAction SilentlyContinue)) {
             throw 'Managed recovery requires a fresh runner with no existing EFS recovery policy.'
         }
-        $publicCertificate = Join-Path $Root 'managed-agent.cer'
         $agent = New-SelfSignedCertificate -Type Custom -Subject "CN=FileCat managed recovery $($users[1].Name)" `
             -CertStoreLocation Cert:\CurrentUser\My -Provider 'Microsoft Enhanced RSA and AES Cryptographic Provider' `
             -KeyAlgorithm RSA -KeyLength 2048 -KeySpec KeyExchange -KeyExportPolicy Exportable -KeyUsage KeyEncipherment,DataEncipherment `
             -TextExtension '2.5.29.37={text}1.3.6.1.4.1.311.10.3.4.1' -NotAfter (Get-Date).AddDays(2)
         $password = ConvertTo-SecureString ((Split-Path -Leaf $Root) + 'Managed#2a') -AsPlainText -Force
-        Export-Certificate -Cert $agent -FilePath $publicCertificate | Out-Null
         Export-PfxCertificate -Cert $agent -FilePath $managedPfx -Password $password -ChainOption EndEntityCertOnly | Out-Null
         $agent.Thumbprint | Set-Content -LiteralPath $managedThumbprint -Encoding Ascii
-        & certutil.exe -grouppolicy -addstore EFS $publicCertificate | Out-Null
-        if ($LASTEXITCODE) { throw 'Windows could not install the fixture public recovery certificate.' }
-        $agentStoreAdded = $true
+        # MS-GPEF 2.2.1.1 uses a serialized public certificate in the machine policy store.
+        $publicCertificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new([byte[]]$agent.RawData)
+        try { $agentBlob = $publicCertificate.Export([Security.Cryptography.X509Certificates.X509ContentType]::SerializedCert) }
+        finally { $publicCertificate.Dispose() }
+        $agentPolicyKey = "$efsPolicy\Certificates\$($agent.Thumbprint)"
+        New-Item -Path $agentPolicyKey -Force | Out-Null
+        New-ItemProperty -LiteralPath $agentPolicyKey -Name Blob -PropertyType Binary -Value $agentBlob | Out-Null
         $policyBlob = [byte[]](New-EfsPolicyBlob $agent $users[1].SID)
-        if (!(Test-Path -LiteralPath $efsPolicy)) { New-Item -Path $efsPolicy | Out-Null }
         New-ItemProperty -LiteralPath $efsPolicy -Name EfsBlob -PropertyType Binary -Value $policyBlob | Out-Null
         $service = Get-Service EFS
         if ($service.Status -ne 'Running') { Start-Service -InputObject $service }
         elseif ($service.CanStop) { Restart-Service -InputObject $service }
         else {
-            & gpupdate.exe /target:computer /force /wait:30 | Out-Null
+            & gpupdate.exe /target:computer /force /wait:30
             if ($LASTEXITCODE) { throw 'Windows could not refresh the fixture recovery policy.' }
         }
     }
@@ -240,7 +241,9 @@ finally {
             Remove-ItemProperty -LiteralPath $efsPolicy -Name EfsBlob -ErrorAction Continue
         }
     }
-    if ($agentStoreAdded) { & certutil.exe -grouppolicy -delstore EFS $agent.Thumbprint | Out-Null }
+    if ($agentPolicyKey -and (Test-Path -LiteralPath $agentPolicyKey)) {
+        Remove-Item -LiteralPath $agentPolicyKey -ErrorAction Continue
+    }
     if ($agent) { Remove-Item -LiteralPath "Cert:\CurrentUser\My\$($agent.Thumbprint)" -DeleteKey -ErrorAction Continue }
     foreach ($account in $users) { Remove-LocalUser -InputObject $account -ErrorAction Continue }
     if ($ownsRoot -and (Test-Path -LiteralPath $pfx -PathType Leaf)) { Remove-Item -LiteralPath $pfx }
