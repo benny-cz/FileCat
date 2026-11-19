@@ -79,6 +79,7 @@ if ($Role -ne 'Controller') {
             Invoke-Case 'Managed_recovery_fixture_encrypts_with_a_reviewed_user_key' 'managed-owner.xml'
             $information = & (Join-Path $env:WINDIR 'System32\cipher.exe') /c $managedSource | Out-String
             if ($LASTEXITCODE) { throw 'Windows could not inspect the managed recovery canary.' }
+            $information | Set-Content -LiteralPath (Join-Path $data 'managed-cipher.log')
             $fingerprints = [regex]::Matches($information, '(?im)\b(?:[a-f0-9]{4}[ \t]+){9}[a-f0-9]{4}\b') |
                 ForEach-Object { $_.Value -replace '\s', '' }
             if ($agentHash -notin $fingerprints) { throw 'Windows did not attach the provisioned recovery agent to the canary.' }
@@ -159,8 +160,9 @@ $users = @()
 $credentials = @()
 $ownsRoot = $false
 $agent = $null
+$agentBlob = $null
 $policyBlob = $null
-$agentPolicyKey = $null
+$policyTouched = $false
 $efsPolicy = 'HKLM:\Software\Policies\Microsoft\SystemCertificates\EFS'
 try {
     foreach ($prefix in 'fcEfsSrc_', 'fcEfsRec_') {
@@ -202,17 +204,17 @@ try {
         $publicCertificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new([byte[]]$agent.RawData)
         try { $agentBlob = $publicCertificate.Export([Security.Cryptography.X509Certificates.X509ContentType]::SerializedCert) }
         finally { $publicCertificate.Dispose() }
-        $agentPolicyKey = "$efsPolicy\Certificates\$($agent.Thumbprint)"
-        New-Item -Path $agentPolicyKey -Force | Out-Null
-        New-ItemProperty -LiteralPath $agentPolicyKey -Name Blob -PropertyType Binary -Value $agentBlob | Out-Null
         $policyBlob = [byte[]](New-EfsPolicyBlob $agent $users[1].SID)
-        New-ItemProperty -LiteralPath $efsPolicy -Name EfsBlob -PropertyType Binary -Value $policyBlob | Out-Null
-        $service = Get-Service EFS
-        if ($service.Status -ne 'Running') { Start-Service -InputObject $service }
-        elseif ($service.CanStop) { Restart-Service -InputObject $service }
-        else {
-            & gpupdate.exe /target:computer /force /wait:30
-            if ($LASTEXITCODE) { throw 'Windows could not refresh the fixture recovery policy.' }
+        Add-Type -Path (Join-Path $PSScriptRoot 'EfsRecoveryLocalPolicy.cs')
+        $policyTouched = $true
+        [EfsRecoveryLocalPolicy]::Update($agent.Thumbprint, $agentBlob, $policyBlob, $true)
+        & gpupdate.exe /target:computer /force /wait:30
+        if ($LASTEXITCODE) { throw 'Windows could not apply the fixture recovery policy.' }
+        $current = Get-ItemPropertyValue -LiteralPath $efsPolicy -Name EfsBlob
+        $installed = Get-ItemPropertyValue -LiteralPath "$efsPolicy\Certificates\$($agent.Thumbprint)" -Name Blob
+        if ([Convert]::ToBase64String($current) -cne [Convert]::ToBase64String($policyBlob) -or
+            [Convert]::ToBase64String($installed) -cne [Convert]::ToBase64String($agentBlob)) {
+            throw 'The effective policy does not contain the exact public recovery certificate and key record.'
         }
     }
 
@@ -235,14 +237,13 @@ try {
     else { 'Passed first use, independent key restore, selection with distinct keys, and default-key change checks.' }
 }
 finally {
-    if ($policyBlob) {
-        $current = (Get-ItemProperty -LiteralPath $efsPolicy -Name EfsBlob -ErrorAction SilentlyContinue).EfsBlob
-        if ($current -and [Convert]::ToBase64String($current) -ceq [Convert]::ToBase64String($policyBlob)) {
-            Remove-ItemProperty -LiteralPath $efsPolicy -Name EfsBlob -ErrorAction Continue
+    if ($policyTouched) {
+        try {
+            [EfsRecoveryLocalPolicy]::Update($agent.Thumbprint, $agentBlob, $policyBlob, $false)
+            & gpupdate.exe /target:computer /force /wait:30 | Out-Null
+            if ($LASTEXITCODE) { Write-Warning 'Windows did not refresh after removing the fixture recovery policy.' }
         }
-    }
-    if ($agentPolicyKey -and (Test-Path -LiteralPath $agentPolicyKey)) {
-        Remove-Item -LiteralPath $agentPolicyKey -ErrorAction Continue
+        catch { Write-Warning "The disposable runner could not retire its fixture policy. $($_.Exception.Message)" }
     }
     if ($agent) { Remove-Item -LiteralPath "Cert:\CurrentUser\My\$($agent.Thumbprint)" -DeleteKey -ErrorAction Continue }
     foreach ($account in $users) { Remove-LocalUser -InputObject $account -ErrorAction Continue }
