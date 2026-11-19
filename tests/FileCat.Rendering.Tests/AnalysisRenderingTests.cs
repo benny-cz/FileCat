@@ -294,7 +294,7 @@ public sealed partial class AnalysisRenderingTests
                         {
                             var chart = window.GetVisualDescendants().OfType<AnalysisChartControl>().Single(c => c.IsVisible);
                             Assert.True(chart.Bounds.Height > 100);
-                            Assert.Contains("98304", AutomationLabel(chart));
+                            Assert.Contains($"{98304:N0} bytes", AutomationLabel(chart));
                         }
                         using var bitmap = new RenderTargetBitmap(new PixelSize(width, 780)); bitmap.Render(window);
                         using var file = File.Create(Path.Combine(output, $"{currentTheme}-{width}-{index}.png")); bitmap.Save(file, new PngBitmapEncoderOptions());

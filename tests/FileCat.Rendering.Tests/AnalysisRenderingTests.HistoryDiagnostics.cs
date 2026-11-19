@@ -13,13 +13,25 @@ public sealed partial class AnalysisRenderingTests
     [AvaloniaFact]
     public async Task ActualDiagnosticsZipIncludesOnlyFiniteAnalysisPreferencesAndPreservesPrivateSentinels()
     {
-        OrdinaryPreparation(); using var profile = new PreparationFixture(); var services = profile.Services;
+        OrdinaryPreparation(); using var profile = new PreparationFixture(alternateScratch: true); var services = profile.Services;
         var token = TestContext.Current.CancellationToken;
-        await using (var prepared = await AnalysisIndexedAcquisition.PrepareAsync(services, token, indexedStorage: false)) { }
+        await using (var prepared = await AnalysisIndexedAcquisition.PrepareAsync(services, token, indexedStorage: false))
+            Assert.Null(prepared.MemoryPreparationNotice);
         services.Settings.AnalysisPreferences = new() { RollingHistory = new(true, 20, 60, 2L << 30) };
-        string sentinel = "private-history-query-" + Guid.NewGuid().ToString("N");
-        string folder = services.Paths.AnalysisSnapshotsDirectory;
-        var files = new[] { Path.Combine(folder, "private-query-fixture.json"), Path.Combine(folder, "private-history-fixture.fcdsa") };
+        string sentinel = "private-analysis-" + Guid.NewGuid().ToString("N");
+        string named = services.Paths.AnalysisSnapshotsDirectory;
+        string historyDirectory = services.Paths.AnalysisHistoryDirectory;
+        string scratch = services.Paths.AnalysisScratchDirectory;
+        var files = new[]
+        {
+            Path.Combine(named, $"query-{sentinel}.json"),
+            Path.Combine(named, $"recipe-{sentinel}.json"),
+            Path.Combine(named, $"catalog-{sentinel}.json"),
+            Path.Combine(named, $"named-{sentinel}.fcdsa"),
+            Path.Combine(historyDirectory, $"history-{sentinel}.fcdsa"),
+            Path.Combine(scratch, $"selection-{sentinel}.proof"),
+            Path.Combine(scratch, $"observations-{sentinel}.scratch"),
+        };
         foreach (string file in files) await File.WriteAllTextAsync(file, sentinel, token);
         string exported = await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(profile.Root), _ => DiagnosticsBundle.Write(services, profile.Root), token);
         using var zip = ZipFile.OpenRead(exported);
@@ -30,6 +42,7 @@ public sealed partial class AnalysisRenderingTests
             using var reader = new StreamReader(entry.Open(), Encoding.UTF8);
             string text = await reader.ReadToEndAsync(token);
             Assert.DoesNotContain(sentinel, text);
+            Assert.DoesNotContain(Path.GetFileName(scratch), text);
             if (entry.FullName == "settings.json")
             {
                 using var settings = JsonDocument.Parse(text);
