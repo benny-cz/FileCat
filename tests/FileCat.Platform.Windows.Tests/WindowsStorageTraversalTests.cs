@@ -169,7 +169,8 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Preorder_directory_mutation_and_recursion_reuse_the_mutation_handles_with_live_review_pins()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-held-traversal-").FullName;
         try
         {
@@ -177,7 +178,7 @@ public sealed partial class WindowsStorageTraversalTests
             string nested = Directory.CreateDirectory(Path.Join(folder, "nested")).FullName;
             File.WriteAllText(Path.Join(folder, "top"), "top payload"); File.WriteAllText(Path.Join(nested, "bottom"), "bottom payload");
             File.SetAttributes(folder, File.GetAttributes(folder) | FileAttributes.ReadOnly);
-            var adapter = new WindowsStorageTransforms();
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
             var compress = Review(adapter, folder, EntryKind.Directory, StorageAction.Compress);
             var remove = Review(adapter, folder, EntryKind.Directory, StorageAction.RemoveCompression);
             using var compressReview = compress.Review; using var compressOwner = compress.Owner;
@@ -219,7 +220,8 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Noop_ReadOnly_file_needs_no_write_handle_even_with_an_existing_writer()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows client NTFS fixture.");
         string path = Path.GetTempFileName();
         try
         {
@@ -227,7 +229,8 @@ public sealed partial class WindowsStorageTraversalTests
                 Assert.True(WindowsCompression.InvokeAdmitted(setup, StorageAction.Compress).NativeSucceeded);
             using var writer = File.OpenHandle(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
             File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.ReadOnly);
-            var adapter = new WindowsStorageTransforms(); var prepared = Review(adapter, path, EntryKind.File, StorageAction.Compress);
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
+            var prepared = Review(adapter, path, EntryKind.File, StorageAction.Compress);
             using var review = prepared.Review; using var owner = prepared.Owner;
             using var native = StorageReviewResources.EnterNative(TestContext.Current.CancellationToken);
             using var traversal = adapter.OpenReviewedRoot(owner.Leases[0], StorageAction.Compress, TestContext.Current.CancellationToken);
