@@ -156,6 +156,9 @@ jobs:
             'Recursive_job_covers_reverse_order_overlaps_hidden_files_and_named_streams_without_double_counts'
             'Preorder_directory_mutation_and_recursion_reuse_the_mutation_handles_with_live_review_pins'
             'Noop_ReadOnly_file_needs_no_write_handle_even_with_an_existing_writer'
+            'Renamed_review_path_replaced_by_another_object_never_chases_the_original_or_changes_the_replacement'
+            'Conflicting_writer_refuses_before_call_then_fresh_preparation_can_change_the_same_held_object'
+            'Case_sensitive_siblings_keep_distinct_IDs_and_drive_extended_and_volume_paths_keep_one_physical_pin'
             'Replacing_a_child_after_the_native_cursor_reads_its_id_preserves_both_files'
             'Readonly_file_and_reparse_subtree_are_skipped_while_independent_siblings_are_changed'
             'Native_access_denial_preserves_independent_siblings'
@@ -172,8 +175,8 @@ jobs:
           $results = 'tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx'
           [xml]$receipt = Get-Content -LiteralPath $results -Raw
           $counters = $receipt.TestRun.ResultSummary.Counters
-          if ($counters.total -ne '16' -or $counters.executed -ne '16' -or $counters.passed -ne '16') {
-            throw 'All sixteen native fixture cases must execute and pass.'
+          if ($counters.total -ne '19' -or $counters.executed -ne '19' -or $counters.passed -ne '19') {
+            throw 'All nineteen native fixture cases must execute and pass.'
           }
 
           $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_OUTPUTS = '1'

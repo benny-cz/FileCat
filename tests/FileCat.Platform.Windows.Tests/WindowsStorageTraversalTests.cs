@@ -244,12 +244,14 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Renamed_review_path_replaced_by_another_object_never_chases_the_original_or_changes_the_replacement()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows client NTFS fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-stale-storage-").FullName;
         try
         {
             string path = Path.Join(root, "captured"), moved = Path.Join(root, "moved"); File.WriteAllText(path, "original");
-            var adapter = new WindowsStorageTransforms(); var prepared = Review(adapter, path, EntryKind.File, StorageAction.Compress);
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
+            var prepared = Review(adapter, path, EntryKind.File, StorageAction.Compress);
             using var review = prepared.Review; using var owner = prepared.Owner;
             File.Move(path, moved); File.WriteAllText(path, "replacement");
             using var native = StorageReviewResources.EnterNative(TestContext.Current.CancellationToken);
@@ -264,11 +266,13 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public void Conflicting_writer_refuses_before_call_then_fresh_preparation_can_change_the_same_held_object()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows client NTFS fixture.");
         string path = Path.GetTempFileName();
         try
         {
-            var adapter = new WindowsStorageTransforms(); var prepared = Review(adapter, path, EntryKind.File, StorageAction.Compress);
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
+            var prepared = Review(adapter, path, EntryKind.File, StorageAction.Compress);
             using var review = prepared.Review; using var owner = prepared.Owner;
             using var native = StorageReviewResources.EnterNative(TestContext.Current.CancellationToken);
             using var traversal = adapter.OpenReviewedRoot(owner.Leases[0], StorageAction.Compress, TestContext.Current.CancellationToken);
@@ -287,7 +291,8 @@ public sealed partial class WindowsStorageTraversalTests
     [Fact]
     public unsafe void Case_sensitive_siblings_keep_distinct_IDs_and_drive_extended_and_volume_paths_keep_one_physical_pin()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS case-sensitive fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows client NTFS case-sensitive fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-case-").FullName;
         try
         {
@@ -303,7 +308,7 @@ public sealed partial class WindowsStorageTraversalTests
                     using (created) Assert.True(status >= 0, NtFile.Error(status, "Create case sibling").Message);
                 }
             }
-            var adapter = new WindowsStorageTransforms();
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
             var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), adapter, Path.Join(root, "unused-journal"));
             using var siblings = manager.PrepareStorageReview(new[] { "a", "A" }.Select(name => new ItemRef(Location.FileSystem(root), name, EntryKind.File)).ToArray(),
                 StorageAction.Compress, TestContext.Current.CancellationToken);

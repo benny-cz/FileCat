@@ -67,3 +67,9 @@ On the disposable Windows 11 x64 VM at medium integrity, the cursor returned one
 The x64 receipt records **1 passed, 0 failed, 0 skipped** in `.tmp/filecat-efs-live-166b6897-r1/cursor-vm-4a3450ea-cursor-native-x64-r3.trx`. The test assembly SHA-256 was `8620E572771109A1BD6144594207A1A4812C3D6220707CA2F70CCD6FEC60494B`.
 
 Native ARM64 at `9a93b8fe` passed the same case and all 12 other native storage cases without skips. The downloaded `native-storage-abi.trx` SHA-256 is `6271FF648511F85FCEFA82941578F77E8C3EFFD798554A9536981CC58CB4AD00`. N-ID remains partial pending the other adversary cases. [Native ARM64 qualification run](https://github.com/benny-cz/FileCat/actions/runs/44560055582)
+
+## Native ARM64 held directory and read-only no-op cases
+
+At medium integrity on fixed 4 KiB NTFS, x64 and native ARM64 ran the same two held-traversal cases. Recursive Compress and Remove compression changed the parent default before enumerating through its held mutation handle. The review pins stayed live and the folder retained its ReadOnly marker. An already-compressed directory used its listing handle and admitted the separate writer used by the fixture. The already-compressed ReadOnly file likewise returned no native call while a compatible writer remained open. Both file payloads matched their inputs.
+
+The x64 runner passed both cases. Its `native-storage-traversal-x64.trx` SHA-256 is `3E6F362EC302E4E562CA4043049BAAB7204B45B0F04DF1DD187D6872816C19D3`. The native ARM64 run passed all 16 storage ABI and job cases at `022bc304cabf2c182dfcbe5ca5b84ae4a7970993`. Its `native-storage-abi.trx` SHA-256 is `AFFC59B9A6BD5C8F1C75992C2254CC30923E49920C89A64966523F6F9C73ACD2`. The same run passed all 15 Recovery admission cases, including the nine Windows cases fixed after full CI, and all ten native storage command cases. [Native ARM64 test receipts](https://github.com/benny-cz/FileCat/actions/runs/44593580639)
