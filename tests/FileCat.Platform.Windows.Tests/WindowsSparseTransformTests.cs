@@ -12,7 +12,7 @@ namespace FileCat.Platform.Windows.Tests;
 
 /// <summary>Disposable NTFS behavior fixtures. These operations do not exercise FileCat release admission.</summary>
 [Collection("Windows storage job evidence")]
-public sealed unsafe partial class WindowsSparseTransformTests
+public sealed partial class WindowsSparseTransformTests
 {
     private const int Length = 4 * 1024 * 1024;
     private const string NamedStream = ":fixture";
@@ -56,13 +56,8 @@ public sealed unsafe partial class WindowsSparseTransformTests
     public void Hex_save_as_reports_expanded_holes_and_preserves_bytes_on_an_owned_FAT32_volume(bool encrypted)
     {
         RequireFixture();
-        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_SPARSE_SAVEAS_FAT32_ROOT");
-        Assert.SkipUnless(!string.IsNullOrWhiteSpace(root), "Requires the prepared FAT32 output fixture.");
+        string root = Fat32OutputRoot();
         if (encrypted) Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1", "Requires the explicit EFS fixture opt-in.");
-        var drive = new DriveInfo(Path.GetPathRoot(root)!);
-        Assert.Equal("FAT32", drive.DriveFormat);
-        Assert.Equal("FCSPARSEOUT", drive.VolumeLabel);
-        Assert.InRange(drive.TotalSize, 128L << 20, 320L << 20);
         string destination = Path.Join(root, (encrypted ? "efs-" : "clear-") + Guid.NewGuid().ToString("N") + ".bin");
 
         Run("main-holes", (path, before) =>
@@ -100,6 +95,90 @@ public sealed unsafe partial class WindowsSparseTransformTests
             Assert.Equal(before.Main.Ranges, Observe(path).Main.Ranges);
             File.Delete(destination);
         });
+    }
+
+    [Theory]
+    [InlineData("NTFS", false, false)]
+    [InlineData("NTFS", true, false)]
+    [InlineData("FAT32", false, false)]
+    [InlineData("FAT32", true, true)]
+    [InlineData("SMB", true, true)]
+    public async Task Native_copy_reports_loss_of_sparse_attributes_after_publication(string targetVolume, bool encrypted, bool keepBoth)
+    {
+        RequireFixture();
+        if (encrypted) Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1", "Requires the explicit EFS fixture opt-in.");
+        bool clearExport = targetVolume == "SMB";
+        string? external = targetVolume == "FAT32" ? Fat32OutputRoot() : clearExport
+            ? Environment.GetEnvironmentVariable("FILECAT_STORAGE_EFS_CLEAR_TEST_ROOT") : null;
+        Assert.SkipUnless(!clearExport || !string.IsNullOrWhiteSpace(external) && Directory.Exists(external), "Requires the prepared SMB clear-copy fixture.");
+        string root = Directory.CreateTempSubdirectory("filecat-sparse-copy-").FullName;
+        string destination = Path.Join(external ?? root, "copy-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(destination);
+            string source = Path.Join(root, "source.bin");
+            WriteStream(source, sparse: true, holes: true, allHole: false, seed: 17);
+            if (encrypted) File.Encrypt(source);
+            byte[] expected = File.ReadAllBytes(source);
+            StreamObservation before;
+            using (var file = File.OpenRead(source)) before = ObserveStream(file);
+            Assert.InRange(before.Allocation, 1, Length / 2);
+
+            string existing = Path.Join(destination, Path.GetFileName(source));
+            if (keepBoth) File.WriteAllBytes(existing, [0xab]);
+            var (job, questions) = await WindowsEfsCopyTests.Run(root, new WindowsFileOperations(), JobKind.Copy, [source], destination, request =>
+            {
+                if (!clearExport || request is not ConfirmRequest { ConfirmClass: "decrypt" }) return new(DecisionAction.CancelJob);
+                Assert.Equal(new[] { existing }, Directory.GetFiles(destination));
+                return new(DecisionAction.Proceed);
+            }, new TransferOptions { Conflicts = ConflictPolicy.KeepBothRenameIncoming });
+            Assert.True(job.State is JobState.Completed or JobState.CompletedWithIssues,
+                job.State + " " + JobIssue.Summarize(job.Issues));
+            if (clearExport)
+            {
+                var prompt = Assert.IsType<ConfirmRequest>(Assert.Single(questions));
+                Assert.Contains("may allocate space for the entire file", prompt.Message);
+                Assert.Contains("Temporary copy", prompt.Message);
+            }
+            else Assert.Empty(questions);
+
+            string published = keepBoth ? Assert.Single(Directory.EnumerateFiles(destination), file => file != existing)
+                : Assert.Single(Directory.EnumerateFiles(destination));
+            bool sparse = File.GetAttributes(published).HasFlag(FileAttributes.SparseFile);
+            if (!clearExport) Assert.Equal(targetVolume == "NTFS", sparse);
+            Assert.Equal(encrypted && !clearExport, File.GetAttributes(published).HasFlag(FileAttributes.Encrypted));
+            Assert.Equal(expected, File.ReadAllBytes(published));
+            Assert.DoesNotContain(JournalRecovery.StagedPrefix, published);
+            if (keepBoth) Assert.Equal(new byte[] { 0xab }, File.ReadAllBytes(existing));
+            var notices = job.Issues.Where(issue => issue.Message.Contains("may use more disk space", StringComparison.Ordinal));
+            if (sparse) Assert.Empty(notices);
+            else
+            {
+                var notice = Assert.Single(notices);
+                Assert.Equal(StepOutcome.Committed, notice.Outcome);
+                Assert.Equal(published, notice.TargetPath);
+            }
+
+            Assert.Equal(encrypted, File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
+            using var sourceAgain = File.OpenRead(source);
+            Assert.Equal(before.Ranges, ObserveStream(sourceAgain).Ranges);
+        }
+        finally
+        {
+            if (Directory.Exists(destination)) Directory.Delete(destination, recursive: true);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static string Fat32OutputRoot()
+    {
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_SPARSE_SAVEAS_FAT32_ROOT");
+        Assert.SkipUnless(!string.IsNullOrWhiteSpace(root), "Requires the prepared FAT32 output fixture.");
+        var drive = new DriveInfo(Path.GetPathRoot(root)!);
+        Assert.Equal("FAT32", drive.DriveFormat);
+        Assert.Equal("FCSPARSEOUT", drive.VolumeLabel);
+        Assert.InRange(drive.TotalSize, 128L << 20, 320L << 20);
+        return root!;
     }
 
     [Theory]
@@ -358,7 +437,7 @@ public sealed unsafe partial class WindowsSparseTransformTests
     }
 
     [Fact]
-    public void A_sparse_range_overflow_refuses_before_a_native_call_while_a_noop_requires_no_inventory()
+    public unsafe void A_sparse_range_overflow_refuses_before_a_native_call_while_a_noop_requires_no_inventory()
     {
         RequireFixture();
         const int stride = 128 * 1024;
@@ -479,7 +558,7 @@ public sealed unsafe partial class WindowsSparseTransformTests
         finally { Directory.Delete(directory, recursive: true); }
     }
 
-    private static void WriteStream(string streamPath, bool sparse, bool holes, bool allHole, int seed)
+    private static unsafe void WriteStream(string streamPath, bool sparse, bool holes, bool allHole, int seed)
     {
         using var stream = new FileStream(streamPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         if (sparse) Assert.True(Control(stream.SafeFileHandle, SetSparse, null, 0, null, 0, out _, 0),
@@ -556,7 +635,7 @@ public sealed unsafe partial class WindowsSparseTransformTests
         return new(identity, File.GetAttributes(main.SafeFileHandle), ObserveStream(main), ObserveStream(named));
     }
 
-    private static StreamObservation ObserveStream(FileStream stream)
+    private static unsafe StreamObservation ObserveStream(FileStream stream)
     {
         var input = new Range(0, stream.Length);
         var output = stackalloc Range[32];
@@ -593,7 +672,7 @@ public sealed unsafe partial class WindowsSparseTransformTests
 
     [LibraryImport("kernel32.dll", EntryPoint = "DeviceIoControl", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool Control(SafeFileHandle file, uint code, void* input, uint inputBytes, void* output,
+    private static unsafe partial bool Control(SafeFileHandle file, uint code, void* input, uint inputBytes, void* output,
         uint outputBytes, out uint returned, nint overlapped);
 
     [LibraryImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)]

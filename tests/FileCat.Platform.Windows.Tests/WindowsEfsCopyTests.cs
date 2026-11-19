@@ -242,7 +242,7 @@ public sealed class WindowsEfsCopyTests
         }
     }
 
-    private static async Task<(Job Job, DecisionRequest[] Questions)> Run(string root, WindowsFileOperations files,
+    internal static async Task<(Job Job, DecisionRequest[] Questions)> Run(string root, WindowsFileOperations files,
         JobKind kind, string[] sources, string destination, Func<DecisionRequest, Decision> decide, TransferOptions? options = null)
     {
         var providers = new ProviderRegistry();

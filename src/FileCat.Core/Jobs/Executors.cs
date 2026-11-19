@@ -1293,12 +1293,14 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                         return Result.Failed;
                     }
                     string stage = direct ? "" : $"\nTemporary copy: {writeTo}";
+                    string allocation = IsSparseWindowsFile(info)
+                        ? "\nA destination that cannot preserve sparse holes may allocate space for the entire file." : "";
                     string effect = Move ? "\nA successful move can remove the original after verifying the copy." : "";
                     Decision d;
                     try
                     {
                         d = Job.Ask(new ConfirmRequest("Copy without Windows EFS?",
-                            $"Windows could not preserve EFS for this copy. Allow one attempt that can write unencrypted data?\n\nSource: {src}\nDestination: {target}{stage}{effect}",
+                            $"Windows could not preserve EFS for this copy. Allow one attempt that can write unencrypted data?\n\nSource: {src}\nDestination: {target}{stage}{allocation}{effect}",
                             src, "decrypt", [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob])
                         {
                             ProceedLabel = "Copy decrypted",
@@ -1413,6 +1415,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Journal.Done(step, StepOutcome.Committed);
         }
         if (!Fs.CopyPreservesMetadata && Options.PreserveAttributes && (info.Attributes & FileAttributes.ReadOnly) != 0) TrySetAttributes(target, info.Attributes);
+        if (IsSparseWindowsFile(info)) ReportSparseCopy(src, target, direct ? writtenInfo : Fs.TryGetInfo(target));
         if (decryptedCopyApproved && !writtenInfo.Attributes.HasFlag(FileAttributes.Encrypted))
             Issue(IssueSeverity.Warning, src, "Copied decrypted with approval.", StepOutcome.Committed);
         if (!Move)
@@ -1492,8 +1495,20 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             return Result.Failed;
         }
         if (!CopiedItemStillReviewed(src, dst)) return Result.Failed;
+        if (IsSparseWindowsFile(info)) ReportSparseCopy(src, dst, written);
         Job.ItemDone();
         return Result.Committed;
+    }
+
+    private static bool IsSparseWindowsFile(FileSystemItemInfo info) => OperatingSystem.IsWindows() &&
+        info.Size > 0 && !info.IsDirectory && !info.IsLink && info.Attributes.HasFlag(FileAttributes.SparseFile);
+
+    private void ReportSparseCopy(string source, string target, FileSystemItemInfo? output)
+    {
+        if (output is { IsDirectory: false, IsLink: false } && !output.Attributes.HasFlag(FileAttributes.SparseFile))
+            TransferIssue(IssueSeverity.Warning, source, target, "The destination copy lost the sparse file attribute and may use more disk space.",
+                StepOutcome.Committed, "Copy published", Move ? "Source removal checked separately" : "Original kept",
+                "Copy published without the sparse file attribute", "Based on the observed file attributes");
     }
 
     /// <summary>Metadata a move to <paramref name="target"/> would lose, in plain words, or null (plan §8.1, PI-05).</summary>
