@@ -554,6 +554,8 @@ public sealed partial class WindowsEfsJobTests
     private static Job Run(JobManager manager, StorageAction action, IReadOnlyList<ItemRef> targets, StorageScope scope = StorageScope.SelectedItems)
     {
         using var review = manager.PrepareStorageReview(targets, action, Ct);
+        Assert.All(review.Roots, root => Assert.True(root.Observation.Ineligible is null,
+            $"Root {root.SourceIndex}: {root.Observation.Ineligible?.Code} {root.Observation.Ineligible?.Message}"));
         using var finished = new ManualResetEventSlim();
         void OnFinished(Job _) => finished.Set();
         manager.JobFinished += OnFinished;

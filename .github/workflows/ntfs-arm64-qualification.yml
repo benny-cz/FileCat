@@ -47,6 +47,28 @@ jobs:
           if ($volume.FileSystem -ne 'NTFS' -or $volume.AllocationUnitSize -ne 4096 -or $os.ProductType -ne 1) {
             throw 'Requires a Windows client with a prepared 4 KiB local NTFS volume.'
           }
+          $drive = "$($volume.DriveLetter):"
+          $instances = & fltmc.exe instances -v $drive
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $instances | Set-Content -LiteralPath (Join-Path $evidence 'filters-before.txt')
+          if (-not ($instances -match '^\s*CldFlt\s')) {
+            $loaded = & fltmc.exe filters
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if (-not ($loaded -match '^\s*CldFlt\s')) {
+              & fltmc.exe load CldFlt
+              if ($LASTEXITCODE -ne 0) { Write-Warning 'The runner could not load the Cloud Files filter.' }
+            }
+            $instances = & fltmc.exe instances -v $drive
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if (-not ($instances -match '^\s*CldFlt\s')) {
+              & fltmc.exe attach CldFlt $drive
+              if ($LASTEXITCODE -ne 0) { Write-Warning 'The runner could not attach the Cloud Files filter to the fixture volume.' }
+            }
+          }
+          $instances = & fltmc.exe instances -v $drive
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $instances | Set-Content -LiteralPath (Join-Path $evidence 'filters-after.txt')
+          if (-not ($instances -match '^\s*CldFlt\s')) { Write-Warning 'The Cloud Files filter is missing from the fixture volume.' }
           [ordered]@{
             commit = $env:GITHUB_SHA
             operatingSystem = $os.Caption

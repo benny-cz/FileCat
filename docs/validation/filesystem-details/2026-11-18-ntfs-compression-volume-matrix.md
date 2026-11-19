@@ -21,3 +21,5 @@ The [hosted native run](https://github.com/benny-cz/FileCat/actions/runs/4446210
 ### Durable storage job qualification
 
 The workflow also exercises the native job candidate and private on-disk journal backend through a test-only ARM64 opt-in. The default-host control runs in the same process. Compression covers selected directory defaults, recursive compression and removal, overlapping roots, read-only and reparse exclusions and access denial. EFS covers selected and recursive encrypt/decrypt, matched software-key evidence and cancellation before a native call. The fixture grants write access to the invoking account and SYSTEM. The nine-case calibration passed at medium integrity on the Windows x64 VM with 4 KiB NTFS. See `.tmp/filecat-storage-arm64-jobs-2764875a-r4.xml`.
+
+The [first expanded ARM64 run](https://github.com/benny-cz/FileCat/actions/runs/44464369279) passed both native primitives and the default-host refusal. Its six job cases stopped at review eligibility without a native transform. The fixture now records the native refusal for each selected root and records the Cloud Files filter state on the owned runner volume before and after preparation.

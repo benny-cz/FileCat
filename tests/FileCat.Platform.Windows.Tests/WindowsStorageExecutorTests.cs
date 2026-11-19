@@ -31,6 +31,8 @@ public sealed class WindowsStorageExecutorTests
     private static Job RunAction(JobManager manager, StorageAction action, StorageScope scope, params ItemRef[] sources)
     {
         using var review = manager.PrepareStorageReview(sources, action, Stop);
+        Assert.All(review.Roots, root => Assert.True(root.Observation.Ineligible is null,
+            $"Root {root.SourceIndex}: {root.Observation.Ineligible?.Code} {root.Observation.Ineligible?.Message}"));
         using var finished = new ManualResetEventSlim();
         void Finished(Job _) => finished.Set();
         manager.JobFinished += Finished;
