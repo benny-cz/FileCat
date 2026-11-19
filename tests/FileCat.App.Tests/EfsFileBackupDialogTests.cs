@@ -68,11 +68,13 @@ public sealed class EfsFileBackupDialogTests
             Assert.Contains("two.bin", rows.Text);
             Assert.Contains("Hidden mark", rows.Text);
             Assert.Contains("1 of the 2 selected items still matched", status.Text);
+            Assert.Equal(status.Text, AutomationProperties.GetHelpText(picker));
 
             picker.SelectedIndex = 2;
             Dispatcher.UIThread.RunJobs();
             Assert.False(backup.IsEnabled);
             Assert.Equal("This key requires provider interaction.", status.Text);
+            Assert.True(string.IsNullOrEmpty(AutomationProperties.GetHelpText(picker)));
             picker.SelectedIndex = 3;
             Assert.Equal(hasOwner, backup.IsEnabled);
             Assert.Equal("Access and back up selected key…", backup.Content);
