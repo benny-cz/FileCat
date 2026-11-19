@@ -10,12 +10,12 @@ namespace FileCat.App.Views;
 public sealed partial class DiskSpaceWindow
 {
     private Button VolumeCapacityRibbon(Func<ImmutableDictionary<string, AnalysisVolumeCapacity>> samples,
-        Func<ImmutableArray<RootBinding>> roots, Func<UInt128?> fullAllocation)
+        Func<ImmutableArray<RootBinding>> roots, Func<UInt128?> fullAllocation, Func<string> currentAnalysis)
     {
         var button = new Button { Content = new TextBlock { TextWrapping = TextWrapping.Wrap }, IsVisible = false };
         AutomationProperties.SetAutomationId(button, "AnalysisVolumeCapacity");
         AutomationProperties.SetHelpText(button, "Open the observed filesystem capacity, measurement time and scope.");
-        button.Click += async (_, _) => await ShowVolumeCapacityAsync(samples(), roots(), fullAllocation());
+        button.Click += async (_, _) => await ShowVolumeCapacityAsync(samples(), roots(), fullAllocation(), currentAnalysis());
         return button;
     }
 
@@ -34,10 +34,13 @@ public sealed partial class DiskSpaceWindow
     }
 
     private async Task ShowVolumeCapacityAsync(ImmutableDictionary<string, AnalysisVolumeCapacity> samples,
-        ImmutableArray<RootBinding> roots, UInt128? fullAllocation)
+        ImmutableArray<RootBinding> roots, UInt128? fullAllocation, string currentAnalysis)
     {
         if (samples.IsEmpty) return;
         var content = new StackPanel { Spacing = 8 };
+        content.Children.Add(Heading("Current analysis"));
+        content.Children.Add(Paragraph(currentAnalysis));
+        content.Children.Add(Heading(roots.Length == 1 ? "Containing filesystem" : "Containing filesystems"));
         foreach (var root in roots)
         {
             if (!samples.TryGetValue(root.Id, out var sample)) continue;
@@ -45,17 +48,10 @@ public sealed partial class DiskSpaceWindow
                 ? "The source is the filesystem root."
                 : "File totals describe the scanned scope. Capacity describes the containing filesystem.";
             var observed = sample.ObservedUtc.ToLocalTime();
-            content.Children.Add(new TextBlock { Text = AnalysisNames.Display(root.Label, 120), FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap });
-            content.Children.Add(new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Text = scope + "\n" + $"Reported capacity {DiskSpaceViewModel.Bytes(sample.TotalBytes)}\n" +
-                    $"Reported used {DiskSpaceViewModel.Bytes(sample.UsedBytes)}\n" +
-                    $"Reported free {DiskSpaceViewModel.Bytes(sample.FreeBytes)}\n" +
-                    $"Available to you {DiskSpaceViewModel.Bytes(sample.AvailableBytes)}\n" +
-                    $"Measured {observed:g} ({observed:zzz})\n" +
-                    $"Volume ID {AnalysisNames.Display(sample.VolumeIdentity, 120)}"
-            });
+            content.Children.Add(Paragraph(AnalysisNames.Display(root.Label, 120) + "\n" +
+                $"Reported used {DiskSpaceViewModel.Bytes(sample.UsedBytes)}\n" +
+                $"Reported free {DiskSpaceViewModel.Bytes(sample.FreeBytes)} · Available to you {DiskSpaceViewModel.Bytes(sample.AvailableBytes)}\n" +
+                $"Reported capacity {DiskSpaceViewModel.Bytes(sample.TotalBytes)}"));
             if (sample.MayShareCapacity)
                 content.Children.Add(new TextBlock
                 {
@@ -82,9 +78,16 @@ public sealed partial class DiskSpaceWindow
                     Text = "The difference is available in the unfiltered On disk view of one finished whole-volume scan.",
                     TextWrapping = TextWrapping.Wrap
                 });
+            content.Children.Add(Paragraph($"{scope}\nMeasured {observed:g} ({observed:zzz})\nVolume ID {AnalysisNames.Display(sample.VolumeIdentity, 120)}"));
         }
         await _dialogs.ShowCustomAsync("Volume capacity", content, [new DialogButton("Close capacity", true, IsDefault: true, IsCancel: true)]);
+
+        static TextBlock Paragraph(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap };
+        static TextBlock Heading(string text) => new() { Text = text, FontWeight = FontWeight.SemiBold };
     }
+
+    private static string CapacityScope(string label, AnalysisSavedView view) => label +
+        (view.ShowUnknown ? " · uncertain filter results" : !string.IsNullOrWhiteSpace(view.Query) || view.PanelFilter is not null ? " · filtered results" : "");
 
     internal static string VolumeDifference(UInt128 used, UInt128 known)
     {
@@ -99,6 +102,15 @@ public sealed partial class DiskSpaceWindow
 
     private sealed partial class SessionView
     {
+        private string CurrentAnalysisCapacityContext()
+        {
+            if (Model.Tree is not { } tree) return "No measurements yet.";
+            var view = Model.PublishedReportView;
+            string scope = view.Scope == AnalysisTree.RootKey && tree.Snapshot.Roots.Length == 1 &&
+                view.Grouping == AnalysisGroupingDimension.FolderHierarchy ? tree.Snapshot.Roots[0].Label : tree.NameOf(view.Scope);
+            return CapacityScope(AnalysisNames.Display(scope, 120), view) + "\n" + _summary.Text + "\n" + _coverageHeadline.Text;
+        }
+
         private UInt128? FullVolumeAllocation()
         {
             if (Model.IsIndexedRuntimePreview || Model.Tree is not { } tree || !CanShowVolumeDifference(Model.PublishedReportView,
@@ -111,6 +123,16 @@ public sealed partial class DiskSpaceWindow
     {
         private ImmutableDictionary<string, AnalysisVolumeCapacity> CurrentCapacity =>
             _runtimeAcquisition?.RuntimeSession.VolumeCapacities ?? ImmutableDictionary<string, AnalysisVolumeCapacity>.Empty;
+
+        private string CurrentAnalysisCapacityContext()
+        {
+            var view = CapturePublishedView();
+            var descriptor = _source.Descriptor;
+            string scope = _groupPage?.Scope?.Definition.Label ?? _shownPage?.Scope?.Path.Name ??
+                (descriptor.Roots.Length == 1 ? descriptor.Roots[0].Label : "All locations");
+            return CapacityScope(AnalysisNames.Display(scope, 120), view) + "\n" + _summary.Text + "\n" +
+                CoverageHeadline(descriptor.Coverage, descriptor.Freshness);
+        }
 
         private UInt128? FullVolumeAllocation()
         {

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -16,6 +17,48 @@ namespace DiskSpaceHarness;
 
 internal sealed partial class HarnessApp
 {
+    private static Button? FindAnalysisButton(DiskSpaceWindow window, string caption)
+    {
+        var buttons = window.GetVisualDescendants().OfType<Button>();
+        var visible = buttons.SingleOrDefault(button => button.IsEffectivelyVisible && Equals(button.Content, caption));
+        if (visible is not null) return visible;
+        foreach (var trigger in buttons.OfType<ToggleButton>().Where(button => button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions")))
+        {
+            var command = (trigger.Parent as Panel)?.GetVisualDescendants().OfType<Button>()
+                .SingleOrDefault(button => button.IsVisible && Equals(button.Content, caption));
+            if (command is null) continue;
+            trigger.IsChecked = true;
+            return command.IsEffectivelyVisible ? command : null;
+        }
+        return null;
+    }
+
+    private async Task CheckResultControlsAsync(DiskSpaceWindow window, string expectedCoverage)
+    {
+        var trigger = window.GetVisualDescendants().OfType<ToggleButton>().Single(button =>
+            button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions"));
+        var commands = (Panel)trigger.Parent!;
+        var resourceLimits = commands.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Resource limits…"));
+        if (trigger.IsChecked == true || resourceLimits.IsEffectivelyVisible)
+            throw new InvalidOperationException("Secondary commands were displayed by default.");
+        trigger.IsChecked = true;
+        await ReadyAsync(() => resourceLimits.IsEffectivelyVisible && resourceLimits.Bounds.Height > 0);
+        if (!resourceLimits.Focus()) throw new InvalidOperationException("The keyboard could not reach the secondary command.");
+        resourceLimits.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
+        if (trigger.IsChecked == true || !ReferenceEquals(window.FocusManager?.GetFocusedElement(), trigger))
+            throw new InvalidOperationException("Dismissing Analysis actions did not restore keyboard focus.");
+
+        var coverage = FindAnalysisButton(window, "Coverage details") ?? throw new InvalidOperationException("Coverage details is missing.");
+        coverage.BringIntoView();
+        coverage.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => FindAnalysisButton(window, "Close coverage details") is { IsDefault: true, IsCancel: true });
+        if (!window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+            text.Text?.Contains(expectedCoverage, StringComparison.Ordinal) == true))
+            throw new InvalidOperationException("Coverage details did not expose the recorded scan evidence.");
+        FindAnalysisButton(window, "Close coverage details")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await ReadyAsync(() => FindAnalysisButton(window, "Close coverage details") is null);
+    }
+
     private async Task FolderExclusionProbeAsync()
     {
         try
@@ -31,8 +74,7 @@ internal sealed partial class HarnessApp
                     (tier == "portable" && !packageFastNtfsReason.Contains("requires the installed Windows edition", StringComparison.Ordinal)))
                     throw new InvalidOperationException("This package must offer Standard analysis instead of Fast NTFS.");
             }
-            Button? VisibleButton(string caption) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
-                button.IsEffectivelyVisible && button.Content as string == caption);
+            Button? VisibleButton(string caption) => FindAnalysisButton(window, caption);
             void Click(string caption) => (VisibleButton(caption) ?? throw new InvalidOperationException($"Missing button {caption}."))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var windowTransitions = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_WINDOW_TRANSITIONS") == "1"
@@ -121,8 +163,11 @@ internal sealed partial class HarnessApp
             if (!window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Value" &&
                 AutomationProperties.GetName(text) == "Active metric"))
                 throw new InvalidOperationException("The compact table did not keep a complete value heading and its accessible name.");
+            await CheckResultControlsAsync(window, "Traversal boundaries: 1");
             if (VisibleButton("Copy summary") is not { IsEnabled: true })
                 throw new InvalidOperationException("The compact result did not offer its summary as text.");
+            window.GetVisualDescendants().OfType<ToggleButton>().Single(button =>
+                button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions")).IsChecked = false;
             RenderNativeFrame("folder-exclusions-result.png");
             Click("Clear filter");
             await ReadyAsync(() => !model.PanelFilterApplied);
@@ -299,8 +344,9 @@ internal sealed partial class HarnessApp
         ribbon.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await ReadyAsync(() => CloseCapacity() is { IsDefault: true, IsCancel: true });
         var text = window.GetVisualDescendants().OfType<TextBlock>().Where(block => block.IsEffectivelyVisible).Select(block => block.Text);
-        if (!text.Any(value => value?.Contains("Reported free " + DiskSpaceViewModel.Bytes(sample.FreeBytes), StringComparison.Ordinal) == true &&
-                value.Contains("Volume ID " + sample.VolumeIdentity, StringComparison.Ordinal) && value.Contains("scanned scope", StringComparison.Ordinal)) ||
+        if (!text.Contains("Current analysis") || !text.Contains("Containing filesystem") ||
+            !text.Any(value => value?.Contains("Reported free " + DiskSpaceViewModel.Bytes(sample.FreeBytes), StringComparison.Ordinal) == true) ||
+            !text.Any(value => value?.Contains("Volume ID " + sample.VolumeIdentity, StringComparison.Ordinal) == true && value.Contains("scanned scope", StringComparison.Ordinal)) ||
             text.Any(value => value?.Contains("Difference from reported used space", StringComparison.Ordinal) == true))
             throw new InvalidDataException("The volume display changed the held sample or offered a whole-volume difference for a folder.");
         var close = CloseCapacity()!;
@@ -319,8 +365,7 @@ internal sealed partial class HarnessApp
         var model = _models[1];
         ListBox? IndexedList() => window.GetVisualDescendants().OfType<ListBox>().SingleOrDefault(control =>
             control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Indexed analysis entries");
-        Button? VisibleButton(string label) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(button =>
-            button.IsEffectivelyVisible && button.Content as string == label);
+        Button? VisibleButton(string label) => FindAnalysisButton(window, label);
         CheckBox? IndexChoice() => window.GetVisualDescendants().OfType<CheckBox>().SingleOrDefault(control =>
             control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Use a private index for standard analysis");
         await ReadyAsync(() => IndexChoice() is { IsEnabled: true } && VisibleButton("Start analysis") is { IsEnabled: true });
@@ -341,7 +386,8 @@ internal sealed partial class HarnessApp
             throw new IOException("The native standard indexed scan did not finish.");
         await using var lease = await model.AcquireRecordedDatasetAsync(cancellation);
         VisibleButton("Open recorded result")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        await ReadyAsync(() => IndexedList() is { ItemCount: 1 } && VisibleButton("Resource limits…") is { IsEnabled: true });
+        await ReadyAsync(() => IndexedList() is { ItemCount: 1 });
+        await CheckResultControlsAsync(window, "private index of captured metadata");
         await CheckNativeVolumeCapacityAsync(window, model, "folder-exclusions-indexed-capacity.png");
         var limits = VisibleButton("Resource limits…")!;
         limits.BringIntoView();

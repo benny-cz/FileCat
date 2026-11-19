@@ -53,7 +53,7 @@ public sealed partial class AnalysisRenderingTests
             window.Show(); Frame(window); Assert.Equal(1, window.SessionCount);
             Assert.Equal(AnalysisOrigin.ImportedInventory, explorer.Descriptor.Origin);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text?.StartsWith("Imported inventory · offline observations.", StringComparison.Ordinal) == true);
-            Assert.Contains(window.GetVisualDescendants().OfType<Button>(), button => button.IsEffectivelyVisible && button.Content as string == "Import analysis…" && button.IsEnabled);
+            Assert.True(FindAnalysisButton(window, "Import analysis…")!.IsEnabled);
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text?.Contains("Saved as external.fcdsa", StringComparison.Ordinal) == true);
             Assert.Empty(Directory.GetFiles(profile.Services.Paths.AnalysisHistoryDirectory, "*.fcdsa"));
         }

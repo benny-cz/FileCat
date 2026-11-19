@@ -19,7 +19,7 @@ public sealed class AnalysisColorLegend : Expander
     private bool _initialized;
     public AnalysisColorLegend()
     {
-        IsExpanded = true; HorizontalAlignment = HorizontalAlignment.Stretch;
+        HorizontalAlignment = HorizontalAlignment.Stretch;
         AttachedToVisualTree += (_, _) => { ThemeManager.ThemeChanged += Rebuild; Rebuild(); };
         DetachedFromVisualTree += (_, _) => ThemeManager.ThemeChanged -= Rebuild;
     }
@@ -41,8 +41,7 @@ public sealed class AnalysisColorLegend : Expander
         var p = ThemeManager.Current; Color panel = AnalysisChartPalette.Panel(p), text = AnalysisChartPalette.On(panel, Color.Parse(p.Text));
         Background = new SolidColorBrush(panel); Foreground = new SolidColorBrush(text);
         string title = "Colors: " + AnalysisChartColors.Title(_dimension) + (_dimension == AnalysisColorDimension.ModifiedAge ?
-            " · captured " + _observed.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'", CultureInfo.InvariantCulture) :
-            _dimension == AnalysisColorDimension.FileType ? " · rules v" + AnalysisChartColors.RuleVersion : "");
+            " · captured " + _observed.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'", CultureInfo.InvariantCulture) : "");
         Header = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap };
         AutomationProperties.SetName(this, title + ". Expand or collapse the category legend.");
         var entries = new WrapPanel { ItemSpacing = 14, LineSpacing = 6, Margin = new Thickness(4) };

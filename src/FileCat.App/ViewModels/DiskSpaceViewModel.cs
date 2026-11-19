@@ -352,6 +352,37 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     internal const string SharedHierarchyExplanation =
         "When several names refer to one file, the chart counts its measured amount once at their common parent in this analysis. Removing one name can leave the file reachable through its other names.";
 
+    internal static string MetricTitle(AnalysisMetric metric) => metric switch
+    {
+        AnalysisMetric.FileSize => "File size",
+        AnalysisMetric.UniqueFileSize => "Unique file size",
+        AnalysisMetric.OnDisk => "On disk — reported",
+        _ => "Files"
+    };
+
+    internal static string InspectorMeasurements(AnalysisTreeItem item, AnalysisMetric metric)
+    {
+        string value = ValueText(item, metric);
+        bool shared = item.Synthetic && item.Key.StartsWith("shared:", StringComparison.Ordinal);
+        if (shared && value != "Unknown" && metric is AnalysisMetric.OnDisk or AnalysisMetric.UniqueFileSize)
+            value += " counted once here";
+        string fileSize = item.ReferenceLogical is { } references
+            ? $"File size across {references.Files:N0} matching {(references.Files == 1 ? "path" : "paths")}: " +
+                (references.UnknownFiles != 0 && references.KnownBytes == 0 ? "Unknown" :
+                    Bytes(references.KnownBytes) + (references.UnknownFiles == 0 ? "" : " known (partial)"))
+            : "File size: " + LogicalText(item);
+        string coverage = item.IncludedByPolicy && item.Kind == AnalysisKind.Directory && item.NamespaceIncomplete
+            ? item.MetadataState == MeasurementState.Failed && item.Files == 0
+                ? "Folder contents were not read. Its size is unknown.\n"
+                : "Some folder contents were not observed.\n"
+            : "";
+        return $"{coverage}{MetricTitle(metric)}: {value}\n{fileSize}\nFile paths: {FilePathsText(item)}" +
+            (EntryExplanation(item) is { } explanation ? "\n" + explanation : "");
+    }
+
+    internal static string InspectorExactMeasurements(AnalysisTreeItem item, AnalysisMetric metric) =>
+        $"{MetricTitle(metric)}: {ValueText(item, metric, true)}\nFile size: {LogicalText(item, true)}";
+
     public static string? EntryExplanation(AnalysisTreeItem item) => item.Synthetic && item.Key.StartsWith("shared:", StringComparison.Ordinal)
         ? SharedHierarchyExplanation
         : item.IsFilterContext

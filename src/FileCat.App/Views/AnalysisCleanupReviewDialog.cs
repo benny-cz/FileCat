@@ -72,7 +72,8 @@ public sealed partial class DiskSpaceWindow
             var visibility = Text("Checking selection against the displayed scope and filters…", live: true);
             var selectionTotals = Text("Measuring the selected observations…", live: true);
             AutomationProperties.SetName(selectionTotals, "Recorded cleanup selection totals");
-            var list = new ListBox { MinHeight = 120, MaxHeight = 248, ItemTemplate = DialogLayout.WrappingListText };
+            var allocationDetails = Text("");
+            var list = new ListBox { MaxHeight = 248, ItemTemplate = DialogLayout.WrappingListText };
             ScrollViewer.SetHorizontalScrollBarVisibility(list, ScrollBarVisibility.Disabled);
             AutomationProperties.SetName(list, "Cleanup review entries");
             var previous = new Button { Content = "Previous review entries", IsEnabled = false };
@@ -82,20 +83,30 @@ public sealed partial class DiskSpaceWindow
             previous.IsVisible = next.IsVisible = ids.Length > PageSize;
             var details = Text("", live: true);
             AutomationProperties.SetName(details, "Recorded cleanup entry details");
+            var technical = new Expander
+            {
+                Header = "Measurement and entry details",
+                Content = new StackPanel
+                {
+                    Spacing = 6,
+                    Children =
+                    {
+                        Text($"{OriginLabel(origin)} · revision {identity.Revision:N0} · observed {identity.ObservedUtc.ToLocalTime():g}"),
+                        allocationDetails, details
+                    }
+                }
+            };
             var body = new StackPanel
             {
                 Spacing = 8,
                 Children =
                 {
                     Text($"{selection} · {ids.Length:N0} {(ids.Length == 1 ? "path" : "paths")} · 0 included · {ids.Length:N0} kept"),
-                    Text($"{OriginLabel(origin)} · revision {identity.Revision:N0} · observed {identity.ObservedUtc.ToLocalTime():g}"),
-                    visibility, action, availability, selectionTotals,
-                    Text("Expected free-space gain is unknown."),
-                    pageLabel, list, navigation, details
+                    action, availability, selectionTotals, visibility, pageLabel, list, navigation, technical
                 }
             };
             if (coverage != NamespaceCoverage.CompleteUnderPolicy)
-                body.Children.Insert(2, Text("Coverage is partial. The list shows the requested references."));
+                body.Children.Insert(4, Text("Coverage is partial. The list shows the requested references."));
 
             var closer = new DialogCloser();
             using var cancel = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
@@ -112,7 +123,10 @@ public sealed partial class DiskSpaceWindow
             inspect.Click += (_, _) =>
             {
                 if (!readingDetails && !readingPage && list.SelectedItem is Entry { Path: { } path } entry)
+                {
+                    technical.IsExpanded = true;
                     detailWork = InspectAsync(entry, path);
+                }
             };
             list.SelectionChanged += (_, _) =>
             {
@@ -148,7 +162,8 @@ public sealed partial class DiskSpaceWindow
                 string reason = choose ? "Review eligible files and choose which copies to queue. Existing destination files are kept."
                     : choice.Verb == AnalysisVerb.Copy && copyRefusal is not null ? copyRefusal : capabilities.For(choice.Verb).Reason;
                 availability.Text = (offered.Length == 1 ? choice.Label + ". " : "") +
-                    (binding.Length == 0 ? "" : binding + " ") + reason + "\n" + choice.SpaceEffect;
+                    (binding.Length == 0 ? "" : binding + " ") + reason + "\n" + choice.SpaceEffect +
+                    "\nExpected free-space gain is unknown.";
                 confirm.Update(new(choose ? "Choose copy destination…" : choice.Confirmation, HelpText: reason));
             }
 
@@ -259,7 +274,7 @@ public sealed partial class DiskSpaceWindow
                     token.ThrowIfCancellationRequested();
                     if (totals.Identity != identity || totals.Selected != ids.Length)
                         throw new InvalidDataException("Totals belong to a different captured selection.");
-                    selectionTotals.Text = DescribeTotals(totals);
+                    (selectionTotals.Text, allocationDetails.Text) = DescribeTotals(totals);
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested) { }
                 catch (Exception error) when (IndexedExpectedError(error))
@@ -278,9 +293,10 @@ public sealed partial class DiskSpaceWindow
             }
         }
 
-        private static string DescribeTotals(AnalysisCleanupTotals totals)
+        private static (string Summary, string Details) DescribeTotals(AnalysisCleanupTotals totals)
         {
             var lines = new List<string>();
+            var details = new List<string>();
             if (totals.MeasuredFiles > 0)
                 lines.Add($"Recorded file size · {Bytes(totals.LogicalBytes)} across {totals.MeasuredFiles:N0} measured file paths.");
             if (totals.UnknownSizes > 0) lines.Add($"File size unavailable for {totals.UnknownSizes:N0} selected file paths.");
@@ -293,13 +309,16 @@ public sealed partial class DiskSpaceWindow
             {
                 lines.Add($"Reported file allocation by basis · {totals.MeasuredAllocationObjects:N0} distinct verified objects measured.");
                 foreach (var component in totals.Allocation.Take(4))
-                    lines.Add($"{Bytes(component.Bytes)} · {AnalysisNames.Display(component.Component, 64)} · {AnalysisNames.Display(component.Basis, 100)}");
+                {
+                    lines.Add($"{Bytes(component.Bytes)} · {AnalysisNames.Display(component.Component, 64)}");
+                    details.Add($"{Bytes(component.Bytes)} · {AnalysisNames.Display(component.Component, 64)} · {AnalysisNames.Display(component.Basis, 100)}");
+                }
                 if (totals.Allocation.Length > 4) lines.Add($"Showing 4 of {totals.Allocation.Length:N0} component and basis combinations.");
             }
             if (totals.IncompleteAllocationPaths > 0)
                 lines.Add($"Complete, distinct allocation unavailable for {totals.IncompleteAllocationPaths:N0} selected file paths.");
-            if (lines.Count == 0) return "No measured file sizes or allocation in this selection.";
-            return string.Join(Environment.NewLine, lines);
+            return (lines.Count == 0 ? "No measured file sizes or allocation in this selection." : string.Join(Environment.NewLine, lines),
+                string.Join(Environment.NewLine, details));
 
             static string Bytes(System.Numerics.BigInteger value) => value == 1 ? "1 byte" : $"{value:N0} bytes";
         }

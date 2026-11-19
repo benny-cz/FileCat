@@ -78,8 +78,10 @@ public sealed partial class AnalysisRenderingTests
             Frame(window);
             var text = window.GetVisualDescendants().OfType<TextBlock>().Where(block => block.IsEffectivelyVisible).Select(block => block.Text).ToArray();
             Assert.Contains("Volume capacity", text);
+            Assert.Contains("Current analysis", text);
+            Assert.Contains("Containing filesystem", text);
+            Assert.Contains(text, line => line?.Contains("Reported used " + DiskSpaceViewModel.Bytes(sample.UsedBytes), StringComparison.Ordinal) == true);
             Assert.Contains(text, line => line?.Contains("Volume ID " + sample.VolumeIdentity, StringComparison.Ordinal) == true &&
-                line.Contains("Reported used " + DiskSpaceViewModel.Bytes(sample.UsedBytes), StringComparison.Ordinal) &&
                 line.StartsWith("File totals describe the scanned scope. Capacity describes the containing filesystem.", StringComparison.Ordinal));
             Assert.DoesNotContain(text, line => line?.Contains("Difference from reported used space", StringComparison.Ordinal) == true);
             if (sample.MayShareCapacity)

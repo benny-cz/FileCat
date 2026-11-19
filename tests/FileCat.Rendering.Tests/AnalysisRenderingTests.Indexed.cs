@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
@@ -91,7 +92,7 @@ public sealed partial class AnalysisRenderingTests
             await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(text => AutomationLabel(text) == "Captured metadata inspector" && text.Text?.Contains("captured path ID: " + selected.Path.Id, StringComparison.Ordinal) == true)); Frame(window);
             var inspector = window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationLabel(text) == "Captured metadata inspector");
             Assert.Contains("captured path ID: " + selected.Path.Id, inspector.Text); Assert.True(inspector.IsReadOnly);
-            Click(window, "Focus inspector"); Frame(window); Assert.Same(inspector, window.FocusManager?.GetFocusedElement());
+            Click(window, "Inspect selection"); Frame(window); Assert.Same(inspector, window.FocusManager?.GetFocusedElement());
             Click(window, "Previous entries"); await Until(() => explorer.Page!.Children.Offset == 0 && IndexedReady(window, explorer, 1)); Frame(window);
             Assert.Equal(firstIds, list.Items.OfType<AnalysisHierarchyRow>().Select(row => row.Path.Id));
             var folder = list.Items.OfType<AnalysisHierarchyRow>().Single(row => row.Path.Kind == AnalysisKind.Directory);
@@ -168,7 +169,24 @@ public sealed partial class AnalysisRenderingTests
     private static bool IndexedReady(Window window, AnalysisDatasetExplorer explorer, ulong parent) => explorer.Page?.ParentId == parent &&
         window.GetVisualDescendants().OfType<TextBlock>().Any(text => AutomationLabel(text) == "Indexed analysis status" &&
             (text.Text?.StartsWith("Complete under captured policy.", StringComparison.Ordinal) == true || text.Text?.StartsWith("Partial namespace observations;", StringComparison.Ordinal) == true));
-    private static void Click(Window window, string label) => window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible && button.Content as string == label).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    private static Button? FindAnalysisButton(Window window, string label)
+    {
+        var buttons = window.GetVisualDescendants().OfType<Button>();
+        var visible = buttons.SingleOrDefault(button => button.IsEffectivelyVisible && Equals(button.Content, label));
+        if (visible is not null) return visible;
+        foreach (var trigger in buttons.OfType<ToggleButton>().Where(button => button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions")))
+        {
+            var command = (trigger.Parent as Panel)?.GetVisualDescendants().OfType<Button>()
+                .SingleOrDefault(button => button.IsVisible && Equals(button.Content, label));
+            if (command is null) continue;
+            trigger.IsChecked = true;
+            return command.IsEffectivelyVisible ? command : null;
+        }
+        return null;
+    }
+
+    private static void Click(Window window, string label) => (FindAnalysisButton(window, label) ?? throw new InvalidOperationException($"Missing button {label}."))
+        .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
     [AvaloniaFact]
     public async Task IndexedQueryPublicationWaitsForTheCapturedChartGestureToEnd()

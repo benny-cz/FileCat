@@ -68,7 +68,7 @@ public sealed partial class AnalysisRenderingTests
                 () => string.Join(" | ", window.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible).Select(t => t.Text)));
             Assert.Equal(before, File.ReadAllBytes(Path.Combine(profile.Services.Paths.AnalysisSnapshotsDirectory, entry.Name)));
             Assert.Single(Directory.GetFiles(profile.Services.Paths.AnalysisSnapshotsDirectory, "*.fcdsa"));
-            await Until(() => window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.Content as string == "Open saved analysis" && b.IsEnabled));
+            await Until(() => FindAnalysisButton(window, "Open saved analysis")?.IsEnabled == true);
             Click(window, "Open saved analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => AutomationLabel(t) == "Saved inventory filename"));
             Click(window, "Browse saved analyses");
             await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationLabel(control) == "Saved analyses" && control.ItemCount == 1),

@@ -44,7 +44,7 @@ public sealed partial class AnalysisRenderingTests
             await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => t.IsEffectivelyVisible && AutomationLabel(t) == "Inventory filename"));
             Assert.NotEqual(name, IndexedPersistenceControl<TextBox>(window, "Inventory filename").Text);
             Click(window, "Cancel"); Assert.Equal(1, window.SessionCount); source.AssertPayloads();
-            Button? Visible(string label) => window.GetVisualDescendants().OfType<Button>().SingleOrDefault(b => b.IsEffectivelyVisible && Equals(b.Content, label));
+            Button? Visible(string label) => FindAnalysisButton(window, label);
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }

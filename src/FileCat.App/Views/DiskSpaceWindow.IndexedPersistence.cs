@@ -28,23 +28,24 @@ public sealed partial class DiskSpaceWindow
         private CancellationTokenSource? _inventoryCancel;
         private DialogCloser? _inventoryCloser;
         private bool HasInventoryStore => _services is not null && !_services.Io.IsStopped && !_actualWork.HasUnconfirmedClose;
-        private void AddIndexedPersistenceControls(WrapPanel bar)
+        private void AddIndexedPersistenceControls(WrapPanel bar, WrapPanel actions)
         {
             _services?.AnalysisSavedReferences.Track(this);
-            bar.Children.Add(_saveInventory); bar.Children.Add(_openInventory); bar.Children.Add(_compareInventory);
-            bar.Children.Add(_openIndexedComparison); _openIndexedComparison.Click += async (_, _) => await OpenIndexedComparisonSavedAsync();
+            bar.Children.Add(_saveInventory); bar.Children.Add(_compareInventory);
+            actions.Children.Add(_openInventory); actions.Children.Add(_openIndexedComparison);
+            _openIndexedComparison.Click += async (_, _) => await OpenIndexedComparisonSavedAsync();
             ToolTip.SetTip(_openIndexedComparison, new RichTip("Open captured comparison", detail: "Open both complete captured inputs and the applied comparison view from this profile. Recorded locations stay offline."));
             _compareInventory.Click += async (_, _) => await OpenInventoryAsync(comparing: true);
             ToolTip.SetTip(_compareInventory, new RichTip("Compare captured observations", detail: "Choose a saved analysis as Previous. The entire current captured inventory is Current; the display filter does not restrict either input. Recorded paths remain offline."));
-            _importExternal.IsVisible = _services is not null; bar.Children.Add(_importExternal);
+            _importExternal.IsVisible = _services is not null; actions.Children.Add(_importExternal);
             _importExternal.Click += async (_, _) => await ImportExternalAsync();
             ToolTip.SetTip(_importExternal, new RichTip("Import offline observations", detail: "Choose a local .fcdsa inventory or .fcdsc comparison. Imported paths stay offline and cannot grant current-source or file-action authority."));
-            _exportExternal.IsVisible = _services is not null; bar.Children.Add(_exportExternal); _exportExternal.Click += async (_, _) => await ExportExternalAsync();
+            _exportExternal.IsVisible = _services is not null; actions.Children.Add(_exportExternal); _exportExternal.Click += async (_, _) => await ExportExternalAsync();
             ToolTip.SetTip(_exportExternal, new RichTip("Export entire captured inventory", detail: "Choose a folder and unused filename. The sensitivity review explains that filters and chart scope do not reduce the complete inventory."));
-            _exportReport.IsVisible = _services is not null; bar.Children.Add(_exportReport); _exportReport.Click += async (_, _) => await ExportReportAsync();
+            _exportReport.IsVisible = _services is not null; actions.Children.Add(_exportReport); _exportReport.Click += async (_, _) => await ExportReportAsync();
             ToolTip.SetTip(_exportReport, new RichTip("Export a captured report", detail: "Choose Markdown, HTML, spreadsheet-safe CSV or the current PNG/SVG chart, the explicit captured scope, and whether to omit names and locations. Existing destination files are kept."));
             var history = new Button { Content = "History…", IsEnabled = _services is not null };
-            history.Click += async (_, _) => await ShowHistoryAsync(); bar.Children.Add(history);
+            history.Click += async (_, _) => await ShowHistoryAsync(); actions.Children.Add(history);
             _saveInventory.Click += async (_, _) => await SaveInventoryAsync(); _openInventory.Click += async (_, _) => await OpenInventoryAsync();
             ToolTip.SetTip(_saveInventory, new RichTip("Save the whole captured inventory", detail: "Save all recorded paths and metadata without file contents. The display filter does not limit the inventory. Current display settings are retained; marks and the basket are not saved."));
             ToolTip.SetTip(_openInventory, new RichTip("Open captured observations", detail: "Open a named inventory from this FileCat profile. Its recorded locations are not reconnected and it grants no file actions."));

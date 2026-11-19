@@ -15,8 +15,9 @@ internal sealed partial class HarnessApp
         var window = _window!;
         var model = _models.Single();
         var token = _indexedLifetime.Token;
-        Add("Unreadable folder/hidden.bin", 4096);
-        var unreadable = Path.Combine(_fixture, "Unreadable folder");
+        const string unreadableName = "Projects";
+        Add(unreadableName + "/hidden.bin", 4096);
+        var unreadable = Path.Combine(_fixture, unreadableName);
         var permission = File.GetUnixFileMode(unreadable);
         try
         {
@@ -26,15 +27,17 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => model.Tree?.Snapshot.Phase == AnalysisPhase.Finished);
             var tree = model.Tree!;
             var shared = tree.Items.Values.Single(item => item.Synthetic && item.Family == "shared" && item.Members.Length == 2);
-            var gap = tree.Items.Values.Single(item => item.Name == "Unreadable folder");
+            var gap = tree.Items.Values.Single(item => item.Name == unreadableName);
             var original = tree.Snapshot.Nodes.Single(node => node.Name == "large.bin");
             if (tree.Snapshot.Coverage != NamespaceCoverage.Partial || shared.Value == 0 || !gap.Unknown)
                 throw new InvalidDataException("The study needs a nonzero shared charge and a real unreadable group.");
+            await CheckResultControlsAsync(window, "Recorded partial results");
 
             model.Focus(shared.Key);
             await ReadyAsync(() => window.GetVisualDescendants().OfType<TreemapControl>().Any(chart => chart.IsEffectivelyVisible && chart.Bounds.Height > 0));
             await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text =>
-                text.IsEffectivelyVisible && text.Text?.Contains("the chart counts its measured amount once", StringComparison.Ordinal) == true));
+                text.IsEffectivelyVisible && text.Text?.Contains("counted once here", StringComparison.Ordinal) == true &&
+                text.Text.Contains("File size across 2 matching paths", StringComparison.Ordinal)));
             await RecipeFrameAsync("comprehension-treemap.png", true, token);
             var chartMode = window.GetVisualDescendants().OfType<ComboBox>().Single(box => AutomationProperties.GetName(box) == "Chart view");
             chartMode.SelectedIndex = 1;
@@ -44,7 +47,8 @@ internal sealed partial class HarnessApp
             model.Focus(gap.Key);
             if (FindButton("Inspect selection") is { IsEnabled: true }) Click("Inspect selection");
             await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text =>
-                text.IsEffectivelyVisible && text.Text?.Contains("File paths: 0 observed (coverage partial)", StringComparison.Ordinal) == true));
+                text.IsEffectivelyVisible && text.Text?.Contains("File paths: 0 observed (coverage partial)", StringComparison.Ordinal) == true &&
+                text.Text.Contains("Its size is unknown", StringComparison.Ordinal)));
             await RecipeFrameAsync("comprehension-unknown.png", true, token);
             await CheckNativeVolumeCapacityAsync(window, model, "comprehension-capacity.png");
 
