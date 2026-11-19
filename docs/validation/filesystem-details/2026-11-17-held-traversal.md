@@ -83,3 +83,5 @@ The x64 three-case TRX SHA-256 is `154CE164912D8C78FB20285C347DE38968C67C557E7F8
 ### Hard link created after compression preparation
 
 Windows 11 x64 build 26340 allowed the fixture to create a second name while FileCat held the compression-ready handle and the review pin. The final observation returned `multiple-names` and skipped before the compression call. Both names still exposed the same original bytes and neither name showed compression. The focused VM run passed all four identity cases with zero skips. The SHA-256 of `native-storage-alias.trx` is `B2BDD4508DFBF93D0FFD6BA6DCECFD2E0065BF3E75A51124591D8B40F83F0D3E`. The [EFS equivalent](2026-11-17-efs-native-binding.md#new-hard-link-and-alternate-local-path-spellings) uses its own pathname-binding checks.
+
+Native ARM64 reproduced the same result at `080538ad`. Adding the link succeeded at medium integrity, and the held check refused before SET. All 20 ABI and storage job cases passed. The SHA-256 of `native-storage-abi.trx` is `F4C2D2914E2718483119ABBEBDFFF53AB9CE51458B729C299F143FC3D768CD7A`. [Native ARM64 qualification run](https://github.com/benny-cz/FileCat/actions/runs/44605022260)
