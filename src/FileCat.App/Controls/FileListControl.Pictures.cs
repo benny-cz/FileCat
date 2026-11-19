@@ -49,7 +49,7 @@ public sealed partial class FileListControl
             width, PictureTileHeight);
     }
 
-    private void RenderPictureGrid(DrawingContext dc, Rect bounds, bool active)
+    private void RenderPictureGrid(DrawingContext dc, Rect bounds, bool active, bool inCloudRoot)
     {
         var listing = _listing;
         if (listing is null) return;
@@ -130,8 +130,8 @@ public sealed partial class FileListControl
                 {
                     if (Core.FileSystem.EntryPresentation.IsLink(entry, Tab.Location) || IconProvider.IsShortcut(entry))
                         dc.DrawImage(overlays.LinkOverlay, new Rect(imageBox.X + 2, imageBox.Bottom - 18, 16, 16));
-                    if (Core.FileSystem.EntryPresentation.IsWindowsFileSystem(entry, Tab.Location) &&
-                        overlays.CloudOverlay(Core.FileSystem.CloudFiles.Observe((FileAttributes)entry.Attributes, _inCloudRoot).Indicator) is { } cloud)
+                    if (entry.Kind is EntryKind.File or EntryKind.Directory && Core.FileSystem.EntryPresentation.IsWindowsFileSystem(entry, Tab.Location) &&
+                        overlays.CloudOverlay(Core.FileSystem.CloudFiles.StateOf((FileAttributes)entry.Attributes, inCloudRoot)) is { } cloud)
                         dc.DrawImage(cloud, new Rect(imageBox.X + 2, imageBox.Y + 2, 16, 16));
                 }
 

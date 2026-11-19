@@ -16,6 +16,8 @@ public sealed class ReparsePresentationTests
     [InlineData(0x8000001Bu, ReparseKind.AppAlias, false)]
     [InlineData(0x80000017u, ReparseKind.Wof, false)]
     [InlineData(0x9000F01Au, ReparseKind.Cloud, false)]
+    [InlineData(0x80000023u, ReparseKind.Special, false)]
+    [InlineData(0x8000FFFFu, ReparseKind.Unknown, false)]
     [InlineData(0xA000FFFFu, ReparseKind.Unknown, false)]
     public void Taxonomy_preserves_tag_and_does_not_use_surrogate_bit_as_link_policy(uint tag, ReparseKind kind, bool link)
     {

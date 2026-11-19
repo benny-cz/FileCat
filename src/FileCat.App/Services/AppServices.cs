@@ -79,6 +79,7 @@ public sealed class AppServices : IDisposable
         Icons = new IconProvider();
         Platform = PlatformFactory.Create();
         Shell = Platform.Shell;
+        CloudSyncRoots = Shell.CloudSyncRoots;
         Providers = new ProviderRegistry();
         Platform.RegisterProviders(Providers);
         Core.Metadata.BuiltInFields.HiddenDataSource = Platform.HiddenData;
@@ -300,6 +301,7 @@ public sealed class AppServices : IDisposable
     public IconProvider Icons { get; }
     public IPlatform Platform { get; }
     public IShellServices Shell { get; }
+    internal IReadOnlyList<CloudSyncRoot> CloudSyncRoots { get; }
     public ProviderRegistry Providers { get; }
 
     public bool SettingsReadOnly => SettingsStatus is StateLoadStatus.NewerSchemaReadOnly or StateLoadStatus.OversizedReadOnly or StateLoadStatus.UnavailableReadOnly;

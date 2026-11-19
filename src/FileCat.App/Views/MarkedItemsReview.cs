@@ -129,6 +129,7 @@ internal sealed class MarkedItemsReview : Grid, IDisposable
         int count = _listing.CopyMarkedStoreIndices(_cursors[_page], _indices);
         int shown = Math.Min(PageSize, count);
         var items = new ReviewItem[shown];
+        bool inCloudRoot = FileListControl.IsInCloudRoot(_tab);
         for (int i = 0; i < shown; i++)
         {
             int index = _indices[i];
@@ -141,7 +142,7 @@ internal sealed class MarkedItemsReview : Grid, IDisposable
             // Find and working sets can contain identical names from distinct originals. Their
             // standard list-item labels must identify the original without provider resolution.
             if (entry.Tag is ResultTag) label += ", location: " + location;
-            string details = label + FileListControl.ItemWarnings(entry) + Environment.NewLine + "Location: " + location;
+            string details = label + FileListControl.ItemWarnings(entry, _tab.Location, inCloudRoot) + Environment.NewLine + "Location: " + location;
             if (entry.Size >= 0 && !entry.IsContainer) details += Environment.NewLine + "Size: " + Formatters.SizeWithUnit(entry.Size);
             if (entry.Modified > 0) details += Environment.NewLine + "Modified: " + Formatters.Date(entry);
             items[i] = new ReviewItem(index, name, label, details, hidden);

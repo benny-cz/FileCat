@@ -3,8 +3,12 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.ViewModels;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Listing;
+using FileCat.Core.Platform;
 using FileCat.Core.Search;
 using FileCat.Core.Resources;
 
@@ -13,6 +17,21 @@ namespace FileCat.App.Tests;
 public sealed class FileListNamePresentationTests
 {
     private sealed record ProviderDetails(string KindText, string DetailsText) : IDisplayDetails;
+
+    private sealed class CloudRootShell : PortableShellServices
+    {
+        internal IReadOnlyList<CloudSyncRoot> Roots { get; set; } = [];
+        internal int Reads { get; private set; }
+        public override IReadOnlyList<CloudSyncRoot> CloudSyncRoots
+        {
+            get { Reads++; return Roots; }
+        }
+    }
+
+    private sealed class CloudRootPlatform : PortablePlatform
+    {
+        internal CloudRootPlatform(CloudRootShell shell) => Shell = shell;
+    }
 
     private static void Columns(FileListControl list, ColumnSpec[] columns) =>
         typeof(FileListControl).GetField("_columns", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(list, columns);
@@ -98,6 +117,38 @@ public sealed class FileListNamePresentationTests
         Assert.Contains("zero-width space U+200B", fixture.List.DescribeItem(storeIndex));
         fixture.Click(row);
         Assert.Contains("x.iso\\u200B", fixture.Tab.StatusRight);
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Row_descriptions_use_cached_cloud_root_context_in_list_and_picture_modes(bool pictures)
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Windows Cloud Files presentation.");
+        var shell = new CloudRootShell();
+        var previous = PlatformFactory.WindowsFactory;
+        PlatformFactory.WindowsFactory = () => new CloudRootPlatform(shell);
+        try
+        {
+            var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(
+                prepareFiles: folder => shell.Roots = [new("Fixture", folder)]);
+            try
+            {
+                var tab = vm.ActiveTab!;
+                await FileListFixture.Wait(() => tab.Listing.State == ListingState.Complete && tab.Listing.VisibleCount == 3);
+                var list = Assert.Single(window.GetVisualDescendants().OfType<FileListControl>(), view => view.Tab == tab);
+                list.PictureMode = pictures;
+                int index = tab.Listing.FindStoreIndex("a.txt");
+                Assert.True(index >= 0);
+                Assert.Contains("Pin policy: unspecified; local content: not established; synchronization: not inspected",
+                    list.DescribeItem(index));
+                Assert.Equal(EntryKind.Parent, tab.Listing.GetVisible(0).Kind);
+                Assert.DoesNotContain("Pin policy", list.DescribeItem(tab.Listing.GetStoreIndex(0)));
+                Assert.Equal(1, shell.Reads);
+            }
+            finally { AccessibilityTests.Close(services, window, root); }
+        }
+        finally { PlatformFactory.WindowsFactory = previous; }
     }
 
     [Fact]

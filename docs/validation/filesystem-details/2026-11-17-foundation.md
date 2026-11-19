@@ -48,3 +48,9 @@ Continue NTFS WP1–5 ownership, native traversal, atomic call admission, durabl
 The supported [EncryptFileW contract](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-encryptfilew) still takes a path, requires exclusive access and can decompress input. Microsoft's [EFS overview](https://learn.microsoft.com/en-us/windows/win32/fileio/file-encryption) also excludes most TxF operations. No supported replacement for the plan's exact binding/conflict invariant has yet been established in this implementation. This is an unresolved engineering gate, not a claim that successful stress tests prove safety.
 
 Use the isolated guest/Mac checkouts named `FileCat-native-20261117-01a1e6d0`. Guest setup and transfer scripts are task scratch in `.tmp`, not product code. Do not print private keys or remove personal certificates. Native mutation tests belong to deliberately prepared disposable fixtures in these environments.
+
+## Cloud-root presentation in list and picture modes
+
+List rows, picture tiles, focused inspection and accessible descriptions now use the same registered cloud-root snapshot. The root context is available to a freshly opened picture view and updates with the active tab. Presentation distinguishes a managed file from evidence of its current residency and keeps the parent navigation row outside the cloud description. Places uses the same snapshot.
+
+The Windows x64 VM passed all 29 selected file-list, accessibility and marked-item tests, including the two cached-root cases. The simulated Windows shell supplied the root once. No per-row discovery was required. The SHA-256 of `native-cloud-root-qualified-x64.trx` is `F38DD11A2F51FCAA810DF67ECF98B9E9281D3F8ED6C131137A8A264EC99EE2C5`. Apple silicon passed 27 corresponding App cases, with two Windows-only skips, and all 15 cloud and reparse taxonomy cases covering pin hints, observed socket tags and unknown surrogate and non-surrogate tags.

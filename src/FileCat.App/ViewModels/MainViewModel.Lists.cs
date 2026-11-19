@@ -163,7 +163,7 @@ public sealed partial class MainViewModel
         // The cloud providers' folders (OneDrive, Dropbox, iCloud Drive, …) by the names they give them, with the icon
         // their folder carries (OneDrive's is a known folder's; the others name theirs in desktop.ini, which is read only
         // for a folder marked read-only or system, so the folder's real attributes go with it).
-        foreach (var root in Services.Shell.CloudSyncRoots)
+        foreach (var root in Services.CloudSyncRoots)
         {
             FileAttributes attributes;
             try { attributes = File.GetAttributes(root.Path); }

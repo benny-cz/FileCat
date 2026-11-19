@@ -1199,7 +1199,9 @@ public sealed partial class FileListControl : Control
         if (started != 0) RenderTimed?.Invoke(System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated);
     }
 
-    private bool _inCloudRoot;
+    internal static bool IsInCloudRoot(TabViewModel? tab) =>
+        OperatingSystem.IsWindows() && tab is { Location: { IsFileSystem: true } location }
+        && Core.FileSystem.CloudFiles.RootOf(location.Path, tab.Services.CloudSyncRoots) is not null;
 
     private void RenderCore(DrawingContext dc)
     {
@@ -1211,10 +1213,11 @@ public sealed partial class FileListControl : Control
         Tab?.Services.Icons.SetScale(TopLevel.GetTopLevel(this)?.RenderScaling ?? 1);
         var bounds = new Rect(Bounds.Size);
         bool active = IsActivePanel;
+        bool inCloudRoot = IsInCloudRoot(Tab);
         dc.FillRectangle(active ? _bg : _bgInactive, bounds);
         if (PictureMode)
         {
-            RenderPictureGrid(dc, bounds, active);
+            RenderPictureGrid(dc, bounds, active, inCloudRoot);
             return;
         }
         double contentWidth = _horizontalViewport > 0 ? _horizontalViewport : bounds.Width - (_vbar.IsVisible ? _vbar.Bounds.Width : 0);
@@ -1225,9 +1228,6 @@ public sealed partial class FileListControl : Control
         var listing = _listing;
         if (listing is null) return;
         EnsureCacheStore();
-        // In a cloud provider's folder (OneDrive, Dropbox, …) a file with no cloud attribute is on this computer.
-        _inCloudRoot = Tab is { Location: { IsFileSystem: true } here } shown
-            && Core.FileSystem.CloudFiles.RootOf(here.Path, shown.Services.Shell.CloudSyncRoots) is not null;
         int count = listing.VisibleCount;
         using (dc.PushClip(new Rect(0, _headerHeight, contentWidth,
                    Math.Max(0, bounds.Height - _headerHeight - (_hbar.IsVisible ? HorizontalBarHeight : 0)))))
@@ -1243,7 +1243,7 @@ public sealed partial class FileListControl : Control
             for (int row = _topRow; row < Math.Min(count, _topRow + cap); row++)
             {
                 double y = _headerHeight + (row - _topRow) * _rowHeight;
-                RenderRow(dc, listing, row, y, contentWidth, row == focused, active);
+                RenderRow(dc, listing, row, y, contentWidth, row == focused, active, inCloudRoot);
             }
             RenderEmptyState(dc, listing, count, contentWidth, bounds.Height);
         }
@@ -1288,7 +1288,7 @@ public sealed partial class FileListControl : Control
         : IconProvider.Classify(e) == IconKind.Executable ? _exec
         : _text;
 
-    private void RenderRow(DrawingContext dc, ListingModel listing, int row, double y, double width, bool focused, bool active)
+    private void RenderRow(DrawingContext dc, ListingModel listing, int row, double y, double width, bool focused, bool active, bool inCloudRoot)
     {
         var e = listing.GetVisible(row);
         int storeIndex = listing.GetStoreIndex(row);
@@ -1354,9 +1354,9 @@ public sealed partial class FileListControl : Control
                     if (e.Kind == EntryKind.File && Tab is { HasSidecars: true } checking && checking.Verification(e, storeIndex) is { } verified
                         && icons?.VerificationOverlay(verified.State) is { } verifiedOverlay)
                         dc.DrawImage(verifiedOverlay, iconRect);
-                    // A cloud provider's file: only in the cloud, on this computer, or kept here always (from its attributes).
                     if (e.Kind is EntryKind.File or EntryKind.Directory
-                        && icons?.CloudOverlay(Core.FileSystem.CloudFiles.StateOf((FileAttributes)e.Attributes, _inCloudRoot)) is { } cloudOverlay)
+                        && Core.FileSystem.EntryPresentation.IsWindowsFileSystem(e, Tab?.Location)
+                        && icons?.CloudOverlay(Core.FileSystem.CloudFiles.StateOf((FileAttributes)e.Attributes, inCloudRoot)) is { } cloudOverlay)
                         dc.DrawImage(cloudOverlay, iconRect);
                 }
                 textX = iconX + IconSize + 4;
@@ -1924,7 +1924,7 @@ public sealed partial class FileListControl : Control
         if (Core.FileSystem.EntryPresentation.IsWindowsFileSystem(entry, Tab?.Location))
         {
             if (entry.NativeReparseTag != 0) report.Append("Observed reparse tag: 0x").AppendLine(entry.NativeReparseTag.ToString("X8"));
-            if (Core.FileSystem.CloudFiles.Observe((FileAttributes)entry.Attributes, _inCloudRoot) is { Indicator: not Core.FileSystem.CloudState.None } cloud)
+            if (Core.FileSystem.CloudFiles.Observe((FileAttributes)entry.Attributes, IsInCloudRoot(Tab)) is { Indicator: not Core.FileSystem.CloudState.None } cloud)
                 report.AppendLine(cloud.Description);
         }
         report.AppendLine("File-system details: Not inspected; this view uses cached listing facts.");
@@ -2274,7 +2274,7 @@ public sealed partial class FileListControl : Control
         return location;
     }
 
-    internal static string ItemWarnings(in EntryData e, Core.Resources.Location? location = null)
+    internal static string ItemWarnings(in EntryData e, Core.Resources.Location? location = null, bool inCloudRoot = false)
     {
         string details = string.Empty;
         if (Formatters.DescribeHiddenNameCharacters(e.Name) is { } hidden) details += ", " + hidden;
@@ -2283,8 +2283,8 @@ public sealed partial class FileListControl : Control
         if (e.Has(EntryFlags.Protected)) details += ", protected content";
         if (Core.FileSystem.EntryPresentation.Kind(e, location) is { Length: > 0 } kind && e.Tag is not IDisplayDetails)
             details += ", " + kind;
-        if (Core.FileSystem.EntryPresentation.IsWindowsFileSystem(e, location) &&
-            Core.FileSystem.CloudFiles.Observe((FileAttributes)e.Attributes, false) is { Indicator: not Core.FileSystem.CloudState.None } cloud)
+        if (e.Kind is EntryKind.File or EntryKind.Directory && Core.FileSystem.EntryPresentation.IsWindowsFileSystem(e, location) &&
+            Core.FileSystem.CloudFiles.Observe((FileAttributes)e.Attributes, inCloudRoot) is { Indicator: not Core.FileSystem.CloudState.None } cloud)
             details += ", " + cloud.Description;
         if (e.Tag is IDisplayDetails display && display.DetailsText.Length > 0) details += ", " + Formatters.SafeName(display.DetailsText);
         return details;
@@ -2313,7 +2313,7 @@ public sealed partial class FileListControl : Control
         var marked = e.Kind == EntryKind.Parent ? string.Empty : listing.IsMarked(storeIndex) ? ", marked" : ", not marked";
         var git = GitStatusLabel(_gitStatuses?.ForName(e.Name) ?? GitStatusKind.None) is { } gitLabel
             ? ", " + gitLabel : string.Empty;
-        details += ItemWarnings(e, Tab?.Location);
+        details += ItemWarnings(e, Tab?.Location, IsInCloudRoot(Tab));
         if (Tab is { } owner && e.Tag is ResultTag) details += ", location: " + ItemLocation(owner, e);
         // Inspection may only read cached verification; asking an offscreen peer must not start file reads.
         if (Tab is { HasSidecars: true, Location.IsFileSystem: true } tab && e.Kind == EntryKind.File &&
