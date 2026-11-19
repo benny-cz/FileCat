@@ -4,6 +4,7 @@ param(
     [switch]$HighContrastPictures,
     [switch]$VerifyDuplicateRoots,
     [switch]$VerifyOperationsRecovery,
+    [switch]$VerifyAlreadySatisfied,
     [switch]$VerifyCanceledKeyBackup,
     [switch]$VerifyCompletedKeyBackup,
     [switch]$VerifySelectedFileBackup
@@ -11,7 +12,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if (@($VerifyCanceledKeyBackup, $VerifyCompletedKeyBackup, $VerifySelectedFileBackup, $VerifyDuplicateRoots,
-    $VerifyOperationsRecovery).Where({ $_.IsPresent }).Count -gt 1) {
+    $VerifyOperationsRecovery, $VerifyAlreadySatisfied).Where({ $_.IsPresent }).Count -gt 1) {
     throw 'Choose one of the optional fixture modes.'
 }
 $testRoot = [IO.Path]::GetFullPath($TestRoot)
@@ -184,6 +185,18 @@ public static class StorageReviewInput {
             Key @(0x09)
         }
         throw "Keyboard focus did not reach $name."
+    }
+    function Complete-AlreadySatisfied([string]$button, [string]$action) {
+        $record.Stage = "$action already-satisfied result"
+        Tab-To $button 'Button'
+        [void](Take-Speech)
+        Key @(0x0D)
+        $result = Await {
+            Find-Control "*$action*0 changed, 1 already satisfied, 0 skipped, 0 failed, 0 uncertain, 0 not processed*"
+        } "the completed $action result"
+        if ($result.Current.IsOffscreen) { throw "$action has no visible completed result." }
+        $record.AlreadySatisfied[$action] = $result.Current.Name
+        Snapshot $record.Stage
     }
     function Verify-OriginalLocations([string]$reviewName) {
         $record.Stage = "$reviewName original locations"
@@ -505,6 +518,7 @@ public static class StorageReviewInput {
     $record.HighContrastPictures = [bool]$HighContrastPictures
     $record.VerifyDuplicateRoots = [bool]$VerifyDuplicateRoots
     $record.VerifyOperationsRecovery = [bool]$VerifyOperationsRecovery
+    if ($VerifyAlreadySatisfied) { $record.AlreadySatisfied = @{} }
     [IO.File]::WriteAllText((Join-Path $nvdaConfig 'nvda.ini'), "[general]`r`nshowWelcomeDialogAtStartup = False`r`n[update]`r`nautoCheck = False`r`nstartupNotification = False`r`nallowUsageStats = False`r`naskedAllowUsageStats = True`r`n")
     $file = Join-Path $left 'alpha-review.txt'
     [IO.File]::WriteAllText($file, ('FileCat storage review fixture. ' * 512))
@@ -531,9 +545,11 @@ public static class StorageReviewInput {
         $expectedFileRows = 2
         $record.ReviewedOriginals = @{}
     }
-    if ($VerifyCompletedKeyBackup -or $VerifySelectedFileBackup) {
+    if ($VerifyCompletedKeyBackup -or $VerifySelectedFileBackup -or $VerifyAlreadySatisfied) {
         $streamText = 'FileCat alternate stream for the EFS fixture.'
         Set-Content -LiteralPath $file -Stream 'proof' -Value $streamText -NoNewline -Encoding ASCII
+    }
+    if ($VerifyCompletedKeyBackup -or $VerifySelectedFileBackup) {
         $backupPath = Join-Path $fixture 'fixture-key.pfx'
     }
     if ($VerifySelectedFileBackup) { [IO.File]::Encrypt($file) }
@@ -713,10 +729,13 @@ public static class StorageReviewInput {
     else {
         Approve-Decryption
         if ($VerifyDuplicateRoots) { Verify-OriginalLocations 'EFS' }
-        [void](Take-Speech)
-        Key @(0x1B)
-        Await { !(Find-Control '*Windows file encryption (EFS)*') } 'EFS review dismissal' | Out-Null
-        Hear 'focus after dismissal' 'alpha-review\.txt'
+        if ($VerifyAlreadySatisfied) { Complete-AlreadySatisfied 'Decrypt' 'Decrypt EFS' }
+        else {
+            [void](Take-Speech)
+            Key @(0x1B)
+            Await { !(Find-Control '*Windows file encryption (EFS)*') } 'EFS review dismissal' | Out-Null
+            Hear 'focus after dismissal' 'alpha-review\.txt'
+        }
         $record.Stage = 'open compression review'
         Show-Command 'NTFS compression' 'NTFS compression*'
         Hear 'compression review' 'NTFS compression'
@@ -730,10 +749,13 @@ public static class StorageReviewInput {
         Require-Footer 'Remove compression' $true
         Snapshot 'compression review'
         if ($VerifyDuplicateRoots) { Verify-OriginalLocations 'Compression' }
-        [void](Take-Speech)
-        Key @(0x1B)
-        Await { !(Find-Control 'NTFS compression*') } 'compression review dismissal' | Out-Null
-        Hear 'focus after compression dismissal' 'alpha-review\.txt'
+        if ($VerifyAlreadySatisfied) { Complete-AlreadySatisfied 'Remove compression' 'Remove compression' }
+        else {
+            [void](Take-Speech)
+            Key @(0x1B)
+            Await { !(Find-Control 'NTFS compression*') } 'compression review dismissal' | Out-Null
+            Hear 'focus after compression dismissal' 'alpha-review\.txt'
+        }
     }
     if ((Get-FileHash -LiteralPath $file).Hash -ne $initialHash -or
         ((Get-Item -LiteralPath $file).Attributes -band ([IO.FileAttributes]::Encrypted -bor [IO.FileAttributes]::Compressed))) {
@@ -746,6 +768,9 @@ public static class StorageReviewInput {
     if ($VerifyCompletedKeyBackup) {
         if ((Get-Content -LiteralPath $file -Stream 'proof' -Raw) -cne $streamText) { throw 'Decryption changed the alternate stream bytes.' }
         $record.DecryptedStreamsVerified = $true
+    }
+    if ($VerifyAlreadySatisfied -and (Get-Content -LiteralPath $file -Stream 'proof' -Raw) -cne $streamText) {
+        throw 'The already-satisfied operation changed the alternate stream bytes.'
     }
     $record.Stage = 'complete'
     $record.Passed = $true
