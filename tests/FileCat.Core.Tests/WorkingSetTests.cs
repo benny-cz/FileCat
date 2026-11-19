@@ -13,11 +13,11 @@ public sealed class WorkingSetTests : IDisposable
 
     private string StateFile => Path.Combine(_dir.Path, "state", "working-sets.json");
 
-    private (ResultSetProvider Provider, WorkingSets Sets) Open()
+    private (ResultSetProvider Provider, WorkingSets Sets) Open(IFileSystemOperations? files = null)
     {
         var providers = new ProviderRegistry();
         providers.Register(new LocalFileSystemProvider());
-        var provider = new ResultSetProvider(providers, new PortableFileOperations());
+        var provider = new ResultSetProvider(providers, files ?? new PortableFileOperations());
         providers.Register(provider);
         return (provider, new WorkingSets(StateFile, provider));
     }
@@ -100,6 +100,71 @@ public sealed class WorkingSetTests : IDisposable
         Assert.Equal("report-final.txt", entry.Name);
         Assert.False(entry.Flags.HasFlag(EntryFlags.Unavailable));
         sets.Dispose();
+    }
+
+    [Fact]
+    public async Task A_captured_reparse_tag_remains_a_session_hint_while_the_observed_metadata_agrees()
+    {
+        StateWriteTestAuthority.RequireOrdinaryProcess();
+        string source = Path.Join(_dir.Path, "link");
+        var time = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var observed = new FileSystemItemInfo(source, false, true, 12, time, time, FileAttributes.ReparsePoint);
+        var files = new ObservedFiles(observed);
+        var (provider, sets) = Open(files);
+        using (sets)
+        {
+            var original = new EntryData("link", EntryKind.File, 12, time.Ticks)
+            {
+                Attributes = (uint)FileAttributes.ReparsePoint,
+                NativeReparseTag = ReparseLinks.SymbolicLinkTag,
+            };
+            var result = provider.Create("Matches", "Fixture");
+            result.Add(ItemRef.FromEntry(Location.FileSystem(_dir.Path), original), "folder");
+            var resultLocation = ResultSetProvider.LocationOf(result);
+            var resultEntry = Assert.Single(await List(provider, resultLocation));
+            var provenance = Assert.IsType<ResultTag>(resultEntry.Tag);
+            Assert.Equal("folder", provenance.RelativeFolder);
+            var captured = provider.GetItemRef(resultLocation, resultEntry);
+            Assert.Equal(ReparseLinks.SymbolicLinkTag, captured.NativeReparseTag);
+            Assert.Equal(1, files.Reads);
+
+            var set = sets.Create("Links");
+            Assert.Equal(1, sets.Add(set, [captured]));
+            var location = ResultSetProvider.LocationOf(set);
+            Assert.Equal(ReparseLinks.SymbolicLinkTag, Assert.Single(await List(provider, location)).NativeReparseTag);
+            Assert.Equal(2, files.Reads);
+
+            files.Current = observed with { ModifiedUtc = time.AddSeconds(1) };
+            Assert.Equal(0u, Assert.Single(await List(provider, location)).NativeReparseTag);
+            files.Current = observed with { Attributes = FileAttributes.Normal, IsLink = false };
+            Assert.Equal(0u, Assert.Single(await List(provider, location)).NativeReparseTag);
+            files.Current = null;
+            var missing = Assert.Single(await List(provider, location));
+            Assert.Equal(0u, missing.NativeReparseTag);
+            Assert.Equal(EntryFlags.Unavailable, missing.Flags);
+        }
+
+        files.Current = observed;
+        (provider, sets) = Open(files);
+        using (sets)
+        {
+            var location = ResultSetProvider.LocationOf(Assert.Single(sets.All));
+            Assert.Equal(0u, Assert.Single(await List(provider, location)).NativeReparseTag);
+        }
+    }
+
+    private sealed class ObservedFiles(FileSystemItemInfo observed) : PortableFileOperations
+    {
+        private readonly string _path = observed.Path;
+        public FileSystemItemInfo? Current { get; set; } = observed;
+        public int Reads { get; private set; }
+
+        public override FileSystemItemInfo? TryGetInfo(string path)
+        {
+            Assert.Equal(_path, path);
+            Reads++;
+            return Current;
+        }
     }
 
     [Fact]

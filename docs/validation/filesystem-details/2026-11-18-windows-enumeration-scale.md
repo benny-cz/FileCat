@@ -40,3 +40,13 @@ Windows 11 Enterprise build 26200 on the hosted native ARM64 runner measured man
 | 1,000,000 | 378.75 ms | 393.92 ms | +4.0% |
 
 The first managed and native passes took 17.56 and 11.18 ms at 10,000 entries and 458.45 and 406.76 ms at one million. Every pass ended with the same process handle count it started with. At one million entries, warm managed and native allocations were approximately 48.03 MB per pass. The highest process working set in the one-million-entry test was 53,817,344 bytes. Both exact test cases executed and passed. The source commit was `11822f0ecd37303007b6cb7c1ba7809f2baa40b9` and the Windows platform test assembly SHA-256 was `EED3DAA7AD27D09AFB3D3C7E5ECD5109B6ACAF55588F96C430CBA13077942A6C`. Independent ARM64 cold-cache measurements remain open.
+
+## Unsupported API and partial failures
+
+Eight deterministic tests on the Ubuntu VM supplied Windows enumeration statuses at the find API boundary and drove the actual listing implementation. Initial errors 50 and 87 tried the same native API without large-fetch. A successful retry retained the native tag. When open remained unsupported, the managed provider returned the sole file in the fixture with an unknown tag. Initial error 120 went directly to the managed provider. Each invalid cursor was closed.
+
+The same three unsupported statuses from FindNext after 515 native records each published exactly two batches of 512 and 3 entries, returned the error and released the cursor. No managed entries appeared. These checks used injected statuses. The Windows native parity and throughput measurements above exercised real NTFS.
+
+## Reparse tag hints in results and working sets
+
+A captured tag follows an in-memory result reference through the result provider and into a working set while its existing metadata refresh agrees on attributes, kind, size and modification time. The tag remains a presentation hint. The refresh uses its existing read, and refreshed metadata disagreements or an unavailable original yield an unknown tag. The result retains its original provider provenance. Reopening the working set from its saved references also yields an unknown tag. The Ubuntu result, working-set and reparse regression suite covered the session round trip, disappearance, metadata changes and reopen.

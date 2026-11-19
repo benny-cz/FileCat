@@ -168,7 +168,10 @@ public sealed class WorkingSets : IDisposable
     /// </summary>
     public int Add(ResultSet set, IEnumerable<ItemRef> items) =>
         set.AddRange(items.Where(i => i.Parent.Scheme != Schemes.ResultSet && i.Kind != EntryKind.Parent)
-            .Select(i => (new ItemRef(i.Parent, i.Name, i.Kind, i.Size, i.Modified) { Ordinal = i.Ordinal, Flags = i.Flags }, string.Empty)), MaxMembers);
+            .Select(i => (new ItemRef(i.Parent, i.Name, i.Kind, i.Size, i.Modified)
+            {
+                Ordinal = i.Ordinal, Flags = i.Flags, NativeAttributes = i.NativeAttributes, NativeReparseTag = i.NativeReparseTag,
+            }, string.Empty)), MaxMembers);
 
     private void Attach(ResultSet set)
     {

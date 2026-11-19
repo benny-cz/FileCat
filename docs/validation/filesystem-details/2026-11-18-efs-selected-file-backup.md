@@ -11,3 +11,13 @@ The isolated two-certificate fixture changed the disposable VM account's default
 The qualified candidate exposes **EFS protection…** and **Back up EFS key…** in File → Inspect and command search. Both commands are hidden when their adapters are unavailable. The key dialog starts with no certificate selected, lists the captured original locations, and leaves an unavailable key or window owner ineligible for backup. Its result identifies only the selected items that matched the exported certificate at the time of the recheck. In the Windows 11 VM, the app's headless tests drove both commands against an actual encrypted file, exercised the key dialog's multiple-choice and per-file result controls, and ran the related existing storage and command-search regressions. The suite passed 69 tests. See `.tmp/filecat-efs-selected-backup-app-tests.xml`.
 
 The existing setup workflow's parented Windows wizard was qualified separately. The selected-file wizard completion and native keyboard and screen-reader flows still require an interactive qualification session. The released adapter remains gated.
+
+## Native ARM64 review and default-key changes
+
+The Windows 11 Enterprise ARM64 runner (build 26200, 4 KiB NTFS) used an isolated, medium-integrity account with a loaded profile. After the first-use and independent restore fixtures finished, it set real EFS defaults under the disposable owner account and exercised three separate cases. [Native ARM64 run and XML receipts](https://github.com/benny-cz/FileCat/actions/runs/44509919224)
+
+- `multiple-keys.xml` verified that two encrypted files with distinct real certificate associations each retained their original bytes and received an independent matched backup choice.
+- `key-change-after-intent.xml` changed the actual default after setup, confirmed that the current file had been encrypted, and required review when the observed association differed from the reviewed key.
+- `key-change-stops-job.xml` verified that the selected job stopped at that first file, kept its exact reviewed and observed key evidence, and left the second file clear.
+
+Each case passed once with zero skips. First use, refusal without an EFS key and decryption after independent PFX restore also passed in the same run. The source was `eba7d530fa0d483b929384b134a4ad31bee80b2c`. The Windows test assembly SHA-256 was `FEE4DCCFF0852FABCCBFF04F08027FF5378E0C5F3464B5B435DB01404B779252`.

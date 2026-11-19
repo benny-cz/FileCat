@@ -11,10 +11,11 @@ namespace FileCat.Platform.Windows;
 internal sealed unsafe partial class WindowsStorageReviewEvidence
 {
     private static StorageEvidenceExport CreateBoundExport(StorageEvidenceEnvelope envelope, string forbiddenDirectory,
-        string owner, string destination, CancellationToken ct)
+        string owner, string destination, CancellationToken ct, bool qualifyNativeArm64)
     {
         ct.ThrowIfCancellationRequested();
-        if (OrdinaryOwner(envelope.Claim) != owner) throw new UnauthorizedAccessException("The export's invoking identity changed.");
+        if (OrdinaryOwner(envelope.Claim, qualifyNativeArm64) != owner)
+            throw new UnauthorizedAccessException("The export's invoking identity changed.");
         if (!StoragePaths.IsOrdinaryLocalPath(destination)) throw new IOException("Choose an ordinary local output file without stream syntax.");
         string full = Path.GetFullPath(destination), leaf = Path.GetFileName(full); Leaf(leaf);
         string parent = Path.GetDirectoryName(full) ?? throw new IOException("Choose an output folder.");

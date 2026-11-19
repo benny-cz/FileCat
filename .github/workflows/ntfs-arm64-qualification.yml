@@ -177,9 +177,10 @@ jobs:
               'Held_history_cursor_streams_multiple_batches_and_binds_every_entry_to_native_identity'
               'Live_private_writer_keeps_its_prior_durable_prefix_readable_during_a_blocked_later_flush'
               'Near_full_private_journals_preserve_review_and_release_space_only_after_acknowledgment'
+              'Bound_export_publishes_exact_bytes_for_live_prefix_and_inactive_raw_review'
             ) | ForEach-Object { "FullyQualifiedName~$_" }
             $outputSuites += @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-storage-evidence-limits.trx';
-                Count = '4'; Filter = $evidenceFilter -join '|' }
+                Count = '6'; Filter = $evidenceFilter -join '|' }
           }
           if ($env:FILECAT_QUALIFY_ARCHIVES -eq 'true') {
             $archiveFilter = @(
