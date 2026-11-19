@@ -29,3 +29,14 @@ The Windows 11 x64 VM at medium integrity on 4 KiB NTFS compared 1,302 entries a
 All 16 selected listing, metadata and supplementary-value cases passed without skips. The test bundle SHA-256 was `F3D1E340D069EE16C93A8A31FE0306FBCE4E4C4FB4E1BCD3ACF3D3D92E5E5FBB`. The control and passing XML are `native-details-013c81c9-control.xml` and `native-details-013c81c9-final.xml` under `.tmp/filecat-arm64-efs-copy-3adf9280-r1/`.
 
 The [native ARM64 run](https://github.com/benny-cz/FileCat/actions/runs/44494062330) passed the same 16 cases without skips on Windows 11 Enterprise build 26200, medium integrity and 4 KiB NTFS. It covered native and managed listing parity, terminal and midstream cancellation, empty/missing directories, long Unicode paths and link tags, held hard-link and allocation details, and the selected-value protection checks. `native-file-details.trx` identifies each case. The source commit was `146c1cd906594f1e2aed35f45857b6772981eb93` and the test assembly SHA-256 was `79C1C928533E8E9293A14E4B988A549228A1D96FE2501FC40BCAD8ABCBF5E296`. The scale timings above were measured on x64.
+
+## Native ARM64 listing performance
+
+Windows 11 Enterprise build 26200 on the hosted native ARM64 runner measured managed and native enumeration at medium integrity on fixed 4 KiB NTFS. The fixture wrote 10,000 and 1,000,000 empty ordinary files with identical name lengths. Every pass returned exactly the expected count. Each size ran in a separate test process and used four alternating warm pairs after its first pair. The first pair followed fixture creation on the same runner. [Benchmark run and TRX results](https://github.com/benny-cz/FileCat/actions/runs/44508217990)
+
+| Entries | Managed warm median | Native warm median | Native timing difference |
+| ---: | ---: | ---: | ---: |
+| 10,000 | 4.93 ms | 4.17 ms | −15.4% |
+| 1,000,000 | 378.75 ms | 393.92 ms | +4.0% |
+
+The first managed and native passes took 17.56 and 11.18 ms at 10,000 entries and 458.45 and 406.76 ms at one million. Every pass ended with the same process handle count it started with. At one million entries, warm managed and native allocations were approximately 48.03 MB per pass. The highest process working set in the one-million-entry test was 53,817,344 bytes. Both exact test cases executed and passed. The source commit was `11822f0ecd37303007b6cb7c1ba7809f2baa40b9` and the Windows platform test assembly SHA-256 was `EED3DAA7AD27D09AFB3D3C7E5ECD5109B6ACAF55588F96C430CBA13077942A6C`. Independent ARM64 cold-cache measurements remain open.

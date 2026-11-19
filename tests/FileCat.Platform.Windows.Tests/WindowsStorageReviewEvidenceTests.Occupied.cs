@@ -12,7 +12,7 @@ public sealed partial class WindowsStorageReviewEvidenceTests
     [Fact]
     public void Near_full_private_journals_preserve_review_and_release_space_only_after_acknowledgment()
     {
-        RequireNormalWindows();
+        var (createFile, backend) = QualifyNativeEvidence();
         Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_SCALE") == "1",
             "Requires the disposable normal-user Windows NTFS storage scale fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-occupied-evidence-").FullName;
@@ -25,12 +25,11 @@ public sealed partial class WindowsStorageReviewEvidenceTests
             string directory = Directory.CreateDirectory(Path.Join(root, "journals")).FullName;
             var timer = Stopwatch.StartNew();
             DateTime created = DateTime.UtcNow;
-            var occupied = Enumerable.Range(0, 4).Select(i => SeedOccupiedHistory(directory, created.AddSeconds(i))).ToArray();
+            var occupied = Enumerable.Range(0, 4).Select(i => SeedOccupiedHistory(directory, created.AddSeconds(i), createFile)).ToArray();
             double preparationMs = timer.Elapsed.TotalMilliseconds;
             long expectedBytes = occupied.Sum(fixture => fixture.Prefix.ByteLength);
-            var backend = WindowsStorageReviewEvidence.Backend;
             var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), directory, ArchiveJobBackends.Empty,
-                new NoStorageTransforms(), WindowsStorageReviewEvidence.CreateJournal, backend);
+                new NoStorageTransforms(), createFile, backend);
 
             timer.Restart();
             var headerPage = manager.ReadStorageHistoryPage(ct: Stop);
@@ -116,7 +115,8 @@ public sealed partial class WindowsStorageReviewEvidenceTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    private static (string Leaf, StorageJournalPrefix Prefix, long PendingCall) SeedOccupiedHistory(string directory, DateTime created)
+    private static (string Leaf, StorageJournalPrefix Prefix, long PendingCall) SeedOccupiedHistory(string directory, DateTime created,
+        Func<string, string, CancellationToken, StorageJournalFile> createFile)
     {
         const string root = @"C:\storage-fixture";
         const long targetBytes = StorageJournalPolicy.JournalBytes - 3 * 1024 * 1024;
@@ -126,7 +126,7 @@ public sealed partial class WindowsStorageReviewEvidenceTests
         Guid job = Guid.NewGuid();
         string leaf = StorageJournalPolicy.FileName(created, job);
         using var native = StorageReviewResources.EnterNative(Stop);
-        using var file = WindowsStorageReviewEvidence.CreateJournal(directory, leaf, Stop);
+        using var file = createFile(directory, leaf, Stop);
         var header = new StorageJournalHeader(job, created, StorageAction.Compress, StorageScope.ExistingDescendants, Guid.NewGuid(),
             [new(0, 0, root, rootObservation)]);
         // This is existing history for startup and retention. All simulated calls settle without a native effect
