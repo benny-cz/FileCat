@@ -33,3 +33,9 @@ The [corrected ARM64 run](https://github.com/benny-cz/FileCat/actions/runs/44465
 ### ARM64 directory inheritance and same-volume moves
 
 The [completed `main` CI run](https://github.com/benny-cz/FileCat/actions/runs/44462079524) retained an executed pass for `WindowsCompressionNativeTests.Folder_default_only_changes_new_entries_and_same_volume_moves_keep_their_state` in `test-results-windows-arm64` under `platform-results.trx`. The build provenance records clean commit `2f7afdd71f4585e990739fef6a7d545d2eb5a0cd`, Windows 11 build 26200, the native `win-arm64` runtime identifier and SDK 10.0.101. The job runs the platform suite at medium integrity. On the runner's NTFS fixture, an existing file stayed clear, newly created children inherited the compressed default, same-volume moves preserved both clear and compressed formats and contents, and removal affected later creation while leaving the existing child default intact.
+
+### ARM64 refusal on 64 KiB and read-only NTFS
+
+The native ARM64 runner at `84e342f2` created two owned NTFS VHDX files. The controller verified one writable volume with 65,536-byte allocation units and one read-only volume with 4,096-byte units. At medium integrity, FileCat refused both Compress and Remove compression with `allocation-unit` on the first volume and `read-only-volume` on the second. The fixture file hashes matched before and after review. The controller detached and removed both images.
+
+Both selected cases passed. Four other filesystem or network fixtures were absent from this run. The SHA-256 of `native-storage-volume-admission.trx` is `58EAD32A4ACDD78944A7049CD087DFBF6D59E4D29F45F21A9E349953CB4D86B5`. The SHA-256 of `volume-admission.json` is `D0C010195F0DC8BF6D1DC2871802F57A89E85EB146161EA6DCFA883E525B1304`. [Native ARM64 volume qualification](https://github.com/benny-cz/FileCat/actions/runs/44611963742)

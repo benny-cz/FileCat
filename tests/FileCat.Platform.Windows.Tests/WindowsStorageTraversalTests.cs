@@ -341,6 +341,47 @@ public sealed partial class WindowsStorageTraversalTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void System_attribute_changes_after_preparation_are_applied_to_the_selected_object_policy(bool markAncestor)
+    {
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows client NTFS fixture.");
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateTempSubdirectory("filecat-storage-late-system-").FullName;
+        string path = Path.Join(root, "selected");
+        string marked = markAncestor ? root : path;
+        try
+        {
+            File.WriteAllText(path, "held data");
+            const StorageAction action = StorageAction.Compress;
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
+            var selected = Review(adapter, path, EntryKind.File, action);
+            using var review = selected.Review;
+            using var owner = selected.Owner;
+            using var native = StorageReviewResources.EnterNative(ct);
+            using (var traversal = adapter.OpenReviewedRoot(owner.Leases[0], action, ct))
+            {
+                Assert.Null(traversal.Root.PrepareMutation(action, ct).Ineligible);
+                File.SetAttributes(marked, File.GetAttributes(marked) | FileAttributes.System);
+                var mutation = traversal.Root.ApplyAdmitted(action);
+                Assert.Equal(markAncestor, mutation.NativeCallAttempted);
+                Assert.Equal(markAncestor ? StorageEffect.Changed : StorageEffect.Skipped, mutation.Effect);
+                Assert.Equal(markAncestor ? null : "system-entry", mutation.Problem?.Code);
+            }
+            Assert.Equal(markAncestor, File.GetAttributes(path).HasFlag(FileAttributes.Compressed));
+            Assert.True(File.GetAttributes(marked).HasFlag(FileAttributes.System));
+            Assert.Equal("held data", File.ReadAllText(path));
+        }
+        finally
+        {
+            if (File.Exists(marked) || Directory.Exists(marked))
+                File.SetAttributes(marked, File.GetAttributes(marked) & ~FileAttributes.System);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public unsafe void Case_sensitive_siblings_keep_distinct_IDs_and_drive_extended_and_volume_paths_keep_one_physical_pin()
     {
