@@ -126,14 +126,18 @@ The same r1777 batch repeated the native 200,000-file scan and collected all 42 
 
 ## Development regression after merging main e3b813d7
 
-The r1778 batch used source `c4a4a928` and application SHA-256 `58f366c348d89e8ca6e6ca20a1c648e5a6e165663a6a55da4d3ac4e04a1e20a4`. It extended the navigation selection to include supplementary data and report UI. The Mac also exercised its native APFS clone-sharing fixture. All suites below had zero failures and errors. Differences between passed and discovered totals are platform-specific or opt-in cases. Both post-run process inventories were empty.
+The r1778 batch used source `c4a4a928` and application SHA-256 `58f366c348d89e8ca6e6ca20a1c648e5a6e165663a6a55da4d3ac4e04a1e20a4`. It extended the navigation selection to include supplementary data and report UI. The Mac also exercised its native APFS clone-sharing fixture. The Unix Core selection includes native file details alongside analysis. All suites below had zero failures and errors. Differences between passed and discovered totals are platform-specific or opt-in cases. All three post-run process inventories were empty.
 
 | Platform | Core passed/discovered | Navigation and reports passed/discovered | Renderer passed/discovered |
 |---|---:|---:|---:|
+| Windows VM | 1,985 / 2,038 | 23 / 26 | 982 / 993 |
 | Mac | 2,089 / 2,106 | 22 / 26 | 983 / 993 |
 | Ubuntu VM | 2,090 / 2,106 | 23 / 26 | 983 / 993 |
 
 | Platform | Core XML SHA-256 | Navigation and reports XML SHA-256 | Renderer XML SHA-256 |
 |---|---|---|---|
+| Windows VM | `ec59864b8e811d20fd3d032cf8d5087fa498a0ba97735b4c4890d27418895f25` | `6bd3ed8440b72c7324db687ec7a9cec7a986cc94291364d4e2b99215bde4237e` | `a2fafbdbf638faa51514a86675dc568f0e1ff133e3c19bbdcc19fddaa4d8b9c4` |
 | Mac | `3377760f7858f50539f6cb05d21b043a504a32fe1fb7dd3f2cbcc3c79b267326` | `629ce41a1a925662a66ccc935798eaed319e0c34a94be384027dbb5e6e01c6c3` | `f527ec20741b886351be36bd0f677fc2feb3bc143391a4309af0c51df95780cc` |
 | Ubuntu VM | `948f147b13752f5675198de01068b834c4ea32ca236d437eb191543a224698d1` | `67eae1df288d04c70e12bf03bb07c0fc3c3ab92fee63c67bca89bdba0a4f393a` | `2bedf6c6bb095a91f185a86e3f058f7d7ef0d729c428af41559e66b77e1917f7` |
+
+The Windows preflight also passed the temporary-panel history and lease regression and all four native tests for Cloud Files classification, ordinary directories, junctions and hard links. The panel XML SHA-256 is `ee895f50efbb4a791b1428fbd2636ea6ddab528d285ab260d1836812c50ca643`. The four native test XML SHA-256 is `21ae9dc4520bddb3bc399b5318d29670823b8e61c77af29c33f1792e11f408b3`.
