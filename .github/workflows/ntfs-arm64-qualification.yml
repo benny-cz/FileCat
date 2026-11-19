@@ -178,7 +178,7 @@ jobs:
             'Bounded_inventory_and_actions_keep_ADS_EA_categories_folder_streams_and_required_roles'
           ) | ForEach-Object { "FullyQualifiedName~$_" }
           $outputSuites = @(
-            @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-binding.trx'; Count = '17';
+            @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-binding.trx'; Count = '18';
                Filter = 'FullyQualifiedName~WindowsEfsPathTests' },
             @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-hex-output.trx'; Count = '14';
                Filter = 'FullyQualifiedName~HexEfsJournalTests|FullyQualifiedName~HexPatchProvenanceTests' },

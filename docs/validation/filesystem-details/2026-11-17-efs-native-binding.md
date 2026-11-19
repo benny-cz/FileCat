@@ -43,8 +43,14 @@ Still open: independently qualified file/ancestor/case-distinct and extended ren
 
 ## Architecture-specific fixture
 
-The qualification workflow runs the same pathname and stream suite on native ARM64 and requires all 17 cases to execute. Fourteen cases exercise the native adapter and three exercise its parser. The fixture uses the same explicit architecture and EFS opt-ins as the native storage job suite.
+The initial native ARM64 qualification ran the same 17-case pathname and stream suite. Fourteen cases exercised the native adapter and three exercised its parser. The fixture uses the same explicit architecture and EFS opt-ins as the native storage job suite.
 
 The Windows 11 x64 rerun at medium integrity in the disposable interactive profile passed all 17 cases without skips. This includes ordinary rename/deletion guards, both native outcomes after held reinspection, the disclosed directory-link boundary, and all three late-compression cases. Ubuntu passed the three parser cases. The receipts are `.tmp/filecat-efs-live-166b6897-r1/binding-x64-r4.trx` and `.tmp/filecat-efs-live-166b6897-r1/arm-binding-portable.trx`. The test assembly SHA-256 was `83CE339C9E1D9797521845A6BB2D6C2F2800518E19C69BFFB56AE0CC6CF5BE79`.
 
 At `fab6d73d`, Windows 11 Enterprise build 26200 on native ARM64 ran the suite at medium integrity on 4 KiB NTFS. The downloaded `native-efs-binding.trx` recorded **17 passed, 0 failed, 0 skipped**. The test assembly SHA-256 was `7E264937814D074452AAA8A3F700E6906FB2E88B483430F9D50DF14A4B625564`, and the TRX SHA-256 was `441F54D105DCABD5C86964F2A55B43C390C9A747D3478059DA9DB28DDAD527A5`. The result qualifies the tested pathname and stream cases on ARM64 under the accepted redirection boundary. N-E2 remains partial pending the wider adversary and platform fixtures. [Native ARM64 qualification run](https://github.com/benny-cz/FileCat/actions/runs/44554236526)
+
+### Conflicting writer before EFS preparation
+
+On Windows 11 x64 at medium integrity, an existing write handle denied read sharing after the review pin was acquired. FileCat refused to prepare the EFS call because its rename/deletion guard could not open the file. Applying the failed preparation made no call. After the writer closed, fresh preparation on the same binding succeeded and the native Encrypt call preserved both main and named-stream bytes. This covers the tested incompatible sharing mode.
+
+The Windows VM executed and passed all 18 cases without skips. The test assembly SHA-256 was `D8A93E67BA56A49587FB501195CCFDC6E7B7D59456DAF4375A031713FA2FABAE`. The receipt is `.tmp/filecat-efs-live-166b6897-r1/efs-writer-20e3354f/efs-native-x64.trx`, SHA-256 `F010D4090122C137034E3BDAAF12048BA152EC9E51C9A9AC64CCDA682E45434C`. The native ARM64 workflow now requires all 18 cases.

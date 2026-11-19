@@ -247,6 +247,42 @@ public sealed unsafe partial class WindowsEfsPathTests
         finally { Directory.Delete(root, true); }
     }
 
+    [Fact]
+    public void An_existing_writer_that_denies_read_refuses_the_efs_call_until_a_fresh_preparation()
+    {
+        NativeFixture();
+        string root = Directory.CreateTempSubdirectory("filecat-efs-writer-").FullName;
+        try
+        {
+            const StorageAction action = StorageAction.EncryptEfs;
+            string path = Path.Join(root, "file");
+            string stream = path + ":details";
+            File.WriteAllText(path, "main payload");
+            File.WriteAllText(stream, "stream payload");
+            using var reserve = StorageReviewResources.ReservePins(1);
+            using var native = StorageReviewResources.EnterNative(Ct);
+            var adapter = Adapter();
+            using var pin = Pin(adapter, path, false, action);
+            using var held = adapter.OpenEfsPathForQualification(pin, Consent(pin, action), Ct);
+
+            using (File.OpenHandle(path, access: FileAccess.Write, share: FileShare.Write | FileShare.Delete))
+            {
+                var refused = Assert.Throws<StorageInspectionException>(() => held.PrepareMutation(action, Ct));
+                Assert.Equal("efs-guard-open", refused.Problem.Code);
+                Assert.Throws<InvalidOperationException>(() => held.ApplyAdmitted(action));
+                Assert.False(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
+            }
+
+            var result = Apply(held, action);
+            Assert.True(result.NativeCallAttempted);
+            Assert.Equal(StorageEffect.Changed, result.Effect);
+            Assert.Equal(StorageObservationState.Enabled, result.After?.Efs);
+            Assert.Equal("main payload", File.ReadAllText(path));
+            Assert.Equal("stream payload", File.ReadAllText(stream));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
