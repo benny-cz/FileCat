@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using Avalonia.Headless.XUnit;
 using FileCat.App.Controls;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Inspect;
 using FileCat.Core.Listing;
 using FileCat.Core.Metadata;
@@ -11,19 +13,24 @@ namespace FileCat.App.Tests;
 
 public sealed class FileDetailsColumnTests
 {
-    private sealed class Records : IFileRecords
+    private sealed class Records(Action<string>? onRead = null) : IFileRecords
     {
         public bool IsSupported => true;
         public int Calls;
+        public ConcurrentQueue<string> Paths { get; } = new();
         public InspectionReport Read(string path, CancellationToken ct) => throw new InvalidOperationException("Legacy reader invoked.");
         public FileDetailsReport ReadFull(string path, FileDetailsPolicy policy, CancellationToken ct) => throw new InvalidOperationException("Full reader invoked.");
         public FileDetailsSnapshot ReadSummary(string path, CancellationToken ct)
         {
+            Assert.True(FileObservationRequests.IsAdmittedFor(PathUtil.GetDeviceKey(path)), "The read must be owned by the original filesystem device.");
             Interlocked.Increment(ref Calls);
+            Paths.Enqueue(path);
+            onRead?.Invoke(path);
+            if (Path.GetFileName(path) == "gone.txt") throw new FileNotFoundException("Fixture original was removed.");
             return new(path, DateTimeOffset.UtcNow, Guid.NewGuid())
             {
                 Kind = Path.GetFileName(path) == "sub" ? FileObjectKind.Directory : FileObjectKind.File,
-                Allocated = ObservedFact<long>.Known(4096, FactScope.Entry, "fixture"),
+                Allocated = ObservedFact<long>.Known(Path.GetFileName(path) == "z-small.txt" ? 512 : 4096, FactScope.Entry, "fixture"),
                 ReparseTag = ObservedFact<uint>.Unavailable(FactState.NotApplicable, FactScope.Entry, "fixture", "No reparse tag."),
             };
         }
@@ -70,15 +77,96 @@ public sealed class FileDetailsColumnTests
             var inspected = tab.MetadataPresentation(directory, tab.Listing.GetStoreIndex(i), FileDetailsFields.Allocated, context, demand: false);
             Assert.Contains("contents are not counted", inspected.Detail);
             Assert.Equal(3, records.Calls);
-            var set = services.ResultSets.Create("native column fixture", "test");
-            set.Add(ItemRef.ForFileSystemPath(Path.Combine(root, "files", "a.txt"), EntryKind.File), ""); set.IsComplete = true;
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Result_analysis_reads_original_devices_and_keeps_unavailable_rows_last(bool workingSet)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        var records = new Records();
+        foreach (var field in FileDetailsFields.Create(records, OperatingSystem.IsWindows())) services.Metadata.Register(field);
+        try
+        {
+            string first = Directory.CreateDirectory(Path.Join(root, "first")).FullName;
+            string second = Directory.CreateDirectory(Path.Join(root, "second")).FullName;
+            File.WriteAllText(Path.Join(first, "a-large.txt"), "fixture");
+            File.WriteAllText(Path.Join(second, "z-small.txt"), "fixture");
+            // A second POSIX spelling routes through a distinct device key without touching a real network share.
+            if (!OperatingSystem.IsWindows()) second = "/" + second;
+            var set = new ResultSet(Guid.NewGuid().ToString("N"), "native column fixture", "test") { IsWorkingSet = workingSet };
+            services.ResultSets.Adopt(set);
+            var items = new[]
+            {
+                new ItemRef(Location.FileSystem(first), "a-large.txt", EntryKind.File),
+                new ItemRef(Location.FileSystem(second), "z-small.txt", EntryKind.File),
+                new ItemRef(Location.FileSystem(first), "gone.txt", EntryKind.File),
+                new ItemRef(new Location(Schemes.Zip, "", Location.FileSystem(Path.Join(root, "archive.zip"))), "member.txt", EntryKind.File),
+            };
+            foreach (var item in items) set.Add(item, "display label");
+            var tab = vm.Workspace.ActiveTab!;
             tab.Navigate(ResultSetProvider.LocationOf(set));
-            await Until(() => tab.Listing.State == ListingState.Complete);
+            await Until(() => tab.Listing.State == ListingState.Complete && tab.Location?.Session == set.Id);
             Assert.False(tab.CanAnalyzeMetadata(FileDetailsFields.Allocated));
-            Assert.DoesNotContain(vm.AnalysisFields(tab), f => f.ObservationLane);
+            set.IsComplete = true;
+            Assert.True(tab.CanAnalyzeMetadata(FileDetailsFields.Allocated));
+            Assert.Contains(vm.AnalysisFields(tab), f => f.Id == FileDetailsFields.Allocated);
             await tab.AnalyzeAsync(FileDetailsFields.Allocated);
+
+            Assert.Equal(items.Where(item => item.FileSystemPath is not null).Select(item => item.FileSystemPath).Order(), records.Paths.Order());
+            Assert.Contains("4 items", tab.Banner);
+            Assert.Contains("2 current values", tab.Banner);
+            Assert.Contains("1 gone", tab.Banner);
+            Assert.Contains("1 unsupported", tab.Banner);
+            Assert.Equal(4, tab.Listing.AppliedMetadataCoverage?.Count);
+            string[] Names() => Enumerable.Range(0, tab.Listing.VisibleCount).Select(i => tab.Listing.GetVisible(i))
+                .Where(entry => entry.Kind != EntryKind.Parent).Select(entry => entry.Name).ToArray();
+            Assert.Equal(new[] { "z-small.txt", "a-large.txt" }, Names()[..2]);
+            tab.Listing.Sort = tab.Listing.Sort with { Descending = true };
+            await Until(() => tab.Listing.AppliedViewSpecVersion == tab.Listing.ViewSpecVersion);
+            Assert.Equal(new[] { "a-large.txt", "z-small.txt" }, Names()[..2]);
             Assert.Equal(3, records.Calls);
         }
         finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Canceling_result_analysis_retires_publication_while_the_original_read_finishes()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var exited = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var records = new Records(_ =>
+        {
+            entered.TrySetResult();
+            release.Wait(TimeSpan.FromSeconds(15));
+            exited.TrySetResult();
+        });
+        foreach (var field in FileDetailsFields.Create(records, OperatingSystem.IsWindows())) services.Metadata.Register(field);
+        try
+        {
+            var set = services.ResultSets.Create("blocked native column", "test");
+            set.IsComplete = true;
+            foreach (string name in new[] { "a.txt", "b.txt" })
+                set.Add(ItemRef.ForFileSystemPath(Path.Join(root, "files", name), EntryKind.File), "");
+            var tab = vm.Workspace.ActiveTab!;
+            tab.Navigate(ResultSetProvider.LocationOf(set));
+            await Until(() => tab.Location?.Session == set.Id && tab.Listing.State == ListingState.Complete);
+            var ct = TestContext.Current.CancellationToken;
+            var analysis = tab.AnalyzeAsync(FileDetailsFields.Allocated);
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+            Assert.True(tab.CancelAnalysis());
+            await analysis.WaitAsync(TimeSpan.FromSeconds(10), ct);
+            Assert.False(exited.Task.IsCompleted);
+            Assert.Contains("No retained success snapshot", tab.Banner);
+            release.Set();
+            await exited.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+            Assert.Equal(1, records.Calls);
+        }
+        finally { release.Set(); AccessibilityTests.Close(services, window, root); }
     }
 }

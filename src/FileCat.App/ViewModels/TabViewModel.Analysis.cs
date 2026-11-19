@@ -45,7 +45,7 @@ public sealed partial class TabViewModel
     }
 
     private static string PartialMetadataOrder(string title) =>
-        $"Sorted by {title} using the results read so far; unavailable values sort last within their folder/file partition. Choose View → Analyze folder to read the whole folder.";
+        $"Sorted by {title} using the results read so far; unavailable values sort last within their folder/file partition. Choose View → Analyze folder to analyze the listed items.";
 
     private MetadataOrderSnapshot NewMetadataSnapshot(int? characters = null) => new(Services.ListingIndexes,
         Services.MetadataSnapshotMaxRows, characters ?? Services.MetadataSnapshotMaxCharacters);
@@ -114,8 +114,10 @@ public sealed partial class TabViewModel
                     else
                     {
                         if (field is null || !MetadataApplies(entry, fieldId) ||
+                            field.ObservationLane && !HasFilesystemMetadataOrigin(location, entry) ||
                             provider.GetItemRef(location, entry).FileSystemPath is not { } path) continue;
-                        value = Services.Metadata.Peek(fieldId, path, entry, slow);
+                        value = Services.Metadata.Peek(fieldId, path, entry,
+                            slow || field.ObservationLane && SlowMetadataOrigin(path, PathUtil.GetDeviceKey(path)));
                         if (value.State is MetadataState.NotRequested or MetadataState.Pending) continue;
                     }
                     PrincipalName? name = null;
@@ -251,7 +253,7 @@ public sealed partial class TabViewModel
     public async Task AnalyzeAsync(string fieldId)
     {
         if (Location is not { } location || !CanAnalyzeMetadata(fieldId) || Services.Metadata.Field(fieldId) is not { } field) return;
-        if (field.ObservationLane && !location.IsFileSystem) { Banner = "Native metadata analysis requires an ordinary filesystem panel with its original device."; return; }
+        bool originalDevices = field.ObservationLane && !location.IsFileSystem;
         RetireMetadataAnalysis();
         if (Listing.Sort.Field != SortField.Metadata || Listing.Sort.MetadataId != fieldId)
             ApplyExplicitSort(Listing.Sort with { Field = SortField.Metadata, MetadataId = fieldId, Descending = false });
@@ -298,12 +300,14 @@ public sealed partial class TabViewModel
                     var e = scan.Materialize(i);
                     if (e.Kind == EntryKind.Parent) continue;
                     bool applicable = MetadataApplies(e, fieldId);
-                    var path = applicable ? provider.GetItemRef(location, e).FileSystemPath : null;
+                    var path = applicable && (!originalDevices || HasFilesystemMetadataOrigin(location, e))
+                        ? provider.GetItemRef(location, e).FileSystemPath : null;
                     // Inapplicability is a completed missing value, retained in the same order snapshot.
                     // It must not start a metadata read or disappear from the folder's result count.
                     var value = !applicable ? new MetadataValue(MetadataState.Absent)
                         : path is null ? new MetadataValue(MetadataState.Unsupported)
-                        : Services.Metadata.Compute(fieldId, path, e, ct, slow, origin);
+                        : Services.Metadata.Compute(fieldId, path, e, ct,
+                            slow || originalDevices && SlowMetadataOrigin(path, PathUtil.GetDeviceKey(path)), origin);
                     ct.ThrowIfCancellationRequested();
                     if (value.State is MetadataState.NotRequested or MetadataState.Pending) throw new OperationCanceledException();
                     if (!claim.IsCurrent) { metadataChanged = true; throw new OperationCanceledException(); }
@@ -324,9 +328,16 @@ public sealed partial class TabViewModel
                 values.Seal();
                 return true;
             }
-            work = field.ObservationLane
-                ? Core.Records.FileObservationRequests.RunOwned(Services.Io, provider.GetDeviceKey(location), IoPriority.Background, Analyze, cts.Token)
-                : Services.Io.RunOwned(provider.GetDeviceKey(location), IoPriority.Background, Analyze, cts.Token);
+            // A result container has no filesystem device. The coordinator stays outside the I/O workers;
+            // Compute admits and owns each qualified row on the device of that row's captured path.
+            if (originalDevices)
+            {
+                var token = cts.Token;
+                work = Task.Run(() => Analyze(token), token);
+            }
+            else if (field.ObservationLane) work = Core.Records.FileObservationRequests.RunOwned(Services.Io,
+                provider.GetDeviceKey(location), IoPriority.Background, Analyze, cts.Token);
+            else work = Services.Io.RunOwned(provider.GetDeviceKey(location), IoPriority.Background, Analyze, cts.Token);
             var ownedStore = storeLease;
             var ownedValues = workerLease;
             storeLease = workerLease = null;

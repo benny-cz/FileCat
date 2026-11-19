@@ -1,7 +1,9 @@
 using FileCat.App.Services;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
 using FileCat.Core.Metadata;
 using FileCat.Core.Resources;
+using FileCat.Core.Search;
 
 namespace FileCat.App.ViewModels;
 
@@ -35,9 +37,20 @@ public sealed partial class TabViewModel
         Services.Metadata.ForgetFolder("group", path);
         foreach (var field in Services.Metadata.Fields.Where(f => f.ObservationLane)) Services.Metadata.ForgetFolder(field.Id, path);
     }
-    internal bool CanAnalyzeMetadata(string fieldId) => Location is not null &&
-        !(Services.Metadata.Field(fieldId)?.ObservationLane == true && !Location.IsFileSystem) &&
-        !(OperatingSystem.IsWindows() && fieldId == "owner" && !Location.IsFileSystem);
+    internal bool CanAnalyzeMetadata(string fieldId) => Location is { } location &&
+        (Services.Metadata.Field(fieldId)?.ObservationLane != true || location.IsFileSystem || CanAnalyzeResultOrigins(location)) &&
+        !(OperatingSystem.IsWindows() && fieldId == "owner" && !location.IsFileSystem);
+
+    private bool CanAnalyzeResultOrigins(Location location) => location.Scheme == Schemes.ResultSet &&
+        !ResultSetProvider.IsWorkingSetList(location) && Services.ResultSets.Get(location) is { IsComplete: true } &&
+        Listing.State == ListingState.Complete && !Listing.IsRefreshing;
+
+    private static bool HasFilesystemMetadataOrigin(Location listing, in EntryData entry) => listing.Scheme != Schemes.ResultSet ||
+        entry.Tag is ResultTag { Parent.IsFileSystem: true } original && original.Kind == entry.Kind &&
+        Path.IsPathFullyQualified(original.Parent.Path) && PathUtil.ValidateNewName(entry.Name) is null;
+
+    private static bool SlowMetadataOrigin(string path, string device) =>
+        PathUtil.IsUncPath(path) || PathUtil.IsUncPath(device);
 
     internal bool MetadataApplies(in EntryData entry, string fieldId) => Services.Metadata.Field(fieldId) is { } field && MetadataService.Applies(field, entry);
 
@@ -46,8 +59,9 @@ public sealed partial class TabViewModel
         if (Location is not { } location) return null;
         var provider = Services.Providers.For(location);
         var item = provider.GetItemRef(location, entry);
-        return new(Listing.Store, storeIndex, entry.Name, entry.Kind, item.FileSystemPath,
-            item.FileSystemPath is null ? "" : Services.Providers.For(item.Parent).GetDeviceKey(item.Parent), IsSlowLocation);
+        string? path = HasFilesystemMetadataOrigin(location, entry) ? item.FileSystemPath : null;
+        string device = path is null ? "" : Services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
+        return new(Listing.Store, storeIndex, entry.Name, entry.Kind, path, device, path is not null && SlowMetadataOrigin(path, device));
     }
 
     internal MetadataCellPresentation MetadataPresentation(in EntryData entry, int storeIndex, string fieldId,

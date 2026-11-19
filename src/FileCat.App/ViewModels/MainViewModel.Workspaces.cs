@@ -2,6 +2,8 @@ using FileCat.App.Services;
 using FileCat.Core.Commands;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Resources;
+using FileCat.Core.Search;
 using FileCat.Core.State;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -397,19 +399,22 @@ public sealed partial class MainViewModel
     /// </summary>
     private async Task AnalyzeFolderAsync()
     {
-        if (ActiveTab is not { Location: not null } tab) return;
+        if (ActiveTab is not { Location: { } location } tab) return;
         var current = tab.Listing.Sort is { Field: Core.Listing.SortField.Metadata, MetadataId: { } sorted } &&
                       sorted != Controls.ColumnSpec.FolderSortKey ? sorted : null;
         var fields = AnalysisFields(tab);
         if (fields.Count == 0) return;
         var items = fields.Select(f => new ChoiceItem(f.Title,
             f.Id == current ? "Current sort · " + AnalysisDescription(f.Id) : AnalysisDescription(f.Id))).ToList();
-        var r = await Dialogs.ChooseAsync(new ChoiceOptions("Analyze folder", items)
+        bool resultOrigins = location.Scheme == Schemes.ResultSet && !ResultSetProvider.IsWorkingSetList(location);
+        string title = resultOrigins ? ResultSetProvider.IsWorkingSet(location) ? "Analyze working set" : "Analyze results" : "Analyze folder";
+        var r = await Dialogs.ChooseAsync(new ChoiceOptions(title, items)
         {
             SelectedIndex = Math.Max(0, fields.FindIndex(f => f.Id == current)),
-            Hint = "Choose a field or rerun the current sort · reads the whole folder · Enter starts · Esc cancels",
+            Hint = resultOrigins ? "Choose a field · reads the listed originals · Enter starts · Esc cancels" :
+                "Choose a field or rerun the current sort · reads the whole folder · Enter starts · Esc cancels",
         });
-        if (r.Index < 0 || r.Index >= fields.Count) return;
+        if (r.Index < 0 || r.Index >= fields.Count || tab.Location != location) return;
         var selected = fields[r.Index].Id;
         if (!tab.CanAnalyzeMetadata(selected)) return;
         if (selected != current) tab.SortByMetadata(selected, analyzing: true);
