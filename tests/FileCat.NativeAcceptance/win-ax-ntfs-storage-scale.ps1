@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][string]$TestRoot,
     [switch]$IsolatedSession,
+    [switch]$HostedArm64,
     [switch]$CompatibilityRendering
 )
 
@@ -10,13 +11,19 @@ $validation = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'FileCatValida
 $machine = Get-CimInstance Win32_ComputerSystem
 $login = [Security.Principal.WindowsIdentity]::GetCurrent().Name
 $session = (Get-Process -Id $PID).SessionId
-$validSession = if ($IsolatedSession) {
-    $session -eq 0 -and $root.StartsWith('C:\FileCatTests\', [StringComparison]::OrdinalIgnoreCase)
+$validSession = if ($HostedArm64) {
+    !$IsolatedSession -and $env:GITHUB_ACTIONS -eq 'true' -and $env:RUNNER_OS -eq 'Windows' -and
+    $env:RUNNER_ARCH -eq 'ARM64' -and [IO.Path]::IsPathRooted($env:RUNNER_TEMP) -and
+    $root.StartsWith(([IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)
+} elseif ($IsolatedSession) {
+    $machine.Manufacturer -match 'VMware' -and $session -eq 0 -and
+    $root.StartsWith('C:\FileCatTests\', [StringComparison]::OrdinalIgnoreCase)
 } else {
-    $session -ne 0 -and $machine.UserName -eq $login -and $root.StartsWith($validation, [StringComparison]::OrdinalIgnoreCase)
+    $machine.Manufacturer -match 'VMware' -and $session -ne 0 -and $machine.UserName -eq $login -and
+    $root.StartsWith($validation, [StringComparison]::OrdinalIgnoreCase)
 }
-if (!$validSession -or $machine.Manufacturer -notmatch 'VMware') {
-    throw 'Use an isolated test directory in a disposable VMware guest with the selected desktop mode.'
+if (!$validSession) {
+    throw 'Use an isolated test directory on the hosted ARM64 runner or in the selected disposable VMware desktop mode.'
 }
 
 function Assert-Idle {
@@ -150,7 +157,7 @@ try {
     $result.WindowsSha256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $exe) 'FileCat.Platform.Windows.dll')).Hash
     $result.HostSha256 = (Get-FileHash -LiteralPath $exe).Hash
     New-Item -ItemType Directory -Path $inputFolder,$other,$data -Force | Out-Null
-    if ($IsolatedSession) {
+    if ($IsolatedSession -or $HostedArm64) {
         $owner = [Security.Principal.WindowsIdentity]::GetCurrent().User
         $system = [Security.Principal.SecurityIdentifier]::new('S-1-5-18')
         $access = [Security.AccessControl.DirectorySecurity]::new()
@@ -181,8 +188,9 @@ try {
     Assert-Idle
     if ($CompatibilityRendering) { $env:FILECAT_RENDERING = 'compat' }
     $result.Rendering = if ($env:FILECAT_RENDERING -eq 'compat') { 'compatibility' } else { 'default' }
+    $qualification = if ($HostedArm64) { '--ntfs-storage-arm64-review' } else { '--ntfs-storage-review' }
     $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru -ArgumentList @(
-        '--ntfs-storage-review', '--new-instance', '--reset-layout', '--data', "`"$data`"", '--left', "`"$source`"",
+        $qualification, '--new-instance', '--reset-layout', '--data', "`"$data`"", '--left', "`"$source`"",
         '--right', "`"$other`"", '--ui-budget', "`"$budget`"")
     $main = Await { if ($app.MainWindowHandle -ne [IntPtr]::Zero) { $uia::FromHandle($app.MainWindowHandle) } } 'FileCat window'
     if ($app.SessionId -ne $session -or $main.Current.ProcessId -ne $app.Id) { throw 'The native window does not belong to the owned session and process.' }

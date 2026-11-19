@@ -18,7 +18,7 @@ public sealed class AppServices : IDisposable
     private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null, Core.Archives.ArchiveJobBackends? archiveBackends = null,
         Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null, IOwnership? ownershipOverride = null,
         int metadataCacheSize = 50_000, Func<long>? metadataClock = null, IStorageTransforms? storageTransforms = null,
-        FileCat.Platform.Windows.AdministratorTransferRegistry? administratorRegistry = null)
+        FileCat.Platform.Windows.AdministratorTransferRegistry? administratorRegistry = null, bool qualifyNativeArm64Storage = false)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
@@ -135,8 +135,10 @@ public sealed class AppServices : IDisposable
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory,
             archiveBackends ?? Core.Archives.ArchiveJobBackends.Empty, storageTransforms ?? Platform.StorageTransforms,
-            FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateJournal : null,
-            FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Backend : null);
+            qualifyNativeArm64Storage ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateArm64QualificationJournal :
+                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.CreateJournal : null,
+            qualifyNativeArm64Storage ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Arm64QualificationBackend :
+                FileCat.Platform.Windows.WindowsStorageReviewEvidence.IsSupportedHost ? FileCat.Platform.Windows.WindowsStorageReviewEvidence.Backend : null);
         Archives.MutationAvailability = plan => Jobs.CanReviewArchive(plan) ? Jobs.ArchiveAvailability(plan)
             : Core.Archives.ArchiveJobAvailability.Unqualified;
         // A ZIP route composed here moves ZIP changes to the worker profile, available or refused with its reason; without
@@ -339,17 +341,21 @@ public sealed class AppServices : IDisposable
         : OperatingSystem.IsMacOS() ? Core.Archives.MacOS.MacArchiveJobBackend.Create(format, executable)
         : throw new PlatformNotSupportedException("No archive worker launcher exists for this platform.");
 
-    internal static bool CanQualifyNtfsStorage => FileCat.Platform.Windows.WindowsStorageTransforms.IsQualifiedHost && !WindowsTokenAuthority.IsHighIntegrity;
+    internal static bool CanQualifyNtfsStorage(bool nativeArm64) => (nativeArm64
+        ? FileCat.Platform.Windows.WindowsStorageTransforms.IsNativeArm64QualificationHost
+        : FileCat.Platform.Windows.WindowsStorageTransforms.IsQualifiedHost) && !WindowsTokenAuthority.IsHighIntegrity;
 
     /// <summary>Creates the native qualification host with isolated state and explicitly selected backends.</summary>
-    internal static AppServices InitializeForQualification(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends, bool qualifyNtfsStorage = false)
+    internal static AppServices InitializeForQualification(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends,
+        bool qualifyNtfsStorage = false, bool nativeArm64Storage = false)
     {
         ArgumentNullException.ThrowIfNull(paths); ArgumentNullException.ThrowIfNull(archiveBackends);
-        if (qualifyNtfsStorage && !CanQualifyNtfsStorage)
-            throw new PlatformNotSupportedException("NTFS storage review qualification requires Windows 11 x64 and a standard-user session.");
-        var storage = qualifyNtfsStorage ? new FileCat.Platform.Windows.WindowsStorageTransforms()
+        if ((nativeArm64Storage && !qualifyNtfsStorage) || (qualifyNtfsStorage && !CanQualifyNtfsStorage(nativeArm64Storage)))
+            throw new PlatformNotSupportedException("NTFS storage review qualification requires a non-elevated Windows 11 process on the selected native architecture.");
+        var storage = qualifyNtfsStorage ? new FileCat.Platform.Windows.WindowsStorageTransforms(
+            efsSetupBaseDirectory: () => paths.LocalDirectory, qualifyNativeArm64: nativeArm64Storage)
             .CreateEfsJobCandidate(static show => Avalonia.Threading.Dispatcher.UIThread.Invoke(show)) : null;
-        Current = new AppServices(paths, archiveBackends: archiveBackends, storageTransforms: storage);
+        Current = new AppServices(paths, archiveBackends: archiveBackends, storageTransforms: storage, qualifyNativeArm64Storage: nativeArm64Storage);
         return Current;
     }
 

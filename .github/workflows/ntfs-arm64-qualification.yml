@@ -11,6 +11,10 @@ on:
         description: Run the 10,000-file native storage benchmark
         type: boolean
         default: false
+      operations:
+        description: Drive the native Operations window with the 10,000-file workload
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -194,12 +198,41 @@ jobs:
               throw 'The native 10,000-file benchmark must execute and pass.'
             }
           }
+      - name: Exercise the ARM64 Operations window under native load
+        if: inputs.operations
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-operations'
+          $project = 'tests/FileCat.ArchiveQualificationHost'
+          dotnet restore $project --locked-mode -p:RuntimeIdentifier=win-arm64 -p:SelfContained=false
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet publish $project -c Release -r win-arm64 --self-contained false --no-restore -o (Join-Path $root 'app')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build-server shutdown
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          . ./eng/validation/Enter-MediumIntegrityTestProcess.ps1
+          [ordered]@{
+            commit = $env:GITHUB_SHA
+            runnerArchitecture = $env:RUNNER_ARCH
+            integrity = [FileCatCiTokenIntegrity]::IntegrityRid()
+          } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'runner-native-operations.json')
+          # Windows PowerShell provides the Windows Desktop UI Automation client used by the driver.
+          $desktopPowerShell = Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
+          & $desktopPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./tests/FileCat.NativeAcceptance/win-ax-ntfs-storage-scale.ps1 -TestRoot $root -HostedArm64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $receipt = Get-Content -LiteralPath (Join-Path $root 'operations-scale.json') -Raw | ConvertFrom-Json
+          if (!$receipt.Passed -or $receipt.FileCount -ne 10000 -or !$receipt.PrefixSha256 -or $receipt.JournalBytes -le 0) {
+            throw 'The native ARM64 Operations driver must complete the full workload and retain its durable journal.'
+          }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: native-storage-abi-windows-arm64
           path: |
             ${{ runner.temp }}/filecat-native-storage-abi-evidence/*
+            ${{ runner.temp }}/filecat-native-storage-operations/*.json
+            ${{ runner.temp }}/filecat-native-storage-operations/operations-stage.txt
+            ${{ runner.temp }}/filecat-native-storage-operations/fixture/data/local/journal/job-storage-*.fcj
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-hex-output.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-copy-output.trx
