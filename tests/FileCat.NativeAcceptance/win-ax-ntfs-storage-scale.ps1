@@ -1,4 +1,8 @@
-param([Parameter(Mandatory)][string]$TestRoot, [switch]$IsolatedSession)
+param(
+    [Parameter(Mandatory)][string]$TestRoot,
+    [switch]$IsolatedSession,
+    [switch]$CompatibilityRendering
+)
 
 $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath($TestRoot)
@@ -175,7 +179,8 @@ try {
 
     Set-Stage 'start recursive compression through review'
     Assert-Idle
-    if ($IsolatedSession) { $env:FILECAT_RENDERING = 'compat' }
+    if ($CompatibilityRendering) { $env:FILECAT_RENDERING = 'compat' }
+    $result.Rendering = if ($env:FILECAT_RENDERING -eq 'compat') { 'compatibility' } else { 'default' }
     $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru -ArgumentList @(
         '--ntfs-storage-review', '--new-instance', '--reset-layout', '--data', "`"$data`"", '--left', "`"$source`"",
         '--right', "`"$other`"", '--ui-budget', "`"$budget`"")

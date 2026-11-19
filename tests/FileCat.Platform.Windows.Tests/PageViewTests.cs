@@ -390,7 +390,8 @@ public sealed class PageViewTests : IDisposable
                 catch (TimeoutException error)
                 {
                     string requests = served.IsEmpty ? "none" : string.Join(", ", served.Select(resource => resource.Path));
-                    throw new TimeoutException($"WebView2 {WebView2Page.RuntimeVersion} did not report Markdown navigation completion. Served requests: {requests}.", error);
+                    throw new TimeoutException($"WebView2 {WebView2Page.RuntimeVersion} did not report Markdown navigation completion. " +
+                        $"Served requests: {requests}. {view.LoadDiagnostics}", error);
                 }
                 for (int i = 0; i < 100 && !served.Any(s => s.Path == "/pic.png"); i++) await Task.Delay(50);
                 await Task.Delay(500); // anything else the page would ask for

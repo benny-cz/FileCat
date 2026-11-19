@@ -76,3 +76,31 @@ The driver opened the real operation report, read call pages beginning at calls 
 The dispatcher probe recorded four delays above 50 ms during the observed work intervals, with a maximum of 114.8 ms. The worst delay in the entire run was 1,858.9 ms and fell outside those intervals. The samples include the cost of UI Automation. Attribution of the additional process handles and measurement on the signed-in desktop remain open.
 
 The initial attempt refused a shared-writable journal directory. A private disposable profile resolved that fixture issue. It also reproduced the shell taskbar API returning `E_NOTIMPL` in the isolated session. The updated app treated this optional API as unavailable and the completed run produced no crash log. The Windows component SHA-256 was `54E7A82C7FADA85BD0497808EC0C87987251D5A0A7D3356E923883ECF2C55571`. The fixtures and dispatcher receipts are `operations-scale.json` and `r2-operations-dispatcher.json` under `.tmp/filecat-storage-ui-scale-cdd562ad-r1/`.
+
+### Idle handles by rendering configuration
+
+A follow-up launched the same app twice at medium integrity using fresh profiles, a one-file folder and the same isolated Windows session. Neither launch ran a storage job or loaded a UI Automation client. Four Windows Process Snapshotting samples per launch tracked the total and the reported kernel object types between about 7 and 22 seconds after start. [Windows Process Snapshotting](https://learn.microsoft.com/en-us/windows/win32/api/processsnapshot/ns-processsnapshot-pss_handle_entry)
+
+| Rendering configuration | Total process handles | Event handles | File handles |
+| --- | ---: | ---: | ---: |
+| Default FileCat configuration | 708–790 | 180–191 | 100–102 |
+| `FILECAT_RENDERING=compat` | 2,534–5,895 | 1,928–5,358 | 100–102 |
+
+The compatibility run had thousands of event handles at idle. A separate UI Automation comparison also showed increases during its idle intervals, including 3,499 to 8,195 before enumeration and 5,897 to 10,092 after client collection. These controls establish that the observed handle growth can occur without storage jobs or UI Automation enumeration. The default rendering configuration still needs measurement through the full workload and on the signed-in desktop. The receipts are `idle-handle-types.json` and `uia-handle-comparison.json` in `.tmp/filecat-storage-ui-scale-cdd562ad-r1/`.
+
+### ARM64 storage jobs under load
+
+The isolated GitHub Windows 11 Enterprise build 26200 runner executed the same 10,000-file benchmark under native ARM64 at medium integrity on fixed 4 KiB NTFS. The exact TRX contains one executed, passing test for commit `6a56cfd40dd9fb0bd93f4ced4f7f43f33c254c3c`. It used the framework-dependent `win-arm64` FileCat app as the Cloud Files worker, with executable SHA-256 `2F425D4012EC58C5979B85D0566E4E35481275663813DB7C0DC4CD7F051CD5AA`. The test assembly SHA-256 was `57E2BAC99FFF117CCB6F433A5B4DECD574CFEB381731F9FE6D58B881A153AAC1`. [Native ARM64 run and receipts](https://github.com/benny-cz/FileCat/actions/runs/44500467560)
+
+| Measurement | Result |
+| --- | ---: |
+| Fixture creation | 3.55 s |
+| Compression including pause and live review | 196.81 s |
+| Live history and call page read at 101 items | 31.0 ms |
+| First journal length | 13,350,510 bytes |
+| Fresh pass over the completed prefix with one new file | 34.67 s |
+| Fresh-pass journal length | 5,491 bytes |
+| Process handles, sampled initial to peak | 290 to 380 |
+| Working set, sampled initial to peak | 55,009,280 to 80,232,448 bytes |
+
+The unrelated Create Directory job stayed queued while storage work was paused and completed after Resume. The first pass recorded 10,001 changes including the directory, and one flushed intent at which Pause won admission before a native call. Both boundary files preserved their bytes. The fresh pass found 10,001 already-satisfied objects and compressed the new file with one recorded call. This receipt covers the engine, scheduler and report reads. The full ARM64 Operations window still needs a separate native run.
