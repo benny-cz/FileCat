@@ -422,6 +422,12 @@ public sealed partial class DiskSpaceWindow : Window
                 _coverageHeadline, _analysisActions, _coverageDetails, filters]);
             _toolbarViewport = new ScrollViewer { Content = toolbar, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
             AutomationProperties.SetName(_toolbarViewport, "Analysis view controls");
+            _toolbarViewport.GotFocus += (_, _) => Dispatcher.UIThread.Post(() =>
+            {
+                // A focused command scrolls within the toolbar first. The page also needs to
+                // reveal the toolbar if the summary and larger controls have pushed it below the fold.
+                if (!_disposed && _toolbarViewport.IsKeyboardFocusWithin) _toolbarViewport.BringIntoView();
+            }, DispatcherPriority.Loaded);
             _coverageStatus = new ReadingStatus(_coverageHeadline);
             AutomationProperties.SetAutomationId(_scope, "AnalysisReadingScope");
             AutomationProperties.SetAutomationId(_summary, "AnalysisReadingAmount");
@@ -588,7 +594,8 @@ public sealed partial class DiskSpaceWindow : Window
                 }
                 // Give the results space alongside the wrapped controls on short or large-text displays.
                 // A separate finite list viewport keeps row virtualization active.
-                _toolbarViewport.MaxHeight = Math.Max(48, _viewport.Bounds.Height / 2 - _viewSummary.DesiredSize.Height - 4);
+                double toolbarMinimum = Math.Max(48, 2 * _window.FontSize + 10);
+                _toolbarViewport.MaxHeight = Math.Max(toolbarMinimum, _viewport.Bounds.Height / 2 - _viewSummary.DesiredSize.Height - 4);
                 double minimum = Children.Where(c => c.IsVisible && c != _explorer).Sum(c => c.DesiredSize.Height) + (_explorer.IsVisible ? _explorer.MinHeight : 0);
                 double height = Math.Max(_viewport.Bounds.Height, minimum);
                 if (double.IsFinite(height) && Math.Abs(Height - height) > .5) Height = height;

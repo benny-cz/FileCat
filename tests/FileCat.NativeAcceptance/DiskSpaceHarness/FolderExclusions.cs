@@ -362,11 +362,24 @@ internal sealed partial class HarnessApp
             Control[] controls = [filter, Command("Coverage details"), Command("Inspect selection"), Command("Review cleanup")];
             foreach (var control in controls)
             {
-                if (!control.Focus()) throw new InvalidOperationException("Keyboard focus could not reach a compact result control at 28 DIP text size.");
+                string name = AutomationProperties.GetName(control) ?? (control as Button)?.Content as string ?? control.GetType().Name;
+                if (!control.Focus(NavigationMethod.Tab)) throw new InvalidOperationException($"Keyboard focus could not reach {name} at 28 DIP text size.");
                 control.BringIntoView();
-                await ReadyAsync(() => ReferenceEquals(window.FocusManager?.GetFocusedElement(), control) &&
-                    control.TranslatePoint(default, window) is { } point && point.Y >= 0 && point.X >= 0 &&
-                    point.Y + control.Bounds.Height <= window.ClientSize.Height + 1 && point.X + control.Bounds.Width <= window.ClientSize.Width + 1);
+                try
+                {
+                    await ReadyAsync(() => ReferenceEquals(window.FocusManager?.GetFocusedElement(), control) &&
+                        control.TranslatePoint(default, window) is { } point && point.Y >= -1 && point.X >= -1 &&
+                        point.Y + control.Bounds.Height <= window.ClientSize.Height + 1 && point.X + control.Bounds.Width <= window.ClientSize.Width + 1 &&
+                        control.GetVisualAncestors().OfType<ScrollViewer>().All(scroll => control.TranslatePoint(default, scroll) is { } relative &&
+                            relative.Y >= -1 && relative.Y + control.Bounds.Height <= scroll.Bounds.Height + 1));
+                }
+                catch (TimeoutException error)
+                {
+                    RenderNativeFrame("analysis-reading-compact-double-text-failure.png");
+                    string viewports = string.Join("; ", control.GetVisualAncestors().OfType<ScrollViewer>().Select(scroll =>
+                        $"{scroll.Name ?? AutomationProperties.GetName(scroll)} offset {scroll.Offset}, height {scroll.Bounds.Height}, control at {control.TranslatePoint(default, scroll)}"));
+                    throw new InvalidOperationException($"{name} was clipped or lost focus at 28 DIP. Position {control.TranslatePoint(default, window)}, size {control.Bounds.Size}, focused {control.IsFocused}. {viewports}", error);
+                }
             }
         }
         finally
