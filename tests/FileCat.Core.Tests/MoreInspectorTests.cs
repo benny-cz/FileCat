@@ -329,11 +329,13 @@ public sealed class MoreInspectorTests
         }
         h[namesAt..].Fill((byte)'A'); // no NUL across the 16 MiB table
         long before = GC.GetAllocatedBytesForCurrentThread();
-        var watch = Stopwatch.StartNew();
         var report = MachOInspector.Inspect(new MemoryContentSource("owned.macho", bytes), TestContext.Current.CancellationToken)!;
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Assert.Contains(report.Warnings, w => w.Contains("character budget", StringComparison.Ordinal));
-        Assert.InRange(watch.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(5));
+        // Only 8,192 names of 512 characters fit the 4 Mi-character budget.
+        var imports = Assert.Single(report.Sections, s => s.Title == $"Imported symbols ({8_192:N0})");
+        Assert.Equal(5_000, imports.Table!.Rows.Count);
+        Assert.All(imports.Table.Rows, row => Assert.Equal(512, row[0].Length));
         Assert.InRange(allocated, 0, 80_000_000);
     }
 
