@@ -652,7 +652,10 @@ public sealed partial class ReportWindow : Window
                     FileAccess.Write, FileShare.None, 1, FileOptions.Asynchronous);
                 startedOutput = target;
                 await output.WriteAsync(Encoding.UTF8.GetPreamble(), ct);
-                await output.WriteAsync(Encoding.UTF8.GetBytes(supplementary?.Text ?? capturedText), ct);
+                var contents = Encoding.UTF8.GetBytes(supplementary?.Text ?? capturedText);
+                const int chunkSize = 64 * 1024;
+                for (int offset = 0; offset < contents.Length; offset += chunkSize)
+                    await output.WriteAsync(contents.AsMemory(offset, Math.Min(chunkSize, contents.Length - offset)), ct);
                 await output.FlushAsync(ct);
             }, ct);
             if (!ct.IsCancellationRequested) _status.Text = $"Saved as {target}.";

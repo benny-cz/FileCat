@@ -11,6 +11,7 @@ internal static class WindowsMetadataReportOutput
 {
     private const uint WriteAccess = GenericWrite | ReadAttributes | Synchronize;
     private const uint NoFollowFile = NonDirectoryFile | OpenReparsePoint;
+    private const int WriteChunkSize = 64 * 1024;
 
     internal static void Save(string path, string text, Action directOutputStarted, CancellationToken ct)
     {
@@ -94,8 +95,14 @@ internal static class WindowsMetadataReportOutput
         ct.ThrowIfCancellationRequested();
         var preamble = Encoding.UTF8.Preamble;
         RandomAccess.Write(file, preamble, 0);
-        ct.ThrowIfCancellationRequested();
-        RandomAccess.Write(file, contents, preamble.Length);
+        int written = 0;
+        while (written < contents.Length)
+        {
+            ct.ThrowIfCancellationRequested();
+            int length = Math.Min(WriteChunkSize, contents.Length - written);
+            RandomAccess.Write(file, contents.Slice(written, length), preamble.Length + (long)written);
+            written += length;
+        }
         ct.ThrowIfCancellationRequested();
         RandomAccess.SetLength(file, preamble.Length + (long)contents.Length);
         RandomAccess.FlushToDisk(file);

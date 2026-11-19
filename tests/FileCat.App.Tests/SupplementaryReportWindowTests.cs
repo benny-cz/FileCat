@@ -151,21 +151,84 @@ public sealed class SupplementaryReportWindowTests
     public async Task Saving_metadata_reports_a_partial_file_when_the_native_volume_fills()
     {
         string? prepared = Environment.GetEnvironmentVariable("FILECAT_TEST_REPORT_SPACE_LIMIT");
-        Assert.SkipWhen(!OperatingSystem.IsLinux() || string.IsNullOrWhiteSpace(prepared), "Requires an isolated small Linux test volume.");
-        Assert.InRange(new DriveInfo(prepared!).TotalSize, 4L << 10, 64L << 10);
+        bool mac = OperatingSystem.IsMacOS();
+        Assert.SkipWhen((!OperatingSystem.IsLinux() && !mac) || string.IsNullOrWhiteSpace(prepared),
+            "Requires an isolated low-space Linux or macOS test volume.");
+        var volume = new DriveInfo(prepared!);
+        if (mac)
+        {
+            Assert.Equal("apfs", volume.DriveFormat);
+            Assert.InRange(volume.TotalSize, 64L << 20, 512L << 20);
+            Assert.InRange(volume.AvailableFreeSpace, 256L << 10, 5500L << 10);
+        }
+        else Assert.InRange(volume.TotalSize, 4L << 10, 64L << 10);
         string root = Directory.CreateDirectory(Path.Combine(prepared!, "report-" + Guid.NewGuid().ToString("N"))).FullName;
         string target = Path.Combine(root, "partial.txt");
         using var io = new DeviceIoScheduler();
-        using var reader = new FileDetailsReader(new MetadataRecords(new string('x', 256 << 10)), io, "report-output", "/observation");
+        // Three-byte UTF-8 characters make a larger export without reaching the report's character limit.
+        string note = mac ? new string('界', 1900 << 10) : new string('x', 256 << 10);
+        using var reader = new FileDetailsReader(new MetadataRecords(note), io, "report-output", "/observation");
         var window = new ReportWindow("observation", reader);
         InstallPicker(window, () => Task.FromResult<IStorageFile?>(Chosen(target)));
         try
         {
             window.Show();
             await window.Reading!;
+            byte[] text = Encoding.UTF8.GetBytes(window.Text);
+            long expectedLength = text.LongLength + Encoding.UTF8.Preamble.Length;
+            Assert.True(expectedLength > volume.AvailableFreeSpace, "The captured UTF-8 report must exceed the fixture's available space.");
             await Save(window);
             Assert.Contains("may be incomplete", window.StatusText);
-            Assert.InRange(new FileInfo(target).Length, 1, (256L << 10) - 1);
+            byte[] partial = File.ReadAllBytes(target);
+            Assert.InRange(partial.LongLength, Encoding.UTF8.Preamble.Length + 1L, expectedLength - 1);
+            Assert.True(partial.AsSpan().StartsWith(Encoding.UTF8.Preamble));
+            Assert.True(text.AsSpan().StartsWith(partial.AsSpan(Encoding.UTF8.Preamble.Length)), "The file should contain only the captured report prefix.");
+        }
+        finally { window.Close(); Directory.Delete(root, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task Saving_metadata_on_full_NTFS_reports_the_written_prefix_and_rolls_back_replacement()
+    {
+        string? prepared = Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_REPORT_SPACE_LIMIT");
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || string.IsNullOrWhiteSpace(prepared),
+            "Requires an opt-in NTFS image with less than 2 MiB available space.");
+        var volume = new DriveInfo(Path.GetPathRoot(prepared!)!);
+        Assert.Equal("NTFS", volume.DriveFormat);
+        Assert.InRange(volume.TotalSize, 32L << 20, 128L << 20);
+        Assert.InRange(volume.AvailableFreeSpace, 256L << 10, 2L << 20);
+
+        string root = Directory.CreateDirectory(Path.Combine(prepared!, "report-" + Guid.NewGuid().ToString("N"))).FullName;
+        string target = Path.Combine(root, "report.txt");
+        using var io = new DeviceIoScheduler();
+        var records = new MetadataRecords(new string('x', 3 << 20));
+        using var reader = new FileDetailsReader(records, io, "report-output", Path.Combine(root, "observation"));
+        var window = new ReportWindow("observation", reader);
+        InstallPicker(window, () => Task.FromResult<IStorageFile?>(Chosen(target)));
+        try
+        {
+            window.Show();
+            await window.Reading!;
+            byte[] text = Encoding.UTF8.GetBytes(window.Text);
+            long expectedLength = text.LongLength + Encoding.UTF8.Preamble.Length;
+            Assert.True(expectedLength > volume.AvailableFreeSpace);
+
+            await Save(window);
+            Assert.Contains("may be incomplete", window.StatusText);
+            byte[] partial = File.ReadAllBytes(target);
+            Assert.InRange(partial.LongLength, 64L << 10, expectedLength - 1);
+            Assert.True(partial.AsSpan().StartsWith(Encoding.UTF8.Preamble));
+            Assert.True(text.AsSpan().StartsWith(partial.AsSpan(Encoding.UTF8.Preamble.Length)), "The file should contain only the captured report prefix.");
+            File.Delete(target);
+
+            byte[] original = Encoding.UTF8.GetBytes("Original metadata report");
+            File.WriteAllBytes(target, original);
+            var before = new FileInfo(target).LastWriteTimeUtc;
+            await Save(window);
+            Assert.StartsWith("It could not be saved", window.StatusText);
+            Assert.Equal(original, File.ReadAllBytes(target));
+            Assert.Equal(before, new FileInfo(target).LastWriteTimeUtc);
+            Assert.Single(Directory.EnumerateFileSystemEntries(root));
         }
         finally { window.Close(); Directory.Delete(root, recursive: true); }
     }
