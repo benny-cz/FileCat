@@ -64,6 +64,10 @@ Closing an administrator window also saves its size, position, and maximized sta
 - **Explicit copy back and rollback.** Export elevated changes, preview in normal, cancel, and trigger autosave. No proposed value reaches disk or live normal settings. Confirm replacement separately and verify that only the listed fields change, the retained backup matches the original bytes, and rollback succeeds. Repeat with a stale draft and a second normal instance.
 - **Boundary and failure handling.** Exercise genuine medium/high Windows tokens, alternate credentials, named profiles, portable fallback, and `--data`. Cover invalid clipboard input, newer or corrupt settings, read-only storage, backup failure, and interrupted replacement. Retain the existing elevated persisted-tool and linked-state tests. Verify keyboard access and that Enter on the reverse review keeps the baseline. [Settings preservation tests](../../tests/FileCat.App.Tests/SettingsPreservationTests.cs) · [Elevated state tests](../../tests/FileCat.App.Tests/ElevatedStateDiagnosticsTests.cs)
 
+### Windows x64 verification, 19 November 2026
+
+The disposable VM's medium-integrity run passed 43 cases. A separate high-integrity run passed all four cases that need an administrator token. It verified session-only appearance, workspace apply and undo, remembered appearance and workspace on startup, and refusal of an administrator store with inherited permissions. The ordinary settings, workspace and backups in the preservation fixtures remained byte-identical. The medium TRX SHA-256 is `B43DC23C25FFCF2ABB03CF1DE038CDCDFEA2FEF607CA16D88829780201FFDF50`. The high-integrity xUnit XML SHA-256 is `F3BC9392D1C8CFD594636E7E50BFC001A04698BB20BB5604CE814CBBCD5E6DAE`.
+
 ## Effort estimate
 
 Allow **4–6 engineering days** for one developer, including real Windows UAC testing. The forward session-only copy is the smaller part. Most of the effort belongs to making a deliberate reverse replacement recoverable and proving that a canceled review or stale autosave cannot overwrite the ordinary baseline.

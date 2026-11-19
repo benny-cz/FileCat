@@ -12,6 +12,8 @@ Five native details cases passed. The summary and fresh metadata full report ide
 
 The Windows x64 VM repeated the three logical-size inspections and a separate late-growth check. A sparse file at exactly 30,000,000,000 bytes passed the Compress review. Its logical size increased by one byte while FileCat retained the original review pin. The held pre-call observation refused with `enable-size-limit`, attempted no compression call and kept the file clear at its new size. The expanded `compression-size-boundary-x64.trx` passed with no skips and has SHA-256 `97432C194335822283ED982709DE1AC2C698FCC86AF9946A26A60FF62B177A8B`. The focused ARM64 sparse workflow includes this size fixture.
 
+The native ARM64 run at `792acb92` passed the same size and late-growth checks at medium integrity. All 24 selected sparse and size cases executed and passed. The SHA-256 of `native-storage-sparse.trx` is `D4CFE2F2C181618E9FCECB2FDB618893479FDD6E21989B55CE895AFA1717AE29`. The test verifies the compression-enable ceiling and the already-clear removal review above it. Large sparse removal remains under its separate postcondition gate. [Native ARM64 qualification](https://github.com/benny-cz/FileCat/actions/runs/44609587834)
+
 ## Native ARM64 ABI qualification
 
 The manually dispatched [Windows ARM64 qualification workflow](../../../.github/workflows/ntfs-arm64-qualification.yml) prepares a new fixture directory on a disposable Windows 11 hosted runner with 4 KiB NTFS. It requires a native ARM64 process, medium integrity and an executed pass for every selected case. The workflow records the exact build, test binary hash, volume type and .NET runtime with the test receipt.
