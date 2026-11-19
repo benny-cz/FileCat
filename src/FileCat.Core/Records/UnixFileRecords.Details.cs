@@ -347,7 +347,7 @@ public sealed unsafe partial class UnixFileRecords
             Compression = Field(common, 0x40000, bytes.Length >= 112, (flags & 0x20) != 0, FactScope.Entry),
             CompressionLabel = "Compressed representation flag",
             Restrictions = Field(common, 0x40000, bytes.Length >= 112, ChflagsText(flags), FactScope.Entry),
-            Notes = ["Compression is a recorded BSD representation flag; FileVault and volume protection were not queried.",
+            Notes = ["Compression is a recorded BSD representation flag. This summary does not query volume protection.",
                 "The summary request excludes directory entry count, fork values and APFS sharing statistics."]
         };
         return FileDetailsReport.Metadata(snapshot, new InspectionSection("Native getattrlist metadata", [("Returned common mask", $"0x{common:X}"), ("Returned file mask", $"0x{files:X}"), ("Packed length", length.ToString())]));

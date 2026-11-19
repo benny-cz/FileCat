@@ -17,3 +17,11 @@ Ubuntu x64 and Apple silicon each passed all 31 focused tests using constructed 
 ## Pause and Stop at an encryption intent
 
 The Ubuntu x64 Core suite exercised the actual call runner and version-three journal with a simulated held EFS file. Stop during the intent flush produced one durable `NotAttempted` result and zero calls. Pause paired the first intent with `NotAttempted` before Resume. The next intent retained the scope consent and reviewed key and recorded the newly observed compression state. Stop inside that admitted call preserved its observed result and matching key in the readable journal prefix. The 47-test run passed and recorded `~/filecat-efs-admission-8eeeca7e-r1/efs-admission.trx`.
+
+## Retained version-three acknowledgment
+
+The retained report records the version-three encryption journal schema. Its acknowledgment previously recorded that schema while the report omitted it, which caused the next read to reject the pair. The version-one and version-two report format stays compatible with existing acknowledgments. An older version-three pair with the missing schema still requires a fresh acknowledgment against its journal.
+
+The Ubuntu x64 Core regression opened the retained pair after the production pruner removed a test journal. It verified the original schema, scope consent, reviewed key and unresolved effect. The 64 focused Core tests and 12 portable App tests passed. The App run skipped five platform- or fixture-specific cases, including the Windows restart cases. The receipts are `.tmp/filecat-metadata-history-fd0441ba-r9-core.trx` and `.tmp/filecat-metadata-history-fd0441ba-r9-app.trx`.
+
+The same retained acknowledgment regression passed on Apple silicon in `.tmp/filecat-apfs-protection-5ed3b947-r4.trx`.

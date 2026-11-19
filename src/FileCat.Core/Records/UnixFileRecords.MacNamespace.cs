@@ -33,6 +33,7 @@ public sealed unsafe partial class UnixFileRecords
             ("Case sensitive", sensitive.Describe(YesNo)), ("Case preserving", preserving.Describe(YesNo)),
             ("Unicode normalization", normalization), ("Observation", MacNamespaceSource)]);
         report = report with { Technical = report.Technical with { Sections = [.. report.Technical.Sections, section] } };
+        report = AddMacApfsProtection(report, device, ct);
         return report.Summary.Kind == FileObjectKind.File ? AddMacApfsSharing(report, initial, ct) : report;
 
         static string YesNo(bool value) => value ? "Yes" : "No";

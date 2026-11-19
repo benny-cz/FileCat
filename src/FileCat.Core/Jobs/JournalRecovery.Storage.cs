@@ -21,6 +21,17 @@ public sealed record StorageHistorySnapshot(StorageJournalPrefix Prefix, Immutab
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public StorageEfsConsent? EfsConsent { get; init; }
     internal int? JournalSchema { get; init; }
+
+    // Versions one and two already round-trip through the action. Keep their retained JSON shape so previously
+    // acknowledged reports still match an extant journal. Encrypt can use versions two or three.
+    [System.Text.Json.Serialization.JsonInclude]
+    [System.Text.Json.Serialization.JsonPropertyName("journalSchema")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    internal int? RetainedJournalSchema
+    {
+        get => JournalSchema == StorageJournalPolicy.EfsRecoveryVersion ? JournalSchema : null;
+        init => JournalSchema = value;
+    }
 }
 public sealed record StorageHistoryRow(string FileName, Guid? JobId, StorageAction? Action, StorageScope? Scope,
     int? RootCount, string Status)
