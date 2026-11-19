@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -59,6 +60,7 @@ public sealed partial class AnalysisRenderingTests
         long peakScratchReserved = 0;
         AnalysisProgress? acquisitionProgress = null;
         object? acquisitionOutcome = null;
+        NativeScaleFaults? faults = null;
         using var process = Process.GetCurrentProcess(); using var samplingStop = new CancellationTokenSource();
         Task sampling = Task.CompletedTask; AnalysisPhysicalMemory? physical = null;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
@@ -109,7 +111,7 @@ public sealed partial class AnalysisRenderingTests
             sampledPeakWorkingSetIncrementBytes = Math.Max(0, peakWorking - baselineWorking),
             nativePhysicalMemory = physical?.Describe(), sampledPeakScratchReservedBytes = peakScratchReserved,
             remainingSharedQuotaBytes = AnalysisScratchBudget.Shared.ReservedBytes, acquisitionOutcome,
-            logicalBaselineMeasured, failure,
+            logicalBaselineMeasured, nativeFaults = faults?.Capture(), failure,
         }, new JsonSerializerOptions { WriteIndented = true }));
         void Mark(string name)
         {
@@ -146,8 +148,8 @@ public sealed partial class AnalysisRenderingTests
             availableAfterFixture = fixtureDrive?.AvailableFreeSpace;
             fixtureComplete = true;
             if (Environment.GetEnvironmentVariable("FILECAT_TEST_NATIVE_SCALE_SKIP_LOGICAL_BASELINE") == "1")
-                Assert.True(requirement == NativeScaleRequirement.ScratchBudget && reusedSource,
-                    "Omit the separate logical benchmark only when retesting scratch-budget handling on a retained fixture.");
+                Assert.True(requirement != NativeScaleRequirement.CompleteIndex && reusedSource,
+                    "Omit the separate logical benchmark only when retesting a bounded acquisition on a retained fixture.");
             else
             {
                 Mark("logical-baseline");
@@ -157,6 +159,8 @@ public sealed partial class AnalysisRenderingTests
                 logicalBaselineMeasured = true;
             }
             Mark("native-acquisition");
+            if (Environment.GetEnvironmentVariable("FILECAT_TEST_NATIVE_SCALE_DIAGNOSTICS") == "1")
+                faults = new NativeScaleFaults();
             using var styles = new ProductStyles();
             services = AppServices.CreateForPaths(AppPaths.Resolve(dataRoot: Path.Combine(root, "profile")));
             GC.Collect(); process.Refresh(); baselinePrivate = peakPrivate = process.PrivateMemorySize64;
@@ -334,6 +338,7 @@ public sealed partial class AnalysisRenderingTests
             }
             finally
             {
+                faults?.Dispose();
                 samplingStop.Cancel(); await cancellationWatch; await sampling; physical?.Observe();
                 phases.Add(new { phase, seconds = timer.Elapsed.TotalSeconds }); phase = "closed"; Save();
                 if (completed)
@@ -349,4 +354,34 @@ public sealed partial class AnalysisRenderingTests
 
     private sealed class InlineScaleProgress(Action<AnalysisProgress> report) : IProgress<AnalysisProgress>
     { public void Report(AnalysisProgress value) => report(value); }
+
+    // Test-only observation of failures that the analyzer deliberately presents as bounded issue codes.
+    // Preserve method names and numeric results without emitting paths, messages or source names.
+    private sealed class NativeScaleFaults : IDisposable
+    {
+        private readonly List<NativeFault> _faults = [];
+        private sealed record NativeFault(string Type, int HResult, string[] Methods);
+
+        internal NativeScaleFaults() => AppDomain.CurrentDomain.FirstChanceException += Observe;
+
+        private void Observe(object? sender, FirstChanceExceptionEventArgs args)
+        {
+            var error = args.Exception;
+            if (error is not (IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentOutOfRangeException))
+                return;
+            var methods = new StackTrace(error).GetFrames().Select(frame => frame.GetMethod())
+                .Where(method => method?.DeclaringType?.FullName is not null)
+                .Select(method => method!.DeclaringType!.FullName + "." + method.Name).Take(24).ToArray();
+            if (!methods.Any(name => name.StartsWith("FileCat.Core.Analysis.", StringComparison.Ordinal) ||
+                name.StartsWith("FileCat.Platform.Windows.Analysis.", StringComparison.Ordinal))) return;
+            lock (_faults)
+            {
+                if (_faults.Count >= 24 || _faults.Any(fault => fault.HResult == error.HResult && fault.Methods.SequenceEqual(methods))) return;
+                _faults.Add(new(error.GetType().Name, error.HResult, methods));
+            }
+        }
+
+        internal object[] Capture() { lock (_faults) return _faults.Cast<object>().ToArray(); }
+        public void Dispose() => AppDomain.CurrentDomain.FirstChanceException -= Observe;
+    }
 }
