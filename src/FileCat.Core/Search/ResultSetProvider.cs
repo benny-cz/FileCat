@@ -255,12 +255,8 @@ public sealed class ResultSetProvider(ProviderRegistry providers, IFileSystemOpe
                 Flags = info is null && item.FileSystemPath is not null ? EntryFlags.Unavailable : info is null ? item.Flags : LocalFileSystemProvider.MapFlags(info.Attributes),
             };
             if (info is not null && info.IsDirectory) e.Size = -1;
-            // Carry the captured tag as a presentation hint while the existing refresh agrees with its snapshot.
-            if (item.NativeReparseTag != 0 && info is not null &&
-                item.Kind == (info.IsDirectory ? EntryKind.Directory : EntryKind.File) &&
-                e.Attributes == item.NativeAttributes && (info.Attributes & FileAttributes.ReparsePoint) != 0 &&
-                e.Size == item.Size && e.Modified == item.Modified && item.Modified > 0)
-                e.NativeReparseTag = item.NativeReparseTag;
+            if (info is not null)
+                e.NativeReparseTag = item.RetainReparseTag(info.IsDirectory ? EntryKind.Directory : EntryKind.File, e.Attributes, e.Size, e.Modified);
             batch.Add(e);
             if (batch.Count == 256)
             {

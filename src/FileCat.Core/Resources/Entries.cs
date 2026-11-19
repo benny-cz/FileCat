@@ -179,6 +179,12 @@ public sealed class ItemRef : IEquatable<ItemRef>
     [System.Text.Json.Serialization.JsonIgnore]
     public uint NativeAttributes { get; init; }
 
+    // A refresh may retain the captured presentation hint when the metadata still agrees.
+    internal uint RetainReparseTag(EntryKind kind, uint attributes, long size, long modified) =>
+        NativeReparseTag != 0 && Parent.IsFileSystem && Kind == kind && NativeAttributes == attributes &&
+        (attributes & (uint)FileAttributes.ReparsePoint) != 0 && Size == size && Modified == modified && modified > 0
+            ? NativeReparseTag : 0;
+
     /// <summary>Distinguishes items that share a name in one container (duplicate archive entries).</summary>
     public int Ordinal { get; init; }
 

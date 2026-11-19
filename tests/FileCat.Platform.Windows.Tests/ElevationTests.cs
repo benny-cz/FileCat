@@ -3,6 +3,7 @@ using System.Security.Principal;
 using System.Text;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 using FileCat.Platform.Windows.Elevation;
 using Microsoft.Win32;
 
@@ -23,6 +24,19 @@ public sealed class ElevationTests
     }
 
     private static SecureFileOps Ops() => new(() => { });
+
+    private static void RequireBrokerEfsFixture()
+    {
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipUnless(WindowsStorageTransforms.SupportsHost(arm64) && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
+            "Requires a disposable Windows VM with EFS enabled.");
+        if (arm64)
+        {
+            string root = Path.TrimEndingDirectorySeparator(Path.GetTempPath());
+            Assert.Equal(Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ABI_ROOT"), root, ignoreCase: true);
+            Assert.Equal("NTFS", new DriveInfo(Path.GetPathRoot(root)!).DriveFormat);
+        }
+    }
 
     [Fact]
     public void The_window_titles_account_and_rights_come_from_the_process_token()
@@ -183,8 +197,7 @@ public sealed class ElevationTests
     [InlineData("replacement-appeared-during-copy")]
     public void Administrator_copy_refuses_efs_sources_and_retains_encrypted_destinations(string scenario)
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Requires a disposable Windows VM with EFS enabled.");
+        RequireBrokerEfsFixture();
         string root = NewDirectory();
         try
         {
@@ -247,8 +260,7 @@ public sealed class ElevationTests
     [Fact]
     public void The_administrator_copy_holds_the_source_clear_during_native_reads()
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Requires a disposable Windows VM with EFS enabled.");
+        RequireBrokerEfsFixture();
         string root = NewDirectory();
         try
         {
@@ -282,8 +294,7 @@ public sealed class ElevationTests
     [InlineData(false)]
     public void A_marked_administrator_replacement_commits_or_rolls_back_the_entire_copy(bool abort)
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Requires a disposable Windows VM with EFS enabled.");
+        RequireBrokerEfsFixture();
         string root = NewDirectory();
         string source = Path.Combine(root, "source.txt"), target = Path.Combine(root, "target.txt");
         const string originalMark = "[ZoneTransfer]\r\nZoneId=2\r\n", replacementMark = "[ZoneTransfer]\r\nZoneId=3\r\n";
@@ -317,8 +328,7 @@ public sealed class ElevationTests
     [Fact]
     public void An_encrypted_destination_default_refuses_administrator_copy_before_creation()
     {
-        Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
-            "Requires a disposable Windows VM with EFS enabled.");
+        RequireBrokerEfsFixture();
         string root = NewDirectory();
         try
         {
@@ -428,7 +438,7 @@ public sealed class ElevationTests
     [Fact]
     public void High_token_copy_runner_keeps_the_mark_at_a_protected_destination()
     {
-        Assert.SkipWhen(!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess,
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess || !WindowsTokenAuthority.IsHighIntegrity,
             "An owned high-integrity Windows guest is required.");
         string root = NewDirectory();
         try

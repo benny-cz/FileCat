@@ -300,7 +300,7 @@ public sealed class SearchSession
                 continue;
             }
             if ((info.Attributes & FileAttributes.Hidden) != 0 && !_query.IncludeHidden) continue;
-            if (IsMatch(info, item.IsContainer, ct)) AddResult(info, item.IsContainer, relative);
+            if (IsMatch(info, item.IsContainer, ct)) AddResult(info, item.IsContainer, relative, item);
         }
         // Batch each archive parent once. Only that parent's requested identities and current metadata are retained;
         // neither sibling folders nor members that were absent from the original result set become search results.
@@ -783,11 +783,17 @@ public sealed class SearchSession
         AddResult(info, isDir, rel);
     }
 
-    private void AddResult(FileSystemInfo info, bool isDir, string relativeFolder)
+    private void AddResult(FileSystemInfo info, bool isDir, string relativeFolder, ItemRef? earlier = null)
     {
         var parentPath = Path.GetDirectoryName(info.FullName) ?? info.FullName;
-        var item = new ItemRef(Location.FileSystem(parentPath), info.Name, isDir ? EntryKind.Directory : EntryKind.File,
-            isDir ? -1 : ((FileInfo)info).Length, info.LastWriteTimeUtc.Ticks);
+        var kind = isDir ? EntryKind.Directory : EntryKind.File;
+        long size = isDir ? -1 : ((FileInfo)info).Length, modified = info.LastWriteTimeUtc.Ticks;
+        uint refreshedAttributes = earlier is { NativeReparseTag: not 0 } ? (uint)info.Attributes : 0;
+        var item = new ItemRef(Location.FileSystem(parentPath), info.Name, kind, size, modified)
+        {
+            NativeAttributes = refreshedAttributes,
+            NativeReparseTag = earlier?.RetainReparseTag(kind, refreshedAttributes, size, modified) ?? 0,
+        };
         _results.Add(item, relativeFolder);
         long m = Interlocked.Increment(ref Matches);
         if (m < 50 || m % 200 == 0) _results.NotifyChanged();

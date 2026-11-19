@@ -15,6 +15,14 @@ on:
         description: Qualify EFS protections for archive packing, editing and publication
         type: boolean
         default: false
+      broker:
+        description: Qualify the native administrator copy broker with EFS fixtures
+        type: boolean
+        default: false
+      remote:
+        description: Qualify EFS upload and source retirement with a controlled remote fixture
+        type: boolean
+        default: false
       scale:
         description: Run the 10,000-file native storage benchmark
         type: boolean
@@ -259,6 +267,61 @@ jobs:
               throw 'The native 10,000-file benchmark must execute and pass.'
             }
           }
+      - name: Exercise native ARM64 administrator copy with EFS
+        if: inputs.broker
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-fixture'
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ROOT = $fixture
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
+          $env:FILECAT_TEST_EFS = '1'
+          $env:TMP = $fixture
+          $env:TEMP = $fixture
+          $project = 'tests/FileCat.Platform.Windows.Tests'
+          $efsCases = @(
+            'Administrator_copy_refuses_efs_sources_and_retains_encrypted_destinations'
+            'The_administrator_copy_holds_the_source_clear_during_native_reads'
+            'A_marked_administrator_replacement_commits_or_rolls_back_the_entire_copy'
+            'An_encrypted_destination_default_refuses_administrator_copy_before_creation'
+          ) | ForEach-Object { "FullyQualifiedName~$_" }
+          $efsFilter = $efsCases -join '|'
+          $highFilter = "$efsFilter|FullyQualifiedName~High_token_copy_runner_keeps_the_mark_at_a_protected_destination"
+          dotnet test $project -c Release --no-build --filter $highFilter --logger 'trx;LogFileName=native-efs-broker-high.trx'
+          $highExit = $LASTEXITCODE
+          ./eng/validation/run-medium-integrity-test.ps1 -Project $project -LogFileName native-efs-broker-medium.trx -Filter $efsFilter
+          if ($LASTEXITCODE -ne 0 -or $highExit -ne 0) { exit 1 }
+          foreach ($scope in @(@{ Level = 'high'; Count = '10' }, @{ Level = 'medium'; Count = '9' })) {
+            [xml]$receipt = Get-Content -LiteralPath "$project/TestResults/native-efs-broker-$($scope.Level).trx" -Raw
+            $counters = $receipt.TestRun.ResultSummary.Counters
+            if ($counters.total -ne $scope.Count -or $counters.executed -ne $scope.Count -or $counters.passed -ne $scope.Count) {
+              throw "All $($scope.Count) native $($scope.Level)-integrity broker cases must execute and pass."
+            }
+          }
+      - name: Qualify native ARM64 EFS upload and source retirement
+        if: inputs.remote
+        shell: pwsh
+        run: |
+          $project = 'tests/FileCat.App.Tests'
+          dotnet restore $project --locked-mode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build $project -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $fixture = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-fixture'
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ROOT = $fixture
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+          $env:FILECAT_TEST_EFS = '1'
+          $env:FILECAT_EDIT_NATIVE_ROOT = $fixture
+          $env:TMP = $fixture
+          $env:TEMP = $fixture
+          $filter = 'FullyQualifiedName~FileCat.App.Tests.EfsRemoteUploadTests|FullyQualifiedName~FileCat.App.Tests.SftpRetainedEditTests'
+          ./eng/validation/run-medium-integrity-test.ps1 -Project $project -LogFileName native-efs-remote-upload.trx -Filter $filter
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          [xml]$receipt = Get-Content -LiteralPath "$project/TestResults/native-efs-remote-upload.trx" -Raw
+          $counters = $receipt.TestRun.ResultSummary.Counters
+          if ($counters.total -ne '39' -or $counters.executed -ne '39' -or $counters.passed -ne '39') {
+            throw 'All 39 native remote-upload and retained-edit cases must execute and pass.'
+          }
       - name: Measure native and managed NTFS listing at scale
         if: inputs.listing
         shell: pwsh
@@ -352,6 +415,7 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-hex-output.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-copy-output.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-broker-*.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-archive-protection.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-keys.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-wizard.trx
@@ -360,4 +424,5 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-scale.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-evidence-limits.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-archive-output.trx
+            tests/FileCat.App.Tests/TestResults/native-efs-remote-upload.trx
           if-no-files-found: error
