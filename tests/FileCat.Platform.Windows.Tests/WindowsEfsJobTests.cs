@@ -9,7 +9,7 @@ using FileCat.Core.State;
 namespace FileCat.Platform.Windows.Tests;
 
 [Collection("Windows storage job evidence")]
-public sealed class WindowsEfsJobTests
+public sealed partial class WindowsEfsJobTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
