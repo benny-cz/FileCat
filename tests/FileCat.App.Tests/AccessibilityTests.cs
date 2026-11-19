@@ -50,7 +50,7 @@ public sealed class AccessibilityTests
         FileCat.Core.Archives.ArchiveJobBackends? archiveBackends = null,
         Func<AppPaths,FileCat.Core.FileSystem.IFileSystemOperations,FileCat.Core.Edit.EditSessionStore>? editSessionFactory = null,
         bool realTemporaryPath = false, FileCat.Core.FileSystem.IStorageTransforms? storageTransforms = null,
-        Action<string>? prepareFiles = null)
+        Action<string>? prepareFiles = null, bool qualifyNativeArm64Storage = false)
     {
         // macOS reaches its temporary folder through /var, a link; native edit storage holds its folder without following
         // links, so tests of that store ask for the real path (/private/var), as a real home folder is.
@@ -70,7 +70,7 @@ public sealed class AccessibilityTests
             if (nativeWindowsOriginMarks && OperatingSystem.IsWindows())
                 PlatformFactory.WindowsFactory = () => new WindowsMarkPlatform();
             var paths = statePaths ?? AppPaths.Resolve(overrideRoot: root);
-            services = storageTransforms is not null ? AppServices.CreateForPathsWithStorageTransforms(paths, storageTransforms)
+            services = storageTransforms is not null ? AppServices.CreateForPathsWithStorageTransforms(paths, storageTransforms, qualifyNativeArm64Storage)
                 : editSessionFactory is not null ? AppServices.CreateForPathsWithEditSessions(paths,editSessionFactory,sftp,archiveBackends)
                 : archiveBackends is null ? AppServices.CreateForPaths(paths, sftp)
                 : AppServices.CreateForPathsWithArchiveBackends(paths, archiveBackends, sftp);

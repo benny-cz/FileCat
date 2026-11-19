@@ -311,8 +311,9 @@ public sealed class AppServices : IDisposable
     internal static AppServices CreateForPathsWithAdministratorRegistry(AppPaths paths,
         FileCat.Platform.Windows.AdministratorTransferRegistry registry) => new(paths, administratorRegistry: registry);
 
-    internal static AppServices CreateForPathsWithStorageTransforms(AppPaths paths, IStorageTransforms storageTransforms) =>
-        new(paths, storageTransforms: storageTransforms);
+    internal static AppServices CreateForPathsWithStorageTransforms(AppPaths paths, IStorageTransforms storageTransforms,
+        bool qualifyNativeArm64Storage = false) =>
+        new(paths, storageTransforms: storageTransforms, qualifyNativeArm64Storage: qualifyNativeArm64Storage);
 
     internal static AppServices CreateForPathsWithOwnership(AppPaths paths, IOwnership ownership, int cacheSize = 50_000,
         Func<long>? clock = null) => new(paths, ownershipOverride: ownership, metadataCacheSize: cacheSize, metadataClock: clock);

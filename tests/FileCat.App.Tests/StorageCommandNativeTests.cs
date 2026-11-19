@@ -4,6 +4,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using FileCat.App.Services;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.FileSystem;
@@ -18,6 +19,23 @@ namespace FileCat.App.Tests;
 /// <summary>Explicit disposable-client opt-in. Exercises the actual command through native job retirement.</summary>
 public sealed class StorageCommandNativeTests
 {
+    private static bool RequireNativeCommandFixture(bool efs)
+    {
+        string optIn = efs ? "FILECAT_TEST_EFS_UI" : "FILECAT_TEST_STORAGE_UI";
+        Assert.SkipUnless(Environment.GetEnvironmentVariable(optIn) == "1",
+            "Explicit disposable Windows 11 client, medium integrity, NTFS command qualification.");
+        bool arm64 = Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS") == "1";
+        Assert.True(AppServices.CanQualifyNtfsStorage(arm64),
+            "The native command fixture must run at medium integrity on the selected Windows 11 architecture.");
+        if (arm64)
+        {
+            Assert.Equal("Arm64", Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE"));
+            Assert.Equal(Environment.GetEnvironmentVariable("FILECAT_TEST_WINDOWS_STORAGE_ABI_ROOT"),
+                Path.TrimEndingDirectorySeparator(Path.GetTempPath()), ignoreCase: true);
+        }
+        return arm64;
+    }
+
     private static async Task Until(Func<bool> condition)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
@@ -28,11 +46,10 @@ public sealed class StorageCommandNativeTests
     [AvaloniaFact]
     public async Task The_qualified_candidate_opens_Efs_protection_and_selected_file_backup_from_commands()
     {
-        Assert.SkipWhen(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_UI") != "1" || !WindowsStorageTransforms.IsQualifiedHost,
-            "Explicit disposable Windows 11 x64 client, medium integrity, NTFS EFS review qualification.");
+        bool arm64 = RequireNativeCommandFixture(efs: true);
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420,
-            storageTransforms: new WindowsStorageTransforms().CreateEfsJobCandidate(),
-            prepareFiles: folder => File.Encrypt(Path.Join(folder, "a.txt")));
+            storageTransforms: new WindowsStorageTransforms(qualifyNativeArm64: arm64).CreateEfsJobCandidate(),
+            prepareFiles: folder => File.Encrypt(Path.Join(folder, "a.txt")), qualifyNativeArm64Storage: arm64);
         try
         {
             string path = Path.Join(root, "files", "a.txt");
@@ -73,10 +90,10 @@ public sealed class StorageCommandNativeTests
     [AvaloniaFact]
     public async Task Efs_review_transfers_the_displayed_consent_to_real_encryption_and_decryption_jobs()
     {
-        Assert.SkipWhen(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_UI") != "1" || !WindowsStorageTransforms.IsQualifiedHost,
-            "Explicit disposable Windows 11 x64 client, medium integrity, NTFS EFS review qualification.");
+        bool arm64 = RequireNativeCommandFixture(efs: true);
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 760, height: 620,
-            storageTransforms: new WindowsStorageTransforms().CreateEfsJobCandidate());
+            storageTransforms: new WindowsStorageTransforms(qualifyNativeArm64: arm64).CreateEfsJobCandidate(),
+            qualifyNativeArm64Storage: arm64);
         try
         {
             string path = Path.Join(root, "files", "a.txt");
@@ -145,12 +162,11 @@ public sealed class StorageCommandNativeTests
     public async Task Real_storage_command_keeps_its_review_and_guards_completion_marks(StorageAction action, string change)
     {
         bool efs = action == StorageAction.DecryptEfs;
-        Assert.SkipWhen(efs ? Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_UI") != "1" || !WindowsStorageTransforms.IsQualifiedHost :
-            Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_UI") != "1" || !WindowsStorageReviewEvidence.IsSupportedHost,
-            "Explicit disposable Windows 11 x64 client, medium integrity, NTFS command qualification.");
-        var platform = new WindowsStorageTransforms();
+        bool arm64 = RequireNativeCommandFixture(efs);
+        var platform = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420,
             storageTransforms: efs ? platform.CreateEfsJobCandidate() : platform,
+            qualifyNativeArm64Storage: arm64,
             prepareFiles: folder =>
             {
                 string a = Path.Join(folder, "a.txt"), b = Path.Join(folder, "b.txt");
