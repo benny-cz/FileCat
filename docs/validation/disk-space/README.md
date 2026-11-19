@@ -2,6 +2,8 @@
 
 The standard analyzer opens from Tools → Disk space…, command search, and the folder and drive context menus. Live file operations require their corresponding source and operation admission checks. The independent technical review and its Windows, macOS and Ubuntu retests are complete. The participant study remains pending by project-owner decision. Default builds keep Fast NTFS unavailable until a trusted release installer is qualified. [Final review](FINAL_REVIEW_CHECKLIST.md) · [Comprehension study](UX_COMPREHENSION_STUDY.md).
 
+The follow-up plan covers results layout, measurement labels, capacity context, and cleanup review clarity. [UX and UI improvement plan](../../design/FILECAT_DISK_SPACE_UX_IMPROVEMENT_PLAN.md).
+
 The development packages passed Standard desktop workflows on the Windows VM, Mac and Ubuntu VM. Actual Windows NVDA and Ubuntu Orca announced the Resource limits close button. Native Return and Escape restored focus on both systems. The Mac accessibility API exposed the title, reservation amount and focused button. See the [package and accessibility results](NATIVE_PACKAGES_QUALIFICATION.md).
 
 Native wide and deep million-path workflows pass across all three platforms. Each retained ten-million-path fixture reached the 4 GiB scratch budget and kept a 4,096-path preview with partial coverage. [Native scale measurements](NATIVE_MILLION_SCALE_QUALIFICATION.md).
