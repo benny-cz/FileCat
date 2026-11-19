@@ -71,4 +71,11 @@ The Windows r1702 resume completed the fixture and measured a 250.37-second Dire
 
 Windows r1760 repeated the failure at 5,467,780 observations. The observer located the first I/O exception in the scratch vector's block-directory guard during publication. Short source batches had filled the 65,536-slot directory while sampled scratch reservations remained at 3,821,607,630 bytes. A second error occurred when the writer tried to record an issue in the faulted capture. The fixture and 4,096-path preview were preserved, all native owners closed, and scratch reservations and test process counts returned to zero. The diagnostic receipt SHA-256 is `d6d75248feb14a77c16c29f3c8892b5d94e5d15a9e71c60eabf54516f8ace1e7`.
 
-The paged block directory now derives its limit from the minimum reservation for a framed block and the 4 GiB arena budget. Each block reserves its offset table and authentication framing, including a block from a short batch. This lets the existing byte budget report the first limit while keeping the block directory bounded. The retained-fixture rerun will verify that the Windows product reaches the qualified preview outcome.
+The paged block directory now derives its limit from the minimum reservation for a framed block and the 4 GiB arena budget. Each block reserves its offset table and authentication framing, including a block from a short batch. This lets the existing byte budget report the first limit while keeping the block directory bounded. A Windows retained-fixture rerun uses the corrected product.
+
+The Mac and Ubuntu VM each passed 105 focused r1771 scratch, observation and dataset cases with the same corrected Core DLL from `6e19902c`. Both had zero failures, errors or skips, and both process inventories were empty. The Core DLL SHA-256 is `2036b2e0dd9dc6c1f263696693073b2cd17fa5219efad8bba66c061efe71cd9e`.
+
+| Platform | r1771 result XML SHA-256 |
+|---|---|
+| Mac | `24f691ba7b5717f257f84805494d7ce597ae9e6f62039aecb77201d7869219ae` |
+| Ubuntu VM | `db0f630041831d31453ff9b2842c521b1b4590bbec6eef918c7131a787f747a9` |
