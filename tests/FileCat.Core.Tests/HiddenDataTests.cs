@@ -12,7 +12,7 @@ public sealed partial class HiddenDataTests
         HiddenDataDecoder.Describe(new HiddenItem(name, kind, value.Length), value).Summary;
 
     [Fact]
-    public void A_linux_attribute_report_retains_the_original_inode_after_replacement()
+    public void Reviewed_linux_attribute_actions_refuse_a_replacement_inode()
     {
         Assert.SkipUnless(OperatingSystem.IsLinux(), "Requires the Linux descriptor-bound xattr adapter.");
         using var root = new TempDir();
@@ -30,12 +30,21 @@ public sealed partial class HiddenDataTests
         Assert.Equal(original, Assert.Single(report.Origin.Contributors).Identity);
         Assert.Contains("original attribute value", report.Text);
 
-        File.Move(file, Path.Combine(root.Path, "previous.bin"));
+        string previous = Path.Combine(root.Path, "previous.bin");
+        File.Move(file, previous);
         File.WriteAllText(file, "replacement main bytes");
         Assert.Equal(0, SetAttribute(file, name, "replacement attribute"u8.ToArray()));
         Assert.Contains("different file", Assert.Throws<IOException>(() => provider.ReadValueReport(item, original, ct)).Message);
         Assert.Contains("original attribute value", report.Text);
         Assert.DoesNotContain("replacement attribute", report.Text);
+
+        Assert.Contains("different file", Assert.Throws<IOException>(() => provider.DeleteReviewedValue(item, original, ct)).Message);
+        var replacement = adapter.ReadInventory(file, new(), ct);
+        Assert.Contains(replacement.Items, attr => attr.Name == name);
+        provider.DeleteReviewedValue(item, replacement.Identity!.Value, ct);
+        Assert.DoesNotContain(adapter.ReadInventory(file, new(), ct).Items, attr => attr.Name == name);
+        Assert.Contains(adapter.ReadInventory(previous, new(), ct).Items, attr => attr.Name == name);
+        Assert.Equal("replacement main bytes", File.ReadAllText(file));
     }
 
     [Fact]

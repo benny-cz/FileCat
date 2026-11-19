@@ -54,6 +54,12 @@ When a Unix attribute-name list outgrows its native buffer, FileCat makes at mos
 
 Ubuntu x64 passed 22 focused tests with two Darwin-only skips. Apple silicon passed 21 with two Linux-only skips and one opt-in compressed-file skip. Both ran the growth fixture. Ubuntu exercised bound xattr operations and special-file refusal. The Mac exercised the native resource-fork inventory. Results are `.tmp/filecat-unix-xattr-growth-90208329-ubuntu.trx` and `.tmp/filecat-unix-xattr-growth-90208329-mac.trx`. The tested `UnixHiddenData.Inventory.cs` SHA-256 is `DEF377988BA0DD7EDD4B3486BA2F0CDC6C3770D12802F0979E895581C6EB3502`.
 
+## Delete confirmation retains the inventory identity
+
+Supplementary deletion captures the listed file identity before confirmation. The Linux adapter verifies it on the descriptor used to remove the attribute. The Windows paths verify it on the held file before resolving the exact ADS or EA for deletion. Removing the extra inventory lookup also avoids reopening the pathname between current category resolution and mutation.
+
+Ubuntu x64 exercised a real xattr on a replacement inode with the same name. The existing confirmation failed even after the tab had refreshed to the new inode, and both files kept their attributes. A newly reviewed removal succeeded in the Core fixture. The regular app confirmation still removed the selected attribute and refreshed the parent column after returning. The focused batch had 64 Core and 11 App tests pass, with three platform-specific skips. Results are `core.trx` and `app.trx` under `~/filecat-supplementary-delete-8eeeca7e-r3`. The Windows tests built successfully. Native ADS and EA replacement cases remain pending.
+
 ## Remaining gates
 
 F5 remains partial: qualify broader denial/change/native-budget and action/output cases, macOS bound/compression-visible inventory, and restore independently bounded hard-link/range/FIEMAP/retrieval-pointer collectors. Metadata-only reports continue to omit those collectors before acquisition. The [optional-column checkpoint](2026-11-17-columns.md) records subsequent F6 ownership/freshness work; native search-mask validation and wider qualification remain unfinished. Do not interpret these counts as complete plan acceptance.
