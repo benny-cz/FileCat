@@ -90,7 +90,7 @@ public sealed partial class DiskSpaceWindow : Window
     }
     protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => new DescendantFocusWindowAutomationPeer(this);
     public DiskSpaceWindow(Action? newAnalysis = null, Func<Keymap>? keymap = null) : this(newAnalysis, keymap, AnalysisSessionAdmission.Shared) { }
-    internal DiskSpaceWindow(Action? newAnalysis, Func<Keymap>? keymap, AnalysisSessionAdmission admissionPool)
+    internal DiskSpaceWindow(Action? newAnalysis, Func<Keymap>? keymap, AnalysisSessionAdmission admissionPool, AppServices? services = null)
     {
         _admissionPool = admissionPool;
         if (_admissionPool.HasFailedClose) { _notice.Text = AnalysisSessionAdmission.FailedCloseMessage; _notice.IsVisible = true; }
@@ -98,7 +98,14 @@ public sealed partial class DiskSpaceWindow : Window
         _keymap = keymap ?? (() => defaults);
         _newAnalysis = newAnalysis; Title = "Disk space — FileCat"; Width = 1180; Height = 780; MinWidth = 360; MinHeight = 360;
         ConfigureAnalysisLayout();
-        WindowFit.Attach(this);
+        if (services is null) WindowFit.Attach(this);
+        else WindowFit.RememberSize(this, new Size(Width, Height), new Size(MinWidth, MinHeight),
+            () => (services.Settings.DiskUsageWidth, services.Settings.DiskUsageHeight), size =>
+            {
+                services.Settings.DiskUsageWidth = size.Width;
+                services.Settings.DiskUsageHeight = size.Height;
+                services.SaveSettings();
+            });
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (IOException) { }
         _dialogs = new(_overlay, () => _tabs);
         AutomationProperties.SetName(_tabs, "Analysis tabs");

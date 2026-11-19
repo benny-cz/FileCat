@@ -163,15 +163,8 @@ public sealed class ViewerWindow : Window
     private CancellationTokenSource? _lineCts;
     private readonly CancellationTokenSource _closing = new();
     private static readonly List<ViewerWindow> s_open = [];
-    private Size _initialWindowSize;
-    private Size _lastNormalWindowSize;
-    private bool _windowOpened, _userSizedWindow;
-    private bool _restoringWindowState;
-    private bool _normalSizePending;
-    private readonly DispatcherTimer _restoreSizeTimer = new(DispatcherPriority.Background)
-        { Interval = TimeSpan.FromMilliseconds(250) };
-    private readonly DispatcherTimer _normalSizeTimer = new(DispatcherPriority.Background)
-        { Interval = TimeSpan.FromMilliseconds(250) };
+    private static readonly Size DefaultWindowSize = new(980, 700);
+    private static readonly Size MinimumWindowSize = new(480, 300);
     private bool _readyForRefresh;
 
     /// <summary>Open viewer windows, oldest first: the window list in the command palette (plan §4.1).</summary>
@@ -203,63 +196,13 @@ public sealed class ViewerWindow : Window
             ? ct => ViewerLauncher.ReopenSourceAsync(services, _deviceKey, () => new FileContentSource(localPath), ct)
             : null);
         Title = $"{Path.GetFileName(displayName.TrimEnd('\\', '/'))} — FileCat Viewer";
-        Size usable = ViewerWorkingArea();
-        Size restored = RestoreViewerSize(services.Settings.ViewerWidth, services.Settings.ViewerHeight, usable);
-        MinWidth = Math.Min(480, Math.Max(1, usable.Width - 24));
-        MinHeight = Math.Min(300, Math.Max(1, usable.Height - 24));
-        Width = restored.Width;
-        Height = restored.Height;
-        Opened += (_, _) =>
-        {
-            if (Math.Abs(Width - restored.Width) < 1 && Math.Abs(Height - restored.Height) < 1)
+        WindowFit.RememberSize(this, DefaultWindowSize, MinimumWindowSize,
+            () => (services.Settings.ViewerWidth, services.Settings.ViewerHeight), size =>
             {
-                // Screen information may first become available when the native window opens.
-                Size currentArea = ViewerWorkingArea();
-                Size currentSize = RestoreViewerSize(services.Settings.ViewerWidth, services.Settings.ViewerHeight, currentArea);
-                MinWidth = Math.Min(480, Math.Max(1, currentArea.Width - 24));
-                MinHeight = Math.Min(300, Math.Max(1, currentArea.Height - 24));
-                Width = currentSize.Width;
-                Height = currentSize.Height;
-            }
-            _initialWindowSize = new Size(Width, Height);
-            _lastNormalWindowSize = _initialWindowSize;
-            _windowOpened = true;
-        };
-        _restoreSizeTimer.Tick += (_, _) =>
-        {
-            _restoreSizeTimer.Stop();
-            _restoringWindowState = false;
-        };
-        // Neither a fit to a smaller screen nor the resize a scaling change brings is the user's: the size they chose
-        // stays for later, larger screens. (A change to 200% with the viewer open saved its fitted size instead.)
-        void NotTheUsersSize(bool ongoing)
-        {
-            _normalSizeTimer.Stop();
-            _normalSizePending = false;
-            _restoringWindowState = true;
-            _restoreSizeTimer.Stop();
-            if (!ongoing) _restoreSizeTimer.Start();
-        }
-        WindowFit.Attach(this, NotTheUsersSize);
-        ScalingChanged += (_, _) => NotTheUsersSize(false);
-        _normalSizeTimer.Tick += (_, _) =>
-        {
-            _normalSizeTimer.Stop();
-            _normalSizePending = false;
-            if (!_restoringWindowState && WindowState == WindowState.Normal)
-                RememberNormalViewerSize(Bounds.Size);
-        };
-        PropertyChanged += (_, change) =>
-        {
-            if (!_windowOpened || change.Property != WindowStateProperty) return;
-            // Some native backends send the maximized SizeChanged before
-            // publishing WindowState. Discard that uncommitted candidate.
-            _normalSizeTimer.Stop();
-            _normalSizePending = false;
-            _restoringWindowState = true;
-            _restoreSizeTimer.Stop();
-            if (WindowState == WindowState.Normal) _restoreSizeTimer.Start();
-        };
+                services.Settings.ViewerWidth = size.Width;
+                services.Settings.ViewerHeight = size.Height;
+                services.SaveSettings();
+            });
         SizeChanged += (_, args) =>
         {
             // The docked checksum result must leave room for the toolbar,
@@ -274,19 +217,6 @@ public sealed class ViewerWindow : Window
             _checksumSourceName.IsVisible = !compactChecksum;
             _checksumBody.Spacing = compactChecksum ? 2 : 6;
             _checksumPanel.Padding = compactChecksum ? new Thickness(4) : new Thickness(10);
-            if (!_windowOpened || _restoringWindowState || WindowState != WindowState.Normal ||
-                !ValidViewerDimension(args.NewSize.Width) || !ValidViewerDimension(args.NewSize.Height)) return;
-            _normalSizePending = true;
-            _normalSizeTimer.Stop();
-            _normalSizeTimer.Start();
-        };
-        Closed += (_, _) =>
-        {
-            _restoreSizeTimer.Stop();
-            _normalSizeTimer.Stop();
-            if (_normalSizePending && !_restoringWindowState && WindowState == WindowState.Normal)
-                RememberNormalViewerSize(Bounds.Size);
-            SaveViewerSize();
         };
         TextDecoding.EnsureCodePages();
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
@@ -648,50 +578,13 @@ public sealed class ViewerWindow : Window
         };
     }
 
-    private Size ViewerWorkingArea()
-    {
-        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
-        if (screen is null) return new Size(3840, 2160);
-        double scale = double.IsFinite(screen.Scaling) && screen.Scaling > 0 ? screen.Scaling : 1;
-        double width = screen.WorkingArea.Width / scale, height = screen.WorkingArea.Height / scale;
-        return new Size(double.IsFinite(width) && width > 0 ? width : 3840,
-            double.IsFinite(height) && height > 0 ? height : 2160);
-    }
-
     private void OnContentPageLoaded()
     {
         if (_reader.ReadError is not null) Dispatcher.UIThread.Post(UpdateStatus);
     }
 
-    internal static Size RestoreViewerSize(double? width, double? height, Size usableArea)
-    {
-        double availableWidth = double.IsFinite(usableArea.Width) && usableArea.Width > 0 ? usableArea.Width : 3840;
-        double availableHeight = double.IsFinite(usableArea.Height) && usableArea.Height > 0 ? usableArea.Height : 2160;
-        double maximumWidth = Math.Min(8192, Math.Max(1, availableWidth - 24));
-        double maximumHeight = Math.Min(8192, Math.Max(1, availableHeight - 24));
-        bool stored = width is { } w && height is { } h && ValidViewerDimension(w) && ValidViewerDimension(h);
-        return new Size(Math.Clamp(stored ? width!.Value : 980, Math.Min(480, maximumWidth), maximumWidth),
-            Math.Clamp(stored ? height!.Value : 700, Math.Min(300, maximumHeight), maximumHeight));
-    }
-
-    private static bool ValidViewerDimension(double value) => double.IsFinite(value) && value is >= 240 and <= 8192;
-
-    private void RememberNormalViewerSize(Size size)
-    {
-        if (!ValidViewerDimension(size.Width) || !ValidViewerDimension(size.Height)) return;
-        _lastNormalWindowSize = size;
-        if (Math.Abs(size.Width - _initialWindowSize.Width) > 1 ||
-            Math.Abs(size.Height - _initialWindowSize.Height) > 1) _userSizedWindow = true;
-    }
-
-    private void SaveViewerSize()
-    {
-        if (!_userSizedWindow || !ValidViewerDimension(_lastNormalWindowSize.Width) ||
-            !ValidViewerDimension(_lastNormalWindowSize.Height)) return;
-        _services.Settings.ViewerWidth = _lastNormalWindowSize.Width;
-        _services.Settings.ViewerHeight = _lastNormalWindowSize.Height;
-        _services.SaveSettings();
-    }
+    internal static Size RestoreViewerSize(double? width, double? height, Size usableArea) =>
+        WindowFit.RestoreSize(width, height, usableArea, DefaultWindowSize, MinimumWindowSize);
 
     private async Task<byte[]> ReadOpeningPrefixAsync()
     {

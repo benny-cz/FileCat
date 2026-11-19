@@ -144,6 +144,9 @@ public sealed class AppSettings : IVersionedState
     /// <summary>Last user-sized F3 viewer dimensions in logical pixels; omitted until a viewer is resized.</summary>
     public double? ViewerWidth { get; set; }
     public double? ViewerHeight { get; set; }
+    /// <summary>Last user-sized Disk usage window dimensions in logical pixels.</summary>
+    public double? DiskUsageWidth { get; set; }
+    public double? DiskUsageHeight { get; set; }
     /// <summary>Files up to this size are checked against the checksums and signatures beside them when shown (D-57); larger ones on request.</summary>
     public int VerifyAutomaticallyUpToMiB { get; set; } = 256;
     /// <summary>Thumbnails in quick view and programs' own icons from Windows Shell handlers, run in the restricted helper (TV-16).</summary>

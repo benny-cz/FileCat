@@ -53,7 +53,8 @@ public sealed class DiskSpaceWindowManager(AppServices services) : IDisposable
     }
     private DiskSpaceWindow Create(bool indexedPreview = false)
     {
-        var window = new DiskSpaceWindow(() => { if (indexedPreview) OpenIndexedPreview([]); else Open([]); }, () => services.Keymap);
+        var window = new DiskSpaceWindow(() => { if (indexedPreview) OpenIndexedPreview([]); else Open([]); },
+            () => services.Keymap, AnalysisSessionAdmission.Shared, services);
         window.Closed += (_, _) => Window = null; return window;
     }
     public void Dispose() { Window?.ForceClose(); Window = null; }
