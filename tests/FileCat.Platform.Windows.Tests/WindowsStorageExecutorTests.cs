@@ -76,10 +76,10 @@ public sealed class WindowsStorageExecutorTests
     [Fact]
     public void Removing_compression_from_an_efs_file_keeps_its_protection_without_a_native_call()
     {
-        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
-        RequireNormal(qualifyNativeArm64);
         Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
             "Requires an explicitly prepared disposable EFS fixture.");
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireNormal(qualifyNativeArm64);
         string root = Directory.CreateTempSubdirectory("filecat-storage-efs-noop-").FullName;
         string file = Path.Join(root, "protected.bin");
         string stream = file + ":fixture";
