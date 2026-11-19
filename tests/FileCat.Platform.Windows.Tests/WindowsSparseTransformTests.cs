@@ -327,32 +327,55 @@ public sealed partial class WindowsSparseTransformTests
                 $"{File.GetAttributes(result)}, format {WindowsCompression.Query(result).Native}, " +
                 string.Join(", ", observed?.Ranges ?? []));
             if (measureExtents) WriteRetrievalMap("After removal", result, ct);
-            Assert.True(job.State == JobState.Completed, $"{job.State}: " + string.Join(", ",
-                job.StorageResult!.Reasons.Select(reason => reason.Problem.Message)));
-            Assert.Equal(1, job.StorageResult!.Counts.Changed);
-            AssertCallEvidence(jobs, job, changed: true);
             var after = Assert.IsType<WindowsStorageTransforms.SparseLayout>(observed);
             Assert.Equal(identity, ProtectedHexFile.Identity(result).ToString());
             Assert.Equal(largeLength, after.Length);
-            Assert.Equal(before.Ranges, after.Ranges);
+            Assert.True(File.GetAttributes(result).HasFlag(FileAttributes.SparseFile));
             Assert.InRange(after.Allocation, 1, Length);
             Assert.Equal(WindowsCompression.None, WindowsCompression.Query(result).Native);
-            Assert.Equal(57, ReadByte(64 * 1024));
-            Assert.Equal(58, ReadByte(2 * 1024 * 1024));
-            Assert.Equal(0, ReadByte(largeLength - 1));
+            var expected = new byte[Length];
+            expected[64 * 1024] = 57;
+            expected[2 * 1024 * 1024] = 58;
+            var prefix = new byte[Length];
+            using (var main = File.OpenRead(path))
+            {
+                main.ReadExactly(prefix);
+                main.Position = largeLength - 1;
+                Assert.Equal(0, main.ReadByte());
+            }
+            Assert.True(prefix.AsSpan().SequenceEqual(expected), "The initial data and zero-filled ranges must retain their bytes.");
             using var namedResult = File.OpenRead(path + NamedStream);
             var namedAfter = ObserveStream(namedResult);
+            Assert.Equal(identity, ProtectedHexFile.Identity(namedResult.SafeFileHandle).ToString());
+            Assert.Equal(namedBefore.Length, namedAfter.Length);
+            Assert.Equal(namedBefore.Allocation, namedAfter.Allocation);
+            Assert.Equal(namedBefore.Attributes & FileAttributes.SparseFile, namedAfter.Attributes & FileAttributes.SparseFile);
             Assert.Equal(namedBefore.Digest, namedAfter.Digest);
             Assert.Equal(namedBefore.Ranges, namedAfter.Ranges);
             Assert.Equal(namedBefore.Compression, namedAfter.Compression);
-            TestContext.Current.TestOutputHelper?.WriteLine($"EOF {after.Length}, allocation {before.Allocation} to {after.Allocation}, {after.Ranges.Length} allocated ranges");
+            TestContext.Current.TestOutputHelper?.WriteLine($"Original file identity, first {Length} bytes, final hole byte and named-stream data/layout verified.");
 
-            byte ReadByte(long offset)
+            var snapshot = Assert.IsType<StorageResultSnapshot>(job.StorageResult);
+            if (!WindowsStorageTransforms.SparseLayout.SameHoles(before, after))
             {
-                Span<byte> data = stackalloc byte[1];
-                Assert.Equal(1, RandomAccess.Read(result, data, offset));
-                return data[0];
+                Assert.Equal(JobState.Failed, job.State);
+                Assert.Equal(new StorageOutcomeCounts(Uncertain: 1), snapshot.Counts);
+                string name = StorageJournalPolicy.FileName(job.CreatedUtc, job.Id);
+                var call = Assert.Single(jobs.ReadStorageCalls(name, Assert.IsType<StorageJournalPrefix>(snapshot.DurablePrefix), ct: ct).Calls);
+                var outcome = Assert.IsType<StorageMutationResult>(call.Result);
+                Assert.True(outcome.NativeCallAttempted);
+                Assert.Equal("sparse-postcondition-changed", outcome.Problem?.Code);
+                var pending = jobs.ReadStorageReview(name, ct);
+                Assert.True(pending.ReviewPending);
+                Assert.True(pending.Current.History.EffectUncertain);
+                TestContext.Current.TestOutputHelper?.WriteLine("The durable native result retained uncertainty and required review.");
             }
+            Assert.Equal(before.Ranges, after.Ranges);
+            Assert.True(job.State == JobState.Completed, $"{job.State}: " + string.Join(", ",
+                snapshot.Reasons.Select(reason => reason.Problem.Message)));
+            Assert.Equal(1, snapshot.Counts.Changed);
+            AssertCallEvidence(jobs, job, changed: true);
+            TestContext.Current.TestOutputHelper?.WriteLine($"EOF {after.Length}, allocation {before.Allocation} to {after.Allocation}, {after.Ranges.Length} allocated ranges");
         }
         finally { Directory.Delete(root, recursive: true); }
     }

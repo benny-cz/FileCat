@@ -27,6 +27,14 @@ A paired rerun with `FILECAT_TEST_STORAGE_EXTENTS=1` read the NTFS retrieval poi
 
 The test assembly SHA-256 is `8E5B61860804581EFA71983D817A6E58B31090AB47DF774626F40AA79E552C78`. The receipt directory is `.tmp/filecat-efs-live-166b6897-r1/storage-retrieval-diagnostic-4c909222`. The VSTest TRX SHA-256 is `F5F2117B320B225A98AC217A7B207667A937CB9F70A07BF6345DD5F29193A393`. The direct xUnit XML SHA-256 is `AB2DA1DAFC82EF1A21603CE94B3D0EA6AADEDB1EFE035A471796351BAE6A9517`.
 
+### Windows process launch comparison
+
+The same enhanced test assembly ran twice in each of three modes on Windows 11 x64 build 26340 using the same account and NTFS volume. VSTest and a direct launch of the test's Windows executable each allocated the entire 65,536-byte leading hole. Both direct launches through `dotnet` with the test DLL preserved the two original ranges. The Windows executable therefore reproduced the change without VSTest. The underlying Windows behavior and the outcome under the FileCat desktop executable remain unqualified.
+
+In every run the original file ID, sparse flag, 30,000,000,001-byte EOF, first 4 MiB and final byte matched the fixture. The entire named stream retained its digest, length, sparse layout, allocation and compression format. Each changed-hole run recorded the exact native attempt and `sparse-postcondition-changed` in the durable result. FileCat kept the result pending with its effect uncertain. The hole-preservation assertion still failed for those runs.
+
+The enhanced assembly SHA-256 is `AFC425AA355EB3345573EF02A90FA08B68711F3FB6B1D0570C318504788C3DD5`. The receipt directory is `.tmp/filecat-efs-live-166b6897-r1/storage-sparse-payload-8633ad7c/three-launches-r2`. The comparison receipt `three-launches-r2.json` has SHA-256 `DED60D73E7A37C964EF488ADF459A9577670A9A554DE4F82EB4653A4FD0B8F6D`. The second-round VSTest, standalone executable and DLL receipts have SHA-256 `E978EE713350519A63F99EAD6E03D790BC6E638BC1CAE6E5488A205919A99DBB`, `B9DAB1567CDB1F3BF7C429896EF5A00C364C31FBFCC8D0CE3091C37116DFE2BE` and `6AB4F29B537E5EC180FD39EF617664A257CC0500E003DCA562BEDF65AA9017EB`.
+
 ## Native ARM64 bounded sparse cases
 
 All 23 selected cases executed and passed on Windows 11 Enterprise ARM64 build 26200 at medium integrity on fixed 4 KiB NTFS. The suite includes native and reviewed Compress and Remove compression, native and held-path EFS Encrypt and Decrypt, exact no-call observations for already-satisfied states, range overflow, concurrent named-stream growth, and reviewed Hex Save As to an unencrypted sparse NTFS destination. The source commit is `87e2c9d0fa824636d6e636fc08a521567fdbd8cd`. The SHA-256 of `native-storage-sparse.trx` is `1608A2C81130BD2A3E095537B3ED9792CCF4441C95FE271E2B497BC3C6929101`. [Native ARM64 sparse receipts](https://github.com/benny-cz/FileCat/actions/runs/44589829204)
