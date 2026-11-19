@@ -77,6 +77,8 @@ public sealed partial class DiskSpaceWindow
             var visibility = Text("Checking selection against the displayed scope and filters…", live: true);
             var selectionTotals = MeasureLabel();
             selectionTotals.Text = "Measuring the selected observations…";
+            var measuredDetails = ReadingLabel("Secondary");
+            measuredDetails.IsVisible = false;
             AutomationProperties.SetLiveSetting(selectionTotals, AutomationLiveSetting.Polite);
             AutomationProperties.SetName(selectionTotals, "Recorded cleanup selection totals");
             var allocationDetails = ReadingLabel("Secondary");
@@ -105,7 +107,7 @@ public sealed partial class DiskSpaceWindow
             };
             var selectionScope = ReadingLabel("Secondary");
             selectionScope.Text = $"{selection} · {ids.Length:N0} {(ids.Length == 1 ? "path" : "paths")} · 0 included · {ids.Length:N0} kept";
-            var selectionReading = new StackPanel { Spacing = 4, Children = { selectionScope, selectionTotals, visibility } };
+            var selectionReading = new StackPanel { Spacing = 4, Children = { selectionScope, selectionTotals, measuredDetails, visibility } };
             if (coverage != NamespaceCoverage.CompleteUnderPolicy)
             {
                 var coverageStatus = new ReadingStatus(Text("Coverage is partial. The list shows the requested references."));
@@ -291,7 +293,10 @@ public sealed partial class DiskSpaceWindow
                     token.ThrowIfCancellationRequested();
                     if (totals.Identity != identity || totals.Selected != ids.Length)
                         throw new InvalidDataException("Totals belong to a different captured selection.");
-                    (selectionTotals.Text, allocationDetails.Text) = DescribeTotals(totals);
+                    var (amount, supporting, exact) = DescribeTotals(totals);
+                    selectionTotals.Text = amount;
+                    ShowReadingLabel(measuredDetails, supporting);
+                    allocationDetails.Text = exact;
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested) { }
                 catch (Exception error) when (IndexedExpectedError(error))
@@ -310,12 +315,12 @@ public sealed partial class DiskSpaceWindow
             }
         }
 
-        private static (string Summary, string Details) DescribeTotals(AnalysisCleanupTotals totals)
+        private static (string Amount, string Supporting, string Details) DescribeTotals(AnalysisCleanupTotals totals)
         {
             var lines = new List<string>();
             var details = new List<string>();
             if (totals.MeasuredFiles > 0)
-                lines.Add($"Recorded file size · {Bytes(totals.LogicalBytes)} across {totals.MeasuredFiles:N0} measured file paths.");
+                lines.Add($"Recorded file size · {Bytes(totals.LogicalBytes)} across {totals.MeasuredFiles:N0} measured file {(totals.MeasuredFiles == 1 ? "path" : "paths")}.");
             if (totals.UnknownSizes > 0) lines.Add($"File size unavailable for {totals.UnknownSizes:N0} selected file paths.");
             if (totals.Folders > 0) lines.Add($"Selected folders · {totals.Folders:N0}. Folder contents require a separate review.");
             if (totals.Excluded > 0) lines.Add($"Excluded by scan policy · {totals.Excluded:N0} selected entries.");
@@ -324,7 +329,7 @@ public sealed partial class DiskSpaceWindow
                 lines.Add("The selection has too many allocation bases to summarize. Inspect individual entries.");
             else if (!totals.Allocation.IsEmpty)
             {
-                lines.Add($"Reported file allocation by basis · {totals.MeasuredAllocationObjects:N0} distinct verified objects measured.");
+                lines.Add($"Reported file allocation by basis · {totals.MeasuredAllocationObjects:N0} distinct verified {(totals.MeasuredAllocationObjects == 1 ? "object" : "objects")} measured.");
                 foreach (var component in totals.Allocation.Take(4))
                 {
                     lines.Add($"{Bytes(component.Bytes)} · {AnalysisNames.Display(component.Component, 64)}");
@@ -334,7 +339,7 @@ public sealed partial class DiskSpaceWindow
             }
             if (totals.IncompleteAllocationPaths > 0)
                 lines.Add($"Complete, distinct allocation unavailable for {totals.IncompleteAllocationPaths:N0} selected file paths.");
-            return (lines.Count == 0 ? "No measured file sizes or allocation in this selection." : string.Join(Environment.NewLine, lines),
+            return (lines.FirstOrDefault() ?? "No measured file sizes or allocation in this selection.", string.Join(Environment.NewLine, lines.Skip(1)),
                 string.Join(Environment.NewLine, details));
 
             static string Bytes(System.Numerics.BigInteger value) => value == 1 ? "1 byte" : $"{value:N0} bytes";

@@ -167,7 +167,7 @@ public sealed partial class AnalysisRenderingTests
             await Until(() => ComparisonText(window).Contains("39 hidden by filters", StringComparison.Ordinal), () => ComparisonText(window));
             await Until(() => ComparisonControl<TextBlock>(window, "Recorded cleanup selection totals")?.Text is { } totals &&
                 totals.Contains("160 bytes across 40 measured file paths", StringComparison.Ordinal) &&
-                totals.Contains("39 distinct verified objects measured", StringComparison.Ordinal), () => ComparisonText(window));
+                ComparisonText(window).Contains("39 distinct verified objects measured", StringComparison.Ordinal), () => ComparisonText(window));
             Assert.Contains("Review basket · 40 paths · 0 included · 40 kept", ComparisonText(window));
             var firstPage = list.Items.Cast<object>().Select(row => row.ToString()!).ToHashSet(StringComparer.Ordinal);
             Click(window, "Next review entries");

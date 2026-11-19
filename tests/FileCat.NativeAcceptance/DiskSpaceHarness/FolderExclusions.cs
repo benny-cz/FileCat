@@ -170,7 +170,7 @@ internal sealed partial class HarnessApp
             window.GetVisualDescendants().OfType<ToggleButton>().Single(button =>
                 button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions")).IsChecked = false;
             RenderNativeFrame("folder-exclusions-result.png");
-            model.Focus(AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "photo.png").Id));
+            model.Focus(model.Rows[0].Key);
             var resultThemes = await CheckResultThemesAsync(window, model, warning: false, "compact");
             bool compactDoubleText = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_DOUBLE_TEXT") == "1";
             if (compactDoubleText)
@@ -292,11 +292,18 @@ internal sealed partial class HarnessApp
             expander.IsEffectivelyVisible && Equals(expander.Header, "Measurement details"));
         var trigger = window.GetVisualDescendants().OfType<ToggleButton>().Single(button =>
             button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions"));
+        var list = window.GetVisualDescendants().OfType<ListBox>().Single(control =>
+            control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Ranked analysis entries");
+        var viewport = scope.GetVisualAncestors().OfType<ScrollViewer>().First(control => control.Name == "AnalysisPageScroll");
+        bool compact = window.ClientSize.Width < 640;
+        Control focus = compact ? list : trigger;
         string? selection = model.Selection.Focus;
         string requested = ThemeManager.RequestedName;
         bool wasExpanded = expansion?.IsExpanded == true;
         if (expansion is not null) expansion.IsExpanded = true;
-        if (!trigger.Focus()) throw new InvalidOperationException("The theme check could not focus the analysis control.");
+        if (!focus.Focus()) throw new InvalidOperationException("The theme check could not focus the analysis control.");
+        viewport.Offset = default;
+        window.UpdateLayout();
         var frames = new List<ScratchThemeFrame>();
         try
         {
@@ -305,7 +312,7 @@ internal sealed partial class HarnessApp
                 ThemeManager.Apply(theme);
                 window.UpdateLayout();
                 await ReadyAsync(() => Reading("AnalysisReadingAmount").Bounds.Height > 0);
-                if (!ReferenceEquals(window.FocusManager?.GetFocusedElement(), trigger) || selection != model.Selection.Focus ||
+                if (!ReferenceEquals(window.FocusManager?.GetFocusedElement(), focus) || selection != model.Selection.Focus ||
                     expansion is { IsExpanded: false })
                     throw new InvalidOperationException($"{theme} lost focus, selection or expanded details.");
                 if (scope.FontSize >= amount.FontSize || amount.FontWeight != FontWeight.Bold ||
@@ -321,6 +328,9 @@ internal sealed partial class HarnessApp
                 }
                 if (coverage.GetVisualParent() is not Border status || (status.BorderThickness.Left > 0) != warning)
                     throw new InvalidOperationException($"{theme} did not distinguish the coverage state with a labeled warning.");
+                if (compact && (!InResultViewport(scope) || !InResultViewport(amount) || !InResultViewport(coverage) ||
+                    !list.GetVisualDescendants().OfType<ListBoxItem>().Any(row => row.IsEffectivelyVisible && InResultViewport(row))))
+                    throw new InvalidOperationException($"{theme} clipped the scope, amount, coverage or first table row at compact width.");
                 string frame = $"analysis-reading-{layout}-{theme}.png";
                 RenderNativeFrame(frame);
                 frames.Add(new(theme, ThemeManager.Current.Name, frame, window.ClientSize.Width, window.ClientSize.Height, window.RenderScaling, window.FontSize));
@@ -335,6 +345,9 @@ internal sealed partial class HarnessApp
 
         TextBlock Reading(string id) => window.GetVisualDescendants().OfType<TextBlock>().Single(label =>
             label.IsEffectivelyVisible && AutomationProperties.GetAutomationId(label) == id);
+
+        bool InResultViewport(Control control) => control.Bounds.Height > 0 && control.TranslatePoint(default, viewport) is { } top &&
+            top.Y >= -1 && top.Y + control.Bounds.Height <= viewport.Bounds.Height + 1;
     }
 
     private async Task CheckCompactDoubleTextAsync(DiskSpaceWindow window)

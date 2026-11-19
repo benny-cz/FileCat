@@ -243,7 +243,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly StackPanel _setup = new() { Spacing = 6, Margin = new Thickness(10) };
         private readonly ScrollViewer _setupViewport;
         private readonly ScrollViewer _toolbarViewport;
-        private readonly StackPanel _viewSummary;
+        private readonly Border _viewSummary;
         private readonly Button _copyDetails;
         private readonly Button _resultResourceLimits;
         private readonly Button _volumeCapacityRibbon;
@@ -262,7 +262,7 @@ public sealed partial class DiskSpaceWindow : Window
         private const string UsePrivateIndexLabel = "Use a private index for standard analysis";
         private readonly CheckBox _usePanelFilter = new() { Content = new TextBlock { Text = UsePanelFilterLabel, TextWrapping = TextWrapping.Wrap } };
         private readonly CheckBox _usePrivateIndex = new() { Content = new TextBlock { Text = UsePrivateIndexLabel, TextWrapping = TextWrapping.Wrap } };
-        private readonly TextBlock _panelFilterStatus = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        private readonly TextBlock _panelFilterStatus = ReadingLabel("Secondary");
         private readonly TextBox _query = new() { PlaceholderText = "Search within observations…", MinWidth = 180, MaxLength = AnalysisLimits.QueryBytes };
         private readonly CheckBox _case = new() { Content = "Case sensitive" };
         private readonly ComboBox _metric = new() { ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" }, SelectedIndex = 2, MinWidth = 155 };
@@ -283,7 +283,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly Button _rescan = new() { Content = "Rescan all" };
         private readonly Border _rescanHelp = new() { Focusable = true };
         private readonly TextBlock _summary = MeasureLabel(), _summaryDetails = ReadingLabel("Secondary");
-        private readonly TextBlock _folderBoundaryCounts = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        private readonly TextBlock _folderBoundaryCounts = ReadingLabel("Secondary");
         private string _folderExclusionDetail = "";
         private readonly TextBlock _scope = ReadingLabel("Secondary"), _coverage = new() { TextWrapping = TextWrapping.Wrap };
         private readonly TextBlock _coverageHeadline = ReadingLabel("Secondary");
@@ -428,9 +428,9 @@ public sealed partial class DiskSpaceWindow : Window
             AutomationProperties.SetAutomationId(_coverageHeadline, "AnalysisReadingCoverage");
             var qualifications = new WrapPanel { ItemSpacing = 9, LineSpacing = 2,
                 Children = { _coverageStatus, _summaryDetails, _folderBoundaryCounts, _panelFilterStatus } };
-            _viewSummary = new StackPanel { Spacing = 2, Children = { _scope, _summary, qualifications } };
-            var overview = ReadingSurface(_viewSummary, new Thickness(7, 3), new Thickness(2, 0, 0, 0), "Accent");
-            var header = new StackPanel { Margin = new Thickness(10, 4), Spacing = 4, Children = { overview, _toolbarViewport } };
+            _viewSummary = ReadingSurface(new StackPanel { Spacing = 2, Children = { _scope, _summary, qualifications } },
+                new Thickness(7, 3), new Thickness(2, 0, 0, 0), "Accent");
+            var header = new StackPanel { Margin = new Thickness(10, 4), Spacing = 4, Children = { _viewSummary, _toolbarViewport } };
             Grid.SetRow(header, 1); Children.Add(header);
             _chartHost.Children.Add(_treemap); _chartHost.Children.Add(_sunburst); _explorer.Children.Add(_chartHost);
             var splitter = new GridSplitter { Height = 5, ResizeDirection = GridResizeDirection.Rows, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -588,7 +588,7 @@ public sealed partial class DiskSpaceWindow : Window
                 }
                 // Give the results space alongside the wrapped controls on short or large-text displays.
                 // A separate finite list viewport keeps row virtualization active.
-                _toolbarViewport.MaxHeight = Math.Max(48, _viewport.Bounds.Height / 2 - _viewSummary.DesiredSize.Height);
+                _toolbarViewport.MaxHeight = Math.Max(48, _viewport.Bounds.Height / 2 - _viewSummary.DesiredSize.Height - 4);
                 double minimum = Children.Where(c => c.IsVisible && c != _explorer).Sum(c => c.DesiredSize.Height) + (_explorer.IsVisible ? _explorer.MinHeight : 0);
                 double height = Math.Max(_viewport.Bounds.Height, minimum);
                 if (double.IsFinite(height) && Math.Abs(Height - height) > .5) Height = height;
@@ -735,6 +735,7 @@ public sealed partial class DiskSpaceWindow : Window
                 RowDefinitions[0].Height = setupOnly ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
                 RowDefinitions[2].Height = setupOnly ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
                 _explorer.IsVisible = _basketFooter.IsVisible = _basketHost.IsVisible = !setupOnly;
+                _viewSummary.IsVisible = !setupOnly;
                 foreach (var control in _dataControls) control.IsVisible = !setupOnly;
                 _stop.IsVisible = Model.Running || Model.IsPreparing;
                 _components.IsEnabled = !Model.IsPreparing && Model.Phase == AnalysisPhase.Ready;
@@ -772,10 +773,12 @@ public sealed partial class DiskSpaceWindow : Window
                 string scopeName = tree is null ? "Captured scope appears here after Start." : ResultScopeName(tree, Model.Selection.Scope);
                 RefreshBreadcrumbs();
                 bool compact = Bounds.Width > 0 && Bounds.Width < 640;
+                bool firstReading = tree is not null && !_scope.IsVisible;
                 _scope.Text = AnalysisNames.Display(scopeName);
                 _scope.MaxLines = compact ? 1 : 2;
                 _scope.TextTrimming = TextTrimming.CharacterEllipsis;
                 _scope.IsVisible = tree is not null;
+                if (firstReading && _viewport is not null) _viewport.Offset = default;
                 var (amount, details) = Model.ScopeReading(compact);
                 _summary.Text = KeepMeasurementUnits(amount);
                 _summaryDetails.Text = details;
