@@ -11,6 +11,7 @@ using FileCat.Core.Listing;
 using FileCat.Core.Platform;
 using FileCat.Core.Search;
 using FileCat.Core.Resources;
+using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Tests;
 
@@ -165,6 +166,32 @@ public sealed class FileListNamePresentationTests
         Assert.Contains("Pin policy: unspecified; local content: not established; synchronization: not inspected", warnings);
         Assert.DoesNotContain("opening may download", warnings);
         Assert.Equal(EntryFlags.None, entry.Flags);
+    }
+
+    [AvaloniaTheory]
+    [InlineData(0x00000000u, "Reparse point · type unavailable")]
+    [InlineData(0x8000FFFFu, "Reparse point · unknown type")]
+    [InlineData(0xA000FFFFu, "Reparse point · unknown type")]
+    [InlineData(0xA0000003u, "Junction or volume mount")]
+    [InlineData(0xA000001Du, "WSL symbolic link")]
+    [InlineData(0x8000001Bu, "App execution alias")]
+    [InlineData(0x80000017u, "WOF-backed file")]
+    [InlineData(0x9000F01Au, "Cloud-managed item")]
+    [InlineData(0x80000023u, "Unix-domain socket")]
+    public void Picture_tiles_show_the_same_cached_Windows_reparse_type_as_accessible_rows(uint tag, string kind)
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Windows native reparse presentation.");
+        var location = Location.FileSystem(Path.GetTempPath());
+        var entry = new EntryData("fixture.jpg", EntryKind.File)
+        {
+            Attributes = (uint)FileAttributes.ReparsePoint,
+            NativeReparseTag = tag,
+        };
+        Assert.Equal(kind, FileListControl.PictureDetail(entry, location));
+        Assert.Contains(kind, FileListControl.ItemWarnings(entry, location));
+
+        entry.Flags |= EntryFlags.Offline;
+        Assert.Equal("Opening may require a download", FileListControl.PictureDetail(entry, location));
     }
 
     [Fact]

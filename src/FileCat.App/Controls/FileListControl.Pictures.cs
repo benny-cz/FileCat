@@ -7,8 +7,10 @@ using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Content;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
+using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Controls;
 
@@ -143,9 +145,7 @@ public sealed partial class FileListControl
                 using var name = MakeText(Formatters.SafeName(entry.Name), nameBrush,
                     marked ? _boldTypeface : _typeface, Math.Max(1, tile.Width - 16));
                 name.Draw(dc, new Point(tile.X + 8, tile.Bottom - 43));
-                string detail = entry.Kind == EntryKind.Parent ? "Parent folder" : entry.IsContainer ? "Folder"
-                    : entry.Has(EntryFlags.Offline) ? "Opening may require a download"
-                    : entry.Size >= 0 ? Formatters.SizeWithUnit(entry.Size) : "File";
+                string detail = PictureDetail(entry, Tab?.Location);
                 using var secondary = MakeText(detail, _muted, _typeface, Math.Max(1, tile.Width - 16));
                 secondary.Draw(dc, new Point(tile.X + 8, tile.Bottom - 23));
             }
@@ -155,6 +155,17 @@ public sealed partial class FileListControl
         // Do not open providers or launch decoders while Avalonia is drawing. Only visible tiles demand work.
         long generation = _pictureGeneration;
         Dispatcher.UIThread.Post(() => SyncPictureDemand(demand, generation), DispatcherPriority.Background);
+    }
+
+    internal static string PictureDetail(in EntryData entry, Location? location)
+    {
+        if (entry.Kind == EntryKind.Parent) return "Parent folder";
+        if (!entry.IsContainer && entry.Has(EntryFlags.Offline)) return "Opening may require a download";
+        if ((entry.Attributes & (uint)FileAttributes.ReparsePoint) != 0 && EntryPresentation.IsWindowsFileSystem(entry, location) &&
+            EntryPresentation.Kind(entry, location) is { Length: > 0 } kind)
+            return kind;
+        if (entry.IsContainer) return "Folder";
+        return entry.Size >= 0 ? Formatters.SizeWithUnit(entry.Size) : "File";
     }
 
     private void SyncPictureDemand(HashSet<ThumbnailKey> demand, long generation)

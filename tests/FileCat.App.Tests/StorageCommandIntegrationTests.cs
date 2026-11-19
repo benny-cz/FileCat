@@ -175,9 +175,18 @@ public sealed class StorageCommandIntegrationTests
             window.GetVisualDescendants().OfType<RadioButton>().Single(button => AutomationProperties.GetName(button) == "Compress").IsChecked = true;
             await Until(() => Primary(window, "Compress").IsEnabled);
             Assert.Equal(2, adapter.Pins.Count);
+            var disclosure = Assert.Single(window.GetVisualDescendants().OfType<Expander>(),
+                item => item.Header as string == "Selected items (2)");
+            disclosure.IsExpanded = true;
+            var items = Assert.Single(Assert.IsType<StackPanel>(disclosure.Content).Children.OfType<TextBox>(), item => item.IsReadOnly);
+            Assert.Equal("Selected items and original locations, select text to copy", AutomationProperties.GetName(items));
+            string text = Assert.IsType<string>(items.Text);
+            foreach (string path in new[] { @"C:\first\same", @"C:\second\same" })
+                Assert.Contains("Original location: " + System.Text.Json.JsonSerializer.Serialize(path), text);
             tab.Navigate(Location.FileSystem(root));
             await Until(() => tab.Listing.State == ListingState.Complete && tab.Location?.Path == root);
             Assert.True(vm.Dialogs.IsOpen); Assert.True(Primary(window, "Compress").IsEnabled);
+            Assert.Equal(text, items.Text);
             ((OverlayDialogService)vm.Dialogs).CancelAll();
             await Until(() => adapter.Pins.All(pin => pin.Disposals == 1));
             Assert.Equal(new[] { @"C:\first\same", @"C:\second\same" }, adapter.Pins.Select(pin => pin.Target.Path));

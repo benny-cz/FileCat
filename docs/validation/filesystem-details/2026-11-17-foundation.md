@@ -59,6 +59,12 @@ A recognized Cloud Files tag on a reparse entry now supplies managed status to t
 
 The Windows VM passed all 13 presentation and accessibility cases, including the new tag-only row. Its TRX SHA-256 is `A6ADF9150898DE7518145A1BC7BD94A4C5B28651658EFE828DD8ACE9E4812CBB`. Apple silicon passed the corresponding ten portable App cases, with three Windows-only skips, and all 16 Core cloud and reparse taxonomy cases.
 
+### Picture-tile reparse captions
+
+Picture tiles now show the cached reparse type below the filename, using the same classification as the accessible row description. The fixture compares unavailable and unknown tags, both surrogate variants, ambiguous mount points, WSL links, app aliases, WOF, Cloud Files and Unix-domain sockets. A file with the existing Offline flag still shows the download warning on its tile. The caption uses listing data.
+
+The Windows VM passed all 24 selected picture-grid, file-list and accessibility cases. The SHA-256 of `picture-reparse-windows-r1.trx` is `4D1CE9FFEB0A3076BC365D82A8DC24071AA32BC0490099C008BEF249F4D59EE6`. Apple silicon passed all 12 portable cases, with 12 Windows-only skips.
+
 ## Observation admission after a failed worker start
 
 The scheduler starts missing worker capacity before adding the request to the device queue. A failed start retires the work item and releases the shared observation permit. The regression injects a failure at thread startup, reacquires all four device permits, then sends another request through the same scheduler and device. The retry runs with a valid permit. The rejected request never reaches the later worker.

@@ -52,3 +52,9 @@ Two Windows x64 cases started actual Compress and Decrypt EFS jobs from Find res
 The final x64 run executed all ten native command cases and passed all ten. The combined App selection passed 68 cases with ten skips. The receipt is `.tmp/filecat-efs-live-166b6897-r1/storage-find-final-windows-stage/native-storage-find-final-x64.trx`, SHA-256 `030A9EA87FD4CBE7A51107C615FD608D3DA7A2B16522A13D66B4608DB5196C3E`. The Core listing selection also passed 56 cases on Apple silicon and 41 on Ubuntu x64, with one Windows-only attribute skip on each system.
 
 All ten cases executed and passed on native Windows 11 Enterprise ARM64, build 26200, at medium integrity on fixed 4 KiB NTFS. The test application uses its own EFS setup directory under the prepared fixture. The exact source is `8ebe335c14a98f8c1a1dda473e1f1dcbb34d0d42`. The SHA-256 of `native-storage-commands.trx` is `09D07931F55E7B2B24DDC39C824E2F0D2121ECAF72FFA9B6984A56BA06A85284`. [Native ARM64 command receipts](https://github.com/benny-cz/FileCat/actions/runs/44588285371)
+
+### Both original paths in the storage review
+
+The App regression opens the compression review for two same-name workspace results, expands **Selected items (2)** and verifies that the named read-only textbox includes both original paths. Navigating the origin tab after the review became actionable preserved the displayed paths and the reviewed pins. Cancel released both pins without submitting a job.
+
+The expanded App selection passed 42 cases on the Windows x64 VM and 30 on Apple silicon, with 12 Windows-specific skips on the Mac. The Windows TRX SHA-256 is `180380DF2915692BC6AF6EE0119C70BAA565198479AD7191C4A0D1EDA2B5B615`. The Apple silicon TRX SHA-256 is `607EC8F9CFDEDDAEAA927CD9F195FFF99F4E0D7DF2E3D64AB9B8D64874D7916F`.
