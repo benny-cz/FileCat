@@ -37,9 +37,9 @@ public sealed partial class DiskSpaceWindow
         private readonly TextBlock _runtimeChangeHint = CreateRuntimeChangeHint();
         private readonly DispatcherTimer _runtimeChangeTimer = new() { Interval = TimeSpan.FromSeconds(1) };
 
-        private void AddRuntimeChangeHint()
+        private void AddRuntimeChangeHint(Panel controls)
         {
-            Children.Add(_runtimeChangeHint);
+            controls.Children.Add(_runtimeChangeHint);
             AttachedToVisualTree += (_, _) => _runtimeChangeTimer.Start();
             DetachedFromVisualTree += (_, _) => _runtimeChangeTimer.Stop();
             _runtimeChangeTimer.Tick += (_, _) =>

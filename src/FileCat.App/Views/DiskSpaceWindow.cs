@@ -394,7 +394,8 @@ public sealed partial class DiskSpaceWindow : Window
             nav.Children.Add(_compare);
             _resultResourceLimits = window.ResourceLimitsButton(scratchDirectory, () => Model.ScratchReservedBytes);
             _analysisActions.Commands.Children.Add(_resultResourceLimits);
-            _coverageDetails = window.CoverageDetails(() => _coverage.Text + "\n" + Model.Tree?.ComponentCoverageDescription);
+            _coverageDetails = window.CoverageDetails(() => _coverage.Text + "\n" +
+                (_folderBoundaryCounts.IsVisible ? _folderBoundaryCounts.Text + "\n" : "") + Model.Tree?.ComponentCoverageDescription);
             nav.Children.Add(_coverageDetails);
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _query, _case } };
             filters.Children.Add(_rootFilter); filters.Children.Add(_unknown);
@@ -402,19 +403,20 @@ public sealed partial class DiskSpaceWindow : Window
             {
                 Model.ShowUnknownFilterResults = false; _query.Text = ""; _filterTimer.Stop(); Model.Query = ""; Model.PanelFilter = null; _ = Model.RebuildAsync(true);
             }, "Remove the display query; scan boundaries remain captured."));
-            var ordering = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { new TextBlock { Text = "Sort table", VerticalAlignment = VerticalAlignment.Center }, _sort, _sortDirection } };
+            filters.Children.Add(new TextBlock { Text = "Sort table", VerticalAlignment = VerticalAlignment.Center });
+            filters.Children.Add(_sort); filters.Children.Add(_sortDirection);
             AutomationProperties.SetName(_sort, "Analysis table sort"); AutomationProperties.SetName(_sortDirection, "Analysis table sort direction");
             AutomationProperties.SetName(_breadcrumbs, "Analysis location breadcrumbs");
             ToolTip.SetTip(_sort, new RichTip("Sort observed table rows", detail: "Numeric sorting uses exact recorded integers. Missing numeric values follow known amounts in either direction. Partial amounts rank by their known subtotal. Charts keep their accounting order; focus and marks keep their observation identities."));
             _volumeCapacityRibbon = window.VolumeCapacityRibbon(() => Model.VolumeCapacities, () => Model.Tree?.Snapshot.Roots ?? [],
                 FullVolumeAllocation, CurrentAnalysisCapacityContext);
             toolbar.Children.Add(nav); toolbar.Children.Add(_setupActions);
-            toolbar.Children.Add(filters); toolbar.Children.Add(ordering); toolbar.Children.Add(_volumeCapacityRibbon);
+            toolbar.Children.Add(filters); toolbar.Children.Add(_volumeCapacityRibbon);
             toolbar.Children.Add(_analysisActions); toolbar.Children.Add(_legend); toolbar.Children.Add(_error);
             AddRecordedResultControls(toolbar);
             toolbar.Children.Add(_runtimeChangeHint);
             _dataControls.AddRange([_mode, _metric, _group, _color, _pause, _inspect, _save, _compare, _breadcrumbs, _summary,
-                _coverageHeadline, _analysisActions, _coverageDetails, filters, ordering]);
+                _coverageHeadline, _analysisActions, _coverageDetails, filters]);
             _toolbarViewport = new ScrollViewer { Content = toolbar, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
             AutomationProperties.SetName(_toolbarViewport, "Analysis view controls");
             _viewSummary = new StackPanel { Spacing = 3, Children = { _summary, _breadcrumbs, _coverageHeadline, _folderBoundaryCounts, _panelFilterStatus } };
@@ -716,10 +718,11 @@ public sealed partial class DiskSpaceWindow : Window
                 RowDefinitions[2].Height = setupOnly ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
                 _explorer.IsVisible = _basketFooter.IsVisible = _basketHost.IsVisible = !setupOnly;
                 foreach (var control in _dataControls) control.IsVisible = !setupOnly;
-                _stop.IsVisible = !setupOnly || Model.IsPreparing;
+                _stop.IsVisible = Model.Running || Model.IsPreparing;
                 _components.IsEnabled = !Model.IsPreparing && Model.Phase == AnalysisPhase.Ready;
                 _resolved.Text = Model.ResolvedTargets; _status.Text = Model.Status; _error.Text = Model.FilterError; _error.IsVisible = Model.FilterError is not null;
                 _pause.IsEnabled = Model.CanPause; _stop.IsEnabled = Model.Running || Model.IsPreparing;
+                _pause.IsVisible = Model.Running || Model.CanPause;
                 _rescanHelp.IsVisible = !setupOnly;
                 RefreshRescanAvailability();
                 _save.IsEnabled = Model.CanSave && !_persistenceBusy;

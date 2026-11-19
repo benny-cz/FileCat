@@ -163,7 +163,7 @@ internal sealed partial class HarnessApp
             if (!window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Value" &&
                 AutomationProperties.GetName(text) == "Active metric"))
                 throw new InvalidOperationException("The compact table did not keep a complete value heading and its accessible name.");
-            await CheckResultControlsAsync(window, "Traversal boundaries: 1");
+            await CheckResultControlsAsync(window, "Folder exclusion rules: 1. Folders skipped: 1.");
             if (VisibleButton("Copy summary") is not { IsEnabled: true })
                 throw new InvalidOperationException("The compact result did not offer its summary as text.");
             window.GetVisualDescendants().OfType<ToggleButton>().Single(button =>

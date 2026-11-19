@@ -34,6 +34,7 @@ public sealed partial class DiskSpaceWindow
         private void RefreshDeferredSelection()
         {
             _deferredSelectionHost.MaxWidth = Math.Max(120, Bounds.Width - 48);
+            _deferredSelectionHost.IsVisible = Model.Running || Model.HasDeferredSelection || Model.CanReviewDeferredSelection || Model.DeferredSelectionText is not null;
             _deferSelection.IsEnabled = Model.CanRequestDeferredSelection;
             _cancelDeferredSelection.IsVisible = Model.HasDeferredSelection;
             _reviewDeferredSelection.IsVisible = Model.CanReviewDeferredSelection;

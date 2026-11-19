@@ -168,7 +168,7 @@ public sealed partial class AnalysisRenderingTests
     private static ListBox IndexedList(Window window) => window.GetVisualDescendants().OfType<ListBox>().Single(list => AutomationLabel(list) == "Indexed analysis entries");
     private static bool IndexedReady(Window window, AnalysisDatasetExplorer explorer, ulong parent) => explorer.Page?.ParentId == parent &&
         window.GetVisualDescendants().OfType<TextBlock>().Any(text => AutomationLabel(text) == "Indexed analysis status" &&
-            (text.Text?.StartsWith("Complete under captured policy.", StringComparison.Ordinal) == true || text.Text?.StartsWith("Partial namespace observations;", StringComparison.Ordinal) == true));
+            (text.Text?.StartsWith("Complete under the scan policy.", StringComparison.Ordinal) == true || text.Text?.StartsWith("Partial results", StringComparison.Ordinal) == true));
     private static Button? FindAnalysisButton(Window window, string label)
     {
         var buttons = window.GetVisualDescendants().OfType<Button>();

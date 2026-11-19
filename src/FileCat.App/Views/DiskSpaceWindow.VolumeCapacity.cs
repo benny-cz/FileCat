@@ -48,8 +48,8 @@ public sealed partial class DiskSpaceWindow
                 ? "The source is the filesystem root."
                 : "File totals describe the scanned scope. Capacity describes the containing filesystem.";
             var observed = sample.ObservedUtc.ToLocalTime();
-            content.Children.Add(Paragraph(AnalysisNames.Display(root.Label, 120) + "\n" +
-                $"Reported used {DiskSpaceViewModel.Bytes(sample.UsedBytes)}\n" +
+            if (roots.Length != 1) content.Children.Add(Paragraph("Location · " + AnalysisNames.Display(root.Label, 120)));
+            content.Children.Add(Paragraph($"Reported used {DiskSpaceViewModel.Bytes(sample.UsedBytes)}\n" +
                 $"Reported free {DiskSpaceViewModel.Bytes(sample.FreeBytes)} · Available to you {DiskSpaceViewModel.Bytes(sample.AvailableBytes)}\n" +
                 $"Reported capacity {DiskSpaceViewModel.Bytes(sample.TotalBytes)}"));
             if (sample.MayShareCapacity)

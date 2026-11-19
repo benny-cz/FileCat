@@ -106,7 +106,7 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Copy summary");
             var summary = await ClipboardExtensions.TryGetTextAsync(window.Clipboard!);
             Assert.Contains("Files:", summary);
-            Assert.Contains("Complete under captured policy", summary);
+            Assert.Contains("Complete under the scan policy", summary);
             Assert.False(File.Exists(fixture.PayloadPath));
             Assert.Equal(fixture.Payload, File.ReadAllBytes(Path.Combine(fixture.Root, "moved", "folder", "match-target.bin")));
         }

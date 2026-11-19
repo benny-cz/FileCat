@@ -18,8 +18,8 @@ public sealed partial class AnalysisRenderingTests
 {
     private static string OtherStatus(Window window) => window.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(text => text.IsEffectivelyVisible && AutomationLabel(text) == "Indexed analysis status")?.Text ?? "";
     private static bool ExactOtherReady(Window window) => OtherStatus(window).StartsWith("Exact Other subset.", StringComparison.Ordinal);
-    private static bool OtherParentReady(Window window) => OtherStatus(window).StartsWith("Complete under captured policy.", StringComparison.Ordinal) ||
-        OtherStatus(window).StartsWith("Partial namespace observations;", StringComparison.Ordinal);
+    private static bool OtherParentReady(Window window) => OtherStatus(window).StartsWith("Complete under the scan policy.", StringComparison.Ordinal) ||
+        OtherStatus(window).StartsWith("Partial results", StringComparison.Ordinal);
     private static string OtherViewDiagnostic(Window window) => string.Join(" | ", window.GetVisualDescendants().OfType<TextBlock>()
         .Where(text => text.IsEffectivelyVisible).Select(text => text.Text));
     private static void OtherKeyStroke(Window window, Key key, PhysicalKey physical)

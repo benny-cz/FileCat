@@ -191,6 +191,8 @@ public sealed partial class DiskSpaceWindow
         private readonly CheckBox _case = new() { Content = "Case sensitive" }, _unknown = new() { Content = "Inspect uncertain query results" };
         private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap }, _summary = new() { TextWrapping = TextWrapping.Wrap }, _range = new(), _inspectorStatus = new() { TextWrapping = TextWrapping.Wrap };
         private string _coverageDetail = "";
+        private readonly StackPanel _resultSummary = new() { Spacing = 4 };
+        private readonly ScrollViewer _resultControls;
         private readonly TextBlock _historyNotice = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         internal void SetHistoryNotice(string? notice) { _historyNotice.Text = notice; _historyNotice.IsVisible = notice is not null; }
         private readonly TextBox _details = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 180, MaxHeight = 420 };
@@ -281,13 +283,14 @@ public sealed partial class DiskSpaceWindow
             provenance += " File metadata can be sensitive.";
             var provenanceLabel = new TextBlock { Text = provenance, TextWrapping = TextWrapping.Wrap };
             AutomationProperties.SetName(provenanceLabel, "Analysis provenance: " + provenance);
-            Children.Add(_summary); Children.Add(_status); Children.Add(provenanceLabel);
-            Children.Add(new ScrollViewer { Content = _breadcrumbs, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto });
-            Children.Add(toolbar); Children.Add(navigation); Children.Add(filters);
-            Children.Add(_volumeCapacityRibbon);
-            Children.Add(actions); Children.Add(_legend);
-            Children.Add(_historyNotice);
-            AddRuntimeChangeHint();
+            _resultSummary.Children.Add(_summary); _resultSummary.Children.Add(_status);
+            _resultSummary.Children.Add(new ScrollViewer { Content = _breadcrumbs, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto });
+            Children.Add(_resultSummary);
+            var controls = new StackPanel { Spacing = 6, Children = { toolbar, navigation, filters, _volumeCapacityRibbon, actions, _legend, provenanceLabel, _historyNotice } };
+            AddRuntimeChangeHint(controls);
+            _resultControls = new ScrollViewer { Content = controls, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+            AutomationProperties.SetName(_resultControls, "Analysis view controls");
+            Children.Add(_resultControls);
             _body.Children.Add(_main); _body.Children.Add(_inspector); Children.Add(_body);
             _main.Children.Add(_treemap); _main.Children.Add(_sunburst); _main.Children.Add(_buckets);
             var pageBar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
@@ -421,7 +424,16 @@ public sealed partial class DiskSpaceWindow
             _color.IsEnabled = !_interacting;
         }
         private Task WaitForInteractionAsync(CancellationToken cancellation) => _interacting && _interactionEnd is { } end ? end.Task.WaitAsync(cancellation) : Task.CompletedTask;
-        public ScrollViewer CreateViewport() => new() { Content = this, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+        public ScrollViewer CreateViewport()
+        {
+            var viewport = new ScrollViewer { Content = this, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+            viewport.LayoutUpdated += (_, _) =>
+            {
+                if (_disposed) return;
+                _resultControls.MaxHeight = Math.Max(48, viewport.Bounds.Height / 2 - _resultSummary.DesiredSize.Height);
+            };
+            return viewport;
+        }
         private void ActivateChart(string key, bool mark, bool enter)
         {
             if (_disposed || _window._dialogs.IsOpen) return;
