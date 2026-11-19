@@ -15,11 +15,12 @@ internal sealed unsafe partial class WindowsStorageTransforms
 
     internal IStorageTransforms CreateEfsJobCandidate(WindowsEfsKeys.InvokeBackupWizard? invokeWizard = null,
         Action<Action>? invokeProviderOwner = null) =>
-        new EfsJobs(this, (job, sid, consent, ct) => ReviewEfsRecovery(job, sid, consent, ct, invokeWizard, invokeProviderOwner), invokeWizard);
+        new EfsJobs(this, (job, sid, consent, ct) => ReviewEfsRecovery(job, sid, consent, ct, invokeWizard, invokeProviderOwner),
+            invokeWizard, invokeProviderOwner);
 
     private sealed class EfsJobs(WindowsStorageTransforms adapter,
         Func<Job, string, StorageEfsConsent, CancellationToken, StorageEfsRecoveryApproval?> recoveryDecision,
-        WindowsEfsKeys.InvokeBackupWizard? invokeWizard = null,
+        WindowsEfsKeys.InvokeBackupWizard? invokeWizard = null, Action<Action>? invokeProviderOwner = null,
         Action<StorageAction, bool>? nativeCallReturnedForQualification = null)
         : IStorageTransforms, IStorageEfsJobAdapter, IStorageEfsFileBackup
     {
@@ -34,10 +35,10 @@ internal sealed unsafe partial class WindowsStorageTransforms
             : Problem(StorageReasonKind.FileCatBoundary, "efs-scope", "Choose an explicit EFS scope.");
 
         public StorageEfsFileBackupReview InspectFiles(ImmutableArray<StorageTarget> targets, CancellationToken ct) =>
-            adapter.InspectBackupFiles(this, targets, ct);
+            adapter.InspectBackupFiles(this, targets, ct, invokeProviderOwner is not null);
 
         public StorageEfsFileBackupResult BackUpFileKey(StorageEfsFileBackupReview review, string certificateSha1, nint ownerWindow, CancellationToken ct) =>
-            adapter.BackUpFileKey(this, review, certificateSha1, ownerWindow, ct, invokeWizard);
+            adapter.BackUpFileKey(this, review, certificateSha1, ownerWindow, ct, invokeWizard, invokeProviderOwner);
 
         public IStorageReviewLease InspectRoot(StorageTarget target, StorageAction? action, CancellationToken ct) =>
             action is StorageAction.EncryptEfs or StorageAction.DecryptEfs

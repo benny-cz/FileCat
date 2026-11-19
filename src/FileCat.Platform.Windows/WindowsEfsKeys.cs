@@ -116,14 +116,18 @@ internal sealed unsafe partial class WindowsEfsKeys(bool qualifyNativeArm64 = fa
             if (interaction is not null)
             {
                 using var ownerTokenCharge = allowance.ClaimScratch();
-                return CompareParentedCngKey(fresh, invokerSid, certificateSha1, interaction, ct);
+                var compared = CompareParentedCngKey(fresh, invokerSid, certificateSha1, interaction, ct);
+                if (compared.State == StorageEfsKeyState.MatchedAvailable) useMatchedCertificate?.Invoke(fresh);
+                return compared;
             }
             bool acquired = Acquire(fresh, AcquireFlags, 0, out nint key, out uint keySpec, out bool callerFree);
             int nativeError = acquired ? 0 : Marshal.GetLastPInvokeError();
             try
             {
                 ct.ThrowIfCancellationRequested(); RequireInvoker(invokerSid, ct);
-                if (!acquired) return Error(invokerSid, certificateSha1, true, true, nativeError, "efs-private-key", "The exact certificate's private key could not be silently acquired and compared.", provider);
+                if (!acquired) return Error(invokerSid, certificateSha1, true, true, nativeError, "efs-private-key",
+                    "The exact certificate's private key could not be silently acquired and compared.", provider)
+                    with { Subject = nativeError == SilentContext ? CertificateSubject(fresh) : null };
                 if (!callerFree || key == 0 || keySpec is not (1 or 2 or uint.MaxValue) || (keySpec == uint.MaxValue) != (binding.Type == 0))
                     return Evidence(invokerSid, certificateSha1, true, true, StorageEfsKeyState.Unknown, provider, null,
                         "efs-key-comparison-unestablished", "A fresh owned certificate-to-key comparison was not established; a cached or ambiguous result cannot authorize encryption.");

@@ -4,7 +4,6 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
-using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 
 namespace FileCat.App.Views;
@@ -43,7 +42,7 @@ internal static class EfsFileBackupDialog
 
         var backupLabel = new DialogButtonPresentation(new("Back up selected key…"));
         StorageEfsFileBackupKey? Selected() => (uint)choose.SelectedIndex < (uint)review.Keys.Length ? review.Keys[choose.SelectedIndex] : null;
-        bool CanBackUp() => hasOwner && Selected() is { State: StorageEfsKeyState.MatchedAvailable };
+        bool CanBackUp() => hasOwner && Selected() is { CanBackUp: true };
         void Render()
         {
             var selected = Selected();
@@ -51,10 +50,12 @@ internal static class EfsFileBackupDialog
             if (selected is not null) results.TryGetValue(selected.CertificateSha1, out result);
             status.Text = review.Keys.IsEmpty ? "No EFS certificate for this account was found on the selected files."
                 : selected is null ? "Choose the key to export. Files can use different EFS keys."
-                : selected.Problem?.Message ?? (result?.WindowsReportedExport == true
+                : result?.WindowsReportedExport == true
                     ? $"Windows reported private-key export completed. {result.CoveredItems.Length} of the {review.Items.Length} selected items still matched this key when checked."
                     : result?.Canceled == true ? "Windows canceled this key export."
-                    : result?.Problem?.Message ?? "Windows will ask where to save the backup and how to protect it.");
+                    : result?.Problem?.Message ?? (selected.RequiresProviderAccess && hasOwner
+                        ? "Windows may ask for credentials to access this key before opening the backup wizard."
+                        : selected.Problem?.Message ?? "Windows will ask where to save the backup and how to protect it.");
             if (result is { WindowsReportedExport: true, Problem: not null }) status.Text += " " + result.Problem.Message;
             files.Text = string.Join("\n\n", review.Items.Select((item, index) =>
             {
@@ -65,7 +66,9 @@ internal static class EfsFileBackupDialog
                     : "Uses a different key");
                 return JsonSerializer.Serialize(item.Target.Path) + (hidden[index] ? " · Hidden mark" : "") + "\n" + state;
             }));
-            backupLabel.Update(new("Back up selected key…", "Back up the selected EFS certificate and private key"));
+            backupLabel.Update(selected is { RequiresProviderAccess: true }
+                ? new("Access and back up selected key…", "Allow Windows to request key access and then back up the selected certificate and private key")
+                : new("Back up selected key…", "Back up the selected EFS certificate and private key"));
         }
 
         choose.SelectionChanged += (_, _) => Render();

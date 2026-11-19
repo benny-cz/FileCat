@@ -102,6 +102,24 @@ public sealed unsafe partial class WindowsEfsKeyTests
                 Assert.Equal(StorageEfsKeyProvider.Cng, compared.Provider);
                 Assert.Equal(sid, compared.InvokerSid);
                 Assert.Equal(hash, compared.CertificateSha1);
+
+                Func<WindowsEfsKeys.BackupResult>? deferredWizard = null;
+                var backup = service.BackUpAssociatedCertificate(association, hash, owner, true, Ct,
+                    invokeWizard: show =>
+                    {
+                        Assert.Equal(2, comparisons);
+                        deferredWizard = show;
+                        return new(WindowsEfsKeys.BackupState.Canceled, null, null);
+                    },
+                    invokeProviderOwner: callback =>
+                    {
+                        comparisons++;
+                        callback();
+                    });
+                Assert.Equal("efs-backup-owner", backup.Problem?.Code);
+                Assert.Null(backup.Completion);
+                Assert.NotNull(deferredWizard);
+                Assert.Equal("efs-backup-owner", deferredWizard().Problem?.Code);
             }
             finally { store.Remove(fixture.Certificate); }
         }

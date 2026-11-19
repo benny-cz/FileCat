@@ -21,3 +21,13 @@ The Windows 11 Enterprise ARM64 runner (build 26200, 4 KiB NTFS) used an isolate
 - `key-change-stops-job.xml` verified that the selected job stopped at that first file, kept its exact reviewed and observed key evidence, and left the second file clear.
 
 Each case passed once with zero skips. First use, refusal without an EFS key and decryption after independent PFX restore also passed in the same run. The source was `eba7d530fa0d483b929384b134a4ad31bee80b2c`. The Windows test assembly SHA-256 was `FEE4DCCFF0852FABCCBFF04F08027FF5378E0C5F3464B5B435DB01404B779252`.
+
+## Selected-file wizard and CNG key access
+
+For a reviewed CNG certificate that needs provider access, **Access and back up selected key…** requests a fresh comparison from the visible FileCat window. At least one original file must still match its reviewed identity, invoking account and certificate. The wizard follows only after the exact match. A completed export rechecks each original file and reports which still match. Ordinary review and coverage checks use silent inspection. [Windows certificate export wizard](https://learn.microsoft.com/en-us/windows/win32/api/cryptuiapi/nf-cryptuiapi-cryptuiwizexport)
+
+The Windows 11 x64 VM (build 26340, medium integrity) ran 21 focused cases with zero skips. In the selected-file wizard fixture, cancellation produced no PFX and no covered files. Completed export produced a PFX with the selected thumbprint and a private key and listed only the original encrypted file as covered. The suite also passed the separate setup wizard cases and the replacement-file control.
+
+A controlled pending observation of a disposable CNG certificate exercised the real parented comparison and reached the wizard dispatch. A deferred callback was rejected after the comparison scope closed. This exercised the handoff with a software provider. The live credential prompt and selected-file screen-reader flow still need native evidence.
+
+The Ubuntu app and test builds succeeded with zero warnings. All 10 focused dialog and evidence cases passed, including the pending CNG action, its unavailable-owner state and unchanged behavior for a regular backup. The Windows and Ubuntu receipts are `efs-backup-r1.trx` and `selected-backup-dialog.trx` in `.tmp/filecat-efs-backup-e2947b9d-r1/`. The Windows platform and test assembly SHA-256 hashes are `B72EBF18E7B0D2CBEBD5E775156EA9568735EF784E6D4499F0F1C53AD6D72AF1` and `23A890131A7A0CEFABB53A31B8549576DD0DD30FC1F8DBEE0CFF52B178CD9831`.

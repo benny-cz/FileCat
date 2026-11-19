@@ -9,7 +9,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
 {
     private const int SelectedBackupKeyLimit = 256;
 
-    private StorageEfsFileBackupReview InspectBackupFiles(IStorageEfsFileBackup adapter, ImmutableArray<StorageTarget> targets, CancellationToken ct)
+    private StorageEfsFileBackupReview InspectBackupFiles(IStorageEfsFileBackup adapter, ImmutableArray<StorageTarget> targets,
+        CancellationToken ct, bool canInvokeProviderOwner)
     {
         RequireEfsHost(StorageAction.DecryptEfs);
         if (targets.IsDefaultOrEmpty || targets.Length > 64) throw new ArgumentException("Select between 1 and 64 files for EFS backup.", nameof(targets));
@@ -25,19 +26,21 @@ internal sealed unsafe partial class WindowsStorageTransforms
             {
                 foreach (var key in association.CurrentUserKeys)
                 {
+                    var observed = new StorageEfsFileBackupKey(key.CertificateSha1, key.Subject, key.State, key.Problem,
+                        RequiresProviderAccess: canInvokeProviderOwner && WindowsEfsKeys.NeedsParentedCngAccess(key));
                     if (!keys.TryGetValue(key.CertificateSha1, out var option))
                     {
                         if (keys.Count == SelectedBackupKeyLimit)
                             throw Refuse("efs-backup-key-limit", "The selection has more than 256 EFS certificates for this account. Review fewer files at a time.");
-                        option = new(key.CertificateSha1, key.Subject, key.State, key.Problem);
-                        keys.Add(option.CertificateSha1, option);
+                        keys.Add(key.CertificateSha1, observed);
                     }
-                    else if (option.State == StorageEfsKeyState.MatchedAvailable && key.State != StorageEfsKeyState.MatchedAvailable)
+                    else if (option.CanBackUp && observed.State != StorageEfsKeyState.MatchedAvailable &&
+                        (!option.RequiresProviderAccess || !observed.CanBackUp))
                     {
-                        // Different observations of the same key need a fresh inspection before it can be chosen.
-                        keys[option.CertificateSha1] = option with { State = key.State, Problem = key.Problem };
+                        // A later observation cannot make an earlier unavailable key eligible or remove required interaction.
+                        keys[key.CertificateSha1] = observed with { Subject = observed.Subject ?? option.Subject };
                     }
-                    hashes.Add(option.CertificateSha1);
+                    hashes.Add(key.CertificateSha1);
                 }
                 if (hashes.Count == 0)
                     problem = Problem(StorageReasonKind.PermissionOrPolicy, "efs-backup-no-user-key", "The selected file has no EFS certificate association for this Windows account.");
@@ -48,24 +51,28 @@ internal sealed unsafe partial class WindowsStorageTransforms
     }
 
     private StorageEfsFileBackupResult BackUpFileKey(IStorageEfsFileBackup adapter, StorageEfsFileBackupReview review,
-        string certificateSha1, nint ownerWindow, CancellationToken ct, WindowsEfsKeys.InvokeBackupWizard? invokeWizard)
+        string certificateSha1, nint ownerWindow, CancellationToken ct, WindowsEfsKeys.InvokeBackupWizard? invokeWizard,
+        Action<Action>? invokeProviderOwner)
     {
         RequireEfsHost(StorageAction.DecryptEfs);
         if (!ReferenceEquals(review.Adapter, adapter) || review.InvokerSid != EfsInvoker() ||
-            !review.Keys.Any(key => key.CertificateSha1 == certificateSha1 && key.State == StorageEfsKeyState.MatchedAvailable))
+            review.Keys.FirstOrDefault(key => key.CertificateSha1 == certificateSha1) is not { CanBackUp: true } selected ||
+            (selected.RequiresProviderAccess && invokeProviderOwner is null))
             throw Refuse("efs-backup-reviewed-key", "Choose an available certificate from the current selection review for this Windows account.");
 
+        bool allowProviderAccess = selected.RequiresProviderAccess;
         StorageEfsAssociationSnapshot? reviewed = null;
         foreach (var item in review.Items)
         {
             ct.ThrowIfCancellationRequested();
-            if ((reviewed = RecheckBackupAssociation(item, review.InvokerSid, certificateSha1, ct)) is not null) break;
+            if ((reviewed = RecheckBackupAssociation(item, review.InvokerSid, certificateSha1, allowProviderAccess, ct)) is not null) break;
         }
         if (reviewed is null)
             return new(false, false, [], Problem(StorageReasonKind.IdentityChanged, "efs-backup-association-changed",
                 "None of the originally reviewed files could still be associated with the selected key. Inspect the selection again."));
 
-        var backup = _efsKeys.BackUpAssociatedCertificate(reviewed, certificateSha1, ownerWindow, explicitlyRequested: true, ct, invokeWizard);
+        var backup = _efsKeys.BackUpAssociatedCertificate(reviewed, certificateSha1, ownerWindow, explicitlyRequested: true, ct,
+            invokeWizard, allowProviderAccess ? invokeProviderOwner : null);
         if (backup.Completion is null) return new(false, backup.State == WindowsEfsKeys.BackupState.Canceled, [], backup.Problem);
 
         var covered = ImmutableArray.CreateBuilder<int>();
@@ -74,7 +81,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
             for (int i = 0; i < review.Items.Length; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                if (RecheckBackupAssociation(review.Items[i], review.InvokerSid, certificateSha1, ct) is not null) covered.Add(i);
+                if (RecheckBackupAssociation(review.Items[i], review.InvokerSid, certificateSha1, allowProviderAccess, ct) is not null)
+                    covered.Add(i);
             }
             return new(true, false, covered.ToImmutable(), null);
         }
@@ -85,11 +93,13 @@ internal sealed unsafe partial class WindowsStorageTransforms
         }
     }
 
-    private StorageEfsAssociationSnapshot? RecheckBackupAssociation(StorageEfsFileBackupItem item, string sid, string hash, CancellationToken ct)
+    private StorageEfsAssociationSnapshot? RecheckBackupAssociation(StorageEfsFileBackupItem item, string sid, string hash,
+        bool allowProviderAccess, CancellationToken ct)
     {
         if (item.Identity is not { } identity || !item.Certificates.Contains(hash, StringComparer.Ordinal)) return null;
         var (association, _) = ReadBackupAssociation(item.Target, sid, identity, ct);
-        return association?.CurrentUserKeys.Any(key => key.CertificateSha1 == hash && key.State == StorageEfsKeyState.MatchedAvailable) == true
+        return association?.CurrentUserKeys.Any(key => key.InvokerSid == sid && key.CertificateSha1 == hash &&
+            (key.State == StorageEfsKeyState.MatchedAvailable || (allowProviderAccess && WindowsEfsKeys.NeedsParentedCngAccess(key)))) == true
             ? association : null;
     }
 

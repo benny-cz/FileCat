@@ -22,7 +22,8 @@ internal sealed unsafe partial class WindowsEfsKeys
     }
 
     internal BackupResult BackUpAssociatedCertificate(StorageEfsAssociationSnapshot association, string certificateSha1,
-        nint ownerWindow, bool explicitlyRequested, CancellationToken ct, InvokeBackupWizard? invokeWizard = null)
+        nint ownerWindow, bool explicitlyRequested, CancellationToken ct, InvokeBackupWizard? invokeWizard = null,
+        Action<Action>? invokeProviderOwner = null)
     {
         if (!explicitlyRequested)
             return Refused("efs-backup-choice", "Request backup explicitly for the selected file-associated EFS key.");
@@ -36,17 +37,42 @@ internal sealed unsafe partial class WindowsEfsKeys
         if (OwnedWindowThread(ownerWindow) == 0)
             return Refused("efs-backup-owner", "Open the EFS backup wizard from a visible FileCat window.");
 
+        var interaction = invokeProviderOwner is not null && !association.CurrentUserKeys.IsDefaultOrEmpty &&
+            association.CurrentUserKeys.Any(key => key.InvokerSid == association.InvokerSid &&
+                key.CertificateSha1 == certificateSha1 && NeedsParentedCngAccess(key))
+            ? new CngInteraction(ownerWindow, invokeProviderOwner) : null;
         BackupResult? result = null;
         var evidence = InspectAssociatedCertificate(association.InvokerSid, certificateSha1, ct, fresh =>
         {
             // Keep the certificate alive on the worker until the synchronous, owner-thread modal call returns.
-            result = invokeWizard is null ? Show() : invokeWizard(Show);
+            using var ownerTokenCharge = StorageNativeAllowance.RequireCurrent().ClaimScratch();
+            var lifetime = new object();
+            bool active = true, entered = false;
+            try
+            {
+                if (invokeWizard is null) ShowOnce();
+                else invokeWizard(ShowOnce);
+            }
+            finally { lock (lifetime) active = false; }
+            result ??= Refused("efs-backup-owner", "The FileCat window did not run the requested backup wizard.");
+
+            BackupResult ShowOnce()
+            {
+                lock (lifetime)
+                {
+                    if (!active || entered)
+                        return Refused("efs-backup-owner", "The requested backup wizard is no longer active.");
+                    entered = true;
+                    return result = Show();
+                }
+            }
 
             BackupResult Show()
             {
                 ct.ThrowIfCancellationRequested();
                 if (OwnedWindowThread(ownerWindow) != GetCurrentThreadId())
                     return Refused("efs-backup-owner", "Open the EFS backup wizard from a live FileCat window on its UI thread.");
+                CheckInvoker(association.InvokerSid, ct);
 
                 var export = new ExportInfo { Size = (uint)sizeof(ExportInfo), SubjectChoice = 1 /* CERT_CONTEXT */, Certificate = fresh };
                 // Windows collects the destination and password. The private key is mandatory and cannot be deleted.
@@ -58,7 +84,7 @@ internal sealed unsafe partial class WindowsEfsKeys
                     ? new(BackupState.Canceled, error, null)
                     : Refused("efs-backup-wizard", "Windows did not report completion of the EFS private-key export.", error);
             }
-        });
+        }, interaction);
         return result ?? new(BackupState.Unavailable, evidence.NativeError, evidence.Problem);
     }
 

@@ -22,4 +22,6 @@ On Windows 11 x64 build 26340, all 16 focused cases executed and passed at mediu
 
 All seven focused Ubuntu dialog and evidence-text cases passed. The mixed-key dialog case restored the pending certificate selection, refused the declaration click, and allowed the declaration after selection moved to the already matched certificate. The receipt is `efs-recovery-dialog.trx` in the same evidence directory.
 
+At commit `e2947b9d`, native ARM64 passed all three parented provider comparisons at medium integrity, including the reviewed-access case. The same run passed the 11 key and recovery checks and both setup wizard outcomes, with zero skips. [Native ARM64 EFS receipts](https://github.com/benny-cz/FileCat/actions/runs/44527445412)
+
 Live provider credential prompts, CryptoAPI interaction isolation and provider access during selected-file backup remain open. The backup wizard and post-encryption observation still require their own fresh key evidence.

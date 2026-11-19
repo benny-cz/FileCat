@@ -12,7 +12,12 @@ internal interface IStorageEfsFileBackup
 internal sealed record StorageEfsFileBackupItem(StorageTarget Target, StorageObjectIdentity? Identity,
     ImmutableArray<string> Certificates, StorageProblem? Problem);
 
-internal sealed record StorageEfsFileBackupKey(string CertificateSha1, string? Subject, StorageEfsKeyState State, StorageProblem? Problem);
+internal sealed record StorageEfsFileBackupKey(string CertificateSha1, string? Subject, StorageEfsKeyState State,
+    StorageProblem? Problem, bool RequiresProviderAccess = false)
+{
+    internal bool CanBackUp => State == StorageEfsKeyState.MatchedAvailable ||
+        (State == StorageEfsKeyState.InteractionRequired && RequiresProviderAccess);
+}
 
 internal sealed record StorageEfsFileBackupReview(IStorageEfsFileBackup Adapter, string InvokerSid,
     ImmutableArray<StorageEfsFileBackupItem> Items, ImmutableArray<StorageEfsFileBackupKey> Keys);
