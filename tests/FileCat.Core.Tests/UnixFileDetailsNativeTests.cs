@@ -141,32 +141,37 @@ public sealed partial class UnixFileDetailsNativeTests
             Assert.DoesNotContain(reader.ReadFull(leaf, FileDetailsPolicy.MetadataOnly, ct).Technical.Sections, section => section.Title == title);
     }
 
-    [Fact]
-    public void Mac_namespace_requires_matching_volume_and_individually_valid_capabilities()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Mac_namespace_requires_matching_volume_and_individually_valid_capabilities(bool apfs)
     {
         const uint device = 42;
         var fields = new byte[76];
         BinaryPrimitives.WriteUInt32LittleEndian(fields, 76);
         BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(4), 0x80000002);
-        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(8), 0x00120000);
+        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(8), apfs ? 0x00120000u : 0x00320000u);
         BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(24), device);
         BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(28), 0x100);
         BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(44), 0x100);
-        BinaryPrimitives.WriteInt32LittleEndian(fields.AsSpan(60), 8);
-        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(64), 5);
-        "apfs\0"u8.CopyTo(fields.AsSpan(68));
+        int offset = apfs ? 8 : 12;
+        var type = apfs ? "apfs\0"u8 : "hfs\0"u8;
+        BinaryPrimitives.WriteInt32LittleEndian(fields.AsSpan(60), offset);
+        BinaryPrimitives.WriteUInt32LittleEndian(fields.AsSpan(64), (uint)type.Length);
+        type.CopyTo(fields.AsSpan(60 + offset));
 
-        var (sensitive, preserving, volumeVerified) = UnixFileRecords.ParseMacApfsNamespace(fields, device);
+        var (sensitive, preserving, volumeVerified) = UnixFileRecords.ParseMacVolumeNamespace(fields, device, apfs);
         Assert.True(volumeVerified);
         Assert.Equal(FactState.Known, sensitive.State);
         Assert.Equal(FactScope.Volume, sensitive.Scope);
         Assert.True(sensitive.Value);
         Assert.Equal(FactState.Unsupported, preserving.State);
-        Assert.Equal(FactState.Partial, UnixFileRecords.ParseMacApfsNamespace(fields, device + 1).Sensitive.State);
-        Assert.False(UnixFileRecords.ParseMacApfsNamespace(fields, device + 1).VolumeVerified);
-        Assert.False(UnixFileRecords.ParseMacApfsNamespace(fields.AsSpan(0, 70), device).VolumeVerified);
+        Assert.Equal(FactState.Partial, UnixFileRecords.ParseMacVolumeNamespace(fields, device + 1, apfs).Sensitive.State);
+        Assert.False(UnixFileRecords.ParseMacVolumeNamespace(fields, device + 1, apfs).VolumeVerified);
+        Assert.False(UnixFileRecords.ParseMacVolumeNamespace(fields, device, !apfs).VolumeVerified);
+        Assert.False(UnixFileRecords.ParseMacVolumeNamespace(fields.AsSpan(0, 70), device, apfs).VolumeVerified);
         BinaryPrimitives.WriteInt32LittleEndian(fields.AsSpan(60), int.MaxValue);
-        Assert.False(UnixFileRecords.ParseMacApfsNamespace(fields, device).VolumeVerified);
+        Assert.False(UnixFileRecords.ParseMacVolumeNamespace(fields, device, apfs).VolumeVerified);
     }
 
     [Fact]
@@ -240,6 +245,23 @@ public sealed partial class UnixFileDetailsNativeTests
         else Assert.Null(policy.Value);
     }
 
+    [Theory]
+    [InlineData(128, 1, FactState.Known)]
+    [InlineData(128, 2, FactState.Known)]
+    [InlineData(128, 3, FactState.Known)]
+    [InlineData(128, 0, FactState.Unsupported)]
+    [InlineData(128, 4, FactState.Unsupported)]
+    [InlineData(127, 2, FactState.Failed)]
+    public void Linux_fscrypt_key_status_requires_a_complete_recognized_reply(int length, int status, FactState expected)
+    {
+        var reply = new byte[length];
+        BinaryPrimitives.WriteInt32LittleEndian(reply.AsSpan(64), status);
+        var observed = UnixFileRecords.ParseLinuxFscryptKeyStatus(reply);
+        Assert.Equal(expected, observed.State);
+        Assert.Equal(FactScope.Volume, observed.Scope);
+        if (expected == FactState.Known) Assert.Equal((UnixFileRecords.LinuxFscryptKeyStatus)status, observed.Value);
+    }
+
     [Fact]
     public void Linux_full_report_distinguishes_real_ext4_encryption_policies_without_showing_key_or_payload()
     {
@@ -268,7 +290,8 @@ public sealed partial class UnixFileDetailsNativeTests
             Assert.Contains(("Policy version", version), policy.Fields);
             Assert.Contains(("Content mode", "AES-256-XTS"), policy.Fields);
             Assert.Contains(("Filename mode", "AES-256-CTS"), policy.Fields);
-            Assert.Contains(policy.Lines, line => line.StartsWith("Key availability", StringComparison.Ordinal));
+            Assert.Contains(("Filesystem keyring", version == "2" ? "Policy key present"
+                : "Not inspected for version 1 policies, which can use process keyrings"), policy.Fields);
             Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);
             Assert.DoesNotContain("fscrypt-payload-sentinel", full.ToText());
         }
@@ -277,6 +300,28 @@ public sealed partial class UnixFileDetailsNativeTests
         var absent = Assert.Single(clear.Technical.Sections, section => section.Title == "fscrypt policy");
         Assert.Contains(("Status", "No policy on this object"), absent.Fields);
         Assert.DoesNotContain(absent.Fields, field => field.Name == "Policy version");
+        Assert.DoesNotContain(absent.Fields, field => field.Name == "Filesystem keyring");
+    }
+
+    [Fact]
+    public void Linux_full_report_distinguishes_absent_and_partially_removed_ext4_policy_keys()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
+            "Requires a qualified Linux x64 ext4 fixture.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_LINUX_FSCRYPT_KEY_STATES");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires disposable ext4 directories with absent and incompletely removed keys.");
+        var reader = new UnixFileRecords();
+        var ct = TestContext.Current.CancellationToken;
+        foreach (var (leaf, status) in new[] { ("absent", "Policy key absent"), ("removing", "Policy key removal incomplete") })
+        {
+            var full = reader.ReadFull(Path.Join(root, leaf), FileDetailsPolicy.MetadataOnly, ct);
+            Assert.True(full.Summary.FileEncryption.Value);
+            Assert.Equal(ReportContentKind.MetadataOnly, full.ContentKind);
+            var policy = Assert.Single(full.Technical.Sections, section => section.Title == "fscrypt policy");
+            Assert.Contains(("Policy version", "2"), policy.Fields);
+            Assert.Contains(("Filesystem keyring", status), policy.Fields);
+            Assert.Contains(("Key status source", "FS_IOC_GET_ENCRYPTION_KEY_STATUS on the same ext4 descriptor"), policy.Fields);
+        }
     }
 
     [Fact]

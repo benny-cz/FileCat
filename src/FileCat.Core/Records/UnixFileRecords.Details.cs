@@ -75,7 +75,7 @@ public sealed unsafe partial class UnixFileRecords
                     using var descriptor = file;
                     if (ext4)
                     {
-                        report = AddLinuxFscrypt(report, file is null ? FscryptUnavailable(state, reason!) : ReadLinuxFscrypt(file, ct));
+                        report = AddLinuxFscrypt(report, file, state, reason, ct);
                         if (summary.Kind == FileObjectKind.Directory)
                             report = AddExt4DirectoryNamespace(report, file, state, reason, ct);
                     }
@@ -228,10 +228,22 @@ public sealed unsafe partial class UnixFileRecords
                 NativeAttributes.State: FactState.Known,
             })
         {
-            report = AddMacApfsDetails(report, fields, ct);
+            report = AddMacVolumeDetails(report, fields, ct);
         }
         return report;
     }
+
+    internal static FileDetailsReport MacDetailsWithoutMaterialization(string path, CancellationToken ct, Func<FileDetailsReport> read) =>
+        MacMaterializationPolicy.Run(ct, read, (failure, reason) => FileDetailsReport.Metadata(new(path, DateTimeOffset.UtcNow, Guid.NewGuid())
+        {
+            Identity = ObservedFact<DetailsIdentity>.Unavailable(failure switch
+            {
+                MacMaterializationPolicy.Failure.WouldMaterialize => FactState.NotInspected,
+                MacMaterializationPolicy.Failure.RestoreFailed => FactState.Failed,
+                _ => FactState.Unsupported,
+            }, FactScope.Entry, "macOS metadata with materialization disabled", reason),
+            Notes = [reason],
+        }));
 
     private static byte[] ReadMacDetailsFields(string path, CancellationToken ct, bool apfsSharing = false)
     {

@@ -11,18 +11,28 @@ namespace FileCat.Platform.Windows;
 internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransforms, IStorageEfsSetup
 {
     // The qualification target is the Windows 11 client, not a Server product with the same build number.
-    internal static bool IsQualifiedHost => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) &&
-        RuntimeInformation.ProcessArchitecture == Architecture.X64 && !IsOS(29 /* OS_ANYSERVER */);
+    private static bool IsWindows11Client => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) && !IsOS(29 /* OS_ANYSERVER */);
+    internal static bool IsQualifiedHost => RuntimeInformation.ProcessArchitecture == Architecture.X64 && IsWindows11Client;
+    internal static bool IsNativeArm64QualificationHost => RuntimeInformation.ProcessArchitecture == Architecture.Arm64 &&
+        RuntimeInformation.OSArchitecture == Architecture.Arm64 && IsWindows11Client;
+    internal static bool SupportsHost(bool qualifyNativeArm64) => IsQualifiedHost || qualifyNativeArm64 && IsNativeArm64QualificationHost;
     [LibraryImport("shlwapi.dll")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool IsOS(uint feature);
     private readonly Func<string> _windowsDirectory;
     private readonly Func<string> _efsSetupBaseDirectory;
-    internal WindowsStorageTransforms(Func<string>? windowsDirectory = null, Func<string>? efsSetupBaseDirectory = null)
+    private readonly Action<bool>? _compressionSetReturnedForQualification;
+    private readonly bool _qualifyNativeArm64;
+    private readonly WindowsEfsKeys _efsKeys;
+    internal WindowsStorageTransforms(Func<string>? windowsDirectory = null, Func<string>? efsSetupBaseDirectory = null,
+        Action<bool>? compressionSetReturnedForQualification = null, bool qualifyNativeArm64 = false)
     {
         _windowsDirectory = windowsDirectory ?? (() => Environment.GetFolderPath(Environment.SpecialFolder.Windows));
         _efsSetupBaseDirectory = efsSetupBaseDirectory ?? (() => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        _compressionSetReturnedForQualification = compressionSetReturnedForQualification;
+        _qualifyNativeArm64 = qualifyNativeArm64;
+        _efsKeys = new(qualifyNativeArm64);
     }
 
     public StorageProblem? Unavailable(StorageAction action)
@@ -30,7 +40,7 @@ internal sealed unsafe partial class WindowsStorageTransforms : IStorageTransfor
         if (!Enum.IsDefined(action)) return Problem(StorageReasonKind.FileCatBoundary, "action", "Choose an explicit storage action.");
         if (action is StorageAction.EncryptEfs or StorageAction.DecryptEfs)
             return Problem(StorageReasonKind.FileCatBoundary, "efs-unqualified", "EFS requires its qualified identity, key and output protocol.");
-        return !IsQualifiedHost
+        return !SupportsHost(_qualifyNativeArm64)
             ? Problem(StorageReasonKind.WindowsLimitation, "target-unqualified", "This storage adapter requires a qualified Windows 11 x64 target.") : null;
     }
 

@@ -5,14 +5,14 @@ namespace FileCat.Platform.Windows;
 
 internal sealed partial class WindowsStorageReviewEvidence
 {
-    private static StorageEvidenceCursor OpenCursor(string directory, bool artifacts, CancellationToken ct)
+    private static StorageEvidenceCursor OpenCursor(string directory, bool artifacts, CancellationToken ct, bool qualifyNativeArm64)
     {
         if (StorageNativeAllowance.Current is not null) throw new IOException("Release native observation ownership before opening evidence discovery.");
         IDisposable? cursorCharge = StorageEvidenceLanes.EnterCursor(ct); NativeHandle? held = null;
         try
         {
             using var envelope = StorageEvidenceLanes.EnterEnvelope(ct);
-            string owner = OrdinaryOwner(envelope.Claim), full = FullDirectory(directory);
+            string owner = OrdinaryOwner(envelope.Claim, qualifyNativeArm64), full = FullDirectory(directory);
             held = Walk(full, envelope.Claim, writable: false, ct, listing: true);
             RequireNamespace(held.Handle, owner, ct);
             string binding = WindowsStorageTransforms.ActualVolumeBinding(held.Handle, false, ct);

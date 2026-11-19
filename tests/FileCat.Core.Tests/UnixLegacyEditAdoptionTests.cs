@@ -4,6 +4,7 @@ using FileCat.Tests;
 
 namespace FileCat.Core.Tests;
 
+[Collection("Unix edit storage")]
 public sealed class UnixLegacyEditAdoptionTests
 {
     [Theory,InlineData("marker"),InlineData("pending"),InlineData("ready")]

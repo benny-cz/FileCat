@@ -8,22 +8,25 @@ internal sealed unsafe partial class WindowsStorageTransforms
 {
     /// <summary>Internal qualification composition. The product platform continues to control mutation availability.</summary>
     internal IStorageTransforms CreateEfsJobCandidate(
-        Func<Job, string, StorageEfsConsent, CancellationToken, StorageEfsRecoveryApproval?> recoveryDecision) =>
-        new EfsJobs(this, recoveryDecision ?? throw new ArgumentNullException(nameof(recoveryDecision)));
+        Func<Job, string, StorageEfsConsent, CancellationToken, StorageEfsRecoveryApproval?> recoveryDecision,
+        Action<StorageAction, bool>? nativeCallReturnedForQualification = null) =>
+        new EfsJobs(this, recoveryDecision ?? throw new ArgumentNullException(nameof(recoveryDecision)),
+            nativeCallReturnedForQualification: nativeCallReturnedForQualification);
 
     internal IStorageTransforms CreateEfsJobCandidate(WindowsEfsKeys.InvokeBackupWizard? invokeWizard = null) =>
         new EfsJobs(this, (job, sid, consent, ct) => ReviewEfsRecovery(job, sid, consent, ct, invokeWizard), invokeWizard);
 
     private sealed class EfsJobs(WindowsStorageTransforms adapter,
         Func<Job, string, StorageEfsConsent, CancellationToken, StorageEfsRecoveryApproval?> recoveryDecision,
-        WindowsEfsKeys.InvokeBackupWizard? invokeWizard = null)
+        WindowsEfsKeys.InvokeBackupWizard? invokeWizard = null,
+        Action<StorageAction, bool>? nativeCallReturnedForQualification = null)
         : IStorageTransforms, IStorageEfsJobAdapter, IStorageEfsFileBackup
     {
         public StorageProblem? Unavailable(StorageAction action)
         {
             if (!StorageJournalPolicy.IsEfs(action)) return adapter.Unavailable(action);
-            return IsQualifiedHost && EfsEdition.Value ? null : Problem(StorageReasonKind.WindowsLimitation, "efs-build",
-                "This EFS candidate requires Windows 11 x64 Pro, Enterprise or Education.");
+            return SupportsHost(adapter._qualifyNativeArm64) && EfsEdition.Value ? null : Problem(StorageReasonKind.WindowsLimitation, "efs-build",
+                "This EFS candidate requires a qualified Windows 11 Pro, Enterprise or Education host.");
         }
 
         public StorageProblem? ScopeUnavailable(StorageScope scope) => Enum.IsDefined(scope) ? null
@@ -49,7 +52,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             bool efs = action is StorageAction.EncryptEfs or StorageAction.DecryptEfs;
             if (!efs && pin.InvokerSid is null) return adapter.InspectPinnedRoot(root, action, ct);
             if (!efs || pin.InvokerSid is null) throw Refuse("efs-review-action", "Open a new review to switch between EFS and compression.");
-            RequireEfsHost(action!.Value);
+            adapter.RequireEfsHost(action!.Value);
             StorageReviewResources.RequireRootInspection(pin.Target);
             if (EfsInvoker() != pin.InvokerSid) throw Changed("efs-invoker", "The invoking EFS user changed; create a new review.");
             using var path = Walk(pin.Target.Path, reviewLeaf: false, ct);
@@ -67,9 +70,16 @@ internal sealed unsafe partial class WindowsStorageTransforms
         {
             if (ScopeUnavailable(recovery.Consent.Scope) is { } unavailable) throw new StorageInspectionException(unavailable);
             var pin = adapter.RequirePin(root);
-            var binding = adapter.OpenEfsBinding(pin, recovery.Consent, null, true, ct, InvokeEfs, sourceIndex,
+            var binding = adapter.OpenEfsBinding(pin, recovery.Consent, null, true, ct, InvokeEfsForJob, sourceIndex,
                 token => recovery.Resolve(job, pin.InvokerSid!, recoveryDecision, token));
             return new EfsTraversal(binding);
+        }
+
+        private EfsNativeReturn InvokeEfsForJob(string path, StorageAction action)
+        {
+            var result = InvokeEfs(path, action);
+            nativeCallReturnedForQualification?.Invoke(action, result.Succeeded);
+            return result;
         }
     }
 

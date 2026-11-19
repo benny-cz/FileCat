@@ -11,8 +11,10 @@ internal static class WindowsMetadataReportOutput
 {
     private const uint WriteAccess = GenericWrite | ReadAttributes | Synchronize;
     private const uint NoFollowFile = NonDirectoryFile | OpenReparsePoint;
+    private const int WriteChunkSize = 64 * 1024;
 
-    internal static void Save(string path, string text, Action directOutputStarted, CancellationToken ct)
+    internal static string? Save(string path, string text, Action directOutputStarted, CancellationToken ct,
+        Action? afterCommit = null, Action? beforeCommit = null)
     {
         ct.ThrowIfCancellationRequested();
         var contents = Encoding.UTF8.GetBytes(text);
@@ -27,7 +29,7 @@ internal static class WindowsMetadataReportOutput
             using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             directOutputStarted();
             Write(file.SafeFileHandle, contents, ct);
-            return;
+            return null;
         }
 
         string extended = path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path : @"\\?\" + path;
@@ -40,7 +42,7 @@ internal static class WindowsMetadataReportOutput
             {
                 directOutputStarted();
                 Write(created, contents, ct);
-                return;
+                return null;
             }
         }
         if (status != NameCollision) throw Error(status, "Create the report file");
@@ -60,12 +62,17 @@ internal static class WindowsMetadataReportOutput
                 if (ProtectedHexFile.Identity(output) != identity) throw Changed();
                 Write(output, contents, ct);
                 ct.ThrowIfCancellationRequested();
-                using var atPath = OpenOrThrow(null, native, ReadAttributes | Synchronize, ShareAll, Open, NoFollowFile, "Recheck the report destination");
-                RequireClearFile(atPath);
-                if (ProtectedHexFile.Identity(atPath) != identity) throw Changed();
+                VerifyDestination(native, identity);
             }
+            beforeCommit?.Invoke();
             ct.ThrowIfCancellationRequested();
             transaction.Commit("Could not confirm the report replacement. Check the destination before retrying.");
+            afterCommit?.Invoke();
+            try { VerifyDestination(native, identity); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            {
+                return "Windows committed the report replacement. FileCat could not verify the destination. Check it before retrying.";
+            }
         }
         else
         {
@@ -76,6 +83,14 @@ internal static class WindowsMetadataReportOutput
             directOutputStarted();
             Write(output, contents, ct);
         }
+        return null;
+    }
+
+    private static void VerifyDestination(string native, FileIdentity identity)
+    {
+        using var atPath = OpenOrThrow(null, native, ReadAttributes | Synchronize, ShareAll, Open, NoFollowFile, "Recheck the report destination");
+        RequireClearFile(atPath);
+        if (ProtectedHexFile.Identity(atPath) != identity) throw Changed();
     }
 
     private static void RequireClearFile(SafeFileHandle file)
@@ -94,8 +109,14 @@ internal static class WindowsMetadataReportOutput
         ct.ThrowIfCancellationRequested();
         var preamble = Encoding.UTF8.Preamble;
         RandomAccess.Write(file, preamble, 0);
-        ct.ThrowIfCancellationRequested();
-        RandomAccess.Write(file, contents, preamble.Length);
+        int written = 0;
+        while (written < contents.Length)
+        {
+            ct.ThrowIfCancellationRequested();
+            int length = Math.Min(WriteChunkSize, contents.Length - written);
+            RandomAccess.Write(file, contents.Slice(written, length), preamble.Length + (long)written);
+            written += length;
+        }
         ct.ThrowIfCancellationRequested();
         RandomAccess.SetLength(file, preamble.Length + (long)contents.Length);
         RandomAccess.FlushToDisk(file);

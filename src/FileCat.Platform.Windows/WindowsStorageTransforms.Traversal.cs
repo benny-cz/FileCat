@@ -210,7 +210,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
                             Problem(StorageReasonKind.IdentityChanged, "sparse-preparation-changed", "The sparse layout changed after preparation. No native call was attempted."));
                     // The caller has durably recorded intent and atomically admitted this call. No cancellation token intervenes.
                     attempted = true;
-                    var call = WindowsCompression.InvokeAdmitted(_handle.File, action);
+                    var call = WindowsCompression.InvokeAdmitted(_handle.File, action, Owner._adapter._compressionSetReturnedForQualification);
                     var after = Observe(CancellationToken.None);
                     var afterSparse = after.IsDirectory ? null : ReadSparseLayout(_handle.File, CancellationToken.None);
                     if (!SparseLayout.SameHoles(beforeSparse, afterSparse))

@@ -108,7 +108,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             using var windows = ProtectedWindowsPath(ct);
             RequireEncryptedFile(ct);
             PromoteEfsGuards(path, target.Path, ct);
-            var association = WindowsEfsAssociations.Read(EfsApiPath(path, target.Path), path.LeafFacts.Identity, sid, Validate, ct);
+            var association = WindowsEfsAssociations.Read(EfsApiPath(path, target.Path), path.LeafFacts.Identity, sid, _efsKeys, Validate, ct);
             return (association, null);
 
             void Validate(CancellationToken token)

@@ -51,11 +51,11 @@ public sealed class EfsLiveRemoteUploadTests
                 providers.Register(new SftpProvider(connections, () => [profile], p => p));
                 SftpJobs.Register();
                 var jobs = new JobManager(new WindowsFileOperations(), providers, Path.Join(root, "journal"));
-                byte[] payload = new byte[384 * 1024];
-                new Random(203).NextBytes(payload);
                 string source = Path.Join(root, "protected.bin");
-                File.WriteAllBytes(source, payload);
+                EfsRemoteUploadTests.WriteSparseFile(source);
                 File.Encrypt(source);
+                Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.SparseFile));
+                byte[] payload = File.ReadAllBytes(source);
                 var job = jobs.Submit(new JobRequest
                 {
                     Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(source, EntryKind.File)],
@@ -74,6 +74,8 @@ public sealed class EfsLiveRemoteUploadTests
                             Assert.Equal("efs-remote-upload", question.ConfirmClass);
                             Assert.Equal(DecisionAction.Skip, question.InitialAction);
                             Assert.Contains(folder + "/protected.bin", question.Message, StringComparison.Ordinal);
+                            Assert.Contains(folder + "/" + JournalRecovery.StagedPrefix, question.Message, StringComparison.Ordinal);
+                            Assert.Contains("server copy may use more disk space", question.Message, StringComparison.Ordinal);
                             Assert.Empty(probe.Channel.List(folder, ct));
                             questions++;
                             pending.Resolve(new Decision(approve ? DecisionAction.Proceed : DecisionAction.Skip));
@@ -85,6 +87,8 @@ public sealed class EfsLiveRemoteUploadTests
                 Assert.Equal(1, questions);
                 Assert.True(File.GetAttributes(source).HasFlag(FileAttributes.Encrypted));
                 var published = probe.Channel.List(folder, ct);
+                Assert.Equal(approve, job.Issues.Any(issue => issue.Outcome == StepOutcome.Committed &&
+                    issue.Message.Contains("server copy may use more disk space", StringComparison.Ordinal)));
                 if (approve)
                 {
                     Assert.Equal("protected.bin", Assert.Single(published).Name);

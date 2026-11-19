@@ -35,14 +35,20 @@ internal static class StorageTransformJournalReader
                 int got = input.Read(chunk, 0, wanted);
                 if (got == 0) break;
                 digest.AppendData(chunk, 0, got); bytes += got;
-                for (int i = 0; i < got; i++)
+                ReadOnlySpan<byte> remaining = chunk.AsSpan(0, got);
+                while (!remaining.IsEmpty)
                 {
-                    if (line.WrittenCount >= StorageJournalPolicy.RecordBytes) { limit = true; collector.Fault(); return Result(); }
-                    line.GetSpan(1)[0] = chunk[i]; line.Advance(1);
-                    if (chunk[i] != '\n') continue;
+                    int newline = remaining.IndexOf((byte)'\n');
+                    int length = newline < 0 ? remaining.Length : newline + 1;
+                    if (length > StorageJournalPolicy.RecordBytes - line.WrittenCount) { limit = true; collector.Fault(); return Result(); }
+                    remaining[..length].CopyTo(line.GetSpan(length)); line.Advance(length);
+                    remaining = remaining[length..];
+                    if (newline < 0) break;
                     if (++records > StorageJournalPolicy.RecordLimit) { limit = true; collector.Fault(); return Result(); }
-                    using var document = StorageTransformJournalWriter.Decode(line.WrittenSpan);
-                    collector.Read(document.RootElement); line.Clear();
+                    // The document borrows the record buffer. Dispose it before clearing that buffer for the next record.
+                    using (var document = StorageTransformJournalWriter.Decode(line.WrittenMemory))
+                        collector.Read(document.RootElement);
+                    line.Clear();
                     if (collector.Damaged) return Result();
                     acceptedRecord?.Invoke(collector);
                 }

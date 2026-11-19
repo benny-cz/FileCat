@@ -139,6 +139,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             }
 
             var written = new List<(string Name, Addition? From)>();
+            bool packedSparseInput = false;
             CheckOuterProtection();
             using (var output = publication.CreateStage())
             {
@@ -155,7 +156,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                         if (replaceWith.TryGetValue(i, out var replacement))
                         {
                             if (replacement.FolderEntry) WriteFolder(rebuilt, replacement, entry.Comment);
-                            else WriteFile(rebuilt, name, replacement, plan.Level, entry, move);
+                            else packedSparseInput |= WriteFile(rebuilt, name, replacement, plan.Level, entry, move);
                         }
                         else
                             CopyEntry(entry, rebuilt, name, plan.Level, CheckOuterProtection);
@@ -168,7 +169,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                         if (skipped.Contains(addition.Member) || replacementAdditions.Contains(addition)) continue;
                         Job.SetCurrent(addition.Member);
                         if (addition.FolderEntry) WriteFolder(rebuilt, addition, null);
-                        else WriteFile(rebuilt, addition.Member, addition, plan.Level, null, move);
+                        else packedSparseInput |= WriteFile(rebuilt, addition.Member, addition, plan.Level, null, move);
                         written.Add((addition.FolderEntry ? addition.Member + "/" : addition.Member, addition));
                         Job.ItemDone();
                     }
@@ -189,6 +190,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             publication.Publish(() =>
             {
                 // All members of the rebuilt archive commit together.
+                if (packedSparseInput) ArchiveWriteMessages.ReportSparseInputs(Job, archive);
                 if (move is null)
                     for (int root = 0; root < Math.Max(1, Job.Request.Sources.Count); root++) Job.RootCompleted(root);
             });
@@ -400,14 +402,14 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             throw new InvalidDataException($"The member \"{entry.FullName}\" is damaged (its checksum does not match), so the archive was not changed. Test the archive for details.");
     }
 
-    private void WriteFile(ZipArchive target, string name, Addition addition, CompressionLevel level, ZipArchiveEntry? replaced, ArchiveMoveSources? move)
+    private bool WriteFile(ZipArchive target, string name, Addition addition, CompressionLevel level, ZipArchiveEntry? replaced, ArchiveMoveSources? move)
     {
         using var held = addition.Retained is null?Fs.HoldRegularFile(addition.Source!, addition.Root):null;
         if (addition.Move is not null) move!.RequireCurrent(addition.Move);
         using var from = addition.Retained is { } retained ? retained.File.OpenReadView(retained.Reviewed, Job.Token) :
             new FileStream(addition.Source!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, BufferSize, FileOptions.SequentialScan);
         var rawSource = from as FileStream;
-        CheckSourceProtection();
+        bool sparse = CheckSourceProtection().HasFlag(FileAttributes.SparseFile) || addition.Retained?.Reviewed.HasSparseMainStream == true;
         using var protection = rawSource is null ? null : Fs.HoldArchivePackingInput(rawSource.SafeFileHandle);
         var entry = target.CreateEntry(name, level);
         int attributes = replaced?.ExternalAttributes ?? (int)(addition.Attributes & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive));
@@ -447,10 +449,14 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             captured.File.Review(captured.Reviewed,Job.Token);
         }
 
-        void CheckSourceProtection()
+        return sparse && length > 0;
+
+        FileAttributes CheckSourceProtection()
         {
-            if (OperatingSystem.IsWindows() && rawSource is not null)
-                ArchiveOuterEfs.RequireClear(rawSource.SafeFileHandle, ArchiveOuterEfs.PackUnavailable);
+            if (!OperatingSystem.IsWindows() || rawSource is null) return 0;
+            var attributes = File.GetAttributes(rawSource.SafeFileHandle);
+            ArchiveOuterEfs.RequireClear(attributes, ArchiveOuterEfs.PackUnavailable);
+            return attributes;
         }
     }
 

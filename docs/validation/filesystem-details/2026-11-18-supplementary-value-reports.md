@@ -22,6 +22,8 @@ Ubuntu x64 and Apple silicon each passed seven focused report and details window
 
 A separate run mounted a private 64 KiB `tmpfs` and saved a metadata report larger than the mount. The application reported incomplete output. The test verified that a nonempty partial file remained on disk. The volume and all report data belonged to the fixture.
 
+The Ubuntu x64 follow-up used 64 KiB writes on the same volume size and verified the UTF-8 byte-order mark and an exact prefix of the captured report. The focused run passed 18 tests with two Windows-only skips, including an explicit pass for the full-volume test. Its receipt is `.tmp/filecat-linux-report-space-de609ce9-r2-app.trx`. The fixture unmounted the volume.
+
 See `app.trx` and `full-volume.trx` under `~/filecat-metadata-report-4f7257ee` on the Ubuntu VM, and `app.trx` under `~/FileCatValidation/filecat-metadata-report-4f7257ee` on the Mac.
 
 The newer Ubuntu x64 and Apple silicon runs covered an open save picker in the metadata-only report. Refresh retired the previous observation and canceled its pending save. Returning a destination from that picker created no file. A fresh picker wrote the refreshed report in UTF-8 with a byte-order mark, and replacing a longer clear file preserved only the new report text. Each focused App run passed 24 tests with two environment-specific skips. The receipts are `~/filecat-details-output-d2ed94ec-r2/app.trx` on Ubuntu and `~/FileCatValidation/filecat-details-output-d2ed94ec-mac-r1/app.trx` on the Mac.
@@ -30,6 +32,28 @@ A later Apple silicon run supplied full observations classified as payload and u
 
 The Ubuntu x64 follow-up included the same two refusal cases, the stale picker check and the portable EFS completion and Operations fixtures. It passed 55 tests with two environment-specific skips. Its receipt is `~/filecat-details-publish-8eeeca7e-r1/app.trx`.
 
+## Metadata-only report save on a full APFS volume
+
+An Apple silicon fixture used a private 201,285,632-byte APFS image with 5 MiB available. Its Unicode metadata report exceeded the remaining space while fitting the viewer's character limit. The previous large write left only the UTF-8 byte-order mark. The 64 KiB writes left the mark and an exact prefix containing report text, and FileCat identified the file as possibly incomplete.
+
+The focused run passed 18 tests with two Windows-only skips. See `.tmp/filecat-apfs-report-space-de609ce9-r5-app.trx` and `~/FileCatValidation/filecat-apfs-report-space-de609ce9-r5/results.log`. The private image was ejected.
+
 ## NTFS metadata-only report save
 
-On Windows 11 x64 at medium integrity, the metadata-only details window replaced an existing clear NTFS file with exactly the current report in UTF-8 with a byte-order mark. The replacement used the held file identity and a native file transaction. A separate fixture chose an actual EFS destination and verified its encryption and original bytes survived refusal. The report suite also passed the captured-revision, unverified-payload and selected-value cases. The individual passes are in `.tmp/filecat-metadata-report-output-8eeeca7e-r6.xml`. Windows full-volume interruption and replacement on other destinations require separate evidence.
+On Windows 11 x64 at medium integrity, the metadata-only details window replaced an existing clear NTFS file with exactly the current report in UTF-8 with a byte-order mark. The replacement used the held file identity and a native file transaction. A separate fixture chose an actual EFS destination and verified its encryption and original bytes survived refusal. The report suite also passed the captured-revision, unverified-payload and selected-value cases. The individual passes are in `.tmp/filecat-metadata-report-output-8eeeca7e-r6.xml`.
+
+The Windows writer checks cancellation between 64 KiB chunks. A follow-up used a private, 66,973,696-byte NTFS volume with 1,044,480 bytes available. A larger metadata-only report saved to a new name left the byte-order mark and an exact prefix of the captured report. FileCat showed that the file could be incomplete. Saving the same report over an existing clear destination failed and preserved its original bytes and last-write time. The prepared EFS destination also passed its independent preservation test. The focused run passed 16 tests with four Unix-only skips. See `.tmp/filecat-report-space-app-de609ce9-r2.xml` and `.tmp/filecat-report-space-prepare-de609ce9-r2.log`. The private image was detached.
+
+### Volume loss after an NTFS report replacement
+
+After a successful Windows commit, the writer reopens the current name for metadata, confirms its original file identity and checks its protection. The details window shows a verification warning if that final check fails, including guidance to inspect the destination before retrying.
+
+On Windows 11 x64 at medium integrity, the controller detached a private 256 MiB NTFS volume after the report replacement committed and before the application could verify the destination. The production writer returned the committed-but-unverified warning. After remount the same file identity held the complete captured UTF-8 report and its byte-order mark. The file remained clear and the folder contained only the fixture canary and the report. The controller detached the image after verification. See `.tmp/filecat-device-loss-4cb1239bb08d448aad225c6e2c56aee2-*`.
+
+### Volume loss before an NTFS report replacement commits
+
+The Windows 11 x64 VM detached a fresh 256 MiB 4 KiB NTFS volume after the production writer wrote and flushed the replacement inside the Windows transaction. It detached before the commit call. The native commit returned an error, and FileCat reported that it could not confirm the replacement. After remount the original clear file matched its prior identity and exact bytes. The folder contained only the original report and the fixture canary. This checks the precommit boundary. Loss inside the native call and other destination types require separate qualification.
+
+Both the precommit case and the postcommit regression passed without skips on build 26340 with .NET 10.0.15 at integrity RID 8192. Each test confirmed loss of access after detachment and verified the result after remount. Both images were detached at teardown. The source was `59da8ae5` plus the report test seam and fixture changes. See `.tmp/filecat-report-commit-boundaries-59da8ae5-r1-{BeforeCommit,AfterCommit}-test.xml` and the matching controller logs. The test bundle SHA-256 was `E532D632DC50FA532E5F471EF40669CBA6C96F7B28657258D278335D1F80C39D`.
+
+The focused details and report-window selection passed 10 cases on Windows at medium integrity, including refusal to overwrite the prepared EFS destination. It passed 12 cases on Ubuntu. Five and three platform or fixture cases were skipped, respectively. See `.tmp/filecat-report-device-loss-f7e1253c-r1-app.xml` and `~/FileCatValidation/filecat-report-device-loss-f7e1253c-r1/ubuntu-app.xml`.

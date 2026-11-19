@@ -69,7 +69,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             ValidateCanary(ct);
             createdForQualification?.Invoke(capturedFile);
             ValidateCanary(ct);
-            association = WindowsEfsAssociations.Read(apiFile, canaryIdentity, invokerSid, ValidateCanary, ct);
+            association = WindowsEfsAssociations.Read(apiFile, canaryIdentity, invokerSid, _efsKeys, ValidateCanary, ct);
             if (!association.HasMatchedCurrentUserKey)
                 problem = Problem(StorageReasonKind.PermissionOrPolicy, "efs-setup-key-unavailable", "The actual setup file has no freshly matched accessible key for the invoking user. A recovery declaration cannot replace that check.");
         }

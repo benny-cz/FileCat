@@ -17,18 +17,22 @@ public sealed class WindowsStorageJobEvidenceCollection;
 public sealed class WindowsStorageExecutorTests
 {
     private static CancellationToken Stop => TestContext.Current.CancellationToken;
-    private static void RequireNormal()
+    private static void RequireNormal(bool qualifyNativeArm64 = false)
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client NTFS fixture.");
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(qualifyNativeArm64), "Requires an admitted Windows 11 NTFS qualification host.");
         Assert.False(WindowsTokenAuthority.IsHighIntegrity, "Storage jobs must run in the normal user process.");
     }
-    private static JobManager Manager(string root, IStorageTransforms? transforms = null) => new(new PortableFileOperations(), new ProviderRegistry(),
-        Directory.CreateDirectory(Path.Join(root, "journals")).FullName, ArchiveJobBackends.Empty, transforms ?? new WindowsStorageTransforms(),
-        WindowsStorageReviewEvidence.CreateJournal, WindowsStorageReviewEvidence.Backend);
+    private static JobManager Manager(string root, IStorageTransforms? transforms = null, bool qualifyNativeArm64 = false) =>
+        new(new PortableFileOperations(), new ProviderRegistry(), Directory.CreateDirectory(Path.Join(root, "journals")).FullName,
+            ArchiveJobBackends.Empty, transforms ?? new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64),
+            qualifyNativeArm64 ? WindowsStorageReviewEvidence.CreateArm64QualificationJournal : WindowsStorageReviewEvidence.CreateJournal,
+            qualifyNativeArm64 ? WindowsStorageReviewEvidence.Arm64QualificationBackend : WindowsStorageReviewEvidence.Backend);
     private static Job Run(JobManager manager, StorageScope scope, params ItemRef[] sources) => RunAction(manager, StorageAction.Compress, scope, sources);
     private static Job RunAction(JobManager manager, StorageAction action, StorageScope scope, params ItemRef[] sources)
     {
         using var review = manager.PrepareStorageReview(sources, action, Stop);
+        Assert.All(review.Roots, root => Assert.True(root.Observation.Ineligible is null,
+            $"Root {root.SourceIndex}: {root.Observation.Ineligible?.Code} {root.Observation.Ineligible?.Message}"));
         using var finished = new ManualResetEventSlim();
         void Finished(Job _) => finished.Set();
         manager.JobFinished += Finished;
@@ -42,10 +46,18 @@ public sealed class WindowsStorageExecutorTests
     private static bool Compressed(string path) => (File.GetAttributes(path) & FileAttributes.Compressed) != 0;
 
     [Fact]
-    public void Detaching_the_owned_volume_after_intent_does_not_mutate_or_replay_the_prepared_call()
+    public void Detaching_the_owned_volume_after_intent_does_not_mutate_or_replay_the_prepared_call() =>
+        DetachOwnedVolume(afterSet: false);
+
+    [Fact]
+    public void Detaching_after_native_compression_returns_retains_uncertainty_without_replay() =>
+        DetachOwnedVolume(afterSet: true);
+
+    private static void DetachOwnedVolume(bool afterSet)
     {
         RequireNormal();
-        string? control = Environment.GetEnvironmentVariable("FILECAT_STORAGE_NATIVE_DEVICE_LOSS_CONTROL");
+        string? control = Environment.GetEnvironmentVariable(afterSet
+            ? "FILECAT_STORAGE_NATIVE_DEVICE_LOSS_AFTER_SET_CONTROL" : "FILECAT_STORAGE_NATIVE_DEVICE_LOSS_CONTROL");
         if (string.IsNullOrWhiteSpace(control)) Assert.Skip("Requires the isolated virtual disk device-loss fixture.");
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(Stop);
         stop.CancelAfter(TimeSpan.FromSeconds(90));
@@ -59,44 +71,77 @@ public sealed class WindowsStorageExecutorTests
         byte[] before = SHA256.HashData(File.ReadAllBytes(target));
         Assert.False(Compressed(target));
         var source = ItemRef.ForFileSystemPath(target, EntryKind.File);
-        var adapter = new DetachBeforeMutation(() =>
+        var setReturns = new List<bool>();
+        IStorageTransforms adapter = afterSet ? new WindowsStorageTransforms(compressionSetReturnedForQualification: succeeded =>
         {
-            File.WriteAllText(Path.Join(control, "prepared"), "");
-            WaitForFixture("detached");
-        });
+            setReturns.Add(succeeded);
+            Detach();
+        }) : new DetachBeforeMutation(Detach);
         string evidence = Directory.CreateTempSubdirectory("filecat-storage-detach-").FullName;
         try
         {
             var manager = Manager(evidence, adapter);
+            var published = new List<InterruptedJob>();
+            manager.StorageReviewRequired += published.Add;
             var interrupted = Run(manager, StorageScope.SelectedItems, source);
             var result = Assert.IsType<StorageResultSnapshot>(interrupted.StorageResult);
             Assert.True(result.DurablePrefix is not null, JobIssue.Summarize(interrupted.Issues));
             Assert.Equal(JobState.Failed, interrupted.State);
-            Assert.Equal(new StorageOutcomeCounts(NotProcessed: 1), result.Counts);
+            Assert.Equal(afterSet ? new StorageOutcomeCounts(Uncertain: 1) : new StorageOutcomeCounts(NotProcessed: 1), result.Counts);
             Assert.Equal(StorageCompleteness.Incomplete, Assert.Single(result.Roots).Completeness);
-            Assert.False(result.ReviewPending);
+            Assert.Equal(afterSet, result.ReviewPending);
             string name = StorageJournalPolicy.FileName(interrupted.CreatedUtc, interrupted.Id);
             var call = Assert.Single(manager.ReadStorageCalls(name, result.DurablePrefix!, ct: stop.Token).Calls);
-            Assert.Equal(StorageCallDisposition.NotAttempted, call.Disposition);
-            Assert.Equal("precall-observation-failed", call.Result?.Problem?.Code);
-            Assert.False(call.Result!.NativeCallAttempted);
-            Assert.True(manager.ReadStorageReview(name, stop.Token).Current.History.Ended);
+            Assert.Equal(afterSet ? StorageCallDisposition.Observed : StorageCallDisposition.NotAttempted, call.Disposition);
+            Assert.Equal(afterSet ? "postcondition-unreadable" : "precall-observation-failed", call.Result?.Problem?.Code);
+            Assert.Equal(afterSet, call.Result!.NativeCallAttempted);
+            Assert.Null(call.Result.After);
+            var reviewed = manager.ReadStorageReview(name, stop.Token);
+            Assert.Equal(!afterSet, reviewed.Current.History.Ended);
+            Assert.Equal(afterSet, reviewed.Current.History.EffectUncertain);
+            Assert.Equal(afterSet, reviewed.ReviewPending);
+            if (afterSet)
+            {
+                Assert.True(Assert.Single(setReturns), "The native compression SET must succeed before detachment.");
+                Assert.Equal(name, Assert.Single(published).StorageJournalLeaf);
+            }
+            else Assert.Empty(published);
             File.Copy(Path.Join(evidence, "journals", name), Path.Join(control, "interrupted.journal"));
             File.WriteAllText(Path.Join(control, "retired"), "");
             WaitForFixture("reattached");
 
             Assert.Equal(identity, fs.GetFileIdentity(target));
             Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(target)));
-            Assert.False(Compressed(target));
-            var retry = Run(Manager(evidence), StorageScope.SelectedItems, source);
+            Assert.Equal(afterSet, Compressed(target));
+            var reopened = Manager(evidence);
+            if (afterSet)
+            {
+                var candidate = reopened.StorageHistoryCandidate(name);
+                Assert.True(reopened.IsInterrupted(candidate, stop.Token));
+                var retained = reopened.ReadStorageReview(name, stop.Token);
+                Assert.Equal(reviewed.Current.Evidence, retained.Current.Evidence);
+                var acknowledged = reopened.AcknowledgeStorageReview(retained.Current, "Reviewed the device-loss operation.",
+                    StorageReviewChoice.AcknowledgeReviewedHistory, stop.Token);
+                Assert.False(reopened.IsInterrupted(candidate, stop.Token));
+                Assert.True(acknowledged.Current.History.EffectUncertain);
+                Assert.True(Compressed(target));
+                Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(target)));
+            }
+            var retry = RunAction(reopened, afterSet ? StorageAction.RemoveCompression : StorageAction.Compress, StorageScope.SelectedItems, source);
             Assert.Equal(JobState.Completed, retry.State);
             Assert.Equal(1, retry.StorageResult!.Counts.Changed);
-            Assert.True(Compressed(target));
+            Assert.Equal(!afterSet, Compressed(target));
             Assert.Equal(identity, fs.GetFileIdentity(target));
             Assert.Equal(before, SHA256.HashData(File.ReadAllBytes(target)));
             File.Copy(Path.Join(evidence, "journals", StorageJournalPolicy.FileName(retry.CreatedUtc, retry.Id)), Path.Join(control, "fresh-retry.journal"));
         }
         finally { Directory.Delete(evidence, recursive: true); }
+
+        void Detach()
+        {
+            File.WriteAllText(Path.Join(control, "prepared"), "");
+            WaitForFixture("detached");
+        }
 
         void WaitForFixture(string marker)
         {
@@ -237,7 +282,9 @@ public sealed class WindowsStorageExecutorTests
     [Fact]
     public void Recursive_job_covers_reverse_order_overlaps_hidden_files_and_named_streams_without_double_counts()
     {
-        RequireNormal(); string temp = Directory.CreateTempSubdirectory("filecat-storage-job-tree-").FullName;
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireNormal(qualifyNativeArm64);
+        string temp = Directory.CreateTempSubdirectory("filecat-storage-job-tree-").FullName;
         try
         {
             string folder = Directory.CreateDirectory(Path.Join(temp, "folder")).FullName;
@@ -245,7 +292,7 @@ public sealed class WindowsStorageExecutorTests
             string file = Path.Join(nested, "file"), hidden = Path.Join(folder, "hidden");
             File.WriteAllText(file, "main bytes remain available"); File.WriteAllText(file + ":sentinel:$DATA", "named-stream bytes remain available");
             File.WriteAllText(hidden, "hidden bytes remain available"); File.SetAttributes(hidden, FileAttributes.Hidden);
-            var manager = Manager(temp);
+            var manager = Manager(temp, qualifyNativeArm64: qualifyNativeArm64);
             Assert.Equal(JobState.Completed, Run(manager, StorageScope.SelectedItems, ItemRef.ForFileSystemPath(folder, EntryKind.Directory)).State);
             var job = Run(manager, StorageScope.ExistingDescendants, ItemRef.ForFileSystemPath(file, EntryKind.File),
                 ItemRef.ForFileSystemPath(folder, EntryKind.Directory), ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
@@ -270,7 +317,9 @@ public sealed class WindowsStorageExecutorTests
     [Fact]
     public void Readonly_file_and_reparse_subtree_are_skipped_while_independent_siblings_are_changed()
     {
-        RequireNormal(); string temp = Directory.CreateTempSubdirectory("filecat-storage-job-exclusions-").FullName;
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireNormal(qualifyNativeArm64);
+        string temp = Directory.CreateTempSubdirectory("filecat-storage-job-exclusions-").FullName;
         string? readonlyFile = null, link = null;
         try
         {
@@ -280,7 +329,8 @@ public sealed class WindowsStorageExecutorTests
             File.WriteAllText(sentinel, "outside scope"); File.WriteAllText(allowed, "allowed bytes");
             readonlyFile = Path.Join(folder, "readonly"); File.WriteAllText(readonlyFile, "readonly bytes"); File.SetAttributes(readonlyFile, FileAttributes.ReadOnly);
             link = Path.Join(folder, "redirect"); Directory.CreateSymbolicLink(link, outside);
-            var job = Run(Manager(temp), StorageScope.ExistingDescendants, ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
+            var job = Run(Manager(temp, qualifyNativeArm64: qualifyNativeArm64), StorageScope.ExistingDescendants,
+                ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
             Assert.Equal(JobState.CompletedWithIssues, job.State); Assert.Equal(2, job.StorageResult!.Counts.Changed); Assert.Equal(2, job.StorageResult.Counts.Skipped);
             Assert.Equal(StorageCompleteness.UnknownRemainder, job.StorageResult.Discovery);
             Assert.True(Compressed(allowed)); Assert.False(Compressed(readonlyFile)); Assert.False(Compressed(sentinel));
@@ -297,7 +347,9 @@ public sealed class WindowsStorageExecutorTests
     [Fact]
     public void Native_access_denial_preserves_independent_siblings()
     {
-        RequireNormal(); string temp = Directory.CreateTempSubdirectory("filecat-storage-job-denial-").FullName;
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireNormal(qualifyNativeArm64);
+        string temp = Directory.CreateTempSubdirectory("filecat-storage-job-denial-").FullName;
         string? denied = null; FileSecurity? original = null;
         try
         {
@@ -310,7 +362,8 @@ public sealed class WindowsStorageExecutorTests
             security.AddAccessRule(new FileSystemAccessRule(identity.User!, FileSystemRights.FullControl, AccessControlType.Deny));
             info.SetAccessControl(security);
             Assert.Throws<UnauthorizedAccessException>(() => { using var refused = File.OpenRead(denied); });
-            var job = Run(Manager(temp), StorageScope.ExistingDescendants, ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
+            var job = Run(Manager(temp, qualifyNativeArm64: qualifyNativeArm64), StorageScope.ExistingDescendants,
+                ItemRef.ForFileSystemPath(folder, EntryKind.Directory));
             Assert.Equal(JobState.CompletedWithIssues, job.State); Assert.Equal(2, job.StorageResult!.Counts.Changed); Assert.Equal(1, job.StorageResult.Counts.Failed);
             Assert.True(Compressed(allowed));
             Restore(info, original); original = null;

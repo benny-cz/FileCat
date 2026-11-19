@@ -1,0 +1,136 @@
+name: Windows ARM64 NTFS qualification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-storage-abi:
+    name: Native storage jobs and EFS output protection
+    runs-on: windows-11-arm
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Build with locked dependencies
+        shell: pwsh
+        run: |
+          foreach ($project in @('tests/FileCat.Platform.Windows.Tests', 'tests/FileCat.Core.Tests')) {
+            dotnet restore $project --locked-mode
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            dotnet build $project -c Release --no-restore
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Exercise native storage at medium integrity
+        shell: pwsh
+        run: |
+          $evidence = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-evidence'
+          New-Item -ItemType Directory -Path $evidence | Out-Null
+          $fixture = Join-Path $env:RUNNER_TEMP 'filecat-native-storage-abi-fixture'
+          New-Item -ItemType Directory -Path $fixture | Out-Null
+          $owner = [Security.Principal.WindowsIdentity]::GetCurrent().User
+          $system = [Security.Principal.SecurityIdentifier]::new('S-1-5-18')
+          $access = [Security.AccessControl.DirectorySecurity]::new()
+          $access.SetOwner($owner)
+          $access.SetAccessRuleProtection($true, $false)
+          foreach ($principal in $owner, $system) {
+            $access.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
+              $principal, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow'))
+          }
+          Set-Acl -LiteralPath $fixture -AclObject $access
+          $volume = Get-Volume -DriveLetter ([IO.Path]::GetPathRoot($fixture)[0])
+          $os = Get-CimInstance Win32_OperatingSystem
+          if ($volume.FileSystem -ne 'NTFS' -or $volume.AllocationUnitSize -ne 4096 -or $os.ProductType -ne 1) {
+            throw 'Requires a Windows client with a prepared 4 KiB local NTFS volume.'
+          }
+          $drive = "$($volume.DriveLetter):"
+          $instances = & fltmc.exe instances -v $drive
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $instances | Set-Content -LiteralPath (Join-Path $evidence 'filters-before.txt')
+          if (-not ($instances -match '^\s*CldFlt\s')) {
+            $loaded = & fltmc.exe filters
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if (-not ($loaded -match '^\s*CldFlt\s')) {
+              & fltmc.exe load CldFlt
+              if ($LASTEXITCODE -ne 0) { Write-Warning 'The runner could not load the Cloud Files filter.' }
+            }
+            $instances = & fltmc.exe instances -v $drive
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if (-not ($instances -match '^\s*CldFlt\s')) {
+              & fltmc.exe attach CldFlt $drive
+              if ($LASTEXITCODE -ne 0) { Write-Warning 'The runner could not attach the Cloud Files filter to the fixture volume.' }
+            }
+          }
+          $instances = & fltmc.exe instances -v $drive
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $instances | Set-Content -LiteralPath (Join-Path $evidence 'filters-after.txt')
+          if (-not ($instances -match '^\s*CldFlt\s')) { Write-Warning 'The Cloud Files filter is missing from the fixture volume.' }
+          [ordered]@{
+            commit = $env:GITHUB_SHA
+            operatingSystem = $os.Caption
+            build = $os.BuildNumber
+            filesystem = $volume.FileSystem
+            allocationUnit = $volume.AllocationUnitSize
+            testAssembly = (Get-FileHash tests/FileCat.Platform.Windows.Tests/bin/Release/net10.0/FileCat.Platform.Windows.Tests.dll).Hash
+            coreTestAssembly = (Get-FileHash tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll).Hash
+          } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $evidence 'native-storage-abi.json')
+          dotnet --info | Out-File -LiteralPath (Join-Path $evidence 'dotnet.txt')
+          # The second fixture can enroll a software EFS key in this disposable runner's profile.
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ROOT = $fixture
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
+          $env:FILECAT_TEST_EFS = '1'
+          $env:TMP = $fixture
+          $env:TEMP = $fixture
+          $filter = @(
+            'WindowsStorageAbiTests'
+            'Recursive_job_covers_reverse_order_overlaps_hidden_files_and_named_streams_without_double_counts'
+            'Readonly_file_and_reparse_subtree_are_skipped_while_independent_siblings_are_changed'
+            'Native_access_denial_preserves_independent_siblings'
+            'Selected_Efs_jobs_share_one_lazy_key_choice_and_record_native_effects_on_disk'
+            'Recursive_Efs_uses_held_ancestry_for_overlaps_and_starts_setup_below_an_encrypted_root'
+            'Canceling_lazy_recovery_stops_before_any_native_intent'
+            'Unqualified_hosts_refuse_storage_before_opening_any_path_and_do_not_offer_private_history'
+          ) | ForEach-Object { "FullyQualifiedName~$_" }
+          $filter = $filter -join '|'
+          ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName native-storage-abi.trx -Filter $filter
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $results = 'tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx'
+          [xml]$receipt = Get-Content -LiteralPath $results -Raw
+          $counters = $receipt.TestRun.ResultSummary.Counters
+          if ($counters.total -ne '9' -or $counters.executed -ne '9' -or $counters.passed -ne '9') {
+            throw 'All nine native fixture cases must execute and pass.'
+          }
+
+          $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_OUTPUTS = '1'
+          $outputSuites = @(
+            @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-efs-hex-output.trx'; Count = '14';
+               Filter = 'FullyQualifiedName~HexEfsJournalTests|FullyQualifiedName~HexPatchProvenanceTests' },
+            @{ Project = 'tests/FileCat.Core.Tests'; Log = 'native-efs-archive-output.trx'; Count = '10';
+               Filter = 'FullyQualifiedName~ArchiveEfsSpoolTests' }
+          )
+          foreach ($suite in $outputSuites) {
+            ./eng/validation/run-medium-integrity-test.ps1 -Project $suite.Project -LogFileName $suite.Log -Filter $suite.Filter
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            [xml]$receipt = Get-Content -LiteralPath "$($suite.Project)/TestResults/$($suite.Log)" -Raw
+            $counters = $receipt.TestRun.ResultSummary.Counters
+            if ($counters.total -ne $suite.Count -or $counters.executed -ne $suite.Count -or $counters.passed -ne $suite.Count) {
+              throw "All $($suite.Count) native cases must execute and pass in $($suite.Log)."
+            }
+          }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: native-storage-abi-windows-arm64
+          path: |
+            ${{ runner.temp }}/filecat-native-storage-abi-evidence/*
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-abi.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-hex-output.trx
+            tests/FileCat.Core.Tests/TestResults/native-efs-archive-output.trx
+          if-no-files-found: error

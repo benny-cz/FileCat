@@ -637,8 +637,9 @@ public sealed partial class ReportWindow : Window
                 FileTypeChoices = [new FilePickerFileType("Text") { Patterns = ["*.txt"] }],
             });
             if (ct.IsCancellationRequested || !ReferenceEquals(_reader, capturedReader) || picked?.TryGetLocalPath() is not { } target) return;
+            string? verificationWarning = null;
             if (details && OperatingSystem.IsWindows())
-                await Task.Run(() => FileCat.Platform.Windows.WindowsMetadataReportOutput.Save(target, capturedText, () => startedOutput = target, ct), ct);
+                verificationWarning = await Task.Run(() => FileCat.Platform.Windows.WindowsMetadataReportOutput.Save(target, capturedText, () => startedOutput = target, ct), ct);
             else if (!details && supplementary is null)
                 await File.WriteAllTextAsync(target, capturedText, new UTF8Encoding(true), ct);
             else await Task.Run(async () =>
@@ -652,10 +653,13 @@ public sealed partial class ReportWindow : Window
                     FileAccess.Write, FileShare.None, 1, FileOptions.Asynchronous);
                 startedOutput = target;
                 await output.WriteAsync(Encoding.UTF8.GetPreamble(), ct);
-                await output.WriteAsync(Encoding.UTF8.GetBytes(supplementary?.Text ?? capturedText), ct);
+                var contents = Encoding.UTF8.GetBytes(supplementary?.Text ?? capturedText);
+                const int chunkSize = 64 * 1024;
+                for (int offset = 0; offset < contents.Length; offset += chunkSize)
+                    await output.WriteAsync(contents.AsMemory(offset, Math.Min(chunkSize, contents.Length - offset)), ct);
                 await output.FlushAsync(ct);
             }, ct);
-            if (!ct.IsCancellationRequested) _status.Text = $"Saved as {target}.";
+            if (!ct.IsCancellationRequested) _status.Text = verificationWarning ?? $"Saved as {target}.";
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {

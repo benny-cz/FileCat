@@ -801,6 +801,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         var freshTime = TimeSpan.Zero;
         var freshClock = new Stopwatch();
         string? attemptEfsIdentity = null;
+        bool sparseInput = false;
         bool skippedEfs = false;
         bool ok;
         var publication = new PublicationState();
@@ -824,17 +825,26 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     Job.AddTotals(0, Math.Max(0, incoming.Size) - Math.Max(0, previous.Size));
                 }
                 // Retire the source reader before server publication. A close failure still leaves only the stage.
+                string? freshStage = null;
                 using (var input = openSource())
                 {
                     attemptEfsIdentity = null;
                     var localInput = OperatingSystem.IsWindows() ? input as FileStream : null;
-                    if (localInput is not null && ReadEfsProtection(localInput))
+                    FileAttributes attributes = localInput is null ? 0 : ReadUploadAttributes(localInput);
+                    sparseInput = attributes.HasFlag(FileAttributes.SparseFile) || retained?.Reviewed.HasSparseMainStream == true;
+                    if (localInput is not null && attributes.HasFlag(FileAttributes.Encrypted))
                     {
                         var sourceIdentity = Fs.GetOpenedFileIdentity(localInput.SafeFileHandle)
                             ?? throw new RefusedOperationException("FileCat could not identify the EFS-protected file opened for upload.");
                         string destinationDisplay = Sftp.GetDisplayPath(ConnectionLocation.WithPath(dst));
+                        freshStage = TempName(destFolder);
+                        string freshDisplay = Sftp.GetDisplayPath(ConnectionLocation.WithPath(freshStage));
+                        string stageScope = start == 0 ? $"\nTemporary server file: {freshDisplay}"
+                            : $"\nTemporary server file to resume: {Sftp.GetDisplayPath(ConnectionLocation.WithPath(temp!))}\nTemporary server file if restarted: {freshDisplay}";
+                        string allocation = sparseInput && incoming.Size > 0
+                            ? "\nThe upload sends the full logical contents of the sparse file. The server copy may use more disk space." : "";
                         var answer = Job.Ask(new ConfirmRequest("Upload without Windows EFS?",
-                            $"The server copy and its temporary file will lose Windows EFS protection.\n\nSource: {sourceDisplay}\nDestination: {destinationDisplay}",
+                            $"The server copy and its temporary file will lose Windows EFS protection.\n\nSource: {sourceDisplay}\nDestination: {destinationDisplay}{stageScope}{allocation}",
                             sourceDisplay, "efs-remote-upload", [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob])
                         {
                             ProceedLabel = "Upload without EFS",
@@ -850,7 +860,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     }
                     void RequireApprovedProtection()
                     {
-                        if (localInput is not null && attemptEfsIdentity is null && ReadEfsProtection(localInput))
+                        if (localInput is not null && attemptEfsIdentity is null && ReadUploadAttributes(localInput).HasFlag(FileAttributes.Encrypted))
                             throw new RefusedOperationException("The opened file became EFS-protected during the upload. FileCat did not send this read.");
                     }
                     // Where the server's copy is continued, it is opened first: a server that cannot continue (an FTP server
@@ -868,7 +878,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     if (start == 0)
                     {
                         DiscardTemp(destFolder, temp);
-                        temp = TempName(destFolder);
+                        temp = freshStage ?? TempName(destFolder);
                     }
                     else
                     {
@@ -984,6 +994,8 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         approvedEfsIdentity = attemptEfsIdentity;
         Journal.Done(step, StepOutcome.Committed);
         Job.ItemDone();
+        if (sparseInput && written > 0)
+            Issue(IssueSeverity.Warning, dst, "The upload sent the full logical contents of a sparse file. The server copy may use more disk space.", StepOutcome.Committed);
         if (approvedEfsIdentity is not null)
             Issue(IssueSeverity.Warning, sourceDisplay, "Uploaded without Windows EFS protection, as approved.", StepOutcome.Committed);
         if (caveat is not null)
@@ -994,9 +1006,9 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         return true;
     }
 
-    private static bool ReadEfsProtection(FileStream source)
+    private static FileAttributes ReadUploadAttributes(FileStream source)
     {
-        try { return File.GetAttributes(source.SafeFileHandle).HasFlag(FileAttributes.Encrypted); }
+        try { return File.GetAttributes(source.SafeFileHandle); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             throw new RefusedOperationException("FileCat could not verify Windows EFS protection on the actual opened upload source.");

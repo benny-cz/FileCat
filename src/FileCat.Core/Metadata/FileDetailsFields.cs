@@ -14,7 +14,7 @@ public static class FileDetailsFields
     {
         MetadataField Field(string id, string title, bool folders, Func<FileDetailsSnapshot, MetadataValue> select) =>
             new(id, title, MetadataCost.Cheap, _ => true,
-                (path, ct) => records.IsSupported ? select(records.ReadSummary(path, ct)) : new MetadataValue(MetadataState.Unsupported, Detail: "A qualified filesystem metadata reader is unavailable."),
+                (path, ct) => Read(records, path, ct, select),
                 value => (value as Cell)?.Text ?? "", RightAlign: id != ReparseType, SortKey: value => (value as Cell)?.Key, Folders: folders,
                 RefreshAfter: TimeSpan.FromSeconds(20), Detail: value => (value as Cell)?.Explanation ?? "",
                 NeedsExplanation: _ => true, ObservationLane: true, MetadataOnlyOnOffline: true);
@@ -35,6 +35,16 @@ public static class FileDetailsFields
             tag => ReparsePresentation.Describe(tag).Label, tag => ReparsePresentation.Describe(tag) is { Kind: not (ReparseKind.Unavailable or ReparseKind.Unknown) } known ? known.Label : null,
             "Observed reparse type of this entry. A mount-point tag alone does not distinguish a junction from a volume mount. Transparent provider backing may be hidden by the ordinary tag API.")));
         return fields;
+    }
+
+    private static MetadataValue Read(IFileRecords records, string path, CancellationToken ct, Func<FileDetailsSnapshot, MetadataValue> select)
+    {
+        if (!records.IsSupported) return new(MetadataState.Unsupported, Detail: "A qualified filesystem metadata reader is unavailable.");
+        try { return select(records.ReadSummary(path, ct)); }
+        catch (Exception error) when (error is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return new(MetadataState.Absent, Detail: "The original filesystem item is no longer available.", Observation: MetadataObservation.Gone);
+        }
     }
 
     private static MetadataValue Value<T>(FileDetailsSnapshot snapshot, ObservedFact<T> fact, Func<T, string> format,

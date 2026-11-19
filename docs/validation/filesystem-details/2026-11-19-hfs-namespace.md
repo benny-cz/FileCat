@@ -1,0 +1,7 @@
+# HFS Plus namespace in Full Details
+
+Full Details reads the case-sensitivity and case-preservation flags from Darwin volume capabilities. It validates each bit independently and matches the returned HFS type and device to the observed item. The Unicode description requires a recognized HFS Plus subtype in the returned mask. HFSX supports different comparison modes, so the report uses the actual case-sensitivity bit. The summary omits the namespace query. [Apple HFS Plus format](https://developer.apple.com/library/archive/technotes/tn/tn1150.html) · [Darwin HFS volume attributes](https://github.com/apple-oss-distributions/hfs/blob/main/core/hfs_vfsops.c)
+
+The macOS 27.2.1 arm64 fixture mounted separate journaled HFS+ and case-sensitive HFSX images. Both reported case preservation. Lowercase lookup matched `MiXeD` on the former and failed on the latter. Both images returned the decomposed spelling of the test Unicode name from directory enumeration, and both spellings resolved to the same file. A leaf symlink reported its source volume, and a file reached through a parent symlink reported the target volume. APFS case-sensitive and case-insensitive controls passed in the same run with their original normalization wording.
+
+The Core suite passed 57 tests with 13 opt-in or platform skips. All four private images were ejected. The exact inputs and results are under `~/FileCatValidation/filecat-hfs-namespace-e3b813d7-r2` on the Mac. The local receipt is `.tmp/filecat-hfs-namespace-e3b813d7-r2.trx`.

@@ -40,3 +40,5 @@ The portable App fixture constructed an EFS decryption job with one complete roo
 ## Native EFS decryption and origin refresh
 
 Windows 11 x64 ran the actual NTFS Compress and Decrypt EFS commands from the captured main-panel selection. Each action passed the refresh, mark-edit and away-and-back navigation cases. The affected listing refreshed, payload bytes were preserved, and only an unchanged origin allowed completion cleanup. The same native batch passed the encryption/decryption consent round trip and the selected EFS backup command entry. See all eight `StorageCommandNativeTests` in `.tmp/filecat-metadata-report-output-8eeeca7e-r6.xml`.
+
+The follow-up prepares the encrypted and compression test files before the listing begins watching them. The command tests then exercise their own explicit refresh and navigation steps. All eight command cases and the three journal restart cases passed in the same standard-user Windows 11 x64 run. The combined App selection passed 21 tests with four platform skips. See `.tmp/filecat-metadata-history-fd0441ba-r11.xml`.

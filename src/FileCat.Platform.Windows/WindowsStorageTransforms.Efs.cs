@@ -76,10 +76,10 @@ internal sealed unsafe partial class WindowsStorageTransforms
         return binding.ReadAssociations(ct);
     }
 
-    private static void RequireEfsHost(StorageAction action)
+    private void RequireEfsHost(StorageAction action)
     {
         if (action is not (StorageAction.EncryptEfs or StorageAction.DecryptEfs)) throw new ArgumentException("Choose an EFS action.", nameof(action));
-        if (!IsQualifiedHost || !EfsEdition.Value) throw Refuse("efs-build", "This EFS candidate requires Windows 11 x64 Pro, Enterprise or Education; unknown editions remain unavailable.");
+        if (!SupportsHost(_qualifyNativeArm64) || !EfsEdition.Value) throw Refuse("efs-build", "This EFS candidate requires a qualified Windows 11 Pro, Enterprise or Education host.");
     }
     private static string EfsInvoker()
     {
@@ -173,7 +173,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
             if (before.Ineligible is { } excluded) throw new StorageInspectionException(excluded);
             if (before.Efs != StorageObservationState.Enabled) throw Refuse("efs-association-state", "The held item is not known to be EFS encrypted.");
             EnsureGuards(ct);
-            return WindowsEfsAssociations.Read(_apiPath, Identity, _pin.InvokerSid!, token =>
+            return WindowsEfsAssociations.Read(_apiPath, Identity, _pin.InvokerSid!, _pin.Adapter._efsKeys, token =>
             {
                 var observed = Observe(token);
                 if (observed.Efs != StorageObservationState.Enabled || observed.Ineligible is not null)
@@ -302,7 +302,7 @@ internal sealed unsafe partial class WindowsStorageTransforms
         {
             if (!_requireRecovery || action != StorageAction.EncryptEfs) return;
             var recovery = _recovery ?? throw Refuse("efs-recovery-required", "Review the actual EFS setup key and choose its recovery arrangement before encrypting an item.");
-            var evidence = new WindowsEfsKeys().ProbeAssociatedCertificate(recovery.InvokerSid, recovery.CertificateSha1, ct);
+            var evidence = _pin.Adapter._efsKeys.ProbeAssociatedCertificate(recovery.InvokerSid, recovery.CertificateSha1, ct);
             if (!recovery.Matches(evidence))
                 throw new StorageInspectionException(Problem(StorageReasonKind.PermissionOrPolicy, "efs-recovery-key-unavailable",
                     "The reviewed EFS certificate's exact private key could not be matched for this user. A recovery declaration cannot replace that check."));

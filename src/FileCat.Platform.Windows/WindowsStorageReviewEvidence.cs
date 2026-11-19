@@ -15,7 +15,15 @@ namespace FileCat.Platform.Windows;
 internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEvidence
 {
     internal static bool IsSupportedHost => WindowsStorageTransforms.IsQualifiedHost && !WindowsTokenAuthority.IsHighIntegrity;
-    internal static readonly StorageEvidenceBackend Backend = new(Open, OpenRetained, ObserveJournal, OpenCursor, OpenHistory);
+    internal static readonly StorageEvidenceBackend Backend = CreateBackend(qualifyNativeArm64: false);
+    internal static readonly StorageEvidenceBackend Arm64QualificationBackend = CreateBackend(qualifyNativeArm64: true);
+
+    private static StorageEvidenceBackend CreateBackend(bool qualifyNativeArm64) => new(
+        (directory, leaf, ct) => Open(directory, leaf, ct, qualifyNativeArm64),
+        (directory, ct) => OpenRetained(directory, ct, qualifyNativeArm64),
+        (directory, leaf, ct) => ObserveJournal(directory, leaf, ct, qualifyNativeArm64),
+        (directory, artifacts, ct) => OpenCursor(directory, artifacts, ct, qualifyNativeArm64),
+        (directory, leaf, ct) => OpenHistory(directory, leaf, ct, qualifyNativeArm64));
     private const uint ReadControl = 0x20000, NoRecall = 0x400000;
     private readonly string _path, _owner, _binding;
     private readonly ulong _serial;
@@ -45,13 +53,13 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
         _stream = journal is null ? null : new FileStream(journal.Handle, FileAccess.Read);
     }
 
-    internal static StorageRetainedReviewEvidence OpenRetained(string directory, CancellationToken ct)
+    internal static StorageRetainedReviewEvidence OpenRetained(string directory, CancellationToken ct, bool qualifyNativeArm64 = false)
     {
         if (StorageNativeAllowance.Current is not null) throw new IOException("Release native observation ownership before opening retained evidence.");
         var envelope = StorageEvidenceLanes.EnterEnvelope(ct);
         try
         {
-            string owner = OrdinaryOwner(envelope.Claim), full = FullDirectory(directory);
+            string owner = OrdinaryOwner(envelope.Claim, qualifyNativeArm64), full = FullDirectory(directory);
             using var root = Walk(full, envelope.Claim, writable: false, ct);
             RequireNamespace(root.Handle, owner, ct);
             string binding = WindowsStorageTransforms.ActualVolumeBinding(root.Handle, false, ct);
@@ -61,13 +69,13 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
         catch { envelope.Dispose(); throw; }
     }
 
-    internal static WindowsStorageReviewEvidence Open(string directory, string leaf, CancellationToken ct)
+    internal static WindowsStorageReviewEvidence Open(string directory, string leaf, CancellationToken ct, bool qualifyNativeArm64 = false)
     {
         if (StorageNativeAllowance.Current is not null) throw new IOException("Release native storage observation ownership before opening independent review evidence.");
         var envelope = StorageEvidenceLanes.EnterEnvelope(ct); NativeHandle? journal = null;
         try
         {
-            string owner = OrdinaryOwner(envelope.Claim);
+            string owner = OrdinaryOwner(envelope.Claim, qualifyNativeArm64);
             string full = FullDirectory(directory); Leaf(leaf);
             if (!StorageJournalPolicy.IsCandidate(leaf)) throw new IOException("Only storage journals belong to this evidence authority.");
             using var root = Walk(full, envelope.Claim, writable: false, ct);
@@ -82,22 +90,28 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
         catch { journal?.Dispose(); envelope.Dispose(); throw; }
     }
 
-    private static StorageEvidenceObservation ObserveJournal(string directory, string leaf, CancellationToken ct)
+    private static StorageEvidenceObservation ObserveJournal(string directory, string leaf, CancellationToken ct, bool qualifyNativeArm64)
     {
         if (StorageNativeAllowance.Current is not null) throw new IOException("Release native observation ownership before independent evidence accounting.");
         using var envelope = StorageEvidenceLanes.EnterEnvelope(ct);
-        string owner = OrdinaryOwner(envelope.Claim), full = FullDirectory(directory); Leaf(leaf);
+        string owner = OrdinaryOwner(envelope.Claim, qualifyNativeArm64), full = FullDirectory(directory); Leaf(leaf);
         using var root = Walk(full, envelope.Claim, writable: false, ct); RequireNamespace(root.Handle, owner, ct);
         string binding = WindowsStorageTransforms.ActualVolumeBinding(root.Handle, false, ct);
         using var file = OpenMetadata(root.Handle, leaf, envelope.Claim, ct); RequireFile(file.Handle, owner, binding, ct);
         return new(Identity(root.Handle, binding), Identity(file.Handle, binding), RandomAccess.GetLength(file.Handle));
     }
 
+    internal static StorageJournalFile CreateJournal(string directory, string leaf, CancellationToken ct) =>
+        CreateJournal(directory, leaf, ct, qualifyNativeArm64: false);
+
+    internal static StorageJournalFile CreateArm64QualificationJournal(string directory, string leaf, CancellationToken ct) =>
+        CreateJournal(directory, leaf, ct, qualifyNativeArm64: true);
+
     /// <summary>The worker creates its journal through its own scratch capacity, never waits for the evidence envelope.</summary>
-    internal static StorageJournalFile CreateJournal(string directory, string leaf, CancellationToken ct)
+    private static StorageJournalFile CreateJournal(string directory, string leaf, CancellationToken ct, bool qualifyNativeArm64)
     {
         var native = StorageNativeAllowance.RequireCurrent();
-        string owner = OrdinaryOwner(native.ClaimScratch);
+        string owner = OrdinaryOwner(native.ClaimScratch, qualifyNativeArm64);
         string full = FullDirectory(directory); Leaf(leaf);
         if (!StorageJournalPolicy.TryJobId(leaf, out _)) throw new IOException("A new storage journal needs its recognizable exact name.");
         using var root = Walk(full, native.ClaimScratch, writable: true, ct);
@@ -346,10 +360,10 @@ internal sealed partial class WindowsStorageReviewEvidence : StorageReviewEviden
         if (!StoragePaths.IsOrdinaryLocalPath(full)) throw new IOException("Storage evidence needs an ordinary local directory path.");
         return full;
     }
-    private static string OrdinaryOwner(Func<IDisposable> claim)
+    private static string OrdinaryOwner(Func<IDisposable> claim, bool qualifyNativeArm64 = false)
     {
         using var charge = claim();
-        if (!IsSupportedHost)
+        if (!WindowsStorageTransforms.SupportsHost(qualifyNativeArm64) || WindowsTokenAuthority.IsHighIntegrity)
             throw new UnauthorizedAccessException("Storage evidence requires a normal-user Windows 11 process.");
         using var identity = WindowsIdentity.GetCurrent(); return identity.User?.Value ?? throw new UnauthorizedAccessException("The invoking storage evidence identity is unavailable.");
     }

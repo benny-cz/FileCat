@@ -183,6 +183,8 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         }
         job.SetArchivePhase(ArchiveJobPhase.FinishingSafely);
         job.RecordArchiveEditPublication(new(request.ArchivePath, request.Profile!, published.Published, plan.Expected.Digest));
+        if (activeInputs.Bindings.Values.Any(input => input.Reviewed.HasSparseMainStream && input.Reviewed.Version.Length > 0))
+            ArchiveWriteMessages.ReportSparseInputs(job, request.ArchivePath);
         // Publication may have committed immediately before cancellation. Always record the visible result first.
         job.AddTotals(checked(1L + review.ExcludedCount + skippedNames), 0); job.ItemDone();
         for (int i = 0; i < review.ExcludedCount; i++) job.ItemSkipped();

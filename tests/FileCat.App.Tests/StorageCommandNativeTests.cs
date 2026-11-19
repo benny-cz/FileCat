@@ -31,11 +31,11 @@ public sealed class StorageCommandNativeTests
         Assert.SkipWhen(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_UI") != "1" || !WindowsStorageTransforms.IsQualifiedHost,
             "Explicit disposable Windows 11 x64 client, medium integrity, NTFS EFS review qualification.");
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420,
-            storageTransforms: new WindowsStorageTransforms().CreateEfsJobCandidate());
+            storageTransforms: new WindowsStorageTransforms().CreateEfsJobCandidate(),
+            prepareFiles: folder => File.Encrypt(Path.Join(folder, "a.txt")));
         try
         {
             string path = Path.Join(root, "files", "a.txt");
-            File.Encrypt(path);
             var listing = vm.ActiveTab!.Listing;
             await Until(() => listing.State == ListingState.Complete && listing.VisibleCount == 3);
             listing.MarkNames(["a.txt"], true);
@@ -47,10 +47,16 @@ public sealed class StorageCommandNativeTests
             ((OverlayDialogService)vm.Dialogs).CancelAll();
             await protecting;
 
+            int reviewGeneration = listing.Generation;
             var backingUp = vm.ExecuteAsync(CommandIds.EfsFileBackup);
-            await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => AutomationProperties.GetName(control) == "Selected file EFS certificate"));
+            await Until(() => backingUp.IsCompleted || window.GetVisualDescendants().OfType<TextBlock>()
+                .Any(control => AutomationProperties.GetAutomationId(control) == "EFS key status"));
+            if (backingUp.IsCompleted) await backingUp;
             var controls = window.GetVisualDescendants().ToArray();
-            var keys = Assert.Single(controls.OfType<ComboBox>(), control => AutomationProperties.GetName(control) == "Selected file EFS certificate");
+            var keys = controls.OfType<ComboBox>().SingleOrDefault(control => AutomationProperties.GetName(control) == "Selected file EFS certificate");
+            string? status = controls.OfType<TextBlock>().FirstOrDefault(control => AutomationProperties.GetAutomationId(control) == "EFS key status")?.Text;
+            Assert.True(keys is not null, $"Expected the selected-file EFS key picker. Generation {reviewGeneration} to {listing.Generation}. " +
+                $"Review status {status ?? "unavailable"}. Notification {vm.CurrentNotification?.Message ?? "none"}.");
             Assert.Equal(-1, keys.SelectedIndex);
             Assert.Single(keys.Items);
             Assert.Contains(controls.OfType<TextBox>(), control => control.Text?.Contains("a.txt", StringComparison.Ordinal) == true);
@@ -144,16 +150,20 @@ public sealed class StorageCommandNativeTests
             "Explicit disposable Windows 11 x64 client, medium integrity, NTFS command qualification.");
         var platform = new WindowsStorageTransforms();
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 420,
-            storageTransforms: efs ? platform.CreateEfsJobCandidate() : platform);
+            storageTransforms: efs ? platform.CreateEfsJobCandidate() : platform,
+            prepareFiles: folder =>
+            {
+                string a = Path.Join(folder, "a.txt"), b = Path.Join(folder, "b.txt");
+                File.WriteAllText(a, new string('A', 8192));
+                File.WriteAllText(b, new string('B', 8192));
+                if (efs) { File.Encrypt(a); File.Encrypt(b); }
+            });
         try
         {
             var tab = vm.ActiveTab!; var listing = tab.Listing;
             await Until(() => listing.State == ListingState.Complete && listing.VisibleCount == 3);
             var original = tab.Location!;
             string a = Path.Join(original.Path, "a.txt"), b = Path.Join(original.Path, "b.txt");
-            File.WriteAllText(a, new string('A', 8192)); File.WriteAllText(b, new string('B', 8192));
-            if (efs) { File.Encrypt(a); File.Encrypt(b); }
-            tab.Refresh(); await Until(() => listing.State == ListingState.Complete && !listing.IsRefreshing);
             listing.MarkNames(["a.txt", "b.txt"], true); long marks = listing.MarkRevision;
             string label = efs ? "Decrypt" : "Compress";
             vm.Execute(efs ? CommandIds.EfsProtection : CommandIds.StorageAttributes);

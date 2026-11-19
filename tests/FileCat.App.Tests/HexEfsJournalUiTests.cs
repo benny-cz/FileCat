@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -10,6 +11,7 @@ using FileCat.App.Services;
 using FileCat.App.Views;
 using FileCat.Core.State;
 using FileCat.Platform.Windows;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.App.Tests;
 
@@ -23,9 +25,10 @@ public sealed class HexEfsJournalUiTests
     }
 
     [AvaloniaTheory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Efs_output_defaults_to_cancel_and_requires_explicit_activation_after_showing_both_paths(bool saveAs)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Efs_output_defaults_to_cancel_and_requires_explicit_activation_after_showing_both_paths(bool saveAs, bool sparse)
     {
         Assert.SkipUnless(WindowsStorageTransforms.IsQualifiedHost && Environment.GetEnvironmentVariable("FILECAT_TEST_EFS") == "1",
             "Explicit EFS output UI qualification in the disposable Windows VM.");
@@ -33,6 +36,12 @@ public sealed class HexEfsJournalUiTests
         string path = Path.Join(root, "target.bin"), destination = Path.Join(root, saveAs ? "output.bin" : "output.json");
         string stagePrefix = saveAs ? ".filecat-hex-" : ".filecat-patch-";
         File.WriteAllBytes(path, [1, 2, 3, 4]);
+        if (sparse)
+        {
+            using var fixture = File.OpenHandle(path, access: FileAccess.ReadWrite);
+            Assert.True(SetSparseControl(fixture, 0x000900c4 /* FSCTL_SET_SPARSE */, 0, 0, 0, 0, out _, 0));
+            RandomAccess.SetLength(fixture, 4 * 1024 * 1024);
+        }
         File.Encrypt(path);
         using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
         HexEditorWindow? window = null;
@@ -50,6 +59,8 @@ public sealed class HexEfsJournalUiTests
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.StartsWith(Path.Join(root, stagePrefix), StringComparison.Ordinal) == true);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.Contains(
                 saveAs ? "edited copy contains file bytes" : "original and replacement file bytes", StringComparison.Ordinal) == true);
+            Assert.Equal(sparse, window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text?.Contains(
+                "may allocate space for the entire file", StringComparison.Ordinal) == true));
             Assert.False(File.Exists(destination));
             Assert.Empty(Directory.EnumerateFiles(root, stagePrefix + "*.tmp"));
             Assert.Contains(window.GetVisualDescendants().OfType<Button>(), button => button.IsDefault && button.Content as string == "Cancel");
@@ -68,6 +79,7 @@ public sealed class HexEfsJournalUiTests
             {
                 using var copy = new FileStream(destination, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 Assert.Equal(0xab, copy.ReadByte());
+                Assert.Equal(sparse, File.GetAttributes(destination).HasFlag(FileAttributes.SparseFile));
             }
             else Assert.Single(HexPatchExport.Read(destination).Ranges);
             Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.Encrypted));
@@ -75,6 +87,11 @@ public sealed class HexEfsJournalUiTests
         }
         finally { window?.CloseNow(); Directory.Delete(root, recursive: true); }
     }
+
+    [DllImport("kernel32.dll", EntryPoint = "DeviceIoControl", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetSparseControl(SafeFileHandle file, uint operation, nint input, uint inputBytes,
+        nint output, uint outputBytes, out uint written, nint overlapped);
 
     [AvaloniaFact]
     public async Task An_Efs_hex_save_shows_its_refusal_keeps_unsaved_edits_and_writes_no_recovery_journal()

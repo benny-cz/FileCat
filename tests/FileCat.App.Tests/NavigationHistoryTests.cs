@@ -139,6 +139,8 @@ public sealed class NavigationHistoryTests
             tab.Navigate(d);
             await At(tab, d);
             window.Activate();
+            // Listing completion can precede the toolbar's coalesced refresh.
+            await Until(() => Button(window, CommandIds.Back).IsEnabled);
             var back = Button(window, CommandIds.Back);
             Click(window, back, MouseButton.Right);
             Assert.Equal(new[] { c.Path, b.Path, a.Path }, Rows(window).Select(AutomationProperties.GetName));
@@ -151,6 +153,8 @@ public sealed class NavigationHistoryTests
             Assert.True(window.ActiveList!.IsFocused);
             Assert.Equal(new[] { c, d }, tab.HistoryLocations(forward: true));
 
+            await Until(() => Button(window, CommandIds.Forward).IsEnabled &&
+                Button(window, CommandIds.Forward, "historyDropdown").IsEnabled);
             var forward = Button(window, CommandIds.Forward);
             Assert.True(forward.Focus());
             KeyPress(window, Key.F10, PhysicalKey.F10, RawInputModifiers.Shift);

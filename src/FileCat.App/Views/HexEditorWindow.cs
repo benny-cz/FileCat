@@ -1065,12 +1065,16 @@ public sealed class HexEditorWindow : Window
             HexSaveAsResult result;
             using (var review = await Task.Run(() => HexSaveAs.Prepare(file, overlay, target), token))
             {
+                const string efsContents = "The edited copy contains file bytes from EFS-protected inputs.";
+                string disclosure = file.IsSparse ? efsContents +
+                    " A destination without sparse-file support may allocate space for the entire file, including its holes." : efsContents;
                 if (!await ApproveHexOutputAsync(review, "Save an edited copy without EFS protection?",
-                    "The edited copy contains file bytes from EFS-protected inputs.", "Save copy", token)) return;
+                    disclosure, "Save copy", token)) return;
                 result = await Task.Run(() => HexSaveAs.CreateNew(review, token, progress), token);
             }
-            string notes = (result.Sparse ? " Unallocated ranges stayed sparse." : "") +
-                           " The new file has the default permissions of its folder; alternate data streams other than the download mark were not copied.";
+            string notes = result.ExpandedSparseHoles ? " This destination required writing the source's holes and may use more disk space."
+                : result.Sparse && result.BytesWritten < file.Length ? " Unallocated ranges stayed sparse." : "";
+            notes += " The new file has the default permissions of its folder. Alternate data streams other than the download mark were skipped.";
             if (result.OriginMark == HexOriginMark.Lost)
                 await _dialogs.AlertAsync("Download mark lost",
                     "The original file is marked as downloaded from the internet, but the new location cannot store that mark (Mark-of-the-Web). Windows will not warn when the new file is opened.");

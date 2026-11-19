@@ -11,6 +11,11 @@ public static class ArchiveWriteMessages
 {
     internal const string UserMessageKey = "FileCat.ArchiveUserMessage";
 
+    internal static void ReportSparseInputs(Job job, string archivePath) => job.AddIssue(new(IssueSeverity.Warning, archivePath,
+        "The archive stores the logical bytes of sparse files without their hole layout. Extracting them may use more disk space than the originals.",
+        StepOutcome.Committed) { TargetPath = archivePath, TargetIsLocal = true, CommittedEffect = "Archive saved." });
+
+
     public static string ForUser(ArchiveWriteException error, ArchiveWriteFormat? format, ArchiveJobPhase? phase)
     {
         ArgumentNullException.ThrowIfNull(error);

@@ -32,7 +32,7 @@ internal static unsafe partial class WindowsCompression
 
     /// <summary>No cancellation boundary may occur after durable intent/call admission and before this SET.
     /// Always observes the same held stream after return, including native failure. Success alone is not the outcome.</summary>
-    internal static CallResult InvokeAdmitted(SafeFileHandle file, StorageAction action)
+    internal static CallResult InvokeAdmitted(SafeFileHandle file, StorageAction action, Action<bool>? setReturnedForQualification = null)
     {
         ushort desired = action switch
         {
@@ -42,6 +42,7 @@ internal static unsafe partial class WindowsCompression
         };
         bool ok = Control(file, SetCompression, &desired, sizeof(ushort), null, 0, out _, 0);
         int error = ok ? 0 : Marshal.GetLastPInvokeError();
+        setReturnedForQualification?.Invoke(ok);
         return new(ok, error, Query(file));
     }
 

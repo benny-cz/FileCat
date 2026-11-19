@@ -10,6 +10,8 @@ internal sealed record ArchiveFileObservation
     internal ArchiveOriginSnapshot Origin { get; }
     internal ArchiveTimestamp? MemberModified { get; }
     internal int? MemberMode { get; }
+    // Display evidence derived from the captured native metadata. The metadata digest already binds its attributes.
+    internal bool HasSparseMainStream { get; init; }
     internal ArchiveFileObservation(ArchiveObjectVersion version, string parentIdentity, string leafName, string metadataDigest,
         ArchiveOriginSnapshot origin, ArchiveTimestamp? memberModified, int? memberMode)
     {

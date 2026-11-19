@@ -6,13 +6,13 @@ namespace FileCat.Platform.Windows;
 
 internal sealed partial class WindowsStorageReviewEvidence
 {
-    private static StorageHistoryEvidence OpenHistory(string directory, string leaf, CancellationToken ct)
+    private static StorageHistoryEvidence OpenHistory(string directory, string leaf, CancellationToken ct, bool qualifyNativeArm64)
     {
         if (StorageNativeAllowance.Current is not null) throw new IOException("Release native observation ownership before reading storage history.");
         var envelope = StorageEvidenceLanes.EnterEnvelope(ct); NativeHandle? held = null;
         try
         {
-            string owner = OrdinaryOwner(envelope.Claim), full = FullDirectory(directory); Leaf(leaf);
+            string owner = OrdinaryOwner(envelope.Claim, qualifyNativeArm64), full = FullDirectory(directory); Leaf(leaf);
             if (!StorageJournalPolicy.IsCandidate(leaf)) throw new IOException("Only storage journals belong to this history reader.");
             using var root = Walk(full, envelope.Claim, writable: false, ct); RequireNamespace(root.Handle, owner, ct);
             string binding = WindowsStorageTransforms.ActualVolumeBinding(root.Handle, false, ct);
