@@ -126,7 +126,9 @@ public sealed partial class AnalysisRenderingTests
         public PreparationFixture(bool alternateScratch = false, bool createScratchParent = true, string? preparedRoot = null)
         {
             _ownsRoot = preparedRoot is null;
-            Root = preparedRoot ?? Path.Combine(Environment.CurrentDirectory, ".tmp", "analysis-preparation-" + Guid.NewGuid().ToString("N"));
+            // Use the same profile-level fixture root as native analysis inputs. The build output's
+            // depth otherwise adds a held ancestry descriptor to every private store per component.
+            Root = preparedRoot ?? Path.Combine(NativeValidationFixtureRoot(), "analysis-preparation-" + Guid.NewGuid().ToString("N"));
             if (_ownsRoot) Directory.CreateDirectory(Root);
             else Assert.True(Path.IsPathFullyQualified(Root) && File.Exists(Path.Combine(Root, ".filecat-scratch-volume-fixture")));
             string? parent = alternateScratch ? Path.Combine(Root, "alternate-scratch") : null;

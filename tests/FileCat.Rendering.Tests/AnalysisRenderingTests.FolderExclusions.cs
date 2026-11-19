@@ -165,7 +165,7 @@ public sealed partial class AnalysisRenderingTests
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             Editor("Excluded folders for location 1").Text = "other";
             Editor("Excluded folders for location 2").Text = "../outside";
-            Assert.IsType<Grid>(Editor("Analysis location 1").Parent).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.IsAssignableFrom<Grid>(Editor("Analysis location 1").Parent).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal("../outside", Editor("Excluded folders for location 1").Text);
 
             ClickStart();

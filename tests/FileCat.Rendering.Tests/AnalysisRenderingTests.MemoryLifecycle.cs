@@ -51,6 +51,7 @@ public sealed partial class AnalysisRenderingTests
     public async Task NormalStartPreservesUnsupportedStateAndReportsOnlyTheUnreadRoot()
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture(); await CorruptProfileForMemoryAsync(fixture);
+        using var styles = new ProductStyles();
         string parent = Path.GetDirectoryName(fixture.Services.Paths.AnalysisScratchDirectory)!;
         string input = Path.Combine(fixture.Root, "input"); Directory.CreateDirectory(input); File.WriteAllText(Path.Combine(input, "safe.bin"), "safe");
         byte[] state = File.ReadAllBytes(fixture.Services.Paths.AnalysisPrivateStateFile);

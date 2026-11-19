@@ -802,6 +802,8 @@ public sealed partial class DiskSpaceWindow
                 else
                 {
                     text.AppendLine(DiskSpaceViewModel.InspectorExactMeasurements(item, metric));
+                    if (item.IsFilterContext && DiskSpaceViewModel.EntryExplanation(item) is { } explanation)
+                        text.AppendLine(explanation);
                     if (_grouping is not null) text.AppendLine("Active metric is the amount assigned to this entry in the displayed accounting group. File size describes the captured path; shared charges are shown once in their accounting group.");
                 }
                 text.AppendLine($"Metadata: {item.MetadataState}; origin: {explorer.Descriptor.Origin}; coverage: {explorer.Descriptor.Coverage}; observed revision: {explorer.Descriptor.Identity.Revision}.");
