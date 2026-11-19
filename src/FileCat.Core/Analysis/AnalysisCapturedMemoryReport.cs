@@ -144,7 +144,7 @@ public sealed class AnalysisCapturedMemoryReport : AnalysisCapturedReport
                 continue;
             }
             var path = AnalysisPathMetadata.From(_nodes![item.NodeId!.Value]);
-            yield return new(path, locations ? DisplayLocation(path, snapshot) : null, item.ReportTotals!, item.ReportLogical!, item.ReportNamespaceIncomplete, item.SharedElsewhere, item.IsFilterContext)
+            yield return new(path, locations ? DisplayLocation(path, snapshot) : null, item.ReportTotals!, item.ReportLogical!, item.NamespaceIncomplete, item.SharedElsewhere, item.IsFilterContext)
                 { HasUnmeasuredEvidence = item.Unknown, HasUnmeasuredLogicalEvidence = item.LogicalUnknown, IsAccountingReference = _referenceScope || item.ReportAccountingReference,
                     LogicalNotApplicable = tree.GroupingDimension != AnalysisGroupingDimension.FolderHierarchy && item.Kind != AnalysisKind.File };
         }

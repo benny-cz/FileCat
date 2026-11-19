@@ -49,9 +49,9 @@ public sealed class AnalysisGroupedReportTests
         var snapshot = AnalysisAccountingTests.Golden(); var token = TestContext.Current.CancellationToken;
         var projection = AnalysisAggregate.Project(snapshot, AnalysisMetric.OnDisk, cancellation: token);
         var folders = AnalysisTree.Build(snapshot, projection, false, token, retainReportStatistics: true);
-        Assert.True(folders.Items["n:6"].Unknown); Assert.False(folders.Items["n:6"].ReportNamespaceIncomplete);
+        Assert.True(folders.Items["n:6"].Unknown); Assert.False(folders.Items["n:6"].NamespaceIncomplete);
         var groups = AnalysisTree.BuildGrouped(snapshot, projection, AnalysisGroupingDimension.FileType, false, token, retainReportStatistics: true);
-        Assert.True(groups.Items["n:6"].Unknown); Assert.False(groups.Items["n:6"].ReportNamespaceIncomplete);
+        Assert.True(groups.Items["n:6"].Unknown); Assert.False(groups.Items["n:6"].NamespaceIncomplete);
     }
 
     [Theory]

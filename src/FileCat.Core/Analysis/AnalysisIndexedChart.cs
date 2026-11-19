@@ -133,7 +133,7 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
             metric == AnalysisMetric.UniqueFileSize && row.Totals.IdentityUnverified != 0, row.HasChargesElsewhere, path.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(path.Name), [], [])
         { IdentityUnverified = row.Totals.IdentityUnverified, LogicalUnknown = row.HasUnmeasuredLogicalEvidence || row.Logical.UnknownFiles != 0, MetadataState = path.MetadataState, IncludedByPolicy = path.IncludedByPolicy,
             ModifiedUtc = row.ModifiedUtc, ModifiedPrecisionTicks = row.ModifiedPrecisionTicks, NameEvidence = AnalysisNames.NameEvidence(path),
-            IsFilterContext = row.IsFilterContext };
+            IsFilterContext = row.IsFilterContext, NamespaceIncomplete = row.NamespaceIncomplete };
     }
     internal AnalysisIndexedChart WithItems(ImmutableDictionary<string, AnalysisTreeItem> items) =>
         new(Metric, ObservedUtc, Scope, items.ToDictionary(), _children.ToDictionary(pair => pair.Key,

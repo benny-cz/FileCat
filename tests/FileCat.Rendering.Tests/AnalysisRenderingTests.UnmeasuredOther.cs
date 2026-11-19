@@ -1,5 +1,6 @@
 using Avalonia.Headless.XUnit;
 using FileCat.App.Services;
+using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Analysis;
 using FileCat.Core.FileSystem;
@@ -45,7 +46,14 @@ public sealed partial class AnalysisRenderingTests
             var explorer = await window.AddSavedIndexedSessionAsync(profile.Services, entry.Name, entry, token); window.Show(); Frame(window);
             Assert.True(ExactOtherReady(window)); Assert.Equal(1, explorer.GeometrySkipped);
             Assert.Equal(new ulong[] { 4, 5 }, explorer.Page!.Children.Rows.Select(row => row.Path.Id).Order());
-            Assert.All(explorer.Page.Children.Rows, row => Assert.True(AnalysisIndexedChart.Row(row, metric).Unknown));
+            Assert.All(explorer.Page.Children.Rows, row =>
+            {
+                var item = AnalysisIndexedChart.Row(row, metric);
+                Assert.True(item.Unknown);
+                Assert.DoesNotContain("coverage partial", DiskSpaceViewModel.FilePathsText(item));
+                var partial = AnalysisIndexedChart.Row(row with { NamespaceIncomplete = true }, metric);
+                Assert.Equal(DiskSpaceViewModel.FilePathsText(item) + " observed (coverage partial)", DiskSpaceViewModel.FilePathsText(partial));
+            });
             var bucket = Assert.Single(explorer.Page.Buckets); Assert.Equal(AnalysisHierarchyBucketKind.SharedFiles, bucket.Kind); Assert.NotEmpty(bucket.Totals.Missing);
             Assert.NotNull(bucket.ReferenceLogical); Assert.Equal(filtered ? 1UL : 2UL, bucket.ReferenceLogical.Files);
             Assert.Equal(metric == AnalysisMetric.UniqueFileSize ? bucket.ReferenceLogical.Files : 0UL, bucket.ReferenceLogical.UnknownFiles);

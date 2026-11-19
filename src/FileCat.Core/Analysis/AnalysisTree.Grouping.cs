@@ -77,7 +77,7 @@ public sealed partial class AnalysisTree
                     Unknown = item.Unknown || node.MetadataState != MeasurementState.Known || incomplete.Contains(id),
                     ReportTotals = retainReportStatistics ? row.Assigned : null, ReportLogical = retainReportStatistics ? AnalysisReportGroupRows.Logical(row.Member) : null,
                     ReportAccountingReference = group.Kind == AnalysisGroupKind.SharedAcrossGroups,
-                    ReportNamespaceIncomplete = node.MetadataState is not (MeasurementState.Known or MeasurementState.Excluded) || incomplete.Contains(id) };
+                    NamespaceIncomplete = node.MetadataState is not (MeasurementState.Known or MeasurementState.Excluded) || incomplete.Contains(id) };
                 items[key] = item; children.Add(key); assigned = checked(assigned + item.Value);
             }
             var bucket = Amount(group.Definition.Key, 0); total.Add(bucket);
@@ -109,7 +109,7 @@ public sealed partial class AnalysisTree
             }
             items.Add(group.Definition.Key, AnalysisGroupedChart.GroupItem(summary, dimension, projection.Metric, RootKey) with { Children = children.ToImmutable(), Members = group.Members,
                 ReportTotals = retainReportStatistics ? group.Totals : null, ReportLogical = retainReportStatistics ? group.Logical : null,
-                ReportNamespaceIncomplete = snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy });
+                NamespaceIncomplete = snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy });
         }
         var rootMembers = grouped.Groups.SelectMany(g => g.Members).Distinct().Order().ToImmutableArray();
         UInt128 logical = 0; ulong files = 0, unknown = 0;
@@ -122,7 +122,7 @@ public sealed partial class AnalysisTree
             { IdentityUnverified = projection.Totals.IdentityUnverified, LogicalUnknown = unknown != 0,
                 ReportTotals = retainReportStatistics ? projection.Totals : null,
                 ReportLogical = retainReportStatistics ? AnalysisReportStatistics.Logical(grouped.Groups.Select(group => group.Logical)) : null,
-                ReportNamespaceIncomplete = snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy });
+                NamespaceIncomplete = snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy });
         return new(snapshot, projection, items.ToImmutableDictionary(StringComparer.Ordinal), filterApplied)
         { GroupingDimension = dimension, Groups = groups, FilterVisible = filterApplied ? CaptureFilterVisibility(snapshot, projection, namespaceVisible, cancellation) : null };
 

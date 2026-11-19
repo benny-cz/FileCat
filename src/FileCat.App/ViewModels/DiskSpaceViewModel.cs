@@ -367,7 +367,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         : item.LogicalUnknown && item.LogicalSize == 0 ? "Unknown"
         : (exact ? item.LogicalSize.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.LogicalSize)) + (item.LogicalUnknown ? " known" : "");
     public static string FilePathsText(AnalysisTreeItem item) => !item.IncludedByPolicy ? "Excluded" : item.IsNonFileLeaf ? "Not counted"
-        : item.ReferenceLogical is { } references ? references.Files.ToString("N0", CultureInfo.CurrentCulture) + " references" : item.Files.ToString("N0", CultureInfo.CurrentCulture);
+        : item.ReferenceLogical is { } references ? references.Files.ToString("N0", CultureInfo.CurrentCulture) + " references"
+        : item.Files.ToString("N0", CultureInfo.CurrentCulture) + (item.NamespaceIncomplete ? " observed (coverage partial)" : "");
     public static string ValueText(AnalysisTreeItem item, AnalysisMetric metric, bool exact = false) => !item.IncludedByPolicy ? "Excluded"
         : item.IsFilterContext ? "Context — not a match"
         : item.IsNonFileLeaf ? metric == AnalysisMetric.Files ? "Not counted" : "Not measured"

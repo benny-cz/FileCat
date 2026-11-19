@@ -22,9 +22,9 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
     public string? ChargeLocation { get; init; }
     public bool IsFilterContext { get; init; }
     public AnalysisLogicalTotals? ReferenceLogical { get; init; }
+    public bool NamespaceIncomplete { get; init; }
     internal AnalysisTotals? ReportTotals { get; init; }
     internal AnalysisLogicalTotals? ReportLogical { get; init; }
-    internal bool ReportNamespaceIncomplete { get; init; }
     internal bool ReportAccountingReference { get; init; }
     // Only the bounded-memory tree references its already owned path observation.
     // Indexed chart rows do not retain raw observations or full ordering names.
@@ -298,6 +298,6 @@ public sealed partial class AnalysisTree : IAnalysisChartData
                 ReportTotals = report ? new(projection.Metric == AnalysisMetric.UniqueFileSize ? Value : checked(Value - Unverified), Unverified, Files,
                     Missing?.ToImmutableDictionary() ?? ImmutableDictionary<MeasurementState, ulong>.Empty, projection.Totals.CompatibleBasis) : null,
                 ReportLogical = report ? new(Logical, Files, LogicalMissing?.ToImmutableDictionary() ?? ImmutableDictionary<MeasurementState, ulong>.Empty) : null,
-                ReportNamespaceIncomplete = NamespaceUnknown };
+                NamespaceIncomplete = NamespaceUnknown };
     }
 }
