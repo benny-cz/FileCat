@@ -13,7 +13,8 @@ internal static class WindowsMetadataReportOutput
     private const uint NoFollowFile = NonDirectoryFile | OpenReparsePoint;
     private const int WriteChunkSize = 64 * 1024;
 
-    internal static string? Save(string path, string text, Action directOutputStarted, CancellationToken ct, Action? afterCommit = null)
+    internal static string? Save(string path, string text, Action directOutputStarted, CancellationToken ct,
+        Action? afterCommit = null, Action? beforeCommit = null)
     {
         ct.ThrowIfCancellationRequested();
         var contents = Encoding.UTF8.GetBytes(text);
@@ -63,6 +64,7 @@ internal static class WindowsMetadataReportOutput
                 ct.ThrowIfCancellationRequested();
                 VerifyDestination(native, identity);
             }
+            beforeCommit?.Invoke();
             ct.ThrowIfCancellationRequested();
             transaction.Commit("Could not confirm the report replacement. Check the destination before retrying.");
             afterCommit?.Invoke();
