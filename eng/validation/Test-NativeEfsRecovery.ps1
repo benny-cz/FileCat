@@ -4,7 +4,8 @@ param(
     [string]$TestBin,
     [ValidateSet('Controller','Owner','Recipient','KeyChanges','ManagedOwner','ManagedRecipient')][string]$Role = 'Controller',
     [string]$AccountSid,
-    [switch]$Managed
+    [switch]$Managed,
+    [switch]$DisposableX64Vm
 )
 
 $ErrorActionPreference = 'Stop'
@@ -69,8 +70,10 @@ if ($Role -ne 'Controller') {
         throw 'Run the fixture only under its new standard account with a loaded profile.'
     }
     $env:FILECAT_TEST_EFS = '1'
-    $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
-    $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+    if (!$DisposableX64Vm) {
+        $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
+        $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+    }
     if ($Role -in 'ManagedOwner','ManagedRecipient') {
         $env:FILECAT_TEST_EFS_MANAGED_RECOVERY_ROOT = $data
         $agentHash = (Get-Content -LiteralPath $managedThumbprint).Trim()
@@ -148,11 +151,25 @@ if ($Role -ne 'Controller') {
     exit 0
 }
 
-$runnerTemp = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
-if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ARCH -ne 'ARM64' -or
-    !$Root.StartsWith($runnerTemp, [StringComparison]::OrdinalIgnoreCase) -or (Test-Path -LiteralPath $Root)) {
-    throw 'Use a fresh fixture on the disposable hosted Windows ARM64 runner.'
+if ($DisposableX64Vm) {
+    $fixtureProcesses = 'dotnet','testhost','FileCat','FileCat.ShellHost','FileCat.App.Tests','FileCat.*QualificationHost','FileCat.*CrashHarness','nvda'
+    $parent = Get-Item -LiteralPath (Join-Path $env:ProgramData 'FileCatValidation')
+    $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+    if (!$Managed -or !$parent.PSIsContainer -or ($parent.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+        (Split-Path -Parent $Root) -ine $parent.FullName -or $env:PROCESSOR_ARCHITECTURE -ne 'AMD64' -or
+        [Environment]::OSVersion.Version.Build -lt 22000 -or (Get-CimInstance Win32_ComputerSystem).Manufacturer -notmatch 'VMware' -or
+        !$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) -or
+        (Get-Process $fixtureProcesses -ErrorAction SilentlyContinue)) {
+        throw 'Managed recovery requires an idle disposable Windows 11 x64 VMware guest and an administrator fixture controller.'
+    }
+} else {
+    $runnerTemp = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
+    if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ARCH -ne 'ARM64' -or
+        !$Root.StartsWith($runnerTemp, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Use the disposable hosted Windows ARM64 runner.'
+    }
 }
+if (Test-Path -LiteralPath $Root) { throw 'Use a fresh recovery fixture directory.' }
 $drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($Root))
 if ($drive.DriveType -ne 'Fixed' -or $drive.DriveFormat -ne 'NTFS') { throw 'The recovery fixture requires fixed NTFS.' }
 
@@ -206,6 +223,9 @@ try {
         finally { $publicCertificate.Dispose() }
         $policyBlob = [byte[]](New-EfsPolicyBlob $agent $users[1].SID)
         Add-Type -Path (Join-Path $PSScriptRoot 'EfsRecoveryLocalPolicy.cs')
+        if ($DisposableX64Vm -and (Get-Process $fixtureProcesses -ErrorAction SilentlyContinue)) {
+            throw 'A test process started before the fixture policy could be applied.'
+        }
         $policyTouched = $true
         [EfsRecoveryLocalPolicy]::Update($agent.Thumbprint, $agentBlob, $policyBlob, $true)
         & gpupdate.exe /target:computer /force /wait:30
@@ -227,6 +247,7 @@ try {
         $accountIndex = if ($childRole -in 'Recipient','ManagedRecipient') { 1 } else { 0 }
         $params = @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',"`"$action`"",'-Root',"`"$Root`"",
             '-DotNet',"`"$DotNet`"",'-Role',$childRole,'-AccountSid',$users[$accountIndex].SID.Value)
+        if ($DisposableX64Vm) { $params += '-DisposableX64Vm' }
         $output = Join-Path $Root "$childRole.out.log"
         $errors = Join-Path $Root "$childRole.err.log"
         $child = Start-Process -FilePath $powershell -ArgumentList $params -Credential $credentials[$accountIndex] -LoadUserProfile -WindowStyle Hidden `
@@ -242,11 +263,21 @@ finally {
             [EfsRecoveryLocalPolicy]::Update($agent.Thumbprint, $agentBlob, $policyBlob, $false)
             & gpupdate.exe /target:computer /force /wait:30 | Out-Null
             if ($LASTEXITCODE) { Write-Warning 'Windows did not refresh after removing the fixture recovery policy.' }
+            if ((Get-ItemProperty -LiteralPath $efsPolicy -Name EfsBlob -ErrorAction SilentlyContinue) -or
+                (Test-Path -LiteralPath "$efsPolicy\Certificates\$($agent.Thumbprint)")) {
+                Write-Warning 'The effective policy still contains a recovery record or the fixture certificate.'
+            }
         }
         catch { Write-Warning "The disposable runner could not retire its fixture policy. $($_.Exception.Message)" }
     }
     if ($agent) { Remove-Item -LiteralPath "Cert:\CurrentUser\My\$($agent.Thumbprint)" -DeleteKey -ErrorAction Continue }
-    foreach ($account in $users) { Remove-LocalUser -InputObject $account -ErrorAction Continue }
+    foreach ($account in $users) {
+        Remove-LocalUser -InputObject $account -ErrorAction Continue
+        if ($DisposableX64Vm) {
+            Get-CimInstance Win32_UserProfile -Filter "SID='$($account.SID.Value)' AND Loaded=FALSE" |
+                Remove-CimInstance -ErrorAction Continue
+        }
+    }
     if ($ownsRoot -and (Test-Path -LiteralPath $pfx -PathType Leaf)) { Remove-Item -LiteralPath $pfx }
     if ($ownsRoot -and (Test-Path -LiteralPath $managedPfx -PathType Leaf)) { Remove-Item -LiteralPath $managedPfx }
 }
