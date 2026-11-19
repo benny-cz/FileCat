@@ -551,7 +551,8 @@ public sealed partial class WindowsEfsJobTests
         try
         {
             string path = Write(root, "clear.txt");
-            var manager = Manager(root, new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64).CreateEfsJobCandidate(), qualifyNativeArm64);
+            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => root, qualifyNativeArm64: qualifyNativeArm64);
+            var manager = Manager(root, adapter.CreateEfsJobCandidate(), qualifyNativeArm64);
             var requests = new List<DecisionRequest>();
             bool allWaitingAndClear = true;
             manager.DecisionRequested += pending =>

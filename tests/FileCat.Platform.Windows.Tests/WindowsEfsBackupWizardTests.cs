@@ -36,7 +36,7 @@ public sealed partial class WindowsEfsBackupWizardTests
                     using var identity = WindowsIdentity.GetCurrent();
                     var consent = StorageEfsConsent.Capture(Guid.NewGuid(), StorageAction.EncryptEfs, StorageScope.SelectedItems,
                         [new StorageObjectIdentity(1, new string('A', 32)) { VolumeBinding = "11111111-1111-1111-1111-111111111111" }], new(true, true));
-                    var setup = new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64)
+                    var setup = new WindowsStorageTransforms(efsSetupBaseDirectory: () => root, qualifyNativeArm64: qualifyNativeArm64)
                         .InspectEfsSetup(identity.User!.Value, consent, true, ct);
                     Assert.Null(setup.Problem);
                     Assert.NotNull(setup.Association);
