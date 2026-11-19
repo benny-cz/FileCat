@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Inspect;
 using Microsoft.Win32.SafeHandles;
 
@@ -26,7 +27,8 @@ public sealed unsafe partial class UnixFileRecords
         FileSystem.PathUtil.RefuseAmbiguousUnixName(path);
         ct.ThrowIfCancellationRequested();
         string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-        return OperatingSystem.IsLinux() ? LinuxDetails(full, fullReport, ct) : MacDetails(full, fullReport, ct);
+        return OperatingSystem.IsLinux() ? LinuxDetails(full, fullReport, ct)
+            : MacDetailsWithoutMaterialization(full, ct, () => MacDetails(full, fullReport, ct));
     }
 
     private static FileDetailsReport LinuxDetails(string path, bool fullReport, CancellationToken ct)
@@ -208,6 +210,12 @@ public sealed unsafe partial class UnixFileRecords
     {
         byte[] fields = ReadMacDetailsFields(path, ct);
         var report = ParseMacDetails(path, fields);
+        if (report.Summary.NativeAttributes is { State: FactState.Known } attributes &&
+            (attributes.Value & MacMaterializationPolicy.DatalessFlag) != 0)
+            return report with { Summary = report.Summary with
+            {
+                Notes = report.Summary.Notes.Add("This dataless item shows cached metadata. Downloads were disabled for this inspection."),
+            } };
         if (report.Summary.Kind == FileObjectKind.SymbolicLink)
         {
             var target = ReadMacStoredTarget(path, report.Summary.Identity, fields, ct);
@@ -218,7 +226,7 @@ public sealed unsafe partial class UnixFileRecords
                 Kind: FileObjectKind.File or FileObjectKind.Directory or FileObjectKind.SymbolicLink,
                 Identity.State: FactState.Known,
                 NativeAttributes.State: FactState.Known,
-            } summary && (summary.NativeAttributes.Value & 0x40000000) == 0) // SF_DATALESS
+            })
         {
             report = AddMacApfsDetails(report, fields, ct);
         }

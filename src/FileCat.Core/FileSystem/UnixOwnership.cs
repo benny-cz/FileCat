@@ -44,7 +44,7 @@ public sealed class UnixOwnership : IOwnership
             // Only device workers can be retired after a failed thread-policy restoration.
             if (!DeviceIoScheduler.IsDeviceWorker) return Unsupported("A guarded ownership worker is required on macOS.");
             int previous = _native.GetMaterializationPolicy();
-            if (previous < 0 || _native.SetMaterializationPolicy(1) != 0)
+            if (previous < 0 || _native.SetMaterializationPolicy(MacMaterializationPolicy.Off) != 0)
                 return Unsupported("The non-materializing ownership policy could not be established.");
             OwnerRead result;
             bool restored = false;
@@ -67,7 +67,7 @@ public sealed class UnixOwnership : IOwnership
         {
             if (stat.Error is 2 or 20) return new(OwnerReadStatus.Gone, Reason: "No longer there.");
             if (stat.Error is 1 or 13) return new(OwnerReadStatus.Denied, Reason: "This system did not allow reading this item's ownership.");
-            if (mac && stat.Error == 11) return Unsupported("Ownership was not read because it would require materializing a dataless item or parent folder.");
+            if (mac && stat.Error == MacMaterializationPolicy.Required) return Unsupported("Ownership was not read because it would require materializing a dataless item or parent folder.");
             if (mac ? stat.Error is 45 or 78 or 102 : stat.Error is 38 or 95)
                 return Unsupported("This file system does not support the required ownership operation.");
             return new(OwnerReadStatus.Failed, Reason: new Win32Exception(stat.Error).Message.TrimEnd('.') + ".");
@@ -96,8 +96,8 @@ internal sealed unsafe partial class UnixOwnershipNative : IUnixOwnershipNative
     }
 
     // Constants verified against Apple's resource.h; this route is disabled pending native GM1 evidence.
-    public int GetMaterializationPolicy() => GetIoPolicy(3, 1);
-    public int SetMaterializationPolicy(int policy) => SetIoPolicy(3, 1, policy);
+    public int GetMaterializationPolicy() => MacMaterializationPolicy.Get();
+    public int SetMaterializationPolicy(int policy) => MacMaterializationPolicy.Set(policy);
 
     public PrincipalName LookUp(Principal principal)
     {
@@ -147,10 +147,6 @@ internal sealed unsafe partial class UnixOwnershipNative : IUnixOwnershipNative
     private static partial int Lstat(string path, byte* buffer);
     [LibraryImport("libc", EntryPoint = "lstat$INODE64", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int Lstat64(string path, byte* buffer);
-    [LibraryImport("libc", EntryPoint = "getiopolicy_np", SetLastError = true)]
-    private static partial int GetIoPolicy(int type, int scope);
-    [LibraryImport("libc", EntryPoint = "setiopolicy_np", SetLastError = true)]
-    private static partial int SetIoPolicy(int type, int scope, int policy);
     [LibraryImport("libc", EntryPoint = "getpwuid_r")]
     private static partial int GetPwUid(uint uid, byte* record, byte* buffer, nint size, nint* result);
     [LibraryImport("libc", EntryPoint = "getgrgid_r")]

@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Inspect;
 
 namespace FileCat.Core.Records;
@@ -16,13 +17,15 @@ public sealed partial class UnixFileRecords
             var sampled = ParseMacDetails(report.Summary.Path, fields).Summary;
             section = sampled.Kind == FileObjectKind.File && sampled.Identity.State == FactState.Known &&
                 sampled.Identity.Value == report.Summary.Identity.Value && sampled.NativeAttributes.State == FactState.Known &&
-                (sampled.NativeAttributes.Value & 0x40000000) == 0 && HasMacIdentityTimestamps(initial) && HasMacIdentityTimestamps(fields) &&
+                (sampled.NativeAttributes.Value & MacMaterializationPolicy.DatalessFlag) == 0 && HasMacIdentityTimestamps(initial) && HasMacIdentityTimestamps(fields) &&
                 initial.Slice(32, 16).SequenceEqual(fields.AsSpan(32, 16)) && initial.Slice(64, 16).SequenceEqual(fields.AsSpan(64, 16))
                 ? ParseMacApfsSharing(fields)
                 : Unavailable(FactState.Changed, "The second sample did not confirm the same ordinary file and timestamps.");
         }
         catch (FileNotFoundException) { section = Unavailable(FactState.Changed, "The file disappeared during observation."); }
         catch (UnauthorizedAccessException) { section = Unavailable(FactState.Denied, "The sharing fields could not be read with this access."); }
+        catch (IOException ex) when (ex.HResult == MacMaterializationPolicy.Required)
+        { section = Unavailable(FactState.NotInspected, MacMaterializationRequired); }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         { section = Unavailable(FactState.Failed, "Darwin did not return a usable sharing observation."); }
         return report with { Technical = report.Technical with { Sections = [.. report.Technical.Sections, section] } };
