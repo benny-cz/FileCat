@@ -87,6 +87,7 @@ public sealed partial class AnalysisIoTests
     [Fact]
     public async Task ShutdownCleanupRetainsBothDeviceTurnsAndClosesExactlyOnce()
     {
+        Ordinary();
         using var stopped = new DeviceIoScheduler(); stopped.Dispose(); using var other = new DeviceIoScheduler();
         string primary = Key(), related = Key(); using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
         int calls = 0, nextCalls = 0;

@@ -48,6 +48,7 @@ public sealed class AnalysisNativeHandleTests
     [Fact]
     public async Task NativeFilesKeepFailedCloseChargedAtTheGlobalLimitInAnOwnedProcess()
     {
+        Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process for the native handle probe.");
         string path = Path.Combine(Path.GetTempPath(), "FileCat-native-handle-probe-" + Guid.NewGuid().ToString("N"));
         File.WriteAllBytes(path, [1, 2, 3]);
         var start = new ProcessStartInfo("dotnet") { UseShellExecute = false, RedirectStandardInput = true,

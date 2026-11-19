@@ -113,6 +113,7 @@ public sealed partial class AnalysisComparisonTests
     [Fact]
     public void ComparisonPrivatePublicationIsOneCreateNewFileAndNeverReplacesOrPublishesHalfInputs()
     {
+        Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process for private comparison publication.");
         using var directory = new AnalysisCatalogTests.MemoryDirectory(); using var store = new AnalysisPrivateInventoryStore(directory, leaveOpen: true);
         var sample = Sample(("name", "a", 1, 4, "v1"));
         var broken = sample with { Nodes = sample.Nodes.SetItem(1, sample.Nodes[1] with { ParentId = 999 }) };
