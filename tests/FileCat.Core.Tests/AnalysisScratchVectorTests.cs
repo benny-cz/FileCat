@@ -67,6 +67,10 @@ public sealed class AnalysisScratchVectorTests
     [Fact]
     public void RecordAndDirectoryCapsRefuseExplicitlyWithoutLosingPublishedRecords()
     {
+        long minimumBlock = AnalysisScratchVector.DirectoryBytes + AnalysisScratchArena.RecordOverheadBytes;
+        Assert.True((AnalysisScratchVector.MaximumBlocks - 1) * minimumBlock <= AnalysisLimits.ScratchBytes);
+        Assert.True(AnalysisScratchVector.MaximumBlocks * minimumBlock > AnalysisLimits.ScratchBytes);
+
         Ordinary(); using var arena = new AnalysisScratchArena(new MemoryDirectory()); using var vector = new AnalysisScratchVector(arena, recordLimit: 3, blockLimit: 2);
         Assert.Throws<ArgumentOutOfRangeException>(() => vector.Append(new byte[AnalysisScratchVector.MaximumRecordBytes + 1], Cancellation));
         Assert.Equal(0UL, vector.AcceptedCount);

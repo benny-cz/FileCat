@@ -11,7 +11,10 @@ internal sealed class AnalysisScratchVector : IDisposable
 {
     internal const int DirectoryBytes = 16 + 4 * (AnalysisLimits.BatchRecords + 1);
     internal const int MaximumRecordBytes = AnalysisLimits.BatchBytes - DirectoryBytes;
-    internal const int DirectoryPage = 1024, MaximumBlocks = 65536;
+    internal const int DirectoryPage = 1024;
+    // Each block reserves an offset table and authentication framing. Set the directory limit
+    // beyond the last affordable block so the arena reports its quota even for short batches.
+    internal const int MaximumBlocks = (int)(AnalysisLimits.ScratchBytes / (DirectoryBytes + AnalysisScratchArena.RecordOverheadBytes)) + 1;
     internal const uint Format = 0x31565346; // FSV1
     private readonly AnalysisScratchArena _arena;
     private readonly byte[] _buffer = new byte[AnalysisLimits.BatchBytes];

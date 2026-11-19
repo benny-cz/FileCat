@@ -19,6 +19,7 @@ internal sealed class AnalysisScratchLimitException(AnalysisScratchLimit limit) 
 internal sealed class AnalysisScratchArena : IDisposable
 {
     private const int HeaderBytes = 16, TagBytes = 32;
+    internal const int RecordOverheadBytes = HeaderBytes + TagBytes;
     private const uint Format = 0x31534146; // FAS1; private runtime data, not an inventory format.
     private readonly object _gate = new();
     private readonly AnalysisPrivateDirectory _directory;
@@ -70,7 +71,7 @@ internal sealed class AnalysisScratchArena : IDisposable
             ObjectDisposedException.ThrowIf(_ownerClosed, this);
             if (_failed) throw new IOException("Private scratch cannot accept more records. Keep the last published partial result.");
             cancellation.ThrowIfCancellationRequested();
-            int bytes = checked(HeaderBytes + payload.Length + TagBytes);
+            int bytes = checked(RecordOverheadBytes + payload.Length);
             try
             {
                 Guard(); _file.Verify();
