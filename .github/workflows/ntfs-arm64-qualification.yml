@@ -215,6 +215,7 @@ jobs:
           )
           if ($env:FILECAT_QUALIFY_SPARSE -eq 'true') {
             $env:FILECAT_TEST_SPARSE_TRANSFORMS = '1'
+            $env:FILECAT_TEST_STORAGE_SIZE = '1'
             $sparseFilter = @(
               'Efs_native_actions_preserve_identity_and_logical_bytes_in_bounded_sparse_fixtures'
               'Compression_native_actions_preserve_identity_and_logical_bytes_in_bounded_sparse_fixtures'
@@ -224,8 +225,9 @@ jobs:
               'A_sparse_range_overflow_refuses_before_a_native_call_while_a_noop_requires_no_inventory'
               'Reviewed_hex_save_as_keeps_sparse_ranges_in_an_approved_clear_copy'
             ) | ForEach-Object { "FullyQualifiedName~WindowsSparseTransformTests.$_" }
+            $sparseFilter += 'FullyQualifiedName~WindowsStorageInspectionTests.Compression_enable_size_ceiling_uses_the_held_logical_file_length'
             $outputSuites += @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-storage-sparse.trx';
-                Count = '23'; Filter = $sparseFilter -join '|' }
+                Count = '24'; Filter = $sparseFilter -join '|' }
           }
           if ($env:FILECAT_QUALIFY_EVIDENCE -eq 'true') {
             $env:FILECAT_TEST_STORAGE_SCALE = '1'

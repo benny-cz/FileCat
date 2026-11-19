@@ -169,27 +169,48 @@ public sealed partial class WindowsStorageInspectionTests
     [Fact]
     public unsafe void Compression_enable_size_ceiling_uses_the_held_logical_file_length()
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost || Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_SIZE") != "1",
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64) || Environment.GetEnvironmentVariable("FILECAT_TEST_STORAGE_SIZE") != "1",
             "Requires the explicit Windows NTFS large sparse fixture.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-size-").FullName;
         try
         {
+            const StorageAction enable = StorageAction.Compress;
             const long ceiling = 30_000_000_000L;
             string path = Path.Join(root, "sparse.bin");
-            var manager = Manager(root);
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
+            var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), adapter, Path.Join(root, "journal"));
             foreach (long size in new[] { ceiling - 1, ceiling, ceiling + 1 })
             {
-                using (var file = File.OpenHandle(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete))
-                {
-                    Assert.True(Control(file, 0x900C4, null, 0, null, 0, out _, 0));
-                    RandomAccess.SetLength(file, size);
-                    Assert.Equal(size, RandomAccess.GetLength(file));
-                }
+                SetSparseLength(size);
                 Assert.True(File.GetAttributes(path).HasFlag(FileAttributes.SparseFile));
-                using var compress = Inspect(manager, path, StorageAction.Compress);
+                using var compress = Inspect(manager, path, enable);
                 Assert.Equal(size > ceiling ? "enable-size-limit" : null, Assert.Single(compress.Roots).Observation.Ineligible?.Code);
                 using var remove = Inspect(manager, path, StorageAction.RemoveCompression);
                 Assert.Null(Assert.Single(remove.Roots).Observation.Ineligible);
+            }
+
+            SetSparseLength(ceiling);
+            using var review = Inspect(manager, path, enable);
+            using var owner = review.Transfer(adapter, review.Approve(enable, StorageScope.SelectedItems));
+            SetSparseLength(ceiling + 1);
+            var ct = TestContext.Current.CancellationToken;
+            using var native = StorageReviewResources.EnterNative(ct);
+            using var traversal = adapter.OpenReviewedRoot(owner.Leases[0], enable, ct);
+            Assert.Equal("enable-size-limit", traversal.Root.PrepareMutation(enable, ct).Ineligible?.Code);
+            var guarded = traversal.Root.ApplyAdmitted(enable);
+            Assert.Equal(StorageEffect.Skipped, guarded.Effect);
+            Assert.Equal("enable-size-limit", guarded.Problem?.Code);
+            Assert.False(guarded.NativeCallAttempted);
+            Assert.Equal(ceiling + 1, new FileInfo(path).Length);
+            Assert.False(File.GetAttributes(path).HasFlag(FileAttributes.Compressed));
+
+            void SetSparseLength(long size)
+            {
+                using var file = File.OpenHandle(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
+                Assert.True(Control(file, 0x900C4, null, 0, null, 0, out _, 0));
+                RandomAccess.SetLength(file, size);
+                Assert.Equal(size, RandomAccess.GetLength(file));
             }
         }
         finally { Directory.Delete(root, recursive: true); }

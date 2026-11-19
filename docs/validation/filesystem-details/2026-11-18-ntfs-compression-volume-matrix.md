@@ -10,6 +10,8 @@ A reviewed job removed compression from a 30,000,000,001-byte sparse file on the
 
 Five native details cases passed. The summary and fresh metadata full report identified the actual volume format and main-stream allocation on 64 KiB NTFS, read-only NTFS, FAT32 and exFAT. The base NTFS summary/full case also passed. ReFS was the fixture skip. See `.tmp/filecat-storage-extra-details.xml`.
 
+The Windows x64 VM repeated the three logical-size inspections and a separate late-growth check. A sparse file at exactly 30,000,000,000 bytes passed the Compress review. Its logical size increased by one byte while FileCat retained the original review pin. The held pre-call observation refused with `enable-size-limit`, attempted no compression call and kept the file clear at its new size. The expanded `compression-size-boundary-x64.trx` passed with no skips and has SHA-256 `97432C194335822283ED982709DE1AC2C698FCC86AF9946A26A60FF62B177A8B`. The focused ARM64 sparse workflow includes this size fixture.
+
 ## Native ARM64 ABI qualification
 
 The manually dispatched [Windows ARM64 qualification workflow](../../../.github/workflows/ntfs-arm64-qualification.yml) prepares a new fixture directory on a disposable Windows 11 hosted runner with 4 KiB NTFS. It requires a native ARM64 process, medium integrity and an executed pass for every selected case. The workflow records the exact build, test binary hash, volume type and .NET runtime with the test receipt.
