@@ -28,7 +28,7 @@ public sealed partial class AnalysisRenderingTests
         internal AnalysisSnapshot? Memory;
         private NativeNamesFixture() => Root = Path.Combine(_parent, "native-names-" + Guid.NewGuid().ToString("N"));
 
-        internal static async Task<NativeNamesFixture> CreateAsync(bool indexed)
+        internal static async Task<NativeNamesFixture> CreateAsync(bool indexed, bool includeSecondBidiName = false)
         {
             var fixture = new NativeNamesFixture(); bool completed = false;
             Directory.CreateDirectory(fixture.SourcePath);
@@ -36,6 +36,8 @@ public sealed partial class AnalysisRenderingTests
             {
                 foreach (string name in new[] { "plain.bin", "ordinary.txt", "bidi\u202E.bin", "é-one.bin", "e\u0301-two.bin", "emoji-😀.bin", "=formula.bin", "trailing. " })
                     fixture.Create(AnalysisRawNames.Encode(fixture.EncodingName, name));
+                if (includeSecondBidiName)
+                    fixture.Create(AnalysisRawNames.Encode(fixture.EncodingName, "second-bidi\u202E.bin"));
                 fixture.Create(AnalysisRawNames.Encode(fixture.EncodingName, "case.bin"));
                 fixture.CaseDistinct = fixture.TryCreate(AnalysisRawNames.Encode(fixture.EncodingName, "CASE.bin"), collisionAllowed: true);
                 if (OperatingSystem.IsWindows())

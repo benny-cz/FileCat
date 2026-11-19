@@ -75,17 +75,29 @@ public sealed partial class AnalysisRenderingTests
     [InlineData("Sunburst", true)]
     public async Task NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(string mode, bool grouped)
     {
-        OrdinaryPreparation(); using var styles = new ProductStyles(); using var profile = new PreparationFixture(); await using var source = await NativeNamesFixture.CreateAsync(indexed: true); var token = TestContext.Current.CancellationToken;
+        OrdinaryPreparation(); using var styles = new ProductStyles(); using var profile = new PreparationFixture();
+        // A filesystem may reject the invalid byte names. Keep a display-sensitive name after dropping the first entry.
+        await using var source = await NativeNamesFixture.CreateAsync(indexed: true, includeSecondBidiName: true);
+        var token = TestContext.Current.CancellationToken;
         await using (var prepared = await AnalysisIndexedAcquisition.PrepareAsync(profile.Services, token, indexedStorage: false))
             await prepared.SaveInventoryAsync(source.Lease!, "native-reference.fcdsa", AnalysisSavedView.Default, token);
         using var reference = await ReadOtherReference(profile, "native-reference.fcdsa"); var snapshot = reference.Snapshot; ValidateNativeNames(source, snapshot, token);
         var projection = AnalysisAggregate.Project(snapshot, AnalysisMetric.FileSize, cancellation: token);
         var tree = grouped ? AnalysisTree.BuildGrouped(snapshot, projection, AnalysisGroupingDimension.Extension, false, token) : AnalysisTree.Build(snapshot, projection, false, token);
-        string parent = grouped ? tree.Groups.Values.Where(group => group.Kind == AnalysisGroupKind.Entries && group.Members.Length > 3)
-            .OrderByDescending(group => group.Members.Length).First().Definition.Key : AnalysisTree.Key(snapshot.Nodes.Single(node => node.ParentId == 0).Id);
-        string scope = AnalysisTree.OtherKey(parent, 1); var selected = tree.ChildrenOf(scope).Where(item => item.NodeId.HasValue).ToArray();
-        var target = selected.FirstOrDefault(item => item.NameEvidence is not null) ?? selected.First(item => snapshot.Nodes.Single(node => node.Id == item.NodeId).Name.Contains('\u202E'));
-        var targetNode = snapshot.Nodes.Single(node => node.Id == target.NodeId);
+        IEnumerable<string> parents = grouped
+            ? tree.Groups.Values.Where(group => group.Kind == AnalysisGroupKind.Entries).Select(group => group.Definition.Key).Order(StringComparer.Ordinal)
+            : [AnalysisTree.Key(snapshot.Nodes.Single(node => node.ParentId == 0).Id)];
+        // Lossy names belong to the unknown-extension group, whose membership can be smaller than the .bin group.
+        var candidates = parents.Select(parent => AnalysisTree.OtherKey(parent, 1))
+            .SelectMany(candidateScope => tree.ChildrenOf(candidateScope).Where(item => item.CapturedNode is not null)
+                .Select(item => (Scope: candidateScope, Item: item)));
+        var choice = candidates.OrderByDescending(row => row.Item.NameEvidence is not null)
+            .FirstOrDefault(row => row.Item.NameEvidence is not null || row.Item.CapturedNode!.Name.Contains('\u202E'));
+        Assert.NotNull(choice.Item);
+        string scope = choice.Scope;
+        var target = choice.Item;
+        var selected = tree.ChildrenOf(scope).Where(item => item.NodeId.HasValue).ToArray();
+        var targetNode = target.CapturedNode!;
         var view = AnalysisSavedView.Default with { Metric = AnalysisMetric.FileSize, Chart = mode, Scope = scope, Grouping = grouped ? AnalysisGroupingDimension.Extension : AnalysisGroupingDimension.FolderHierarchy };
         await using (var prepared = await AnalysisIndexedAcquisition.PrepareAsync(profile.Services, token, indexedStorage: false))
             await prepared.SaveInventoryAsync(source.Lease!, "native-other.fcdsa", view, token);
