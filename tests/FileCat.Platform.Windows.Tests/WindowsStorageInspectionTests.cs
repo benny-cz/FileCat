@@ -113,14 +113,16 @@ public sealed partial class WindowsStorageInspectionTests
     [InlineData("FILECAT_STORAGE_NATIVE_MAPPED_TARGET", "remote-volume", true)]
     public void Prepared_volumes_have_specific_inspection_refusals(string variable, string reason, bool rejectsBinding)
     {
-        Assert.SkipWhen(!WindowsStorageTransforms.IsQualifiedHost, "Qualified Windows 11 x64 client fixture.");
+        bool arm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        Assert.SkipWhen(!WindowsStorageTransforms.SupportsHost(arm64), "Qualified Windows 11 client fixture.");
         string? path = Environment.GetEnvironmentVariable(variable);
         if (string.IsNullOrWhiteSpace(path)) Assert.Skip("Set " + variable + " to an owned prepared file.");
         Assert.True(File.Exists(path), "The owned fixture file must be visible to the test account.");
         string root = Directory.CreateTempSubdirectory("filecat-storage-volume-admission-").FullName;
         try
         {
-            var manager = Manager(root);
+            var adapter = new WindowsStorageTransforms(qualifyNativeArm64: arm64);
+            var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), adapter, Path.Join(root, "journal"));
             foreach (var action in new[] { StorageAction.Compress, StorageAction.RemoveCompression })
             {
                 var code = rejectsBinding
