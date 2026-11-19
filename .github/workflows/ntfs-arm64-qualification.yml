@@ -23,6 +23,10 @@ on:
         description: Drive the native Operations window with the 10,000-file workload
         type: boolean
         default: false
+      listing:
+        description: Compare native and managed listing at 10,000 and 1,000,000 entries
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -237,6 +241,46 @@ jobs:
               throw 'The native 10,000-file benchmark must execute and pass.'
             }
           }
+      - name: Measure native and managed NTFS listing at scale
+        if: inputs.listing
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP ('filecat-native-listing-' + [guid]::NewGuid().ToString('N'))
+          $volume = Get-Volume -DriveLetter ([IO.Path]::GetPathRoot($root)[0])
+          if ($volume.FileSystem -ne 'NTFS' -or $volume.AllocationUnitSize -ne 4096 -or $volume.SizeRemaining -lt 2GB) {
+            throw 'The listing fixture requires space on local 4 KiB NTFS.'
+          }
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Globalization;
+          using System.IO;
+          public static class FileCatListingFixture
+          {
+              public static void Seed(string directory, int count)
+              {
+                  Directory.CreateDirectory(directory);
+                  for (int index = 0; index < count; index++)
+                  {
+                      string name = index.ToString("D7", CultureInfo.InvariantCulture) + ".bin";
+                      using var file = File.Open(Path.Combine(directory, name), FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                  }
+              }
+          }
+          '@
+          foreach ($count in 10000,1000000) {
+            $env:FILECAT_ENUM_FIXTURE = Join-Path $root "entries-$count"
+            $env:FILECAT_ENUM_EXPECTED_COUNT = "$count"
+            $env:FILECAT_ENUM_ROUTE = $null
+            [FileCatListingFixture]::Seed($env:FILECAT_ENUM_FIXTURE, $count)
+            $log = "native-listing-performance-$count.trx"
+            ./eng/validation/run-medium-integrity-test.ps1 -Project tests/FileCat.Platform.Windows.Tests -LogFileName $log -Filter 'FullyQualifiedName~Enumeration_performance_records_native_and_managed_timings_on_a_prepared_directory'
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            [xml]$receipt = Get-Content -LiteralPath "tests/FileCat.Platform.Windows.Tests/TestResults/$log" -Raw
+            $counters = $receipt.TestRun.ResultSummary.Counters
+            if ($counters.total -ne '1' -or $counters.executed -ne '1' -or $counters.passed -ne '1') {
+              throw "The $count-entry listing measurement must execute and pass."
+            }
+          }
       - name: Restore a fixture EFS key under a second account
         if: inputs.recovery
         shell: pwsh
@@ -292,6 +336,7 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-keys.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-wizard.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-file-details.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-listing-performance-*.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-storage-scale.trx
             tests/FileCat.Core.Tests/TestResults/native-efs-archive-output.trx
           if-no-files-found: error

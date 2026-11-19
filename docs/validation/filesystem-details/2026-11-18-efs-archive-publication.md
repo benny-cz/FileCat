@@ -19,3 +19,16 @@ The [ARM64 qualification run](https://github.com/benny-cz/FileCat/actions/runs/4
 The hex cases verified refusal of in-place persistence and recovery on EFS inputs, rechecks when the target became encrypted during save or recovery, and legitimate recovery after explicit decryption. Imports from an actual encrypted patch retained provenance through partial application and Undo/Redo. Tested Save As and patch export cases required explicit approval before creating plaintext output. The clear and unknown input controls also ran. This qualifies the tested output routes on ARM64. The Recovery image routes, other formats and destinations, and the wider release gates still need their own evidence.
 
 The hosted artifact contains `native-efs-archive-output.trx`, `native-efs-hex-output.trx`, `native-storage-abi.trx` and the native build manifest. The tested commit was `59da8ae513899ffc064c9651e56d06398853581a`. The Core test assembly SHA-256 was `82B571936E04174E580274E2555F3CA4C9068CCF2E30A84637DED892EC3FE230`. The Windows platform test assembly SHA-256 was `B7CA1EEA5F605C4169BD50CB966E33DDBFC288093684798F7820EBA41995C7FE`.
+
+## Native ARM64 packing, editing and publication protections
+
+The Windows 11 Enterprise ARM64 runner (build 26200, medium integrity, 4 KiB NTFS) ran 49 selected cases. All 49 executed and passed. The source commit was `4bb5a47ec0f2756dbf795c05b3dbd0a8cebd6aad` and the test assembly SHA-256 was `E38A67D4F72CA4C2047B40F3DDD521E1CF49FE1D9A1CB74B4E866E9C55767023`. [Run and `native-efs-archive-protection.trx`](https://github.com/benny-cz/FileCat/actions/runs/44505500976)
+
+| Route | Cases | Observed protection on the prepared paths |
+| --- | ---: | --- |
+| E-OUT6, packing and move into an archive | 13 | Native and legacy admission refused protected selections before reading a payload or creating a stage, including nested, directory-default and sparse cases. The legacy job stopped on observed protection changes, and active read holds resisted encryption. |
+| E-OUT8, member edit and retained snapshots | 19 | Tests preserved the clear outer hold through extraction, refused protected outer ZIP and working files, and exercised commit and Save Copy with held snapshots and encrypted sources or destinations. |
+| E-OUT7 and E-OUT9, archive updates | 14 | Tested native and legacy updates stopped before staging when the target became protected. Native snapshot, held-read, legacy stage, retained backup and partial replacement checks kept the exact affected objects. |
+| E-OUT10, nested and legacy ZIP spools | 3 | Protected members remained viewable via the tested memory and forward-only routes. A disk-backed read or nested spool was refused before creating payload output. |
+
+These receipts cover the selected protection boundaries on local NTFS. Full worker publication to other filesystems, cross-volume cases and native device-loss remain separate qualifications.
