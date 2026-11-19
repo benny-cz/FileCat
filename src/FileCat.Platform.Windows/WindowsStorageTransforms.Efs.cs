@@ -324,6 +324,8 @@ internal sealed unsafe partial class WindowsStorageTransforms
             if (!EncryptionStatus(_apiPath, out uint status)) throw NativeFailure(Marshal.GetLastPInvokeError(), "Inspect EFS native status");
             ct.ThrowIfCancellationRequested();
             uint expected = before.Efs == StorageObservationState.Enabled ? 1u : 0u;
+            if (status == 5) throw new StorageInspectionException(Problem(StorageReasonKind.Unknown, "efs-status-5",
+                "Windows could not determine the EFS status for this path. No EFS call was attempted."));
             if (status != expected) throw new StorageInspectionException(Problem(status is 2 or 3 or 4 or 6 ? StorageReasonKind.WindowsLimitation : StorageReasonKind.PermissionOrPolicy,
                 "efs-status-" + status, "Windows EFS status " + status + " does not admit this change; no EFS call was attempted."));
         }

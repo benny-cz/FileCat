@@ -56,3 +56,11 @@ On Windows 11 x64 at medium integrity, an existing write handle denied read shar
 The Windows VM executed and passed all 18 cases without skips. The test assembly SHA-256 was `D8A93E67BA56A49587FB501195CCFDC6E7B7D59456DAF4375A031713FA2FABAE`. The receipt is `.tmp/filecat-efs-live-166b6897-r1/efs-writer-20e3354f/efs-native-x64.trx`, SHA-256 `F010D4090122C137034E3BDAAF12048BA152EC9E51C9A9AC64CCDA682E45434C`.
 
 Native ARM64 at `f195e471` also passed all 18 cases without skips on Windows 11 Enterprise build 26200 and 4 KiB NTFS. The test assembly SHA-256 was `AB31D4FA35321EB6B54E7B96D8CD989A87B6739B255207B3546E1CE2D0642FFA`. The downloaded `native-efs-binding.trx` SHA-256 was `C4BF5775A5107772731C406C7A6EFB9498893CCA19E86FEF974EB86F4675E64D`. [Native ARM64 qualification run](https://github.com/benny-cz/FileCat/actions/runs/44566195285)
+
+### New hard link and alternate local path spellings
+
+On Windows 11 x64 build 26340 at medium integrity, an ordinary hard-link creation succeeded after FileCat prepared and guarded the reviewed file. The final held-object check refused with `efs-path-changed` before calling EFS. Both names still showed the same clear main and named data.
+
+The same guest encrypted a file selected through an extended drive path and decrypted it through its volume-GUID path. Both reviews retained the original object identity and both streams retained their bytes. A separate file with a path longer than 260 characters reached native status inspection. Windows reported `FILE_UNKNOWN`, FileCat reported that it could not determine EFS status, and neither stream changed. This receipt covers the observed long-path refusal. [Windows file encryption status values](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-fileencryptionstatusw)
+
+All 21 cases ran and passed on this x64 VM. The test assembly SHA-256 was `1279A17803112AA61EB112EE92E6E6F5BF5110D80B78E8706EC155BDA874DA58`. The receipt is `.tmp/filecat-efs-live-166b6897-r1/efs-pathnames-249232a-r2/efs-pathnames-native-x64.trx` with SHA-256 `16E3198855BCC6DBC74309EAEB14FA923A7E1B0EDBE336D93A4B3FB90538B51A`.
