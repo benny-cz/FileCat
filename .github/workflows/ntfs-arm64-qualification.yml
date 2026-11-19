@@ -448,7 +448,7 @@ jobs:
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-copy-output.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-broker-*.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-archive-protection.trx
-              tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-binding.trx
+            tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-binding.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-keys.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-wizard.trx
             tests/FileCat.Platform.Windows.Tests/TestResults/native-efs-parented-provider.trx
