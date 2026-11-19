@@ -210,11 +210,13 @@ public sealed class WindowsEfsSetupTests
 
     private static void ReviewResultingAssociation(bool changeKey)
     {
-        NativeFixture(); string directory = Namespace(); string path = Path.Join(directory, "user-item"); File.WriteAllText(path, "synthetic test content");
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        NativeFixture(qualifyNativeArm64);
+        string directory = Namespace(); string path = Path.Join(directory, "user-item"); File.WriteAllText(path, "synthetic test content");
         try
         {
             using var native = StorageReviewResources.EnterNative(Ct);
-            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => directory);
+            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => directory, qualifyNativeArm64: qualifyNativeArm64);
             var target = StoragePaths.Capture([ItemRef.ForFileSystemPath(path, EntryKind.File)])[0];
             using var pins = StorageReviewResources.ReservePins(1); IStorageReviewLease pin;
             using (StorageReviewResources.EnterRootInspection(target)) pin = adapter.InspectEfsRoot(target, StorageAction.EncryptEfs, Ct);

@@ -169,7 +169,8 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void Files_encrypted_with_distinct_real_Efs_keys_keep_independent_backup_choices()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_BACKUP_MULTIPLE_KEYS") == "1" &&
             Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_ROTATE_KEY") == "1",
             "Requires a disposable account that allows changing its default EFS certificate.");
@@ -178,7 +179,7 @@ public sealed partial class WindowsEfsJobTests
         {
             string first = Write(root, "before-rotation.bin"), second = Write(root, "after-rotation.bin");
             File.Encrypt(first);
-            var manager = Manager(root, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            var manager = Manager(root, new WindowsStorageTransforms(qualifyNativeArm64: qualifyNativeArm64).CreateEfsJobCandidate(), qualifyNativeArm64);
             var items = new[] { ItemRef.ForFileSystemPath(first, EntryKind.File), ItemRef.ForFileSystemPath(second, EntryKind.File) };
             string originalKey;
             using (StorageReviewResources.EnterNative(Ct))
@@ -495,14 +496,15 @@ public sealed partial class WindowsEfsJobTests
     [Fact]
     public void An_unexpected_real_key_stops_the_selected_job_and_retains_the_exact_call()
     {
-        RequireEfs();
+        bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;
+        RequireEfs(qualifyNativeArm64);
         Assert.SkipUnless(Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_ROTATE_KEY") == "1",
             "Use only a disposable account whose current EFS key may change.");
         string root = Directory.CreateTempSubdirectory("filecat-efs-job-rotated-").FullName;
         try
         {
             string first = Write(root, "first.txt"), second = Write(root, "second.txt");
-            var adapter = new WindowsStorageTransforms();
+            var adapter = new WindowsStorageTransforms(efsSetupBaseDirectory: () => root, qualifyNativeArm64: qualifyNativeArm64);
             var manager = Manager(root, adapter.CreateEfsJobCandidate((job, sid, scope, token) =>
             {
                 if (RequestTestSetup(job, first).Action != DecisionAction.Proceed) return null;
@@ -512,7 +514,7 @@ public sealed partial class WindowsEfsJobTests
                 var approval = StorageEfsRecoveryApproval.DeclareArrangement(scope, setup, hash, acknowledged: true);
                 WindowsEfsSetupTests.RotateDisposableDefaultKey();
                 return approval;
-            }));
+            }), qualifyNativeArm64);
             bool prompted = false;
             manager.DecisionRequested += pending =>
             {

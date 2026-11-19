@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory)][string]$Root,
     [Parameter(Mandatory)][string]$DotNet,
     [string]$TestBin,
-    [ValidateSet('Controller','Owner','Recipient')][string]$Role = 'Controller',
+    [ValidateSet('Controller','Owner','Recipient','KeyChanges')][string]$Role = 'Controller',
     [string]$AccountSid
 )
 
@@ -43,6 +43,18 @@ if ($Role -ne 'Controller') {
     $env:FILECAT_TEST_EFS = '1'
     $env:FILECAT_TEST_WINDOWS_STORAGE_ARM64_JOBS = '1'
     $env:FILECAT_TEST_WINDOWS_STORAGE_ABI_ARCHITECTURE = 'Arm64'
+    if ($Role -eq 'KeyChanges') {
+        $keys = @(Get-EfsCertificate)
+        if ($keys.Count -ne 1 -or $keys[0].Thumbprint -cne (Get-Content -LiteralPath (Join-Path $data 'thumbprint.txt')).Trim()) {
+            throw 'Key changes require the original disposable owner profile and its one fixture certificate.'
+        }
+        $env:FILECAT_TEST_EFS_ROTATE_KEY = '1'
+        $env:FILECAT_TEST_EFS_BACKUP_MULTIPLE_KEYS = '1'
+        Invoke-Case 'Files_encrypted_with_distinct_real_Efs_keys_keep_independent_backup_choices' 'multiple-keys.xml'
+        Invoke-Case 'A_real_key_change_after_setup_requires_review_after_the_current_file_is_encrypted' 'key-change-after-intent.xml'
+        Invoke-Case 'An_unexpected_real_key_stops_the_selected_job_and_retains_the_exact_call' 'key-change-stops-job.xml'
+        exit 0
+    }
     $password = ConvertTo-SecureString ((Split-Path -Leaf $Root) + 'Aa1!') -AsPlainText -Force
     if (@(Get-EfsCertificate).Count -ne 0) { throw 'The fresh fixture account already has an EFS certificate.' }
 
@@ -117,17 +129,17 @@ try {
     Copy-Item -LiteralPath $PSCommandPath -Destination $action
     Copy-Item -LiteralPath $TestBin -Destination (Join-Path $Root 'bin') -Recurse
     $powershell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    for ($i = 0; $i -lt $users.Count; $i++) {
-        $childRole = @('Owner','Recipient')[$i]
+    foreach ($childRole in 'Owner','Recipient','KeyChanges') {
+        $accountIndex = if ($childRole -eq 'Recipient') { 1 } else { 0 }
         $params = @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',"`"$action`"",'-Root',"`"$Root`"",
-            '-DotNet',"`"$DotNet`"",'-Role',$childRole,'-AccountSid',$users[$i].SID.Value)
+            '-DotNet',"`"$DotNet`"",'-Role',$childRole,'-AccountSid',$users[$accountIndex].SID.Value)
         $output = Join-Path $Root "$childRole.out.log"
         $errors = Join-Path $Root "$childRole.err.log"
-        $child = Start-Process -FilePath $powershell -ArgumentList $params -Credential $credentials[$i] -LoadUserProfile -WindowStyle Hidden `
+        $child = Start-Process -FilePath $powershell -ArgumentList $params -Credential $credentials[$accountIndex] -LoadUserProfile -WindowStyle Hidden `
             -WorkingDirectory $Root -RedirectStandardOutput $output -RedirectStandardError $errors -PassThru -Wait
         if ($child.ExitCode -ne 0) { Get-Content -LiteralPath $errors; throw "$childRole fixture exited with code $($child.ExitCode)." }
     }
-    'Passed first-use, no-key decryption refusal, and independent restored-key decryption.'
+    'Passed first use, independent key restore, selection with distinct keys, and default-key change checks.'
 }
 finally {
     foreach ($account in $users) { Remove-LocalUser -InputObject $account -ErrorAction Continue }

@@ -8,7 +8,7 @@ on:
         type: boolean
         default: false
       recovery:
-        description: Qualify EFS first use and independent key restore under fresh local accounts
+        description: Qualify EFS first use, independent restore, and default-key changes under fresh local accounts
         type: boolean
         default: false
       archives:
@@ -327,6 +327,8 @@ jobs:
             ${{ runner.temp }}/filecat-efs-recovery-*/data/first-use.xml
             ${{ runner.temp }}/filecat-efs-recovery-*/data/no-key.xml
             ${{ runner.temp }}/filecat-efs-recovery-*/data/restored-key.xml
+            ${{ runner.temp }}/filecat-efs-recovery-*/data/multiple-keys.xml
+            ${{ runner.temp }}/filecat-efs-recovery-*/data/key-change-*.xml
             ${{ runner.temp }}/filecat-native-storage-operations/*.json
             ${{ runner.temp }}/filecat-native-storage-operations/operations-stage.txt
             ${{ runner.temp }}/filecat-native-storage-operations/fixture/data/local/journal/job-storage-*.fcj
