@@ -287,6 +287,7 @@ public sealed partial class DiskSpaceWindow : Window
         private string _folderExclusionDetail = "";
         private readonly TextBlock _scope = new() { TextWrapping = TextWrapping.Wrap }, _coverage = new() { TextWrapping = TextWrapping.Wrap };
         private readonly TextBlock _coverageHeadline = new() { TextWrapping = TextWrapping.Wrap };
+        private readonly TextBlock _resultNotice = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap }, _error = new() { TextWrapping = TextWrapping.Wrap };
         private readonly TextBlock _basket = new() { TextWrapping = TextWrapping.Wrap };
         private readonly TextBlock _inspector = new() { TextWrapping = TextWrapping.Wrap };
@@ -413,7 +414,7 @@ public sealed partial class DiskSpaceWindow : Window
                 FullVolumeAllocation, CurrentAnalysisCapacityContext);
             toolbar.Children.Add(nav); toolbar.Children.Add(_setupActions); toolbar.Children.Add(_breadcrumbs);
             toolbar.Children.Add(filters); toolbar.Children.Add(_volumeCapacityRibbon);
-            toolbar.Children.Add(_analysisActions); toolbar.Children.Add(_legend); toolbar.Children.Add(_error);
+            toolbar.Children.Add(_analysisActions); toolbar.Children.Add(_legend); toolbar.Children.Add(_resultNotice); toolbar.Children.Add(_error);
             AddRecordedResultControls(toolbar);
             toolbar.Children.Add(_runtimeChangeHint);
             _dataControls.AddRange([_mode, _metric, _group, _color, _pause, _inspect, _save, _compare, _breadcrumbs, _summary,
@@ -762,6 +763,11 @@ public sealed partial class DiskSpaceWindow : Window
                     CoverageHeadline(tree.Snapshot.Coverage, tree.Snapshot.Freshness, compact);
                 _coverageHeadline.IsVisible = tree is not null;
                 _coverageDetails.IsVisible = tree is not null;
+                string? incompatible = tree?.Projection.Totals.CompatibleBasis == false
+                    ? "These locations report different allocation components. Choose one location to view its On disk total."
+                    : null;
+                _resultNotice.Text = string.Join("\n", new[] { incompatible, Model.AcquisitionWarning, Model.ContinuityNotice }.OfType<string>());
+                _resultNotice.IsVisible = tree is not null && _resultNotice.Text.Length > 0;
                 int folderRules = tree is null ? 0 : AnalysisFolderExclusions.RuleCount(tree.Snapshot.Policy);
                 _folderBoundaryCounts.IsVisible = folderRules != 0;
                 ulong skipped = tree?.Snapshot.BoundaryTotals.GetValueOrDefault(AnalysisBoundaryKind.FolderExclusion) ?? 0;

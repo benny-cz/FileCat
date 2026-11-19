@@ -76,7 +76,7 @@ public sealed partial class AnalysisRenderingTests
             await acquisition.DisposeAsync(); await view.Memory.RebuildAsync(true); window.Show(); Frame(window);
             Assert.Contains("Not read because a private-state boundary", view.Memory.AcquisitionNotice);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("Not read because a private-state boundary", StringComparison.Ordinal) == true);
-            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("Recorded partial results; unread scopes remain unknown", StringComparison.Ordinal) == true);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.IsEffectivelyVisible && t.Text?.Contains("Partial results", StringComparison.Ordinal) == true);
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("Known results so far; table ranking can change", StringComparison.Ordinal) == true);
             Assert.Equal("untouched private neighbor", File.ReadAllText(hidden)); Assert.Equal("safe source", File.ReadAllText(Path.Combine(input, "safe.bin")));
         }

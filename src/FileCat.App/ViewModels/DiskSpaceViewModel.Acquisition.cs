@@ -70,6 +70,9 @@ public sealed partial class DiskSpaceViewModel
             string.Join(", ", unavailable.Select(r => AnalysisNames.Display(r.Label, 120) + " [" + AnalysisNames.Display(r.Id, 64) + "]")) + ". Other verified locations remain available.";
     }
 
+    internal string? AcquisitionWarning => _privateStorageUnavailable ? AcquisitionNotice :
+        Tree is { } tree ? PrivateBoundaryNotice(tree.Snapshot) : null;
+
     internal string? OfferedPanelFilter { get; init; }
     internal string? PanelFilter { get; set; }
     internal bool PanelFilterApplied => _publishedView?.PanelFilter is not null;

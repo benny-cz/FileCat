@@ -37,7 +37,8 @@ public sealed partial class AnalysisRenderingTests
             var projection = AnalysisIndexedChart.Bucket(bucket, metric); Assert.Equal(0UL, projection.Files); Assert.Equal((UInt128)0, projection.LogicalSize);
             Assert.Equal(files + " references", DiskSpaceViewModel.FilePathsText(projection));
             var inspect = window.GetVisualDescendants().OfType<Button>().Single(button => AutomationLabel(button) == "Inspect Shared hard-linked files");
-            Click(window, inspect.Content!.ToString()!); Assert.Contains("Matching reference paths: " + files + " references", IndexedDetails(window).Text);
+            Click(window, inspect.Content!.ToString()!);
+            Assert.Contains($"File size across {files} matching {(files == 1 ? "path" : "paths")}", IndexedDetails(window).Text);
             Assert.Contains(bucket.ReferenceLogical.KnownBytes + " bytes (references)", IndexedDetails(window).Text);
             Assert.Contains("the chart counts its measured amount once at their common parent", IndexedDetails(window).Text);
             Assert.Contains("Removing one name can leave the file reachable through its other names.", IndexedDetails(window).Text);

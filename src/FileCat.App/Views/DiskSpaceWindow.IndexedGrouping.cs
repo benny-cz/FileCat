@@ -208,8 +208,8 @@ public sealed partial class DiskSpaceWindow
                 ? " · Includes identity-unverified path allocation; aliases may repeat."
                 : " · Identity-unverified path bytes are excluded from unique chart area.";
             _status.Text = "Grouped view ready. " + CoverageHeadline(groups.Descriptor.Coverage, groups.Descriptor.Freshness) + ".";
+            if (groups.Filter is { } applied) _status.Text += $" {applied.DefinitePaths:N0} definite matches; {applied.UnknownPaths:N0} uncertain results.";
             _coverageDetail = "Missing measurements: " + (totals.Missing.Count == 0 ? "0" : Missing(totals)) + "." +
-                (groups.Filter is { } filter ? $" {filter.DefinitePaths:N0} definite matches; {filter.UnknownPaths:N0} uncertain results." : "") +
                 (page.Chart.DetailLimited ? " Chart detail is summarized; every captured member remains in the paged table." : "");
             if (groups.Filter?.Request.UnknownOnly == true) _status.Text += " Showing uncertain filter results.";
             if (groups.Filter?.Request.PanelFilter is not null) _status.Text += " Panel filter applied to results.";

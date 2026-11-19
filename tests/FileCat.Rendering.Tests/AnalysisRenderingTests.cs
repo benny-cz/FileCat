@@ -109,7 +109,11 @@ public sealed partial class AnalysisRenderingTests
             Assert.True(item.Unknown); Assert.False(item.LogicalUnknown); Assert.Equal("0 bytes", DiskSpaceViewModel.LogicalText(item, true));
             var inspector = window.GetVisualDescendants().OfType<TextBlock>().Single(t => t.IsEffectivelyVisible && t.Text?.Contains("On disk — reported: Unknown", StringComparison.Ordinal) == true).Text!;
             Assert.Contains("File size: 0 B", inspector);
-            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("File size: 0 bytes", StringComparison.Ordinal) == true);
+            var exact = window.GetVisualDescendants().OfType<Expander>().Single(control => Equals(control.Header, "Measurement details"));
+            Assert.False(exact.IsExpanded);
+            exact.IsExpanded = true;
+            Frame(window);
+            Assert.Contains(exact.GetVisualDescendants().OfType<TextBlock>(), t => t.IsEffectivelyVisible && t.Text?.Contains("File size: 0 bytes", StringComparison.Ordinal) == true);
             Assert.Contains("bad\\uD800\\u002E\\u0020", inspector); Assert.Contains("Raw name (utf16le):", inspector);
             Assert.Contains("no lossless clipboard path", inspector); Assert.Null(zero.FocusedPath());
             using var missing = new DiskSpaceViewModel(s with { Objects = s.Objects.SetItem(2, s.Objects[2] with { LogicalLength = AnalysisMeasurement.Missing(MeasurementState.Failed) }) });

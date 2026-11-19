@@ -58,7 +58,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.NotNull(bucket.ReferenceLogical); Assert.Equal(filtered ? 1UL : 2UL, bucket.ReferenceLogical.Files);
             Assert.Equal(metric == AnalysisMetric.UniqueFileSize ? bucket.ReferenceLogical.Files : 0UL, bucket.ReferenceLogical.UnknownFiles);
             Click(window, "Shared hard-linked files · Unknown");
-            Assert.Contains("Matching reference paths: " + (filtered ? "1" : "2") + " references", IndexedDetails(window).Text);
+            Assert.Contains("File size across " + (filtered ? "1 matching path" : "2 matching paths"), IndexedDetails(window).Text);
             Assert.Contains("(references)", IndexedDetails(window).Text);
             Assert.Equal((UInt128)0, explorer.Chart!.ScopeValue(explorer.Chart.Scope)); Assert.True(explorer.Chart.Items[explorer.Chart.Scope].Unknown);
             Assert.True(IndexedSelectionCount(window, 0, 0)); Click(window, "Mark matching files in this scope");

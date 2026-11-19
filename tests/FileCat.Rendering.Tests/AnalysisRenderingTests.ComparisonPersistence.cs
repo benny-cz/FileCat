@@ -91,7 +91,7 @@ public sealed partial class AnalysisRenderingTests
             while (!condition() && DateTime.UtcNow < deadline) { Dispatcher.UIThread.RunJobs(); await Task.Delay(10); }
             Assert.True(condition()); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
         }
-        Button Button(string text) => window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible && button.Content as string == text);
+        Button Button(string text) => FindAnalysisButton(window, text) ?? throw new InvalidOperationException($"Missing button {text}.");
         void Click(string text) { Button(text).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent)); Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
         ComboBox Choice(string name) => window.GetVisualDescendants().OfType<ComboBox>().Single(box => AutomationLabel(box) == name);
         void ExpandQuery()

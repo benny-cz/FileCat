@@ -199,7 +199,6 @@ public sealed partial class DiskSpaceWindow
         private readonly Grid _body = new() { ColumnSpacing = 12, RowSpacing = 12 };
         private readonly StackPanel _main = new() { Spacing = 8 }, _inspector = new() { Spacing = 8 };
         private bool? _wide;
-        private bool _tableFirst;
         private readonly StackPanel _breadcrumbs = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
         private readonly StackPanel _buckets = new() { Spacing = 4 };
         private readonly ListBox _list = new() { MinHeight = 220, MaxHeight = 420, Focusable = true };
@@ -245,6 +244,7 @@ public sealed partial class DiskSpaceWindow
                 _color.SelectedIndex = (int)saved.ColorDimension;
                 _group.SelectedIndex = (int)saved.Grouping;
             }
+            else if (window.Width < 640) _chartMode.SelectedIndex = 2;
             _roots.ItemsSource = new[] { "All captured locations" }.Concat(source.Descriptor.Roots.Select(root => AnalysisNames.Display(root.Label, 120) + " [" + AnalysisNames.Display(filter.RootDisplayIds?.GetValueOrDefault(root.Id) ?? root.Id, 64) + "]")).ToArray();
             _roots.SelectedIndex = filter.RootId is null ? 0 : 1 + Array.FindIndex(source.Descriptor.Roots.ToArray(), root => root.Id == filter.RootId);
             AutomationProperties.SetName(_query, "Filter indexed observations"); AutomationProperties.SetName(_metric, "Indexed metric");
@@ -395,8 +395,6 @@ public sealed partial class DiskSpaceWindow
         }
         private void LayoutMode(double width)
         {
-            bool tableFirst = width > 0 && width < 640;
-            if (_tableFirst != tableFirst) { _tableFirst = tableFirst; UpdateCharts(); }
             bool wide = width >= 900; if (_wide == wide) return; _wide = wide;
             _body.ColumnDefinitions = new(wide ? "3*,2*" : "*"); _body.RowDefinitions = new(wide ? "Auto" : "Auto,Auto");
             Grid.SetColumn(_inspector, wide ? 1 : 0); Grid.SetRow(_inspector, wide ? 0 : 1);
@@ -664,8 +662,8 @@ public sealed partial class DiskSpaceWindow
                 : $" · {DiskSpaceViewModel.Bytes(totals.IdentityUnverified)} identity-unverified path bytes are excluded from unique chart area.";
             ulong missing = totals.Missing.Values.Aggregate(0UL, (sum, count) => checked(sum + count));
             _status.Text = CoverageHeadline(explorer.Descriptor.Coverage, explorer.Descriptor.Freshness) + ".";
+            if (explorer.Filter is { } applied) _status.Text += $" {applied.DefinitePaths:N0} definite matches; {applied.UnknownPaths:N0} uncertain results.";
             _coverageDetail = $"Missing measurements: {missing:N0}." +
-                (explorer.Filter is { } filter ? $" {filter.DefinitePaths:N0} definite matches; {filter.UnknownPaths:N0} uncertain results." : "") +
                 (explorer.Chart?.DetailLimited == true ? " Small chart items are summarized; use the table for every entry." : "") +
                 " This result uses a private index of captured metadata.";
             if (explorer.Filter?.Request.UnknownOnly == true) _status.Text += " Showing uncertain filter results.";
@@ -722,9 +720,9 @@ public sealed partial class DiskSpaceWindow
             _back.IsEnabled = _past.Count > 0; _forward.IsEnabled = _future.Count > 0; _back.IsVisible = _forward.IsVisible = _past.Count != 0 || _future.Count != 0; }
         private void UpdateCharts()
         {
-            _treemap.IsVisible = !_tableFirst && _chartMode.SelectedIndex == 0;
-            _sunburst.IsVisible = !_tableFirst && _chartMode.SelectedIndex == 1;
-            _legend.IsVisible = !_tableFirst && _chartMode.SelectedIndex != 2;
+            _treemap.IsVisible = _chartMode.SelectedIndex == 0;
+            _sunburst.IsVisible = _chartMode.SelectedIndex == 1;
+            _legend.IsVisible = _chartMode.SelectedIndex != 2;
             IAnalysisChartData? chart = _grouping is not null ? _groupPage?.Chart : _shownChart;
             if (chart is null) return;
             string scope = _grouping is not null ? _groupPage!.Chart.Scope : _shownChart!.Scope;

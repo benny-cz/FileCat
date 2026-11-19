@@ -60,6 +60,12 @@ public sealed partial class AnalysisRenderingTests
                     Assert.Equal(dimension, model.ColorDimension);
                     var legend = window.GetVisualDescendants().OfType<AnalysisColorLegend>().Single();
                     Assert.True(legend.IsVisible); Assert.Contains(AnalysisChartColors.Title(dimension), AutomationLabel(legend));
+                    if (!legend.IsExpanded)
+                    {
+                        Assert.DoesNotContain(legend.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text == "Shared files");
+                        legend.IsExpanded = true;
+                        Frame(window);
+                    }
                     Assert.Contains(legend.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.StartsWith("Colors: ", StringComparison.Ordinal) == true && text.IsEffectivelyVisible);
                     var labels = legend.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ToArray();
                     foreach (var category in AnalysisChartColors.Legend(dimension)) Assert.Contains(category.Label, labels);

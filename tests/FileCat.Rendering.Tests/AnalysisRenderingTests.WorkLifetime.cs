@@ -42,7 +42,7 @@ public sealed partial class AnalysisRenderingTests
             window.Show(); other.Show(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             var tabs = window.GetVisualDescendants().OfType<TabControl>().Single(); tabs.SelectedIndex = 0;
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Assert.True(other.CanAddSession);
-            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open saved…" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Click(window, "Open saved…");
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Assert.True(other.CanAddSession);
             other.AddSession(new DiskSpaceViewModel(Fixture()));
             await Until(() => !window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open observations" && b.IsEffectivelyVisible).IsEnabled);

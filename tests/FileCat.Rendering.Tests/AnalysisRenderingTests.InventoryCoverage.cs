@@ -23,6 +23,9 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             window.AddSession(model); window.Show(); Frame(window);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text?.Contains("Results may be stale", StringComparison.Ordinal) == true);
+            Click(window, "Coverage details");
+            Frame(window);
             foreach (string message in new[] { "Enumeration counts are unavailable", "Stale-location samples are incomplete", "cannot be assigned to a recorded location" })
                 Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text?.Contains(message, StringComparison.Ordinal) == true);
         }
