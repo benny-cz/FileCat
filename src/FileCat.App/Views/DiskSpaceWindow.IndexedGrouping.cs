@@ -201,12 +201,17 @@ public sealed partial class DiskSpaceWindow
             finally { _publishing = false; }
             if (focusTable) _list.Focus();
             var totals = page.Scope?.Totals ?? groups.Totals; var logical = page.Scope?.MemberLogical ?? groups.LogicalTotals;
-            _summary.Text = AnalysisGroupingRules.Title(groups.Dimension) + " · " + _metric.Items[(int)groups.Metric] + ": " + Amount(totals, groups.Metric) +
-                $" · {logical.Files:N0} {(page.Scope?.Kind == AnalysisGroupKind.SharedAcrossGroups ? "captured reference paths" : "matching file paths")} · File size: {DiskSpaceViewModel.Bytes(logical.KnownBytes)} known" +
+            string grouping = AnalysisGroupingRules.Title(groups.Dimension);
+            string amount = DiskSpaceViewModel.MetricTitle(groups.Metric) + ": " + Amount(totals, groups.Metric);
+            string facts = $"{logical.Files:N0} {(page.Scope?.Kind == AnalysisGroupKind.SharedAcrossGroups ? "captured reference paths" : "matching file paths")} · File size: {DiskSpaceViewModel.Bytes(logical.KnownBytes)} known" +
                 (logical.UnknownFiles == 0 ? "" : $" · {logical.UnknownFiles:N0} unknown file sizes");
-            if (totals.IdentityUnverified != 0) _summary.Text += groups.Metric == AnalysisMetric.OnDisk
+            if (totals.IdentityUnverified != 0) facts += groups.Metric == AnalysisMetric.OnDisk
                 ? " · Includes identity-unverified path allocation; aliases may repeat."
                 : " · Identity-unverified path bytes are excluded from unique chart area.";
+            string readingScope = page.Scope is { } current ? current.Definition.Label + " · " + grouping : grouping;
+            if (groups.GeometrySkipped != 0) readingScope = "Other small items · " + readingScope;
+            UpdateIndexedReading(readingScope, amount, facts, groups.Descriptor.Coverage, groups.Descriptor.Freshness,
+                groups.Filter?.Request.UnknownOnly == true);
             _status.Text = "Grouped view ready. " + CoverageHeadline(groups.Descriptor.Coverage, groups.Descriptor.Freshness) + ".";
             if (groups.Filter is { } applied) _status.Text += $" {applied.DefinitePaths:N0} definite matches; {applied.UnknownPaths:N0} uncertain results.";
             _coverageDetail = "Missing measurements: " + (totals.Missing.Count == 0 ? "0" : Missing(totals)) + "." +
@@ -229,6 +234,7 @@ public sealed partial class DiskSpaceWindow
                 { InspectGroup(shared); ResetCharges(shared.Definition.Key, 0); _ = ChargesAsync(0); }, "Inspect shared accounting charges independently of their captured path references."));
             ResetCharges(page.Scope?.Definition.Key, _focus == 0 ? null : _focus);
             foreach (var button in _evidence) button.IsEnabled = false;
+            _inspectionReading.IsVisible = false;
             _details.Text = "Choose a group or captured member. Group rows are accounting categories; member file sizes and assigned amounts are distinct. Related evidence is paged.";
             _inspectorStatus.Text = "No entry selected.";
             AppendPersistenceNotice();
@@ -284,6 +290,7 @@ public sealed partial class DiskSpaceWindow
         {
             if (_disposed || _grouping is not { } groups) return;
             _basketInspection = null;
+            _inspectionReading.IsVisible = false;
             ++_inspection; _focus = 0; _groupFocus = group.Definition.Key; _selectedGroupedItem = null; _shownInspection = null;
             RefreshSelection();
             foreach (var button in _evidence) button.IsEnabled = false;

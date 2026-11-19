@@ -282,16 +282,17 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly Button _pause = new() { Content = "Pause" }, _stop = new() { Content = "Stop" };
         private readonly Button _rescan = new() { Content = "Rescan all" };
         private readonly Border _rescanHelp = new() { Focusable = true };
-        private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap, FontSize = 18 };
+        private readonly TextBlock _summary = MeasureLabel(), _summaryDetails = ReadingLabel("Secondary");
         private readonly TextBlock _folderBoundaryCounts = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         private string _folderExclusionDetail = "";
-        private readonly TextBlock _scope = new() { TextWrapping = TextWrapping.Wrap }, _coverage = new() { TextWrapping = TextWrapping.Wrap };
-        private readonly TextBlock _coverageHeadline = new() { TextWrapping = TextWrapping.Wrap };
+        private readonly TextBlock _scope = ReadingLabel("Secondary"), _coverage = new() { TextWrapping = TextWrapping.Wrap };
+        private readonly TextBlock _coverageHeadline = ReadingLabel("Secondary");
+        private readonly ReadingStatus _coverageStatus;
         private readonly TextBlock _resultNotice = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap }, _error = new() { TextWrapping = TextWrapping.Wrap };
         private readonly TextBlock _basket = new() { TextWrapping = TextWrapping.Wrap };
-        private readonly TextBlock _inspector = new() { TextWrapping = TextWrapping.Wrap };
-        private readonly TextBlock _inspectorExact = new() { TextWrapping = TextWrapping.Wrap };
+        private readonly SelectionReading _selectionReading = new();
+        private readonly TextBlock _inspectorExact = ReadingLabel("Secondary");
         private readonly Expander _measurementDetails = new() { Header = "Measurement details", IsVisible = false };
         private readonly StackPanel _inspectorPanel = new() { Spacing = 8, Margin = new Thickness(10) };
         private readonly ListBox _list = new() { SelectionMode = SelectionMode.Single, Focusable = true };
@@ -421,8 +422,15 @@ public sealed partial class DiskSpaceWindow : Window
                 _coverageHeadline, _analysisActions, _coverageDetails, filters]);
             _toolbarViewport = new ScrollViewer { Content = toolbar, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
             AutomationProperties.SetName(_toolbarViewport, "Analysis view controls");
-            _viewSummary = new StackPanel { Spacing = 3, Children = { _summary, _coverageHeadline, _folderBoundaryCounts, _panelFilterStatus } };
-            var header = new StackPanel { Margin = new Thickness(10, 4), Children = { _viewSummary, _toolbarViewport } };
+            _coverageStatus = new ReadingStatus(_coverageHeadline);
+            AutomationProperties.SetAutomationId(_scope, "AnalysisReadingScope");
+            AutomationProperties.SetAutomationId(_summary, "AnalysisReadingAmount");
+            AutomationProperties.SetAutomationId(_coverageHeadline, "AnalysisReadingCoverage");
+            var qualifications = new WrapPanel { ItemSpacing = 9, LineSpacing = 2,
+                Children = { _coverageStatus, _summaryDetails, _folderBoundaryCounts, _panelFilterStatus } };
+            _viewSummary = new StackPanel { Spacing = 2, Children = { _scope, _summary, qualifications } };
+            var overview = ReadingSurface(_viewSummary, new Thickness(7, 3), new Thickness(2, 0, 0, 0), "Accent");
+            var header = new StackPanel { Margin = new Thickness(10, 4), Spacing = 4, Children = { overview, _toolbarViewport } };
             Grid.SetRow(header, 1); Children.Add(header);
             _chartHost.Children.Add(_treemap); _chartHost.Children.Add(_sunburst); _explorer.Children.Add(_chartHost);
             var splitter = new GridSplitter { Height = 5, ResizeDirection = GridResizeDirection.Rows, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -470,7 +478,10 @@ public sealed partial class DiskSpaceWindow : Window
             string[] headings = ["Mark", "Name", "Active metric", "File size", "Files", "State"];
             for (int i = 0; i < headings.Length; i++)
             {
-                var heading = new TextBlock { Text = i == 0 ? "" : headings[i], TextTrimming = TextTrimming.CharacterEllipsis };
+                var heading = ReadingLabel("Secondary", FontWeight.SemiBold);
+                heading.Text = i == 0 ? "" : headings[i];
+                heading.TextWrapping = TextWrapping.NoWrap;
+                heading.TextTrimming = TextTrimming.CharacterEllipsis;
                 AutomationProperties.SetName(heading, headings[i]); Grid.SetColumn(heading, i); _tableHeader.Children.Add(heading);
             }
             _tableHeader.SizeChanged += (_, _) =>
@@ -478,9 +489,13 @@ public sealed partial class DiskSpaceWindow : Window
                 FitColumns(_tableHeader);
                 ((TextBlock)_tableHeader.Children[2]).Text = _tableHeader.Bounds.Width < 750 ? "Value" : headings[2];
             };
-            _table.Children.Add(_tableHeader); Grid.SetRow(_list, 1); _table.Children.Add(_list);
+            _table.Children.Add(ReadingSurface(_tableHeader, default, new Thickness(0, 0, 0, 1)));
+            Grid.SetRow(_list, 1); _table.Children.Add(_list);
             Grid.SetRow(_table, 2); _explorer.Children.Add(_table);
-            _inspectorPanel.Children.Add(new TextBlock { Text = "Selection inspector", FontSize = 18 }); _inspectorPanel.Children.Add(_inspector);
+            var inspectorHeading = ReadingLabel("Accent", FontWeight.SemiBold);
+            inspectorHeading.Text = "Selection inspector";
+            _inspectorPanel.Children.Add(inspectorHeading);
+            _inspectorPanel.Children.Add(_selectionReading);
             _measurementDetails.Content = _inspectorExact;
             _inspectorPanel.Children.Add(_measurementDetails);
             _previewFile.Click += (_, _) => _ = PreviewFocusedAsync();
@@ -490,14 +505,15 @@ public sealed partial class DiskSpaceWindow : Window
             _bindCurrentSource.Click += (_, _) => { if (RecordedChoice() is { } choice) _ = BindRecordedSourceAsync(choice); };
             _inspectorPanel.Children.Add(_bindCurrentSource);
             _inspectorPanel.Children.Add(ActionButton("Copy path", () => _ = CopyCapturedTextAsync(Model.FocusedClipboardPath()), "Copy the selected path as literal text."));
-            _copyDetails = ActionButton("Copy details", () => _ = CopyCapturedTextAsync(($"{_inspector.Text}\n\n{_inspectorExact.Text}", "")), "Copy the selection explanation and exact captured measurements.");
+            _copyDetails = ActionButton("Copy details", () => _ = CopyCapturedTextAsync(($"{_selectionReading.PlainText}\n\n{_inspectorExact.Text}", "")), "Copy the selection explanation and exact captured measurements.");
             _inspectorPanel.Children.Add(_copyDetails);
             _showHierarchy = ActionButton("Show in captured folder", () => _ = Model.ShowFocusedInHierarchyAsync(), "Show this observed entry in the captured folder hierarchy. This does not open or reconnect its current filesystem location.");
             _inspectorPanel.Children.Add(_showHierarchy);
             _inspectorPanel.Children.Add(ActionButton("Mark current members", Model.MarkCurrentMembers, "Capture this group's current real members. Future observations are not selected."));
             _inspectorPanel.Children.Add(ActionButton("Add to review", Model.StageSelection, "Stage inert observation references. Unsupported actions remain skipped; no files change."));
             _inspectorScroll = new ScrollViewer { Content = _inspectorPanel, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
-            Grid.SetColumn(_inspectorScroll, 1); Grid.SetRowSpan(_inspectorScroll, 3); _explorer.Children.Add(_inspectorScroll);
+            var inspectorSurface = ReadingSurface(_inspectorScroll, default, new Thickness(1, 0, 0, 0));
+            Grid.SetColumn(inspectorSurface, 1); Grid.SetRowSpan(inspectorSurface, 3); _explorer.Children.Add(inspectorSurface);
             Grid.SetRow(_explorer, 2); Children.Add(_explorer);
             _basketHost.Children.Add(_basket);
             AddMemorySelectionControls();
@@ -754,14 +770,20 @@ public sealed partial class DiskSpaceWindow : Window
                 _unknown.IsVisible = tree is not null && (tree.Projection.UnknownFilterNodes.Count > 0 || tree.Projection.IncludesUnknownFilterResults);
                 _unknown.Content = tree?.Projection.IncludesUnknownFilterResults == true ? "Show confirmed matches" : $"Inspect {tree?.Projection.UnknownFilterNodes.Count ?? 0:N0} uncertain results";
                 string scopeName = tree is null ? "Captured scope appears here after Start." : ResultScopeName(tree, Model.Selection.Scope);
-                _scope.Text = AnalysisNames.Display(scopeName);
                 RefreshBreadcrumbs();
-                _scope.IsVisible = false;
                 bool compact = Bounds.Width > 0 && Bounds.Width < 640;
-                _summary.Text = compact ? Model.CompactScopeSummary : Model.ScopeSummary;
-                _coverageHeadline.Text = tree is null ? "" : AnalysisNames.Display(scopeName, compact ? 42 : 120) + " · " +
-                    CoverageHeadline(tree.Snapshot.Coverage, tree.Snapshot.Freshness, compact);
-                _coverageHeadline.IsVisible = tree is not null;
+                _scope.Text = AnalysisNames.Display(scopeName);
+                _scope.MaxLines = compact ? 1 : 2;
+                _scope.TextTrimming = TextTrimming.CharacterEllipsis;
+                _scope.IsVisible = tree is not null;
+                var (amount, details) = Model.ScopeReading(compact);
+                _summary.Text = KeepMeasurementUnits(amount);
+                _summaryDetails.Text = details;
+                _summaryDetails.IsVisible = details.Length != 0;
+                _coverageHeadline.Text = tree is null ? "" : CoverageHeadline(tree.Snapshot.Coverage, tree.Snapshot.Freshness, compact);
+                _coverageStatus.IsVisible = tree is not null;
+                _coverageStatus.SetWarning(tree is not null && (HasCoverageWarning(tree.Snapshot.Coverage, tree.Snapshot.Freshness) ||
+                    tree.Projection.IncludesUnknownFilterResults));
                 _coverageDetails.IsVisible = tree is not null;
                 string? incompatible = tree?.Projection.Totals.CompatibleBasis == false
                     ? "These locations report different allocation components. Choose one location to view its On disk total."
@@ -844,9 +866,8 @@ public sealed partial class DiskSpaceWindow : Window
                     _measurementDetails.IsVisible = selected is not null;
                     _inspectorExact.Text = selected is null ? "" : DiskSpaceViewModel.InspectorExactMeasurements(selected, tree.Projection.Metric);
                     var displayPath = Model.FocusedDisplayPath(out var boundary);
-                    _inspector.Text = selected is null ? "Choose an entry in either chart or the table. Marks and the review basket are separate." :
-                        AnalysisNames.Display(selected.Name) + (selected.IncludedByPolicy
-                            ? "\n\n" + DiskSpaceViewModel.InspectorMeasurements(selected, tree.Projection.Metric) + "\n\n" : "\n") +
+                    _selectionReading.Show(selected, tree.Projection.Metric,
+                        selected is null ? "Choose an entry in either chart or the table. Marks and the review basket are separate." :
                         DiskSpaceViewModel.StatusText(selected) + "\n" +
                         (boundary is not null ? boundary + "\n" : "") +
                         (HasMacPackageName(selected, tree.Snapshot.Policy) ? MacPackageContents(tree.Snapshot.Policy) + "\n" : "") + displayPath +
@@ -855,7 +876,7 @@ public sealed partial class DiskSpaceWindow : Window
                         (selected.IdentityUnverified > 0 ? $"Identity-unverified path bytes: {selected.IdentityUnverified}. Aliases may be counted more than once.\n" : "") +
                         (selected.SharedElsewhere ? (selected.ChargeLocation ?? "Shared objects are charged once at their common parent.") + " Removing one alias does not promise free space.\n" : "") +
                         (tree.GroupingDimension != AnalysisGroupingDimension.FolderHierarchy && selected.Synthetic ? $"Current captured members: {selected.Members.Length:N0}. Mark current members captures these paths; future observations are not selected.\n" : "") +
-                        (selected.Unknown ? "Some requested measurements or namespace entries are unknown.\n" : "") + "\nObservations do not authorize current filesystem operations.";
+                        (selected.Unknown ? "Some requested measurements or namespace entries are unknown.\n" : "") + "\nObservations do not authorize current filesystem operations.");
                 }
                 RefreshMemorySelection();
                 bool tableOnly = _mode.SelectedIndex == 2 || Bounds.Width < 640;
@@ -881,11 +902,15 @@ public sealed partial class DiskSpaceWindow : Window
             if (_disposed) return;
             using var actualWork = _actualWork.Enter();
             var body = new StackPanel { Spacing = 8 }; var closer = new DialogCloser();
-            string? displayedDetails = _inspector.Text;
+            string displayedDetails = _selectionReading.PlainText;
             string? exactDetails = _inspectorExact.Text;
-            body.Children.Add(new TextBlock { Text = displayedDetails, TextWrapping = TextWrapping.Wrap });
+            body.Children.Add(ReadingSurface(_selectionReading.Copy(), new Thickness(9, 6), new Thickness(2, 0, 0, 0), "Accent"));
             if (!string.IsNullOrEmpty(exactDetails))
-                body.Children.Add(new Expander { Header = "Measurement details", Content = new TextBlock { Text = exactDetails, TextWrapping = TextWrapping.Wrap } });
+            {
+                var exact = ReadingLabel("Secondary");
+                exact.Text = exactDetails;
+                body.Children.Add(new Expander { Header = "Measurement details", Content = exact });
+            }
             var clipboardPath = Model.FocusedClipboardPath();
             body.Children.Add(clipboardPath.Path is null ? Unavailable("Copy path", clipboardPath.Refusal) :
                 ActionButton("Copy path", () => _ = CopyCapturedTextAsync(clipboardPath), "Copy the literal observation path shown here."));

@@ -16,6 +16,7 @@ public sealed partial class DiskSpaceWindow
 
         private void SetClipboardInspection(AnalysisExplorerInspection? detail)
         {
+            if (detail is null) _inspectionReading.IsVisible = false;
             (string? path, string refusal) = detail switch
             {
                 null => (null, "Choose a captured entry with a literal path."),

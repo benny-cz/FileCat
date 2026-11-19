@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -59,6 +60,10 @@ public sealed partial class DiskSpaceWindow
             var action = new ComboBox { ItemsSource = offered, SelectedIndex = basket ? initialChoice : 0, IsVisible = offered.Length > 1 };
             AutomationProperties.SetName(action, "Cleanup action");
             var availability = Text("", live: true);
+            var spaceEffect = ReadingLabel();
+            var spaceGain = ReadingLabel("Secondary");
+            spaceGain.Text = "Expected free-space gain is unknown.";
+            var actionStatus = new ReadingStatus(availability);
             var confirm = new DialogButtonPresentation(new(choices[initialChoice].Confirmation));
             string binding = origin != AnalysisOrigin.LiveSession || taint != AnalysisTaint.OrdinarySensitive
                 ? "This review uses recorded observations. A fresh, ordinary live source is required for file actions."
@@ -70,9 +75,11 @@ public sealed partial class DiskSpaceWindow
 
             var pageLabel = Text("", live: true);
             var visibility = Text("Checking selection against the displayed scope and filters…", live: true);
-            var selectionTotals = Text("Measuring the selected observations…", live: true);
+            var selectionTotals = MeasureLabel();
+            selectionTotals.Text = "Measuring the selected observations…";
+            AutomationProperties.SetLiveSetting(selectionTotals, AutomationLiveSetting.Polite);
             AutomationProperties.SetName(selectionTotals, "Recorded cleanup selection totals");
-            var allocationDetails = Text("");
+            var allocationDetails = ReadingLabel("Secondary");
             var list = new ListBox { MaxHeight = 248, ItemTemplate = DialogLayout.WrappingListText };
             ScrollViewer.SetHorizontalScrollBarVisibility(list, ScrollBarVisibility.Disabled);
             AutomationProperties.SetName(list, "Cleanup review entries");
@@ -96,17 +103,26 @@ public sealed partial class DiskSpaceWindow
                     }
                 }
             };
+            var selectionScope = ReadingLabel("Secondary");
+            selectionScope.Text = $"{selection} · {ids.Length:N0} {(ids.Length == 1 ? "path" : "paths")} · 0 included · {ids.Length:N0} kept";
+            var selectionReading = new StackPanel { Spacing = 4, Children = { selectionScope, selectionTotals, visibility } };
+            if (coverage != NamespaceCoverage.CompleteUnderPolicy)
+            {
+                var coverageStatus = new ReadingStatus(Text("Coverage is partial. The list shows the requested references."));
+                coverageStatus.SetWarning(true);
+                selectionReading.Children.Add(coverageStatus);
+            }
             var body = new StackPanel
             {
                 Spacing = 8,
                 Children =
                 {
-                    Text($"{selection} · {ids.Length:N0} {(ids.Length == 1 ? "path" : "paths")} · 0 included · {ids.Length:N0} kept"),
-                    action, availability, selectionTotals, visibility, pageLabel, list, navigation, technical
+                    ReadingSurface(selectionReading, new Thickness(8, 5), new Thickness(2, 0, 0, 0), "Accent"),
+                    action, ReadingSurface(new StackPanel { Spacing = 5, Children = { actionStatus, spaceEffect, spaceGain } },
+                        new Thickness(8, 5), new Thickness(0, 1, 0, 0)),
+                    pageLabel, list, navigation, technical
                 }
             };
-            if (coverage != NamespaceCoverage.CompleteUnderPolicy)
-                body.Children.Insert(4, Text("Coverage is partial. The list shows the requested references."));
 
             var closer = new DialogCloser();
             using var cancel = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
@@ -161,9 +177,10 @@ public sealed partial class DiskSpaceWindow
                 bool choose = CanChooseCopyFolder();
                 string reason = choose ? "Review eligible files and choose which copies to queue. Existing destination files are kept."
                     : choice.Verb == AnalysisVerb.Copy && copyRefusal is not null ? copyRefusal : capabilities.For(choice.Verb).Reason;
+                actionStatus.SetWarning(!choose);
                 availability.Text = (offered.Length == 1 ? choice.Label + ". " : "") +
-                    (binding.Length == 0 ? "" : binding + " ") + reason + "\n" + choice.SpaceEffect +
-                    "\nExpected free-space gain is unknown.";
+                    (binding.Length == 0 ? "" : binding + " ") + reason;
+                spaceEffect.Text = choice.SpaceEffect;
                 confirm.Update(new(choose ? "Choose copy destination…" : choice.Confirmation, HelpText: reason));
             }
 

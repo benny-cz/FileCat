@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.VisualTree;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
@@ -169,6 +170,8 @@ internal sealed partial class HarnessApp
             window.GetVisualDescendants().OfType<ToggleButton>().Single(button =>
                 button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions")).IsChecked = false;
             RenderNativeFrame("folder-exclusions-result.png");
+            model.Focus(AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "photo.png").Id));
+            var resultThemes = await CheckResultThemesAsync(window, model, warning: false, "compact");
             bool compactDoubleText = Environment.GetEnvironmentVariable("FILECAT_TEST_DSA_DOUBLE_TEXT") == "1";
             if (compactDoubleText)
             {
@@ -196,9 +199,8 @@ internal sealed partial class HarnessApp
             await ReadyAsync(() => model.Selection.Scope == rootScope);
             model.Focus(AnalysisTree.Key(snapshot.Nodes.Single(node => node.Name == "Small files").Id));
             Click("Inspect selection");
-            await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
-                text.Text?.StartsWith("Small files\nExcluded by policy\nThis folder and its contents were skipped under the captured folder exclusion rules.",
-                    StringComparison.Ordinal) == true));
+            await ReadyAsync(() => VisibleReadingText(window, text => text == "Small files") &&
+                VisibleReadingText(window, text => text.StartsWith("Excluded by policy\nThis folder and its contents were skipped", StringComparison.Ordinal)));
             if (VisibleButton("Copy details") is not { IsEnabled: true })
                 throw new InvalidOperationException("The compact inspector did not offer its selected details as text.");
             await RecipeFrameAsync("folder-exclusions-inspector.png", true, _indexedLifetime.Token);
@@ -257,7 +259,7 @@ internal sealed partial class HarnessApp
                 packageHint, packageContentsReachable = true, indexedCopyPathReachable = true, summaryAndDetailsAvailable = true,
                 currentSourceBindingAvailable = true, comparisonCopyOptionsAvailable = true, comparedPathCopyReachable = true,
                 readOnlyPanelReveal = true, exactFilePanelFocus = true, readOnlySelectionResults = true, indexedScratchDetails = true,
-                standardIndexChoice = true, scratchThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true, compactDoubleText,
+                standardIndexChoice = true, scratchThemes, resultThemes, resourceNativeKeyboard = Program.ResourceKeyboardProbe, volumeCapacity = true, compactDoubleText,
                 packageTier = Program.PackageTier, packageFastNtfsReason, warmShell, firstResultMilliseconds, chartFrames, windowTransitions };
             _indexedProbeFinished = true;
             WriteReport("folder-exclusion-probe-finished");
@@ -275,6 +277,64 @@ internal sealed partial class HarnessApp
             try { RenderNativeFrame("folder-exclusions-failure.png"); } catch (Exception) { }
             WriteReport("folder-exclusion-probe-failed");
         }
+    }
+
+    private static bool VisibleReadingText(DiskSpaceWindow window, Func<string, bool> matches) =>
+        window.GetVisualDescendants().OfType<TextBlock>().Any(label => label.IsEffectivelyVisible && label.Text is { } text && matches(text));
+
+    private async Task<IReadOnlyList<ScratchThemeFrame>> CheckResultThemesAsync(DiskSpaceWindow window, DiskSpaceViewModel model,
+        bool warning, string layout)
+    {
+        var scope = Reading("AnalysisReadingScope");
+        var amount = Reading("AnalysisReadingAmount");
+        var coverage = Reading("AnalysisReadingCoverage");
+        var expansion = window.GetVisualDescendants().OfType<Expander>().SingleOrDefault(expander =>
+            expander.IsEffectivelyVisible && Equals(expander.Header, "Measurement details"));
+        var trigger = window.GetVisualDescendants().OfType<ToggleButton>().Single(button =>
+            button.IsEffectivelyVisible && Equals(button.Content, "Analysis actions"));
+        string? selection = model.Selection.Focus;
+        string requested = ThemeManager.RequestedName;
+        bool wasExpanded = expansion?.IsExpanded == true;
+        if (expansion is not null) expansion.IsExpanded = true;
+        if (!trigger.Focus()) throw new InvalidOperationException("The theme check could not focus the analysis control.");
+        var frames = new List<ScratchThemeFrame>();
+        try
+        {
+            foreach (string theme in ThemeManager.Names)
+            {
+                ThemeManager.Apply(theme);
+                window.UpdateLayout();
+                await ReadyAsync(() => Reading("AnalysisReadingAmount").Bounds.Height > 0);
+                if (!ReferenceEquals(window.FocusManager?.GetFocusedElement(), trigger) || selection != model.Selection.Focus ||
+                    expansion is { IsExpanded: false })
+                    throw new InvalidOperationException($"{theme} lost focus, selection or expanded details.");
+                if (scope.FontSize >= amount.FontSize || amount.FontWeight != FontWeight.Bold ||
+                    scope.TranslatePoint(default, window) is not { } scopeTop || amount.TranslatePoint(default, window) is not { } amountTop ||
+                    scopeTop.Y >= amountTop.Y)
+                    throw new InvalidOperationException($"{theme} displayed the reading without a clear scope and emphasized amount: {scope.FontSize}/{amount.FontSize}.");
+                foreach (var reading in new[] { scope, amount, coverage })
+                {
+                    if (reading.Foreground is not ISolidColorBrush foreground ||
+                        reading.GetVisualAncestors().OfType<Border>().FirstOrDefault(border => border.Background is ISolidColorBrush)?.Background is not ISolidColorBrush background ||
+                        ThemeManager.Contrast(foreground.Color, background.Color) < 4.5)
+                        throw new InvalidOperationException($"{theme} failed text contrast for {reading.Text}.");
+                }
+                if (coverage.GetVisualParent() is not Border status || (status.BorderThickness.Left > 0) != warning)
+                    throw new InvalidOperationException($"{theme} did not distinguish the coverage state with a labeled warning.");
+                string frame = $"analysis-reading-{layout}-{theme}.png";
+                RenderNativeFrame(frame);
+                frames.Add(new(theme, ThemeManager.Current.Name, frame, window.ClientSize.Width, window.ClientSize.Height, window.RenderScaling, window.FontSize));
+            }
+            return frames;
+        }
+        finally
+        {
+            ThemeManager.Apply(requested);
+            if (expansion is not null) expansion.IsExpanded = wasExpanded;
+        }
+
+        TextBlock Reading(string id) => window.GetVisualDescendants().OfType<TextBlock>().Single(label =>
+            label.IsEffectivelyVisible && AutomationProperties.GetAutomationId(label) == id);
     }
 
     private async Task CheckCompactDoubleTextAsync(DiskSpaceWindow window)
@@ -378,8 +438,10 @@ internal sealed partial class HarnessApp
         ribbon.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await ReadyAsync(() => CloseCapacity() is { IsDefault: true, IsCancel: true });
         var text = window.GetVisualDescendants().OfType<TextBlock>().Where(block => block.IsEffectivelyVisible).Select(block => block.Text);
-        if (!text.Contains("Current analysis") || !text.Contains("Containing filesystem") ||
-            !text.Any(value => value?.Contains("Reported free " + DiskSpaceViewModel.Bytes(sample.FreeBytes), StringComparison.Ordinal) == true) ||
+        var freeLabel = window.GetVisualDescendants().OfType<TextBlock>().SingleOrDefault(label => label.IsEffectivelyVisible && label.Text == "Reported free");
+        if (!text.Contains("Current analysis") || !text.Contains("Containing filesystem") || freeLabel?.Parent is not Grid figures ||
+            !figures.Children.OfType<TextBlock>().Any(value => Grid.GetRow(value) == Grid.GetRow(freeLabel) && Grid.GetColumn(value) == 1 &&
+                value.Text?.Replace('\u00a0', ' ') == DiskSpaceViewModel.Bytes(sample.FreeBytes)) ||
             !text.Any(value => value?.Contains("Volume ID " + sample.VolumeIdentity, StringComparison.Ordinal) == true && value.Contains("scanned scope", StringComparison.Ordinal)) ||
             text.Any(value => value?.Contains("Difference from reported used space", StringComparison.Ordinal) == true))
             throw new InvalidDataException("The volume display changed the held sample or offered a whole-volume difference for a folder.");

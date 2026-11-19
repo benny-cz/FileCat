@@ -363,23 +363,29 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     internal static string InspectorMeasurements(AnalysisTreeItem item, AnalysisMetric metric)
     {
         if (!item.IncludedByPolicy) return "Excluded by policy";
+        var (coverage, amount, details) = InspectorReading(item, metric);
+        return (coverage.Length == 0 ? "" : coverage + "\n") + amount + "\n" + details;
+    }
+
+    internal static (string Coverage, string Amount, string Details) InspectorReading(AnalysisTreeItem item, AnalysisMetric metric)
+    {
         string value = ValueText(item, metric);
         bool shared = item.Synthetic && item.Key.StartsWith("shared:", StringComparison.Ordinal);
         if (shared && value != "Unknown" && metric is AnalysisMetric.OnDisk or AnalysisMetric.UniqueFileSize)
             value += " counted once here";
         string logical = LogicalText(item);
         string fileSize = item.ReferenceLogical is { } references
-            ? $"\nFile size across {references.Files:N0} matching {(references.Files == 1 ? "path" : "paths")}: " +
+            ? $"File size across {references.Files:N0} matching {(references.Files == 1 ? "path" : "paths")}: " +
                 (references.UnknownFiles != 0 && references.KnownBytes == 0 ? "Unknown" :
-                    Bytes(references.KnownBytes) + (references.UnknownFiles == 0 ? "" : " known (partial)"))
-            : metric == AnalysisMetric.FileSize && value == logical ? "" : "\nFile size: " + logical;
+                    Bytes(references.KnownBytes) + (references.UnknownFiles == 0 ? "" : " known (partial)")) + "\n"
+            : metric == AnalysisMetric.FileSize && value == logical ? "" : "File size: " + logical + "\n";
         string coverage = item.Kind == AnalysisKind.Directory && item.NamespaceIncomplete
             ? item.MetadataState == MeasurementState.Failed && item.Files == 0
-                ? "Folder contents were not read. Its size is unknown.\n"
-                : "Some folder contents were not observed.\n"
+                ? "Folder contents were not read. Its size is unknown."
+                : "Some folder contents were not observed."
             : "";
-        return $"{coverage}{MetricTitle(metric)}: {value}{fileSize}\nFile paths: {FilePathsText(item)}" +
-            (EntryExplanation(item) is { } explanation ? "\n" + explanation : "");
+        return (coverage, $"{MetricTitle(metric)}: {value}", fileSize + $"File paths: {FilePathsText(item)}" +
+            (EntryExplanation(item) is { } explanation ? "\n" + explanation : ""));
     }
 
     internal static string InspectorExactMeasurements(AnalysisTreeItem item, AnalysisMetric metric) =>
@@ -409,16 +415,22 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         : item.Unknown && item.Value == 0 ? "Unknown" : metric == AnalysisMetric.Files ? item.Value.ToString(exact ? "0" : "N0", exact ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture)
         : (exact ? item.Value.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.Value)) +
         (item.IdentityUnverified > 0 && metric == AnalysisMetric.OnDisk ? " · unverified" : item.Unknown ? " known" : "");
-    public string ScopeSummary => FormatScopeSummary(compact: false);
-    internal string CompactScopeSummary => FormatScopeSummary(compact: true);
-
-    private string FormatScopeSummary(bool compact)
+    public string ScopeSummary
     {
-        if (Tree is not { } tree) return "No measurements yet";
+        get
+        {
+            var (amount, details) = ScopeReading(compact: false);
+            return details.Length == 0 ? amount : amount + " · " + details;
+        }
+    }
+
+    internal (string Amount, string Details) ScopeReading(bool compact)
+    {
+        if (Tree is not { } tree) return ("No measurements yet", "");
         var metric = tree.Projection.Metric;
         string label = metric == AnalysisMetric.UniqueFileSize ? "Verified unique file size" : MetricTitle(metric);
         if (metric == AnalysisMetric.OnDisk && !tree.Projection.Totals.CompatibleBasis)
-            return label + ": allocation bases differ; no combined total.";
+            return (label + ": allocation bases differ; no combined total.", "");
         string scope = Selection.Scope;
         UInt128 value = tree.ScopeValue(scope);
         var item = tree.Items.GetValueOrDefault(scope);
@@ -427,9 +439,14 @@ public sealed partial class DiskSpaceViewModel : IDisposable
                 ? $"{Bytes(value)} known with verified identities; {Bytes(item.IdentityUnverified)} identity-unverified path bytes excluded from unique chart area"
                 : $"{Bytes(checked(value - item.IdentityUnverified))} known with verified identities + {Bytes(item.IdentityUnverified)} reported for identity-unverified paths"
             : (metric == AnalysisMetric.Files ? value.ToString("N0", CultureInfo.CurrentCulture) + (value == 1 ? " file" : " files") : Bytes(value)) + " known";
-        return label + ": " + amount + (item is null ? "" : item.ReferenceLogical is not null ? " · " + FilePathsText(item) :
-            $" · {item.Files:N0} " + (compact ? "" : "observed file ") + (item.Files == 1 ? "path" : "paths")) +
-            (tree.GroupingDimension == AnalysisGroupingDimension.FolderHierarchy ? "" : " · " + AnalysisGroupingRules.Title(tree.GroupingDimension)) + (item?.Unknown == true ? " · partial" : "");
+        var details = new[]
+        {
+            item is null ? null : item.ReferenceLogical is not null ? FilePathsText(item) :
+                $"{item.Files:N0} " + (compact ? "" : "observed file ") + (item.Files == 1 ? "path" : "paths"),
+            tree.GroupingDimension == AnalysisGroupingDimension.FolderHierarchy ? null : AnalysisGroupingRules.Title(tree.GroupingDimension),
+            item?.Unknown == true ? "partial" : null
+        };
+        return (label + ": " + amount, string.Join(" · ", details.OfType<string>()));
     }
     public static string Bytes(UInt128 bytes)
     {

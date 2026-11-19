@@ -327,6 +327,25 @@ public static class ThemeManager
         var tip = Opaque(Color.Parse(p.Card), Color.Parse(p.Window));
         d["FcTipBackgroundColor"] = tip;
         d["FcTipBackground"] = new SolidColorBrush(tip);
+        var warning = Color.Parse(p.Warning);
+        var analysisWarning = Opaque(Color.FromArgb(26, warning.R, warning.G, warning.B), tip);
+        Add("AnalysisSurface", tip.ToString());
+        Add("AnalysisText", Readable(tip, p.Text));
+        Add("AnalysisSecondary", Readable(tip, p.TextDim, p.TextMuted, p.Text));
+        Add("AnalysisAccent", Readable(tip, p.ActiveAccent, p.Text));
+        Add("AnalysisWarningSurface", analysisWarning.ToString());
+        Add("AnalysisWarningText", Readable(analysisWarning, p.Warning, p.Text));
+        Add("AnalysisDivider", Readable(tip, p.Border, p.GridLine, actionableDim));
+
+        static string Readable(Color surface, params string[] preferred)
+        {
+            foreach (string token in preferred)
+            {
+                Color color = Opaque(Color.Parse(token), surface);
+                if (Contrast(color, surface) >= 4.5) return color.ToString();
+            }
+            return OnColor(surface.ToString());
+        }
         // A tooltip's key in the accent color where that reads as text does (WCAG's 4.5:1), else in the text color.
         var key = Opaque(Color.Parse(p.ActiveAccent), tip);
         d["FcTipKey"] = new SolidColorBrush(Contrast(key, tip) >= 4.5 ? key : Color.Parse(p.Text));

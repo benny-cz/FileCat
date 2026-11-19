@@ -80,7 +80,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Contains("Volume capacity", text);
             Assert.Contains("Current analysis", text);
             Assert.Contains("Containing filesystem", text);
-            Assert.Contains(text, line => line?.Contains("Reported used " + DiskSpaceViewModel.Bytes(sample.UsedBytes), StringComparison.Ordinal) == true);
+            AssertCapacityFigure(window, "Reported used", DiskSpaceViewModel.Bytes(sample.UsedBytes));
             Assert.Contains(text, line => line?.Contains("Volume ID " + sample.VolumeIdentity, StringComparison.Ordinal) == true &&
                 line.StartsWith("File totals describe the scanned scope. Capacity describes the containing filesystem.", StringComparison.Ordinal));
             Assert.DoesNotContain(text, line => line?.Contains("Difference from reported used space", StringComparison.Ordinal) == true);
@@ -89,6 +89,14 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Close capacity");
             Frame(window);
         }
+    }
+
+    private static void AssertCapacityFigure(Window window, string name, string amount)
+    {
+        var label = Assert.Single(window.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text == name);
+        var figures = Assert.IsType<Grid>(label.Parent);
+        var value = Assert.Single(figures.Children.OfType<TextBlock>(), text => Grid.GetRow(text) == Grid.GetRow(label) && Grid.GetColumn(text) == 1);
+        Assert.Equal(amount, value.Text?.Replace('\u00a0', ' '));
     }
 
     [AvaloniaFact]
@@ -117,7 +125,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.InRange(sample.TotalBytes, (UInt128)1, (UInt128)(512L * 1024 * 1024));
             Assert.Contains(model.Tree!.Snapshot.Nodes, node => node.Name == Path.GetFileName(anchor));
             string difference = DiskSpaceWindow.VolumeDifference(sample.UsedBytes, model.Tree.Projection.Totals.Known);
-            Assert.Contains(DialogText(), line => line?.Contains("Difference from reported used space " + difference, StringComparison.Ordinal) == true);
+            AssertCapacityFigure(window, "Difference from reported used space", difference);
             Click(window, "Close capacity");
 
             model.Query = "name:filecat-capacity-fixture";

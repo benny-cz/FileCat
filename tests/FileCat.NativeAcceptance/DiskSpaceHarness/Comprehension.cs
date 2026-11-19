@@ -35,9 +35,9 @@ internal sealed partial class HarnessApp
 
             model.Focus(shared.Key);
             await ReadyAsync(() => window.GetVisualDescendants().OfType<TreemapControl>().Any(chart => chart.IsEffectivelyVisible && chart.Bounds.Height > 0));
-            await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text =>
-                text.IsEffectivelyVisible && text.Text?.Contains("counted once here", StringComparison.Ordinal) == true &&
-                text.Text.Contains("File size across 2 matching paths", StringComparison.Ordinal)));
+            await ReadyAsync(() => VisibleReadingText(window, text => text.Contains("counted once here", StringComparison.Ordinal)) &&
+                VisibleReadingText(window, text => text.Contains("File size across 2 matching paths", StringComparison.Ordinal)));
+            var resultThemes = await CheckResultThemesAsync(window, model, warning: true, "wide-partial");
             await RecipeFrameAsync("comprehension-treemap.png", true, token);
             var chartMode = window.GetVisualDescendants().OfType<ComboBox>().Single(box => AutomationProperties.GetName(box) == "Chart view");
             chartMode.SelectedIndex = 1;
@@ -46,9 +46,8 @@ internal sealed partial class HarnessApp
 
             model.Focus(gap.Key);
             if (FindButton("Inspect selection") is { IsEnabled: true }) Click("Inspect selection");
-            await ReadyAsync(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text =>
-                text.IsEffectivelyVisible && text.Text?.Contains("File paths: 0 observed (coverage partial)", StringComparison.Ordinal) == true &&
-                text.Text.Contains("Its size is unknown", StringComparison.Ordinal)));
+            await ReadyAsync(() => VisibleReadingText(window, text => text.Contains("File paths: 0 observed (coverage partial)", StringComparison.Ordinal)) &&
+                VisibleReadingText(window, text => text.Contains("Its size is unknown", StringComparison.Ordinal)));
             await RecipeFrameAsync("comprehension-unknown.png", true, token);
             await CheckNativeVolumeCapacityAsync(window, model, "comprehension-capacity.png");
 
@@ -61,7 +60,7 @@ internal sealed partial class HarnessApp
             Click("Cancel / Keep files");
             await ReadyAsync(() => FindButton("Cancel / Keep files") is null);
             _indexedProbe = new { kind = "comprehension", sharedBytes = shared.Value, sharedNames = shared.Members.Length,
-                unknownObserved = gap.Unknown, captured = true };
+                unknownObserved = gap.Unknown, captured = true, resultThemes };
             _indexedProbeFinished = true;
         }
         catch (Exception error) { _indexedProbeError = error.ToString(); }

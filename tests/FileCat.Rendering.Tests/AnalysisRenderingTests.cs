@@ -107,7 +107,9 @@ public sealed partial class AnalysisRenderingTests
             window.AddSession(zero); window.Show(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             var item = zero.Tree!.Items["n:6"];
             Assert.True(item.Unknown); Assert.False(item.LogicalUnknown); Assert.Equal("0 bytes", DiskSpaceViewModel.LogicalText(item, true));
-            var inspector = window.GetVisualDescendants().OfType<TextBlock>().Single(t => t.IsEffectivelyVisible && t.Text?.Contains("On disk — reported: Unknown", StringComparison.Ordinal) == true).Text!;
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.IsEffectivelyVisible && t.Text == "On disk — reported: Unknown");
+            string inspector = string.Join("\n", window.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible)
+                .Select(t => t.Text?.Replace('\u00a0', ' ')));
             Assert.Contains("File size: 0 B", inspector);
             var exact = window.GetVisualDescendants().OfType<Expander>().Single(control => Equals(control.Header, "Measurement details"));
             Assert.False(exact.IsExpanded);

@@ -189,15 +189,20 @@ public sealed partial class DiskSpaceWindow
         private readonly ComboBox _roots = new() { MinWidth = 160 };
         private readonly TextBox _query = new() { PlaceholderText = "Search within observations…", MinWidth = 200, MaxLength = AnalysisLimits.QueryBytes };
         private readonly CheckBox _case = new() { Content = "Case sensitive" }, _unknown = new() { Content = "Inspect uncertain query results" };
-        private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap }, _summary = new() { TextWrapping = TextWrapping.Wrap }, _range = new(), _inspectorStatus = new() { TextWrapping = TextWrapping.Wrap };
+        private readonly TextBlock _status = ReadingLabel("Secondary"), _summary = MeasureLabel(), _range = new(), _inspectorStatus = ReadingLabel("Accent");
+        private readonly TextBlock _readingScope = ReadingLabel("Secondary"), _readingDetails = ReadingLabel("Secondary");
+        private readonly ReadingStatus _readingStatus;
+        private string _plainSummary = "";
         private string _coverageDetail = "";
         private readonly StackPanel _resultSummary = new() { Spacing = 4 };
         private readonly ScrollViewer _resultControls;
         private readonly TextBlock _historyNotice = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         internal void SetHistoryNotice(string? notice) { _historyNotice.Text = notice; _historyNotice.IsVisible = notice is not null; }
         private readonly TextBox _details = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 180, MaxHeight = 420 };
+        private readonly SelectionReading _inspectionReading = new() { IsVisible = false };
         private readonly Grid _body = new() { ColumnSpacing = 12, RowSpacing = 12 };
         private readonly StackPanel _main = new() { Spacing = 8 }, _inspector = new() { Spacing = 8 };
+        private readonly Border _inspectorSurface;
         private bool? _wide;
         private readonly StackPanel _breadcrumbs = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
         private readonly StackPanel _buckets = new() { Spacing = 4 };
@@ -262,7 +267,7 @@ public sealed partial class DiskSpaceWindow
             filters.Children.Add(ActionButton("Clear filter", () => { _query.Text = ""; _unknown.IsChecked = false; _panelFilter = null; _ = RebuildAsync(); }, "Clear the query, panel display filter and uncertain-results cohort."));
             var navigation = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             var actions = new AnalysisActions();
-            actions.Commands.Children.Add(ActionButton("Copy summary", () => _ = CopyCapturedTextAsync($"{_summary.Text}\n{_status.Text}\n{_coverageDetail}"),
+            actions.Commands.Children.Add(ActionButton("Copy summary", () => _ = CopyCapturedTextAsync($"{_plainSummary}\n{_status.Text}\n{_coverageDetail}"),
                 "Copy the displayed totals and coverage as text."));
             actions.Commands.Children.Add(window.ResourceLimitsButton(services?.Paths.AnalysisScratchDirectory, () => _source.ScratchReservedBytes));
             _volumeCapacityRibbon = window.VolumeCapacityRibbon(() => CurrentCapacity, () => _source.Descriptor.Roots,
@@ -281,9 +286,16 @@ public sealed partial class DiskSpaceWindow
                 : "Captured observations.";
             if (source.Descriptor.Taint.HasFlag(AnalysisTaint.PrivilegedDerived)) provenance += " Privileged-derived metadata.";
             provenance += " File metadata can be sensitive.";
-            var provenanceLabel = new TextBlock { Text = provenance, TextWrapping = TextWrapping.Wrap };
+            var provenanceLabel = new TextBlock { Text = provenance, TextWrapping = TextWrapping.Wrap,
+                [!TextBlock.ForegroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("FcTextMuted") };
             AutomationProperties.SetName(provenanceLabel, "Analysis provenance: " + provenance);
-            _resultSummary.Children.Add(_summary); _resultSummary.Children.Add(_status);
+            AutomationProperties.SetAutomationId(_readingScope, "AnalysisReadingScope");
+            AutomationProperties.SetAutomationId(_summary, "AnalysisReadingAmount");
+            AutomationProperties.SetAutomationId(_status, "AnalysisReadingCoverage");
+            _readingStatus = new ReadingStatus(_status);
+            _resultSummary.Children.Add(ReadingSurface(new StackPanel { Spacing = 2,
+                Children = { _readingScope, _summary, _readingStatus, _readingDetails } },
+                new Thickness(7, 3), new Thickness(2, 0, 0, 0), "Accent"));
             _resultSummary.Children.Add(new ScrollViewer { Content = _breadcrumbs, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto });
             Children.Add(_resultSummary);
             var controls = new StackPanel { Spacing = 6, Children = { toolbar, navigation, filters, _volumeCapacityRibbon, actions, _legend, provenanceLabel, _historyNotice } };
@@ -291,7 +303,8 @@ public sealed partial class DiskSpaceWindow
             _resultControls = new ScrollViewer { Content = controls, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
             AutomationProperties.SetName(_resultControls, "Analysis view controls");
             Children.Add(_resultControls);
-            _body.Children.Add(_main); _body.Children.Add(_inspector); Children.Add(_body);
+            _inspectorSurface = ReadingSurface(_inspector, new Thickness(8), new Thickness(1, 0, 0, 0));
+            _body.Children.Add(_main); _body.Children.Add(_inspectorSurface); Children.Add(_body);
             _main.Children.Add(_treemap); _main.Children.Add(_sunburst); _main.Children.Add(_buckets);
             var pageBar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             _previous = ActionButton("Previous entries", () => _ = PreviousPageAsync(), "Show the preceding page of captured entries.");
@@ -346,13 +359,18 @@ public sealed partial class DiskSpaceWindow
                 string? explanation = DiskSpaceViewModel.EntryExplanation(item);
                 AutomationProperties.SetName(grid, string.Join("; ", cells)); ToolTip.SetTip(grid, new RichTip(item.Name, detail: string.Join(" · ", cells.Skip(1)) + (explanation is null ? "" : "\n" + explanation))); return MarkedRow(item, grid);
             });
-            _main.Children.Add(new TextBlock { Text = "Mark · Name · Active metric · File size · File paths · State", TextWrapping = TextWrapping.Wrap }); _main.Children.Add(_list);
+            var tableHeading = ReadingLabel("Secondary", FontWeight.SemiBold);
+            tableHeading.Text = "Mark · Name · Active metric · File size · File paths · State";
+            _main.Children.Add(ReadingSurface(tableHeading, new Thickness(6, 3), new Thickness(0, 0, 0, 1)));
+            _main.Children.Add(_list);
             AddSelectionControls();
             _exploreFolder = ActionButton("Explore selected folder", () => { if (_list.SelectedItem is AnalysisHierarchyRow { Path.Kind: AnalysisKind.Directory } row) _ = NavigateAsync(row.Path.Id); }, "Open the selected folder within this analysis.");
             _main.Children.Add(_exploreFolder);
             _exploreGroup = ActionButton("Explore selected group", ExploreGroup, "Open the captured members of the selected accounting group.");
             _main.Children.Add(_exploreGroup);
-            _inspector.Children.Add(new TextBlock { Text = "Inspector", FontWeight = FontWeight.Bold }); _inspector.Children.Add(_inspectorStatus); _inspector.Children.Add(_details);
+            var inspectorHeading = ReadingLabel("Accent", FontWeight.SemiBold);
+            inspectorHeading.Text = "Selection inspector";
+            _inspector.Children.Add(inspectorHeading); _inspector.Children.Add(_inspectorStatus); _inspector.Children.Add(_inspectionReading); _inspector.Children.Add(_details);
             _inspector.Children.Add(_showCapturedFolder);
             _previewFile.Click += (_, _) => _ = PreviewFocusedAsync();
             _inspector.Children.Add(_previewFile);
@@ -362,7 +380,8 @@ public sealed partial class DiskSpaceWindow
             _inspector.Children.Add(_bindIndexedSource);
             _copyCapturedPath.Click += (_, _) => _ = CopyCapturedPathAsync();
             _inspector.Children.Add(_copyCapturedPath);
-            _inspector.Children.Add(ActionButton("Copy details", () => _ = CopyCapturedTextAsync(_details.Text), "Copy the information shown in the inspector."));
+            _inspector.Children.Add(ActionButton("Copy details", () => _ = CopyCapturedTextAsync(_inspectionReading.IsVisible
+                ? _inspectionReading.PlainText.TrimEnd() + "\n\n" + _details.Text : _details.Text), "Copy the information shown in the inspector."));
             SetClipboardInspection(null);
             var evidence = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             string[] captions = ["First aliases", "More aliases", "First facts", "More facts", "First issues", "More issues"];
@@ -393,11 +412,22 @@ public sealed partial class DiskSpaceWindow
             Publish(explorer);
             if (restoreNotice is not null) _status.Text += " " + restoreNotice;
         }
+        private void UpdateIndexedReading(string scope, string amount, string facts, NamespaceCoverage coverage,
+            AnalysisFreshness freshness, bool uncertainMatches)
+        {
+            _readingScope.Text = AnalysisNames.Display(scope, 120);
+            _summary.Text = KeepMeasurementUnits(amount);
+            ShowReadingLabel(_readingDetails, KeepMeasurementUnits(facts));
+            _plainSummary = amount + " · " + facts;
+            _readingStatus.SetWarning(HasCoverageWarning(coverage, freshness) || uncertainMatches);
+        }
+
         private void LayoutMode(double width)
         {
             bool wide = width >= 900; if (_wide == wide) return; _wide = wide;
             _body.ColumnDefinitions = new(wide ? "3*,2*" : "*"); _body.RowDefinitions = new(wide ? "Auto" : "Auto,Auto");
-            Grid.SetColumn(_inspector, wide ? 1 : 0); Grid.SetRow(_inspector, wide ? 0 : 1);
+            Grid.SetColumn(_inspectorSurface, wide ? 1 : 0); Grid.SetRow(_inspectorSurface, wide ? 0 : 1);
+            _inspectorSurface.BorderThickness = wide ? new Thickness(1, 0, 0, 0) : new Thickness(0, 1, 0, 0);
         }
         private void Interaction(bool active)
         {
@@ -654,12 +684,15 @@ public sealed partial class DiskSpaceWindow
             finally { _publishing = false; }
             if (focusTable) _list.Focus();
             var totals = page.Scope?.Totals ?? explorer.Totals; var logical = page.Scope?.Logical ?? explorer.LogicalTotals;
-            _summary.Text = (_metric.Items[ (int)explorer.Metric ]?.ToString() ?? "Measure") + ": " +
-                (!totals.CompatibleBasis ? "allocation bases differ; choose a single captured location" : explorer.Metric == AnalysisMetric.Files ? totals.Known.ToString("N0") + " known" : DiskSpaceViewModel.Bytes(explorer.Metric == AnalysisMetric.OnDisk ? checked(totals.Known + totals.IdentityUnverified) : totals.Known) + " known") +
-                $" · {logical.Files:N0} matching file paths · File size: {DiskSpaceViewModel.Bytes(logical.KnownBytes)} known" + (logical.UnknownFiles > 0 ? $" · {logical.UnknownFiles:N0} unknown file sizes" : "");
-            if (totals.IdentityUnverified > 0) _summary.Text += explorer.Metric == AnalysisMetric.OnDisk
+            string scopeAmount = DiskSpaceViewModel.MetricTitle(explorer.Metric) + ": " +
+                (!totals.CompatibleBasis ? "allocation bases differ; choose a single captured location" : explorer.Metric == AnalysisMetric.Files ? totals.Known.ToString("N0") + " known" : DiskSpaceViewModel.Bytes(explorer.Metric == AnalysisMetric.OnDisk ? checked(totals.Known + totals.IdentityUnverified) : totals.Known) + " known");
+            string facts = $"{logical.Files:N0} matching file paths · File size: {DiskSpaceViewModel.Bytes(logical.KnownBytes)} known" + (logical.UnknownFiles > 0 ? $" · {logical.UnknownFiles:N0} unknown file sizes" : "");
+            if (totals.IdentityUnverified > 0) facts += explorer.Metric == AnalysisMetric.OnDisk
                 ? $" · Includes {DiskSpaceViewModel.Bytes(totals.IdentityUnverified)} reported for paths with unverified identities; aliases may repeat."
                 : $" · {DiskSpaceViewModel.Bytes(totals.IdentityUnverified)} identity-unverified path bytes are excluded from unique chart area.";
+            string scope = page.Scope?.Path.Name ?? (explorer.Descriptor.Roots.Length == 1 ? explorer.Descriptor.Roots[0].Label : "All locations");
+            UpdateIndexedReading(page.GeometrySkipped != 0 ? "Other small items · " + scope : scope,
+                scopeAmount, facts, explorer.Descriptor.Coverage, explorer.Descriptor.Freshness, explorer.Filter?.Request.UnknownOnly == true);
             ulong missing = totals.Missing.Values.Aggregate(0UL, (sum, count) => checked(sum + count));
             _status.Text = CoverageHeadline(explorer.Descriptor.Coverage, explorer.Descriptor.Freshness) + ".";
             if (explorer.Filter is { } applied) _status.Text += $" {applied.DefinitePaths:N0} definite matches; {applied.UnknownPaths:N0} uncertain results.";
@@ -753,11 +786,7 @@ public sealed partial class DiskSpaceWindow
                 var text = new System.Text.StringBuilder();
                 bool basketOnly = _basketInspection == path;
                 if (!basketOnly)
-                {
-                    text.AppendLine(AnalysisNames.DisplayName(detail.Row.Path, 256));
-                    text.AppendLine(DiskSpaceViewModel.InspectorMeasurements(item, metric));
-                    text.AppendLine();
-                }
+                    _inspectionReading.Show(item, metric, item.IncludedByPolicy ? "" : "Excluded by policy", AnalysisNames.DisplayName(detail.Row.Path, 256));
                 var boundary = detail.Issues.Rows.Select(issue => DiskSpaceViewModel.DescribeBoundary(issue.Code))
                     .FirstOrDefault(description => description is not null);
                 if (boundary is not null) text.AppendLine(boundary);
@@ -784,6 +813,7 @@ public sealed partial class DiskSpaceWindow
                 text.AppendLine($"Issues {detail.Issues.Offset:N0}–{detail.Issues.NextOffset:N0} of {detail.Issues.Total:N0}:");
                 foreach (var entry in detail.Issues.Rows) text.AppendLine("  " + entry.State + ": " + AnalysisNames.Display(entry.Code, 256));
                 _details.Text = text.ToString(); _inspectorStatus.Text = "Captured metadata ready for " + AnalysisNames.DisplayName(detail.Row.Path, 80) + ".";
+                _inspectionReading.IsVisible = !basketOnly;
                 _evidence[0].IsEnabled = alias > 0; _evidence[1].IsEnabled = detail.Aliases.HasMore;
                 _evidence[2].IsEnabled = fact > 0; _evidence[3].IsEnabled = detail.Facts.HasMore; _evidence[4].IsEnabled = issue > 0; _evidence[5].IsEnabled = detail.Issues.HasMore;
                 UpdateCharts();
