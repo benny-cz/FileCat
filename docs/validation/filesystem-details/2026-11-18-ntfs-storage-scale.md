@@ -86,7 +86,7 @@ A follow-up launched the same app twice at medium integrity using fresh profiles
 | Default FileCat configuration | 708–790 | 180–191 | 100–102 |
 | `FILECAT_RENDERING=compat` | 2,534–5,895 | 1,928–5,358 | 100–102 |
 
-The compatibility run had thousands of event handles at idle. A separate UI Automation comparison also showed increases during its idle intervals, including 3,499 to 8,195 before enumeration and 5,897 to 10,092 after client collection. These controls establish that the observed handle growth can occur without storage jobs or UI Automation enumeration. The default rendering configuration still needs measurement through the full workload and on the signed-in desktop. The receipts are `idle-handle-types.json` and `uia-handle-comparison.json` in `.tmp/filecat-storage-ui-scale-cdd562ad-r1/`.
+The compatibility run had thousands of event handles at idle. A separate UI Automation comparison also showed increases during its idle intervals, including 3,499 to 8,195 before enumeration and 5,897 to 10,092 after client collection. These controls establish that the observed handle growth can occur without storage jobs or UI Automation enumeration. The [full x64 workload with default rendering](#native-x64-operations-with-default-rendering) used the same isolated session. The idle receipts are `idle-handle-types.json` and `uia-handle-comparison.json` in `.tmp/filecat-storage-ui-scale-cdd562ad-r1/`.
 
 ### ARM64 storage jobs under load
 
@@ -122,3 +122,21 @@ A separate Windows 11 ARM64 run used the real Operations window on the hosted de
 | Main process working set, sampled initial to peak | 268,222,464 to 318,722,048 bytes |
 
 Resume finished with 10,001 changes, including the selected directory. The queued folder was created afterward. All 10,000 files were compressed, and the sampled boundary contents matched the seed. The dispatcher logged four delays over 50 ms during the measured job, with a maximum of 118.8 ms. Its overall maximum of 1,852.2 ms occurred during app startup. The source commit was `5acb88db4035fb560c49bc97f53eb35e694749de`. The ARM64 qualification executable SHA-256 was `0A93C75FA695743B3A0AC1638D92521564F43D41AE687030FFBCF8C4273606CE` and the FileCat assembly SHA-256 was `357B746FC874803EDC340453792DF86A9CBD96E342D89C6B6697BBA251048D95`.
+
+### Native x64 Operations with default rendering
+
+The Windows 11 x64 VM reran the same 10,000-file workload with default rendering on 19 November 2026. The app hashes, build 26340, isolated service session, medium integrity and 4 KiB NTFS matched the earlier compatibility run. It paused at 727 checked items, with the unrelated Create Folder job queued. Both live call pages displayed the same digest, which an independent scan matched at byte 958,237, line 1,455 of the final journal.
+
+| Measurement | Result |
+| --- | ---: |
+| Fixture creation | 10.87 s |
+| Compression through completion including automation and pause | 288.99 s |
+| Observed paused interval | 102.65 s |
+| Pause to available Resume | 2.38 s |
+| Open recorded calls to first available page | 2.80 s |
+| Request next page to available results | 2.50 s |
+| Final durable journal | 13,219,660 bytes |
+| Main process handles, sampled initial to peak | 841 to 851 |
+| Main process working set, sampled initial to peak | 232,947,712 to 262,410,240 bytes |
+
+The job reported 10,001 changes, the queued folder was created after Resume, and every file carried the compressed attribute. Boundary hashes matched the original bytes. Three dispatcher delays exceeded 50 ms during the measured job, with a maximum of 93.8 ms. The overall maximum during startup was 1,578.2 ms. The blocked-flush counterpart `Published_prefix_is_exact_and_can_be_read_while_later_intent_flush_is_blocked` also passed in the retained Ubuntu portable receipt. The new VM receipts are `default-operations-scale.json`, `default-operations-dispatcher.json` and `default-operations-storage.fcj` in `.tmp/filecat-storage-ui-scale-cdd562ad-r1/`.

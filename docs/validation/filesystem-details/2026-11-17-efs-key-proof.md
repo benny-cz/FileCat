@@ -65,3 +65,9 @@ On 19 November 2026, the Windows 11 Enterprise ARM64 runner (build 26200, medium
 - `native-efs-wizard.trx` recorded two executed and passed cases. Cancellation returned `ERROR_CANCELLED` (1223) and left no PFX. Completion exported a PFX whose reopened certificate matched the setup association and had a private key. The test verified that recovery evidence bound the exact setup identity and certificate hash.
 
 The wizard receipt uses a disposable software key and a native owner window. Hardware and managed recovery, independent-account restore, and the full FileCat owner-window interaction on ARM64 have separate gates.
+
+## Native x64 virtual TPM provider comparison
+
+The Windows 11 x64 build 26340 VMware guest had a ready virtual TPM. A native test at medium integrity generated a uniquely named non-exportable RSA key with **Microsoft Platform Crypto Provider**. It made a short-lived EFS-purpose certificate, copied only the provider association to a newly decoded public certificate and examined it through FileCat's fresh silent comparison. The result was `MatchedAvailable`, with `Cng` ownership and an observed export policy of `None`. The fixture deleted its named key. It used no certificate-store insertion or default-key change. The `native-tpm.xml` receipt records one pass with zero skips in `.tmp/arm64-ops-f8d6b000-r1/`. The test bundle SHA-256 is `94103614E7D0D0A7FEDFDB1042734C1660AC80E672AFF5B38138725CAC1987A3`. [Microsoft Platform Crypto Provider](https://learn.microsoft.com/en-us/windows/win32/seccertenroll/cng-key-storage-providers)
+
+This receipt qualifies the tested silent comparison with a virtual TPM. Interactive provider prompts and recovery with a TPM-backed EFS file still need their own evidence.
