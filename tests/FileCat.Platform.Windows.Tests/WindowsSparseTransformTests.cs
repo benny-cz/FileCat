@@ -494,7 +494,7 @@ public sealed partial class WindowsSparseTransformTests
             arm64 ? WindowsStorageReviewEvidence.Arm64QualificationBackend : WindowsStorageReviewEvidence.Backend);
     }
 
-    private static Job Submit(JobManager jobs, string path, StorageAction action)
+    private static Job Submit(JobManager jobs, string path, StorageAction action, TimeSpan? timeout = null)
     {
         var ct = TestContext.Current.CancellationToken;
         using var review = jobs.PrepareStorageReview([ItemRef.ForFileSystemPath(path, EntryKind.File)], action, ct);
@@ -505,7 +505,7 @@ public sealed partial class WindowsSparseTransformTests
         try
         {
             var job = jobs.SubmitStorage(review, selection, _ => { });
-            Assert.True(finished.Wait(TimeSpan.FromSeconds(45), ct));
+            Assert.True(finished.Wait(timeout ?? TimeSpan.FromSeconds(45), ct));
             return job;
         }
         finally { jobs.JobFinished -= OnFinished; }
