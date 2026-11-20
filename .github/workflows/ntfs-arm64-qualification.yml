@@ -268,13 +268,14 @@ jobs:
               'Large_sparse_removal_is_refused_on_review_and_after_late_growth'
               'Reviewed_efs_binding_preserves_sparse_main_and_named_layouts'
               'Reviewed_efs_jobs_preserve_sparse_streams_and_record_only_changed_calls'
+              'A_read_only_sparse_file_refuses_efs_review_without_a_job_or_native_call'
               'Named_sparse_layout_growth_before_or_during_the_call_is_never_reported_as_success'
               'A_sparse_range_overflow_refuses_before_a_native_call_while_a_noop_requires_no_inventory'
               'Reviewed_hex_save_as_keeps_sparse_ranges_in_an_approved_clear_copy'
             ) | ForEach-Object { "FullyQualifiedName~WindowsSparseTransformTests.$_" }
             $sparseFilter += 'FullyQualifiedName~WindowsStorageInspectionTests.Compression_enable_size_ceiling_uses_the_held_logical_file_length'
             $outputSuites += @{ Project = 'tests/FileCat.Platform.Windows.Tests'; Log = 'native-storage-sparse.trx';
-                Count = '30'; Filter = $sparseFilter -join '|' }
+                Count = '31'; Filter = $sparseFilter -join '|' }
           }
           if ($env:FILECAT_QUALIFY_EVIDENCE -eq 'true') {
             $env:FILECAT_TEST_STORAGE_SCALE = '1'

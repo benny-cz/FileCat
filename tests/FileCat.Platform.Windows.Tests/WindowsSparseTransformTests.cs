@@ -421,6 +421,30 @@ public sealed partial class WindowsSparseTransformTests
         });
     }
 
+    [Fact]
+    public void A_read_only_sparse_file_refuses_efs_review_without_a_job_or_native_call()
+    {
+        RequireFixture();
+        Run("main-holes", (path, first) =>
+        {
+            File.SetAttributes(path, first.Attributes | FileAttributes.ReadOnly);
+            try
+            {
+                var adapter = new WindowsStorageTransforms(qualifyNativeArm64: WindowsStorageAbiTests.QualifyNativeArm64Jobs);
+                var jobs = CreateManager(path, adapter: adapter.CreateEfsJobCandidate());
+                using var review = jobs.PrepareStorageReview([ItemRef.ForFileSystemPath(path, EntryKind.File)],
+                    StorageAction.EncryptEfs, TestContext.Current.CancellationToken);
+                Assert.Equal("read-only-file", Assert.Single(review.Roots).Observation.Ineligible?.Code);
+                Assert.Throws<InvalidOperationException>(() => review.ApproveEfs(StorageAction.EncryptEfs,
+                    StorageScope.SelectedItems, new(true, true)));
+                Assert.Empty(jobs.Jobs);
+                Assert.Empty(Directory.EnumerateFiles(Path.Join(Path.GetDirectoryName(path)!, "journal")));
+                Assert.False(Report("read-only reviewed encrypt", "refused", path, first).Attributes.HasFlag(FileAttributes.Encrypted));
+            }
+            finally { File.SetAttributes(path, first.Attributes); }
+        });
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
