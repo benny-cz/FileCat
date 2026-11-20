@@ -11,10 +11,10 @@ $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath($ScratchRoot)
 if ($OwnedWindows11X64) {
     if ($env:PROCESSOR_ARCHITECTURE -ne 'AMD64' -or $root -ine 'C:\FileCatDeviceLoss\case' -or
-        ![IO.Path]::IsPathFullyQualified($TestAssembly) -or
+        $TestAssembly -notmatch '^[A-Za-z]:\\' -or
         [IO.Path]::GetFileName($TestAssembly) -cne 'FileCat.Platform.Windows.Tests.dll' -or
         !(Test-Path -LiteralPath $TestAssembly -PathType Leaf) -or
-        ![IO.Path]::IsPathFullyQualified($QualificationScript) -or
+        $QualificationScript -notmatch '^[A-Za-z]:\\' -or
         !(Test-Path -LiteralPath $QualificationScript -PathType Leaf) -or
         (Test-Path -LiteralPath $root)) {
         throw 'Use a fresh owned Windows 11 x64 fixture with an exact test assembly and medium-integrity launcher.'
@@ -38,13 +38,21 @@ $qualification = if ($OwnedWindows11X64) { [IO.Path]::GetFullPath($Qualification
 $powerShell = (Get-Process -Id $PID).Path
 
 function Get-FixtureDisk([string]$Image, [long]$ExpectedSize = 256MB) {
-    $mounted = Get-DiskImage -ImagePath $Image
-    $disks = @($mounted | Get-Disk)
-    if (!$mounted.Attached -or $mounted.ImagePath -ine $Image -or $disks.Count -ne 1 -or
-        $disks[0].IsBoot -or $disks[0].IsSystem -or $disks[0].Size -ne $ExpectedSize) {
-        throw 'The mounted device is outside the owned VHDX fixture.'
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    while ($true) {
+        $mounted = Get-DiskImage -ImagePath $Image
+        if ($mounted.ImagePath -ine $Image) { throw 'The mounted device is outside the owned VHDX fixture.' }
+        $disks = if ($mounted.Attached) { @($mounted | Get-Disk -ErrorAction SilentlyContinue) } else { @() }
+        if ($disks.Count -gt 1) { throw 'The mounted device is outside the owned VHDX fixture.' }
+        if ($disks.Count -eq 1) {
+            if ($disks[0].IsBoot -or $disks[0].IsSystem -or $disks[0].Size -ne $ExpectedSize) {
+                throw 'The mounted device is outside the owned VHDX fixture.'
+            }
+            return $disks[0]
+        }
+        if ($timer.Elapsed.TotalSeconds -ge 15) { throw 'The owned VHDX was not enumerated as a disk within 15 seconds.' }
+        Start-Sleep -Milliseconds 250
     }
-    return $disks[0]
 }
 
 function Wait-FixtureMarker([string]$CaseRoot, $Process, [string]$Name, [int]$TimeoutSeconds = 45) {
