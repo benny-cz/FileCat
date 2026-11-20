@@ -112,7 +112,42 @@ The owner confirmed eSigner custody: the order uses eSigner with an OTP-app seco
 - The pilot runs used about 126 signings in total.
 
 **Not shown:**
-- Smart App Control, SmartScreen reputation, ARM64, a GA physical Windows x64 PC, and the signed release pipeline itself.
+- Smart App Control on the GA tier (a preliminary Insider check follows), SmartScreen reputation, ARM64, a GA physical Windows x64 PC, and the signed release pipeline itself.
 - The owner's decisions on publishing the certificate subject and on replacing the SignPath-specific contract.
 
 The draft stays private and is deleted after the owner's checks. No RC tag, candidate or public signed asset exists.
+
+## Smart App Control check (preliminary, Insider VM)
+
+On 2026-11-20 the owner switched Smart App Control on in the Windows test VM: Windows 11 Insider 26H2, build 26340.10013, under VMware. `citool -lp` showed `VerifiedAndReputableDesktop` enforced and authorized, and the registry showed `VerifiedAndReputablePolicyState` 1. Before each step the guest ran no `dotnet` process, so no other worker's run was disturbed. The pilot draft's Setup and portable ZIP went in through VMware Tools.
+
+**Signed pilot files.** Launches ran in a batch session with PowerShell in FullLanguage mode.
+
+| Launch | Result |
+|---|---|
+| Setup, silent into a test folder | Exit 0, so Inno Setup's extracted engine was allowed |
+| Installed `FileCat.exe` | Ran for 25 s with 82 modules from its own folder loaded |
+| Installed `FileCat.PrivilegedHost.exe` | Ran |
+| Installed `FileCat.ShellHost.exe` | Started and exited 2, its usage code |
+| Portable `FileCat.exe` | Ran for 25 s with 82 modules from its own folder loaded |
+| Uninstaller | Exit 0; removed the files and the uninstall entry |
+
+Code Integrity logged 0 events and Defender logged 0 events during this run.
+
+**Controls in the same session:**
+
+| Control | Result |
+|---|---|
+| Unsigned copy of the signed `FileCat.ShellHost.exe` (signature stripped) | Refused: "An Application Control policy has blocked this file" |
+| Tampered copy (one byte of the COFF header) | Refused, same message |
+| Unsigned copy with a download mark (`ZoneId=3`) | Refused, same message |
+| Signed `ShellHost.exe` on its own | Started |
+| Signed portable `FileCat.exe` with a download mark | Started |
+
+Each refusal logged events 3077, 3033, 3089 (twice) and 3118. All 15 Code Integrity events name only the three controls; none names a signed file. Enforcement was therefore active and discriminating, and FileCat's signed files passed it.
+
+**Limits:**
+- It is an Insider build in a VM, not the GA tier the release requires.
+- Launches used `Start-Process` in a batch session, so the download prompt Explorer would show (SmartScreen) is not covered.
+- Only startup was exercised. Smart App Control checks each binary as it loads, and the verifier shows every shipped PE file carries a trusted signature, so binaries this check did not load meet the same rule.
+- Smart App Control stays on in the VM by the owner's choice. While it is on, other unsigned test builds there are blocked.
