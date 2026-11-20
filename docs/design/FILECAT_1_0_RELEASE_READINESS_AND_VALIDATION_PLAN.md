@@ -458,7 +458,7 @@ All shipping entries inherit the validation and release consequences of their li
 | D-37 | N: listed legacy utilities omitted; see deferral register |
 | D-38 | P: provisional baseline requires current lifecycle/package reconciliation and support decision; V19 |
 | D-39 | S, extended: minimum read-only ZIP retained; adopted ZIP writing also qualifies |
-| D-40 | S/P: SignPath stable Windows signing and preceding unsigned preview confirmed; infrastructure/eligibility unresolved. V20/Section 10.4 |
+| D-40 | S/P: stable Windows signing with the owner's SSL.com certificate through eSigner in the protected GitHub Actions pipeline (DEC-12, 2026-11-20, after SignPath Foundation declined); piloted, not yet in the candidate pipeline. V20/Section 10.4 |
 | D-41 | S: docking inside one window; V01/V17 |
 | D-42 | S: visible command search; V17 |
 | D-43 | S: advanced Find; Unicode addition included; V13 |
@@ -1430,6 +1430,13 @@ Specific findings:
 AppImage’s statically linked LGPL component requires an obligation review of the actual runtime and corresponding materials; merely linking to an upstream project is not automatically sufficient.
 
 ### 10.4 Signing, preview and candidate production procedure
+
+**Amended 2026-11-20 by DEC-12.** SignPath Foundation declined FileCat on 2026-10-31, and the owner chose the alternative this section names in its last paragraph.
+
+- **The route:** stable Windows signing uses the owner's SSL.com individual-validated certificate through eSigner. It runs in GitHub Actions' protected `signing` environment: the owner approves each run, administrator bypass is off, and only `main` and `v*` tags deploy. Credentials reach only the signing steps, on a machine that never ran the build.
+- **What it replaces:** SignPath's terms and the SignPath configuration of step 2. The published unsigned previews met step 1.
+- **What still applies:** the other steps, with this signer. See the [signing-route addendum](../release/1.0.0/WINDOWS_SIGNING_ROUTE_REASSESSMENT_20261031.md#2026-11-20-addendum-sslcom-certificate-and-hosted-signing-dry-run) and the [pilot evidence](../release/1.0.0/evidence/E-SIGN-DRYRUN-20261120.md).
+- **Signer identity:** signatures show the owner's legal name and city (DEC-13).
 
 D-40/ADR-15 already commit to an explicitly unsigned preview before SignPath-signed stable Windows distribution. There is no released/tagged artifact at this baseline. Start provider eligibility and license resolution in preflight, in parallel with hardware/recruitment; do not wait for the candidate. Acceptance, credentials, reputation assessment and turnaround are unknown.
 

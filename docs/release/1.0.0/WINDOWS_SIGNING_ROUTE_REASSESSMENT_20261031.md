@@ -63,7 +63,7 @@ Steps 1–3 were done on 2026-11-20: custody is eSigner with an OTP-app second f
    The existing `release` environment stays unchanged. The pilot's first step refuses any weaker setup.
 3. The owner starts the pilot from `main` and approves the `signing` deployment. One run costs about 57 eSigner signings. The signed files land in a private draft release, which the owner deletes once the result is recorded.
 
-Before any public signed release, as well:
+Before any public signed release, as well (both decided on 2026-11-20 as [DEC-13 and DEC-12](evidence/E-DEC-2026-11-20-signing-decisions.md)):
 
 4. The owner decides that signatures may show the certificate subject (the owner's legal name and city).
 5. The owner approves replacing the SignPath-specific D-40/section 10.4 contract with this route.

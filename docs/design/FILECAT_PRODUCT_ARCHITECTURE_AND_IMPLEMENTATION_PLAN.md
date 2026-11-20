@@ -1618,7 +1618,7 @@ Date: 2026-09-26. Confirmed entries consolidate the original specification, the 
 | D-37 / design | Omit append-on-conflict, secure wipe, folder-local command menus, `descript.ion` writing, split/combine, UUE/MIME encoding, and print | Unsafe, unverifiable, or low-value legacy behaviors | Provisional | §3.4, §23.3 |
 | D-38 / design | Windows minimum is the Home/Pro-serviced releases (25H2 or later as of 2026-09-26); Ubuntu 26.04 LTS provisional | Current lifecycle facts | Provisional | PLATFORM-001 |
 | D-39 / product owner | Read-only ZIP browsing and extraction ship in the first stable release | All three references enter archives with Enter; the behavior stays the same from v1 on | Confirmed | ARC-001/002, ADR-07 |
-| D-40 / product owner | Releases are signed through SignPath Foundation | Smart App Control blocks unsigned releases; SignPath signs open-source projects free of charge | Confirmed | DIST-002, ADR-15 |
+| D-40 / product owner | Releases are signed with the owner's SSL.com code-signing certificate through eSigner (amended 2026-11-20 by DEC-12; SignPath Foundation declined on 2026-10-31) | Smart App Control blocks unsigned releases | Confirmed | DIST-002, ADR-15 |
 | D-41 / product owner | Panels are dockable within the one window: moved beside, above, or below each other, swapped, and resized (2026-09-29) | Use the whole screen; a fixed side-by-side order is too rigid | Confirmed | UX-009, ADR-18 |
 | D-42 / product owner | A visible command search finds and runs any command, including by synonyms such as "recovery" for Recover deleted files (2026-09-29) | No command should require walking the menus | Confirmed | UX-010 |
 | D-43 / product owner | Find (Alt+F7) reaches Salamander's functional scope (2026-09-29) | Search is a daily Commander tool, and Salamander's Find is the reference | Confirmed | SEARCH-002 |
@@ -1653,7 +1653,7 @@ Date: 2026-09-26. Confirmed entries consolidate the original specification, the 
 | A-08 | Reference performance hardware/budgets in §21 are provisional | Validate and adjust with recorded evidence before release; do not present them as measured results. |
 | A-09 | Optional specialist engines can be excluded from core distribution | A contributor can still build/run all declared core functionality without paid dependencies. Revisit if a feature becomes a core release gate. |
 | A-10 | Reference products are behavioral evidence only | Total Commander is proprietary and FAR Manager is BSD-3-Clause; no code or assets are reused from either, nor from GPL-licensed Salamander. Revisit only if a specific component is proposed for reuse, with a license review. |
-| A-11 | SignPath Foundation accepts FileCat once a preview release exists | Stable releases are signed through SignPath (D-40). Revisit if the application is rejected or delayed; an organizational certificate is the fallback. |
+| A-11 | Retired 2026-11-20: SignPath Foundation declined FileCat on 2026-10-31 | The fallback this row named was taken: D-40 now signs with the owner's SSL.com certificate (DEC-12). |
 | A-12 | The default keymap serves Salamander users first while honoring cross-reference agreements | Migration presets come later. Revisit after TV-10, or if user research shows a different majority. |
 
 ### 28.2 Decisions that were open when the plan was written
@@ -1670,7 +1670,7 @@ Each of these was decided during implementation without another product intervie
 | Archive, SSH, media, and recovery engines | In-box ZIP and TAR readers, SharpCompress, DiscUtils, SSH.NET, FluentFTP, FileCat's own recovery engines | ADR-07, ADR-08, ADR-17 |
 | Cross-platform containment | Restricted worker processes (low integrity and a job object on Windows) | ADR-06 |
 | Ubuntu and macOS versions and packages | `.tar.gz`, `.deb`, and AppImage for Linux; an ad-hoc signed `.app` for Apple silicon | ADR-12 |
-| Installer tool and servicing cadence | Per-machine installer plus portable ZIP, SignPath signing (D-40) | ADR-15 |
+| Installer tool and servicing cadence | Per-machine installer plus portable ZIP, SSL.com eSigner signing (D-40 as amended by DEC-12) | ADR-15 |
 | Privileged broker | Per-plan broker in the installed program folder | ADR-14 |
 | Default keymap conflicts | Resolved as in §4.5 | ADR-16 |
 | Shell integration host | Out-of-process host with exclusions, shipped in P7 | ADR-06, TV-16 |

@@ -113,7 +113,7 @@ The owner confirmed eSigner custody: the order uses eSigner with an OTP-app seco
 
 **Not shown:**
 - Smart App Control on the GA tier (a preliminary Insider check follows), SmartScreen reputation, ARM64, a GA physical Windows x64 PC, and the signed release pipeline itself.
-- The owner's decisions on publishing the certificate subject and on replacing the SignPath-specific contract.
+- The owner's decisions on publishing the certificate subject and on replacing the SignPath-specific contract (both made later on 2026-11-20: [DEC-13 and DEC-12](E-DEC-2026-11-20-signing-decisions.md)).
 
 The draft stays private and is deleted after the owner's checks. No RC tag, candidate or public signed asset exists.
 
