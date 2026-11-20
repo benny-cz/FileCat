@@ -105,6 +105,64 @@ public sealed partial class WindowsEfsJobTests
     }
 
     [Fact]
+    public void An_exact_recipient_key_does_not_override_the_native_efs_access_check()
+    {
+        string? root = Environment.GetEnvironmentVariable("FILECAT_TEST_EFS_ASSOCIATED_RECIPIENT_ROOT");
+        if (string.IsNullOrWhiteSpace(root)) Assert.Skip("Requires an isolated, prepared EFS recipient fixture.");
+        RequireEfs();
+        string expected = File.ReadAllText(Path.Join(root, "expected-access.txt")).Trim();
+        Assert.Contains(expected, new[] { "allowed", "denied" });
+        bool allowed = expected == "allowed";
+        string source = Path.Join(root, "fixture.txt");
+        string fingerprint = File.ReadAllText(Path.Join(root, "recipient-added.txt")).Trim();
+        using var identity = WindowsIdentity.GetCurrent();
+        using (StorageReviewResources.EnterNative(Ct))
+        {
+            var key = new WindowsEfsKeys().ProbeAssociatedCertificate(identity.User!.Value, fingerprint, Ct);
+            Assert.Equal(StorageEfsKeyState.MatchedAvailable, key.State);
+            Assert.Equal("efs-key-nonexportable", key.BackupProblem?.Code);
+        }
+        Assert.True(IsEncrypted(source));
+        Assert.Equal("same ordinary ACL", File.ReadAllText(Path.Join(root, "control.txt")));
+        var operations = new WindowsFileOperations();
+        string before = Assert.IsType<string>(operations.GetFileIdentity(source));
+        string journalRoot = Directory.CreateTempSubdirectory("filecat-efs-associated-recipient-").FullName;
+        try
+        {
+            var manager = Manager(journalRoot, new WindowsStorageTransforms().CreateEfsJobCandidate());
+            int prompts = 0;
+            manager.DecisionRequested += pending => { prompts++; pending.Resolve(new(DecisionAction.CancelJob)); };
+            var job = Run(manager, StorageAction.DecryptEfs, [ItemRef.ForFileSystemPath(source, EntryKind.File)]);
+            var result = Assert.IsType<StorageResultSnapshot>(job.StorageResult);
+            Assert.Equal(0, prompts);
+            Assert.False(result.ReviewPending);
+            Assert.Equal(0, result.Counts.Uncertain);
+            Assert.True(History(manager, job).Ended);
+            Assert.Equal(before, operations.GetFileIdentity(source));
+            if (allowed)
+            {
+                AssertCompleted(job, changed: 1, already: 0);
+                var call = Assert.Single(Evidence(manager, job).Calls);
+                Assert.Equal(StorageCallDisposition.Observed, call.Disposition);
+                Assert.True(call.Result!.NativeCallAttempted);
+                Assert.Equal(StorageObservationState.Disabled, call.Result.After!.Efs);
+                Assert.Null(call.EfsReviewedKey);
+                Assert.False(IsEncrypted(source));
+            }
+            else
+            {
+                Assert.Equal(0, result.Counts.Changed);
+                Assert.Contains(result.Reasons,
+                    reason => reason.Problem is { Kind: StorageReasonKind.PermissionOrPolicy, Code: "efs-guard-open" });
+                Assert.Empty(Evidence(manager, job).Calls);
+                Assert.True(IsEncrypted(source));
+                Assert.Throws<UnauthorizedAccessException>(() => File.ReadAllText(source));
+            }
+        }
+        finally { Directory.Delete(journalRoot, recursive: true); }
+    }
+
+    [Fact]
     public void Backup_review_lists_only_selected_files_and_rechecks_their_exact_identities()
     {
         bool qualifyNativeArm64 = WindowsStorageAbiTests.QualifyNativeArm64Jobs;

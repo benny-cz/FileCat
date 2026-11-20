@@ -27,6 +27,10 @@ public static class StorageReviewInput {
     [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr window, uint command);
     [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr window);
     [DllImport("user32.dll")] public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+    [DllImport("kernel32.dll")] public static extern uint WTSGetActiveConsoleSessionId();
+    [DllImport("user32.dll", SetLastError=true)] private static extern IntPtr OpenInputDesktop(uint flags, bool inherit, uint access);
+    [DllImport("user32.dll")] private static extern bool CloseDesktop(IntPtr desktop);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint pid);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out Rect bounds);
     [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr window, out Rect bounds);
     [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(Point point);
@@ -66,6 +70,19 @@ public static class StorageReviewInput {
         mouse_event(2, 0, 0, 0, UIntPtr.Zero);
         mouse_event(4, 0, 0, 0, UIntPtr.Zero);
         return true;
+    }
+    public static uint ForegroundProcess() {
+        var foreground = GetForegroundWindow();
+        if (foreground == IntPtr.Zero) return 0;
+        uint pid;
+        GetWindowThreadProcessId(foreground, out pid);
+        return pid;
+    }
+    public static int InputDesktopError() {
+        IntPtr desktop = OpenInputDesktop(0, false, 1); // DESKTOP_READOBJECTS.
+        if (desktop == IntPtr.Zero) return Marshal.GetLastWin32Error();
+        CloseDesktop(desktop);
+        return 0;
     }
 }
 '@
@@ -624,6 +641,14 @@ try {
         if ($size.Length -eq 2 -and $size[0] -ge 640 -and $size[0] -le 644 -and $size[1] -ge 420 -and $size[1] -le 424) { $size }
     } 'the 640 by 420 DIP client'
     $record.Dpi = [StorageReviewInput]::GetDpiForWindow($handle)
+    $record.Foreground = [ordered]@{
+        AppProcess = $app.Id
+        ActiveConsoleSession = [StorageReviewInput]::WTSGetActiveConsoleSessionId()
+        InputDesktopError = [StorageReviewInput]::InputDesktopError()
+        BeforeNvda = [StorageReviewInput]::ForegroundProcess()
+        AfterNvda = $null
+        ActivationRequested = $null
+    }
     $record.Stage = 'launch NVDA'
     $list.SetFocus()
     $reader = Start-Process -FilePath $nvdaPath -WindowStyle Hidden -PassThru -ArgumentList @(
@@ -633,6 +658,10 @@ try {
         if ($reader.HasExited) { throw "NVDA exited with $($reader.ExitCode) during startup." }
         Select-String -LiteralPath $speechPath -SimpleMatch 'NVDA initialized' -Quiet -ErrorAction SilentlyContinue
     } 'NVDA startup' 60 | Out-Null
+    $record.Foreground.AfterNvda = [StorageReviewInput]::ForegroundProcess()
+    if ([StorageReviewInput]::GetForegroundWindow() -ne $handle) {
+        $record.Foreground.ActivationRequested = [StorageReviewInput]::SetForegroundWindow($handle)
+    }
     if ([StorageReviewInput]::GetForegroundWindow() -ne $handle) {
         if (![StorageReviewInput]::ClickUncoveredTitle($handle)) { throw 'A foreground window covers the owned FileCat fixture.' }
         Await { [StorageReviewInput]::GetForegroundWindow() -eq $handle } 'foreground FileCat after NVDA startup' | Out-Null
