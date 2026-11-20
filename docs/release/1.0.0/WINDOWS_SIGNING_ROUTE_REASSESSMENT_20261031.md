@@ -51,7 +51,7 @@ The owner obtained an SSL.com individual-validated code-signing certificate on 2
 - **Cost.** SSL.com's [eSigner IV/OV pricing](https://www.ssl.com/guide/esigner-pricing-for-code-signing/) lists Tier 1 at $180 a year for 240 signings and Tier 2 at $765 a year for 1,200; the first 30 days are free with unlimited signings. One win-x64 package build costs 57 signings ([E-SIGN-DRYRUN](evidence/E-SIGN-DRYRUN-20261120.md)).
 - **The hosted pipeline is built and passes with a throwaway test certificate.** Payloads, Setup and the uninstaller are signed inside packaging, and every PE file is verified independently with negative controls.
 
-Before the first real-identity signature, which the [Windows signing pilot](../../../.github/workflows/windows-signing-pilot.yml) makes:
+Steps 1–3 were done on 2026-11-20: custody is eSigner with an OTP-app second factor, the environment and secrets exist, and [pilot run 44822592170](evidence/E-SIGN-DRYRUN-20261120.md#real-identity-esigner-pilot) passed. Before the first real-identity signature, which the [Windows signing pilot](../../../.github/workflows/windows-signing-pilot.yml) makes:
 
 1. The owner confirms eSigner custody and keeps the TOTP secret (the secret code shown with the eSigner QR code) and the credential ID.
 2. The owner creates the `signing` environment:

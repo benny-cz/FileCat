@@ -1,4 +1,4 @@
-# E-SIGN-DRYRUN — hosted Windows signing pipeline, throwaway test certificate
+# E-SIGN-DRYRUN — hosted Windows signing pipeline: test-certificate dry runs and the eSigner pilot
 
 2026-11-20. **Preliminary automated; no FileCat signing identity was used and no signed byte left the runner.** This proves the hosted signing and verification machinery with a test signer that Windows does not trust. It does not satisfy I02, EXT-01 or `REL-SIGN-WINDOWS`.
 
@@ -80,3 +80,39 @@ Run 44812780579 details:
 - **Hashes (SHA-256):** report `80136710a7a756ef552e4f3224ce9834a5d229bec14ce549fc755c4cdcfe53c0`, `signed-outputs.json` `77768f7d8e3f8e739b7f9c4ab797ab883fd2bccb56fe462c631395cd0da2dc3f`, `unsigned-inputs.json` `4d7efb7144b2f25b49b6df880bb1cf94017cbc5e929fb1148df02f00d23023cf`.
 
 Not yet shown: everything eSigner-specific. That covers authentication with the account's TOTP secret, the credential ID, whether the account makes SSL.com scan files before it signs their digests, Windows-root trust with revocation, and the private draft. The first pilot run tests these.
+
+## Real-identity eSigner pilot
+
+The owner confirmed eSigner custody: the order uses eSigner with an OTP-app second factor, so the key is in SSL.com's cloud HSM, not on a token. The owner added the five `signing` environment secrets and approved each signing job. Agents never approved a deployment. In every run, the guard passed against the real environment.
+
+| Run | Source | Result |
+|---|---|---|
+| [44817968726](https://github.com/benny-cz/FileCat/actions/runs/44817968726) | `56cae306` | Cancelled by the owner before the build, to add the missing credential ID. Nothing was signed. |
+| [44818777169](https://github.com/benny-cz/FileCat/actions/runs/44818777169) | `56cae306` | Payload, Setup and uninstaller signed with FileCat's certificate, canary first. Verification against Windows' roots with revocation passed: 857 PE files, 271 FileCat-signed, 586 vendor-signed, 0 failed, 4/4 controls rejected, install round trip. Creating the draft then failed with HTTP 403: GitHub refuses a workflow token a release whose target commit's workflow files differ from the default branch, and `8023853a` changed `ci.yml` on main during the run. Fixed in `aa5b1ca4`: the draft targets the default branch, creates no tag, and names its source in its notes and `run.json`. |
+| [44821102973](https://github.com/benny-cz/FileCat/actions/runs/44821102973) | `aa5b1ca4` | The canary and 11 more files were signed. eSigner then answered HTTP 504 on its pre-signing hash scan (`cs.ssl.com/scan/hash`), and Jsign retries only timestamps. Fixed in `e31e3187`: up to four attempts, each sending only the files still unsigned. |
+| [44822592170](https://github.com/benny-cz/FileCat/actions/runs/44822592170) | `e31e3187` | Pass end to end with no retries needed, and the same verification counts. Private draft release 453215135 (`signing-pilot-44822592170`, target `main`, no tag created) holds 13 files. |
+
+**Independent re-verification on the development host** after downloading the draft:
+
+- All 13 assets match GitHub's server-side SHA-256 digests and sizes.
+- `run.json` records ESigner mode at `e31e3187`, pinned to the certificate whose public chain was inspected locally.
+- `Get-AuthenticodeSignature` reports Setup as Valid: issued by SSL.com Code Signing Intermediate CA RSA R1, signed by the pinned certificate, timestamped by SSL.com Timestamping Unit 2026 E1.
+- `Test-WindowsSignatures.ps1` with revocation over Setup and both ZIPs found 304 PE files: 107 FileCat-signed, 197 vendor-signed, 0 failed; 4/4 controls rejected.
+
+**Asset SHA-256:**
+- Setup (82,012,152 bytes): `d164b14224dd48af0c7f9ccd61da3fbb6338b0eca1175954eea542d29f111dd0`
+- Portable ZIP: `5e8e2469467d35276c8f9c75f589ad0a2879c04bf8ce1d014b0a7a61f5047df1`
+- Framework-dependent ZIP: `a1e104b1491c412aa72aea5147daed5def5c8f09818cb4b3217234c812f7e104`
+- CI report: `f772305c438bf4dde2a02e42d3e54d64270ac8e34ac6ed04e0a749b56ccbcf35`
+- `signed-outputs.json`: `11ef8e49b5ef3a8783549758c6d8878c4fac13b048cf26acd5a3bdef161b3aae`
+
+**eSigner behavior observed:**
+- The account requires SSL.com's pre-signing scan, which Jsign performs on each digest.
+- The service can answer a transient 504.
+- The pilot runs used about 126 signings in total.
+
+**Not shown:**
+- Smart App Control, SmartScreen reputation, ARM64, a GA physical Windows x64 PC, and the signed release pipeline itself.
+- The owner's decisions on publishing the certificate subject and on replacing the SignPath-specific contract.
+
+The draft stays private and is deleted after the owner's checks. No RC tag, candidate or public signed asset exists.
