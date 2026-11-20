@@ -1,20 +1,40 @@
+# The x64 switch is for a disposable Windows 11 client fixture with a prebuilt test DLL and a
+# medium-integrity launcher that writes its TRX into the owned case directory.
 param(
-    [Parameter(Mandatory)][string]$ScratchRoot
+    [Parameter(Mandatory)][string]$ScratchRoot,
+    [switch]$OwnedWindows11X64,
+    [string]$TestAssembly,
+    [string]$QualificationScript
 )
 
 $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath($ScratchRoot)
-if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ARCH -ne 'ARM64' -or
+if ($OwnedWindows11X64) {
+    if ($env:PROCESSOR_ARCHITECTURE -ne 'AMD64' -or $root -ine 'C:\FileCatDeviceLoss\case' -or
+        ![IO.Path]::IsPathFullyQualified($TestAssembly) -or
+        [IO.Path]::GetFileName($TestAssembly) -cne 'FileCat.Platform.Windows.Tests.dll' -or
+        !(Test-Path -LiteralPath $TestAssembly -PathType Leaf) -or
+        ![IO.Path]::IsPathFullyQualified($QualificationScript) -or
+        !(Test-Path -LiteralPath $QualificationScript -PathType Leaf) -or
+        (Test-Path -LiteralPath $root)) {
+        throw 'Use a fresh owned Windows 11 x64 fixture with an exact test assembly and medium-integrity launcher.'
+    }
+    $os = Get-CimInstance Win32_OperatingSystem
+    if ($os.Caption -notlike '*Windows 11*') { throw 'This owned fixture requires a Windows 11 x64 client.' }
+}
+elseif ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ARCH -ne 'ARM64' -or
     ![IO.Path]::IsPathFullyQualified($env:RUNNER_TEMP) -or
     !($root.StartsWith(([IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) -or
     $root -match '["\r\n]' -or $root -cne [Text.Encoding]::ASCII.GetString([Text.Encoding]::ASCII.GetBytes($root)) -or
-    (Test-Path -LiteralPath $root)) {
+    (Test-Path -LiteralPath $root) -or $TestAssembly -or $QualificationScript) {
     throw 'Choose a fresh ASCII scratch directory on the disposable Windows ARM64 runner.'
 }
 New-Item -ItemType Directory -Path $root | Out-Null
 
-$project = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../tests/FileCat.Platform.Windows.Tests'))
-$qualification = Join-Path $PSScriptRoot 'run-medium-integrity-test.ps1'
+$project = if ($OwnedWindows11X64) { [IO.Path]::GetFullPath($TestAssembly) }
+    else { [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../tests/FileCat.Platform.Windows.Tests')) }
+$qualification = if ($OwnedWindows11X64) { [IO.Path]::GetFullPath($QualificationScript) }
+    else { Join-Path $PSScriptRoot 'run-medium-integrity-test.ps1' }
 $powerShell = (Get-Process -Id $PID).Path
 
 function Get-FixtureDisk([string]$Image, [long]$ExpectedSize = 256MB) {
@@ -67,6 +87,7 @@ $cases = @(
     @{ Phase = 'after-decrypt'; Variable = 'FILECAT_TEST_EFS_DECRYPT_DEVICE_LOSS_CONTROL'; Efs = $true
         Test = 'Detaching_after_native_Efs_decryption_retains_an_uncertain_effect_without_key_evidence' }
 )
+if ($OwnedWindows11X64) { $cases = @($cases | Where-Object Phase -eq 'during-set') }
 foreach ($case in $cases) {
     $imageSize = if ($case.ImageSize) { [long]$case.ImageSize } else { 256MB }
     $caseRoot = Join-Path $root $case.Phase
@@ -157,7 +178,9 @@ foreach ($case in $cases) {
         New-Item -ItemType File -Path (Join-Path $caseRoot 'reattached') | Out-Null
         $exitWait = if ($case.Phase -eq 'during-set') { 180000 } else { 45000 }
         if (!$test.WaitForExit($exitWait) -or $test.ExitCode -ne 0) { throw 'The native test failed after remount.' }
-        [xml]$result = Get-Content -Raw -LiteralPath (Join-Path $project "TestResults/$trx")
+        $trxPath = if ($OwnedWindows11X64) { Join-Path $caseRoot $trx }
+            else { Join-Path $project "TestResults/$trx" }
+        [xml]$result = Get-Content -Raw -LiteralPath $trxPath
         $counters = $result.TestRun.ResultSummary.Counters
         if ($counters.total -ne '1' -or $counters.executed -ne '1' -or $counters.passed -ne '1') {
             throw 'The selected native case must execute and pass.'
