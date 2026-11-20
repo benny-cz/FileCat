@@ -624,8 +624,16 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
 
         private string SparseRanges()
         {
+            Span<byte> initial = stackalloc byte[24];
+            if (!TryRangeFacts(_item, initial, _size, ct))
+                return "yes (the held stream changed or became ineligible before its range query)";
+            if (WindowsStorageTransforms.SyncRootProblem(_item, ct) is { } cloud)
+                return "yes (range query omitted: " + cloud.Message + ")";
             using var handle = ReOpenForRanges(_item, FileReadData | FileReadAttributes | Synchronize, ShareAll, OpenReparsePoint);
             if (handle.IsInvalid) return "yes (its stored ranges cannot be read: " + new Win32Exception(Marshal.GetLastPInvokeError()).Message + ")";
+            Span<byte> before = stackalloc byte[24], after = stackalloc byte[24];
+            if (!TryRangeFacts(handle, before, _size, ct) || !initial.SequenceEqual(before))
+                return "yes (the held stream changed or became ineligible before its range query)";
             var observation = ReadAllocatedRangePages(_size, (offset, length, output) =>
             {
                 Span<byte> input = stackalloc byte[16];
@@ -634,6 +642,8 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                 int error = Ioctl(handle, FsctlQueryAllocatedRanges, input, output, out int returned);
                 return (error, returned);
             }, ct);
+            if (!TryRangeFacts(handle, after, _size, ct) || !before.SequenceEqual(after))
+                return "yes (the held stream changed during its range query; no complete inventory is available)";
             if (observation.State != FactState.Known)
                 return $"yes (stored-range inventory {observation.State.ToString().ToLowerInvariant()}: {observation.Reason ?? "no complete inventory"})";
             var ranges = observation.Value!;
